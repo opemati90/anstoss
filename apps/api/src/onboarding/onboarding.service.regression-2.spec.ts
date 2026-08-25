@@ -14,11 +14,7 @@ describe('OnboardingService secure team-code join', () => {
       teamAccess: { create: jest.fn() },
     }
     const joinRequests = { create: jest.fn().mockResolvedValue({ id: 'request-1' }) }
-    const service = new OnboardingService(
-      prisma as never,
-      {} as never,
-      joinRequests as never,
-    )
+    const service = new OnboardingService(prisma as never, {} as never, joinRequests as never)
 
     await expect(
       service.joinTeamByCode('user-1', {
@@ -33,5 +29,49 @@ describe('OnboardingService secure team-code join', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled()
     expect(prisma.membership.create).not.toHaveBeenCalled()
     expect(prisma.teamAccess.create).not.toHaveBeenCalled()
+  })
+
+  it('turns a coach code into an inert staff claim without membership or team access', async () => {
+    const prisma = {
+      team: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'team-1',
+          clubId: 'club-1',
+          club: { directoryEntry: { id: 'directory-1' } },
+        }),
+      },
+      clubClaim: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'claim-1' }),
+      },
+      membership: { create: jest.fn() },
+      teamAccess: { create: jest.fn() },
+      $transaction: jest.fn(),
+    }
+    const service = new OnboardingService(
+      prisma as never,
+      {} as never,
+      { create: jest.fn() } as never,
+    )
+
+    await expect(
+      service.joinTeamByCode('coach-1', {
+        joinCode: 'AB23XC45ZK',
+        role: 'COACH',
+      }),
+    ).resolves.toEqual({ clubId: 'club-1', teamId: 'team-1', status: 'PENDING' })
+    expect(prisma.clubClaim.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        clubId: 'club-1',
+        claimantUserId: 'coach-1',
+        kind: 'STAFF_CLAIM',
+        desiredRole: 'COACH',
+        requestedTeamIds: ['team-1'],
+        requestedTeamRoles: ['ASSISTANT_COACH'],
+      }),
+    })
+    expect(prisma.membership.create).not.toHaveBeenCalled()
+    expect(prisma.teamAccess.create).not.toHaveBeenCalled()
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 })

@@ -7,6 +7,7 @@ function makeService(
     channelMembers?: Array<{ userId: string }>
     callerMember?: { id: string } | null
     roster?: Array<{ userId: string; role: string }>
+    memberships?: Array<{ userId: string; role: string }>
     access?: { membership?: { role: string } | null; activeTeamAccess: Array<{ role: string }> }
   } = {},
 ) {
@@ -20,6 +21,7 @@ function makeService(
   ]
 
   const prisma = {
+    team: { findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }) },
     channel: {
       findFirst: jest.fn().mockResolvedValue(overrides.channel ?? null),
       findUnique: jest.fn().mockResolvedValue(overrides.channel ?? null),
@@ -34,18 +36,21 @@ function makeService(
       create: jest.fn().mockResolvedValue(undefined),
     },
     teamAccess: {
-      findMany: jest.fn().mockResolvedValue(
-        rosterAccess.map((r) => ({
-          userId: r.userId,
-          role: r.role,
-          user: { name: r.userId, email: `${r.userId}@x.de`, avatarUrl: null },
-        })),
-      ),
+      findMany: jest.fn().mockImplementation((query) => {
+        if (query?.where?.userId) return Promise.resolve(access.activeTeamAccess)
+        return Promise.resolve(
+          rosterAccess.map((r) => ({
+            userId: r.userId,
+            role: r.role,
+            user: { name: r.userId, email: `${r.userId}@x.de`, avatarUrl: null },
+          })),
+        )
+      }),
       findFirst: jest.fn().mockResolvedValue({ id: 'ta-1' }),
     },
     membership: {
-      findMany: jest.fn().mockResolvedValue([]),
-      findFirst: jest.fn().mockResolvedValue({ id: 'm-1' }),
+      findMany: jest.fn().mockResolvedValue(overrides.memberships ?? []),
+      findFirst: jest.fn().mockResolvedValue(access.membership ?? null),
     },
   }
 
@@ -74,6 +79,13 @@ const TEAM = {
   visibility: 'MEMBERS',
   clubId: 'club-1',
   teamId: 'team-1',
+}
+const STAFF = {
+  id: 'ch-staff',
+  kind: 'COACHES',
+  visibility: 'COACHES_ONLY',
+  clubId: 'club-1',
+  teamId: null,
 }
 
 describe('ChannelsService.listMembers', () => {
@@ -231,6 +243,42 @@ describe('ChannelsService CUSTOM access control', () => {
       },
       select: { userId: true, role: true, clubId: true },
     })
+  })
+
+  it('allows club staff but denies players from writing to the club staff room', async () => {
+    const staff = makeService({
+      channel: STAFF,
+      access: { membership: { role: 'ADMIN' }, activeTeamAccess: [] },
+    })
+    await expect(staff.service.assertWritable('admin-1', 'ch-staff')).resolves.toBeUndefined()
+
+    const player = makeService({
+      channel: STAFF,
+      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [{ role: 'PLAYER' }] },
+    })
+    await expect(player.service.assertWritable('player-1', 'ch-staff')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
+  })
+
+  it('fans a club staff room out across teams to admins and coaches only', async () => {
+    const { service } = makeService({
+      channel: STAFF,
+      roster: [
+        { userId: 'coach-team-a', role: 'HEAD_COACH' },
+        { userId: 'coach-team-b', role: 'ASSISTANT_COACH' },
+        { userId: 'player-1', role: 'PLAYER' },
+      ],
+      memberships: [
+        { userId: 'admin-1', role: 'ADMIN' },
+        { userId: 'player-1', role: 'PLAYER' },
+      ],
+    })
+    await expect(service.listChannelReaderIds('team-1', 'ch-staff')).resolves.toEqual(
+      expect.arrayContaining(['admin-1', 'coach-team-a', 'coach-team-b']),
+    )
+    const readers = await service.listChannelReaderIds('team-1', 'ch-staff')
+    expect(readers).not.toContain('player-1')
   })
 })
 

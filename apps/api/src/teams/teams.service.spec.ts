@@ -5,6 +5,7 @@ import {
   TeamAccessDeniedError,
   TeamAccessPhase,
   TeamAccessStatus,
+  TeamGroupType,
   TeamRole,
 } from '@anstoss/shared'
 import { Prisma } from '@prisma/client'
@@ -181,6 +182,31 @@ describe('TeamsService family access', () => {
       }),
     )
     expect(result.player?.id).toBe('player-1')
+  })
+})
+
+describe('TeamsService club authority boundary', () => {
+  it('does not let a coach create a new club team group', async () => {
+    const prisma = {
+      membership: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'membership-1',
+          clubId: 'club-1',
+          userId: 'coach-1',
+          role: MembershipRole.COACH,
+        }),
+      },
+      teamGroup: { count: jest.fn(), create: jest.fn() },
+    }
+    const service = new TeamsService(prisma as never)
+
+    await expect(
+      service.createTeamGroup('club-1', 'coach-1', {
+        type: TeamGroupType.SENIOR,
+        displayName: 'Herren',
+      }),
+    ).rejects.toBeInstanceOf(TeamAccessDeniedError)
+    expect(prisma.teamGroup.create).not.toHaveBeenCalled()
   })
 })
 

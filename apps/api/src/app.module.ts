@@ -38,6 +38,7 @@ import { CacheModule } from './cache/cache.module'
 import { ModerationModule } from './moderation/moderation.module'
 import { SponsorsModule } from './sponsors/sponsors.module'
 import { I18nModule, I18nMiddleware } from './i18n'
+import { ClubActivationModule } from './club-activation/club-activation.module'
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { I18nModule, I18nMiddleware } from './i18n'
     MediaModule,
     ModerationModule,
     SponsorsModule,
+    ClubActivationModule,
   ],
   controllers: [WellKnownController],
   providers: [],

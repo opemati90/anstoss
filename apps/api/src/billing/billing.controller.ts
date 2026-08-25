@@ -6,17 +6,14 @@ import {
   Param,
   Post,
   RawBody,
-  Res,
   UseGuards,
 } from '@nestjs/common'
-import type { Response } from 'express'
 import { MembershipRole } from '@anstoss/shared'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { BillingService } from './billing.service'
-import { EntitlementGuard, RequireFeature } from './entitlement.guard'
 
 @Controller()
 export class BillingController {
@@ -34,54 +31,6 @@ export class BillingController {
   @RequireRole(MembershipRole.ADMIN)
   getEntitlements(@Param('clubId') clubId: string) {
     return this.billingService.getEntitlements(clubId)
-  }
-
-  /**
-   * POST /clubs/:clubId/billing/connect — start or resume Stripe Connect onboarding.
-   * Returns { url } that the mobile app loads in a WebView.
-   */
-  @Post('clubs/:clubId/billing/connect')
-  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard, EntitlementGuard)
-  @RequireRole(MembershipRole.ADMIN)
-  @RequireFeature('contribution_intake')
-  @RateLimit('write')
-  async createConnectAccount(
-    @Param('clubId') clubId: string,
-    @Body() body: { returnUrl?: string; refreshUrl?: string },
-  ) {
-    const baseUrl = process.env.APP_URL ?? 'https://api.anstoss.io'
-    return this.billingService.createConnectAccount(
-      clubId,
-      body.returnUrl ?? `${baseUrl}/clubs/${clubId}/billing/connect/return`,
-      body.refreshUrl ?? `${baseUrl}/clubs/${clubId}/billing/connect/refresh-redirect`,
-    )
-  }
-
-  /**
-   * POST /clubs/:clubId/billing/connect/refresh — check if Connect onboarding completed.
-   */
-  @Post('clubs/:clubId/billing/connect/refresh')
-  @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
-  @RequireRole(MembershipRole.ADMIN)
-  refreshConnectStatus(@Param('clubId') clubId: string) {
-    return this.billingService.refreshConnectStatus(clubId)
-  }
-
-  /**
-   * GET /clubs/:clubId/billing/connect/return — Stripe redirects here after onboarding.
-   * Redirects into the app via deep link scheme.
-   */
-  @Get('clubs/:clubId/billing/connect/return')
-  connectReturn(@Res() res: Response) {
-    res.redirect('anstoss://stripe-connect?status=complete')
-  }
-
-  /**
-   * GET /clubs/:clubId/billing/connect/refresh-redirect — Stripe redirects here on refresh.
-   */
-  @Get('clubs/:clubId/billing/connect/refresh-redirect')
-  connectRefreshRedirect(@Res() res: Response) {
-    res.redirect('anstoss://stripe-connect?status=refresh')
   }
 
   /**

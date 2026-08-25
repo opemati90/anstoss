@@ -17,6 +17,18 @@ describe('jwt.util', () => {
     const claims = verifySessionToken(token)
     expect(claims.sub).toBe('user_123')
     expect(claims.exp - claims.iat).toBe(DEFAULT_SESSION_TTL_SECONDS)
+    expect(claims.auth_time).toBe(claims.iat)
+  })
+
+  it('preserves the original authentication time when a session is refreshed', () => {
+    const authenticatedAt = 1_700_000_000
+    const token = signSessionToken('user_123', {
+      now: (authenticatedAt + 3_600) * 1000,
+      authenticatedAt,
+    })
+    expect(verifySessionToken(token, { now: (authenticatedAt + 3_601) * 1000 }).auth_time).toBe(
+      authenticatedAt,
+    )
   })
 
   it('rejects a tampered payload', () => {

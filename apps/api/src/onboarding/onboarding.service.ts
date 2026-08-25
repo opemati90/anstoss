@@ -101,7 +101,11 @@ export class OnboardingService {
     }))
   }
 
-  async claimSlot(userId: string, rawPhone: string | null | undefined, slotId: string): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
+  async claimSlot(
+    userId: string,
+    rawPhone: string | null | undefined,
+    slotId: string,
+  ): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
     this.assertLegacyPhoneClaimIsTestOnly()
     const phone = this.resolvePhone(rawPhone)
     if (!phone) throw new ConflictException('Could not verify phone number')
@@ -142,7 +146,7 @@ export class OnboardingService {
       // Use the slot's DOB (set by the coach) as the authoritative source.
       // The user's own DOB (if already set) should agree; prefer the slot's
       // value since it is what triggered the claim.
-      const effectiveDob: Date | null = slot.dateOfBirth ?? (user?.dateOfBirth ?? null)
+      const effectiveDob: Date | null = slot.dateOfBirth ?? user?.dateOfBirth ?? null
       let teamAccessStatus: 'ACTIVE' | 'PENDING' = 'ACTIVE'
       if (effectiveDob) {
         const age = getAge(effectiveDob)
@@ -187,24 +191,16 @@ export class OnboardingService {
         })
       }
 
-      return { clubId: slot.team.clubId, teamId: slot.team.id, consentRequired: teamAccessStatus === 'PENDING' }
+      return {
+        clubId: slot.team.clubId,
+        teamId: slot.team.id,
+        consentRequired: teamAccessStatus === 'PENDING',
+      }
     })
   }
 
-  /**
-   * Team-code onboarding for non-admin roles. The team-code screen
-   * collects {joinCode, role} from the user; this resolves to a team
-   * and ensures Membership (+ TeamAccess for coaches) exists so the
-   * user lands in the app with a real club association instead of an
-   * orphaned authenticated session. Players land here too when their
-   * coach hasn't pre-built a roster slot for them.
-   *
-   * Players get a PLAYER membership + ACTIVE TeamAccess.
-   * Coaches get a PLAYER membership (intentional — approval is required
-   * before coach privileges are granted) + a PENDING ASSISTANT_COACH
-   * TeamAccess. On approval via decideCoachAccess / decideTrialAccess, the
-   * TeamAccess becomes ACTIVE and the Membership is elevated to COACH.
-   * Parent child-link setup is handled by ParentHandoffService.
+  /** Shared codes never grant access. Players create a manager-reviewed join
+   * request; coaches create an inert staff claim for a club owner/admin.
    */
   async joinTeamByCode(
     userId: string,
@@ -215,7 +211,10 @@ export class OnboardingService {
       throw new NotFoundException('Team not found for this code')
     }
 
-    if (input.role === 'PLAYER' && this.joinRequestsService) {
+    if (input.role === 'PLAYER') {
+      if (!this.joinRequestsService) {
+        throw new ForbiddenException('Team-code joining is temporarily unavailable')
+      }
       const team = await this.prisma.team.findUnique({
         where: { joinCode: code },
         select: { id: true, clubId: true },
@@ -228,85 +227,44 @@ export class OnboardingService {
       return { clubId: team.clubId, teamId: team.id, status: 'PENDING' }
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const team = await tx.team.findUnique({
+    if (input.role === 'COACH') {
+      const team = await this.prisma.team.findUnique({
         where: { joinCode: code },
-        select: { id: true, clubId: true, name: true, displayName: true },
+        select: {
+          id: true,
+          clubId: true,
+          club: { select: { directoryEntry: { select: { id: true } } } },
+        },
       })
       if (!team) throw new NotFoundException('Team not found for this code')
-
-      // All code-joined users start with PLAYER membership. Coaches are
-      // elevated to COACH membership only after a manager approves their
-      // PENDING ASSISTANT_COACH TeamAccess (see teams.service.ts
-      // decideTrialAccess / decidePendingCoachAccess). This prevents any
-      // user from self-granting club-management powers via a shared join code.
-      const existingMembership = await tx.membership.findFirst({
-        where: { userId, clubId: team.clubId },
+      if (!team.club.directoryEntry) {
+        throw new ForbiddenException('Ask a club administrator for a coach invitation')
+      }
+      const existing = await this.prisma.clubClaim.findFirst({
+        where: {
+          clubId: team.clubId,
+          claimantUserId: userId,
+          kind: 'STAFF_CLAIM',
+          status: { in: ['SUBMITTED', 'NEEDS_INFO'] },
+        },
       })
-      if (!existingMembership) {
-        await tx.membership.create({
-          data: { userId, clubId: team.clubId, role: 'PLAYER' },
+      if (!existing) {
+        await this.prisma.clubClaim.create({
+          data: {
+            directoryEntryId: team.club.directoryEntry.id,
+            clubId: team.clubId,
+            claimantUserId: userId,
+            kind: 'STAFF_CLAIM',
+            desiredRole: 'COACH',
+            requestedTeamIds: [team.id],
+            requestedTeamRoles: ['ASSISTANT_COACH'],
+            expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          },
         })
       }
-
-      // Coaches get pending access so the existing /team-access/:id/decision
-      // flow gates them. Parents use GuardianRelationship via parent handoff.
-      let status: 'ACTIVE' | 'PENDING' = 'ACTIVE'
-      if (input.role === 'COACH') {
-        const accessRole = 'ASSISTANT_COACH'
-        const existingAccess = await tx.teamAccess.findFirst({
-          where: { userId, teamId: team.id, role: accessRole },
-        })
-        if (!existingAccess) {
-          await tx.teamAccess.create({
-            data: {
-              userId,
-              teamId: team.id,
-              clubId: team.clubId,
-              role: accessRole,
-              status: 'PENDING',
-            },
-          })
-        }
-        status = 'PENDING'
-      } else if (input.role === 'PLAYER') {
-        const existingAccess = await tx.teamAccess.findFirst({
-          where: { userId, teamId: team.id, role: 'PLAYER' },
-        })
-        if (!existingAccess) {
-          await tx.teamAccess.create({
-            data: {
-              userId,
-              teamId: team.id,
-              clubId: team.clubId,
-              role: 'PLAYER',
-              status: 'ACTIVE',
-            },
-          })
-        }
-      }
-
-      return {
-        clubId: team.clubId,
-        teamId: team.id,
-        teamDisplayName: team.displayName || team.name,
-        status,
-      }
-    })
-
-    // Best-effort system welcome message for new players — non-blocking
-    if (result.status === 'ACTIVE') {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { name: true },
-      })
-      if (user) {
-        this.channelsService
-          .postSystemMessage(result.clubId, result.teamId, `👋 ${user.name} joined ${result.teamDisplayName}.`)
-          .catch(() => { /* tolerated */ })
-      }
+      return { clubId: team.clubId, teamId: team.id, status: 'PENDING' }
     }
 
-    return { clubId: result.clubId, teamId: result.teamId, status: result.status }
+    throw new ForbiddenException('Unsupported team-code role')
   }
 }

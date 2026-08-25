@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, ConflictException } from '@nestjs/common'
 import {
   InviteDeliveryChannel,
   InviteKind,
@@ -69,12 +69,64 @@ describe('InvitesService secure redemption', () => {
       prisma as never,
       {} as never,
       { postSystemMessage: jest.fn() } as never,
+      { assertCanActivatePlayer: jest.fn().mockResolvedValue(undefined) } as never,
     )
 
-    await expect(service.redeem(invite.code, 'user-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    )
+    await expect(service.redeem(invite.code, 'user-1')).rejects.toBeInstanceOf(BadRequestException)
     expect(tx.membership.upsert).not.toHaveBeenCalled()
     expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('InvitesService parental quota enforcement', () => {
+  it('checks the player seat before parental approval activates a pending minor', async () => {
+    const invite = {
+      id: 'approval-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      phase: TeamAccessPhase.FULL,
+      status: InviteStatus.PENDING,
+      expiresAt: new Date(Date.now() + 60_000),
+      recipientEmail: 'parent@example.com',
+      childName: 'Junior',
+      club: { id: 'club-1' },
+      team: { id: 'team-1' },
+      parentalConsent: { id: 'consent-1', playerUserId: 'child-1' },
+    }
+    const tx = {
+      invite: { update: jest.fn() },
+      membership: { upsert: jest.fn().mockResolvedValue({}) },
+      teamAccess: { upsert: jest.fn().mockResolvedValue({}) },
+      teamMember: { upsert: jest.fn() },
+      parentalConsent: { update: jest.fn() },
+      guardianRelationship: { create: jest.fn() },
+    }
+    const quota = jest.fn().mockRejectedValue(new ConflictException('plan limit'))
+    const prisma = {
+      invite: { findUnique: jest.fn().mockResolvedValue(invite) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+    const service = new InvitesService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      { assertCanActivatePlayer: quota } as never,
+    )
+
+    await expect(
+      (
+        service as unknown as {
+          redeemParentApproval: (
+            inviteId: string,
+            user: { id: string; email: string; name: string },
+          ) => Promise<unknown>
+        }
+      ).redeemParentApproval(
+        invite.id,
+        { id: 'parent-1', email: 'parent@example.com', name: 'Parent' },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException)
+    expect(quota).toHaveBeenCalledWith('club-1', 'child-1', tx)
+    expect(tx.teamMember.upsert).not.toHaveBeenCalled()
   })
 })

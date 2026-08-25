@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -34,6 +40,7 @@ import {
 import { buildClubPermissionMap } from '@anstoss/shared'
 import { inferLinkedTeamPerspective } from '../integrations/fussball.utils'
 import { lockPlayerTeamAccess, reconcileGuardianTeamAccess } from './guardian-team-access'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
@@ -43,6 +50,7 @@ export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly eventEmitter?: EventEmitter2,
+    private readonly clubEntitlements?: ClubEntitlementsService,
   ) {}
 
   async listTeamGroups(clubId: string, userId: string) {
@@ -149,7 +157,7 @@ export class TeamsService {
   }
 
   async createTeamGroup(clubId: string, userId: string, data: CreateTeamGroupInput) {
-    await this.assertClubManager(clubId, userId)
+    await this.assertClubAdministrator(clubId, userId)
 
     const existingCount = await this.prisma.teamGroup.count({
       where: { clubId },
@@ -171,7 +179,7 @@ export class TeamsService {
     userId: string,
     data: CreateHierarchicalTeamInput,
   ) {
-    await this.assertClubManager(clubId, userId)
+    await this.assertClubAdministrator(clubId, userId)
 
     const group = await this.prisma.teamGroup.findFirst({
       where: { id: groupId, clubId },
@@ -190,23 +198,23 @@ export class TeamsService {
       assistantCoachUserIds: [],
     })
 
-    const team = await this.prisma.team.create({
-      data: {
-        clubId,
-        groupId: group.id,
-        name: data.name.trim(),
-        displayName,
-        ageGroup: group.displayName,
-        squadLabel,
-        leagueName: data.leagueName?.trim() || null,
-        seasonStart: data.seasonStart ? new Date(data.seasonStart) : null,
-        // Auto-assign a shareable join code at creation so coaches/admins can
-        // hand it out immediately — no "regenerate first" step needed.
-        joinCode: await this.generateUniqueJoinCode(),
-      },
-      include: {
-        group: true,
-      },
+    const joinCode = await this.generateUniqueJoinCode()
+    const team = await this.prisma.$transaction(async (tx) => {
+      await this.requireEntitlements().assertCanCreateTeam(clubId, tx)
+      return tx.team.create({
+        data: {
+          clubId,
+          groupId: group.id,
+          name: data.name.trim(),
+          displayName,
+          ageGroup: group.displayName,
+          squadLabel,
+          leagueName: data.leagueName?.trim() || null,
+          seasonStart: data.seasonStart ? new Date(data.seasonStart) : null,
+          joinCode,
+        },
+        include: { group: true },
+      })
     })
 
     if (headCoachUserId) {
@@ -225,7 +233,7 @@ export class TeamsService {
     userId: string,
     input: UpdateTeamCoachAssignmentsInput,
   ) {
-    await this.assertClubManager(clubId, userId)
+    await this.assertClubAdministrator(clubId, userId)
 
     const team = await this.prisma.team.findFirst({
       where: {
@@ -1643,6 +1651,23 @@ export class TeamsService {
     }
 
     return membership
+  }
+
+  private async assertClubAdministrator(clubId: string, userId: string) {
+    const membership = await this.getMembership(userId, clubId)
+    if (membership.role !== MembershipRole.OWNER && membership.role !== MembershipRole.ADMIN) {
+      throw new TeamAccessDeniedError(
+        'Only the club owner or an administrator can change club teams.',
+      )
+    }
+    return membership
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Club quota enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 
   private async getMembership(userId: string, clubId: string) {

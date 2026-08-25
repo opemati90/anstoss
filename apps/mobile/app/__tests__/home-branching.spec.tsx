@@ -2,22 +2,18 @@ import React from 'react'
 import { render } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import HomeScreen from '../(tabs)/index'
-import {
-  setFeatureOverride,
-  clearFeatureOverrides,
-} from '../../src/utils/featureFlags'
+import { setFeatureOverride, clearFeatureOverrides } from '../../src/utils/featureFlags'
 
 type AuthState = {
   user: { name: string; registrationRole: string | null } | null
-  activeClub:
-    | {
-        role: string
-        club: { id: string; name: string; badgeUrl: string | null; primaryColor: string }
-        permissions?: Record<string, boolean>
-      }
-    | null
+  activeClub: {
+    role: string
+    club: { id: string; name: string; badgeUrl: string | null; primaryColor: string }
+    permissions?: Record<string, boolean>
+  } | null
   activeTeamId: string | null
   activeTeamAccess: { role: string } | null
+  activeRoleMode: 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT' | 'FREE_AGENT' | null
   teamsForActiveClub: unknown[]
 }
 
@@ -26,6 +22,7 @@ const authState: AuthState = {
   activeClub: null,
   activeTeamId: null,
   activeTeamAccess: null,
+  activeRoleMode: null,
   teamsForActiveClub: [],
 }
 
@@ -34,6 +31,7 @@ function resetAuthState() {
   authState.activeClub = null
   authState.activeTeamId = null
   authState.activeTeamAccess = null
+  authState.activeRoleMode = null
   authState.teamsForActiveClub = []
 }
 
@@ -242,6 +240,36 @@ describe('HomeScreen branching', () => {
 
     expect(await findByText('PLAYER HOME')).toBeTruthy()
     expect(queryByText('PARENT HOME')).toBeNull()
+  })
+
+  it('lets an admin who also plays explicitly enter the player home', async () => {
+    setFeatureOverride('anstoss.roleAwareHome', true)
+    authState.activeClub = {
+      role: 'ADMIN',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'PLAYER' }
+    authState.activeRoleMode = 'PLAYER'
+    const { findByText, queryByText } = render(wrap(<HomeScreen />))
+
+    expect(await findByText('PLAYER HOME')).toBeTruthy()
+    expect(queryByText('ADMIN HOME')).toBeNull()
+  })
+
+  it('lets a parent who also plays switch between parent and player homes', async () => {
+    setFeatureOverride('anstoss.roleAwareHome', true)
+    authState.activeClub = {
+      role: 'PARENT',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    authState.activeTeamAccess = { role: 'PLAYER' }
+    authState.activeRoleMode = 'PARENT'
+    const { findByText, queryByText } = render(wrap(<HomeScreen />))
+
+    expect(await findByText('PARENT HOME')).toBeTruthy()
+    expect(queryByText('PLAYER HOME')).toBeNull()
   })
 
   it('renders FreeAgentHome when no club and registrationRole is FREE_AGENT', async () => {

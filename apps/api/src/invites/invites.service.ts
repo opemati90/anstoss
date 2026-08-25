@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
@@ -12,6 +14,7 @@ import { tenantContext } from '../prisma/tenant.context'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { lockGuardianTeamAccess, lockPlayerTeamAccess } from '../teams/guardian-team-access'
 import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import {
   getAge,
   InviteDeliveryChannel,
@@ -24,6 +27,7 @@ import {
   TeamAccessPhase,
   TeamAccessStatus,
   TeamRole,
+  type CreateInviteCampaignInput,
   type CreateInviteInput,
 } from '@anstoss/shared'
 
@@ -38,6 +42,7 @@ export class InvitesService {
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
     private readonly channelsService: ChannelsService,
+    private readonly clubEntitlements?: ClubEntitlementsService,
   ) {}
 
   async create(
@@ -225,6 +230,230 @@ export class InvitesService {
     return invite
   }
 
+  async createCampaign(clubId: string, userId: string, input: CreateInviteCampaignInput) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true },
+    })
+    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
+      throw new ForbiddenException('Only club owners and administrators can create invite links')
+    }
+    const team = await this.prisma.team.findFirst({
+      where: { id: input.teamId, clubId },
+      select: { id: true },
+    })
+    if (!team) throw new NotFoundException('Team not found')
+
+    return tenantContext.run({ clubId, userId }, () =>
+      this.prisma.inviteCampaign.create({
+        data: {
+          clubId,
+          teamId: team.id,
+          createdById: userId,
+          type: input.type,
+          role: input.role,
+          recipientEmail: input.recipientEmail?.trim().toLowerCase() ?? null,
+          code: randomBytes(24).toString('base64url'),
+          maxUses: input.maxUses,
+          expiresAt: new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000),
+        },
+        include: {
+          club: { select: { id: true, name: true, badgeUrl: true } },
+          team: { select: { id: true, name: true, displayName: true } },
+        },
+      }),
+    )
+  }
+
+  async validateCampaign(code: string) {
+    const campaign = await this.prisma.inviteCampaign.findUnique({
+      where: { code },
+      include: {
+        club: { select: { id: true, name: true, slug: true, badgeUrl: true, primaryColor: true } },
+        team: { include: { group: true } },
+      },
+    })
+    if (
+      !campaign ||
+      campaign.status !== 'ACTIVE' ||
+      campaign.expiresAt <= new Date() ||
+      campaign.useCount >= campaign.maxUses
+    ) {
+      throw new NotFoundException('Invite link is invalid or expired')
+    }
+    return {
+      code: campaign.code,
+      type: campaign.type,
+      role: campaign.role,
+      club: campaign.club,
+      team: campaign.team,
+      expiresAt: campaign.expiresAt,
+      remainingUses: campaign.maxUses - campaign.useCount,
+    }
+  }
+
+  async listCampaigns(clubId: string, userId: string) {
+    await this.assertCampaignManager(clubId, userId)
+    return this.prisma.inviteCampaign.findMany({
+      where: { clubId },
+      include: { team: { select: { id: true, displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async revokeCampaign(clubId: string, campaignId: string, userId: string) {
+    await this.assertCampaignManager(clubId, userId)
+    const result = await tenantContext.run({ clubId, userId }, () =>
+      this.prisma.inviteCampaign.updateMany({
+        where: { id: campaignId, clubId, status: { in: ['ACTIVE', 'PAUSED'] } },
+        data: { status: 'REVOKED' },
+      }),
+    )
+    if (result.count !== 1) throw new NotFoundException('Active invite campaign not found')
+    return { revoked: true }
+  }
+
+  async redeemAny(code: string, userId: string, input?: RedeemInviteInput) {
+    const campaign = await this.prisma.inviteCampaign.findUnique({
+      where: { code },
+      select: { id: true },
+    })
+    return campaign ? this.redeemCampaign(code, userId) : this.redeem(code, userId, input)
+  }
+
+  private async assertCampaignManager(clubId: string, userId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true },
+    })
+    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
+      throw new ForbiddenException('Only club owners and administrators can manage invite links')
+    }
+  }
+
+  async redeemCampaign(code: string, userId: string) {
+    const campaign = await this.prisma.inviteCampaign.findUnique({
+      where: { code },
+      include: { club: true, team: true },
+    })
+    if (!campaign) throw new NotFoundException('Invite link is invalid or expired')
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, dateOfBirth: true },
+    })
+    if (!user?.email) throw new InviteRecipientMismatchError('A verified email is required')
+    if (
+      campaign.type === 'IDENTITY_BOUND' &&
+      user.email.toLowerCase() !== campaign.recipientEmail?.toLowerCase()
+    ) {
+      throw new InviteRecipientMismatchError('This invitation belongs to another email address')
+    }
+
+    return tenantContext.run({ clubId: campaign.clubId, userId }, () =>
+      this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invite-campaign:${campaign.id}`}))`
+        const current = await tx.inviteCampaign.findUnique({ where: { id: campaign.id } })
+        if (
+          !current ||
+          current.status !== 'ACTIVE' ||
+          current.expiresAt <= new Date() ||
+          current.useCount >= current.maxUses
+        ) {
+          throw new NotFoundException('Invite link is invalid or expired')
+        }
+        const prior = await tx.inviteRedemption.findUnique({
+          where: { campaignId_userId: { campaignId: current.id, userId } },
+        })
+        if (prior) throw new ConflictException('You already used this invitation')
+
+        let result: { status: 'ACTIVE' | 'PENDING'; clubId: string; teamId: string }
+        if (current.type === 'IDENTITY_BOUND') {
+          if (current.role === TeamRole.PLAYER && !user.dateOfBirth) {
+            throw new BadRequestException('Date of birth is required to join as a player')
+          }
+          if (
+            current.role === TeamRole.PLAYER &&
+            user.dateOfBirth &&
+            getAge(user.dateOfBirth) < 16
+          ) {
+            throw new BadRequestException(
+              'Players under 16 require the guardian approval invitation flow',
+            )
+          }
+          if (current.role === TeamRole.PLAYER) {
+            await this.requireEntitlements().assertCanActivatePlayer(current.clubId, userId, tx)
+          }
+          await tx.membership.upsert({
+            where: { userId_clubId: { userId, clubId: current.clubId } },
+            create: { userId, clubId: current.clubId, role: MembershipRole.PLAYER },
+            update: {},
+          })
+          await tx.teamAccess.upsert({
+            where: {
+              teamId_userId_role: { teamId: current.teamId, userId, role: current.role },
+            },
+            create: {
+              clubId: current.clubId,
+              teamId: current.teamId,
+              userId,
+              role: current.role,
+              phase: TeamAccessPhase.FULL,
+              status: TeamAccessStatus.ACTIVE,
+            },
+            update: { phase: TeamAccessPhase.FULL, status: TeamAccessStatus.ACTIVE },
+          })
+          if (current.role === TeamRole.PLAYER) {
+            await tx.teamMember.upsert({
+              where: { teamId_userId: { teamId: current.teamId, userId } },
+              create: { teamId: current.teamId, userId },
+              update: { operationalStatus: 'ACTIVE' },
+            })
+          }
+          result = { status: 'ACTIVE', clubId: current.clubId, teamId: current.teamId }
+        } else {
+          const request = await tx.joinRequest.findUnique({
+            where: { clubId_userId: { clubId: current.clubId, userId } },
+          })
+          if (request?.status === 'APPROVED') {
+            throw new ConflictException('You already belong to this club')
+          }
+          await tx.joinRequest.upsert({
+            where: { clubId_userId: { clubId: current.clubId, userId } },
+            create: {
+              clubId: current.clubId,
+              userId,
+              teamId: current.teamId,
+              role: current.role,
+              status: 'PENDING',
+              message: 'Requested through a club invite link',
+            },
+            update: {
+              teamId: current.teamId,
+              role: current.role,
+              status: 'PENDING',
+              reviewedBy: null,
+              reviewedAt: null,
+            },
+          })
+          result = { status: 'PENDING', clubId: current.clubId, teamId: current.teamId }
+        }
+
+        await tx.inviteRedemption.create({
+          data: { clubId: current.clubId, campaignId: current.id, userId },
+        })
+        const nextUseCount = current.useCount + 1
+        await tx.inviteCampaign.update({
+          where: { id: current.id },
+          data: {
+            useCount: nextUseCount,
+            status: nextUseCount >= current.maxUses ? 'EXPIRED' : 'ACTIVE',
+          },
+        })
+        return result
+      }),
+    )
+  }
+
   async redeem(code: string, userId: string, input: RedeemInviteInput = {}) {
     const invite = await this.validate(code)
     const user = await this.prisma.user.findUnique({
@@ -301,6 +530,9 @@ export class InvitesService {
     const membershipRole = mapTeamRoleToMembershipRole(invite.role)
 
     const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
+      if (invite.role === TeamRole.PLAYER) {
+        await this.requireEntitlements().assertCanActivatePlayer(invite.clubId, user.id, tx)
+      }
       if (invite.role === TeamRole.PARENT && invite.linkedPlayerUserId) {
         // One parent has a single PARENT TeamAccess row per target team. Serialize
         // linked-child redemptions so concurrent invites cannot overwrite a
@@ -713,6 +945,11 @@ export class InvitesService {
         },
       })
 
+      await this.requireEntitlements().assertCanActivatePlayer(
+        invite.clubId,
+        consent.playerUserId,
+        tx,
+      )
       await tx.teamAccess.upsert({
         where: {
           teamId_userId_role: {
@@ -819,6 +1056,13 @@ export class InvitesService {
     if (claimed.count !== 1) {
       throw new BadRequestException('Invite already used, expired, or revoked')
     }
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 }
 

@@ -4,15 +4,12 @@ import {
   ActionSheetIOS,
   Alert,
   Platform,
+  Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native'
-import {
-  ClubCapability,
-  ClubOperationalRole,
-  MembershipRole,
-} from '@anstoss/shared'
+import { ClubCapability, ClubOperationalRole, MembershipRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -62,6 +59,15 @@ type PendingAction =
   | { userId: string; kind: 'offboard' }
   | null
 
+type StaffClaim = {
+  id: string
+  desiredRole: 'ADMIN' | 'COACH'
+  requestedTeamIds: string[]
+  requestedTeamRoles: string[]
+  status: 'SUBMITTED' | 'NEEDS_INFO'
+  claimant: { id: string; name: string; email: string | null; avatarUrl: string | null }
+}
+
 const ROLE_ORDER: MembershipRole[] = [
   MembershipRole.OWNER,
   MembershipRole.ADMIN,
@@ -90,27 +96,22 @@ const STAFF_ROLES = new Set<MembershipRole>([
   MembershipRole.COACH,
 ])
 
-const CRITICAL_OPERATIONAL_ROLES = new Set<ClubOperationalRole>(
-  CRITICAL_ROLE_ORDER,
-)
+const CRITICAL_OPERATIONAL_ROLES = new Set<ClubOperationalRole>(CRITICAL_ROLE_ORDER)
 
 export default function ClubStaffScreen() {
   const { t } = useTranslation()
   const { user, activeClub } = useAuth()
   const c = useClubColors()
   const [members, setMembers] = useState<ClubMember[]>([])
+  const [staffClaims, setStaffClaims] = useState<StaffClaim[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
-  const [roleSheetMember, setRoleSheetMember] = useState<ClubMember | null>(
-    null,
-  )
-  const [operationsSheetMember, setOperationsSheetMember] =
-    useState<ClubMember | null>(null)
+  const [roleSheetMember, setRoleSheetMember] = useState<ClubMember | null>(null)
+  const [operationsSheetMember, setOperationsSheetMember] = useState<ClubMember | null>(null)
 
   const canManageStaff =
-    activeClub?.role === MembershipRole.OWNER ||
-    activeClub?.role === MembershipRole.ADMIN
+    activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
 
   const fetchMembers = useCallback(async () => {
     if (!activeClub || !canManageStaff) {
@@ -120,26 +121,28 @@ export default function ClubStaffScreen() {
     }
 
     try {
-      const data = await api<ClubMember[]>(
-        `/clubs/${activeClub.club.id}/members`,
-      )
+      const [data, claims] = await Promise.all([
+        api<ClubMember[]>(`/clubs/${activeClub.club.id}/members`),
+        api<StaffClaim[]>(`/clubs/${activeClub.club.id}/staff-access-requests`),
+      ])
       const safe = (Array.isArray(data) ? data : [])
         .filter((m) => m && m.id && m.userId && m.user?.name)
         .map((m) => ({
           ...m,
-          operationalRoles: Array.isArray(m.operationalRoles)
-            ? m.operationalRoles
-            : [],
+          operationalRoles: Array.isArray(m.operationalRoles) ? m.operationalRoles : [],
           user: {
             ...m.user,
             name: m.user?.name || '-',
             email: m.user?.email || '',
-            teamAccess: Array.isArray(m.user?.teamAccess)
-              ? m.user.teamAccess
-              : [],
+            teamAccess: Array.isArray(m.user?.teamAccess) ? m.user.teamAccess : [],
           },
         })) as ClubMember[]
       setMembers(safe)
+      setStaffClaims(
+        (Array.isArray(claims) ? claims : []).filter(
+          (claim) => claim.status === 'SUBMITTED' || claim.status === 'NEEDS_INFO',
+        ),
+      )
     } catch {
       Alert.alert(t('common.error'), t('clubStaff.loadError'))
     } finally {
@@ -163,8 +166,7 @@ export default function ClubStaffScreen() {
         const roleDelta = ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
         if (roleDelta !== 0) return roleDelta
         const criticalDelta =
-          countCriticalRoles(b.operationalRoles) -
-          countCriticalRoles(a.operationalRoles)
+          countCriticalRoles(b.operationalRoles) - countCriticalRoles(a.operationalRoles)
         if (criticalDelta !== 0) return criticalDelta
         return a.user.name.localeCompare(b.user.name, 'de')
       }),
@@ -174,9 +176,7 @@ export default function ClubStaffScreen() {
   const operationalCoverage = useMemo(
     () =>
       CRITICAL_ROLE_ORDER.map((role) => {
-        const holders = sortedMembers.filter((m) =>
-          (m.operationalRoles ?? []).includes(role),
-        )
+        const holders = sortedMembers.filter((m) => (m.operationalRoles ?? []).includes(role))
         return {
           role,
           count: holders.length,
@@ -187,14 +187,11 @@ export default function ClubStaffScreen() {
   )
 
   const operationalAssignmentsCount = useMemo(
-    () =>
-      sortedMembers.filter((m) => (m.operationalRoles ?? []).length > 0).length,
+    () => sortedMembers.filter((m) => (m.operationalRoles ?? []).length > 0).length,
     [sortedMembers],
   )
 
-  const criticalCoverageCount = operationalCoverage.filter(
-    (e) => e.count > 0,
-  ).length
+  const criticalCoverageCount = operationalCoverage.filter((e) => e.count > 0).length
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -217,9 +214,7 @@ export default function ClubStaffScreen() {
         return [
           MembershipRole.ADMIN,
           MembershipRole.COACH,
-          ...(hasCoachAssignments
-            ? []
-            : [MembershipRole.PLAYER, MembershipRole.PARENT]),
+          ...(hasCoachAssignments ? [] : [MembershipRole.PLAYER, MembershipRole.PARENT]),
         ].filter((r) => r !== member.role)
       }
 
@@ -227,9 +222,7 @@ export default function ClubStaffScreen() {
         if (member.role === MembershipRole.ADMIN) return []
         return [
           MembershipRole.COACH,
-          ...(hasCoachAssignments
-            ? []
-            : [MembershipRole.PLAYER, MembershipRole.PARENT]),
+          ...(hasCoachAssignments ? [] : [MembershipRole.PLAYER, MembershipRole.PARENT]),
         ].filter((r) => r !== member.role)
       }
 
@@ -238,19 +231,12 @@ export default function ClubStaffScreen() {
     [activeClub, canManageStaff, user],
   )
 
-  const canChangeRole = (member: ClubMember) =>
-    getAvailableRoles(member).length > 0
+  const canChangeRole = (member: ClubMember) => getAvailableRoles(member).length > 0
   const canChangeOps = (member: ClubMember) => {
     if (!activeClub || !canManageStaff) return false
-    if (
-      member.role === MembershipRole.OWNER &&
-      activeClub.role !== MembershipRole.OWNER
-    )
+    if (member.role === MembershipRole.OWNER && activeClub.role !== MembershipRole.OWNER)
       return false
-    if (
-      activeClub.role === MembershipRole.ADMIN &&
-      member.role === MembershipRole.ADMIN
-    )
+    if (activeClub.role === MembershipRole.ADMIN && member.role === MembershipRole.ADMIN)
       return false
     return true
   }
@@ -258,10 +244,7 @@ export default function ClubStaffScreen() {
     if (!user || !activeClub || !canManageStaff) return false
     if (member.userId === user.id) return false
     if (member.role === MembershipRole.OWNER) return false
-    if (
-      activeClub.role === MembershipRole.ADMIN &&
-      member.role === MembershipRole.ADMIN
-    )
+    if (activeClub.role === MembershipRole.ADMIN && member.role === MembershipRole.ADMIN)
       return false
     return true
   }
@@ -282,6 +265,22 @@ export default function ClubStaffScreen() {
     }
   }
 
+  const reviewStaffClaim = async (claim: StaffClaim, decision: 'APPROVE' | 'REJECT') => {
+    if (!activeClub) return
+    setPendingAction({ userId: claim.claimant.id, kind: 'role' })
+    try {
+      await api(`/clubs/${activeClub.club.id}/staff-access-requests/${claim.id}/decision`, {
+        method: 'POST',
+        body: { decision },
+      })
+      await fetchMembers()
+    } catch (error) {
+      Alert.alert(t('common.error'), error instanceof Error ? error.message : t('common.tryAgain'))
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   const submitOperationalRoles = async (
     member: ClubMember,
     operationalRoles: ClubOperationalRole[],
@@ -289,10 +288,10 @@ export default function ClubStaffScreen() {
     if (!activeClub) return
     setPendingAction({ userId: member.userId, kind: 'operations' })
     try {
-      await api(
-        `/clubs/${activeClub.club.id}/members/${member.userId}/operational-roles`,
-        { method: 'PATCH', body: { operationalRoles } },
-      )
+      await api(`/clubs/${activeClub.club.id}/members/${member.userId}/operational-roles`, {
+        method: 'PATCH',
+        body: { operationalRoles },
+      })
       await fetchMembers()
     } catch (error) {
       Alert.alert(t('common.error'), getOperationalRoleErrorMessage(error, t))
@@ -301,17 +300,14 @@ export default function ClubStaffScreen() {
     }
   }
 
-  const offboardMember = async (
-    member: ClubMember,
-    preservePlayerAccess: boolean,
-  ) => {
+  const offboardMember = async (member: ClubMember, preservePlayerAccess: boolean) => {
     if (!activeClub) return
     setPendingAction({ userId: member.userId, kind: 'offboard' })
     try {
-      await api(
-        `/clubs/${activeClub.club.id}/members/${member.userId}/offboard`,
-        { method: 'POST', body: { preservePlayerAccess } },
-      )
+      await api(`/clubs/${activeClub.club.id}/members/${member.userId}/offboard`, {
+        method: 'POST',
+        body: { preservePlayerAccess },
+      })
       await fetchMembers()
       Alert.alert(
         t('clubStaff.offboardSuccessTitle'),
@@ -345,7 +341,12 @@ export default function ClubStaffScreen() {
 
   /** iOS-native action sheet — tap row → choose action. */
   const openMemberActions = (member: ClubMember) => {
-    const actions: Array<{ label: string; perform: () => void; destructive?: boolean; disabled?: boolean }> = [
+    const actions: Array<{
+      label: string
+      perform: () => void
+      destructive?: boolean
+      disabled?: boolean
+    }> = [
       {
         label: t('clubStaff.changeRoleCta'),
         perform: () => setRoleSheetMember(member),
@@ -384,8 +385,7 @@ export default function ClubStaffScreen() {
           title: member.user.name,
           options: labels,
           cancelButtonIndex,
-          destructiveButtonIndex:
-            destructiveIndex >= 0 ? destructiveIndex : undefined,
+          destructiveButtonIndex: destructiveIndex >= 0 ? destructiveIndex : undefined,
         },
         (idx) => {
           if (idx !== undefined && idx >= 0 && idx < enabled.length) {
@@ -445,9 +445,7 @@ export default function ClubStaffScreen() {
       padded={false}
       style={{ backgroundColor: c.surfaceSunken }}
       contentStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {/* Overview section — 3 stats as iOS Settings rows. */}
       <SectionGroup
@@ -455,9 +453,7 @@ export default function ClubStaffScreen() {
         style={styles.section}
       >
         <ListRow
-          left={
-            <SettingsIcon name="person.2.fill" tint={SettingsIconTint.gray} />
-          }
+          left={<SettingsIcon name="person.2.fill" tint={SettingsIconTint.gray} />}
           title={t('clubStaff.summaryMembers')}
           right={
             <Text variant="body" color="secondary" tabular>
@@ -466,9 +462,7 @@ export default function ClubStaffScreen() {
           }
         />
         <ListRow
-          left={
-            <SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />
-          }
+          left={<SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />}
           title={t('clubStaff.summaryOperational')}
           right={
             <Text variant="body" color="secondary" tabular>
@@ -477,22 +471,74 @@ export default function ClubStaffScreen() {
           }
         />
         <ListRow
-          left={
-            <SettingsIcon name="checkmark.seal.fill" tint={SettingsIconTint.gray} />
-          }
+          left={<SettingsIcon name="checkmark.seal.fill" tint={SettingsIconTint.gray} />}
           title={t('clubStaff.summaryCritical')}
           right={
             <StatusPill
               label={`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
-              tone={
-                criticalCoverageCount === CRITICAL_ROLE_ORDER.length
-                  ? 'success'
-                  : 'warning'
-              }
+              tone={criticalCoverageCount === CRITICAL_ROLE_ORDER.length ? 'success' : 'warning'}
             />
           }
         />
       </SectionGroup>
+
+      {staffClaims.length > 0 ? (
+        <SectionGroup
+          header={t('clubStaff.accessRequests', { defaultValue: 'Staff access requests' })}
+          footer={t('clubStaff.accessRequestsHint', {
+            defaultValue:
+              'Approving a coach grants only the selected team roles. Admin authority remains separate.',
+          })}
+          style={styles.section}
+        >
+          {staffClaims.map((claim) => {
+            const canApproveClaim =
+              claim.desiredRole !== 'ADMIN' || activeClub?.role === MembershipRole.OWNER
+            const requestedRoles = claim.requestedTeamRoles
+              .map((role) => t(`teamRoles.${role}`, { defaultValue: role }))
+              .join(', ')
+            return (
+              <ListRow
+                key={claim.id}
+                left={
+                  <Avatar
+                    size="md"
+                    src={claim.claimant.avatarUrl}
+                    fallbackText={claim.claimant.name}
+                  />
+                }
+                title={claim.claimant.name}
+                subtitle={`${t(`roles.${claim.desiredRole}`, { defaultValue: claim.desiredRole })} · ${requestedRoles || t('clubStaff.noTeamRole', { defaultValue: 'No team role' })}${!canApproveClaim ? ` · ${t('clubStaff.ownerApprovalRequired', { defaultValue: 'Owner approval required' })}` : ''}`}
+                subtitleNumberOfLines={2}
+                right={
+                  <View style={styles.requestActions}>
+                    {canApproveClaim ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        style={styles.requestButton}
+                        onPress={() => void reviewStaffClaim(claim, 'APPROVE')}
+                      >
+                        <Text variant="footnote" weight="semibold" color="primary">
+                          {t('pendingRequests.approve')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      style={styles.requestButton}
+                      onPress={() => void reviewStaffClaim(claim, 'REJECT')}
+                    >
+                      <Text variant="footnote" weight="semibold" color="error">
+                        {t('pendingRequests.reject')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                }
+              />
+            )
+          })}
+        </SectionGroup>
+      ) : null}
 
       {/* Critical role coverage — each role as its own row. */}
       <SectionGroup
@@ -503,13 +549,9 @@ export default function ClubStaffScreen() {
         {operationalCoverage.map((entry) => (
           <ListRow
             key={entry.role}
-            left={
-              <SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />
-            }
+            left={<SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />}
             title={t(`clubStaff.operationalRole.${entry.role}`)}
-            subtitle={
-              entry.count > 0 ? entry.names.join(', ') : undefined
-            }
+            subtitle={entry.count > 0 ? entry.names.join(', ') : undefined}
             subtitleNumberOfLines={2}
             right={
               entry.count > 0 ? (
@@ -533,12 +575,7 @@ export default function ClubStaffScreen() {
           </View>
         ) : sortedMembers.length === 0 ? (
           <ListRow
-            left={
-              <SettingsIcon
-                name="info.circle.fill"
-                tint={SettingsIconTint.gray}
-              />
-            }
+            left={<SettingsIcon name="info.circle.fill" tint={SettingsIconTint.gray} />}
             title={t('clubStaff.emptyTitle', { defaultValue: 'No staff yet' })}
             subtitle={t('clubStaff.emptyBody')}
             subtitleNumberOfLines={3}
@@ -547,20 +584,12 @@ export default function ClubStaffScreen() {
           sortedMembers.map((m) => {
             const isPending = pendingAction?.userId === m.userId
             const ops = m.operationalRoles ?? []
-            const opLabels = ops
-              .map((r) => t(`clubStaff.operationalRole.${r}`))
-              .join(', ')
+            const opLabels = ops.map((r) => t(`clubStaff.operationalRole.${r}`)).join(', ')
 
             return (
               <ListRow
                 key={m.id}
-                left={
-                  <Avatar
-                    size="md"
-                    src={m.user.avatarUrl}
-                    fallbackText={m.user.name}
-                  />
-                }
+                left={<Avatar size="md" src={m.user.avatarUrl} fallbackText={m.user.name} />}
                 title={m.user.name}
                 subtitle={opLabels || undefined}
                 right={
@@ -613,14 +642,12 @@ export default function ClubStaffScreen() {
           label: t(`clubStaff.operationalRole.${role}`),
           value: role,
           disabled:
-            activeClub.role === MembershipRole.ADMIN &&
-            CRITICAL_OPERATIONAL_ROLES.has(role),
+            activeClub.role === MembershipRole.ADMIN && CRITICAL_OPERATIONAL_ROLES.has(role),
         }))}
         selectedValues={operationsSheetMember?.operationalRoles || []}
         saveLabel={t('common.save')}
         onSave={(roles) => {
-          if (operationsSheetMember)
-            void submitOperationalRoles(operationsSheetMember, roles)
+          if (operationsSheetMember) void submitOperationalRoles(operationsSheetMember, roles)
         }}
         onClose={() => setOperationsSheetMember(null)}
       />
@@ -689,11 +716,7 @@ function getOffboardErrorMessage(
   if (message.includes('Admins cannot change other admins')) {
     return t('clubStaff.adminLockedBody')
   }
-  if (
-    message.includes(
-      'Reassign secretary or treasurer responsibilities before offboarding',
-    )
-  ) {
+  if (message.includes('Reassign secretary or treasurer responsibilities before offboarding')) {
     return t('clubStaff.criticalRoleReassignBody')
   }
   return t('clubStaff.offboardError')
@@ -717,5 +740,15 @@ const styles = StyleSheet.create({
   inlineLoader: {
     paddingVertical: space.xl,
     alignItems: 'center',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  requestButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: space.xs,
   },
 })

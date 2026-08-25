@@ -54,6 +54,8 @@ export const TENANT_SCOPED_MODELS = new Set([
   'Event',
   'Message',
   'Invite',
+  'InviteCampaign',
+  'InviteRedemption',
   'TrialInvite',
   'InjuryReport',
   'TeamDutyAssignment',
@@ -62,6 +64,9 @@ export const TENANT_SCOPED_MODELS = new Set([
   'ContributionAssignment',
   'ContributionRecord',
   'ContributionReminder',
+  'BankImportBatch',
+  'BankTransaction',
+  'ContributionMatch',
   'EventCheckIn',
 ])
 
@@ -99,6 +104,14 @@ export const TENANT_UNSCOPED_MODELS = new Set([
   'JoinRequest',
   'NotificationPreference',
   'Sponsor',
+  // Claim and ownership workflows must be readable before a caller has club
+  // access and are guarded by claimant/reviewer/owner checks in their service.
+  'ClubClaim',
+  'ClubDispute',
+  'OwnershipTransfer',
+  // Platform-managed commercial state is created from signed webhooks or the
+  // platform console and is intentionally queried across clubs.
+  'EntitlementGrant',
 ])
 
 export const READ_ACTIONS = new Set([

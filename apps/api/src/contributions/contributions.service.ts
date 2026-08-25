@@ -28,12 +28,13 @@ import {
   ContributionRecordStatus,
   ContributionReminderStatus,
   ContributionReminderTrigger,
+  Prisma,
+  TeamRole,
 } from '@prisma/client'
 import { AuditService } from '../audit/audit.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
-import { BillingService } from '../billing/billing.service'
 import {
   buildContributionReminderEmail,
   buildPaymentReceiptEmail,
@@ -51,13 +52,9 @@ type ClubMember = {
   }
 }
 
-type PlanRow = Awaited<
-  ReturnType<ContributionsService['listPlanRows']>
->[number]
+type PlanRow = Awaited<ReturnType<ContributionsService['listPlanRows']>>[number]
 
-type AssignmentRow = Awaited<
-  ReturnType<ContributionsService['listActiveAssignments']>
->[number]
+type AssignmentRow = Awaited<ReturnType<ContributionsService['listActiveAssignments']>>[number]
 
 type EnsuredRecord = {
   assignment: AssignmentRow
@@ -89,13 +86,9 @@ export class ContributionsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly pushService: PushService,
-    private readonly billingService: BillingService,
   ) {}
 
-  async getSettings(
-    clubId: string,
-    userId: string,
-  ): Promise<ContributionSettings> {
+  async getSettings(clubId: string, userId: string): Promise<ContributionSettings> {
     await this.assertBillingAccess(clubId, userId)
     const settings = await this.ensureSettings(clubId)
     return toContributionSettings(settings)
@@ -177,7 +170,7 @@ export class ContributionsService {
         cadence: input.cadence,
         targetRole: input.targetRole,
         dueDay: input.dueDay,
-        dueMonth: input.cadence === 'YEARLY' ? input.dueMonth ?? 1 : null,
+        dueMonth: input.cadence === 'YEARLY' ? (input.dueMonth ?? 1) : null,
         graceDays: input.graceDays ?? 0,
         reminderDaysBefore: normalizeDayOffsets(input.reminderPolicy.daysBefore),
         reminderDaysAfter: normalizeDayOffsets(input.reminderPolicy.daysAfter),
@@ -270,8 +263,7 @@ export class ContributionsService {
       dueMonth: input.dueMonth ?? currentPlan.dueMonth ?? undefined,
       graceDays: input.graceDays ?? currentPlan.graceDays,
       reminderPolicy: {
-        daysBefore:
-          input.reminderPolicy?.daysBefore ?? currentPlan.reminderDaysBefore,
+        daysBefore: input.reminderPolicy?.daysBefore ?? currentPlan.reminderDaysBefore,
         daysAfter: input.reminderPolicy?.daysAfter ?? currentPlan.reminderDaysAfter,
       },
       active: input.active ?? currentPlan.active,
@@ -399,7 +391,9 @@ export class ContributionsService {
     )
 
     if (incompatibleMemberId) {
-      throw new BadRequestException('Selected member is not compatible with this contribution plan.')
+      throw new BadRequestException(
+        'Selected member is not compatible with this contribution plan.',
+      )
     }
 
     const existingAssignments = await this.prisma.contributionAssignment.findMany({
@@ -519,9 +513,9 @@ export class ContributionsService {
 
     const paidAmount =
       input.status === 'PAID'
-        ? input.paidAmount ?? current.record.amount
+        ? (input.paidAmount ?? current.record.amount)
         : input.status === 'PARTIAL'
-          ? input.paidAmount ?? Math.max(Math.round(current.record.amount / 2), 1)
+          ? (input.paidAmount ?? Math.max(Math.round(current.record.amount / 2), 1))
           : null
 
     await this.prisma.contributionRecord.update({
@@ -529,10 +523,7 @@ export class ContributionsService {
       data: {
         status: input.status as ContributionRecordStatus,
         paidAmount,
-        paidAt:
-          input.status === 'PAID' || input.status === 'PARTIAL'
-            ? new Date()
-            : null,
+        paidAt: input.status === 'PAID' || input.status === 'PARTIAL' ? new Date() : null,
         note: input.note?.trim() || null,
       },
     })
@@ -613,9 +604,7 @@ export class ContributionsService {
     }
   }
 
-  async runAutomaticReminderSweep(
-    clubId: string,
-  ): Promise<ContributionReminderDispatchResult> {
+  async runAutomaticReminderSweep(clubId: string): Promise<ContributionReminderDispatchResult> {
     const settings = await this.ensureSettings(clubId)
     if (!settings.enabled || !settings.autoRemindersEnabled) {
       return {
@@ -657,7 +646,9 @@ export class ContributionsService {
     clubId: string,
     userId: string,
     asOf: Date = new Date(),
-  ): Promise<Array<{ planId: string; planName: string; amount: number; currency: string; dueDate: Date }>> {
+  ): Promise<
+    Array<{ planId: string; planName: string; amount: number; currency: string; dueDate: Date }>
+  > {
     const settings = await this.prisma.clubContributionSettings.findUnique({
       where: { clubId },
       select: { enabled: true },
@@ -742,7 +733,7 @@ export class ContributionsService {
       planName: localizedPlanName(item.assignment.plan, locale),
       amount: item.record.amount,
       currency: item.record.currency,
-      cadence: item.assignment.plan.cadence as 'MONTHLY' | 'YEARLY',
+      cadence: item.assignment.plan.cadence,
       dueDate: item.record.dueDate.toISOString(),
       status: deriveContributionStatus(item.record, item.assignment.plan)!,
       paidAmount: item.record.paidAmount,
@@ -757,118 +748,6 @@ export class ContributionsService {
     })
 
     return { items, hasContributions: true, bankTransfer }
-  }
-
-  /**
-   * Start a Stripe Checkout flow for the caller's own contribution
-   * record. Returns `{ url }` when the club has Stripe Connect; null
-   * when not configured. Mobile then either opens the URL or falls
-   * back to an unverified offline-payment report.
-   *
-   * Resolving the assignment + record server-side keeps the mobile
-   * payload small (just planId) and re-uses the same period-resolution
-   * logic markOwnAsPaid uses, so a Checkout session never gets minted
-   * against a stale or already-PAID record.
-   */
-  async startCheckoutForOwnPlan(
-    clubId: string,
-    userId: string,
-    planId: string,
-  ): Promise<{ url: string } | null> {
-    const membership = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId, clubId } },
-    })
-    if (!membership) {
-      throw new ForbiddenException('You are not a member of this club.')
-    }
-
-    const assignment = await this.prisma.contributionAssignment.findFirst({
-      where: { clubId, planId, memberUserId: userId, endDate: null },
-      include: {
-        plan: true,
-        member: {
-          select: { id: true, name: true, email: true, avatarUrl: true, preferredLanguage: true },
-        },
-      },
-    })
-    if (!assignment) {
-      throw new NotFoundException('Contribution assignment not found')
-    }
-
-    const ensured = await this.ensureCurrentRecords([assignment])
-    const current = ensured[0]
-    if (!current) {
-      throw new NotFoundException('Contribution period not found')
-    }
-    if (current.record.status === ContributionRecordStatus.PAID) {
-      // Already settled — nothing to charge.
-      return null
-    }
-
-    // Idempotency key = recordId + periodStart so that repeated taps
-    // (or retried network calls) for the same billing period return the
-    // same Stripe Checkout session URL instead of minting a new one.
-    const idempotencyKey = `${current.record.id}:${current.record.periodStart.toISOString()}`
-
-    return this.billingService.createContributionCheckoutSession({
-      clubId,
-      recordId: current.record.id,
-      memberUserId: userId,
-      planName: assignment.plan.name,
-      amount: current.record.amount,
-      currency: current.record.currency,
-      idempotencyKey,
-    })
-  }
-
-  /**
-   * Webhook handler — called by BillingService when a Stripe
-   * `checkout.session.completed` event arrives with metadata.intent =
-   * 'contribution_payment'. Flips the ContributionRecord to PAID and
-   * fires the same notify path as markOwnAsPaid so mobile sees the
-   * change reflected on next refresh.
-   */
-  async markRecordPaidByWebhook(input: {
-    recordId: string
-    paidAmount: number
-  }): Promise<void> {
-    const record = await this.prisma.contributionRecord.findUnique({
-      where: { id: input.recordId },
-      include: { plan: true, member: { select: { id: true, name: true } } },
-    })
-    if (!record) return
-    if (record.status === ContributionRecordStatus.PAID) return
-
-    await this.prisma.contributionRecord.update({
-      where: { id: record.id },
-      data: {
-        status: ContributionRecordStatus.PAID,
-        paidAmount: input.paidAmount,
-        paidAt: new Date(),
-      },
-    })
-
-    await this.auditService.log({
-      clubId: record.clubId,
-      type: 'contribution.stripe_paid',
-      actorType: 'system',
-      actorId: null,
-      actorLabel: 'stripe',
-      summary: `${record.member.name} paid ${record.plan.name} via Stripe.`,
-      metadata: {
-        planId: record.planId,
-        recordId: record.id,
-        memberUserId: record.memberUserId,
-      },
-    })
-
-    await this.notifyContributionPaid({
-      clubId: record.clubId,
-      memberUserId: record.memberUserId,
-      planName: record.plan.name,
-      amount: input.paidAmount,
-      currency: record.currency,
-    })
   }
 
   async markOwnAsPaid(
@@ -1122,12 +1001,31 @@ export class ContributionsService {
     })
   }
 
-  private async listEligibleMembers(
-    clubId: string,
-    targetRole: string,
-  ): Promise<ClubMember[]> {
+  private async listEligibleMembers(clubId: string, targetRole: string): Promise<ClubMember[]> {
     const members = await this.listClubMembers(clubId)
-    return members.filter((member) => isMemberCompatible(member.role, targetRole))
+    if (targetRole === 'CUSTOM' || targetRole === 'ADMIN') {
+      return members.filter((member) => isMemberCompatible(member.role, targetRole))
+    }
+    const relevantTeamRoles: TeamRole[] =
+      targetRole === 'PLAYER'
+        ? [TeamRole.PLAYER]
+        : targetRole === 'COACH'
+          ? [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
+          : [TeamRole.PARENT]
+    const access = await this.prisma.teamAccess.findMany({
+      where: {
+        clubId,
+        status: 'ACTIVE',
+        role: { in: relevantTeamRoles },
+      },
+      distinct: ['userId'],
+      select: { userId: true },
+    })
+    const additiveUsers = new Set(access.map((row) => row.userId))
+    return members.filter(
+      (member) =>
+        additiveUsers.has(member.userId) || isMemberCompatible(member.role, targetRole),
+    )
   }
 
   private async listActiveAssignments(
@@ -1166,10 +1064,15 @@ export class ContributionsService {
     const records: EnsuredRecord[] = []
 
     for (const assignment of assignments) {
-      const period = resolveContributionPeriod(assignment.plan.cadence, {
-        dueDay: assignment.plan.dueDay,
-        dueMonth: assignment.plan.dueMonth,
-      }, now)
+      const period = resolveContributionPeriod(
+        assignment.plan.cadence,
+        {
+          dueDay: assignment.plan.dueDay,
+          dueMonth: assignment.plan.dueMonth,
+          assignmentStart: assignment.startDate,
+        },
+        now,
+      )
 
       const record = await this.prisma.contributionRecord.upsert({
         where: {
@@ -1186,14 +1089,14 @@ export class ContributionsService {
           periodStart: period.periodStart,
           periodEnd: period.periodEnd,
           dueDate: period.dueDate,
-          amount: assignment.plan.amount,
+          amount: assignment.amountOverride ?? assignment.plan.amount,
           currency: assignment.plan.currency,
           status: ContributionRecordStatus.PENDING,
         },
         update: {
           periodEnd: period.periodEnd,
           dueDate: period.dueDate,
-          amount: assignment.plan.amount,
+          amount: assignment.amountOverride ?? assignment.plan.amount,
           currency: assignment.plan.currency,
         },
       })
@@ -1255,21 +1158,47 @@ export class ContributionsService {
       },
     })
 
-    if (existing) {
+    if (existing && existing.status !== ContributionReminderStatus.PROCESSING) {
       return { sent: false }
+    }
+    if (existing) {
+      const reclaimed = await this.prisma.contributionReminder.updateMany({
+        where: {
+          id: existing.id,
+          status: ContributionReminderStatus.PROCESSING,
+          sentAt: { lte: new Date(Date.now() - 15 * 60 * 1000) },
+        },
+        data: { sentAt: new Date(), message: 'Reminder dispatch reclaimed after timeout.' },
+      })
+      if (reclaimed.count !== 1) return { sent: false }
+    } else {
+      try {
+        await this.prisma.contributionReminder.create({
+          data: {
+            clubId: input.clubId,
+            planId: item.assignment.planId,
+            assignmentId: item.assignment.id,
+            recordId: item.record.id,
+            memberUserId: item.assignment.memberUserId,
+            trigger: input.trigger,
+            reminderKey: input.reminderKey,
+            status: ContributionReminderStatus.PROCESSING,
+            message: 'Reminder dispatch reserved.',
+          },
+        })
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          return { sent: false }
+        }
+        throw error
+      }
     }
 
     const derivedStatus = deriveContributionStatus(item.record, item.assignment.plan)
     if (derivedStatus === 'PAID' || derivedStatus === 'WAIVED' || derivedStatus === 'EXEMPT') {
-      await this.prisma.contributionReminder.create({
+      await this.prisma.contributionReminder.update({
+        where: { recordId_reminderKey: { recordId: item.record.id, reminderKey: input.reminderKey } },
         data: {
-          clubId: input.clubId,
-          planId: item.assignment.planId,
-          assignmentId: item.assignment.id,
-          recordId: item.record.id,
-          memberUserId: item.assignment.memberUserId,
-          trigger: input.trigger,
-          reminderKey: input.reminderKey,
           status: ContributionReminderStatus.SKIPPED,
           message: `Skipped because status is ${derivedStatus}.`,
         },
@@ -1315,7 +1244,7 @@ export class ContributionsService {
             subject: email.subject,
             html: email.html,
             text: email.text,
-          })
+          }).catch(() => false)
         : Promise.resolve(false),
       this.pushService
         .sendToUser(
@@ -1333,15 +1262,9 @@ export class ContributionsService {
         .catch(() => false),
     ])
 
-    await this.prisma.contributionReminder.create({
+    await this.prisma.contributionReminder.update({
+      where: { recordId_reminderKey: { recordId: item.record.id, reminderKey: input.reminderKey } },
       data: {
-        clubId: input.clubId,
-        planId: item.assignment.planId,
-        assignmentId: item.assignment.id,
-        recordId: item.record.id,
-        memberUserId: item.assignment.memberUserId,
-        trigger: input.trigger,
-        reminderKey: input.reminderKey,
         emailSent,
         pushSent,
         status:
@@ -1364,9 +1287,13 @@ export class ContributionsService {
       clubId: input.clubId,
       type: 'contribution.reminder_sent',
       actorType: input.trigger === ContributionReminderTrigger.MANUAL ? 'user' : 'system',
-      actorId: input.trigger === ContributionReminderTrigger.MANUAL ? item.assignment.assignedById : null,
+      actorId:
+        input.trigger === ContributionReminderTrigger.MANUAL ? item.assignment.assignedById : null,
       actorLabel: null,
-      summary: `Contribution reminder sent to ${item.assignment.member.name} for ${item.assignment.plan.name}.`,
+      summary:
+        emailSent || pushSent
+          ? `Contribution reminder sent to ${item.assignment.member.name} for ${item.assignment.plan.name}.`
+          : `Contribution reminder delivery failed for ${item.assignment.member.name} and ${item.assignment.plan.name}.`,
       metadata: {
         planId: item.assignment.planId,
         memberUserId: item.assignment.memberUserId,
@@ -1561,9 +1488,9 @@ function isMemberCompatible(
   }
 }
 
-function resolveContributionPeriod(
+export function resolveContributionPeriod(
   cadence: ContributionCadence,
-  input: { dueDay: number; dueMonth: number | null },
+  input: { dueDay: number; dueMonth: number | null; assignmentStart: Date },
   now: Date,
 ) {
   const year = now.getUTCFullYear()
@@ -1575,6 +1502,29 @@ function resolveContributionPeriod(
       periodStart: new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)),
       periodEnd: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)),
       dueDate: new Date(Date.UTC(year, dueMonthIndex, input.dueDay, 12, 0, 0, 0)),
+    }
+  }
+
+  if (cadence === ContributionCadence.QUARTERLY) {
+    const quarterStartMonth = Math.floor(month / 3) * 3
+    return {
+      periodStart: new Date(Date.UTC(year, quarterStartMonth, 1, 0, 0, 0, 0)),
+      periodEnd: new Date(Date.UTC(year, quarterStartMonth + 3, 0, 23, 59, 59, 999)),
+      dueDate: new Date(Date.UTC(year, quarterStartMonth, input.dueDay, 12, 0, 0, 0)),
+    }
+  }
+
+  if (cadence === ContributionCadence.ONE_OFF) {
+    const start = input.assignmentStart
+    const startYear = start.getUTCFullYear()
+    const startMonth = start.getUTCMonth()
+    const startDay = start.getUTCDate()
+    const dueMonth = input.dueDay < startDay ? startMonth + 1 : startMonth
+    const periodStart = new Date(Date.UTC(startYear, startMonth, startDay, 0, 0, 0, 0))
+    return {
+      periodStart,
+      periodEnd: new Date(Date.UTC(startYear, startMonth, startDay, 23, 59, 59, 999)),
+      dueDate: new Date(Date.UTC(startYear, dueMonth, input.dueDay, 12, 0, 0, 0)),
     }
   }
 
@@ -1604,16 +1554,11 @@ function isPastGraceWindow(dueDate: Date, graceDays: number) {
   return threshold.getTime() < Date.now()
 }
 
-function getAutomaticReminderKeys(
-  record: EnsuredRecord['record'],
-  plan: AssignmentRow['plan'],
-) {
+function getAutomaticReminderKeys(record: EnsuredRecord['record'], plan: AssignmentRow['plan']) {
   const result: string[] = []
   const now = new Date()
   const dueDate = record.dueDate
-  const diffDays = Math.ceil(
-    (startOfDay(dueDate).getTime() - startOfDay(now).getTime()) / 86400000,
-  )
+  const diffDays = Math.ceil((startOfDay(dueDate).getTime() - startOfDay(now).getTime()) / 86400000)
 
   for (const daysBefore of plan.reminderDaysBefore) {
     if (daysBefore === diffDays) {

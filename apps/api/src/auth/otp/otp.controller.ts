@@ -55,11 +55,13 @@ export class OtpController {
   @HttpCode(200)
   @UseGuards(ClerkAuthGuard)
   async refresh(
-    @CurrentUser() user: { id?: string },
+    @CurrentUser() user: { id?: string; authenticatedAt?: number },
   ): Promise<{ token: string }> {
     if (!user?.id) {
       throw new UnauthorizedException('Not authenticated')
     }
-    return { token: signSessionToken(user.id) }
+    return {
+      token: signSessionToken(user.id, { authenticatedAt: user.authenticatedAt }),
+    }
   }
 }

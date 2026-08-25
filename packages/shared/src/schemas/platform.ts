@@ -11,14 +11,13 @@ import {
   TeamRole,
 } from '../types/roles'
 
-export const internalAdminRoleSchema = z.enum([
-  'PLATFORM_ADMIN',
-  'SUPPORT_AGENT',
-  'OPERATIONS',
-])
+export const internalAdminRoleSchema = z.enum(['PLATFORM_ADMIN', 'SUPPORT_AGENT', 'OPERATIONS'])
 
 export const billingProviderSchema = z.enum(['NONE', 'STRIPE', 'GOCARDLESS'])
 export const billingPlanSchema = z.enum(['FOUNDATION', 'PREMIUM'])
+export const planTierSchema = z.enum(['FREE', 'PRO', 'SCALE'])
+export const planIntervalSchema = z.enum(['SIX_MONTHS', 'TWELVE_MONTHS'])
+export const entitlementSourceSchema = z.enum(['PAID', 'COMPLIMENTARY', 'TRIAL', 'MIGRATED'])
 export const billingSubscriptionStatusSchema = z.enum([
   'inactive',
   'trialing',
@@ -27,21 +26,10 @@ export const billingSubscriptionStatusSchema = z.enum([
   'canceled',
 ])
 
-export const billingConnectStatusSchema = z.enum([
-  'not_started',
-  'pending',
-  'active',
-  'blocked',
-])
+export const billingConnectStatusSchema = z.enum(['not_started', 'pending', 'active', 'blocked'])
 
-export const contributionCadenceSchema = z.enum(['MONTHLY', 'YEARLY'])
-export const contributionTargetRoleSchema = z.enum([
-  'PLAYER',
-  'PARENT',
-  'COACH',
-  'ADMIN',
-  'CUSTOM',
-])
+export const contributionCadenceSchema = z.enum(['MONTHLY', 'QUARTERLY', 'YEARLY', 'ONE_OFF'])
+export const contributionTargetRoleSchema = z.enum(['PLAYER', 'PARENT', 'COACH', 'ADMIN', 'CUSTOM'])
 export const contributionStatusSchema = z.enum([
   'PENDING',
   'PAID',
@@ -50,10 +38,7 @@ export const contributionStatusSchema = z.enum([
   'EXEMPT',
   'OVERDUE',
 ])
-export const contributionReminderTriggerSchema = z.enum([
-  'AUTOMATIC',
-  'MANUAL',
-])
+export const contributionReminderTriggerSchema = z.enum(['AUTOMATIC', 'MANUAL'])
 
 export const customDomainStatusSchema = z.enum([
   'not_started',
@@ -62,21 +47,34 @@ export const customDomainStatusSchema = z.enum([
   'failed',
 ])
 
-export const supportActionTypeSchema = z.enum([
-  'SUPPORT_NOTE',
-])
+export const supportActionTypeSchema = z.enum(['SUPPORT_NOTE'])
 
 export const auditEventTypeSchema = z.enum([
   'club.created',
+  'club.claim_approved',
+  'club.claim_reviewed',
+  'club.claim_withdrawn',
+  'club.claim_information_submitted',
+  'club.staff_access_approved',
+  'club.ownership_transfer_started',
+  'club.ownership_transfer_accepted',
+  'club.ownership_transfer_cancelled',
+  'club.ownership_dispute_opened',
+  'club.ownership_dispute_resolved',
   'membership.created',
   'invite.created',
   'invite.redeemed',
   'event.created',
   'support.action',
   'billing.status_changed',
+  'billing.plan_published',
+  'billing.entitlement_granted',
+  'billing.entitlement_revoked',
   'contribution.plan_created',
   'contribution.status_updated',
   'contribution.reminder_sent',
+  'contribution.bank_imported',
+  'contribution.bank_match_confirmed',
   'admin.broadcast.sent',
   'admin.broadcast.failed',
   'admin.feature_flag.updated',
@@ -296,9 +294,7 @@ export const publicInvitePayloadSchema = z.object({
     name: z.string().min(1).max(100),
     slug: z.string().min(1).max(100),
     badgeUrl: z.string().url().nullable(),
-    primaryColor: z
-      .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
   }),
   team: z.object({
     id: z.string().min(1),
@@ -331,6 +327,59 @@ export const supportActionSchema = z.object({
   note: z.string().max(500).optional(),
 })
 
+export const createEntitlementGrantSchema = z
+  .object({
+    tier: planTierSchema.exclude(['FREE']),
+    interval: planIntervalSchema,
+    source: z.enum(['COMPLIMENTARY', 'TRIAL']),
+    reason: z.string().trim().min(3).max(500),
+    startsAt: z.string().datetime().optional(),
+    expiresAt: z.string().datetime().nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.source === 'TRIAL' && !value.expiresAt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['expiresAt'],
+        message: 'Trials require an expiry date',
+      })
+    }
+    if (
+      value.expiresAt &&
+      new Date(value.expiresAt).getTime() <=
+        (value.startsAt ? new Date(value.startsAt).getTime() : Date.now())
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['expiresAt'],
+        message: 'Expiry must be after the start date',
+      })
+    }
+  })
+
+export const publishPlanDefinitionSchema = z.object({
+  tier: planTierSchema.exclude(['FREE']),
+  interval: planIntervalSchema,
+  priceCents: z.number().int().min(100).max(1_000_000),
+  currency: z.string().length(3).default('eur'),
+  teamLimit: z.number().int().min(1).max(100),
+  playerLimit: z.number().int().min(1).max(10_000),
+  features: z.array(z.string().trim().min(1).max(80)).max(100),
+  stripePriceId: z.string().trim().min(1).max(255).nullable().optional(),
+})
+
+export const createBankImportSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  format: z.enum(['CSV', 'CAMT053']),
+  contentBase64: z.string().min(1).max(14_000_000),
+})
+
+export const confirmContributionMatchSchema = z.object({
+  transactionId: z.string().min(1),
+  recordId: z.string().min(1),
+  amount: z.number().int().positive(),
+})
+
 export const auditEventSchema = z.object({
   id: z.string().min(1),
   type: auditEventTypeSchema,
@@ -346,7 +395,11 @@ export const assetPresignRequestSchema = z.object({
   filename: z.string().min(1).max(255),
   contentType: z.string().min(1).max(100),
   kind: assetKindSchema,
-  sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024),
 })
 
 export const assetPresignResponseSchema = z.object({
@@ -359,35 +412,27 @@ export const assetPresignResponseSchema = z.object({
 export type ClubSettingsInput = z.infer<typeof clubSettingsSchema>
 export type BillingStatusInput = z.infer<typeof billingStatusSchema>
 export type ContributionSettingsInput = z.infer<typeof contributionSettingsSchema>
-export type UpdateContributionSettingsInput = z.infer<
-  typeof updateContributionSettingsSchema
->
+export type UpdateContributionSettingsInput = z.infer<typeof updateContributionSettingsSchema>
 export type ContributionPlanInput = z.infer<typeof contributionPlanSchema>
-export type CreateContributionPlanInput = z.infer<
-  typeof createContributionPlanSchema
->
-export type UpdateContributionPlanInput = z.infer<
-  typeof updateContributionPlanSchema
->
-export type UpdateContributionAssignmentsInput = z.infer<
-  typeof updateContributionAssignmentsSchema
->
-export type ContributionMemberRecordInput = z.infer<
-  typeof contributionMemberRecordSchema
->
+export type CreateContributionPlanInput = z.infer<typeof createContributionPlanSchema>
+export type UpdateContributionPlanInput = z.infer<typeof updateContributionPlanSchema>
+export type UpdateContributionAssignmentsInput = z.infer<typeof updateContributionAssignmentsSchema>
+export type ContributionMemberRecordInput = z.infer<typeof contributionMemberRecordSchema>
 export type ContributionOverviewInput = z.infer<typeof contributionOverviewSchema>
 export type UpdateContributionMemberStatusInput = z.infer<
   typeof updateContributionMemberStatusSchema
 >
-export type SendContributionReminderInput = z.infer<
-  typeof sendContributionReminderSchema
->
+export type SendContributionReminderInput = z.infer<typeof sendContributionReminderSchema>
 export type ContributionReminderDispatchResultInput = z.infer<
   typeof contributionReminderDispatchResultSchema
 >
 export type PublicInvitePayloadInput = z.infer<typeof publicInvitePayloadSchema>
 export type ParentalConsentInput = z.infer<typeof parentalConsentSchema>
 export type SupportActionInput = z.infer<typeof supportActionSchema>
+export type CreateEntitlementGrantInput = z.infer<typeof createEntitlementGrantSchema>
+export type PublishPlanDefinitionInput = z.infer<typeof publishPlanDefinitionSchema>
+export type CreateBankImportInput = z.infer<typeof createBankImportSchema>
+export type ConfirmContributionMatchInput = z.infer<typeof confirmContributionMatchSchema>
 export type AuditEventInput = z.infer<typeof auditEventSchema>
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),
@@ -399,12 +444,8 @@ export const unregisterPushTokenSchema = z.object({
 })
 
 export type MyContributionItemInput = z.infer<typeof myContributionItemSchema>
-export type MyContributionSummaryInput = z.infer<
-  typeof myContributionSummarySchema
->
-export type ToggleEventReminderInput = z.infer<
-  typeof toggleEventReminderSchema
->
+export type MyContributionSummaryInput = z.infer<typeof myContributionSummarySchema>
+export type ToggleEventReminderInput = z.infer<typeof toggleEventReminderSchema>
 export type AssetPresignRequestInput = z.infer<typeof assetPresignRequestSchema>
 export type AssetPresignResponseInput = z.infer<typeof assetPresignResponseSchema>
 export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>

@@ -1,61 +1,43 @@
-export type InternalAdminRole =
-  | 'PLATFORM_ADMIN'
-  | 'SUPPORT_AGENT'
-  | 'OPERATIONS'
+export type InternalAdminRole = 'PLATFORM_ADMIN' | 'SUPPORT_AGENT' | 'OPERATIONS'
 
 export type BillingProvider = 'NONE' | 'STRIPE' | 'GOCARDLESS'
 export type BillingPlan = 'FOUNDATION' | 'PREMIUM'
-export type BillingSubscriptionStatus =
-  | 'inactive'
-  | 'trialing'
-  | 'active'
-  | 'past_due'
-  | 'canceled'
+export type BillingSubscriptionStatus = 'inactive' | 'trialing' | 'active' | 'past_due' | 'canceled'
 
-export type BillingConnectStatus =
-  | 'not_started'
-  | 'pending'
-  | 'active'
-  | 'blocked'
+export type BillingConnectStatus = 'not_started' | 'pending' | 'active' | 'blocked'
 
-export type ContributionCadence = 'MONTHLY' | 'YEARLY'
-export type ContributionTargetRole =
-  | 'PLAYER'
-  | 'PARENT'
-  | 'COACH'
-  | 'ADMIN'
-  | 'CUSTOM'
-export type ContributionStatus =
-  | 'PENDING'
-  | 'PAID'
-  | 'PARTIAL'
-  | 'WAIVED'
-  | 'EXEMPT'
-  | 'OVERDUE'
+export type ContributionCadence = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_OFF'
+export type PlanTier = 'FREE' | 'PRO' | 'SCALE'
+export type PlanInterval = 'SIX_MONTHS' | 'TWELVE_MONTHS'
+export type EntitlementSource = 'PAID' | 'COMPLIMENTARY' | 'TRIAL' | 'MIGRATED'
+export type ContributionTargetRole = 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM'
+export type ContributionStatus = 'PENDING' | 'PAID' | 'PARTIAL' | 'WAIVED' | 'EXEMPT' | 'OVERDUE'
 export type ContributionReminderTrigger = 'AUTOMATIC' | 'MANUAL'
 
-export type CustomDomainStatus =
-  | 'not_started'
-  | 'pending_verification'
-  | 'verified'
-  | 'failed'
+export type CustomDomainStatus = 'not_started' | 'pending_verification' | 'verified' | 'failed'
 
 export type SupportActionType = 'SUPPORT_NOTE'
 
 export type AuditEventType =
   | 'club.created'
+  | 'club.claim_approved'
   | 'membership.created'
   | 'invite.created'
   | 'invite.redeemed'
   | 'event.created'
   | 'support.action'
   | 'billing.status_changed'
+  | 'billing.plan_published'
+  | 'billing.entitlement_granted'
+  | 'billing.entitlement_revoked'
   | 'contribution.plan_created'
   | 'contribution.plan_deleted'
   | 'contribution.status_updated'
   | 'contribution.self_marked_paid'
   | 'contribution.stripe_paid'
   | 'contribution.reminder_sent'
+  | 'contribution.bank_imported'
+  | 'contribution.bank_match_confirmed'
   | 'join_request.created'
   | 'join_request.approved'
   | 'join_request.rejected'
@@ -66,11 +48,7 @@ export type AuditEventType =
   | 'admin.setting.updated'
   | 'admin.moderation_report.resolved'
 
-export type AssetKind =
-  | 'club_badge'
-  | 'splash_image'
-  | 'sponsor_logo'
-  | 'player_avatar'
+export type AssetKind = 'club_badge' | 'splash_image' | 'sponsor_logo' | 'player_avatar'
 
 export type ActorType = 'system' | 'user' | 'admin'
 

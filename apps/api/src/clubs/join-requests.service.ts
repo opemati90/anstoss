@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -17,6 +18,7 @@ import {
   TeamRole,
 } from '@anstoss/shared'
 import type { CreateJoinRequestInput, ReviewJoinRequestInput } from '@anstoss/shared'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 
 @Injectable()
 export class JoinRequestsService {
@@ -25,6 +27,7 @@ export class JoinRequestsService {
     private readonly audit: AuditService,
     private readonly push: PushService,
     private readonly cache: CacheService,
+    private readonly clubEntitlements?: ClubEntitlementsService,
   ) {}
 
   async create(userId: string, clubId: string, input: CreateJoinRequestInput) {
@@ -206,11 +209,12 @@ export class JoinRequestsService {
     }
 
     const membershipRole =
-      request.role === TeamRole.PARENT
-        ? MembershipRole.PARENT
-        : MembershipRole.PLAYER
+      request.role === TeamRole.PARENT ? MembershipRole.PARENT : MembershipRole.PLAYER
 
     await this.prisma.$transaction(async (tx) => {
+      if (request.role === TeamRole.PLAYER) {
+        await this.requireEntitlements().assertCanActivatePlayer(clubId, request.userId, tx)
+      }
       const claimed = await tx.joinRequest.updateMany({
         where: { id: requestId, clubId, status: 'PENDING' },
         data: {
@@ -280,7 +284,6 @@ export class JoinRequestsService {
           update: {},
         })
       }
-
     })
 
     await this.audit.log({
@@ -396,6 +399,13 @@ export class JoinRequestsService {
     )
 
     await this.cache.set(cooldownKey, '1', 'EX', 5 * 60)
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 }
 

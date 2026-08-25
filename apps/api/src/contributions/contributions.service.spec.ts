@@ -3,15 +3,14 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common'
-import { ContributionCadence } from '@prisma/client'
-import { ContributionsService } from './contributions.service'
+import { ContributionCadence, Prisma } from '@prisma/client'
+import { ContributionsService, resolveContributionPeriod } from './contributions.service'
 
 describe('ContributionsService', () => {
   let service: ContributionsService
   let prisma: any
   let auditService: { log: jest.Mock }
   let pushService: { sendToUser: jest.Mock }
-  let billingService: { createContributionCheckoutSession: jest.Mock }
 
   beforeEach(() => {
     prisma = {
@@ -44,7 +43,10 @@ describe('ContributionsService', () => {
       contributionReminder: {
         findFirst: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
       },
+      teamAccess: { findMany: jest.fn().mockResolvedValue([]) },
     }
     auditService = {
       log: jest.fn(),
@@ -53,15 +55,10 @@ describe('ContributionsService', () => {
       sendToUser: jest.fn(),
     }
 
-    billingService = {
-      createContributionCheckoutSession: jest.fn().mockResolvedValue(null),
-    }
-
     service = new ContributionsService(
       prisma as never,
       auditService as never,
       pushService as never,
-      billingService as never,
     )
   })
 
@@ -249,6 +246,71 @@ describe('ContributionsService', () => {
     expect(prisma.contributionAssignment.findMany).not.toHaveBeenCalled()
   })
 
+  it('reserves a reminder key before delivery so concurrent instances send once', async () => {
+    prisma.contributionReminder.findFirst.mockResolvedValue(null)
+    prisma.contributionReminder.create
+      .mockResolvedValueOnce({ id: 'reservation-1' })
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('duplicate', {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+        }),
+      )
+    prisma.contributionReminder.update.mockResolvedValue({})
+    prisma.contributionRecord.update.mockResolvedValue({})
+    pushService.sendToUser.mockResolvedValue({ sent: 1 })
+    const item = {
+      assignment: {
+        id: 'assignment-1',
+        clubId: 'club-1',
+        planId: 'plan-1',
+        memberUserId: 'member-1',
+        assignedById: 'admin-1',
+        plan: { id: 'plan-1', name: 'Dues', graceDays: 0 },
+        member: {
+          id: 'member-1',
+          name: 'Player',
+          email: null,
+          preferredLanguage: 'en',
+        },
+      },
+      record: {
+        id: 'record-1',
+        clubId: 'club-1',
+        planId: 'plan-1',
+        assignmentId: 'assignment-1',
+        memberUserId: 'member-1',
+        dueDate: new Date(Date.now() + 86_400_000),
+        amount: 2500,
+        currency: 'eur',
+        status: 'PENDING',
+        paidAmount: null,
+      },
+    }
+    const input = {
+      clubId: 'club-1',
+      clubName: 'Club',
+      trigger: 'AUTOMATIC',
+      reminderKey: 'auto:record-1:before:1',
+    }
+
+    const results = await Promise.all([
+      (
+        service as unknown as {
+          dispatchReminder: (item: unknown, input: unknown) => Promise<{ sent: boolean }>
+        }
+      ).dispatchReminder(item, input),
+      (
+        service as unknown as {
+          dispatchReminder: (item: unknown, input: unknown) => Promise<{ sent: boolean }>
+        }
+      ).dispatchReminder(item, input),
+    ])
+
+    expect(results.filter((result) => result.sent)).toHaveLength(1)
+    expect(pushService.sendToUser).toHaveBeenCalledTimes(1)
+  })
+
   // --- Dues payment paths (markOwnAsPaid / startCheckoutForOwnPlan) ---
 
   const ownAssignment = {
@@ -376,68 +438,34 @@ describe('ContributionsService', () => {
     expect(myContribsSpy).toHaveBeenCalledWith('club-1', 'member-1')
   })
 
-  it('startCheckoutForOwnPlan mints a Stripe session for the correct amount/currency', async () => {
-    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
-    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
-    jest
-      .spyOn(service as never, 'ensureCurrentRecords')
-      .mockResolvedValue(ensuredFor('PENDING') as never)
-    billingService.createContributionCheckoutSession.mockResolvedValue({
-      url: 'https://checkout.stripe.com/session/abc',
-    })
+})
 
-    const result = await service.startCheckoutForOwnPlan(
-      'club-1',
-      'member-1',
-      'plan-1',
-    )
+describe('resolveContributionPeriod', () => {
+  const assignmentStart = new Date('2026-02-20T10:00:00.000Z')
 
-    expect(result).toEqual({ url: 'https://checkout.stripe.com/session/abc' })
-    expect(
-      billingService.createContributionCheckoutSession,
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clubId: 'club-1',
-        recordId: 'record-1',
-        memberUserId: 'member-1',
-        planName: 'Monthly player dues',
-        amount: 2500,
-        currency: 'eur',
-        idempotencyKey:
-          'record-1:2026-06-01T00:00:00.000Z',
-      }),
+  it('uses one stable calendar-quarter record rather than a monthly record', () => {
+    const period = resolveContributionPeriod(
+      ContributionCadence.QUARTERLY,
+      { dueDay: 10, dueMonth: null, assignmentStart },
+      new Date('2026-08-24T10:00:00.000Z'),
     )
+    expect(period.periodStart.toISOString()).toBe('2026-07-01T00:00:00.000Z')
+    expect(period.periodEnd.toISOString()).toBe('2026-09-30T23:59:59.999Z')
+    expect(period.dueDate.toISOString()).toBe('2026-07-10T12:00:00.000Z')
   })
 
-  it('startCheckoutForOwnPlan returns null (no charge) for an already-paid record', async () => {
-    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
-    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
-    jest
-      .spyOn(service as never, 'ensureCurrentRecords')
-      .mockResolvedValue(ensuredFor('PAID') as never)
-
-    const result = await service.startCheckoutForOwnPlan(
-      'club-1',
-      'member-1',
-      'plan-1',
+  it('anchors one-off dues to the assignment so later sweeps cannot create repeats', () => {
+    const august = resolveContributionPeriod(
+      ContributionCadence.ONE_OFF,
+      { dueDay: 25, dueMonth: null, assignmentStart },
+      new Date('2026-08-24T10:00:00.000Z'),
     )
-
-    expect(result).toBeNull()
-    expect(
-      billingService.createContributionCheckoutSession,
-    ).not.toHaveBeenCalled()
-  })
-
-  it('startCheckoutForOwnPlan throws when the plan has no assignment for the caller', async () => {
-    prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
-    prisma.contributionAssignment.findFirst.mockResolvedValue(null)
-
-    await expect(
-      service.startCheckoutForOwnPlan('club-1', 'member-1', 'ghost-plan'),
-    ).rejects.toThrow(NotFoundException)
-
-    expect(
-      billingService.createContributionCheckoutSession,
-    ).not.toHaveBeenCalled()
+    const december = resolveContributionPeriod(
+      ContributionCadence.ONE_OFF,
+      { dueDay: 25, dueMonth: null, assignmentStart },
+      new Date('2026-12-24T10:00:00.000Z'),
+    )
+    expect(december).toEqual(august)
+    expect(august.periodStart.toISOString()).toBe('2026-02-20T00:00:00.000Z')
   })
 })

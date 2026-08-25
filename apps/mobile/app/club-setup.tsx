@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { View, Pressable, StyleSheet, Alert } from 'react-native'
 import { createClubSchema, createTeamSchema } from '@anstoss/shared'
-import type { AssetPresignResponse } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useAuth } from '../src/context/AuthContext'
 import { ApiError, api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
-import { BadgeUploadPicker } from '../src/components/BadgeUploadPicker'
 import { getAppLanguage } from '../src/i18n'
 import { Screen, Card, Button, Text } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -59,23 +56,28 @@ export default function ClubSetupScreen() {
   const directoryEntryId = Array.isArray(params.directoryEntryId)
     ? params.directoryEntryId[0]
     : params.directoryEntryId
-  const { refreshUser } = useAuth()
   const c = useClubColors()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
   const [clubName, setClubName] = useState(initialClubName ?? '')
   const [primaryColor, setPrimaryColor] = useState(PRESET_COLORS[0])
-  const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState('')
   const [ageGroup, setAgeGroup] = useState('Herren')
   const [clubError, setClubError] = useState<string | null>(null)
   const [teamError, setTeamError] = useState<string | null>(null)
-  const [createdClubId, setCreatedClubId] = useState<string | null>(null)
 
   const isEnglish = getAppLanguage() === 'en'
 
   const handleNext = () => {
+    if (!directoryEntryId) {
+      Alert.alert(
+        'Select your official club',
+        'Club activation starts from a verified directory result.',
+        [{ text: 'Find club', onPress: () => router.replace('/find-club') }],
+      )
+      return
+    }
     const validation = createClubSchema.safeParse({
       name: clubName.trim(),
       primaryColor,
@@ -90,36 +92,8 @@ export default function ClubSetupScreen() {
     setStep(2)
   }
 
-  const activateCreatedClub = async (clubId: string) => {
-    try {
-      await refreshUser(undefined, {
-        preferredClubId: clubId,
-        throwOnError: true,
-      })
-      router.replace('/')
-    } catch {
-      setTeamError(
-        t('club.setupWizard.activationRefreshFailed', {
-          defaultValue:
-            'Your club was created, but we could not activate it on this device. Check your connection and continue.',
-        }),
-      )
-    }
-  }
-
   const handleCreate = async () => {
     if (isLoading) return
-
-    if (createdClubId) {
-      setIsLoading(true)
-      setTeamError(null)
-      try {
-        await activateCreatedClub(createdClubId)
-      } finally {
-        setIsLoading(false)
-      }
-      return
-    }
 
     const clubValidation = createClubSchema.safeParse({
       name: clubName.trim(),
@@ -147,51 +121,20 @@ export default function ClubSetupScreen() {
     setIsLoading(true)
     setTeamError(null)
     try {
-      const result = await api<{ club: { id: string } }>('/clubs/setup', {
+      if (!directoryEntryId) {
+        throw new Error('Select your official club before submitting a claim')
+      }
+      const result = await api<{ id: string }>('/club-claims/first', {
         method: 'POST',
         body: {
-          club: { name: clubName.trim(), primaryColor },
-          team: { name: teamName.trim(), ageGroup },
-          ...(directoryEntryId ? { directoryEntryId } : {}),
+          directoryEntryId,
+          teamName: teamName.trim(),
+          teamGroupType: ageGroup.includes('Jugend') ? 'YOUTH' : 'SENIOR',
+          teamRoles: [],
+          primaryColor,
         },
       })
-
-      if (badgeUri) {
-        try {
-          const imageResponse = await fetch(badgeUri)
-          const blob = await imageResponse.blob()
-          const presign = await api<AssetPresignResponse>(
-            `/clubs/${result.club.id}/assets/presign`,
-            {
-              method: 'POST',
-              body: {
-                filename: 'badge.png',
-                contentType: 'image/png',
-                kind: 'club_badge',
-                sizeBytes: blob.size,
-              },
-            },
-          )
-
-          if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-            await fetch(presign.uploadUrl, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'image/png' },
-              body: blob,
-            })
-
-            await api(`/clubs/${result.club.id}`, {
-              method: 'PATCH',
-              body: { badgeUrl: presign.publicUrl },
-            })
-          }
-        } catch {
-          Alert.alert(t('common.errorTitle'), t('club.setupWizard.badgeUploadFailed'))
-        }
-      }
-
-      setCreatedClubId(result.club.id)
-      await activateCreatedClub(result.club.id)
+      router.replace({ pathname: '/(auth)/claim-pending', params: { claimId: result.id } })
     } catch (error) {
       const errorMessage =
         error instanceof ApiError && error.message
@@ -207,10 +150,6 @@ export default function ClubSetupScreen() {
 
   const handleHeaderClose = () => {
     if (isLoading) return
-    if (createdClubId) {
-      void handleCreate()
-      return
-    }
     if (step === 2) {
       setStep(1)
       return
@@ -219,11 +158,7 @@ export default function ClubSetupScreen() {
   }
 
   return (
-    <Screen
-      header={<ModalHeader mode={createdClubId ? 'close' : 'back'} onClose={handleHeaderClose} />}
-      scroll
-      padded={false}
-    >
+    <Screen header={<ModalHeader mode="back" onClose={handleHeaderClose} />} scroll padded={false}>
       <View style={{ padding: space.lg, gap: space.lg }}>
         <View>
           <Text style={[styles.title, { color: c.textPrimary }]}>
@@ -236,14 +171,6 @@ export default function ClubSetupScreen() {
 
         {step === 1 ? (
           <Card padding="card" style={[styles.card, { gap: space.md }]}>
-            <View style={styles.badgeHero}>
-              <BadgeUploadPicker
-                imageUri={badgeUri}
-                onImagePicked={setBadgeUri}
-                accentColor={primaryColor}
-              />
-            </View>
-
             <FormInput
               label={t('club.clubName')}
               value={clubName}
@@ -345,24 +272,16 @@ export default function ClubSetupScreen() {
             </View>
 
             <View style={styles.buttonRow}>
-              {createdClubId ? null : (
-                <Button
-                  label={t('common.back')}
-                  variant="secondary"
-                  size="lg"
-                  disabled={isLoading}
-                  onPress={() => setStep(1)}
-                />
-              )}
+              <Button
+                label={t('common.back')}
+                variant="secondary"
+                size="lg"
+                disabled={isLoading}
+                onPress={() => setStep(1)}
+              />
               <View style={{ flex: 1 }}>
                 <Button
-                  label={
-                    createdClubId
-                      ? t('club.setupWizard.activationRetryButton', {
-                          defaultValue: 'Continue',
-                        })
-                      : t('club.setupWizard.createButton')
-                  }
+                  label={t('club.setupWizard.createButton')}
                   variant="filled"
                   size="lg"
                   fullWidth

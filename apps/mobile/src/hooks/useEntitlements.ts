@@ -5,12 +5,22 @@ import { useAuth } from '../context/AuthContext'
 export type EntitlementsResponse = {
   clubId: string
   plan: 'FOUNDATION' | 'PREMIUM'
+  tier: 'FREE' | 'PRO' | 'SCALE'
+  limits: { teams: number; players: number }
+  usage: { teams: number; players: number }
   features: string[]
 }
 
 const STALE_MS = 5 * 60 * 1000
-const MVP_ALL_FREE = true
 const cache = new Map<string, { data: EntitlementsResponse; fetchedAt: number }>()
+
+const FREE_LIMITS = { teams: 1, players: 30 }
+const CORE_CLUB_FEATURES = [
+  'contribution_intake',
+  'staff_chat',
+  'club_player_search',
+  'fixture_sync',
+]
 
 function safeUseAuth(): { activeClub: { club: { id: string } } | null } {
   try {
@@ -27,7 +37,7 @@ export function useEntitlements() {
   const { activeClub } = safeUseAuth()
   const clubId = activeClub?.club.id ?? null
   const [data, setData] = useState<EntitlementsResponse | null>(
-    clubId ? cache.get(clubId)?.data ?? null : null,
+    clubId ? (cache.get(clubId)?.data ?? null) : null,
   )
   const [loading, setLoading] = useState(false)
   const inflightRef = useRef<string | null>(null)
@@ -38,12 +48,13 @@ export function useEntitlements() {
     inflightRef.current = clubId
     setLoading(true)
     try {
-      const raw = await api<EntitlementsResponse>(
-        `/clubs/${clubId}/billing/entitlements`,
-      )
+      const raw = await api<EntitlementsResponse>(`/clubs/${clubId}/billing/entitlements`)
       const fresh: EntitlementsResponse = {
         clubId: raw?.clubId ?? clubId,
         plan: raw?.plan ?? 'FOUNDATION',
+        tier: raw?.tier ?? 'FREE',
+        limits: raw?.limits ?? FREE_LIMITS,
+        usage: raw?.usage ?? { teams: 0, players: 0 },
         features: Array.isArray(raw?.features) ? raw.features : [],
       }
       cache.set(clubId, { data: fresh, fetchedAt: Date.now() })
@@ -56,7 +67,10 @@ export function useEntitlements() {
         const fallback: EntitlementsResponse = {
           clubId,
           plan: 'FOUNDATION',
-          features: [],
+          tier: 'FREE',
+          limits: FREE_LIMITS,
+          usage: { teams: 0, players: 0 },
+          features: CORE_CLUB_FEATURES,
         }
         cache.set(clubId, { data: fallback, fetchedAt: Date.now() })
         setData(fallback)
@@ -83,13 +97,10 @@ export function useEntitlements() {
   }, [clubId, refresh])
 
   const has = useCallback(
-    (feature: string) => {
-      if (MVP_ALL_FREE) return true
-      return Boolean(Array.isArray(data?.features) && data.features.includes(feature))
-    },
+    (feature: string) => Boolean(Array.isArray(data?.features) && data.features.includes(feature)),
     [data],
   )
-  const isPremium = MVP_ALL_FREE || data?.plan === 'PREMIUM'
+  const isPremium = data?.plan === 'PREMIUM'
 
   return useMemo(
     () => ({

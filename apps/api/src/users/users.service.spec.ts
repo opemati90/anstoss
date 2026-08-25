@@ -1,18 +1,11 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
   FreeAgentVisibility,
   MembershipRole,
   PlayerPosition,
   RegistrationRole,
 } from '@anstoss/shared'
-import {
-  AUTH_IDENTITY_PROVIDER_CLERK,
-  hashAuthSubject,
-} from '../auth/auth-identity-tombstone'
+import { AUTH_IDENTITY_PROVIDER_CLERK, hashAuthSubject } from '../auth/auth-identity-tombstone'
 import { UsersService } from './users.service'
 
 describe('UsersService.updateClubMemberRole', () => {
@@ -27,15 +20,18 @@ describe('UsersService.updateClubMemberRole', () => {
       },
     }
 
+    const events = { emit: jest.fn() }
     const service = new UsersService(
       prisma as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
+      undefined,
+      events as never,
     )
 
-    return { prisma, service }
+    return { prisma, service, events }
   }
 
   it('allows an owner to promote a member to admin', async () => {
@@ -108,12 +104,7 @@ describe('UsersService.updateClubMemberRole', () => {
       })
 
     await expect(
-      service.updateClubMemberRole(
-        'club-1',
-        'admin-user',
-        'member-user',
-        MembershipRole.ADMIN,
-      ),
+      service.updateClubMemberRole('club-1', 'admin-user', 'member-user', MembershipRole.ADMIN),
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
@@ -140,12 +131,7 @@ describe('UsersService.updateClubMemberRole', () => {
     prisma.teamAccess.findMany.mockResolvedValue([{ id: 'ta_1' }])
 
     await expect(
-      service.updateClubMemberRole(
-        'club-1',
-        'owner-user',
-        'coach-user',
-        MembershipRole.PLAYER,
-      ),
+      service.updateClubMemberRole('club-1', 'owner-user', 'coach-user', MembershipRole.PLAYER),
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
@@ -171,13 +157,33 @@ describe('UsersService.updateClubMemberRole', () => {
       })
 
     await expect(
-      service.updateClubMemberRole(
-        'club-1',
-        'admin-user',
-        'admin-user',
-        MembershipRole.COACH,
-      ),
+      service.updateClubMemberRole('club-1', 'admin-user', 'admin-user', MembershipRole.COACH),
     ).rejects.toBeInstanceOf(BadRequestException)
+  })
+
+  it('revokes already-open realtime staff rooms when a staff role is demoted', async () => {
+    const { prisma, service, events } = createService()
+    prisma.membership.findUnique
+      .mockResolvedValueOnce({ role: MembershipRole.OWNER })
+      .mockResolvedValueOnce({
+        userId: 'staff-user',
+        clubId: 'club-1',
+        role: MembershipRole.ADMIN,
+        user: { id: 'staff-user', name: 'Sam Staff', email: 'sam@example.com', avatarUrl: null },
+      })
+    prisma.teamAccess.findMany.mockResolvedValue([])
+    prisma.membership.update.mockResolvedValue({
+      userId: 'staff-user',
+      clubId: 'club-1',
+      role: MembershipRole.PLAYER,
+      user: { id: 'staff-user', name: 'Sam Staff', email: 'sam@example.com', avatarUrl: null },
+    })
+
+    await service.updateClubMemberRole('club-1', 'owner-user', 'staff-user', MembershipRole.PLAYER)
+
+    expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', {
+      userId: 'staff-user',
+    })
   })
 })
 
@@ -370,9 +376,9 @@ describe('UsersService.getClubProfile', () => {
       .mockResolvedValueOnce({ userId: 'requester-1' })
       .mockResolvedValueOnce(targetMembership)
 
-    await expect(
-      service.getClubProfile('requester-1', 'target-1', 'club-1'),
-    ).resolves.toBe(targetMembership)
+    await expect(service.getClubProfile('requester-1', 'target-1', 'club-1')).resolves.toBe(
+      targetMembership,
+    )
 
     expect(prisma.membership.findUnique).toHaveBeenNthCalledWith(1, {
       where: { userId_clubId: { userId: 'requester-1', clubId: 'club-1' } },
@@ -388,17 +394,15 @@ describe('UsersService.getClubProfile', () => {
 
   it('does not expose a club member profile to an outsider', async () => {
     const { prisma, service } = createService()
-    prisma.membership.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        userId: 'target-1',
-        clubId: 'club-1',
-        user: { id: 'target-1', name: 'Tara Target' },
-      })
+    prisma.membership.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      userId: 'target-1',
+      clubId: 'club-1',
+      user: { id: 'target-1', name: 'Tara Target' },
+    })
 
-    await expect(
-      service.getClubProfile('outsider-1', 'target-1', 'club-1'),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.getClubProfile('outsider-1', 'target-1', 'club-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
   })
 })
 
@@ -605,9 +609,9 @@ describe('UsersService.deleteAccount', () => {
       avatarUrl: 'https://assets.example/users/user-1/avatar.png',
       freeAgentProfile: { id: 'profile-1' },
     })
-    prisma.message.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
-      { attachmentUrl: 'https://assets.example/chat/club-1/file.png' },
-    ])
+    prisma.message.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ attachmentUrl: 'https://assets.example/chat/club-1/file.png' }])
     prisma.freeAgentMedia.findMany.mockResolvedValue([
       {
         url: 'https://assets.example/users/user-1/free-agent/photo.png',
@@ -658,7 +662,7 @@ describe('UsersService.completeOnboarding', () => {
     photoUrl: 'https://example.com/avatar.png',
   }
 
-  it('CLUB_ADMIN happy path — creates club + team and updates profile', async () => {
+  it('CLUB_ADMIN completes the profile but never creates a club before claim review', async () => {
     const { prisma, clubsService, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -670,28 +674,21 @@ describe('UsersService.completeOnboarding', () => {
       team: { id: 'team-1' },
     })
 
-    await service.completeOnboarding('user-1', {
-      registrationRole: RegistrationRole.CLUB_ADMIN,
-      profile,
-      clubCreate: {
-        name: 'FC Onboard',
-        primaryColor: '#1E3A5F',
-        badgeUrl: 'https://example.com/badge.png',
-        welcomeText: 'Willkommen!',
-        firstTeamName: 'Erste',
-      },
-    })
+    await expect(
+      service.completeOnboarding('user-1', {
+        registrationRole: RegistrationRole.CLUB_ADMIN,
+        profile,
+        clubCreate: {
+          name: 'FC Onboard',
+          primaryColor: '#1E3A5F',
+          badgeUrl: 'https://example.com/badge.png',
+          welcomeText: 'Willkommen!',
+          firstTeamName: 'Erste',
+        },
+      }),
+    ).resolves.toMatchObject({ status: 'pending_club_claim' })
 
-    expect(clubsService.createClubWithTeam).toHaveBeenCalledWith(
-      'user-1',
-      {
-        name: 'FC Onboard',
-        primaryColor: '#1E3A5F',
-        badgeUrl: 'https://example.com/badge.png',
-        welcomeText: 'Willkommen!',
-      },
-      { name: 'Erste' },
-    )
+    expect(clubsService.createClubWithTeam).not.toHaveBeenCalled()
 
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -938,11 +935,7 @@ describe('UsersService.removeUnderageAccountInTransaction', () => {
       },
     }
 
-    await (service as any).removeUnderageAccountInTransaction(
-      tx,
-      'child-1',
-      'clerk_child_1',
-    )
+    await (service as any).removeUnderageAccountInTransaction(tx, 'child-1', 'clerk_child_1')
 
     expect(tx.$queryRaw).toHaveBeenCalled()
     expect(tx.authIdentityTombstone.upsert).toHaveBeenCalledWith({

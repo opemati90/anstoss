@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
@@ -32,6 +40,7 @@ import {
 import { ONBOARDING_FLOW_STORAGE_KEY } from './OnboardingFlowContext'
 
 const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
+const ROLE_MODE_PREF_PREFIX = 'anstoss:role-mode-pref:'
 const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
 
 type User = {
@@ -78,6 +87,8 @@ type Membership = {
   }
 }
 
+export type RoleMode = 'ADMIN' | 'COACH' | 'PLAYER' | 'PARENT' | 'FREE_AGENT'
+
 type AuthState = {
   user: User | null
   memberships: Membership[]
@@ -86,9 +97,12 @@ type AuthState = {
   activeTeamId: string | null
   activeTeamAccess: TeamMember | null
   teamsForActiveClub: TeamMember[]
+  activeRoleMode: RoleMode | null
+  availableRoleModes: RoleMode[]
   token: string | null
   ageGate: AgeGate | null
   pendingJoinRequest: { id: string; clubId: string } | null
+  pendingClubClaim: { id: string; status: 'SUBMITTED' | 'NEEDS_INFO' } | null
   isLoading: boolean
   isSignedIn: boolean
   needsOnboarding: boolean
@@ -98,10 +112,13 @@ type AuthState = {
   signOut: () => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
+  setActiveRoleMode: (mode: RoleMode) => void
   refreshUser: (
     tokenOverride?: string,
     options?: { preferredClubId?: string; throwOnError?: boolean },
   ) => Promise<void>
+  /** Prove control of the account email again before a sensitive action. */
+  reauthenticate: (code: string) => Promise<void>
   completeOnboarding: () => Promise<void>
 }
 
@@ -123,9 +140,7 @@ function selectPrimaryTeamAccess(teamMembers: TeamMember[]): TeamMember | null {
   return teamMembers.reduce<TeamMember | null>((best, current) => {
     if (!isActiveTeamMember(current)) return best
     if (!best) return current
-    return teamRolePriority(current.role) > teamRolePriority(best.role)
-      ? current
-      : best
+    return teamRolePriority(current.role) > teamRolePriority(best.role) ? current : best
   }, null)
 }
 
@@ -135,15 +150,21 @@ function selectPrimaryAccessPerTeam(teamMembers: TeamMember[]): TeamMember[] {
   teamMembers.forEach((teamMember) => {
     if (!isActiveTeamMember(teamMember)) return
     const current = byTeam.get(teamMember.team.id)
-    if (
-      !current ||
-      teamRolePriority(teamMember.role) > teamRolePriority(current.role)
-    ) {
+    if (!current || teamRolePriority(teamMember.role) > teamRolePriority(current.role)) {
       byTeam.set(teamMember.team.id, teamMember)
     }
   })
 
   return Array.from(byTeam.values())
+}
+
+function teamAccessMatchesMode(teamMember: TeamMember, mode: RoleMode | null): boolean {
+  if (mode === 'COACH') {
+    return teamMember.role === 'HEAD_COACH' || teamMember.role === 'ASSISTANT_COACH'
+  }
+  if (mode === 'PLAYER') return teamMember.role === 'PLAYER'
+  if (mode === 'PARENT') return teamMember.role === 'PARENT'
+  return false
 }
 
 type RefreshUserOptions = {
@@ -174,12 +195,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [activeClub, setActiveClubState] = useState<Membership | null>(null)
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const [activeRoleMode, setActiveRoleModeState] = useState<RoleMode | null>(null)
   const activeClubRef = useRef<Membership | null>(null)
   const activeTeamIdRef = useRef<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [ageGate, setAgeGate] = useState<AgeGate | null>(null)
-  const [pendingJoinRequest, setPendingJoinRequest] =
-    useState<{ id: string; clubId: string } | null>(null)
+  const [pendingJoinRequest, setPendingJoinRequest] = useState<{
+    id: string
+    clubId: string
+  } | null>(null)
+  const [pendingClubClaim, setPendingClubClaim] = useState<{
+    id: string
+    status: 'SUBMITTED' | 'NEEDS_INFO'
+  } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [e2eSession, setE2ESession] = useState<E2ESessionSnapshot | null>(null)
@@ -215,43 +243,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const applyE2ESession = useCallback((session: E2ESessionSnapshot | null) => {
-    if (!session) {
-      resetLocalAuthState()
-      return
-    }
+  const applyE2ESession = useCallback(
+    (session: E2ESessionSnapshot | null) => {
+      if (!session) {
+        resetLocalAuthState()
+        return
+      }
 
-    isSigningOutRef.current = false
-    setAuthExpiryHandlingSuspended(false)
-    setUser({
-      id: session.user.id,
-      clerkId: session.user.clerkId,
-      email: session.user.email,
-      name: session.user.name,
-      avatarUrl: session.user.avatarUrl,
-      registrationRole: session.user.registrationRole,
-      dateOfBirth: (session.user as { dateOfBirth?: string | null }).dateOfBirth ?? null,
-    })
-    setMemberships(session.memberships)
-    setTeamMembers(session.teamMembers)
-    setAgeGate(session.ageGate)
-    setNeedsOnboarding(session.needsOnboarding)
-    setToken('e2e-session-token')
+      isSigningOutRef.current = false
+      setAuthExpiryHandlingSuspended(false)
+      setUser({
+        id: session.user.id,
+        clerkId: session.user.clerkId,
+        email: session.user.email,
+        name: session.user.name,
+        avatarUrl: session.user.avatarUrl,
+        registrationRole: session.user.registrationRole,
+        dateOfBirth: (session.user as { dateOfBirth?: string | null }).dateOfBirth ?? null,
+      })
+      setMemberships(session.memberships)
+      setTeamMembers(session.teamMembers)
+      setAgeGate(session.ageGate)
+      setNeedsOnboarding(session.needsOnboarding)
+      setToken('e2e-session-token')
 
-    const firstMembership = session.memberships[0] || null
-    setActiveClubState(firstMembership)
+      const firstMembership = session.memberships[0] || null
+      setActiveClubState(firstMembership)
 
-    if (firstMembership) {
-      const firstTeam = selectPrimaryAccessPerTeam(
-        session.teamMembers.filter(
-          (teamMember) => teamMember.team.clubId === firstMembership.club.id,
-        ),
-      )[0]
-      setActiveTeamId(firstTeam?.team.id || null)
-    } else {
-      setActiveTeamId(null)
-    }
-  }, [resetLocalAuthState])
+      if (firstMembership) {
+        const firstTeam = selectPrimaryAccessPerTeam(
+          session.teamMembers.filter(
+            (teamMember) => teamMember.team.clubId === firstMembership.club.id,
+          ),
+        )[0]
+        setActiveTeamId(firstTeam?.team.id || null)
+      } else {
+        setActiveTeamId(null)
+      }
+    },
+    [resetLocalAuthState],
+  )
 
   useEffect(() => {
     if (!isE2ESupported()) {
@@ -414,9 +445,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const validatedTeamId = useMemo(() => {
     if (!activeClub) return null
     if (!activeTeamId) return null
-    const belongsToClub = teamsForActiveClub.some(
-      (tm) => tm.team.id === activeTeamId,
-    )
+    const belongsToClub = teamsForActiveClub.some((tm) => tm.team.id === activeTeamId)
     return belongsToClub ? activeTeamId : null
   }, [activeTeamId, activeClub, teamsForActiveClub])
 
@@ -426,18 +455,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [validatedTeamId, activeClub, teamsForActiveClub])
 
-  const activeTeamAccess = validatedTeamId
-    ? selectPrimaryTeamAccess(
-        teamMembers.filter((tm) => tm.team.id === validatedTeamId),
-      )
-    : null
+  const activeTeamAccess = useMemo(() => {
+    if (!validatedTeamId) return null
+    const activeAccess = teamMembers.filter(
+      (tm) => tm.team.id === validatedTeamId && isActiveTeamMember(tm),
+    )
+    return (
+      activeAccess.find((teamMember) => teamAccessMatchesMode(teamMember, activeRoleMode)) ??
+      selectPrimaryTeamAccess(activeAccess)
+    )
+  }, [activeRoleMode, teamMembers, validatedTeamId])
+
+  const availableRoleModes = useMemo(() => {
+    const modes = new Set<RoleMode>()
+    if (activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN') modes.add('ADMIN')
+    if (activeClub?.role === 'COACH') modes.add('COACH')
+    if (activeClub?.role === 'PARENT') modes.add('PARENT')
+    if (activeClub?.role === 'PLAYER') modes.add('PLAYER')
+    if (activeClub) {
+      for (const access of teamMembers) {
+        if (access.team.clubId !== activeClub.club.id || !isActiveTeamMember(access)) continue
+        if (access.role === 'HEAD_COACH' || access.role === 'ASSISTANT_COACH') modes.add('COACH')
+        if (access.role === 'PLAYER') modes.add('PLAYER')
+        if (access.role === 'PARENT') modes.add('PARENT')
+      }
+    } else if (user?.registrationRole === 'FREE_AGENT') {
+      modes.add('FREE_AGENT')
+    }
+    return Array.from(modes)
+  }, [activeClub, teamMembers, user?.registrationRole])
+
+  useEffect(() => {
+    let cancelled = false
+    const scope = activeClub?.club.id ?? user?.id
+    if (!scope || availableRoleModes.length === 0) {
+      setActiveRoleModeState(null)
+      return () => {
+        cancelled = true
+      }
+    }
+    void AsyncStorage.getItem(ROLE_MODE_PREF_PREFIX + scope)
+      .catch(() => null)
+      .then((saved) => {
+        if (cancelled) return
+        const valid = availableRoleModes.find((mode) => mode === saved)
+        setActiveRoleModeState((current) =>
+          current && availableRoleModes.includes(current)
+            ? current
+            : (valid ?? availableRoleModes[0]),
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeClub?.club.id, availableRoleModes, user?.id])
+
+  const setActiveRoleMode = useCallback(
+    (mode: RoleMode) => {
+      if (!availableRoleModes.includes(mode)) return
+      setActiveRoleModeState(mode)
+      const scope = activeClub?.club.id ?? user?.id
+      if (scope) AsyncStorage.setItem(ROLE_MODE_PREF_PREFIX + scope, mode).catch(() => {})
+    },
+    [activeClub?.club.id, availableRoleModes, user?.id],
+  )
 
   const deriveActiveTeam = useCallback(
     async (clubId: string | undefined, teams: TeamMember[]): Promise<string | null> => {
       if (!clubId) return null
-      const clubTeams = selectPrimaryAccessPerTeam(
-        teams.filter((tm) => tm.team.clubId === clubId),
-      )
+      const clubTeams = selectPrimaryAccessPerTeam(teams.filter((tm) => tm.team.clubId === clubId))
       if (clubTeams.length === 0) return null
 
       // Check for a saved preference
@@ -486,124 +572,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [teamMembers, deriveActiveTeam],
   )
 
-  const fetchUser = useCallback(async (
-    tokenOverride?: string,
-    options?: RefreshUserOptions,
-  ) => {
-    const currentE2ESession = getE2ESession()
-    if (currentE2ESession) {
-      applyE2ESession(currentE2ESession)
-      return
-    }
-
-    try {
-      const data = await api<{
-        id: string
-        clerkId: string
-        email: string
-        name: string
-        avatarUrl: string | null
-        registrationRole: string
-        dateOfBirth: string | null
-        memberships: Membership[]
-        teamMembers: TeamMember[]
-        ageGate?: AgeGate | null
-        pendingJoinRequest?: { id: string; clubId: string } | null
-      }>('/me', {
-        headers: tokenOverride
-          ? {
-              Authorization: `Bearer ${tokenOverride}`,
-            }
-          : undefined,
-      })
-      setAgeGate(data.ageGate || null)
-      setPendingJoinRequest(data.pendingJoinRequest ?? null)
-      isSigningOutRef.current = false
-      setAuthExpiryHandlingSuspended(false)
-      setUser({
-        id: data.id,
-        clerkId: data.clerkId,
-        email: data.email,
-        name: data.name,
-        avatarUrl: data.avatarUrl,
-        registrationRole: data.registrationRole,
-        dateOfBirth: data.dateOfBirth ?? null,
-      })
-      setMemberships(data.memberships)
-      setTeamMembers(data.teamMembers || [])
-
-      // Check onboarding status
-      if (data.memberships.length > 0) {
-        const completed = await AsyncStorage.getItem(
-          ONBOARDING_KEY_PREFIX + data.id,
-        ).catch(() => null)
-        setNeedsOnboarding(!completed)
-      } else {
-        setNeedsOnboarding(false)
+  const fetchUser = useCallback(
+    async (tokenOverride?: string, options?: RefreshUserOptions) => {
+      const currentE2ESession = getE2ESession()
+      if (currentE2ESession) {
+        applyE2ESession(currentE2ESession)
+        return
       }
 
-      if (data.memberships.length === 0) {
-        setActiveClubState(null)
-        setActiveTeamId(null)
-      } else {
-        const currentActiveClub = activeClubRef.current
-        const currentActiveTeamId = activeTeamIdRef.current
-        const preferredMembership =
-          (options?.preferredClubId
-            ? data.memberships.find(
-                (membership) => membership.club.id === options.preferredClubId,
-              )
-            : null) ||
-          (currentActiveClub
-            ? data.memberships.find(
-                (membership) => membership.club.id === currentActiveClub.club.id,
-              )
-            : null) ||
-          data.memberships[0]
+      try {
+        const data = await api<{
+          id: string
+          clerkId: string
+          email: string
+          name: string
+          avatarUrl: string | null
+          registrationRole: string
+          dateOfBirth: string | null
+          memberships: Membership[]
+          teamMembers: TeamMember[]
+          ageGate?: AgeGate | null
+          pendingJoinRequest?: { id: string; clubId: string } | null
+          pendingClubClaim?: { id: string; status: 'SUBMITTED' | 'NEEDS_INFO' } | null
+        }>('/me', {
+          headers: tokenOverride
+            ? {
+                Authorization: `Bearer ${tokenOverride}`,
+              }
+            : undefined,
+        })
+        setAgeGate(data.ageGate || null)
+        setPendingJoinRequest(data.pendingJoinRequest ?? null)
+        setPendingClubClaim(data.pendingClubClaim ?? null)
+        isSigningOutRef.current = false
+        setAuthExpiryHandlingSuspended(false)
+        setUser({
+          id: data.id,
+          clerkId: data.clerkId,
+          email: data.email,
+          name: data.name,
+          avatarUrl: data.avatarUrl,
+          registrationRole: data.registrationRole,
+          dateOfBirth: data.dateOfBirth ?? null,
+        })
+        setMemberships(data.memberships)
+        setTeamMembers(data.teamMembers || [])
 
-        setActiveClubState(preferredMembership)
-
-        const teamId =
-          currentActiveTeamId &&
-          data.teamMembers?.some(
-            (teamMember) =>
-              isActiveTeamMember(teamMember) &&
-              teamMember.team.id === currentActiveTeamId &&
-              teamMember.team.clubId === preferredMembership.club.id,
+        // Check onboarding status
+        if (data.memberships.length > 0) {
+          const completed = await AsyncStorage.getItem(ONBOARDING_KEY_PREFIX + data.id).catch(
+            () => null,
           )
-            ? currentActiveTeamId
-            : await deriveActiveTeam(
-                preferredMembership.club.id,
-                data.teamMembers || [],
-              )
-
-        setActiveTeamId(teamId)
-      }
-
-      // Pre-warm L1 cache for all teams in all clubs
-      for (const membership of data.memberships) {
-        const clubTeamIds = (data.teamMembers || [])
-          .filter(
-            (tm) => tm.team.clubId === membership.club.id && isActiveTeamMember(tm),
-          )
-          .map((tm) => tm.team.id)
-        if (clubTeamIds.length > 0) {
-          prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
+          setNeedsOnboarding(!completed)
+        } else {
+          setNeedsOnboarding(false)
         }
+
+        if (data.memberships.length === 0) {
+          setActiveClubState(null)
+          setActiveTeamId(null)
+        } else {
+          const currentActiveClub = activeClubRef.current
+          const currentActiveTeamId = activeTeamIdRef.current
+          const preferredMembership =
+            (options?.preferredClubId
+              ? data.memberships.find(
+                  (membership) => membership.club.id === options.preferredClubId,
+                )
+              : null) ||
+            (currentActiveClub
+              ? data.memberships.find(
+                  (membership) => membership.club.id === currentActiveClub.club.id,
+                )
+              : null) ||
+            data.memberships[0]
+
+          setActiveClubState(preferredMembership)
+
+          const teamId =
+            currentActiveTeamId &&
+            data.teamMembers?.some(
+              (teamMember) =>
+                isActiveTeamMember(teamMember) &&
+                teamMember.team.id === currentActiveTeamId &&
+                teamMember.team.clubId === preferredMembership.club.id,
+            )
+              ? currentActiveTeamId
+              : await deriveActiveTeam(preferredMembership.club.id, data.teamMembers || [])
+
+          setActiveTeamId(teamId)
+        }
+
+        // Pre-warm L1 cache for all teams in all clubs
+        for (const membership of data.memberships) {
+          const clubTeamIds = (data.teamMembers || [])
+            .filter((tm) => tm.team.clubId === membership.club.id && isActiveTeamMember(tm))
+            .map((tm) => tm.team.id)
+          if (clubTeamIds.length > 0) {
+            prefetchTeamData(membership.club.id, clubTeamIds).catch(() => {})
+          }
+        }
+      } catch (err) {
+        if (hasErrorStatus(err, 401)) {
+          // Token expired or invalid — clear all local auth state so routing restarts.
+          resetLocalAuthState()
+        } else if (__DEV__) {
+          console.warn('[auth] /me fetch failed (non-auth):', errorMessage(err))
+        }
+        if (options?.throwOnError) {
+          throw err
+        }
+        // For network errors, keep existing user state (stale-while-revalidate)
       }
-    } catch (err) {
-      if (hasErrorStatus(err, 401)) {
-        // Token expired or invalid — clear all local auth state so routing restarts.
-        resetLocalAuthState()
-      } else if (__DEV__) {
-        console.warn('[auth] /me fetch failed (non-auth):', errorMessage(err))
-      }
-      if (options?.throwOnError) {
-        throw err
-      }
-      // For network errors, keep existing user state (stale-while-revalidate)
-    }
-  }, [applyE2ESession, deriveActiveTeam, resetLocalAuthState])
+    },
+    [applyE2ESession, deriveActiveTeam, resetLocalAuthState],
+  )
 
   const completeOnboarding = useCallback(async () => {
     if (user) {
@@ -703,10 +786,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const current = getSessionTokenSync()
       if (!shouldRefreshSession(current)) return
       try {
-        const { token: next } = await api<{ token: string }>(
-          '/auth/session/refresh',
-          { method: 'POST' },
-        )
+        const { token: next } = await api<{ token: string }>('/auth/session/refresh', {
+          method: 'POST',
+        })
         if (!cancelled && next) {
           await setSessionToken(next)
         }
@@ -730,6 +812,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [hasHydratedE2E, tokenHydrated, e2eSession, sessionToken])
 
+  const reauthenticate = useCallback(async (code: string) => {
+    if (e2eSession) return
+    if (!user?.email) throw new Error('Your account does not have a sign-in email')
+    const result = await api<{ token: string; user: { id: string } }>('/auth/otp/verify', {
+      method: 'POST',
+      body: { email: user.email, code },
+    })
+    if (!result.token || result.user.id !== user.id) {
+      throw new Error('Could not verify this account')
+    }
+    await setSessionToken(result.token)
+  }, [e2eSession, user?.email, user?.id])
+
   return (
     <AuthContext.Provider
       value={{
@@ -740,9 +835,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeTeamId: validatedTeamId,
         activeTeamAccess,
         teamsForActiveClub,
+        activeRoleMode,
+        availableRoleModes,
         token,
         ageGate,
         pendingJoinRequest,
+        pendingClubClaim,
         isLoading,
         isSignedIn: !!user,
         needsOnboarding,
@@ -751,7 +849,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         setActiveClub,
         setActiveTeam,
+        setActiveRoleMode,
         refreshUser,
+        reauthenticate,
         completeOnboarding,
       }}
     >
@@ -775,9 +875,7 @@ function decodeJwtExpSeconds(token: string): number | null {
     const b64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/') + pad
     // global.atob exists in React Native (Hermes). Fall back to Buffer if not.
     const json =
-      typeof atob === 'function'
-        ? atob(b64)
-        : Buffer.from(b64, 'base64').toString('binary')
+      typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary')
     const claims = JSON.parse(json) as { exp?: unknown }
     return typeof claims.exp === 'number' ? claims.exp : null
   } catch {

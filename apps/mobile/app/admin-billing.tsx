@@ -354,17 +354,14 @@ export default function AdminBillingScreen() {
             )}
           </SectionGroup>
 
-          {/* ── Launch access + real-world dues payment setup ── */}
+          {/* ── Anstoss plan access. Club dues stay offline/bank-transfer only. ── */}
           <SectionGroup
             header={t('adminBilling.paymentSectionTitle', {
-              defaultValue: 'Club payment setup',
+              defaultValue: 'Anstoss plan',
             })}
             style={styles.section}
           >
-            <PlatformBillingRows
-              billing={billing}
-              onSetupStripe={() => requireContributionIntake(() => router.push('/stripe-connect'))}
-            />
+            <PlatformBillingRows billing={billing} />
           </SectionGroup>
         </>
       ) : null}
@@ -558,13 +555,7 @@ function MemberRow({
   )
 }
 
-function PlatformBillingRows({
-  billing,
-  onSetupStripe,
-}: {
-  billing: BillingStatus | null
-  onSetupStripe: () => void
-}) {
+function PlatformBillingRows({ billing }: { billing: BillingStatus | null }) {
   const { t } = useTranslation()
   const c = useClubColors()
 
@@ -576,8 +567,6 @@ function PlatformBillingRows({
       />
     )
   }
-
-  const stripeConnected = billing.connectStatus === 'active'
 
   return (
     <>
@@ -593,20 +582,6 @@ function PlatformBillingRows({
             {t('adminBilling.included', { defaultValue: 'Included' })}
           </Text>
         }
-      />
-      <ListRow
-        left={
-          <SoftIcon
-            name={stripeConnected ? 'checkmark.circle.fill' : 'exclamationmark.circle.fill'}
-            color={stripeConnected ? c.success : c.warning}
-          />
-        }
-        title={t('adminBilling.paymentSetup')}
-        subtitle={
-          stripeConnected ? t('adminBilling.stripeConnected') : t('adminBilling.stripeNotConnected')
-        }
-        showChevron={!stripeConnected}
-        onPress={!stripeConnected ? onSetupStripe : undefined}
       />
     </>
   )

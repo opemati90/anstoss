@@ -4,8 +4,10 @@ import { TeamsService } from './teams.service'
 import { RosterSlotsController } from './roster-slots.controller'
 import { RosterSlotsService } from './roster-slots.service'
 import { PlayerLoanExpiryWorker } from './player-loan-expiry.worker'
+import { BillingModule } from '../billing/billing.module'
 
 @Module({
+  imports: [BillingModule],
   controllers: [TeamsController, TeamLookupController, RosterSlotsController],
   providers: [TeamsService, RosterSlotsService, PlayerLoanExpiryWorker],
   exports: [TeamsService, RosterSlotsService],

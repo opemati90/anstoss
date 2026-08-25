@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import {
   FreeAgentVisibility,
@@ -24,12 +25,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { tenantContext } from '../prisma/tenant.context'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 
 @Injectable()
 export class MarketplaceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly clubEntitlements?: ClubEntitlementsService,
   ) {}
 
   async getMyFreeAgentProfile(userId: string): Promise<FreeAgentProfile | null> {
@@ -57,10 +60,7 @@ export class MarketplaceService {
     return this.saveFreeAgentProfile(userId, input, true)
   }
 
-  async addMedia(
-    userId: string,
-    input: CreateFreeAgentMediaInput,
-  ): Promise<FreeAgentMediaEntry> {
+  async addMedia(userId: string, input: CreateFreeAgentMediaInput): Promise<FreeAgentMediaEntry> {
     await this.assertFreeAgent(userId)
     const profile = await this.prisma.freeAgentProfile.findUnique({
       where: { userId },
@@ -394,63 +394,57 @@ export class MarketplaceService {
       throw new NotFoundException('Trial invite not found')
     }
 
-    return tenantContext.run(
-      { clubId: invite.clubId, userId },
-      async () => {
-        if (
-          invite.status === TrialInviteStatus.PENDING &&
-          invite.expiresAt < new Date()
-        ) {
-          const expired = await this.prisma.trialInvite.update({
-            where: { id: invite.id },
-            data: {
-              status: TrialInviteStatus.EXPIRED,
-            },
-            include: trialInviteInclude,
-          })
-          throw new BadRequestException(
-            this.mapTrialInvite(expired).status === TrialInviteStatus.EXPIRED
-              ? 'Trial invite expired'
-              : 'Trial invite expired',
-          )
-        }
+    return tenantContext.run({ clubId: invite.clubId, userId }, async () => {
+      if (invite.status === TrialInviteStatus.PENDING && invite.expiresAt < new Date()) {
+        const expired = await this.prisma.trialInvite.update({
+          where: { id: invite.id },
+          data: {
+            status: TrialInviteStatus.EXPIRED,
+          },
+          include: trialInviteInclude,
+        })
+        throw new BadRequestException(
+          this.mapTrialInvite(expired).status === TrialInviteStatus.EXPIRED
+            ? 'Trial invite expired'
+            : 'Trial invite expired',
+        )
+      }
 
-        if (invite.status !== TrialInviteStatus.PENDING) {
-          throw new BadRequestException('Trial invite has already been handled')
-        }
+      if (invite.status !== TrialInviteStatus.PENDING) {
+        throw new BadRequestException('Trial invite has already been handled')
+      }
 
-        const updatedInvite =
-          status === TrialInviteStatus.ACCEPTED
-            ? await this.acceptTrialInvite(invite, userId)
-            : await this.prisma.trialInvite.update({
-                where: { id: invite.id },
-                data: {
-                  status: TrialInviteStatus.DECLINED,
-                  respondedAt: new Date(),
-                },
-                include: trialInviteInclude,
-              })
+      const updatedInvite =
+        status === TrialInviteStatus.ACCEPTED
+          ? await this.acceptTrialInvite(invite, userId)
+          : await this.prisma.trialInvite.update({
+              where: { id: invite.id },
+              data: {
+                status: TrialInviteStatus.DECLINED,
+                respondedAt: new Date(),
+              },
+              include: trialInviteInclude,
+            })
 
-        void this.push
-          .sendToUserLocalized(
-            invite.sentByUserId,
-            'TRIAL_RESPONSE',
-            {
-              playerName: invite.freeAgentProfile.user.name,
-              accepted: status === TrialInviteStatus.ACCEPTED,
-              teamName: invite.team.displayName,
-            },
-            {
-              trialInviteId: invite.id,
-              clubId: invite.clubId,
-            },
-            { clubId: invite.clubId },
-          )
-          .catch(() => {})
+      void this.push
+        .sendToUserLocalized(
+          invite.sentByUserId,
+          'TRIAL_RESPONSE',
+          {
+            playerName: invite.freeAgentProfile.user.name,
+            accepted: status === TrialInviteStatus.ACCEPTED,
+            teamName: invite.team.displayName,
+          },
+          {
+            trialInviteId: invite.id,
+            clubId: invite.clubId,
+          },
+          { clubId: invite.clubId },
+        )
+        .catch(() => {})
 
-        return this.mapTrialInvite(updatedInvite)
-      },
-    )
+      return this.mapTrialInvite(updatedInvite)
+    })
   }
 
   /**
@@ -481,16 +475,11 @@ export class MarketplaceService {
             where: { userId },
             data: {
               position: input.position === undefined ? undefined : input.position,
-              preferredFoot:
-                input.preferredFoot === undefined ? undefined : input.preferredFoot,
-              city:
-                input.city === undefined ? undefined : normalizeNullableString(input.city),
-              bio:
-                input.bio === undefined ? undefined : normalizeNullableString(input.bio),
+              preferredFoot: input.preferredFoot === undefined ? undefined : input.preferredFoot,
+              city: input.city === undefined ? undefined : normalizeNullableString(input.city),
+              bio: input.bio === undefined ? undefined : normalizeNullableString(input.bio),
               isOnTransferList:
-                input.isOnTransferList === undefined
-                  ? undefined
-                  : input.isOnTransferList,
+                input.isOnTransferList === undefined ? undefined : input.isOnTransferList,
               visibility: input.visibility === undefined ? undefined : input.visibility,
             },
           })
@@ -542,6 +531,7 @@ export class MarketplaceService {
 
   private async acceptTrialInvite(invite: any, userId: string) {
     return this.prisma.$transaction(async (tx: any) => {
+      await this.requireEntitlements().assertCanActivatePlayer(invite.clubId, userId, tx)
       await tx.membership.upsert({
         where: {
           userId_clubId: {
@@ -625,6 +615,13 @@ export class MarketplaceService {
         await this.expireClubTrialInvites(clubId)
       })
     }
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 
   private mapProfile(profile: any): FreeAgentProfile {
@@ -730,9 +727,8 @@ function mapMedia(entry: any): FreeAgentMediaEntry {
     url: entry.url,
     thumbnailUrl: entry.thumbnailUrl ?? null,
     sortOrder: entry.sortOrder,
-    createdAt: entry.createdAt instanceof Date
-      ? entry.createdAt.toISOString()
-      : String(entry.createdAt),
+    createdAt:
+      entry.createdAt instanceof Date ? entry.createdAt.toISOString() : String(entry.createdAt),
   }
 }
 

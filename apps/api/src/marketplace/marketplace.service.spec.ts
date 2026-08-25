@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
   FreeAgentVisibility,
   PlayerPosition,
@@ -43,9 +39,8 @@ describe('MarketplaceService — free-agent profile', () => {
       freeAgentExperience: {
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
-      $transaction: jest.fn(
-        async (callback: (client: typeof tx) => Promise<unknown>) =>
-          callback(tx),
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
+        callback(tx),
       ),
     }
 
@@ -100,29 +95,26 @@ describe('MarketplaceService — free-agent profile', () => {
       RegistrationRole.PARENT,
       RegistrationRole.COACH,
       RegistrationRole.CLUB_ADMIN,
-    ])(
-      'rejects creation for registrationRole %s with ForbiddenException',
-      async (role) => {
-        const { service, prisma, tx } = createService()
-        prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
+    ])('rejects creation for registrationRole %s with ForbiddenException', async (role) => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
 
-        await expect(
-          service.createFreeAgentProfile('user-1', buildWriteInput()),
-        ).rejects.toThrow(ForbiddenException)
+      await expect(service.createFreeAgentProfile('user-1', buildWriteInput())).rejects.toThrow(
+        ForbiddenException,
+      )
 
-        // Guard must short-circuit before any tx work happens.
-        expect(tx.freeAgentProfile.create).not.toHaveBeenCalled()
-        expect(tx.freeAgentProfile.update).not.toHaveBeenCalled()
-      },
-    )
+      // Guard must short-circuit before any tx work happens.
+      expect(tx.freeAgentProfile.create).not.toHaveBeenCalled()
+      expect(tx.freeAgentProfile.update).not.toHaveBeenCalled()
+    })
 
     it('throws NotFoundException if the user row does not exist', async () => {
       const { service, prisma, tx } = createService()
       prisma.user.findUnique.mockResolvedValue(null)
 
-      await expect(
-        service.createFreeAgentProfile('user-1', buildWriteInput()),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.createFreeAgentProfile('user-1', buildWriteInput())).rejects.toThrow(
+        NotFoundException,
+      )
 
       expect(tx.freeAgentProfile.create).not.toHaveBeenCalled()
     })
@@ -150,19 +142,16 @@ describe('MarketplaceService — free-agent profile', () => {
       RegistrationRole.PARENT,
       RegistrationRole.COACH,
       RegistrationRole.CLUB_ADMIN,
-    ])(
-      'rejects update for registrationRole %s with ForbiddenException',
-      async (role) => {
-        const { service, prisma, tx } = createService()
-        prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
+    ])('rejects update for registrationRole %s with ForbiddenException', async (role) => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
 
-        await expect(
-          service.updateFreeAgentProfile('user-1', buildWriteInput()),
-        ).rejects.toThrow(ForbiddenException)
+      await expect(service.updateFreeAgentProfile('user-1', buildWriteInput())).rejects.toThrow(
+        ForbiddenException,
+      )
 
-        expect(tx.freeAgentProfile.update).not.toHaveBeenCalled()
-      },
-    )
+      expect(tx.freeAgentProfile.update).not.toHaveBeenCalled()
+    })
 
     it('allows update for a FREE_AGENT-registered user', async () => {
       const { service, prisma, tx } = createService()
@@ -187,9 +176,9 @@ describe('MarketplaceService — free-agent profile', () => {
       })
       prisma.freeAgentProfile.findUnique.mockResolvedValue(null)
 
-      await expect(
-        service.updateFreeAgentProfile('user-1', buildWriteInput()),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.updateFreeAgentProfile('user-1', buildWriteInput())).rejects.toThrow(
+        NotFoundException,
+      )
     })
   })
 
@@ -201,9 +190,7 @@ describe('MarketplaceService — free-agent profile', () => {
       })
       prisma.freeAgentProfile.findUnique.mockResolvedValue(null)
 
-      await expect(
-        service.deleteFreeAgentProfile('user-1'),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.deleteFreeAgentProfile('user-1')).rejects.toThrow(NotFoundException)
     })
 
     it('hard-deletes the profile (and experience rows) when present', async () => {
@@ -214,9 +201,7 @@ describe('MarketplaceService — free-agent profile', () => {
       prisma.freeAgentProfile.findUnique.mockResolvedValue({ id: 'profile-1' })
       tx.freeAgentProfile.delete.mockResolvedValue({ id: 'profile-1' })
 
-      await expect(
-        service.deleteFreeAgentProfile('user-1'),
-      ).resolves.toBeUndefined()
+      await expect(service.deleteFreeAgentProfile('user-1')).resolves.toBeUndefined()
 
       expect(tx.freeAgentExperience.deleteMany).toHaveBeenCalledWith({
         where: { profileId: 'profile-1' },
@@ -231,19 +216,14 @@ describe('MarketplaceService — free-agent profile', () => {
       RegistrationRole.PARENT,
       RegistrationRole.COACH,
       RegistrationRole.CLUB_ADMIN,
-    ])(
-      'rejects delete for registrationRole %s with ForbiddenException',
-      async (role) => {
-        const { service, prisma, tx } = createService()
-        prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
+    ])('rejects delete for registrationRole %s with ForbiddenException', async (role) => {
+      const { service, prisma, tx } = createService()
+      prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
 
-        await expect(
-          service.deleteFreeAgentProfile('user-1'),
-        ).rejects.toThrow(ForbiddenException)
+      await expect(service.deleteFreeAgentProfile('user-1')).rejects.toThrow(ForbiddenException)
 
-        expect(tx.freeAgentProfile.delete).not.toHaveBeenCalled()
-      },
-    )
+      expect(tx.freeAgentProfile.delete).not.toHaveBeenCalled()
+    })
   })
 
   describe('getPublicFreeAgentProfile — visibility regression lock', () => {
@@ -254,27 +234,25 @@ describe('MarketplaceService — free-agent profile', () => {
         visibility: FreeAgentVisibility.PRIVATE,
       })
 
-      await expect(
-        service.getPublicFreeAgentProfile('profile-1'),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.getPublicFreeAgentProfile('profile-1')).rejects.toThrow(
+        NotFoundException,
+      )
     })
 
     it('throws NotFoundException when the profile does not exist', async () => {
       const { service, prisma } = createService()
       prisma.freeAgentProfile.findUnique.mockResolvedValue(null)
 
-      await expect(
-        service.getPublicFreeAgentProfile('profile-1'),
-      ).rejects.toThrow(NotFoundException)
+      await expect(service.getPublicFreeAgentProfile('profile-1')).rejects.toThrow(
+        NotFoundException,
+      )
     })
 
     it('returns the profile when PUBLIC', async () => {
       const { service, prisma } = createService()
       prisma.freeAgentProfile.findUnique.mockResolvedValue(buildSavedProfile())
 
-      await expect(
-        service.getPublicFreeAgentProfile('profile-1'),
-      ).resolves.toMatchObject({
+      await expect(service.getPublicFreeAgentProfile('profile-1')).resolves.toMatchObject({
         id: 'profile-1',
         visibility: FreeAgentVisibility.PUBLIC,
       })
@@ -289,32 +267,27 @@ describe('MarketplaceService — free-agent profile', () => {
         teamAccess: { upsert: jest.fn().mockResolvedValue({}) },
         teamMember: { upsert: jest.fn().mockResolvedValue({}) },
         trialInvite: {
-          update: jest
-            .fn()
-            .mockImplementation(async ({ data }: { data: any }) =>
-              buildInvite({
-                status: data.status,
-                respondedAt: data.respondedAt ?? null,
-              }),
-            ),
+          update: jest.fn().mockImplementation(async ({ data }: { data: any }) =>
+            buildInvite({
+              status: data.status,
+              respondedAt: data.respondedAt ?? null,
+            }),
+          ),
         },
       }
 
       const prisma = {
         trialInvite: {
           findUnique: jest.fn(),
-          update: jest
-            .fn()
-            .mockImplementation(async ({ data }: { data: any }) =>
-              buildInvite({
-                status: data.status,
-                respondedAt: data.respondedAt ?? null,
-              }),
-            ),
+          update: jest.fn().mockImplementation(async ({ data }: { data: any }) =>
+            buildInvite({
+              status: data.status,
+              respondedAt: data.respondedAt ?? null,
+            }),
+          ),
         },
-        $transaction: jest.fn(
-          async (callback: (client: typeof trialTx) => Promise<unknown>) =>
-            callback(trialTx),
+        $transaction: jest.fn(async (callback: (client: typeof trialTx) => Promise<unknown>) =>
+          callback(trialTx),
         ),
       }
 
@@ -322,9 +295,13 @@ describe('MarketplaceService — free-agent profile', () => {
         sendToUserLocalized: jest.fn().mockResolvedValue(undefined),
       }
 
-      const service = new MarketplaceService(prisma as never, push as never)
+      const entitlements = {
+        assertCanActivatePlayer: jest.fn().mockResolvedValue(undefined),
+      }
 
-      return { prisma, push, service, trialTx }
+      const service = new MarketplaceService(prisma as never, push as never, entitlements as never)
+
+      return { prisma, push, service, trialTx, entitlements }
     }
 
     function buildInvite(overrides: Record<string, unknown> = {}) {
@@ -356,7 +333,7 @@ describe('MarketplaceService — free-agent profile', () => {
     }
 
     it('accepting upserts a PLAYER Membership and a TRIAL/ACTIVE TeamAccess', async () => {
-      const { service, prisma, trialTx } = createTrialService()
+      const { service, prisma, trialTx, entitlements } = createTrialService()
       prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
 
       const result = await service.respondToTrialInvite(
@@ -366,6 +343,7 @@ describe('MarketplaceService — free-agent profile', () => {
       )
 
       expect(result.status).toBe(TrialInviteStatus.ACCEPTED)
+      expect(entitlements.assertCanActivatePlayer).toHaveBeenCalledWith('club-1', 'user-1', trialTx)
 
       // Membership granted for the invited user, role PLAYER.
       expect(trialTx.membership.upsert).toHaveBeenCalledTimes(1)
@@ -456,11 +434,7 @@ describe('MarketplaceService — free-agent profile', () => {
       )
 
       await expect(
-        service.respondToTrialInvite(
-          'invite-1',
-          'user-1',
-          TrialInviteStatus.ACCEPTED,
-        ),
+        service.respondToTrialInvite('invite-1', 'user-1', TrialInviteStatus.ACCEPTED),
       ).rejects.toThrow(BadRequestException)
 
       // Invite flipped to EXPIRED; no membership granted.
@@ -483,11 +457,7 @@ describe('MarketplaceService — free-agent profile', () => {
       )
 
       await expect(
-        service.respondToTrialInvite(
-          'invite-1',
-          'user-1',
-          TrialInviteStatus.ACCEPTED,
-        ),
+        service.respondToTrialInvite('invite-1', 'user-1', TrialInviteStatus.ACCEPTED),
       ).rejects.toThrow(BadRequestException)
 
       expect(trialTx.membership.upsert).not.toHaveBeenCalled()
@@ -499,11 +469,7 @@ describe('MarketplaceService — free-agent profile', () => {
       prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
 
       await expect(
-        service.respondToTrialInvite(
-          'invite-1',
-          'user-2',
-          TrialInviteStatus.ACCEPTED,
-        ),
+        service.respondToTrialInvite('invite-1', 'user-2', TrialInviteStatus.ACCEPTED),
       ).rejects.toThrow(NotFoundException)
 
       expect(prisma.$transaction).not.toHaveBeenCalled()

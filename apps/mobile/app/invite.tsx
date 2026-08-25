@@ -69,6 +69,16 @@ type CreatedInvite = {
   link: string
 }
 
+type InviteCampaign = {
+  id: string
+  code: string
+  status: 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'REVOKED'
+  useCount: number
+  maxUses: number
+  expiresAt: string
+  team: { id: string; displayName: string }
+}
+
 type TeamMemberResponse = {
   id: string
   role: 'PLAYER' | 'PARENT' | 'HEAD_COACH' | 'ASSISTANT_COACH'
@@ -117,7 +127,7 @@ function parseRecipientEmails(value: string) {
 
 export default function InviteScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess, isLoading: authIsLoading } = useAuth()
+  const { activeClub, activeTeamId, isLoading: authIsLoading } = useAuth()
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
   const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
@@ -146,15 +156,27 @@ export default function InviteScreen() {
   const [selectedPlayerUserId, setSelectedPlayerUserId] = useState<string | null>(null)
   const [childName, setChildName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [campaigns, setCampaigns] = useState<InviteCampaign[]>([])
   const [isBootstrapping, setIsBootstrapping] = useState(true)
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
   const dismissTarget = typeof returnTo === 'string' && returnTo.length > 0 ? returnTo : '/(tabs)'
-  const canInvite =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const canInvite = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+
+  const loadCampaigns = useCallback(async () => {
+    if (!activeClub) return
+    try {
+      const rows = await api<InviteCampaign[]>(
+        `/clubs/${activeClub.club.id}/invite-campaigns`,
+      )
+      setCampaigns(rows.filter((row) => row.status === 'ACTIVE' || row.status === 'PAUSED'))
+    } catch {
+      setCampaigns([])
+    }
+  }, [activeClub])
+
+  useEffect(() => {
+    void loadCampaigns()
+  }, [loadCampaigns])
 
   const handleClose = useCallback(() => {
     router.dismissTo(dismissTarget)
@@ -396,6 +418,35 @@ export default function InviteScreen() {
     setIsLoading(true)
 
     try {
+      if (deliveryChannel === 'LINK') {
+        if (role !== TeamRole.PLAYER) {
+          Alert.alert(t('common.error'), t('invite.childTargetMissingBody'))
+          return
+        }
+        const campaign = await api<InviteCampaign>(
+          `/clubs/${activeClub.club.id}/invite-campaigns`,
+          {
+            method: 'POST',
+            body: {
+              teamId: selectedTeamId,
+              type: 'APPROVAL_REQUIRED',
+              role,
+              maxUses: 50,
+              expiresInDays: 14,
+            },
+          },
+        )
+        await loadCampaigns()
+        const link = `https://anstoss.io/join/${encodeURIComponent(activeClub.club.slug)}/${encodeURIComponent(campaign.code)}`
+        await Share.share({
+          message: t('invite.shareScopedMessage', {
+            clubName: activeClub.club.name,
+            teamName: selectedTeam.displayName,
+            link,
+          }),
+        })
+        return
+      }
       const recipients = deliveryChannel === 'EMAIL' ? recipientEmails : [undefined]
       let sharedInvite: CreatedInvite | null = null
 
@@ -444,6 +495,22 @@ export default function InviteScreen() {
       }
     } catch {
       Alert.alert(t('invite.createErrorTitle'), t('invite.createErrorBody'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const revokeCampaign = async (campaign: InviteCampaign) => {
+    if (!activeClub) return
+    setIsLoading(true)
+    try {
+      await api(`/clubs/${activeClub.club.id}/invite-campaigns/${campaign.id}/revoke`, {
+        method: 'POST',
+        body: {},
+      })
+      await loadCampaigns()
+    } catch (error) {
+      Alert.alert(t('common.error'), error instanceof Error ? error.message : t('common.tryAgain'))
     } finally {
       setIsLoading(false)
     }
@@ -507,6 +574,35 @@ export default function InviteScreen() {
           })}
         </Text>
       </View>
+
+      {campaigns.length > 0 ? (
+        <View style={[styles.section, styles.campaignSection]}>
+          <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+            {t('invite.activeLinks', { defaultValue: 'Active join links' })}
+          </Text>
+          {campaigns.map((campaign) => (
+            <View
+              key={campaign.id}
+              style={[styles.campaignRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+            >
+              <View style={styles.campaignCopy}>
+                <Text variant="footnote" weight="semibold" numberOfLines={1}>
+                  {campaign.team.displayName}
+                </Text>
+                <Text variant="caption2" color="secondary">
+                  {campaign.useCount}/{campaign.maxUses} · {new Date(campaign.expiresAt).toLocaleDateString()}
+                </Text>
+              </View>
+              <Button
+                label={t('invite.revokeLink', { defaultValue: 'Revoke' })}
+                variant="bordered"
+                size="sm"
+                onPress={() => void revokeCampaign(campaign)}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {/* Step indicator — three dots, current one filled, prior ones
           show a checkmark colour. Compact, lives directly under the
@@ -919,16 +1015,18 @@ export default function InviteScreen() {
             accessibilityLabel={t('invite.sendEmail')}
           />
 
-          <Button
-            label={t('invite.shareLink')}
-            variant="secondary"
-            size="lg"
-            fullWidth
-            disabled={isLoading || !selectedTeamId}
-            onPress={() => void handleCreateInvite('LINK')}
-            accessibilityLabel={t('invite.shareLink')}
-            style={styles.secondaryButtonSpacing}
-          />
+          {role === TeamRole.PLAYER ? (
+            <Button
+              label={t('invite.shareLink')}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={isLoading || !selectedTeamId}
+              onPress={() => void handleCreateInvite('LINK')}
+              accessibilityLabel={t('invite.shareLink')}
+              style={styles.secondaryButtonSpacing}
+            />
+          ) : null}
         </>
       ) : null}
 
@@ -1280,4 +1378,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.md,
   },
+  campaignSection: { gap: space.sm },
+  campaignRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderWidth: hairline,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  campaignCopy: { flex: 1, minWidth: 0 },
 })

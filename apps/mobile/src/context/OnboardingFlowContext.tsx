@@ -10,7 +10,7 @@ import {
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useAuth } from './AuthContext'
-import type { RegistrationRole } from '@anstoss/shared'
+import type { RegistrationRole, TeamRole } from '@anstoss/shared'
 
 export const ONBOARDING_FLOW_STORAGE_KEY = '@anstoss/onboarding-state-v1'
 
@@ -57,6 +57,10 @@ export type OnboardingFlowState = {
    * teams + auto-link the first team without making the admin paste a
    * URL. Empty string / undefined = manual flow, no link. */
   fussballExternalClubId?: string
+  officialTeamUrl?: string
+  /** Optional participation roles for the activating administrator. Club
+   * authority is independent, so the owner may also coach and/or play. */
+  adminTeamRoles?: TeamRole[]
   fussballClubLogoUrl?: string
   fussballClubCity?: string
   /** Path of the last step the user was on. Used to resume after a
@@ -149,23 +153,29 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
     })
   }, [state, hydrating])
 
-  const update = useCallback((patch: Partial<OnboardingFlowState>) => {
-    setState((s) => ({
-      ...s,
-      ...(ownerUserId ? { ownerUserId } : {}),
-      ...patch,
-    }))
-  }, [ownerUserId])
+  const update = useCallback(
+    (patch: Partial<OnboardingFlowState>) => {
+      setState((s) => ({
+        ...s,
+        ...(ownerUserId ? { ownerUserId } : {}),
+        ...patch,
+      }))
+    },
+    [ownerUserId],
+  )
 
-  const markStep = useCallback((path: string) => {
-    setState((s) => {
-      const ownerPatch = ownerUserId ? { ownerUserId } : {}
-      if (s.lastStep === path && (!ownerUserId || s.ownerUserId === ownerUserId)) {
-        return s
-      }
-      return { ...s, ...ownerPatch, lastStep: path }
-    })
-  }, [ownerUserId])
+  const markStep = useCallback(
+    (path: string) => {
+      setState((s) => {
+        const ownerPatch = ownerUserId ? { ownerUserId } : {}
+        if (s.lastStep === path && (!ownerUserId || s.ownerUserId === ownerUserId)) {
+          return s
+        }
+        return { ...s, ...ownerPatch, lastStep: path }
+      })
+    },
+    [ownerUserId],
+  )
 
   const reset = useCallback(() => {
     persistVersion.current += 1
@@ -184,7 +194,6 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
 
 export function useOnboardingFlow() {
   const v = useContext(Ctx)
-  if (!v)
-    throw new Error('useOnboardingFlow must be used inside OnboardingFlowProvider')
+  if (!v) throw new Error('useOnboardingFlow must be used inside OnboardingFlowProvider')
   return v
 }

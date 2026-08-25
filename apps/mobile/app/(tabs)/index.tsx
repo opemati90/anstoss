@@ -31,7 +31,7 @@ export default function HomeScreen() {
 }
 
 function RoleAwareHome() {
-  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess, activeRoleMode } = useAuth()
   const c = useClubColors()
   const { t } = useTranslation()
 
@@ -39,8 +39,8 @@ function RoleAwareHome() {
   const teamRole = activeTeamAccess?.role ?? null
   const registrationRole = user?.registrationRole ?? null
   const role = useMemo(
-    () => resolveHomeRole({ clubRole, registrationRole, teamRole }),
-    [clubRole, registrationRole, teamRole],
+    () => activeRoleMode ?? resolveHomeRole({ clubRole, registrationRole, teamRole }),
+    [activeRoleMode, clubRole, registrationRole, teamRole],
   )
 
   const clubId = activeClub?.club.id ?? null
@@ -80,7 +80,7 @@ function RoleAwareHome() {
                   })}
                 />
                 <Pressable
-                  onPress={() => router.push('/club-setup')}
+                  onPress={() => router.push('/find-club')}
                   accessibilityRole="button"
                   style={({ pressed }) => [
                     styles.cta,

@@ -32,7 +32,16 @@ type Row = {
 
 export default function MoreScreen() {
   const { t } = useTranslation()
-  const { user, signOut, activeClub, memberships, refreshUser } = useAuth()
+  const {
+    user,
+    signOut,
+    activeClub,
+    memberships,
+    refreshUser,
+    activeRoleMode = null,
+    availableRoleModes = [],
+    setActiveRoleMode = () => undefined,
+  } = useAuth()
   const c = useClubColors()
   const { data: streaks } = useStreaks()
   const board = streaks?.leaderboard ?? []
@@ -270,6 +279,17 @@ export default function MoreScreen() {
       : accountClubMember
 
   const club: Row[] = [
+    ...(activeClub
+      ? [
+          {
+            key: 'ownership',
+            label: t('ownership.title') as string,
+            sub: t('ownership.menuSubtitle') as string,
+            icon: 'person.badge.key' as IconName,
+            onPress: () => router.push('/ownership-transfers'),
+          },
+        ]
+      : []),
     {
       key: 'find-club',
       label: t('findClub.title'),
@@ -284,7 +304,7 @@ export default function MoreScreen() {
             label: t('club.createClub'),
             sub: t('club.setupWizard.createSubtitle'),
             icon: 'plus.circle' as IconName,
-            onPress: () => router.push('/club-setup'),
+            onPress: () => router.push('/find-club'),
           },
         ]
       : []),
@@ -432,6 +452,31 @@ export default function MoreScreen() {
         )}
 
         <Section title={t('more.sectionAccount') as string} rows={account} />
+        {availableRoleModes.length > 1 ? (
+          <SectionGroup
+            header={t('more.roleModeTitle', { defaultValue: 'USE ANSTOSS AS' })}
+            footer={t('more.roleModeHint', {
+              defaultValue: 'Switch views without changing any of your club permissions.',
+            })}
+            style={styles.section}
+          >
+            {availableRoleModes.map((mode) => (
+              <ListRow
+                key={mode}
+                left={<SoftIcon name={roleModeIcon(mode)} />}
+                title={t(`more.roleMode.${mode.toLowerCase()}`, {
+                  defaultValue: roleModeLabel(mode),
+                })}
+                right={
+                  activeRoleMode === mode ? (
+                    <Icon name="checkmark.circle.fill" size={20} color="primary" />
+                  ) : undefined
+                }
+                onPress={() => setActiveRoleMode(mode)}
+              />
+            ))}
+          </SectionGroup>
+        ) : null}
         {club.length > 0 ? <Section title={t('more.sectionClub') as string} rows={club} /> : null}
         {admin.length > 0 ? (
           <Section
@@ -444,6 +489,22 @@ export default function MoreScreen() {
       </ScrollView>
     </View>
   )
+}
+
+function roleModeLabel(mode: string) {
+  if (mode === 'ADMIN') return 'Club administrator'
+  if (mode === 'COACH') return 'Coach'
+  if (mode === 'PARENT') return 'Parent'
+  if (mode === 'FREE_AGENT') return 'Free agent'
+  return 'Player'
+}
+
+function roleModeIcon(mode: string): IconName {
+  if (mode === 'ADMIN') return 'shield.fill'
+  if (mode === 'COACH') return 'whistle'
+  if (mode === 'PARENT') return 'person.2.fill'
+  if (mode === 'FREE_AGENT') return 'star.fill'
+  return 'figure.soccer'
 }
 
 function Section({ title, rows, footer }: { title: string; rows: Row[]; footer?: string }) {

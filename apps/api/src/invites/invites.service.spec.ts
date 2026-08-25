@@ -63,10 +63,12 @@ describe('InvitesService — role propagation through redemption', () => {
     }
 
     const channelsService = { postSystemMessage: jest.fn().mockResolvedValue(undefined) }
+    const entitlements = { assertCanActivatePlayer: jest.fn().mockResolvedValue(undefined) }
     const service = new InvitesService(
       prisma as never,
       teamsService as never,
       channelsService as never,
+      entitlements as never,
     )
 
     return { prisma, teamsService, service, tx }
@@ -370,5 +372,40 @@ describe('InvitesService — role propagation through redemption', () => {
     expect(tx.membership.upsert).not.toHaveBeenCalled()
     expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
     expect(tx.invite.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('InvitesService campaign identity binding', () => {
+  it('does not let another authenticated email redeem an identity-bound campaign', async () => {
+    const prisma = {
+      inviteCampaign: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'campaign-1',
+          clubId: 'club-1',
+          teamId: 'team-1',
+          type: 'IDENTITY_BOUND',
+          recipientEmail: 'invited@example.com',
+          status: 'ACTIVE',
+          expiresAt: new Date(Date.now() + 60_000),
+          useCount: 0,
+          maxUses: 1,
+          club: {},
+          team: {},
+        }),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          email: 'attacker@example.com',
+          dateOfBirth: new Date('1990-01-01'),
+        }),
+      },
+      $transaction: jest.fn(),
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never)
+
+    await expect(service.redeemCampaign('secret-code', 'attacker-1')).rejects.toBeInstanceOf(
+      InviteRecipientMismatchError,
+    )
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 })

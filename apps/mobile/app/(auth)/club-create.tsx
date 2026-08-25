@@ -9,19 +9,22 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
+import { TeamRole } from '@anstoss/shared'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 import { onboardingStep } from '../../src/onboarding/steps'
 
-type FussballHit = {
+type DirectoryHit = {
   id: string
+  directoryEntryId: string
   name: string
-  logo_url: string
-  city: string
+  badgeUrl: string | null
+  city: string | null
+  isActive: false
 }
 
 type SearchResponse = {
-  available: boolean
-  results: FussballHit[]
+  results: DirectoryHit[]
+  nextCursor: string | null
 }
 
 export default function ClubCreate() {
@@ -32,19 +35,21 @@ export default function ClubCreate() {
   useEffect(() => markStep('/(auth)/club-create'), [markStep])
   const [name, setName] = useState(state.clubName ?? '')
   const [team, setTeam] = useState(state.teamName ?? '')
+  const [officialTeamUrl, setOfficialTeamUrl] = useState(state.officialTeamUrl ?? '')
 
   // External team-data autocomplete state. The dropdown opens once the user
   // has typed at least 3 chars; debounced 300ms to keep upstream
   // calls cheap. When the admin picks a hit we store the
   // externalClubId so done.tsx can auto-link the team after the club
   // record is created.
-  const [hits, setHits] = useState<FussballHit[]>([])
+  const [hits, setHits] = useState<DirectoryHit[]>([])
   const [searching, setSearching] = useState(false)
   const [scraperAvailable, setScraperAvailable] = useState(true)
   const [pickedClubId, setPickedClubId] = useState<string | null>(
     state.fussballExternalClubId ?? null,
   )
   const [pickedLogo, setPickedLogo] = useState<string | null>(state.fussballClubLogoUrl ?? null)
+  const [teamRoles, setTeamRoles] = useState<TeamRole[]>(state.adminTeamRoles ?? [])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -61,10 +66,10 @@ export default function ClubCreate() {
       setSearching(true)
       try {
         const data = await api<SearchResponse>(
-          `/integrations/fussball/search?q=${encodeURIComponent(trimmed)}`,
+          `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=6`,
         )
-        setHits(data?.results ?? [])
-        setScraperAvailable(data?.available ?? false)
+        setHits((data?.results ?? []).filter((result) => !result.isActive))
+        setScraperAvailable(true)
       } catch {
         setHits([])
         setScraperAvailable(false)
@@ -84,28 +89,40 @@ export default function ClubCreate() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('')
 
-  const ready = name.trim().length > 1 && team.trim().length > 1
+  const validOfficialUrl = /^https:\/\/(?:[^/]+\.)?(?:fussball\.de|dfb\.de|fupa\.net)(?:\/|$)/i.test(
+    officialTeamUrl.trim(),
+  )
+  const ready =
+    Boolean(pickedClubId) && name.trim().length > 1 && team.trim().length > 1 && validOfficialUrl
 
   function handleSubmit() {
     update({
       clubName: name.trim(),
       teamName: team.trim(),
       fussballExternalClubId: pickedClubId ?? undefined,
+      officialTeamUrl: officialTeamUrl.trim(),
       fussballClubLogoUrl: pickedLogo ?? undefined,
+      adminTeamRoles: teamRoles,
     })
     router.push('/(auth)/club-identity')
   }
 
-  function pickHit(hit: FussballHit) {
+  function pickHit(hit: DirectoryHit) {
     setName(hit.name)
-    setPickedClubId(hit.id)
-    setPickedLogo(hit.logo_url || null)
+    setPickedClubId(hit.directoryEntryId)
+    setPickedLogo(hit.badgeUrl)
     setHits([])
   }
 
   function clearPick() {
     setPickedClubId(null)
     setPickedLogo(null)
+  }
+
+  function toggleTeamRole(role: TeamRole) {
+    setTeamRoles((current) =>
+      current.includes(role) ? current.filter((item) => item !== role) : [...current, role],
+    )
   }
 
   return (
@@ -188,8 +205,8 @@ export default function ClubCreate() {
                   pressed && { backgroundColor: colors.surfaceSunken },
                 ]}
               >
-                {hit.logo_url ? (
-                  <Image source={{ uri: hit.logo_url }} style={styles.suggestLogo} />
+                {hit.badgeUrl ? (
+                  <Image source={{ uri: hit.badgeUrl }} style={styles.suggestLogo} />
                 ) : (
                   <View style={[styles.suggestLogo, { backgroundColor: colors.surfaceSunken }]} />
                 )}
@@ -214,11 +231,11 @@ export default function ClubCreate() {
             {scraperAvailable
               ? t('onboarding.clubCreate.noMatch', {
                   defaultValue:
-                    'No matches in public club data. You can still create your club manually.',
+                    'No verified public club match found. Try the official club name or ask Anstoss support to add it.',
                 })
               : t('onboarding.clubCreate.scraperOffline', {
                   defaultValue:
-                    'Public club-data search is offline right now. Type your club name to continue manually.',
+                    'Public club-data search is offline right now. Please retry before submitting a club claim.',
                 })}
           </Text>
         ) : null}
@@ -233,6 +250,72 @@ export default function ClubCreate() {
             })}
             autoCapitalize="words"
           />
+        </View>
+
+        <View style={styles.teamField}>
+          <FormInput
+            label={t('onboarding.clubCreate.officialTeamUrlLabel', {
+              defaultValue: 'Official team page',
+            })}
+            value={officialTeamUrl}
+            onChangeText={setOfficialTeamUrl}
+            placeholder="https://www.fussball.de/..."
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <Text variant="caption2" color="secondary" style={styles.fieldHelp}>
+            {t('onboarding.clubCreate.officialTeamUrlHelp', {
+              defaultValue:
+                'Paste the Fussball.de, DFB.de, or FuPa page used to verify your authority.',
+            })}
+          </Text>
+        </View>
+
+        <View style={styles.participation}>
+          <Text variant="footnote" weight="semibold" color="secondary">
+            {t('onboarding.clubCreate.participation', {
+              defaultValue: 'Will you also participate in this team?',
+            })}
+          </Text>
+          <View style={styles.roleRow}>
+            {[
+              {
+                role: TeamRole.HEAD_COACH,
+                label: t('roles.COACH', { defaultValue: 'Coach' }),
+              },
+              {
+                role: TeamRole.PLAYER,
+                label: t('roles.PLAYER', { defaultValue: 'Player' }),
+              },
+            ].map((option) => {
+              const selected = teamRoles.includes(option.role)
+              return (
+                <Pressable
+                  key={option.role}
+                  onPress={() => toggleTeamRole(option.role)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected }}
+                  style={[
+                    styles.roleChoice,
+                    {
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary50 : colors.surface,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name={selected ? 'checkmark.circle.fill' : 'circle'}
+                    size={18}
+                    color={selected ? 'primary' : 'tertiary'}
+                  />
+                  <Text variant="footnote" weight="semibold">
+                    {option.label}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
         </View>
       </View>
     </WizardStep>
@@ -271,6 +354,27 @@ const styles = StyleSheet.create({
   },
   teamField: {
     marginTop: space.lg,
+  },
+  fieldHelp: {
+    marginTop: space.xs,
+  },
+  participation: {
+    marginTop: space.lg,
+    gap: space.sm,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  roleChoice: {
+    minHeight: 48,
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
   },
   searchWrap: {
     position: 'relative',

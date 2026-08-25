@@ -13,7 +13,6 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { activateE2EScenario } from '../../src/e2e/session'
 import { api, ApiError, setTokenGetter } from '../../src/api/client'
-import { uploadMedia } from '../../src/api/uploadMedia'
 import { useAuth as useAppAuth } from '../../src/context/AuthContext'
 import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
@@ -174,11 +173,6 @@ const NEXT_STEPS: Record<RegistrationRole, NextTile[]> = {
   ],
 }
 
-type ClubSetupResponse = {
-  club: { id: string; name: string; primaryColor: string; badgeUrl: string | null }
-  team: { id: string; name: string }
-}
-
 function normalizeRegistrationRole(role: unknown): RegistrationRole | undefined {
   return Object.values(RegistrationRole).includes(role as RegistrationRole)
     ? (role as RegistrationRole)
@@ -328,112 +322,31 @@ export default function Done() {
         }
       }
 
-      // Admin flow: actually create the club + team now that auth is live.
+      // Admin flow: submit a verified authority claim. This deliberately does
+      // not create membership, teams, roster slots, or uploads yet; platform
+      // approval activates the club atomically and prevents a coach or random
+      // claimant from taking control of a real club.
       if (
         role === RegistrationRole.CLUB_ADMIN &&
         state.clubName &&
         state.teamName &&
-        state.clubPrimaryColor
+        state.fussballExternalClubId
       ) {
-        const setup = await api<ClubSetupResponse>('/clubs/setup', {
+        const claim = await api<{ id: string }>('/club-claims/first', {
           method: 'POST',
           body: {
-            club: {
-              name: state.clubName,
-              primaryColor: state.clubPrimaryColor,
-            },
-            team: {
-              name: state.teamName,
-            },
+            directoryEntryId: state.fussballExternalClubId,
+            primaryColor: state.clubPrimaryColor,
+            teamName: state.teamName,
+            teamGroupType: 'SENIOR',
+            teamRoles: state.adminTeamRoles ?? [],
+            externalTeamUrl: state.officialTeamUrl,
           },
         })
-
-        // Badge: prefer admin-uploaded logo. If none was picked but the
-        // admin matched their club from external team data during search, fall back
-        // to the fussball-hosted logo URL so the club lands with a real
-        // crest instead of initials. Public source logos are publicly served
-        // — no R2 re-upload needed for MVP.
-        if (state.clubLogoUri) {
-          try {
-            const token = await getToken()
-            if (token) {
-              const uploaded = await uploadMedia({
-                teamId: setup.team.id,
-                token,
-                uri: state.clubLogoUri,
-                contentType: 'image/png',
-                kind: 'image',
-                filename: 'club-badge.png',
-              })
-              if (uploaded?.publicUrl) {
-                await api(`/clubs/${setup.club.id}`, {
-                  method: 'PATCH',
-                  body: { badgeUrl: uploaded.publicUrl },
-                })
-              }
-            }
-          } catch (err) {
-            if (__DEV__) console.warn('[onboarding/done] badge upload skipped', err)
-          }
-        } else if (state.fussballClubLogoUrl) {
-          try {
-            await api(`/clubs/${setup.club.id}`, {
-              method: 'PATCH',
-              body: { badgeUrl: state.fussballClubLogoUrl },
-            })
-          } catch (err) {
-            if (__DEV__) console.warn('[onboarding/done] fussball badge patch skipped', err)
-          }
-        }
-
-        // Add roster slots if the admin pre-filled any names.
-        if (state.rosterNames && state.rosterNames.length > 0) {
-          try {
-            await api(`/clubs/${setup.club.id}/teams/${setup.team.id}/roster-slots`, {
-              method: 'POST',
-              body: {
-                slots: state.rosterNames.map((fullName) => ({ fullName })),
-              },
-            })
-          } catch (err) {
-            if (__DEV__) console.warn('[onboarding/done] roster-slots failed', err)
-          }
-        }
-
-        // external team-data auto-link: if the admin picked their club from
-        // search during club-create, fetch the picked club's teams and
-        // link the first one (or the team whose name matches what the
-        // admin typed). This fires the existing fixture+roster sync
-        // pipeline so they land on home with real data.
-        if (state.fussballExternalClubId) {
-          try {
-            const teams = await api<{
-              available: boolean
-              teams: Array<{ id: string; name: string; fussball_de_url: string }>
-            }>(
-              `/integrations/fussball/clubs/${encodeURIComponent(state.fussballExternalClubId)}/teams`,
-            )
-            const wantedName = (state.teamName || '').toLowerCase().trim()
-            const pick =
-              teams?.teams?.find((t) =>
-                wantedName ? t.name.toLowerCase().includes(wantedName) : false,
-              ) ?? teams?.teams?.[0]
-            if (pick?.fussball_de_url) {
-              await api('/integrations/fussball/team-links', {
-                method: 'POST',
-                body: {
-                  teamId: setup.team.id,
-                  input: pick.fussball_de_url,
-                },
-                headers: { 'x-club-id': setup.club.id },
-              })
-            }
-          } catch (err) {
-            // Non-fatal — admin lands in the app with a club but no
-            // external team-data link. They can re-link from team settings.
-            if (__DEV__) console.warn('[onboarding/done] fussball auto-link skipped', err)
-          }
-        }
+        await refreshUser(undefined, { throwOnError: true })
+        reset()
+        router.replace({ pathname: '/(auth)/claim-pending', params: { claimId: claim.id } })
+        return
       }
 
       // Refetch /me so AuthContext has the freshly-PATCHed registrationRole +

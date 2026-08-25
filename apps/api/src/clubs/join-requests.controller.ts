@@ -15,11 +15,7 @@ import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import {
-  createJoinRequestSchema,
-  reviewJoinRequestSchema,
-  MembershipRole,
-} from '@anstoss/shared'
+import { createJoinRequestSchema, reviewJoinRequestSchema, MembershipRole } from '@anstoss/shared'
 
 @Controller('clubs')
 export class JoinRequestsController {
@@ -49,7 +45,7 @@ export class JoinRequestsController {
       slug: club.slug,
       badgeUrl: club.badgeUrl,
       primaryColor: club.primaryColor,
-      teams: club.teams.map((team: typeof club.teams[number]) => ({
+      teams: club.teams.map((team: (typeof club.teams)[number]) => ({
         id: team.id,
         name: team.name,
         displayName: team.displayName || team.name,
@@ -73,21 +69,21 @@ export class JoinRequestsController {
   }
 
   /**
-   * GET /clubs/:clubId/join-requests — list pending requests (COACH+).
+   * GET /clubs/:clubId/join-requests — list pending requests (ADMIN+).
    */
   @Get(':clubId/join-requests')
   @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
-  @RequireRole(MembershipRole.COACH)
+  @RequireRole(MembershipRole.ADMIN)
   async listJoinRequests(@Param('clubId') clubId: string) {
     return this.joinRequests.listPending(clubId)
   }
 
   /**
-   * POST /clubs/:clubId/join-requests/:id/approve — approve request (COACH+).
+   * POST /clubs/:clubId/join-requests/:id/approve — approve request (ADMIN+).
    */
   @Post(':clubId/join-requests/:id/approve')
   @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
-  @RequireRole(MembershipRole.COACH)
+  @RequireRole(MembershipRole.ADMIN)
   @RateLimit('write')
   async approveRequest(
     @CurrentUser() user: { id: string },
@@ -104,7 +100,7 @@ export class JoinRequestsController {
    */
   @Post(':clubId/join-requests/:id/reject')
   @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
-  @RequireRole(MembershipRole.COACH)
+  @RequireRole(MembershipRole.ADMIN)
   @RateLimit('write')
   async rejectRequest(
     @CurrentUser() user: { id: string },

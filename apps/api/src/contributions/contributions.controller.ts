@@ -42,11 +42,7 @@ export class ContributionsController {
     @CurrentUser() user: { id: string },
     @Headers('accept-language') acceptLanguage?: string,
   ) {
-    return this.contributionsService.getMyContributions(
-      clubId,
-      user.id,
-      pickLocale(acceptLanguage),
-    )
+    return this.contributionsService.getMyContributions(clubId, user.id, pickLocale(acceptLanguage))
   }
 
   @Post('my/:planId/pay')
@@ -65,40 +61,13 @@ export class ContributionsController {
     )
   }
 
-  /**
-   * Start a Stripe Checkout flow to actually move money for a member's
-   * own contribution. Returns `{ url: string }` when Stripe Connect is
-   * configured for the club; `{ url: null }` when not — mobile then
-   * falls back to the soft mark-paid signal.
-   */
-  @Post('my/:planId/checkout')
-  @RateLimit('write')
-  async checkoutOwnPlan(
-    @Param('clubId') clubId: string,
-    @Param('planId') planId: string,
-    @CurrentUser() user: { id: string },
-  ) {
-    const result = await this.contributionsService.startCheckoutForOwnPlan(
-      clubId,
-      user.id,
-      planId,
-    )
-    return { url: result?.url ?? null }
-  }
-
   @Get()
-  async getOverview(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async getOverview(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.contributionsService.getOverview(clubId, user.id)
   }
 
   @Get('settings')
-  async getSettings(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async getSettings(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.contributionsService.getSettings(clubId, user.id)
   }
 
@@ -114,10 +83,7 @@ export class ContributionsController {
   }
 
   @Get('plans')
-  async listPlans(
-    @Param('clubId') clubId: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async listPlans(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }) {
     return this.contributionsService.listPlans(clubId, user.id)
   }
 
@@ -178,12 +144,7 @@ export class ContributionsController {
     @Body() body: unknown,
   ) {
     const data = updateContributionMemberStatusSchema.parse(body)
-    return this.contributionsService.updateMemberStatus(
-      clubId,
-      memberUserId,
-      user.id,
-      data,
-    )
+    return this.contributionsService.updateMemberStatus(clubId, memberUserId, user.id, data)
   }
 
   @Post('reminders/send')

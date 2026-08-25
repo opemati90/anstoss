@@ -173,7 +173,10 @@ export default function RootLayout() {
               <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="stripe-connect" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen
+                name="ownership-transfers"
+                options={{ presentation: 'fullScreenModal' }}
+              />
               <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen
                 name="free-agent/profile"

@@ -1,15 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ClerkTokenExpiredError } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
-import {
-  JwtVerificationError,
-  verifySessionToken,
-} from './otp/jwt.util'
+import { JwtVerificationError, verifySessionToken } from './otp/jwt.util'
 
 /**
  * Session JWT auth guard with JIT user creation.
@@ -70,19 +62,22 @@ export class ClerkAuthGuard implements CanActivate {
         clerkId: user.clerkId,
         email: user.email,
         name: user.name,
+        sessionIssuedAt: Math.floor(Date.now() / 1000),
+        authenticatedAt: Math.floor(Date.now() / 1000),
       }
       return true
     }
 
     let userId: string
+    let sessionIssuedAt: number
+    let authenticatedAt: number
     try {
       const claims = verifySessionToken(token)
       userId = claims.sub
+      sessionIssuedAt = claims.iat
+      authenticatedAt = claims.auth_time
     } catch (error: unknown) {
-      if (
-        error instanceof JwtVerificationError &&
-        error.message === 'Token expired'
-      ) {
+      if (error instanceof JwtVerificationError && error.message === 'Token expired') {
         throw new ClerkTokenExpiredError('Session expired, please log in again')
       }
       throw new UnauthorizedException('Invalid authentication token')
@@ -102,6 +97,8 @@ export class ClerkAuthGuard implements CanActivate {
       clerkId: user.clerkId,
       email: user.email,
       name: user.name,
+      sessionIssuedAt,
+      authenticatedAt,
     }
 
     return true

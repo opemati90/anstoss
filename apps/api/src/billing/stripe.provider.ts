@@ -8,7 +8,10 @@ export const StripeProvider: Provider = {
   useFactory: () => {
     const key = process.env.STRIPE_SECRET_KEY
     if (!key) {
-      // Return null in dev/test when Stripe isn't configured
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('STRIPE_SECRET_KEY must be configured in production')
+      }
+      // Local development and isolated tests may run without Stripe.
       return null
     }
     return new Stripe(key, { apiVersion: '2026-03-25.dahlia' })

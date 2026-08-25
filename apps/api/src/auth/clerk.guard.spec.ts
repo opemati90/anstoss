@@ -52,6 +52,8 @@ describe('ClerkAuthGuard (session JWT)', () => {
       clerkId: null,
       email: 'a@b.com',
       name: 'A',
+      sessionIssuedAt: expect.any(Number),
+      authenticatedAt: expect.any(Number),
     })
   })
 
@@ -86,9 +88,7 @@ describe('ClerkAuthGuard (session JWT)', () => {
   it('rejects a bad/forged token with 401', async () => {
     const guard = new ClerkAuthGuard(makePrisma() as any)
     const { ctx } = ctxFor('totally.invalid.token')
-    await expect(guard.canActivate(ctx)).rejects.toThrow(
-      'Invalid authentication token',
-    )
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid authentication token')
   })
 
   it('maps an expired token to ClerkTokenExpiredError', async () => {

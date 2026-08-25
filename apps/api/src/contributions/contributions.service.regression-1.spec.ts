@@ -24,7 +24,6 @@ describe('ContributionsService member payment reports', () => {
       prisma as never,
       audit as never,
       push as never,
-      {} as never,
     )
     jest.spyOn(service as never, 'ensureCurrentRecords').mockResolvedValue([
       {

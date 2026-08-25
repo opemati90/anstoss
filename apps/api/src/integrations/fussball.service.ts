@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import { Prisma, type ExternalDataProvider } from '@prisma/client'
 import {
@@ -36,6 +37,7 @@ import { PushService } from '../push/push.service'
 import { type Locale } from '../i18n/translations'
 import { TeamsService } from '../teams/teams.service'
 import { LiveGateway } from '../live/live.gateway'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import {
   FussballProviderService,
   type ApiFussballLineupBundle,
@@ -144,6 +146,7 @@ export class FussballService {
     private readonly scraper: FussballScraperClient,
     private readonly pushService: PushService,
     private readonly liveGateway: LiveGateway,
+    private readonly clubEntitlements?: ClubEntitlementsService,
   ) {}
 
   /**
@@ -215,9 +218,7 @@ export class FussballService {
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
     const externalTeamId = extractFussballTeamId(input)
     if (!externalTeamId) {
-      throw new BadRequestException(
-        'Provide a valid FUSSBALL.DE team URL or team ID',
-      )
+      throw new BadRequestException('Provide a valid FUSSBALL.DE team URL or team ID')
     }
 
     const { externalUrl, preview } = await this.provider.fetchTeamPage(input)
@@ -298,10 +299,7 @@ export class FussballService {
     }
   }
 
-  async fetchRosterFromTeamLink(
-    userId: string,
-    teamLinkId: string,
-  ) {
+  async fetchRosterFromTeamLink(userId: string, teamLinkId: string) {
     const link = await this.prisma.externalTeamLink.findFirst({
       where: { id: teamLinkId },
     })
@@ -392,22 +390,13 @@ export class FussballService {
     })
     if (!recent) return null
 
-    const lineup = await this.provider
-      .fetchMatchLineup(recent.externalMatchId)
-      .catch(() => null)
+    const lineup = await this.provider.fetchMatchLineup(recent.externalMatchId).catch(() => null)
     if (!lineup) return null
 
     const linkedLabel = link.label ?? ''
-    const perspective = inferLinkedTeamPerspective(
-      linkedLabel,
-      recent.homeTeam,
-      recent.awayTeam,
-    )
-    const side = perspective.isHome === true
-      ? lineup.home
-      : perspective.isHome === false
-        ? lineup.away
-        : null
+    const perspective = inferLinkedTeamPerspective(linkedLabel, recent.homeTeam, recent.awayTeam)
+    const side =
+      perspective.isHome === true ? lineup.home : perspective.isHome === false ? lineup.away : null
     if (!side) return null
 
     const seen = new Set<string>()
@@ -419,8 +408,7 @@ export class FussballService {
     for (const entry of [...side.starters, ...side.bench]) {
       const name = (entry.name ?? '').trim()
       if (!name) continue
-      const jerseyNumber =
-        typeof entry.number === 'number' ? entry.number : null
+      const jerseyNumber = typeof entry.number === 'number' ? entry.number : null
       const dedupeKey = `${jerseyNumber ?? ''}|${name.toLowerCase()}`
       if (seen.has(dedupeKey)) continue
       seen.add(dedupeKey)
@@ -528,9 +516,7 @@ export class FussballService {
       where: { teamId: link.teamId },
       select: { fullName: true },
     })
-    const existingNames = new Set(
-      existing.map((s) => s.fullName.trim().toLowerCase()),
-    )
+    const existingNames = new Set(existing.map((s) => s.fullName.trim().toLowerCase()))
 
     // Within-scrape dedup: api-fussball.de occasionally returns the same
     // player twice across roster pages (e.g. when a player is on both
@@ -548,14 +534,14 @@ export class FussballService {
     }
     if (inserts.length === 0) return
 
-    await this.prisma.rosterSlot.createMany({
-      data: inserts.map((p) => ({
+    await this.createRosterSlotsWithinQuota(
+      link.teamId,
+      inserts.map((p) => ({
         teamId: link.teamId,
         fullName: p.name,
         jerseyNumber: p.jerseyNumber,
       })),
-      skipDuplicates: true,
-    })
+    )
   }
 
   async syncTeamLink(
@@ -592,9 +578,7 @@ export class FussballService {
     })
 
     try {
-      const { externalUrl, preview } = await this.provider.fetchTeamPage(
-        link.externalUrl,
-      )
+      const { externalUrl, preview } = await this.provider.fetchTeamPage(link.externalUrl)
       const bundle = await this.provider.fetchTeamBundle(link.externalTeamId)
       const normalizedFixtures = this.normalizeFixtures(link, preview, bundle)
 
@@ -617,8 +601,7 @@ export class FussballService {
       const completed = await this.prisma.syncRun.update({
         where: { id: syncRun.id },
         data: {
-          status:
-            importedCount > 0 || updatedCount > 0 || force ? 'SUCCESS' : 'PARTIAL',
+          status: importedCount > 0 || updatedCount > 0 || force ? 'SUCCESS' : 'PARTIAL',
           importedCount,
           updatedCount,
           skippedCount,
@@ -638,8 +621,7 @@ export class FussballService {
 
       return serializeSyncRun(completed)
     } catch (error) {
-      const errorSummary =
-        error instanceof Error ? error.message : 'Unknown sync failure'
+      const errorSummary = error instanceof Error ? error.message : 'Unknown sync failure'
 
       await this.prisma.externalTeamLink.update({
         where: { id: link.id },
@@ -793,10 +775,7 @@ export class FussballService {
     )
   }
 
-  async getFixtureLineup(
-    userId: string,
-    fixtureId: string,
-  ): Promise<FixtureLineup> {
+  async getFixtureLineup(userId: string, fixtureId: string): Promise<FixtureLineup> {
     const fixture = await this.prisma.importedFixture.findFirst({
       where: { id: fixtureId },
       include: { overlay: true },
@@ -843,9 +822,7 @@ export class FussballService {
       }
     }
 
-    const bundle = await this.provider
-      .fetchMatchLineup(fixture.externalMatchId)
-      .catch(() => null)
+    const bundle = await this.provider.fetchMatchLineup(fixture.externalMatchId).catch(() => null)
 
     if (!bundle) {
       return {
@@ -910,10 +887,7 @@ export class FussballService {
 
     return {
       status,
-      minute:
-        status === 'final'
-          ? 90
-          : Math.max(0, ...events.map((event) => event.minute)),
+      minute: status === 'final' ? 90 : Math.max(0, ...events.map((event) => event.minute)),
       scoreHome: fixture.resultHome ?? 0,
       scoreAway: fixture.resultAway ?? 0,
       events,
@@ -945,24 +919,12 @@ export class FussballService {
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
 
     const [recentForm, scoring] = await Promise.all([
-      this.buildRecentForm(
-        fixture.teamId,
-        fixture.teamLink?.label ?? '',
-        fixture.kickoffAt,
-      ),
-      this.buildScraperScoringFacts(
-        fixture.teamLink,
-        fixture.homeTeam,
-        fixture.awayTeam,
-      ),
+      this.buildRecentForm(fixture.teamId, fixture.teamLink?.label ?? '', fixture.kickoffAt),
+      this.buildScraperScoringFacts(fixture.teamLink, fixture.homeTeam, fixture.awayTeam),
     ])
 
     return {
-      comparison: buildMatchComparison(
-        fixture.tableSnapshot,
-        fixture.homeTeam,
-        fixture.awayTeam,
-      ),
+      comparison: buildMatchComparison(fixture.tableSnapshot, fixture.homeTeam, fixture.awayTeam),
       recentForm,
       goalTiming: scoring.goalTiming,
       topScorers: scoring.topScorers,
@@ -1025,11 +987,7 @@ export class FussballService {
     }))
     let topScorers: MatchTopScorers | null = null
     if (scorers.length > 0) {
-      const perspective = inferLinkedTeamPerspective(
-        link.label || teamName,
-        homeTeam,
-        awayTeam,
-      )
+      const perspective = inferLinkedTeamPerspective(link.label || teamName, homeTeam, awayTeam)
       const linkedIsHome = perspective.isHome ?? true
       topScorers = {
         homeTeam,
@@ -1147,11 +1105,7 @@ export class FussballService {
       select: { label: true },
     })
     if (!link) return
-    const perspective = inferLinkedTeamPerspective(
-      link.label,
-      fixture.homeTeam,
-      fixture.awayTeam,
-    )
+    const perspective = inferLinkedTeamPerspective(link.label, fixture.homeTeam, fixture.awayTeam)
     if (perspective.isHome === null) return
     const ourSide = perspective.isHome ? bundle.home : bundle.away
     const candidates = [...ourSide.starters, ...ourSide.bench]
@@ -1168,24 +1122,52 @@ export class FussballService {
       where: { teamId: fixture.teamId },
       select: { fullName: true },
     })
-    const existingNames = new Set(
-      existing.map((s) => s.fullName.trim().toLowerCase()),
-    )
+    const existingNames = new Set(existing.map((s) => s.fullName.trim().toLowerCase()))
 
-    const inserts = candidates.filter(
-      (p) => !existingNames.has(p.name.toLowerCase()),
-    )
+    const inserts = candidates.filter((p) => !existingNames.has(p.name.toLowerCase()))
     if (inserts.length === 0) return
 
-    await this.prisma.rosterSlot.createMany({
-      data: inserts.map((p) => ({
+    await this.createRosterSlotsWithinQuota(
+      fixture.teamId,
+      inserts.map((p) => ({
         teamId: fixture.teamId,
         fullName: p.name,
         jerseyNumber: p.jerseyNumber,
         position: p.position,
       })),
-      skipDuplicates: true,
+    )
+  }
+
+  private async createRosterSlotsWithinQuota(
+    teamId: string,
+    candidates: Prisma.RosterSlotCreateManyInput[],
+  ) {
+    if (candidates.length === 0) return
+    await this.prisma.$transaction(async (tx) => {
+      const team = await tx.team.findUnique({ where: { id: teamId }, select: { clubId: true } })
+      if (!team) throw new NotFoundException('Team not found')
+      const existing = await tx.rosterSlot.findMany({
+        where: { teamId },
+        select: { fullName: true },
+      })
+      const names = new Set(existing.map((slot) => slot.fullName.trim().toLowerCase()))
+      const unique = candidates.filter((candidate) => {
+        const key = candidate.fullName.trim().toLowerCase()
+        if (!key || names.has(key)) return false
+        names.add(key)
+        return true
+      })
+      if (unique.length === 0) return
+      await this.requireEntitlements().assertCanReservePlayerSeats(team.clubId, unique.length, tx)
+      await tx.rosterSlot.createMany({ data: unique, skipDuplicates: true })
     })
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 
   async updateFixtureOverlay(
@@ -1216,11 +1198,9 @@ export class FussballService {
                   ? new Date(input.arrivalTime)
                   : null
                 : undefined,
-            meetingPoint:
-              input.meetingPoint !== undefined ? input.meetingPoint : undefined,
+            meetingPoint: input.meetingPoint !== undefined ? input.meetingPoint : undefined,
             kitColor: input.kitColor !== undefined ? input.kitColor : undefined,
-            travelNotes:
-              input.travelNotes !== undefined ? input.travelNotes : undefined,
+            travelNotes: input.travelNotes !== undefined ? input.travelNotes : undefined,
             squadDeadline:
               input.squadDeadline !== undefined
                 ? input.squadDeadline
@@ -1238,9 +1218,7 @@ export class FussballService {
             meetingPoint: input.meetingPoint ?? null,
             kitColor: input.kitColor ?? null,
             travelNotes: input.travelNotes ?? null,
-            squadDeadline: input.squadDeadline
-              ? new Date(input.squadDeadline)
-              : null,
+            squadDeadline: input.squadDeadline ? new Date(input.squadDeadline) : null,
             veoLink: input.veoLink ?? null,
             fieldLocks: [],
           },
@@ -1272,28 +1250,13 @@ export class FussballService {
     const updatedFixture = await this.prisma.importedFixture.update({
       where: { id: fixture.id },
       data: {
-        kickoffAt: input.values?.kickoffAt
-          ? new Date(input.values.kickoffAt)
-          : undefined,
-        venueName:
-          input.values?.venueName !== undefined
-            ? input.values.venueName
-            : undefined,
+        kickoffAt: input.values?.kickoffAt ? new Date(input.values.kickoffAt) : undefined,
+        venueName: input.values?.venueName !== undefined ? input.values.venueName : undefined,
         pitchAddress:
-          input.values?.pitchAddress !== undefined
-            ? input.values.pitchAddress
-            : undefined,
-        status: input.values?.status
-          ? toPrismaFixtureStatus(input.values.status)
-          : undefined,
-        resultHome:
-          input.values?.resultHome !== undefined
-            ? input.values.resultHome
-            : undefined,
-        resultAway:
-          input.values?.resultAway !== undefined
-            ? input.values.resultAway
-            : undefined,
+          input.values?.pitchAddress !== undefined ? input.values.pitchAddress : undefined,
+        status: input.values?.status ? toPrismaFixtureStatus(input.values.status) : undefined,
+        resultHome: input.values?.resultHome !== undefined ? input.values.resultHome : undefined,
+        resultAway: input.values?.resultAway !== undefined ? input.values.resultAway : undefined,
       },
     })
 
@@ -1314,11 +1277,7 @@ export class FussballService {
 
     await this.syncEventForFixture(updatedFixture, overlay, 'manual-lock')
 
-    return serializeFixture(
-      updatedFixture,
-      await this.findLinkedEventId(updatedFixture),
-      overlay,
-    )
+    return serializeFixture(updatedFixture, await this.findLinkedEventId(updatedFixture), overlay)
   }
 
   async getClubSummary(clubId: string): Promise<ClubPublicSummary> {
@@ -1434,9 +1393,7 @@ export class FussballService {
       deduped.set(fixture.externalMatchId, fixture)
     }
 
-    return [...deduped.values()].sort((a, b) =>
-      a.kickoffAt.localeCompare(b.kickoffAt),
-    )
+    return [...deduped.values()].sort((a, b) => a.kickoffAt.localeCompare(b.kickoffAt))
   }
 
   private normalizeFixtureSeed(
@@ -1450,13 +1407,8 @@ export class FussballService {
       return null
     }
 
-    const perspective = inferLinkedTeamPerspective(
-      preview.label,
-      game.homeTeam,
-      game.awayTeam,
-    )
-    const competition = (game.competition || preview.competition || 'League fixture')
-      .trim()
+    const perspective = inferLinkedTeamPerspective(preview.label, game.homeTeam, game.awayTeam)
+    const competition = (game.competition || preview.competition || 'League fixture').trim()
     const status = normalizeImportedFixtureStatus(game.status)
 
     return {
@@ -1600,8 +1552,7 @@ export class FussballService {
       const wasFinished = existing.status === 'FINISHED'
       const isFinished = updated.status === 'FINISHED'
       const scoreChanged =
-        existing.resultHome !== updated.resultHome ||
-        existing.resultAway !== updated.resultAway
+        existing.resultHome !== updated.resultHome || existing.resultAway !== updated.resultAway
 
       // A live goal / full-time transition gets its own dedicated push below.
       // Suppress the generic "Result finalised / status updated" push for those
@@ -1612,8 +1563,7 @@ export class FussballService {
       // Whether there's any fixture-change notification to send (locale-agnostic
       // check); the copy itself is rendered per recipient locale below.
       const hasFixtureNotification =
-        !dedicatedPushHandles &&
-        buildFixtureNotification(updated, linkedLabel, changes) !== null
+        !dedicatedPushHandles && buildFixtureNotification(updated, linkedLabel, changes) !== null
       if (hasFixtureNotification) {
         await this.pushService.sendToTeamRendered(
           updated.teamId,
@@ -1711,18 +1661,11 @@ export class FussballService {
           })
 
     const linkedLabel = explicitLinkedLabel || link?.label || fixture.homeTeam
-    const perspective = inferLinkedTeamPerspective(
-      linkedLabel,
-      fixture.homeTeam,
-      fixture.awayTeam,
-    )
+    const perspective = inferLinkedTeamPerspective(linkedLabel, fixture.homeTeam, fixture.awayTeam)
     const opponent = perspective.opponent
     const title =
-      perspective.isHome === false
-        ? `Auswaerts bei ${opponent}`
-        : `Spiel gegen ${opponent}`
-    const location =
-      [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ') || null
+      perspective.isHome === false ? `Auswaerts bei ${opponent}` : `Spiel gegen ${opponent}`
+    const location = [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ') || null
     const notes = buildEventNotes(fixture, overlay, reason)
     const createdById = await this.resolveEventCreator(fixture.clubId)
 
@@ -1777,10 +1720,7 @@ export class FussballService {
     return membership?.userId || null
   }
 
-  private async findLinkedEventId(fixture: {
-    provider: string
-    externalMatchId: string
-  }) {
+  private async findLinkedEventId(fixture: { provider: string; externalMatchId: string }) {
     const event = await this.prisma.event.findFirst({
       where: {
         externalMatchKey: buildEventKey(fixture.provider, fixture.externalMatchId),
@@ -1794,17 +1734,13 @@ export class FussballService {
 
 function assertClubScope(inputClubId: string | undefined, actualClubId: string) {
   if (!inputClubId || inputClubId !== actualClubId) {
-    throw new BadRequestException(
-      'X-Club-Id must match the active club for this operation',
-    )
+    throw new BadRequestException('X-Club-Id must match the active club for this operation')
   }
 }
 
 function deriveSeason(kickoff: Date) {
   const year = kickoff.getUTCFullYear()
-  return kickoff.getUTCMonth() >= 6
-    ? `${year}/${year + 1}`
-    : `${year - 1}/${year}`
+  return kickoff.getUTCMonth() >= 6 ? `${year}/${year + 1}` : `${year - 1}/${year}`
 }
 
 function toNullableInt(value: string | number | null | undefined) {
@@ -1817,9 +1753,7 @@ function toNullableInt(value: string | number | null | undefined) {
 }
 
 function getFieldLocks(raw: unknown): string[] {
-  return Array.isArray(raw)
-    ? raw.filter((item): item is string => typeof item === 'string')
-    : []
+  return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : []
 }
 
 function applyLockedFields(
@@ -1838,16 +1772,10 @@ function applyLockedFields(
 
   return {
     ...incoming,
-    kickoffAt: locked.has('kickoffAt')
-      ? existing.kickoffAt.toISOString()
-      : incoming.kickoffAt,
+    kickoffAt: locked.has('kickoffAt') ? existing.kickoffAt.toISOString() : incoming.kickoffAt,
     venueName: locked.has('venueName') ? existing.venueName : incoming.venueName,
-    pitchAddress: locked.has('pitchAddress')
-      ? existing.pitchAddress
-      : incoming.pitchAddress,
-    status: locked.has('status')
-      ? toSharedFixtureStatus(existing.status)
-      : incoming.status,
+    pitchAddress: locked.has('pitchAddress') ? existing.pitchAddress : incoming.pitchAddress,
+    status: locked.has('status') ? toSharedFixtureStatus(existing.status) : incoming.status,
     resultHome: locked.has('resultHome') ? existing.resultHome : incoming.resultHome,
     resultAway: locked.has('resultAway') ? existing.resultAway : incoming.resultAway,
   }
@@ -1860,14 +1788,12 @@ function buildEventNotes(
     resultHome: number | null
     resultAway: number | null
   },
-  overlay:
-    | {
-        arrivalTime: Date | null
-        meetingPoint: string | null
-        travelNotes: string | null
-        squadDeadline: Date | null
-      }
-    | null,
+  overlay: {
+    arrivalTime: Date | null
+    meetingPoint: string | null
+    travelNotes: string | null
+    squadDeadline: Date | null
+  } | null,
   reason: string,
 ) {
   const lines = [
@@ -1922,13 +1848,9 @@ function buildFixtureNotification(
   changes: string[],
   locale: Locale = 'de',
 ): { title: string; body: string } | null {
-  const perspective = inferLinkedTeamPerspective(
-    linkedLabel,
-    fixture.homeTeam,
-    fixture.awayTeam,
-  )
+  const perspective = inferLinkedTeamPerspective(linkedLabel, fixture.homeTeam, fixture.awayTeam)
   const opponent = perspective.opponent
-  const pick = <T,>(table: Record<Locale, T>): T => table[locale]
+  const pick = <T>(table: Record<Locale, T>): T => table[locale]
 
   if (changes.includes('kickoff')) {
     const when = fixture.kickoffAt.toLocaleString(FIXTURE_NOTIF_TAG[locale])
@@ -1990,11 +1912,7 @@ function buildFixtureNotification(
     }
   }
 
-  if (
-    changes.includes('result') &&
-    fixture.resultHome !== null &&
-    fixture.resultAway !== null
-  ) {
+  if (changes.includes('result') && fixture.resultHome !== null && fixture.resultAway !== null) {
     return {
       title: pick({
         de: 'Endergebnis',
@@ -2174,9 +2092,7 @@ function serializeFixture(
     resultHome: fixture.resultHome,
     resultAway: fixture.resultAway,
     tableSnapshot: getTableSnapshot(fixture.tableSnapshot),
-    sourceConfidence: toSharedConfidence(
-      fixture.sourceConfidence || 'UNOFFICIAL_PUBLIC',
-    ),
+    sourceConfidence: toSharedConfidence(fixture.sourceConfidence || 'UNOFFICIAL_PUBLIC'),
     rawPayload: isRecord(fixture.rawPayload) ? fixture.rawPayload : {},
     lastSeenAt: fixture.lastSeenAt?.toISOString() || new Date().toISOString(),
     createdAt: fixture.createdAt?.toISOString() || new Date().toISOString(),
@@ -2222,9 +2138,7 @@ function serializeSyncRun(run: {
 }
 
 function getTableSnapshot(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter(isTableSnapshotRow).map((row) => ({ ...row }))
-    : null
+  return Array.isArray(value) ? value.filter(isTableSnapshotRow).map((row) => ({ ...row })) : null
 }
 
 function isTableSnapshotRow(value: unknown): value is ClubPublicSummary['table'][number] {
@@ -2378,7 +2292,9 @@ function resolveScraperTimelineSide(
   value: unknown,
   teams: { homeTeam: string; awayTeam: string },
 ): FixtureTimelineEvent['side'] | null {
-  const raw = String(value ?? '').trim().toLowerCase()
+  const raw = String(value ?? '')
+    .trim()
+    .toLowerCase()
   if (raw === 'home' || raw === 'heim') return 'home'
   if (raw === 'away' || raw === 'guest' || raw === 'gast') return 'away'
 
@@ -2415,7 +2331,9 @@ function toTimelineMinute(value: unknown): number | null {
 }
 
 function toTimelineKind(value: unknown): FixtureTimelineEvent['kind'] | null {
-  const normalized = String(value ?? '').toLowerCase().trim()
+  const normalized = String(value ?? '')
+    .toLowerCase()
+    .trim()
   if (normalized === 'goal') return 'goal'
   if (normalized === 'sub' || normalized === 'substitution') return 'sub'
   if (normalized === 'yellow' || normalized === 'yellow-card') return 'yellow'
@@ -2445,10 +2363,7 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.Json
  * when no lineup (or no starters) is stored.
  */
 function getStoredLineupSide(
-  overlay:
-    | { lineup?: unknown; lineupFormation?: string | null }
-    | null
-    | undefined,
+  overlay: { lineup?: unknown; lineupFormation?: string | null } | null | undefined,
 ): ApiFussballLineupSide | null {
   if (!overlay || !isRecord(overlay.lineup)) return null
   const raw = overlay.lineup
@@ -2457,17 +2372,13 @@ function getStoredLineupSide(
   const bench = Array.isArray(raw.bench) ? raw.bench : []
   return {
     formation:
-      (typeof raw.formation === 'string'
-        ? raw.formation
-        : overlay.lineupFormation) ?? null,
+      (typeof raw.formation === 'string' ? raw.formation : overlay.lineupFormation) ?? null,
     starters: starters as ApiFussballLineupSide['starters'],
     bench: bench as ApiFussballLineupSide['bench'],
   }
 }
 
-function normalizeLineupSide(
-  side: ApiFussballLineupSide,
-): FixtureLineupSide {
+function normalizeLineupSide(side: ApiFussballLineupSide): FixtureLineupSide {
   const formation = side.formation || inferFormation(side.starters.length)
   const positions = positionsForFormation(formation, side.starters.length)
   const starters = side.starters.map((p, i) => ({
@@ -2516,10 +2427,7 @@ function positionsForFormation(
     // depth from 0.18 (defenders) to 0.92 (forwards)
     const depth = 0.18 + (lineIdx / Math.max(1, totalLines - 1)) * 0.72
     for (let j = 0; j < countOnLine; j++) {
-      const lateral =
-        countOnLine === 1
-          ? 0.5
-          : 0.12 + (j / (countOnLine - 1)) * 0.76
+      const lateral = countOnLine === 1 ? 0.5 : 0.12 + (j / (countOnLine - 1)) * 0.76
       result.push({ depth, lateral })
     }
   })
@@ -2527,31 +2435,53 @@ function positionsForFormation(
   return result.slice(0, starterCount)
 }
 
-
 /**
  * Map Fussball.de position codes to our PlayerPosition enum.
  * Returns null if unknown — caller leaves position empty.
  */
-function mapFussballPosition(
-  raw: string | null,
-): "GK" | "DEF" | "MID" | "FWD" | null {
+function mapFussballPosition(raw: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' | null {
   if (!raw) return null
   const code = raw.trim().toUpperCase()
-  if (code === "TW" || code === "GK") return "GK"
+  if (code === 'TW' || code === 'GK') return 'GK'
   if (
-    code === "IV" || code === "AV" || code === "LV" || code === "RV" ||
-    code === "LIB" || code === "DF" || code === "DEF" || code === "CB" ||
-    code === "LB" || code === "RB"
-  ) return "DEF"
+    code === 'IV' ||
+    code === 'AV' ||
+    code === 'LV' ||
+    code === 'RV' ||
+    code === 'LIB' ||
+    code === 'DF' ||
+    code === 'DEF' ||
+    code === 'CB' ||
+    code === 'LB' ||
+    code === 'RB'
+  )
+    return 'DEF'
   if (
-    code === "DM" || code === "ZM" || code === "OM" || code === "LM" ||
-    code === "RM" || code === "MF" || code === "MID" || code === "CM" ||
-    code === "AM" || code === "CDM" || code === "CAM"
-  ) return "MID"
+    code === 'DM' ||
+    code === 'ZM' ||
+    code === 'OM' ||
+    code === 'LM' ||
+    code === 'RM' ||
+    code === 'MF' ||
+    code === 'MID' ||
+    code === 'CM' ||
+    code === 'AM' ||
+    code === 'CDM' ||
+    code === 'CAM'
+  )
+    return 'MID'
   if (
-    code === "ST" || code === "MS" || code === "RA" || code === "LA" ||
-    code === "FW" || code === "FWD" || code === "CF" || code === "LW" || code === "RW"
-  ) return "FWD"
+    code === 'ST' ||
+    code === 'MS' ||
+    code === 'RA' ||
+    code === 'LA' ||
+    code === 'FW' ||
+    code === 'FWD' ||
+    code === 'CF' ||
+    code === 'LW' ||
+    code === 'RW'
+  )
+    return 'FWD'
   return null
 }
 
@@ -2565,9 +2495,7 @@ function buildMatchComparison(
   homeTeam: string,
   awayTeam: string,
 ): MatchComparison | null {
-  const rows = Array.isArray(snapshot)
-    ? (snapshot as Array<Record<string, unknown>>)
-    : null
+  const rows = Array.isArray(snapshot) ? (snapshot as Array<Record<string, unknown>>) : null
   if (!rows || rows.length === 0) return null
 
   const norm = (value: unknown) =>

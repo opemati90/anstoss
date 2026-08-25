@@ -25,10 +25,7 @@ import {
   getAge,
   rsvpStatusSchema,
 } from '@anstoss/shared'
-import type {
-  CompleteOnboardingInput,
-  CrossTeamEventItem,
-} from '@anstoss/shared'
+import type { CompleteOnboardingInput, CrossTeamEventItem } from '@anstoss/shared'
 import type { ParentHandoffInput } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
@@ -79,12 +76,7 @@ export class UsersService {
     try {
       await this.r2.assertStoredObject(objectKey, {
         maxBytes: 10 * 1024 * 1024,
-        allowedContentTypes: new Set([
-          'image/jpeg',
-          'image/png',
-          'image/webp',
-          'image/heic',
-        ]),
+        allowedContentTypes: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
       })
     } catch {
       throw new BadRequestException('Avatar upload is invalid or incomplete')
@@ -105,9 +97,7 @@ export class UsersService {
   async sendParentHandoff(userId: string, input: ParentHandoffInput) {
     const dob = new Date(input.childDateOfBirth)
     if (Number.isNaN(dob.getTime()) || getAge(dob) >= AGE_GATE.MIN_AGE) {
-      throw new BadRequestException(
-        'Parent handoff is only available for under-16 sign-ups',
-      )
+      throw new BadRequestException('Parent handoff is only available for under-16 sign-ups')
     }
 
     const user = await this.prisma.user.findUnique({
@@ -196,7 +186,8 @@ export class UsersService {
 
   /** Allocate a collision-free, human-typeable handoff code. */
   private async allocateHandoffCode(
-    client: { parentHandoff: { findUnique: typeof this.prisma.parentHandoff.findUnique } } = this.prisma,
+    client: { parentHandoff: { findUnique: typeof this.prisma.parentHandoff.findUnique } } = this
+      .prisma,
   ): Promise<string> {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const code = Array.from(
@@ -345,33 +336,33 @@ export class UsersService {
             message: null,
           }
         : age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
-        ? {
-            isUnder16: age < AGE_GATE.MIN_AGE,
-            status: 'CLEARED' as const,
-            guardianEmail: latestConsent?.guardianEmail || null,
-            message: null,
-          }
-        : latestConsent
           ? {
-              isUnder16: true,
-              status: 'PENDING_PARENT_APPROVAL' as const,
-              guardianEmail: latestConsent.guardianEmail,
-              message:
-                latestConsent.status === ParentalConsentStatus.REJECTED
-                  ? 'Parental approval was declined.'
-                  : 'Parental approval is still pending.',
+              isUnder16: age < AGE_GATE.MIN_AGE,
+              status: 'CLEARED' as const,
+              guardianEmail: latestConsent?.guardianEmail || null,
+              message: null,
             }
-          : {
-              isUnder16: true,
-              status: 'BLOCKED' as const,
-              guardianEmail: null,
-              message: `You must be at least ${AGE_GATE.MIN_AGE} or have parental approval to access Anstoss.`,
-            }
+          : latestConsent
+            ? {
+                isUnder16: true,
+                status: 'PENDING_PARENT_APPROVAL' as const,
+                guardianEmail: latestConsent.guardianEmail,
+                message:
+                  latestConsent.status === ParentalConsentStatus.REJECTED
+                    ? 'Parental approval was declined.'
+                    : 'Parental approval is still pending.',
+              }
+            : {
+                isUnder16: true,
+                status: 'BLOCKED' as const,
+                guardianEmail: null,
+                message: `You must be at least ${AGE_GATE.MIN_AGE} or have parental approval to access Anstoss.`,
+              }
 
     // Derive teamMembers from teamAccess for the mobile client.
     // Keep access state so clients can avoid treating pending/revoked rows
     // as active team membership.
-    const teamMembers = user.teamAccess.map((teamAccess: typeof user.teamAccess[number]) => ({
+    const teamMembers = user.teamAccess.map((teamAccess: (typeof user.teamAccess)[number]) => ({
       id: teamAccess.id,
       role: teamAccess.role,
       phase: teamAccess.phase,
@@ -385,20 +376,33 @@ export class UsersService {
       },
     }))
 
-    const pendingJoinRequest = await this.prisma.joinRequest.findFirst({
-      where: { userId, status: 'PENDING' },
-      select: { id: true, clubId: true },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [pendingJoinRequest, pendingClubClaim] = await Promise.all([
+      this.prisma.joinRequest.findFirst({
+        where: { userId, status: 'PENDING' },
+        select: { id: true, clubId: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.clubClaim.findFirst({
+        where: {
+          claimantUserId: userId,
+          kind: 'FIRST_CLAIM',
+          status: { in: ['SUBMITTED', 'NEEDS_INFO'] },
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true, status: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
 
     return {
       ...user,
-      memberships: user.memberships.map((membership: typeof user.memberships[number]) =>
+      memberships: user.memberships.map((membership: (typeof user.memberships)[number]) =>
         attachMembershipPermissions(membership),
       ),
       teamMembers,
       ageGate,
       pendingJoinRequest,
+      pendingClubClaim,
     }
   }
 
@@ -442,9 +446,7 @@ export class UsersService {
         currentUser.registrationRole !== RegistrationRole.PLAYER &&
         currentUser.registrationRole !== data.registrationRole
       ) {
-        throw new BadRequestException(
-          'registrationRole is read-only after onboarding',
-        )
+        throw new BadRequestException('registrationRole is read-only after onboarding')
       }
       if (data.registrationRole === RegistrationRole.CLUB_ADMIN) {
         const existingMembership = await this.prisma.membership.findFirst({
@@ -487,12 +489,9 @@ export class UsersService {
       if (
         currentUser.dateOfBirth &&
         !isPlaceholderDate(currentUser.dateOfBirth) &&
-        currentUser.dateOfBirth.toISOString().slice(0, 10) !==
-          parsedDate.toISOString().slice(0, 10)
+        currentUser.dateOfBirth.toISOString().slice(0, 10) !== parsedDate.toISOString().slice(0, 10)
       ) {
-        throw new BadRequestException(
-          'Date of birth is read-only after registration',
-        )
+        throw new BadRequestException('Date of birth is read-only after registration')
       }
 
       updateData.dateOfBirth = parsedDate
@@ -519,9 +518,7 @@ export class UsersService {
     }
 
     if (user.registrationRole !== input.registrationRole) {
-      throw new BadRequestException(
-        'registrationRole in payload must match the user record',
-      )
+      throw new BadRequestException('registrationRole in payload must match the user record')
     }
 
     // Pre-validate any invite code BEFORE writing the profile. This avoids
@@ -558,25 +555,17 @@ export class UsersService {
       data: {
         name: input.profile.displayName,
         dateOfBirth: new Date(input.profile.dateOfBirth),
-        ...(input.profile.photoUrl
-          ? { avatarUrl: input.profile.photoUrl }
-          : {}),
+        ...(input.profile.photoUrl ? { avatarUrl: input.profile.photoUrl } : {}),
       },
     })
 
     switch (input.registrationRole) {
       case RegistrationRole.CLUB_ADMIN: {
-        const { clubCreate } = input
-        return this.clubsService.createClubWithTeam(
-          userId,
-          {
-            name: clubCreate.name,
-            primaryColor: clubCreate.primaryColor,
-            badgeUrl: clubCreate.badgeUrl,
-            welcomeText: clubCreate.welcomeText,
-          },
-          { name: clubCreate.firstTeamName },
-        )
+        return {
+          status: 'pending_club_claim',
+          role: user.registrationRole,
+          message: 'Profile complete — submit a verified club claim to activate club access.',
+        }
       }
 
       case RegistrationRole.COACH:
@@ -600,10 +589,7 @@ export class UsersService {
       case RegistrationRole.PARENT: {
         const { parentLink } = input
         if (parentLink.approvalInviteCode) {
-          return this.invitesService.redeem(
-            parentLink.approvalInviteCode,
-            userId,
-          )
+          return this.invitesService.redeem(parentLink.approvalInviteCode, userId)
         }
         // Same shape as COACH/PLAYER — registered, awaiting parental link
         // invite from a club admin. The child-email-search flow lands later.
@@ -622,9 +608,7 @@ export class UsersService {
       default: {
         // Exhaustiveness check — compile-time guarantee all roles handled.
         const _exhaustive: never = input
-        throw new BadRequestException(
-          `Unsupported registrationRole: ${String(_exhaustive)}`,
-        )
+        throw new BadRequestException(`Unsupported registrationRole: ${String(_exhaustive)}`)
       }
     }
   }
@@ -632,11 +616,7 @@ export class UsersService {
   /**
    * Get a user's profile within a club context (visible to teammates).
    */
-  async getClubProfile(
-    requesterUserId: string,
-    targetUserId: string,
-    clubId: string,
-  ) {
+  async getClubProfile(requesterUserId: string, targetUserId: string, clubId: string) {
     const [requesterMembership, targetMembership] = await Promise.all([
       this.prisma.membership.findUnique({
         where: { userId_clubId: { userId: requesterUserId, clubId } },
@@ -714,9 +694,7 @@ export class UsersService {
         },
       })
 
-      const teamMemberByUserId = new Map(
-        teamMembers.map((member: any) => [member.userId, member]),
-      )
+      const teamMemberByUserId = new Map(teamMembers.map((member: any) => [member.userId, member]))
 
       return accessEntries.map((entry: any) => {
         const teamMember = teamMemberByUserId.get(entry.userId)
@@ -787,8 +765,7 @@ export class UsersService {
     // Member emails are admin-only PII. Non-admin members (players,
     // parents, coaches) get the roster without email addresses.
     const callerIsAdmin =
-      membership.role === MembershipRole.OWNER ||
-      membership.role === MembershipRole.ADMIN
+      membership.role === MembershipRole.OWNER || membership.role === MembershipRole.ADMIN
 
     return memberships.map((member: any) => {
       const withPerms = attachMembershipPermissions(member)
@@ -883,10 +860,7 @@ export class UsersService {
       },
     })
 
-    if (
-      activeCoachAssignments.length > 0 &&
-      !isStaffMembershipRole(nextRole)
-    ) {
+    if (activeCoachAssignments.length > 0 && !isStaffMembershipRole(nextRole)) {
       throw new BadRequestException(
         'Reassign squad coaching responsibilities before removing club staff role',
       )
@@ -913,6 +887,8 @@ export class UsersService {
         },
       },
     })
+
+    this.eventEmitter?.emit('realtime.access.changed', { userId: memberUserId })
 
     return {
       ...attachMembershipPermissions(membership),
@@ -1084,9 +1060,7 @@ export class UsersService {
     })
 
     const hasReplacementForAllCriticalRoles = targetMembership.operationalRoles
-      .filter((role) =>
-        CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole),
-      )
+      .filter((role) => CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole))
       .every((role) =>
         remainingCriticalHolders.some((membership: any) =>
           membership.operationalRoles.includes(role),
@@ -1197,10 +1171,7 @@ export class UsersService {
       throw new NotFoundException('User not found')
     }
 
-    const userEmailCandidates = uniqueValues([
-      user.email,
-      user.email?.trim().toLowerCase(),
-    ])
+    const userEmailCandidates = uniqueValues([user.email, user.email?.trim().toLowerCase()])
 
     const [
       memberships,
@@ -2280,8 +2251,7 @@ export class UsersService {
         yesCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.YES).length,
         maybeCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.MAYBE).length,
         noCount: event.rsvps.filter((rsvp: any) => rsvp.status === RsvpStatus.NO).length,
-        myRsvp:
-          event.rsvps.find((rsvp: any) => rsvp.userId === userId)?.status ?? null,
+        myRsvp: event.rsvps.find((rsvp: any) => rsvp.userId === userId)?.status ?? null,
         teamName: teamInfo?.name ?? '',
         teamDisplayName: teamInfo?.displayName ?? '',
         childUserId,
@@ -2307,9 +2277,7 @@ function translateFreeAgentOnboarding(
 ) {
   const validPositions = freeAgent.position
     .map((p) => p.toUpperCase())
-    .filter((p): p is PlayerPosition =>
-      (Object.values(PlayerPosition) as string[]).includes(p),
-    )
+    .filter((p): p is PlayerPosition => (Object.values(PlayerPosition) as string[]).includes(p))
 
   if (validPositions.length === 0) {
     throw new BadRequestException(
@@ -2405,10 +2373,7 @@ function attachMembershipPermissions<T extends { role: string; operationalRoles:
   }
 }
 
-function canAssignMembershipRole(
-  actorRole: string,
-  nextRole: MembershipRole,
-) {
+function canAssignMembershipRole(actorRole: string, nextRole: MembershipRole) {
   if (nextRole === MembershipRole.OWNER) {
     return false
   }
@@ -2426,8 +2391,6 @@ function canAssignMembershipRole(
 
 function isStaffMembershipRole(role: MembershipRole) {
   return (
-    role === MembershipRole.OWNER ||
-    role === MembershipRole.ADMIN ||
-    role === MembershipRole.COACH
+    role === MembershipRole.OWNER || role === MembershipRole.ADMIN || role === MembershipRole.COACH
   )
 }

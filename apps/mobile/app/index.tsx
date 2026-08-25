@@ -6,11 +6,11 @@ import { useWelcomeSeen } from '../src/onboarding/welcomeSeen'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, user, needsRegistration } = useAuth()
+  const { isLoading, isSignedIn, memberships, ageGate, user, needsRegistration, pendingClubClaim } =
+    useAuth()
   const welcomeSeen = useWelcomeSeen()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
-  const shouldResumeOnboarding =
-    isSignedIn && memberships.length === 0 && needsRegistration
+  const shouldResumeOnboarding = isSignedIn && memberships.length === 0 && needsRegistration
   const resumeTarget = useOnboardingResumeTarget(
     shouldResumeOnboarding,
     // Stable backend id — clerkId is null for every email-OTP account, which
@@ -74,6 +74,13 @@ export default function Index() {
       return <Redirect href="/free-agent/profile" />
     }
     if (user?.registrationRole === 'CLUB_ADMIN') {
+      if (pendingClubClaim) {
+        return (
+          <Redirect
+            href={{ pathname: '/(auth)/claim-pending', params: { claimId: pendingClubClaim.id } }}
+          />
+        )
+      }
       return <Redirect href="/(tabs)" />
     }
     return <Redirect href="/account-next-step" />

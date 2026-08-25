@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import {
   AGE_GATE,
   ParentalConsentStatus,
@@ -8,6 +8,7 @@ import {
   type BulkRosterSlotsInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 
 /** Mirror the age-gate guard's age calculation. */
 function getAge(dateOfBirth: Date): number {
@@ -24,7 +25,10 @@ const MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
 
 @Injectable()
 export class RosterSlotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clubEntitlements?: ClubEntitlementsService,
+  ) {}
 
   private async assertManager(userId: string, clubId: string) {
     const m = await this.prisma.membership.findFirst({ where: { userId, clubId } })
@@ -37,20 +41,23 @@ export class RosterSlotsService {
     await this.assertManager(userId, clubId)
     const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId } })
     if (!team) throw new NotFoundException('Team not found in this club')
-    return this.prisma.$transaction(
-      body.slots.map((s) =>
-        this.prisma.rosterSlot.create({
-          data: {
-            teamId,
-            fullName: s.fullName,
-            phone: s.phone ? normalizePhone(s.phone) : null,
-            dateOfBirth: s.dateOfBirth ? new Date(s.dateOfBirth) : null,
-            position: s.position ?? null,
-            jerseyNumber: s.jerseyNumber ?? null,
-          },
-        }),
-      ),
-    )
+    return this.prisma.$transaction(async (tx) => {
+      await this.requireEntitlements().assertCanReservePlayerSeats(clubId, body.slots.length, tx)
+      return Promise.all(
+        body.slots.map((s) =>
+          tx.rosterSlot.create({
+            data: {
+              teamId,
+              fullName: s.fullName,
+              phone: s.phone ? normalizePhone(s.phone) : null,
+              dateOfBirth: s.dateOfBirth ? new Date(s.dateOfBirth) : null,
+              position: s.position ?? null,
+              jerseyNumber: s.jerseyNumber ?? null,
+            },
+          }),
+        ),
+      )
+    })
   }
 
   async claim(teamId: string, slotId: string, userId: string) {
@@ -150,6 +157,13 @@ export class RosterSlotsService {
       },
       orderBy: [{ jerseyNumber: 'asc' }, { fullName: 'asc' }],
     })
+  }
+
+  private requireEntitlements() {
+    if (!this.clubEntitlements) {
+      throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
+    }
+    return this.clubEntitlements
   }
 }
 

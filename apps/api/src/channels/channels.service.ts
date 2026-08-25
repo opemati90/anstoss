@@ -33,6 +33,7 @@ const TEAM_CHANNEL_SEEDS: ChannelSeed[] = [
 const CLUB_CHANNEL_SEEDS: ChannelSeed[] = [
   { slug: 'news', kind: 'CLUB_NEWS', name: 'Club news', visibility: 'MEMBERS' },
   { slug: 'announcements', kind: 'ANNOUNCEMENTS', name: 'Announcements', visibility: 'MEMBERS' },
+  { slug: 'staff', kind: 'COACHES', name: 'Staff room', visibility: 'COACHES_ONLY' },
 ]
 
 @Injectable()
@@ -125,10 +126,16 @@ export class ChannelsService {
    * user. Called by AnnounceSheet when no teamId is available (admin home).
    */
   async listClubChannelsForUser(userId: string, clubId: string): Promise<SharedChannel[]> {
-    const membership = await this.prisma.membership.findFirst({
-      where: { userId, clubId },
-      select: { role: true },
-    })
+    const [membership, activeTeamAccess] = await Promise.all([
+      this.prisma.membership.findFirst({
+        where: { userId, clubId },
+        select: { role: true },
+      }),
+      this.prisma.teamAccess.findMany({
+        where: { userId, clubId, ...activeTeamAccessWhere() },
+        select: { role: true },
+      }),
+    ])
     if (!membership) throw new ForbiddenException('Not a club member')
 
     await this.ensureClubChannels(clubId)
@@ -138,22 +145,28 @@ export class ChannelsService {
       orderBy: { kind: 'asc' },
     })
 
-    return channels.map((c) => ({
-      id: c.id,
-      clubId: c.clubId,
-      teamId: c.teamId,
-      slug: c.slug,
-      kind: c.kind as ChannelKind,
-      name: c.name,
-      description: c.description,
-      visibility: c.visibility as ChannelVisibility,
-      canWrite:
-        membership.role === 'OWNER' || membership.role === 'ADMIN' || membership.role === 'COACH',
-      unreadCount: 0,
-      lastMessage: null,
-      createdAt: c.createdAt.toISOString(),
-      updatedAt: c.updatedAt.toISOString(),
-    }))
+    const access = { membership, activeTeamAccess }
+    return channels
+      .filter((channel) => this.userMayRead(channel.visibility as ChannelVisibility, access))
+      .map((c) => ({
+        id: c.id,
+        clubId: c.clubId,
+        teamId: c.teamId,
+        slug: c.slug,
+        kind: c.kind as ChannelKind,
+        name: c.name,
+        description: c.description,
+        visibility: c.visibility as ChannelVisibility,
+        canWrite: this.userMayWrite(
+          c.kind as ChannelKind,
+          c.visibility as ChannelVisibility,
+          access,
+        ),
+        unreadCount: 0,
+        lastMessage: null,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+      }))
   }
 
   async listForUser(userId: string, teamId: string): Promise<SharedChannel[]> {
@@ -697,15 +710,24 @@ export class ChannelsService {
       return
     }
     if (!channel.teamId) {
-      // Club-level channel: only owner/admin can write
-      const membership = await this.prisma.membership.findFirst({
-        where: { userId, clubId: channel.clubId },
-      })
+      const [membership, activeTeamAccess] = await Promise.all([
+        this.prisma.membership.findFirst({
+          where: { userId, clubId: channel.clubId },
+          select: { role: true },
+        }),
+        this.prisma.teamAccess.findMany({
+          where: { userId, clubId: channel.clubId, ...activeTeamAccessWhere() },
+          select: { role: true },
+        }),
+      ])
       if (!membership) throw new ForbiddenException('Not a club member')
-      const isManager =
-        membership.role === 'OWNER' || membership.role === 'ADMIN' || membership.role === 'COACH'
-      if ((channel.kind === 'CLUB_NEWS' || channel.kind === 'ANNOUNCEMENTS') && !isManager) {
-        throw new ForbiddenException('Only club managers post to this channel')
+      if (
+        !this.userMayWrite(channel.kind as ChannelKind, channel.visibility as ChannelVisibility, {
+          membership,
+          activeTeamAccess,
+        })
+      ) {
+        throw new ForbiddenException('You cannot post to this channel')
       }
       return
     }
@@ -731,9 +753,17 @@ export class ChannelsService {
    * and TeamAccess. Returns the userIds in unspecified order.
    */
   async listChannelReaderIds(teamId: string, channelId: string): Promise<string[]> {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      select: { clubId: true },
+    })
+    if (!team) return []
     const channel = await this.prisma.channel.findFirst({
-      where: { id: channelId, teamId },
-      select: { visibility: true, kind: true },
+      where: {
+        id: channelId,
+        OR: [{ teamId }, { teamId: null, clubId: team.clubId }],
+      },
+      select: { visibility: true, kind: true, teamId: true, clubId: true },
     })
     if (!channel) return []
 
@@ -750,24 +780,37 @@ export class ChannelsService {
     const visibility = channel.visibility as ChannelVisibility
 
     const teamMembers = await this.prisma.teamAccess.findMany({
-      where: { teamId, ...activeTeamAccessWhere() },
+      where: channel.teamId
+        ? { teamId, ...activeTeamAccessWhere() }
+        : { clubId: channel.clubId, ...activeTeamAccessWhere() },
       select: { userId: true, role: true, clubId: true },
     })
-    if (teamMembers.length === 0) return []
+
+    const clubMemberships = channel.teamId
+      ? await this.prisma.membership.findMany({
+          where: {
+            userId: { in: Array.from(new Set(teamMembers.map((m) => m.userId))) },
+            clubId: channel.clubId,
+          },
+          select: { userId: true, role: true },
+        })
+      : await this.prisma.membership.findMany({
+          where: { clubId: channel.clubId },
+          select: { userId: true, role: true },
+        })
+    const userIds = Array.from(
+      new Set([
+        ...teamMembers.map((member) => member.userId),
+        ...clubMemberships.map((m) => m.userId),
+      ]),
+    )
+    if (userIds.length === 0) return []
 
     if (visibility === 'MEMBERS') {
-      return Array.from(new Set(teamMembers.map((m) => m.userId)))
+      return userIds
     }
 
-    const userIds = Array.from(new Set(teamMembers.map((m) => m.userId)))
-    const memberships = await this.prisma.membership.findMany({
-      where: {
-        userId: { in: userIds },
-        clubId: { in: Array.from(new Set(teamMembers.map((m) => m.clubId))) },
-      },
-      select: { userId: true, role: true },
-    })
-    const membershipByUser = new Map(memberships.map((m) => [m.userId, m.role]))
+    const membershipByUser = new Map(clubMemberships.map((m) => [m.userId, m.role]))
     const accessByUser = new Map<string, Array<{ role: string }>>()
     for (const m of teamMembers) {
       const list = accessByUser.get(m.userId) ?? []

@@ -16,8 +16,9 @@ describe('RosterSlotsService.bulkCreate', () => {
       },
       $transaction: jest.fn(),
     }
-    const service = new RosterSlotsService(prisma as never)
-    return { prisma, service }
+    const entitlements = { assertCanReservePlayerSeats: jest.fn().mockResolvedValue(undefined) }
+    const service = new RosterSlotsService(prisma as never, entitlements as never)
+    return { prisma, service, entitlements }
   }
 
   it('admin can bulk-create slots', async () => {
@@ -25,8 +26,22 @@ describe('RosterSlotsService.bulkCreate', () => {
     prisma.membership.findFirst.mockResolvedValue({ role: 'OWNER' })
     prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
     const slots = [
-      { id: 'slot-1', teamId: 'team-1', fullName: 'Max Mustermann', position: 'GK', jerseyNumber: 1, dateOfBirth: null },
-      { id: 'slot-2', teamId: 'team-1', fullName: 'Lars Schmidt', position: 'DEF', jerseyNumber: 5, dateOfBirth: null },
+      {
+        id: 'slot-1',
+        teamId: 'team-1',
+        fullName: 'Max Mustermann',
+        position: 'GK',
+        jerseyNumber: 1,
+        dateOfBirth: null,
+      },
+      {
+        id: 'slot-2',
+        teamId: 'team-1',
+        fullName: 'Lars Schmidt',
+        position: 'DEF',
+        jerseyNumber: 5,
+        dateOfBirth: null,
+      },
     ]
     prisma.$transaction.mockResolvedValue(slots)
 
@@ -50,6 +65,26 @@ describe('RosterSlotsService.bulkCreate', () => {
         slots: [{ fullName: 'Max Mustermann' }],
       }),
     ).rejects.toThrow(TeamAccessDeniedError)
+  })
+
+  it('checks the entire batch against the player-seat quota inside the transaction', async () => {
+    const { prisma, service, entitlements } = createService()
+    prisma.membership.findFirst.mockResolvedValue({ role: 'OWNER' })
+    prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
+    const tx = { rosterSlot: { create: jest.fn().mockResolvedValue({}) } }
+    prisma.$transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
+      callback(tx),
+    )
+    entitlements.assertCanReservePlayerSeats.mockRejectedValue(new Error('FREE supports 30 seats'))
+
+    await expect(
+      service.bulkCreate('club-1', 'team-1', 'owner-1', {
+        slots: Array.from({ length: 31 }, (_, index) => ({ fullName: `Player ${index + 1}` })),
+      }),
+    ).rejects.toThrow('FREE supports 30 seats')
+
+    expect(entitlements.assertCanReservePlayerSeats).toHaveBeenCalledWith('club-1', 31, tx)
+    expect(tx.rosterSlot.create).not.toHaveBeenCalled()
   })
 })
 
@@ -105,7 +140,13 @@ describe('RosterSlotsService.list', () => {
     const { prisma, service } = createService()
     prisma.membership.findFirst.mockResolvedValue({ role: 'OWNER' })
     prisma.rosterSlot.findMany.mockResolvedValue([
-      { id: 'slot-1', teamId: 'team-1', fullName: 'Max Mustermann', jerseyNumber: 1, dateOfBirth: new Date('2010-03-15') },
+      {
+        id: 'slot-1',
+        teamId: 'team-1',
+        fullName: 'Max Mustermann',
+        jerseyNumber: 1,
+        dateOfBirth: new Date('2010-03-15'),
+      },
     ])
 
     await service.list('club-1', 'team-1', 'user-owner')
@@ -144,12 +185,17 @@ describe('RosterSlotsService.claim', () => {
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
-          id: 'slot-1', teamId: 'team-1', claimedByUserId: null,
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: null,
           team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({
-          id: 'slot-1', teamId: 'team-1', claimedByUserId: 'user-1', claimedAt,
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: 'user-1',
+          claimedAt,
         }),
       },
       membership: {
@@ -192,7 +238,9 @@ describe('RosterSlotsService.claim', () => {
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
-          id: 'slot-1', teamId: 'team-1', claimedByUserId: 'someone-else',
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: 'someone-else',
           team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn(),
@@ -201,8 +249,7 @@ describe('RosterSlotsService.claim', () => {
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-2'))
-      .rejects.toThrow(/already claimed/i)
+    await expect(service.claim('team-1', 'slot-1', 'user-2')).rejects.toThrow(/already claimed/i)
     // Defense-in-depth pre-check should short-circuit before write.
     expect(tx.rosterSlot.updateMany).not.toHaveBeenCalled()
   })
@@ -219,8 +266,9 @@ describe('RosterSlotsService.claim', () => {
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-1'))
-      .rejects.toThrow(/already on the roster/i)
+    await expect(service.claim('team-1', 'slot-1', 'user-1')).rejects.toThrow(
+      /already on the roster/i,
+    )
   })
 
   it('rejects when slot becomes claimed mid-transaction (race)', async () => {
@@ -231,7 +279,9 @@ describe('RosterSlotsService.claim', () => {
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
-          id: 'slot-1', teamId: 'team-1', claimedByUserId: null,
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: null,
           team: { id: 'team-1', clubId: 'club-1' },
         }),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -240,8 +290,9 @@ describe('RosterSlotsService.claim', () => {
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-1'))
-      .rejects.toThrow(RosterSlotAlreadyClaimedError)
+    await expect(service.claim('team-1', 'slot-1', 'user-1')).rejects.toThrow(
+      RosterSlotAlreadyClaimedError,
+    )
     expect(tx.rosterSlot.updateMany).toHaveBeenCalledWith({
       where: { id: 'slot-1', claimedByUserId: null },
       data: { claimedByUserId: 'user-1', claimedAt: expect.any(Date) },

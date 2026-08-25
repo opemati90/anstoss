@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -14,7 +15,7 @@ import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { clubSetupSchema, updateClubSchema, MembershipRole } from '@anstoss/shared'
+import { updateClubSchema, MembershipRole } from '@anstoss/shared'
 
 @Controller('clubs')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -27,36 +28,10 @@ export class ClubsController {
    */
   @Post('setup')
   @RateLimit('write')
-  async setup(
-    @CurrentUser() user: { id: string },
-    @Body() body: unknown,
-  ) {
-    const {
-      club: clubData,
-      team: teamData,
-      directoryEntryId,
-    } = clubSetupSchema.parse(body)
-
-    const result = await this.clubsService.createClubWithTeam(
-      user.id,
-      clubData,
-      teamData,
-      directoryEntryId,
+  async setup(@CurrentUser() _user: { id: string }, @Body() _body: unknown) {
+    throw new ForbiddenException(
+      'Direct club creation is disabled. Submit a verified administrator claim.',
     )
-
-    return {
-      club: {
-        id: result.club.id,
-        name: result.club.name,
-        primaryColor: result.club.primaryColor,
-        badgeUrl: result.club.badgeUrl,
-      },
-      team: {
-        id: result.team.id,
-        name: result.team.name,
-        ageGroup: result.team.ageGroup,
-      },
-    }
   }
 
   /**
@@ -66,10 +41,7 @@ export class ClubsController {
   @UseGuards(RolesGuard)
   @RequireRole(MembershipRole.ADMIN)
   @RateLimit('write')
-  async updateClub(
-    @Param('clubId') clubId: string,
-    @Body() body: unknown,
-  ) {
+  async updateClub(@Param('clubId') clubId: string, @Body() body: unknown) {
     const data = updateClubSchema.parse(body)
     return this.clubsService.updateClub(clubId, data)
   }
@@ -82,10 +54,7 @@ export class ClubsController {
    */
   @Post(':clubId/leave')
   @RateLimit('write')
-  async leaveClub(
-    @CurrentUser() user: { id: string },
-    @Param('clubId') clubId: string,
-  ) {
+  async leaveClub(@CurrentUser() user: { id: string }, @Param('clubId') clubId: string) {
     return this.clubsService.leaveClub(user.id, clubId)
   }
 

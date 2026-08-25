@@ -18,6 +18,8 @@ export interface SessionClaims {
   iat: number
   /** Expiry (seconds since epoch). */
   exp: number
+  /** Time the user last proved control of their sign-in factor. */
+  auth_time: number
 }
 
 /** Default session lifetime — 30 days. */
@@ -61,12 +63,22 @@ function sign(signingInput: string, secret: string): string {
  */
 export function signSessionToken(
   userId: string,
-  options: { ttlSeconds?: number; secret?: string; now?: number } = {},
+  options: {
+    ttlSeconds?: number
+    secret?: string
+    now?: number
+    authenticatedAt?: number
+  } = {},
 ): string {
   const secret = requireSecret(options.secret)
   const iat = Math.floor((options.now ?? Date.now()) / 1000)
   const exp = iat + (options.ttlSeconds ?? DEFAULT_SESSION_TTL_SECONDS)
-  const claims: SessionClaims = { sub: userId, iat, exp }
+  const claims: SessionClaims = {
+    sub: userId,
+    iat,
+    exp,
+    auth_time: options.authenticatedAt ?? iat,
+  }
 
   const encodedHeader = base64urlEncode(JSON.stringify(HEADER))
   const encodedPayload = base64urlEncode(JSON.stringify(claims))
@@ -116,6 +128,10 @@ export function verifySessionToken(
   if (!claims || typeof claims.sub !== 'string' || typeof claims.exp !== 'number') {
     throw new JwtVerificationError('Missing required claims')
   }
+
+  // Tokens issued before auth_time was introduced remain valid. Their original
+  // iat is the best available proof time and, crucially, is preserved on refresh.
+  if (typeof claims.auth_time !== 'number') claims.auth_time = claims.iat
 
   const nowSeconds = Math.floor((options.now ?? Date.now()) / 1000)
   if (claims.exp <= nowSeconds) {

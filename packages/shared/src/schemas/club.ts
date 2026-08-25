@@ -10,9 +10,7 @@ import {
 
 export const createClubSchema = z.object({
   name: z.string().min(2, 'Club name must be at least 2 characters').max(100),
-  primaryColor: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color (e.g. #D50000)'),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color (e.g. #D50000)'),
 })
 
 export const createTeamSchema = z.object({
@@ -53,10 +51,7 @@ export const updateTeamCoachAssignmentsSchema = z
       })
     }
 
-    if (
-      value.headCoachUserId &&
-      assistantCoachUserIds.has(value.headCoachUserId)
-    ) {
+    if (value.headCoachUserId && assistantCoachUserIds.has(value.headCoachUserId)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['assistantCoachUserIds'],
@@ -105,10 +100,7 @@ export const createInviteSchema = z
     childName: z.string().max(80).optional(),
   })
   .superRefine((value, ctx) => {
-    if (
-      value.deliveryChannel === InviteDeliveryChannel.EMAIL &&
-      !value.recipientEmail
-    ) {
+    if (value.deliveryChannel === InviteDeliveryChannel.EMAIL && !value.recipientEmail) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['recipientEmail'],
@@ -156,17 +148,9 @@ export const trialDecisionSchema = z.object({
   decision: z.enum(['ACCEPT', 'REJECT']),
 })
 
-export const teamMemberOperationalStatusSchema = z.enum([
-  'ACTIVE',
-  'NEW_PLAYER',
-  'INACTIVE',
-])
+export const teamMemberOperationalStatusSchema = z.enum(['ACTIVE', 'NEW_PLAYER', 'INACTIVE'])
 
-export const injuryAvailabilityStatusSchema = z.enum([
-  'OUT',
-  'DOUBTFUL',
-  'DAY_TO_DAY',
-])
+export const injuryAvailabilityStatusSchema = z.enum(['OUT', 'DOUBTFUL', 'DAY_TO_DAY'])
 
 export const teamDutyKindSchema = z.enum(['JERSEY_CLEANUP', 'BIB_CLEANUP'])
 
@@ -224,13 +208,109 @@ export const clubSetupSchema = z.object({
   directoryEntryId: z.string().min(1).optional(),
 })
 
+const officialTeamUrlSchema = z
+  .string()
+  .url()
+  .max(500)
+  .refine((value) => {
+    const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '')
+    return ['fussball.de', 'dfb.de', 'fupa.net'].some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+    )
+  }, 'Use an official Fussball.de, DFB.de, or FuPa team link')
+
+export const submitFirstClubClaimSchema = z.object({
+  directoryEntryId: z.string().min(1),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
+  teamName: z.string().trim().min(2).max(80),
+  teamGroupType: z.nativeEnum(TeamGroupType).default(TeamGroupType.SENIOR),
+  teamRoles: z
+    .array(z.enum(['HEAD_COACH', 'ASSISTANT_COACH', 'PLAYER']))
+    .max(3)
+    .default([])
+    .refine((roles) => new Set(roles).size === roles.length, {
+      message: 'Team roles must be unique',
+    }),
+  externalTeamUrl: officialTeamUrlSchema,
+  officialEmail: z.string().email().max(254).optional(),
+})
+
+export const submitStaffAccessRequestSchema = z.object({
+  desiredRole: z.enum(['ADMIN', 'COACH']),
+  requestedTeamIds: z.array(z.string().min(1)).max(20).default([]),
+  teamRoles: z
+    .array(z.enum(['HEAD_COACH', 'ASSISTANT_COACH', 'PLAYER']))
+    .max(3)
+    .default([])
+    .refine((roles) => new Set(roles).size === roles.length, {
+      message: 'Team roles must be unique',
+    }),
+  message: z.string().trim().max(500).optional(),
+})
+
+export const reviewClubClaimSchema = z.object({
+  decision: z.enum(['APPROVE', 'REJECT', 'NEEDS_INFO']),
+  note: z.string().trim().max(1000).optional(),
+})
+
+export const respondClubClaimSchema = z
+  .object({
+    note: z.string().trim().min(2).max(1000).optional(),
+    officialEmail: z.string().trim().email().max(254).optional(),
+  })
+  .refine((value) => Boolean(value.note || value.officialEmail), {
+    message: 'Add a response or your verified account email',
+  })
+
+export const createOwnershipTransferSchema = z.object({
+  toUserId: z.string().min(1),
+})
+
+export const openClubDisputeSchema = z.object({
+  clubId: z.string().min(1),
+  reason: z.string().trim().min(10).max(2000),
+  freezeOwnership: z.boolean().default(true),
+})
+
+export const resolveClubDisputeSchema = z.object({
+  resolution: z.string().trim().min(10).max(2000),
+})
+
+export const createInviteCampaignSchema = z
+  .object({
+    teamId: z.string().min(1),
+    type: z.enum(['IDENTITY_BOUND', 'APPROVAL_REQUIRED']),
+    // Shared/batch campaigns are player-only. Parent access must use the
+    // existing child-linked guardian invitation and consent flow; a generic
+    // campaign cannot prove which child the parent represents.
+    role: z.literal('PLAYER').default('PLAYER'),
+    recipientEmail: z.string().email().max(254).optional(),
+    maxUses: z.number().int().min(1).max(500).default(1),
+    expiresInDays: z.number().int().min(1).max(30).default(7),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === 'IDENTITY_BOUND' && !value.recipientEmail) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['recipientEmail'],
+        message: 'Identity-bound campaigns require a recipient email',
+      })
+    }
+    if (value.type === 'IDENTITY_BOUND' && value.maxUses !== 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['maxUses'],
+        message: 'Identity-bound campaigns can only be redeemed once',
+      })
+    }
+  })
+
 export const updateClubSchema = z
   .object({
-    name: z
-      .string()
-      .min(2, 'Club name must be at least 2 characters')
-      .max(100)
-      .optional(),
+    name: z.string().min(2, 'Club name must be at least 2 characters').max(100).optional(),
     primaryColor: z
       .string()
       .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color (e.g. #D50000)')
@@ -246,17 +326,11 @@ export type CreateClubInput = z.infer<typeof createClubSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type CreateTeamGroupInput = z.infer<typeof createTeamGroupSchema>
 export type CreateHierarchicalTeamInput = z.infer<typeof createHierarchicalTeamSchema>
-export type UpdateTeamCoachAssignmentsInput = z.infer<
-  typeof updateTeamCoachAssignmentsSchema
->
+export type UpdateTeamCoachAssignmentsInput = z.infer<typeof updateTeamCoachAssignmentsSchema>
 export type UpdateMembershipRoleInput = z.infer<typeof updateMembershipRoleSchema>
-export type UpdateOperationalRolesInput = z.infer<
-  typeof updateOperationalRolesSchema
->
+export type UpdateOperationalRolesInput = z.infer<typeof updateOperationalRolesSchema>
 export type CreateInviteInput = z.infer<typeof createInviteSchema>
-export type UpdateGuardianRelationshipInput = z.infer<
-  typeof updateGuardianRelationshipSchema
->
+export type UpdateGuardianRelationshipInput = z.infer<typeof updateGuardianRelationshipSchema>
 export type TrialDecisionInput = z.infer<typeof trialDecisionSchema>
 export type CreatePlayerLoanInput = z.infer<typeof createPlayerLoanSchema>
 export type UpdateTeamMemberInput = z.infer<typeof updateTeamMemberSchema>
@@ -266,6 +340,14 @@ export type RotateTeamDutyInput = z.infer<typeof rotateTeamDutySchema>
 export type UpdateTeamDutyInput = z.infer<typeof updateTeamDutySchema>
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>
 export type ClubSetupInput = z.infer<typeof clubSetupSchema>
+export type SubmitFirstClubClaimInput = z.infer<typeof submitFirstClubClaimSchema>
+export type SubmitStaffAccessRequestInput = z.infer<typeof submitStaffAccessRequestSchema>
+export type ReviewClubClaimInput = z.infer<typeof reviewClubClaimSchema>
+export type RespondClubClaimInput = z.infer<typeof respondClubClaimSchema>
+export type CreateOwnershipTransferInput = z.infer<typeof createOwnershipTransferSchema>
+export type OpenClubDisputeInput = z.infer<typeof openClubDisputeSchema>
+export type ResolveClubDisputeInput = z.infer<typeof resolveClubDisputeSchema>
+export type CreateInviteCampaignInput = z.infer<typeof createInviteCampaignSchema>
 export type OffboardClubMemberInput = z.infer<typeof offboardClubMemberSchema>
 
 export const createJoinRequestSchema = z.object({

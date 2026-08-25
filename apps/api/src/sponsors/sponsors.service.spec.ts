@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
+import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { EntitlementGuard } from '../billing/entitlement.guard'
 import { SponsorsService } from './sponsors.service'
@@ -108,9 +108,9 @@ describe('SponsorsService', () => {
   it('refuses to update a sponsor from a different club', async () => {
     prisma.sponsor.findFirst.mockResolvedValue(null)
 
-    await expect(
-      service.update('club-1', 's1', { name: 'New' }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.update('club-1', 's1', { name: 'New' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
     expect(prisma.sponsor.update).not.toHaveBeenCalled()
   })
 
@@ -136,14 +136,9 @@ describe('Sponsor entitlement gating', () => {
     } as never
   }
 
-  // MVP_ALL_FREE = true: the guard bypasses entitlement checks for all clubs.
-  // These tests reflect that bypass. When billing relaunches, flip MVP_ALL_FREE
-  // to false in entitlement.guard.ts and restore the ForbiddenException assertion.
-  it('allows sponsor writes for FOUNDATION clubs while MVP_ALL_FREE is set', async () => {
+  it('blocks sponsor writes for free clubs', async () => {
     const reflector = new Reflector()
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue('sponsor_logos')
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sponsor_logos')
 
     const billingService = {
       getEntitlements: jest.fn().mockResolvedValue({
@@ -155,16 +150,15 @@ describe('Sponsor entitlement gating', () => {
 
     const guard = new EntitlementGuard(reflector, billingService as never)
 
-    // MVP bypass: resolves true, never reaches getEntitlements
-    await expect(guard.canActivate(makeContext('club-1'))).resolves.toBe(true)
-    expect(billingService.getEntitlements).not.toHaveBeenCalled()
+    await expect(guard.canActivate(makeContext('club-1'))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
+    expect(billingService.getEntitlements).toHaveBeenCalledWith('club-1')
   })
 
   it('lets sponsor writes through for PREMIUM clubs', async () => {
     const reflector = new Reflector()
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue('sponsor_logos')
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('sponsor_logos')
 
     const billingService = {
       getEntitlements: jest.fn().mockResolvedValue({

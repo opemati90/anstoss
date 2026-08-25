@@ -83,6 +83,12 @@ model User {
   parentHandoffsCreated          ParentHandoff[]           @relation("ParentHandoffSource")
   parentHandoffsRedeemed         ParentHandoff[]           @relation("ParentHandoffRedeemer")
   channelMemberships             ChannelMember[]
+  clubClaims                     ClubClaim[]               @relation("ClubClaimant")
+  clubClaimEvidence              ClubClaimEvidence[]       @relation("ClubClaimEvidenceSubmitter")
+  ownershipTransfersFrom         OwnershipTransfer[]       @relation("OwnershipTransferFrom")
+  ownershipTransfersTo           OwnershipTransfer[]       @relation("OwnershipTransferTo")
+  inviteCampaignsCreated         InviteCampaign[]          @relation("InviteCampaignCreator")
+  inviteCampaignRedemptions      InviteRedemption[]
 
   @@index([clerkId])
   @@index([email])
@@ -147,6 +153,15 @@ model Club {
   featureFlagOverrides    FeatureFlagOverride[]
   eventCheckIns           EventCheckIn[]
   directoryEntry          ClubDirectoryEntry?
+  claims                  ClubClaim[]
+  disputes                ClubDispute[]
+  ownershipTransfers      OwnershipTransfer[]
+  inviteCampaigns         InviteCampaign[]
+  inviteRedemptions       InviteRedemption[]
+  entitlementGrants       EntitlementGrant[]
+  bankImportBatches       BankImportBatch[]
+  bankTransactions        BankTransaction[]
+  contributionMatches     ContributionMatch[]
 
   @@index([slug])
   @@index([city])
@@ -179,7 +194,8 @@ model ClubDirectoryEntry {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  activeClub Club? @relation(fields: [activeClubId], references: [id], onDelete: SetNull)
+  activeClub Club?       @relation(fields: [activeClubId], references: [id], onDelete: SetNull)
+  claims     ClubClaim[]
 
   @@unique([source, sourceId])
   @@index([normalizedName])
@@ -194,6 +210,90 @@ model ClubDirectoryEntry {
 enum PlatformRole {
   NONE
   PLATFORM_ADMIN
+}
+
+enum ClubClaimKind {
+  FIRST_CLAIM
+  STAFF_CLAIM
+}
+
+enum ClubClaimStatus {
+  SUBMITTED
+  NEEDS_INFO
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ClubClaimEvidenceType {
+  OFFICIAL_EMAIL
+  EXISTING_STAFF_APPROVAL
+  PUBLIC_CLUB_CONTACT
+  PLATFORM_REVIEW
+}
+
+enum ClubDisputeStatus {
+  OPEN
+  FROZEN
+  RESOLVED
+}
+
+enum OwnershipTransferStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+enum InviteCampaignType {
+  IDENTITY_BOUND
+  APPROVAL_REQUIRED
+}
+
+enum InviteCampaignStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+  REVOKED
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  SCALE
+}
+
+enum PlanInterval {
+  SIX_MONTHS
+  TWELVE_MONTHS
+}
+
+enum EntitlementSource {
+  PAID
+  COMPLIMENTARY
+  TRIAL
+  MIGRATED
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  REVOKED
+}
+
+enum BankImportStatus {
+  PARSED
+  REVIEWED
+  APPLIED
+  FAILED
+}
+
+enum ContributionMatchStatus {
+  SUGGESTED
+  CONFIRMED
+  REJECTED
 }
 
 // ─── Membership (User ↔ Club bridge) ────────────────────
@@ -339,6 +439,90 @@ model Membership {
   @@index([userId])
 }
 
+// Club authority is deliberately separate from membership. A claim never
+// grants access until the approval transaction creates/elevates membership.
+model ClubClaim {
+  id                    String          @id @default(cuid())
+  directoryEntryId      String
+  clubId                String?
+  claimantUserId        String
+  kind                  ClubClaimKind
+  desiredRole           MembershipRole
+  requestedTeamIds      String[]        @default([])
+  requestedTeamRoles    TeamRole[]      @default([])
+  teamName              String?
+  teamGroupType         TeamGroupType?
+  requestedPrimaryColor String?
+  externalTeamUrl       String?
+  status                ClubClaimStatus @default(SUBMITTED)
+  reviewerId            String?
+  reviewNote            String?
+  reviewedAt            DateTime?
+  expiresAt             DateTime
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  directoryEntry ClubDirectoryEntry  @relation(fields: [directoryEntryId], references: [id], onDelete: Restrict)
+  club           Club?               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  claimant       User                @relation("ClubClaimant", fields: [claimantUserId], references: [id], onDelete: Cascade)
+  evidence       ClubClaimEvidence[]
+
+  @@index([directoryEntryId, status])
+  @@index([clubId, status])
+  @@index([claimantUserId, status])
+}
+
+model ClubClaimEvidence {
+  id            String                @id @default(cuid())
+  claimId       String
+  submittedById String
+  type          ClubClaimEvidenceType
+  value         String?
+  createdAt     DateTime              @default(now())
+
+  claim       ClubClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  submittedBy User      @relation("ClubClaimEvidenceSubmitter", fields: [submittedById], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+}
+
+model ClubDispute {
+  id           String            @id @default(cuid())
+  clubId       String
+  openedById   String
+  status       ClubDisputeStatus @default(OPEN)
+  reason       String
+  resolution   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+}
+
+model OwnershipTransfer {
+  id          String                  @id @default(cuid())
+  clubId      String
+  fromUserId  String
+  toUserId    String
+  status      OwnershipTransferStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  club     Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  fromUser User @relation("OwnershipTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("OwnershipTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+  @@index([toUserId, status])
+}
+
 // ─── Team hierarchy ─────────────────────────────────────
 
 model TeamGroup {
@@ -382,6 +566,7 @@ model Team {
   externalTeamLinks ExternalTeamLink[]
   importedFixtures  ImportedFixture[]
   invites           Invite[]
+  inviteCampaigns   InviteCampaign[]
   events            Event[]
   messages          Message[]
   trialInvites      TrialInvite[]
@@ -925,6 +1110,47 @@ model Invite {
   @@index([guardianEmail])
 }
 
+model InviteCampaign {
+  id             String               @id @default(cuid())
+  clubId         String
+  teamId         String
+  createdById    String
+  type           InviteCampaignType
+  role           TeamRole             @default(PLAYER)
+  recipientEmail String?
+  code           String               @unique
+  maxUses        Int                  @default(1)
+  useCount       Int                  @default(0)
+  status         InviteCampaignStatus @default(ACTIVE)
+  expiresAt      DateTime
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  club        Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team        Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy   User               @relation("InviteCampaignCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  redemptions InviteRedemption[]
+
+  @@index([clubId, status])
+  @@index([teamId, status])
+  @@index([recipientEmail])
+}
+
+model InviteRedemption {
+  id         String   @id @default(cuid())
+  clubId     String
+  campaignId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  club     Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  campaign InviteCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([clubId, userId])
+}
+
 model ExternalTeamLink {
   id             String                 @id @default(cuid())
   clubId         String
@@ -1182,6 +1408,49 @@ model Subscription {
   @@index([clubId])
 }
 
+model PlanDefinition {
+  id            String       @id @default(cuid())
+  tier          PlanTier
+  interval      PlanInterval
+  version       Int
+  priceCents    Int
+  currency      String       @default("eur")
+  teamLimit     Int
+  playerLimit   Int
+  features      String[]     @default([])
+  stripePriceId String?      @unique
+  publishedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  grants EntitlementGrant[]
+
+  @@unique([tier, interval, version])
+  @@index([tier, publishedAt])
+}
+
+model EntitlementGrant {
+  id                   String            @id @default(cuid())
+  clubId               String
+  tier                 PlanTier
+  source               EntitlementSource
+  status               EntitlementStatus @default(ACTIVE)
+  startsAt             DateTime          @default(now())
+  expiresAt            DateTime?
+  reason               String?
+  createdById          String?
+  stripeSubscriptionId String?           @unique
+  planDefinitionId     String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  club           Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  planDefinition PlanDefinition? @relation(fields: [planDefinitionId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, status, startsAt, expiresAt])
+  @@index([planDefinitionId])
+}
+
 model PaymentEvent {
   id            String   @id @default(cuid())
   clubId        String
@@ -1251,16 +1520,17 @@ model ContributionPlan {
 }
 
 model ContributionAssignment {
-  id           String    @id @default(cuid())
-  clubId       String
-  planId       String
-  memberUserId String
-  assignedById String
-  startDate    DateTime  @default(now())
-  endDate      DateTime?
-  note         String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  clubId         String
+  planId         String
+  memberUserId   String
+  assignedById   String
+  startDate      DateTime  @default(now())
+  endDate        DateTime?
+  note           String?
+  amountOverride Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   club       Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
   plan       ContributionPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -1272,6 +1542,72 @@ model ContributionAssignment {
   @@unique([planId, memberUserId])
   @@index([clubId, memberUserId])
   @@index([clubId, endDate])
+}
+
+model BankImportBatch {
+  id           String           @id @default(cuid())
+  clubId       String
+  importedById String
+  contentHash  String
+  fileName     String
+  format       String
+  status       BankImportStatus @default(PARSED)
+  rowCount     Int              @default(0)
+  error        String?
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  club         Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  transactions BankTransaction[]
+
+  @@unique([clubId, contentHash])
+  @@index([clubId, createdAt])
+}
+
+model BankTransaction {
+  id          String   @id @default(cuid())
+  clubId      String
+  batchId     String
+  bookedAt    DateTime
+  amount      Int
+  currency    String   @default("eur")
+  payerName   String?
+  ibanLast4   String?
+  reference   String?
+  externalId  String?
+  fingerprint String
+  createdAt   DateTime @default(now())
+
+  club    Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  batch   BankImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  matches ContributionMatch[]
+
+  @@unique([clubId, fingerprint])
+  @@index([batchId])
+  @@index([clubId, bookedAt])
+}
+
+model ContributionMatch {
+  id            String                  @id @default(cuid())
+  clubId        String
+  transactionId String
+  recordId      String
+  amount        Int
+  confidence    Int
+  status        ContributionMatchStatus @default(SUGGESTED)
+  confirmedById String?
+  confirmedAt   DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  club        Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  transaction BankTransaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  record      ContributionRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, recordId])
+  @@index([clubId, status])
+  @@index([recordId])
 }
 
 model ContributionRecord {
@@ -1299,6 +1635,7 @@ model ContributionRecord {
   assignment ContributionAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   member     User                   @relation("ContributionRecordMember", fields: [memberUserId], references: [id], onDelete: Cascade)
   reminders  ContributionReminder[]
+  matches    ContributionMatch[]
 
   @@unique([assignmentId, periodStart])
   @@index([clubId, memberUserId, dueDate])
@@ -1381,7 +1718,9 @@ enum PlayerPosition {
 
 enum ContributionCadence {
   MONTHLY
+  QUARTERLY
   YEARLY
+  ONE_OFF
 }
 
 enum ContributionTargetRole {
@@ -1406,6 +1745,7 @@ enum ContributionReminderTrigger {
 }
 
 enum ContributionReminderStatus {
+  PROCESSING
   SENT
   SKIPPED
   FAILED

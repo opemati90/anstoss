@@ -1,10 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  SetMetadata,
-} from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable, Logger, SetMetadata } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
@@ -14,7 +8,8 @@ import { verifySessionToken } from '../auth/otp/jwt.util'
 
 export const RATE_LIMIT_KEY = 'rateLimit'
 
-export type RateLimitType = 'read' | 'write'
+export type RateLimitType =
+  'read' | 'write' | 'club-claim' | 'invite-campaign' | 'invite-redeem' | 'bank-import'
 
 /**
  * Decorator: mark an endpoint as read or write for rate limiting.
@@ -25,14 +20,14 @@ export type RateLimitType = 'read' | 'write'
  *   @Post('events')
  *   createEvent() { ... }
  */
-export const RateLimit = (type: RateLimitType) =>
-  SetMetadata(RATE_LIMIT_KEY, type)
+export const RateLimit = (type: RateLimitType) => SetMetadata(RATE_LIMIT_KEY, type)
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly logger = new Logger(RateLimitGuard.name)
   private readLimiter: Ratelimit | null = null
   private writeLimiter: Ratelimit | null = null
+  private readonly policyLimiters = new Map<RateLimitType, Ratelimit>()
 
   constructor(private readonly reflector: Reflector) {
     const redisUrl = process.env.UPSTASH_REDIS_URL?.trim()
@@ -40,9 +35,7 @@ export class RateLimitGuard implements CanActivate {
 
     if (!redisUrl || !redisToken) {
       if (process.env.NODE_ENV === 'production') {
-        throw new Error(
-          'UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN are required in production',
-        )
+        throw new Error('UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN are required in production')
       }
 
       this.logger.warn(
@@ -67,18 +60,51 @@ export class RateLimitGuard implements CanActivate {
       limiter: Ratelimit.slidingWindow(RATE_LIMIT.WRITES_PER_SECOND, '1 s'),
       prefix: 'rl:write',
     })
+    this.policyLimiters.set(
+      'club-claim',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, '1 h'),
+        prefix: 'rl:club-claim',
+      }),
+    )
+    this.policyLimiters.set(
+      'invite-campaign',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(20, '1 h'),
+        prefix: 'rl:invite-campaign',
+      }),
+    )
+    this.policyLimiters.set(
+      'invite-redeem',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, '1 h'),
+        prefix: 'rl:invite-redeem',
+      }),
+    )
+    this.policyLimiters.set(
+      'bank-import',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, '1 h'),
+        prefix: 'rl:bank-import',
+      }),
+    )
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest()
 
     const type =
-      this.reflector.getAllAndOverride<RateLimitType | undefined>(
-        RATE_LIMIT_KEY,
-        [context.getHandler(), context.getClass()],
-      ) || inferRateLimitTypeFromMethod(request.method)
+      this.reflector.getAllAndOverride<RateLimitType | undefined>(RATE_LIMIT_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) || inferRateLimitTypeFromMethod(request.method)
 
-    const limiter = type === 'write' ? this.writeLimiter : this.readLimiter
+    const limiter =
+      this.policyLimiters.get(type) ?? (type === 'write' ? this.writeLimiter : this.readLimiter)
     if (!limiter) {
       return true
     }

@@ -392,10 +392,24 @@ function bindClubs() {
     const trigger = event.target.closest('[data-club-detail]')
     if (trigger) void openClubDetail(trigger.dataset.clubDetail)
   })
+  document.querySelector('#club-claims-table tbody').addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-claim-decision]')
+    if (!trigger) return
+    void reviewClubClaim(trigger.dataset.claimId, trigger.dataset.claimDecision)
+  })
+  document.getElementById('dispute-open').addEventListener('click', () => void openClubDispute())
+  document.querySelector('#club-disputes-table tbody').addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-dispute-resolve]')
+    if (trigger) void resolveClubDispute(trigger.dataset.disputeResolve)
+  })
   const dialog = document.getElementById('club-detail-dialog')
   document.getElementById('club-detail-close').addEventListener('click', closeClubDetail)
   dialog.addEventListener('click', (event) => {
     if (event.target === dialog) closeClubDetail()
+  })
+  dialog.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-grant-entitlement]')
+    if (trigger) void grantClubEntitlement(trigger.dataset.grantEntitlement)
   })
 }
 
@@ -428,12 +442,6 @@ async function openClubDetail(clubId) {
     const subscription = club.subscription
       ? `${badge(club.subscription.status)} <strong>${esc(club.subscription.plan)}</strong>`
       : '<span class="badge">Free</span>'
-    const connectState = club.stripeAccount
-      ? club.stripeAccount.onboardingComplete
-        ? '<span class="badge badge--active">Onboarding complete</span>'
-        : '<span class="badge badge--incomplete">Setup incomplete</span>'
-      : '<span class="badge">Not connected</span>'
-
     content.innerHTML = `
       <div class="detail-meta">
         <div><span>Slug</span><code>${esc(club.slug)}</code></div>
@@ -455,12 +463,18 @@ async function openClubDetail(clubId) {
         }
       </section>
       <section class="detail-section">
-        <p class="eyebrow">Stripe Connect</p>
-        <div class="detail-state">${connectState}</div>
-      </section>
-      <section class="detail-section">
         <p class="eyebrow">Owners & admins</p>
         <ul class="detail-owners">${owners}</ul>
+      </section>
+      <section class="detail-section">
+        <p class="eyebrow">Plan override</p>
+        <div class="toolbar">
+          <select class="text-input" id="grant-tier"><option value="PRO">Pro</option><option value="SCALE">Scale</option></select>
+          <select class="text-input" id="grant-interval" aria-label="Plan definition term"><option value="TWELVE_MONTHS">12-month definition</option><option value="SIX_MONTHS">6-month definition</option></select>
+          <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
+          <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
+        </div>
+        <p class="muted-line" id="grant-result">Use no expiry for a permanent local-club grant.</p>
       </section>
     `
   } catch (err) {
@@ -500,6 +514,140 @@ async function loadClubs() {
       .join('')
   } catch (err) {
     setError(tbody, err)
+  }
+  await loadClubClaims()
+  await loadClubDisputes()
+}
+
+async function loadClubClaims() {
+  const tbody = document.querySelector('#club-claims-table tbody')
+  tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
+  try {
+    const claims = await adminFetch('/admin/club-claims')
+    if (!claims.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No administrator claims.</td></tr>'
+      return
+    }
+    tbody.innerHTML = claims
+      .map(
+        (claim) => `
+      <tr>
+        <td><strong>${esc(claim.directoryEntry?.name || 'Unknown club')}</strong></td>
+        <td>${esc(claim.claimant?.name || 'Unknown')}<br><span class="muted-line">${esc(claim.claimant?.email || '')}</span></td>
+        <td>${claim.externalTeamUrl ? `<strong>Official team page</strong><br><a href="${esc(claim.externalTeamUrl)}" target="_blank" rel="noopener noreferrer">${esc(claim.externalTeamUrl)}</a>${claim.evidence?.length ? '<br>' : ''}` : ''}${claim.evidence?.length ? claim.evidence.map((item) => `<strong>${esc(item.type.replaceAll('_', ' '))}</strong>${item.value ? `<br><span class="muted-line">${esc(item.value)}</span>` : ''}`).join('<br>') : claim.externalTeamUrl ? '' : 'No authority evidence'}</td>
+        <td>${badge(claim.status)}</td>
+        <td>${
+          claim.status === 'SUBMITTED' || claim.status === 'NEEDS_INFO'
+            ? `
+          <div class="toolbar">
+            <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="APPROVE">Approve</button>
+            <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="NEEDS_INFO">Request info</button>
+            <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="REJECT">Reject</button>
+          </div>`
+            : '-'
+        }</td>
+      </tr>`,
+      )
+      .join('')
+  } catch (err) {
+    setError(tbody, err)
+  }
+}
+
+async function reviewClubClaim(claimId, decision) {
+  const note =
+    window.prompt(
+      `${decision === 'APPROVE' ? 'Approval' : decision === 'NEEDS_INFO' ? 'Information request' : 'Rejection'} note ${decision === 'NEEDS_INFO' ? '(required)' : '(optional)'}`,
+    ) || undefined
+  if (decision === 'NEEDS_INFO' && !note) return
+  await adminFetch(`/admin/club-claims/${encodeURIComponent(claimId)}/decision`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, ...(note ? { note } : {}) }),
+  })
+  await loadClubClaims()
+  if (decision === 'APPROVE') await loadClubs()
+}
+
+async function loadClubDisputes() {
+  const tbody = document.querySelector('#club-disputes-table tbody')
+  tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
+  try {
+    const disputes = await adminFetch('/admin/club-claims/disputes')
+    if (!disputes.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No ownership disputes.</td></tr>'
+      return
+    }
+    tbody.innerHTML = disputes
+      .map(
+        (dispute) => `<tr>
+          <td><strong>${esc(dispute.club?.name || dispute.clubId)}</strong></td>
+          <td>${esc(dispute.reason)}</td>
+          <td>${badge(dispute.status)}</td>
+          <td>${fmtDate(dispute.createdAt)}</td>
+          <td>${
+            dispute.status === 'OPEN' || dispute.status === 'FROZEN'
+              ? `<button class="pill" type="button" data-dispute-resolve="${esc(dispute.id)}">Resolve</button>`
+              : '-'
+          }</td>
+        </tr>`,
+      )
+      .join('')
+  } catch (err) {
+    setError(tbody, err)
+  }
+}
+
+async function openClubDispute() {
+  const clubId = window.prompt('Club ID')?.trim()
+  if (!clubId) return
+  const reason = window.prompt('Reason for the dispute')?.trim()
+  if (!reason) return
+  try {
+    await adminFetch('/admin/club-claims/disputes', {
+      method: 'POST',
+      body: JSON.stringify({ clubId, reason, freezeOwnership: true }),
+    })
+    await loadClubDisputes()
+  } catch (error) {
+    window.alert(`Could not open dispute: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+async function resolveClubDispute(disputeId) {
+  const resolution = window.prompt('Resolution note')?.trim()
+  if (!resolution) return
+  try {
+    await adminFetch(`/admin/club-claims/disputes/${encodeURIComponent(disputeId)}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution }),
+    })
+    await loadClubDisputes()
+  } catch (error) {
+    window.alert(
+      `Could not resolve dispute: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
+
+async function grantClubEntitlement(clubId) {
+  const tier = document.getElementById('grant-tier').value
+  const interval = document.getElementById('grant-interval').value
+  const expiry = document.getElementById('grant-expiry').value
+  const output = document.getElementById('grant-result')
+  try {
+    await adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}/entitlements`, {
+      method: 'POST',
+      body: JSON.stringify({
+        tier,
+        interval,
+        source: 'COMPLIMENTARY',
+        reason: 'Complimentary grant from platform admin',
+        ...(expiry ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() } : {}),
+      }),
+    })
+    output.textContent = `${tier} access granted.`
+  } catch (err) {
+    output.textContent = err.message || String(err)
   }
 }
 
@@ -552,12 +700,14 @@ async function loadUsers() {
 function bindSubs() {
   document.getElementById('subs-refresh').addEventListener('click', loadSubscriptions)
   document.getElementById('subs-status').addEventListener('change', loadSubscriptions)
+  document.getElementById('plan-form').addEventListener('submit', publishPlan)
 }
 
 async function loadSubscriptions() {
   const tbody = document.querySelector('#subs-table tbody')
   const status = document.getElementById('subs-status').value
   tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading...</td></tr>'
+  void loadPlans()
   try {
     const qs = new URLSearchParams()
     if (status) qs.set('status', status)
@@ -582,6 +732,61 @@ async function loadSubscriptions() {
       .join('')
   } catch (err) {
     setError(tbody, err)
+  }
+}
+
+async function loadPlans() {
+  const tbody = document.querySelector('#plans-table tbody')
+  try {
+    const rows = await adminFetch('/admin/plans')
+    tbody.innerHTML = rows.length
+      ? rows
+          .map(
+            (plan) => `
+        <tr>
+          <td><strong>${esc(plan.tier)}</strong></td>
+          <td>${plan.interval === 'SIX_MONTHS' ? '6 months' : '12 months'}</td>
+          <td>${fmtCents(plan.priceCents)}</td>
+          <td>${plan.teamLimit} teams · ${plan.playerLimit} players</td>
+          <td>v${plan.version}</td>
+          <td>${plan.publishedAt ? badge('active') : badge('archived')}</td>
+        </tr>`,
+          )
+          .join('')
+      : '<tr><td colspan="6" class="placeholder">No plan versions.</td></tr>'
+  } catch (err) {
+    setError(tbody, err)
+  }
+}
+
+async function publishPlan(event) {
+  event.preventDefault()
+  const feedback = document.getElementById('plan-feedback')
+  const priceEuros = Number(document.getElementById('plan-price').value)
+  const features = document
+    .getElementById('plan-features')
+    .value.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  feedback.textContent = 'Publishing...'
+  try {
+    await adminFetch('/admin/plans', {
+      method: 'POST',
+      body: JSON.stringify({
+        tier: document.getElementById('plan-tier').value,
+        interval: document.getElementById('plan-interval').value,
+        priceCents: Math.round(priceEuros * 100),
+        currency: 'eur',
+        teamLimit: Number(document.getElementById('plan-teams').value),
+        playerLimit: Number(document.getElementById('plan-players').value),
+        stripePriceId: document.getElementById('plan-stripe-price').value.trim() || null,
+        features,
+      }),
+    })
+    feedback.textContent = 'Plan version published.'
+    await loadPlans()
+  } catch (err) {
+    feedback.textContent = err.message
   }
 }
 

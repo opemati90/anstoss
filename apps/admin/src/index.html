@@ -18,7 +18,13 @@
           <div class="brand-name">Anstoss</div>
           <div class="brand-context">Admin</div>
         </div>
-        <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="admin-nav">
+        <button
+          class="mobile-nav-toggle"
+          id="mobile-nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="admin-nav"
+        >
           Menu
         </button>
       </div>
@@ -135,6 +141,59 @@
             </tbody>
           </table>
         </div>
+        <article class="panel" style="margin-top: 28px">
+          <p class="eyebrow">Authority review</p>
+          <h2>Club administrator claims</h2>
+          <p class="lede">
+            Approve only after confirming the claimant is authorised by the real club.
+          </p>
+          <div class="table-wrap">
+            <table class="data-table" id="club-claims-table">
+              <thead>
+                <tr>
+                  <th>Club</th>
+                  <th>Claimant</th>
+                  <th>Evidence</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="5" class="placeholder">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article class="panel" style="margin-top: 28px">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Governance</p>
+              <h2>Ownership disputes</h2>
+              <p class="lede">Freeze ownership changes while the platform verifies a dispute.</p>
+            </div>
+            <button class="pill" id="dispute-open" type="button">Open dispute</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="club-disputes-table">
+              <thead>
+                <tr>
+                  <th>Club</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Opened</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="5" class="placeholder">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
       </section>
 
       <section class="page" data-page="users" hidden>
@@ -180,6 +239,86 @@
           <a class="section-tab section-tab--active" href="#/subscriptions">Subscriptions</a>
           <a class="section-tab" href="#/revenue">Revenue</a>
         </nav>
+        <div class="panel compact-panel">
+          <div>
+            <p class="eyebrow">Plan controls</p>
+            <h2>Publish a plan version</h2>
+            <p class="muted-line">
+              Publishing archives the prior version for the same tier and term. Existing
+              complimentary grants keep their tier.
+            </p>
+          </div>
+          <form id="plan-form" class="toolbar" autocomplete="off">
+            <select id="plan-tier" class="text-input" aria-label="Plan tier">
+              <option value="PRO">Pro</option>
+              <option value="SCALE">Scale</option>
+            </select>
+            <select id="plan-interval" class="text-input" aria-label="Billing interval">
+              <option value="SIX_MONTHS">6 months</option>
+              <option value="TWELVE_MONTHS">12 months</option>
+            </select>
+            <input
+              id="plan-price"
+              class="text-input"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Price EUR"
+              required
+            />
+            <input
+              id="plan-teams"
+              class="text-input"
+              type="number"
+              min="1"
+              max="100"
+              placeholder="Team limit"
+              required
+            />
+            <input
+              id="plan-players"
+              class="text-input"
+              type="number"
+              min="1"
+              max="10000"
+              placeholder="Player limit"
+              required
+            />
+            <input
+              id="plan-stripe-price"
+              class="text-input"
+              type="text"
+              placeholder="Stripe price ID (optional)"
+            />
+            <input
+              id="plan-features"
+              class="text-input"
+              type="text"
+              placeholder="Features, comma separated"
+            />
+            <button class="pill" type="submit">Publish</button>
+          </form>
+          <p class="muted-line" id="plan-feedback" role="status"></p>
+          <div class="table-wrap">
+            <table class="data-table" id="plans-table">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Term</th>
+                  <th>Price</th>
+                  <th>Limits</th>
+                  <th>Version</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="6" class="placeholder">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         <div class="toolbar">
           <select id="subs-status" class="text-input">
             <option value="">All statuses</option>
@@ -243,7 +382,9 @@
       <section class="page" data-page="health" hidden>
         <p class="eyebrow">Operations</p>
         <h1 class="welcome">System status</h1>
-        <p class="lede">A current view of platform health and the tools used to investigate issues.</p>
+        <p class="lede">
+          A current view of platform health and the tools used to investigate issues.
+        </p>
         <div class="stat-row" id="health-stats">
           <div class="stat-card">
             <p class="stat-label">USERS</p>
@@ -270,12 +411,18 @@
         <div class="tool-links" aria-label="Operational tools">
           <a href="#/audit"><strong>Audit log</strong><span>Review platform actions</span></a>
           <a href="#/support"><strong>Support notes</strong><span>Record club context</span></a>
-          <a href="#/sync"><strong>FUSSBALL.DE sync</strong><span>Inspect imports and runs</span></a>
+          <a href="#/sync"
+            ><strong>FUSSBALL.DE sync</strong><span>Inspect imports and runs</span></a
+          >
           <a href="#/moderation"><strong>Moderation</strong><span>Review reported content</span></a>
-          <a href="#/flags"><strong>Feature flags</strong><span>Manage controlled rollouts</span></a>
+          <a href="#/flags"
+            ><strong>Feature flags</strong><span>Manage controlled rollouts</span></a
+          >
           <a href="#/releases"><strong>Releases</strong><span>Check mobile versions</span></a>
           <a href="#/analytics"><strong>Analytics</strong><span>Review product activity</span></a>
-          <a href="#/broadcast"><strong>Broadcasts</strong><span>Review messaging controls</span></a>
+          <a href="#/broadcast"
+            ><strong>Broadcasts</strong><span>Review messaging controls</span></a
+          >
         </div>
       </section>
 
@@ -428,8 +575,7 @@
               <button class="pill pill--dark" type="submit" disabled>Sending disabled</button>
             </form>
             <pre id="broadcast-output" class="output">
-Broadcast sending is disabled for launch.</pre
-            >
+Broadcast sending is disabled for launch.</pre>
           </article>
 
           <article class="panel">
@@ -706,7 +852,12 @@ Broadcast sending is disabled for launch.</pre
           <p class="eyebrow">Club details</p>
           <h2 id="club-detail-title">Loading...</h2>
         </div>
-        <button class="icon-button" id="club-detail-close" type="button" aria-label="Close club details">
+        <button
+          class="icon-button"
+          id="club-detail-close"
+          type="button"
+          aria-label="Close club details"
+        >
           <span aria-hidden="true">×</span>
         </button>
       </div>

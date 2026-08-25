@@ -201,9 +201,7 @@ export class ClubsService {
             ageGroup: selectedGroup.displayName,
             squadLabel,
             leagueName: teamData.leagueName?.trim() || null,
-            seasonStart: teamData.seasonStart
-              ? new Date(teamData.seasonStart)
-              : null,
+            seasonStart: teamData.seasonStart ? new Date(teamData.seasonStart) : null,
           },
         })
 
@@ -243,12 +241,7 @@ export class ClubsService {
       try {
         await this.r2.assertStoredObject(objectKey, {
           maxBytes: 10 * 1024 * 1024,
-          allowedContentTypes: new Set([
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/heic',
-          ]),
+          allowedContentTypes: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
         })
       } catch {
         throw new BadRequestException('Badge upload is invalid or incomplete')
@@ -283,9 +276,7 @@ export class ClubsService {
           where: { clubId, role: MembershipRole.OWNER },
         })
         if (owners <= 1) {
-          throw new ConflictException(
-            'Transfer ownership or delete the club before leaving',
-          )
+          throw new ConflictException('Transfer ownership or delete the club before leaving')
         }
       }
 
@@ -433,14 +424,14 @@ export class ClubsService {
       where: { userId },
       include: { club: true },
     })
-    return memberships.map((m: typeof memberships[number]) => ({
+    return memberships.map((m: (typeof memberships)[number]) => ({
       ...m.club,
       role: m.role,
     }))
   }
 }
 
-async function createClubWithUniqueSlug(
+export async function createClubWithUniqueSlug(
   tx: Prisma.TransactionClient,
   clubData: {
     name: string
@@ -458,11 +449,7 @@ async function createClubWithUniqueSlug(
   const baseSlug = options?.slugBase || slugify(clubData.name) || 'club'
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const slug = await generateUniqueClubSlug(
-      tx,
-      baseSlug,
-      options?.directoryEntryId ?? null,
-    )
+    const slug = await generateUniqueClubSlug(tx, baseSlug, options?.directoryEntryId ?? null)
 
     try {
       return await tx.club.create({
@@ -496,10 +483,7 @@ async function generateUniqueClubSlug(
   allowedDirectoryEntryId: string | null,
 ) {
   const slugWhere = {
-    OR: [
-      { slug: baseSlug },
-      { slug: { startsWith: `${baseSlug}-` } },
-    ],
+    OR: [{ slug: baseSlug }, { slug: { startsWith: `${baseSlug}-` } }],
   }
 
   const [existingClubs, existingDirectoryEntries] = await Promise.all([
@@ -510,9 +494,7 @@ async function generateUniqueClubSlug(
     tx.clubDirectoryEntry.findMany({
       where: {
         ...slugWhere,
-        ...(allowedDirectoryEntryId
-          ? { id: { not: allowedDirectoryEntryId } }
-          : {}),
+        ...(allowedDirectoryEntryId ? { id: { not: allowedDirectoryEntryId } } : {}),
       },
       select: { slug: true },
     }),
@@ -536,12 +518,7 @@ async function generateUniqueClubSlug(
 }
 
 function isClubSlugConflict(error: unknown) {
-  if (
-    typeof error !== 'object' ||
-    error === null ||
-    !('code' in error) ||
-    error.code !== 'P2002'
-  ) {
+  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2002') {
     return false
   }
 
@@ -559,7 +536,7 @@ function isClubSlugConflict(error: unknown) {
   return Array.isArray(target) && target.some((value) => value === 'slug')
 }
 
-function buildTeamDisplayName(
+export function buildTeamDisplayName(
   groupDisplayName: string,
   squadLabel: string | null,
   fallbackName: string,

@@ -81,7 +81,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     channelId?: string | null,
   ) {
     if (!this.server) return
-    const room = channelId ? `team:${teamId}:channel:${channelId}` : `team:${teamId}`
+    const room = channelId ? `channel:${channelId}` : `team:${teamId}`
     this.server.to(room).emit('chat:event', payload)
   }
 
@@ -359,7 +359,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     let channelId: string | null = null
     if (typeof data.channelId === 'string' && data.channelId.length > 0) {
       const ch = await this.prisma.channel.findFirst({
-        where: { id: data.channelId, teamId: data.teamId },
+        where: {
+          id: data.channelId,
+          OR: [{ teamId: data.teamId }, { teamId: null, clubId }],
+        },
         select: { id: true },
       })
       if (!ch) {
@@ -410,7 +413,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // socket only joined that room if `handleJoin` confirmed the user
     // can read the channel, so private channels never leak content even
     // if a misbehaving client tried to subscribe.
-    const room = channelId ? `team:${data.teamId}:channel:${channelId}` : `team:${data.teamId}`
+    const room = channelId ? `channel:${channelId}` : `team:${data.teamId}`
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,
@@ -612,6 +615,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // history is a read; channelsService.listForUser already filters
     // visible channels — use it as the membership oracle.
     let channelFilter: { channelId: string } | { channelId: null }
+    let isClubChannel = false
     if (typeof data.channelId === 'string' && data.channelId.length > 0) {
       const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
       const allowed = visibleChannels.some((c) => c.id === data.channelId)
@@ -619,6 +623,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         return { event: 'error', data: { message: 'Forbidden for this channel' } }
       }
       channelFilter = { channelId: data.channelId }
+      const selected = visibleChannels.find((c) => c.id === data.channelId)
+      isClubChannel = selected?.teamId === null
     } else {
       // General tab: legacy team-wide stream (no channelId).
       channelFilter = { channelId: null }
@@ -628,7 +634,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const messages = await this.prisma.message.findMany({
       where: {
-        teamId: data.teamId,
+        ...(!isClubChannel ? { teamId: data.teamId } : {}),
         ...channelFilter,
         ...(data.cursor ? { createdAt: { lt: new Date(data.cursor) } } : {}),
         ...(blockedUserIds.length > 0 && {

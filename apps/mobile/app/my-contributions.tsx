@@ -1,13 +1,5 @@
 import { useCallback, useState } from 'react'
-import {
-  Alert,
-  Linking,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native'
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { MyContributionItem, MyContributionSummary } from '@anstoss/shared'
@@ -129,31 +121,10 @@ export default function MyContributionsScreen() {
           onPress: async () => {
             setPayingPlan(item.planId)
             try {
-              // Try real Stripe Checkout first — `{ url }` is non-null
-              // only when the club has finished Stripe Connect
-              // onboarding. A null url is a SUCCESSFUL response meaning
-              // the club hasn't wired Stripe, so we fall back to the
-              // unverified payment report (treasurer reconciles offline).
-              // We do NOT swallow errors here: a thrown checkout call
-              // (network/server failure) must propagate to the catch
-              // below so a transient error can't masquerade as "paid".
-              const checkout = await api<{ url: string | null }>(
-                `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/checkout`,
-                { method: 'POST' },
-              )
-
-              if (checkout?.url) {
-                await Linking.openURL(checkout.url)
-                // Webhook flips the record to PAID; refresh on
-                // foreground sees it. No optimistic update here —
-                // user might bail mid-checkout.
-              } else {
-                await api(
-                  `/clubs/${activeClub.club.id}/contributions/my/${item.planId}/pay`,
-                  { method: 'POST' },
-                )
-                await fetchData()
-              }
+              await api(`/clubs/${activeClub.club.id}/contributions/my/${item.planId}/pay`, {
+                method: 'POST',
+              })
+              await fetchData()
             } catch (err) {
               const message =
                 err instanceof Error && err.message
@@ -290,8 +261,7 @@ export default function MyContributionsScreen() {
                         elevation.card,
                         {
                           backgroundColor: c.surface,
-                          borderColor:
-                            item.status === 'OVERDUE' ? c.error : c.borderDefault,
+                          borderColor: item.status === 'OVERDUE' ? c.error : c.borderDefault,
                         },
                       ]}
                     >
@@ -357,7 +327,9 @@ export default function MyContributionsScreen() {
                           <Text style={[styles.payBtnText, { color: c.textInverse }]}>
                             {isPaying
                               ? t('common.saving', { defaultValue: 'Saving…' })
-                              : t('contributions.reportPayment', { defaultValue: 'Report payment' })}
+                              : t('contributions.reportPayment', {
+                                  defaultValue: 'Report payment',
+                                })}
                           </Text>
                         </Pressable>
                       ) : item.paymentReported ? (

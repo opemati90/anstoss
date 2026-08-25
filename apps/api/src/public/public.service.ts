@@ -13,7 +13,23 @@ export class PublicService {
   ) {}
 
   async getInvite(code: string): Promise<PublicInvitePayload> {
-    const invite = await this.invitesService.validate(code)
+    let invite
+    try {
+      invite = await this.invitesService.validate(code)
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error
+      const campaign = await this.invitesService.validateCampaign(code)
+      invite = {
+        code: campaign.code,
+        expiresAt: campaign.expiresAt,
+        kind: 'MEMBER_INVITE' as const,
+        role: campaign.role,
+        phase: 'FULL' as const,
+        status: 'PENDING' as const,
+        club: campaign.club,
+        team: campaign.team,
+      }
+    }
 
     return {
       code: invite.code,

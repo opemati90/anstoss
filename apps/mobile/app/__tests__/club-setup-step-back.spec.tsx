@@ -11,7 +11,10 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
     replace: (...args: unknown[]) => mockReplace(...args),
   },
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => ({
+    clubName: 'FC Anstoss',
+    directoryEntryId: 'directory-1',
+  }),
 }))
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -46,10 +49,7 @@ describe('club-setup — step-aware back', () => {
     const { getByText, getByLabelText, getByPlaceholderText } = render(<ClubSetupScreen />)
 
     // Step 1: fill club name then press the Next button.
-    fireEvent.changeText(
-      getByPlaceholderText('club.setupWizard.clubNamePlaceholder'),
-      'FC Anstoss',
-    )
+    fireEvent.changeText(getByPlaceholderText('club.setupWizard.clubNamePlaceholder'), 'FC Anstoss')
     await act(async () => {
       fireEvent.press(getByText('club.setupWizard.nextButton'))
     })
