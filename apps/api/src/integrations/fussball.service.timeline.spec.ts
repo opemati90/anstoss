@@ -177,7 +177,7 @@ describe('FussballService licensed feed surfaces', () => {
     expect(provider.fetchTeamPage).not.toHaveBeenCalled()
   })
 
-  it('serves fixture lineup from licensed feed rawPayload before provider fallback', async () => {
+  it('ignores historical feed payloads and waits for a coach-built lineup', async () => {
     const { prisma, provider, service } = createService()
     prisma.importedFixture.findFirst.mockResolvedValue({
       id: 'fixture-1',
@@ -220,18 +220,9 @@ describe('FussballService licensed feed surfaces', () => {
     expect(lineup).toMatchObject({
       fixtureId: 'fixture-1',
       externalMatchId: 'match-1',
-      status: 'available',
-      home: {
-        formation: '4-3-3',
-        starters: [
-          {
-            number: 9,
-            name: 'Max Beispiel',
-            position: 'ST',
-            isCaptain: true,
-          },
-        ],
-      },
+      status: 'pending',
+      home: null,
+      away: null,
     })
   })
 

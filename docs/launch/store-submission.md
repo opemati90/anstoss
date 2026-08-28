@@ -37,7 +37,12 @@ the legal copy aligned. Run `npm run audit:store` before every store submission.
 - 2.3 Accurate metadata:
   - Screenshots must show actual club/team flows, not unavailable future
     integrations.
-  - Do not claim official FUSSBALL.DE/DFBnet live data until licensed.
+  - Describe FUSSBALL.DE accurately as an optional official third-party widget
+    embedded by a club administrator. Do not claim an Anstoss fixture import,
+    data partnership, or independent synchronization service.
+  - Privacy disclosures identify FUSSBALL.DE/DFBnet and the web-request metadata
+    transferred when a user opens an embedded widget. Confirm the club is
+    authorized to publish the selected widget under FUSSBALL.DE's widget terms.
 - 3.1 Payments:
   - Current Stripe flows are for real-world club contributions/dues consumed
     outside the app.

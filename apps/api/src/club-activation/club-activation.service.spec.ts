@@ -1,7 +1,7 @@
 import { MembershipRole, TeamRole } from '@prisma/client'
 import { ClubActivationService } from './club-activation.service'
 import { ConflictException, ForbiddenException } from '@nestjs/common'
-import { submitFirstClubClaimSchema } from '@anstoss/shared'
+import { createOwnershipTransferSchema, submitFirstClubClaimSchema } from '@anstoss/shared'
 
 describe('ClubActivationService role independence', () => {
   it('keeps club admin authority while adding coach and player roles on the same team', async () => {
@@ -401,23 +401,108 @@ describe('club authority governance boundaries', () => {
     )
   })
 
-  it('requires fresh factor authentication, not a freshly refreshed session', async () => {
-    const prisma = { membership: { findUnique: jest.fn() } }
+  it('requires a transaction-bound ownership confirmation code', () => {
+    expect(() => createOwnershipTransferSchema.parse({ toUserId: 'member-1' })).toThrow()
+    expect(
+      createOwnershipTransferSchema.parse({
+        toUserId: 'member-1',
+        challengeId: 'challenge-1',
+        code: '123456',
+      }),
+    ).toEqual({ toUserId: 'member-1', challengeId: 'challenge-1', code: '123456' })
+  })
+
+  it('binds ownership confirmation to the exact club, target, action, and transfer', async () => {
+    const updateMany = jest
+      .fn()
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 })
     const service = new ClubActivationService(
-      prisma as never,
+      { ownershipTransferChallenge: { updateMany } } as never,
       { log: jest.fn() } as never,
       {} as never,
       {} as never,
     )
+    const previousPepper = process.env.AUTH_OTP_PEPPER
+    process.env.AUTH_OTP_PEPPER = 'ownership-test-pepper'
+    try {
+      await expect(
+        (
+          service as unknown as {
+            consumeOwnershipChallenge(input: Record<string, unknown>): Promise<void>
+          }
+        ).consumeOwnershipChallenge({
+          actorUserId: 'owner-1',
+          clubId: 'wrong-club',
+          targetUserId: 'member-1',
+          transferId: null,
+          action: 'INITIATE',
+          challengeId: 'challenge-1',
+          code: '123456',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException)
+      expect(updateMany).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'challenge-1',
+            actorUserId: 'owner-1',
+            clubId: 'wrong-club',
+            targetUserId: 'member-1',
+            transferId: null,
+            action: 'INITIATE',
+            consumedAt: null,
+          }),
+          data: { consumedAt: expect.any(Date) },
+        }),
+      )
+      expect(updateMany).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ data: { attempts: { increment: 1 } } }),
+      )
+    } finally {
+      if (previousPepper === undefined) delete process.env.AUTH_OTP_PEPPER
+      else process.env.AUTH_OTP_PEPPER = previousPepper
+    }
+  })
 
-    await expect(
-      service.startOwnershipTransfer(
-        { id: 'owner-1', authenticatedAt: Math.floor(Date.now() / 1000) - 601 },
-        'club-1',
-        { toUserId: 'member-1' },
-      ),
-    ).rejects.toBeInstanceOf(ForbiddenException)
-    expect(prisma.membership.findUnique).not.toHaveBeenCalled()
+  it('rejects replay of a consumed ownership confirmation without reopening it', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 })
+    const service = new ClubActivationService(
+      { ownershipTransferChallenge: { updateMany } } as never,
+      { log: jest.fn() } as never,
+      {} as never,
+      {} as never,
+    )
+    const previousPepper = process.env.AUTH_OTP_PEPPER
+    process.env.AUTH_OTP_PEPPER = 'ownership-test-pepper'
+    try {
+      await expect(
+        (
+          service as unknown as {
+            consumeOwnershipChallenge(input: Record<string, unknown>): Promise<void>
+          }
+        ).consumeOwnershipChallenge({
+          actorUserId: 'owner-1',
+          clubId: 'club-1',
+          targetUserId: 'member-1',
+          transferId: null,
+          action: 'INITIATE',
+          challengeId: 'consumed-challenge',
+          code: '123456',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException)
+      expect(updateMany).toHaveBeenCalledTimes(2)
+      expect(updateMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ consumedAt: null }),
+          data: { attempts: { increment: 1 } },
+        }),
+      )
+    } finally {
+      if (previousPepper === undefined) delete process.env.AUTH_OTP_PEPPER
+      else process.env.AUTH_OTP_PEPPER = previousPepper
+    }
   })
 
   it('serializes rejection with approval using the same per-claim lock', async () => {
@@ -437,6 +522,12 @@ describe('club authority governance boundaries', () => {
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     }
     const prisma = {
+      ownershipTransfer: {
+        findFirst: jest.fn().mockResolvedValue({
+          clubId: 'club-1',
+          fromUserId: 'owner-1',
+        }),
+      },
       $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
     }
     const service = new ClubActivationService(
@@ -445,7 +536,6 @@ describe('club authority governance boundaries', () => {
       {} as never,
       {} as never,
     )
-
     await service.reviewFirstClaim('platform-1', 'claim-1', { decision: 'REJECT' })
 
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
@@ -490,6 +580,12 @@ describe('club authority governance boundaries', () => {
       $executeRaw: jest.fn().mockResolvedValue(1),
     }
     const prisma = {
+      ownershipTransfer: {
+        findFirst: jest.fn().mockResolvedValue({
+          clubId: 'club-1',
+          fromUserId: 'owner-1',
+        }),
+      },
       $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
     }
     const service = new ClubActivationService(
@@ -498,11 +594,15 @@ describe('club authority governance boundaries', () => {
       {} as never,
       {} as never,
     )
+    jest
+      .spyOn(service as unknown as { consumeOwnershipChallenge: () => Promise<void> }, 'consumeOwnershipChallenge')
+      .mockResolvedValue(undefined)
 
     await expect(
       service.acceptOwnershipTransfer(
         { id: 'member-1', authenticatedAt: Math.floor(Date.now() / 1000) },
         'transfer-1',
+        { challengeId: 'challenge-1', code: '123456' },
       ),
     ).rejects.toBeInstanceOf(ConflictException)
     expect(tx.membership.update).not.toHaveBeenCalled()

@@ -58,7 +58,7 @@ export class JoinRequestsController {
    */
   @Post(':clubId/join-requests')
   @UseGuards(ClerkAuthGuard, AgeGateGuard)
-  @RateLimit('write')
+  @RateLimit('join-request')
   async createJoinRequest(
     @CurrentUser() user: { id: string },
     @Param('clubId') clubId: string,

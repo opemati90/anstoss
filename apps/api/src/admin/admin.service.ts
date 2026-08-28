@@ -9,8 +9,8 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard() {
-    const staleCutoff = new Date(Date.now() - 12 * 60 * 60 * 1000)
-    const [clubs, users, memberships, upcomingEvents, activeInvites, teamLinks, importedFixtures, staleTeamLinks, failedSyncRuns] =
+    const now = new Date()
+    const [clubs, users, memberships, upcomingEvents, activeInvites, officialTeamPages, fixtures, pendingClaims, failedReminders] =
       await Promise.all([
         this.prisma.club.count(),
         this.prisma.user.count(),
@@ -28,22 +28,14 @@ export class AdminService {
             expiresAt: { gte: new Date() },
           },
         }),
-        this.prisma.externalTeamLink.count(),
-        this.prisma.importedFixture.count(),
         this.prisma.externalTeamLink.count({
-          where: {
-            status: 'ACTIVE',
-            OR: [
-              { lastSyncedAt: null },
-              { lastSyncedAt: { lt: staleCutoff } },
-            ],
-          },
+          where: { provider: { in: ['FUSSBALL_PUBLIC_PAGE', 'WIDGET_EMBED'] } },
         }),
-        this.prisma.syncRun.count({
-          where: {
-            status: 'FAILED',
-          },
+        this.prisma.importedFixture.count(),
+        this.prisma.clubClaim.count({
+          where: { status: { in: ['SUBMITTED', 'NEEDS_INFO'] }, expiresAt: { gt: now } },
         }),
+        this.prisma.contributionReminder.count({ where: { status: 'FAILED' } }),
       ])
 
     return {
@@ -52,10 +44,10 @@ export class AdminService {
       memberships,
       upcomingEvents,
       activeInvites,
-      teamLinks,
-      importedFixtures,
-      staleTeamLinks,
-      failedSyncRuns,
+      officialTeamPages,
+      fixtures,
+      pendingClaims,
+      failedReminders,
     }
   }
 
@@ -326,30 +318,35 @@ export class AdminService {
   }
 
   async revenueSummary() {
-    // Naive MRR estimate: count active subs, infer cadence from billing
-    // period length (>60 days = yearly, else monthly). Replace with the
-    // Stripe Reporting API in V2 once we have multi-tier pricing.
-    const active = await this.prisma.subscription.findMany({
-      where: { status: 'active' },
-      select: { currentPeriodStart: true, currentPeriodEnd: true },
+    const now = new Date()
+    const active = await this.prisma.entitlementGrant.findMany({
+      where: {
+        source: 'PAID',
+        status: 'ACTIVE',
+        startsAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: {
+        clubId: true,
+        planDefinition: {
+          select: { priceCents: true, interval: true, currency: true },
+        },
+      },
     })
 
     let mrrCents = 0
-    for (const s of active) {
-      const days =
-        (s.currentPeriodEnd.getTime() - s.currentPeriodStart.getTime()) /
-        (1000 * 60 * 60 * 24)
-      if (days > 60) {
-        mrrCents += Math.round(19900 / 12) // €199/yr → €16.58/mo
-      } else {
-        mrrCents += 1999 // €19.99/mo
-      }
+    for (const grant of active) {
+      const plan = grant.planDefinition
+      if (!plan || plan.currency.toLowerCase() !== 'eur') continue
+      const months = plan.interval === 'SIX_MONTHS' ? 6 : 12
+      mrrCents += Math.round(plan.priceCents / months)
     }
 
     return {
-      activeCount: active.length,
+      activeCount: new Set(active.map((grant) => grant.clubId)).size,
       mrrCents,
       arrCents: mrrCents * 12,
+      source: 'stripe_webhook_entitlements',
     }
   }
 
@@ -555,92 +552,4 @@ export class AdminService {
     })
   }
 
-  async listFussballTeamLinks() {
-    const links = await this.prisma.externalTeamLink.findMany({
-      orderBy: [{ updatedAt: 'desc' }],
-      include: {
-        team: {
-          select: {
-            id: true,
-            displayName: true,
-          },
-        },
-        club: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        _count: {
-          select: {
-            fixtures: true,
-            syncRuns: true,
-          },
-        },
-      },
-      take: 30,
-    })
-
-    return links.map((link: typeof links[number]) => ({
-      id: link.id,
-      label: link.label,
-      provider: link.provider,
-      status: link.status,
-      externalTeamId: link.externalTeamId,
-      externalUrl: link.externalUrl,
-      lastSyncedAt: link.lastSyncedAt,
-      updatedAt: link.updatedAt,
-      club: link.club,
-      team: link.team,
-      counts: link._count,
-    }))
-  }
-
-  async listFussballSyncRuns() {
-    const runs = await this.prisma.syncRun.findMany({
-      orderBy: [{ createdAt: 'desc' }],
-      include: {
-        teamLink: {
-          select: {
-            id: true,
-            label: true,
-            team: {
-              select: {
-                id: true,
-                displayName: true,
-              },
-            },
-            club: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-      take: 40,
-    })
-
-    return runs.map((run: typeof runs[number]) => ({
-      id: run.id,
-      status: run.status,
-      provider: run.provider,
-      importedCount: run.importedCount,
-      updatedCount: run.updatedCount,
-      skippedCount: run.skippedCount,
-      parserVersion: run.parserVersion,
-      errorSummary: run.errorSummary,
-      startedAt: run.startedAt,
-      completedAt: run.completedAt,
-      createdAt: run.createdAt,
-      teamLink: {
-        id: run.teamLink.id,
-        label: run.teamLink.label,
-        team: run.teamLink.team,
-        club: run.teamLink.club,
-      },
-    }))
-  }
 }

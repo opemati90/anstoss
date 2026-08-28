@@ -14,7 +14,6 @@ import {
   createExternalTeamLinkSchema,
   fussballTeamPreviewRequestSchema,
   saveFixtureLineupSchema,
-  syncTeamLinkSchema,
   teamFixturesQuerySchema,
   updateFixtureLocksSchema,
   updateFixtureOverlaySchema,
@@ -50,69 +49,6 @@ export class FussballController {
   ) {
     const input = createExternalTeamLinkSchema.parse(body)
     return this.fussballService.createTeamLink(user.id, clubId, input)
-  }
-
-  @Post('integrations/fussball/team-links/:teamLinkId/sync')
-  async syncTeamLink(
-    @CurrentUser() user: { id: string },
-    @Headers('x-club-id') clubId: string | undefined,
-    @Param('teamLinkId') teamLinkId: string,
-    @Body() body: unknown,
-  ) {
-    const input = syncTeamLinkSchema.parse(body || {})
-    return this.fussballService.syncTeamLink(
-      user.id,
-      clubId,
-      teamLinkId,
-      input.force,
-    )
-  }
-
-  @Get('integrations/fussball/team-links/:teamLinkId/roster')
-  async getRoster(
-    @CurrentUser() user: { id: string },
-    @Param('teamLinkId') teamLinkId: string,
-  ) {
-    return this.fussballService.fetchRosterFromTeamLink(user.id, teamLinkId)
-  }
-
-  /**
-   * Licensed-feed club search. Production returns an unavailable/empty
-   * result unless the explicit licensed-feed feature flag and credentials
-   * are configured. Public FUSSBALL.DE pages are never scraped here.
-   */
-  @Get('integrations/fussball/search')
-  async searchClubs(@Query('q') query: string) {
-    return this.fussballService.searchFussballClubs(query ?? '')
-  }
-
-  /** List teams supplied by the explicitly enabled licensed feed. */
-  @Get('integrations/fussball/clubs/:externalClubId/teams')
-  async getClubTeams(@Param('externalClubId') externalClubId: string) {
-    return this.fussballService.fetchClubTeamsFromScraper(externalClubId)
-  }
-
-  /** Optional licensed-feed enrichment for an authorized fixture reader. */
-  @Get('integrations/fussball/match/:externalMatchId/enrichment')
-  async getMatchEnrichment(
-    @CurrentUser() user: { id: string },
-    @Param('externalMatchId') externalMatchId: string,
-  ) {
-    return this.fussballService.fetchMatchEnrichmentForUser(
-      user.id,
-      externalMatchId,
-    )
-  }
-
-  @Get('fixtures/:fixtureId/enrichment')
-  async getFixtureEnrichment(
-    @CurrentUser() user: { id: string },
-    @Param('fixtureId') fixtureId: string,
-  ) {
-    return this.fussballService.fetchMatchEnrichmentForFixture(
-      user.id,
-      fixtureId,
-    )
   }
 
   @Get('fixtures/:fixtureId/lineup')

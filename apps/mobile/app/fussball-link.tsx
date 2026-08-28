@@ -1,19 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
-import type {
-  ExternalTeamLink,
-  FussballTeamPreview,
-  ImportedFixture,
-  SyncRun,
-} from '@anstoss/shared'
+import type { ExternalTeamLink, FussballTeamPreview } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -21,31 +9,24 @@ import { Screen } from '../src/components/ui/Screen'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { Text } from '../src/components/ui'
-import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { fonts, fontSize, space, radius, lineHeight ,
-  hairline} from '../src/theme/tokens'
+import { fonts, fontSize, space, radius, lineHeight, hairline } from '../src/theme/tokens'
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
-  sync: SyncRun | null
 }
 
 export default function FussballLinkScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
-  const canManage =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN'
+  const canManage = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
   const [input, setInput] = useState('')
   const [preview, setPreview] = useState<FussballTeamPreview | null>(null)
   const [links, setLinks] = useState<ExternalTeamLink[]>([])
-  const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
-
-  const locale = getAppLocale(getAppLanguage())
 
   const loadData = useCallback(async () => {
     if (!activeTeamId) {
@@ -54,15 +35,13 @@ export default function FussballLinkScreen() {
     }
 
     try {
-      const [linkedTeams, importedFixtures] = await Promise.all([
-        api<ExternalTeamLink[]>(`/integrations/fussball/team-links?teamId=${activeTeamId}`),
-        api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=6`),
-      ])
-
+      setLoadError(false)
+      const linkedTeams = await api<ExternalTeamLink[]>(
+        `/integrations/fussball/team-links?teamId=${activeTeamId}`,
+      )
       setLinks(linkedTeams)
-      setFixtures(importedFixtures)
     } catch {
-      Alert.alert(t('common.error'), t('fussball.loadError'))
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -80,13 +59,10 @@ export default function FussballLinkScreen() {
 
     try {
       setPreviewing(true)
-      const result = await api<FussballTeamPreview>(
-        '/integrations/fussball/team-preview',
-        {
-          method: 'POST',
-          body: { input: input.trim() },
-        },
-      )
+      const result = await api<FussballTeamPreview>('/integrations/fussball/team-preview', {
+        method: 'POST',
+        body: { input: input.trim() },
+      })
       setPreview(result)
     } catch (error) {
       Alert.alert(
@@ -105,45 +81,23 @@ export default function FussballLinkScreen() {
 
     try {
       setSaving(true)
-      const result = await api<CreateTeamLinkResponse>('/integrations/fussball/team-links', {
+      await api<CreateTeamLinkResponse>('/integrations/fussball/team-links', {
         method: 'POST',
         headers: {
           'x-club-id': activeClub.club.id,
         },
         body: {
           teamId: activeTeamId,
-          input: preview.externalUrl,
+          // Re-submit the original value so an official widget snippet can
+          // be validated again server-side. The API stores only widget id/type,
+          // never the raw HTML.
+          input: preview.input,
           label: preview.label,
         },
       })
       await loadData()
       setPreview(null)
       setInput('')
-
-      if (!result.sync) {
-        Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
-        return
-      }
-
-      if (result.sync.status === 'FAILED') {
-        Alert.alert(
-          t('fussball.syncErrorTitle'),
-          result.sync.errorSummary || t('fussball.connectSyncFailedBody'),
-        )
-        return
-      }
-
-      if (
-        result.sync.status === 'PARTIAL' &&
-        result.sync.importedCount === 0 &&
-        result.sync.updatedCount === 0
-      ) {
-        Alert.alert(
-          t('fussball.connectSuccessTitle'),
-          t('fussball.connectPartialBody'),
-        )
-        return
-      }
 
       Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
     } catch (error) {
@@ -176,9 +130,7 @@ export default function FussballLinkScreen() {
       padded
       edges={['top', 'left', 'right', 'bottom']}
     >
-      <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-        {t('fussball.eyebrow')}
-      </Text>
+      <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{t('fussball.eyebrow')}</Text>
       <Text style={[styles.subtitle, { color: c.textSecondary }]}>
         {t('fussball.subtitle', {
           team: activeTeamAccess?.team.displayName || activeClub.club.name,
@@ -208,6 +160,8 @@ export default function FussballLinkScreen() {
             ]}
             autoCapitalize="none"
             autoCorrect={false}
+            multiline
+            textAlignVertical="top"
           />
           <Pressable
             style={[styles.primaryButton, { backgroundColor: c.primary }]}
@@ -231,11 +185,11 @@ export default function FussballLinkScreen() {
         <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <View style={styles.previewHeader}>
             <View>
-              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
-                {preview.label}
-              </Text>
+              <Text style={[styles.panelTitle, { color: c.textPrimary }]}>{preview.label}</Text>
               <Text style={[styles.metaText, { color: c.textSecondary }]}>
-                {preview.competition || t('fussball.competitionUnknown')}
+                {preview.provider === 'widget_embed'
+                  ? t('fussball.liveWidget')
+                  : t('fussball.referenceOnly')}
               </Text>
             </View>
             <View
@@ -249,15 +203,7 @@ export default function FussballLinkScreen() {
               </Text>
             </View>
           </View>
-          {preview.pitchAddress ? (
-            <Text style={[styles.panelBody, { color: c.textSecondary }]}>
-              {preview.pitchAddress}
-            </Text>
-          ) : (
-            <Text style={[styles.panelBody, { color: c.textSecondary }]}>
-              {t('fussball.pitchPending')}
-            </Text>
-          )}
+          <Text style={[styles.panelBody, { color: c.textSecondary }]}>{preview.externalUrl}</Text>
           <Pressable
             style={[styles.primaryButton, { backgroundColor: c.primary }]}
             onPress={handleConnect}
@@ -278,12 +224,32 @@ export default function FussballLinkScreen() {
 
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-          {t('fussball.linkedFeeds')}
+          {t('fussball.linkedPages')}
         </Text>
       </View>
       {loading ? (
         <View style={styles.loadingPanel}>
           <ActivityIndicator color={c.primary} />
+        </View>
+      ) : loadError ? (
+        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>{t('common.loadError')}</Text>
+          <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
+            {t('fussball.loadError')}
+          </Text>
+          <Pressable
+            style={[styles.secondaryButton, { borderColor: c.borderDefault }]}
+            onPress={() => {
+              setLoading(true)
+              void loadData()
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.tryAgain')}
+          >
+            <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>
+              {t('common.tryAgain')}
+            </Text>
+          </Pressable>
         </View>
       ) : links.length > 0 ? (
         links.map((link) => (
@@ -293,9 +259,7 @@ export default function FussballLinkScreen() {
           >
             <View style={styles.previewHeader}>
               <View style={styles.previewCopy}>
-                <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
-                  {link.label}
-                </Text>
+                <Text style={[styles.panelTitle, { color: c.textPrimary }]}>{link.label}</Text>
                 <Text style={[styles.metaText, { color: c.textSecondary }]}>
                   {officialPageBrand(link.externalUrl)}
                 </Text>
@@ -304,48 +268,37 @@ export default function FussballLinkScreen() {
                 style={[
                   styles.statusPill,
                   { borderColor: c.borderDefault, backgroundColor: c.background },
-                  link.status === 'ERROR' && {
-                    backgroundColor: `${c.error}12`,
-                    borderColor: `${c.error}2E`,
-                  },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.statusPillText,
-                    { color: c.textSecondary },
-                    link.status === 'ERROR' ? { color: c.error } : {},
-                  ]}
-                >
-                  {link.status}
+                <Text style={[styles.statusPillText, { color: c.textSecondary }]}>
+                  {link.provider === 'widget_embed'
+                    ? t('fussball.widgetLabel')
+                    : t('fussball.referenceLabel')}
                 </Text>
               </View>
             </View>
-            <Text style={[styles.monoText, { color: c.textTertiary }]}>
-              {link.externalTeamId}
-            </Text>
-            {link.status === 'ERROR' ? (
-              <Text style={[styles.errorNotice, { color: c.error }]}>
-                {t('fussball.linkErrorNotice')}
+            <Text style={[styles.monoText, { color: c.textTertiary }]}>{link.externalTeamId}</Text>
+            <Pressable
+              style={[styles.secondaryButton, { borderColor: c.borderDefault }]}
+              onPress={() =>
+                router.push({
+                  pathname: '/official-team-page',
+                  params: {
+                    url: link.externalUrl,
+                    title: link.label,
+                    ...(link.widgetId && link.widgetType
+                      ? { widgetId: link.widgetId, widgetType: link.widgetType }
+                      : {}),
+                  },
+                })
+              }
+              accessibilityRole="link"
+              accessibilityLabel={`${officialPageBrand(link.externalUrl)} · ${link.label}`}
+            >
+              <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>
+                {t('fussball.openPage', { provider: officialPageBrand(link.externalUrl) })}
               </Text>
-            ) : null}
-            {link.provider === 'fussball_public_page' || link.provider === 'api_fussball' ? (
-              <Pressable
-                style={[styles.secondaryButton, { borderColor: c.borderDefault }]}
-                onPress={() =>
-                  router.push({
-                    pathname: '/official-team-page',
-                    params: { url: link.externalUrl, title: link.label },
-                  })
-                }
-                accessibilityRole="link"
-                accessibilityLabel={`${officialPageBrand(link.externalUrl)} · ${link.label}`}
-              >
-                <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>
-                  {officialPageBrand(link.externalUrl)}
-                </Text>
-              </Pressable>
-            ) : null}
+            </Pressable>
           </View>
         ))
       ) : (
@@ -355,60 +308,6 @@ export default function FussballLinkScreen() {
           </Text>
           <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
             {t('fussball.noLinksBody')}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-          {t('fussball.upcomingFixtures')}
-        </Text>
-      </View>
-      {fixtures.length > 0 ? (
-        fixtures.map((fixture) => (
-          <Pressable
-            key={fixture.id}
-            style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-            onPress={() =>
-              router.push({
-                pathname: '/match-detail',
-                params: { fixtureId: fixture.id, teamId: fixture.teamId },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
-          >
-            <Text style={[styles.fixtureCompetition, { color: c.textTertiary }]}>
-              {fixture.competition}
-            </Text>
-            <Text style={[styles.panelTitle, { color: c.textPrimary }]}>
-              {fixture.homeTeam} vs {fixture.awayTeam}
-            </Text>
-            <Text style={[styles.metaText, { color: c.textSecondary }]}>
-              {new Intl.DateTimeFormat(locale, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              }).format(new Date(fixture.kickoffAt))}
-            </Text>
-            {fixture.venueName ? (
-              <Text style={[styles.panelBody, { color: c.textSecondary }]}>
-                {fixture.venueName}
-              </Text>
-            ) : null}
-            {fixture.pitchAddress ? (
-              <Text style={[styles.panelBody, { color: c.textSecondary }]}>
-                {fixture.pitchAddress}
-              </Text>
-            ) : null}
-          </Pressable>
-        ))
-      ) : (
-        <View style={[styles.panel, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
-            {t('fussball.noFixturesTitle')}
-          </Text>
-          <Text style={[styles.emptyBody, { color: c.textSecondary }]}>
-            {t('fussball.noFixturesBody')}
           </Text>
         </View>
       )}
@@ -465,7 +364,7 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: space.md,
-    minHeight: 48,
+    minHeight: 112,
     borderRadius: radius.lg,
     borderWidth: hairline,
     paddingHorizontal: space.md,
@@ -536,18 +435,6 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     fontSize: fontSize.xs,
     fontFamily: fonts.data,
-  },
-  errorNotice: {
-    marginTop: space.sm,
-    fontSize: fontSize.sm,
-    lineHeight: lineHeight.sm,
-    fontFamily: fonts.body,
-  },
-  fixtureCompetition: {
-    fontSize: fontSize.xs,
-    letterSpacing: 0.2,
-    marginBottom: space.sm,
-    fontFamily: fonts.label,
   },
   emptyTitle: {
     fontSize: fontSize.lg,

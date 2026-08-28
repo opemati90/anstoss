@@ -162,7 +162,6 @@ const SECTIONS = [
   'health',
   'audit',
   'support',
-  'sync',
   'broadcast',
   'flags',
   'moderation',
@@ -181,7 +180,6 @@ const SECTION_LOADERS = {
   health: loadHealth,
   audit: loadAudit,
   support: loadSupport,
-  sync: loadSync,
   broadcast: loadBroadcast,
   flags: loadFlags,
   moderation: loadModeration,
@@ -199,7 +197,6 @@ const SECTION_LABELS = {
   health: 'Operations',
   audit: 'Audit log',
   support: 'Support notes',
-  sync: 'FUSSBALL.DE sync',
   broadcast: 'Broadcast push',
   flags: 'Feature flags',
   moderation: 'Moderation',
@@ -213,7 +210,6 @@ const PRIMARY_SECTION = {
   revenue: 'subscriptions',
   audit: 'health',
   support: 'health',
-  sync: 'health',
   broadcast: 'health',
   flags: 'health',
   moderation: 'health',
@@ -511,7 +507,7 @@ async function openClubDetail(clubId) {
           <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
           <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
         </div>
-        <p class="muted-line" id="grant-result">Use no expiry for a permanent local-club grant.</p>
+        <p class="muted-line" id="grant-result">Every complimentary grant needs a review date and expiry.</p>
       </section>
     `
   } catch (err) {
@@ -532,9 +528,10 @@ async function loadClubs() {
     document.getElementById('clubs-count').textContent = `${total} club${total === 1 ? '' : 's'}`
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="placeholder">No clubs match.</td></tr>'
-    } else tbody.innerHTML = rows
-      .map(
-        (c) => `
+    } else
+      tbody.innerHTML = rows
+        .map(
+          (c) => `
           <tr>
             <td><button class="table-link" type="button" data-club-detail="${esc(c.id)}">${esc(c.name)}</button></td>
             <td><code>${esc(c.slug)}</code></td>
@@ -545,8 +542,8 @@ async function loadClubs() {
             <td>${fmtDate(c.createdAt)}</td>
           </tr>
         `,
-      )
-      .join('')
+        )
+        .join('')
   } catch (err) {
     setError(tbody, err)
   }
@@ -562,7 +559,8 @@ async function loadInviteCampaigns() {
     tbody.innerHTML = campaigns.length
       ? campaigns
           .map(
-            (campaign) => `<tr><td><strong>${esc(campaign.club?.name)}</strong><br><span class="muted-line">${esc(campaign.team?.displayName)}</span></td><td>${esc(campaign.createdBy?.name || campaign.createdBy?.email || 'Unknown')}</td><td>${campaign.useCount} / ${campaign.maxUses}</td><td>${fmtDate(campaign.expiresAt)}</td><td><button class="pill" type="button" data-campaign-revoke="${esc(campaign.id)}">Revoke</button></td></tr>`,
+            (campaign) =>
+              `<tr><td><strong>${esc(campaign.club?.name)}</strong><br><span class="muted-line">${esc(campaign.team?.displayName)}</span></td><td>${esc(campaign.createdBy?.name || campaign.createdBy?.email || 'Unknown')}</td><td>${campaign.useCount} / ${campaign.maxUses}</td><td>${fmtDate(campaign.expiresAt)}</td><td><button class="pill" type="button" data-campaign-revoke="${esc(campaign.id)}">Revoke</button></td></tr>`,
           )
           .join('')
       : '<tr><td colspan="5" class="placeholder">No suspicious active campaigns.</td></tr>'
@@ -588,7 +586,8 @@ async function loadJoinRequests() {
     tbody.innerHTML = requests.length
       ? requests
           .map(
-            (request) => `<tr><td>${esc(request.club?.name)}</td><td><strong>${esc(request.user?.name)}</strong><br><span class="muted-line">${esc(request.user?.email)}</span></td><td>${esc(request.role)}</td><td>${fmtDate(request.createdAt)}</td></tr>`,
+            (request) =>
+              `<tr><td>${esc(request.club?.name)}</td><td><strong>${esc(request.user?.name)}</strong><br><span class="muted-line">${esc(request.user?.email)}</span></td><td>${esc(request.role)}</td><td>${fmtDate(request.createdAt)}</td></tr>`,
           )
           .join('')
       : '<tr><td colspan="4" class="placeholder">No pending join requests.</td></tr>'
@@ -648,9 +647,9 @@ async function loadClubClaims() {
 async function reviewClubClaim(claimId, decision) {
   const note =
     window.prompt(
-      `${decision === 'APPROVE' ? 'Approval' : decision === 'NEEDS_INFO' ? 'Information request' : 'Rejection'} note ${decision === 'NEEDS_INFO' ? '(required)' : '(optional)'}`,
+      `${decision === 'APPROVE' ? 'Approval attestation — describe the authority source you verified' : decision === 'NEEDS_INFO' ? 'Information request' : 'Rejection'} note ${decision === 'NEEDS_INFO' || decision === 'APPROVE' ? '(required)' : '(optional)'}`,
     ) || undefined
-  if (decision === 'NEEDS_INFO' && !note) return
+  if ((decision === 'NEEDS_INFO' || decision === 'APPROVE') && !note) return
   await adminFetch(`/admin/club-claims/${encodeURIComponent(claimId)}/decision`, {
     method: 'POST',
     body: JSON.stringify({ decision, ...(note ? { note } : {}) }),
@@ -669,21 +668,20 @@ async function loadClubDisputes() {
       return
     }
     tbody.innerHTML = disputes
-      .map(
-        (dispute) => {
-          const candidates = (dispute.club?.memberships || [])
-            .map(
-              (membership) =>
-                `${membership.user?.name || membership.user?.email || membership.userId} (${membership.role}: ${membership.userId})`,
-            )
-            .join(' · ')
-          const candidateOptions = (dispute.club?.memberships || [])
-            .map(
-              (membership) =>
-                `<option value="${esc(membership.userId)}">${esc(membership.user?.name || membership.user?.email || membership.userId)} · ${esc(membership.role)}</option>`,
-            )
-            .join('')
-          return `<tr>
+      .map((dispute) => {
+        const candidates = (dispute.club?.memberships || [])
+          .map(
+            (membership) =>
+              `${membership.user?.name || membership.user?.email || membership.userId} (${membership.role}: ${membership.userId})`,
+          )
+          .join(' · ')
+        const candidateOptions = (dispute.club?.memberships || [])
+          .map(
+            (membership) =>
+              `<option value="${esc(membership.userId)}">${esc(membership.user?.name || membership.user?.email || membership.userId)} · ${esc(membership.role)}</option>`,
+          )
+          .join('')
+        return `<tr>
           <td><strong>${esc(dispute.club?.name || dispute.clubId)}</strong></td>
           <td>${esc(dispute.reason)}${candidates ? `<small>Owner candidates: ${esc(candidates)}</small>` : ''}</td>
           <td>${badge(dispute.status)}</td>
@@ -694,8 +692,7 @@ async function loadClubDisputes() {
               : '-'
           }</td>
         </tr>`
-        },
-      )
+      })
       .join('')
   } catch (err) {
     setError(tbody, err)
@@ -714,7 +711,9 @@ async function openClubDispute() {
     })
     await loadClubDisputes()
   } catch (error) {
-    window.alert(`Could not open dispute: ${error instanceof Error ? error.message : String(error)}`)
+    window.alert(
+      `Could not open dispute: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 
@@ -742,6 +741,10 @@ async function grantClubEntitlement(clubId) {
   const interval = document.getElementById('grant-interval').value
   const expiry = document.getElementById('grant-expiry').value
   const output = document.getElementById('grant-result')
+  if (!expiry) {
+    output.textContent = 'Choose an expiry date before granting access.'
+    return
+  }
   try {
     await adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}/entitlements`, {
       method: 'POST',
@@ -762,7 +765,11 @@ async function grantClubEntitlement(clubId) {
 
 async function revokeClubEntitlement(grantId, clubId) {
   if (!grantId || !clubId) return
-  if (!window.confirm('Revoke this entitlement grant? The club will fall back to its next active plan.')) {
+  if (
+    !window.confirm(
+      'Revoke this entitlement grant? The club will fall back to its next active plan.',
+    )
+  ) {
     return
   }
   try {
@@ -1045,77 +1052,6 @@ async function loadSupportRecent() {
   }
 }
 
-// - Section: Sync (Fussball.de) -
-
-function bindSync() {
-  document.getElementById('sync-links-refresh').addEventListener('click', loadSyncLinks)
-  document.getElementById('sync-runs-refresh').addEventListener('click', loadSyncRuns)
-}
-
-function loadSync() {
-  loadSyncLinks()
-  loadSyncRuns()
-}
-
-async function loadSyncLinks() {
-  const wrap = document.getElementById('sync-links')
-  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
-  try {
-    const rows = await adminFetch('/admin/fussball/team-links')
-    if (rows.length === 0) {
-      wrap.innerHTML = '<p class="placeholder">No team links registered.</p>'
-      return
-    }
-    wrap.innerHTML = rows
-      .map(
-        (link) => `
-          <article class="list-card">
-            <header>
-              <h3>${esc(link.label)}</h3>
-              ${badge(link.status)}
-            </header>
-            <p>${esc(link.club?.name || '-')}  /  ${esc(link.team?.displayName || '-')}</p>
-            <p><code>${esc(link.externalTeamId)}</code></p>
-            <p>Fixtures ${link.counts.fixtures}  /  Sync runs ${link.counts.syncRuns}  /  Last synced ${fmtDateTime(link.lastSyncedAt)}</p>
-          </article>
-        `,
-      )
-      .join('')
-  } catch (err) {
-    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
-  }
-}
-
-async function loadSyncRuns() {
-  const wrap = document.getElementById('sync-runs')
-  wrap.innerHTML = '<p class="placeholder">Loading...</p>'
-  try {
-    const rows = await adminFetch('/admin/fussball/sync-runs')
-    if (rows.length === 0) {
-      wrap.innerHTML = '<p class="placeholder">No sync runs yet.</p>'
-      return
-    }
-    wrap.innerHTML = rows
-      .map(
-        (run) => `
-          <article class="list-card">
-            <header>
-              <h3>${esc(run.teamLink.label)}</h3>
-              ${badge(run.status)}
-            </header>
-            <p>${esc(run.teamLink.club?.name || '-')}  /  ${esc(run.teamLink.team?.displayName || '-')}</p>
-            <p>Imported ${run.importedCount}  /  Updated ${run.updatedCount}  /  Skipped ${run.skippedCount}</p>
-            <p class="mono">${fmtDateTime(run.startedAt)}</p>
-            ${run.errorSummary ? `<p>${esc(run.errorSummary)}</p>` : ''}
-          </article>
-        `,
-      )
-      .join('')
-  } catch (err) {
-    wrap.innerHTML = `<p class="placeholder">${esc(err.message)}</p>`
-  }
-}
-
 // - Section: Broadcast -
 
 function bindBroadcast() {
@@ -1273,13 +1209,13 @@ async function loadModerationReports() {
           <article class="list-card">
             <header>
               <h3>${esc(r.reason)}</h3>
-              <span class="badge">${esc(r.message?.sender?.name || 'Unknown sender')}</span>
+              <span class="badge">${r.kind === 'direct' ? 'Direct message' : 'Channel'} · ${esc(r.message?.sender?.name || 'Unknown sender')}</span>
             </header>
-            <p>${esc(r.message?.content?.slice(0, 280) || '(message deleted)')}</p>
+            <p>${esc((r.evidenceContent ?? r.message?.content ?? '').slice(0, 280) || '(message unavailable)')}</p>
             <p class="mono">reported by ${esc(r.reporter?.email || r.reporterUserId)}  /  ${fmtDateTime(r.createdAt)}</p>
             <p>
               <button class="pill" data-report-resolve="${esc(r.id)}" data-action="dismiss">Dismiss</button>
-              <button class="pill pill--dark" data-report-resolve="${esc(r.id)}" data-action="action">Mark actioned</button>
+              <button class="pill pill--dark" data-report-resolve="${esc(r.id)}" data-action="remove">Remove message</button>
             </p>
           </article>
         `,
@@ -1292,14 +1228,17 @@ async function loadModerationReports() {
         const note = prompt(
           action === 'dismiss'
             ? 'Dismissal note (optional):'
-            : 'What action did you take? (suspend / warn / etc.)',
+            : action === 'remove'
+              ? 'Why should this message be removed?'
+              : 'Why should this message be removed?',
         )
         if (note === null) return
         try {
           await adminFetch(`/admin/moderation/reports/${id}/resolve`, {
             method: 'POST',
             body: JSON.stringify({
-              resolution: note || (action === 'dismiss' ? 'dismissed' : 'actioned'),
+              resolution: note || (action === 'dismiss' ? 'dismissed' : 'removed'),
+              action: action === 'remove' ? 'remove' : 'dismiss',
             }),
           })
           loadModerationReports()
@@ -1590,7 +1529,6 @@ document.addEventListener('DOMContentLoaded', () => {
   bindSubs()
   bindAudit()
   bindSupport()
-  bindSync()
   bindBroadcast()
   bindFlags()
   bindModeration()

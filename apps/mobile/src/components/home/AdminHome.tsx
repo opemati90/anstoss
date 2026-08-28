@@ -15,7 +15,7 @@ type PendingPause = {
 }
 
 import { api, ApiError } from '../../api/client'
-import { Icon, Text, type IconName } from '../ui'
+import { Banner, Icon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
@@ -327,9 +327,26 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           invitationsReady={activationCampaigns.some(
             (campaign) => campaign.teamId === teamId && campaign.status !== 'REVOKED',
           )}
-          availabilityReady={nextEvent != null}
+          availabilityReady={Boolean(nextEvent?.readiness)}
           t={t}
           c={c}
+        />
+      ) : null}
+
+      {activationStatus === 'error' && teamId ? (
+        <Banner
+          tone="warning"
+          title={t('home.activation.loadErrorTitle', {
+            defaultValue: 'Club setup could not be checked',
+          })}
+          description={t('home.activation.loadErrorBody', {
+            defaultValue:
+              'Your club data is safe. Check the connection and retry the setup checklist.',
+          })}
+          action={{
+            label: t('common.retry', { defaultValue: 'Retry' }),
+            onPress: () => void load(),
+          }}
         />
       ) : null}
 
@@ -596,7 +613,7 @@ function ActivationChecklist({
     {
       key: 'fixtures',
       done: fixtureSourceReady,
-      label: t('home.activation.fixtures', { defaultValue: 'Link official fixtures' }),
+      label: t('home.activation.fixtures', { defaultValue: 'Save the official team page' }),
       route: '/fussball-link',
     },
     {

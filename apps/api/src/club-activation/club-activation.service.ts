@@ -22,21 +22,28 @@ import type {
   SubmitFirstClubClaimInput,
   SubmitStaffAccessRequestInput,
   CreateOwnershipTransferInput,
+  RequestOwnershipTransferChallengeInput,
+  VerifyOwnershipTransferChallengeInput,
   OpenClubDisputeInput,
   ResolveClubDisputeInput,
 } from '@anstoss/shared'
-import { createHash } from 'node:crypto'
+import { createHash, createHmac, randomInt, randomUUID } from 'node:crypto'
 import { AuditService } from '../audit/audit.service'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { ChannelsService } from '../channels/channels.service'
 import { buildTeamDisplayName, createClubWithUniqueSlug } from '../clubs/clubs.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
+import { sendEmail } from '../email/mailer'
+import { buildOwnershipTransferCodeEmail } from '../email/email-content'
+import { resolveLocale } from '../i18n/translations'
 
 const CLAIM_TTL_DAYS = 14
 const STAFF_CLAIM_ESCALATION_DAYS = 7
 const OWNERSHIP_TRANSFER_TTL_HOURS = 72
 const STEP_UP_MAX_AGE_SECONDS = 10 * 60
+const OWNERSHIP_CHALLENGE_TTL_MINUTES = 10
+const OWNERSHIP_CHALLENGE_MAX_ATTEMPTS = 5
 
 @Injectable()
 export class ClubActivationService {
@@ -415,9 +422,18 @@ export class ClubActivationService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
       const claim = await tx.clubClaim.findUnique({
         where: { id: claimId },
-        include: { directoryEntry: true },
+        include: { directoryEntry: true, evidence: true },
       })
       this.assertReviewableClaim(claim, ClubClaimKind.FIRST_CLAIM)
+      if (
+        Array.isArray(claim.evidence) &&
+        claim.evidence.length === 0 &&
+        (input.note?.trim().length ?? 0) < 10
+      ) {
+        throw new ConflictException(
+          'Approval requires verified authority evidence or a reviewer attestation describing the independent verification source',
+        )
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.claimantUserId}))`
       const claimant = await tx.user.findFirst({
         where: { id: claim.claimantUserId, deletedAt: null },
@@ -538,6 +554,11 @@ export class ClubActivationService {
           actorId: reviewerId,
           actorLabel: null,
           summary: `First club claim approved for ${club.name}`,
+          metadata: {
+            claimId: claim.id,
+            evidenceIds: claim.evidence.map((item) => item.id),
+            reviewerAttestation: input.note?.trim() ?? null,
+          },
         },
       })
       return { claim: updatedClaim, club, team }
@@ -804,7 +825,6 @@ export class ClubActivationService {
     clubId: string,
     input: CreateOwnershipTransferInput,
   ) {
-    this.assertRecentSession(actor)
     if (actor.id === input.toUserId) throw new BadRequestException('Choose another club member')
     const owner = await this.prisma.membership.findUnique({
       where: { userId_clubId: { userId: actor.id, clubId } },
@@ -817,6 +837,15 @@ export class ClubActivationService {
       where: { userId_clubId: { userId: input.toUserId, clubId } },
     })
     if (!target) throw new BadRequestException('New owner must already belong to the club')
+    await this.consumeOwnershipChallenge({
+      actorUserId: actor.id,
+      clubId,
+      targetUserId: input.toUserId,
+      transferId: null,
+      action: 'INITIATE',
+      challengeId: input.challengeId,
+      code: input.code,
+    })
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.toUserId}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
@@ -869,8 +898,22 @@ export class ClubActivationService {
   async acceptOwnershipTransfer(
     actor: { id: string; authenticatedAt?: number },
     transferId: string,
+    input: VerifyOwnershipTransferChallengeInput,
   ) {
-    this.assertRecentSession(actor)
+    const pending = await this.prisma.ownershipTransfer.findFirst({
+      where: { id: transferId, toUserId: actor.id, status: 'PENDING' },
+      select: { clubId: true, fromUserId: true },
+    })
+    if (!pending) throw new NotFoundException('Pending ownership transfer not found')
+    await this.consumeOwnershipChallenge({
+      actorUserId: actor.id,
+      clubId: pending.clubId,
+      targetUserId: pending.fromUserId,
+      transferId,
+      action: 'ACCEPT',
+      challengeId: input.challengeId,
+      code: input.code,
+    })
     return this.prisma.$transaction(async (tx) => {
       const initial = await tx.ownershipTransfer.findUnique({ where: { id: transferId } })
       if (!initial || initial.toUserId !== actor.id || initial.status !== 'PENDING') {
@@ -920,6 +963,141 @@ export class ClubActivationService {
       })
       return accepted
     })
+  }
+
+  async requestOwnershipTransferChallenge(
+    actor: { id: string },
+    clubId: string,
+    input: RequestOwnershipTransferChallengeInput,
+  ) {
+    if (actor.id === input.toUserId) throw new BadRequestException('Choose another club member')
+    const [membership, target] = await Promise.all([
+      this.prisma.membership.findUnique({
+        where: { userId_clubId: { userId: actor.id, clubId } },
+        select: { role: true },
+      }),
+      this.prisma.membership.findUnique({
+        where: { userId_clubId: { userId: input.toUserId, clubId } },
+        select: { id: true },
+      }),
+    ])
+    if (membership?.role !== MembershipRole.OWNER) {
+      throw new ForbiddenException('Only the current club owner can transfer ownership')
+    }
+    if (!target) throw new BadRequestException('New owner must already belong to the club')
+    return this.issueOwnershipChallenge({
+      actorUserId: actor.id,
+      clubId,
+      targetUserId: input.toUserId,
+      transferId: null,
+      action: 'INITIATE',
+    })
+  }
+
+  async requestOwnershipAcceptanceChallenge(actor: { id: string }, transferId: string) {
+    const transfer = await this.prisma.ownershipTransfer.findFirst({
+      where: {
+        id: transferId,
+        toUserId: actor.id,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      select: { clubId: true, fromUserId: true },
+    })
+    if (!transfer) throw new NotFoundException('Pending ownership transfer not found')
+    return this.issueOwnershipChallenge({
+      actorUserId: actor.id,
+      clubId: transfer.clubId,
+      targetUserId: transfer.fromUserId,
+      transferId,
+      action: 'ACCEPT',
+    })
+  }
+
+  private async issueOwnershipChallenge(input: {
+    actorUserId: string
+    clubId: string
+    targetUserId: string
+    transferId: string | null
+    action: 'INITIATE' | 'ACCEPT'
+  }) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: input.actorUserId },
+      select: { email: true, preferredLanguage: true },
+    })
+    if (!actor?.email) throw new BadRequestException('A verified email is required')
+    const pepper = (process.env.AUTH_OTP_PEPPER ?? '').trim()
+    if (!pepper) throw new Error('AUTH_OTP_PEPPER is not configured')
+    const id = randomUUID()
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0')
+    const codeHash = createHmac('sha256', pepper).update(`${id}:${input.actorUserId}:${code}`).digest('hex')
+    const expiresAt = new Date(Date.now() + OWNERSHIP_CHALLENGE_TTL_MINUTES * 60 * 1000)
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`ownership-challenge:${input.actorUserId}:${input.action}`}))`
+      await tx.ownershipTransferChallenge.updateMany({
+        where: { actorUserId: input.actorUserId, action: input.action, consumedAt: null },
+        data: { consumedAt: new Date() },
+      })
+      await tx.ownershipTransferChallenge.create({
+        data: { ...input, id, codeHash, expiresAt },
+      })
+    })
+    const email = buildOwnershipTransferCodeEmail({
+      locale: resolveLocale(actor.preferredLanguage, 'en'),
+      code,
+      expiresInMinutes: OWNERSHIP_CHALLENGE_TTL_MINUTES,
+    })
+    if (!(await sendEmail({ to: actor.email, ...email }))) {
+      await this.prisma.ownershipTransferChallenge.update({
+        where: { id },
+        data: { consumedAt: new Date() },
+      })
+      throw new BadRequestException('The confirmation email could not be sent. Try again.')
+    }
+    return { challengeId: id, expiresAt: expiresAt.toISOString() }
+  }
+
+  private async consumeOwnershipChallenge(input: {
+    actorUserId: string
+    clubId: string
+    targetUserId: string
+    transferId: string | null
+    action: 'INITIATE' | 'ACCEPT'
+    challengeId: string
+    code: string
+  }) {
+    const pepper = (process.env.AUTH_OTP_PEPPER ?? '').trim()
+    if (!pepper) throw new Error('AUTH_OTP_PEPPER is not configured')
+    const codeHash = createHmac('sha256', pepper)
+      .update(`${input.challengeId}:${input.actorUserId}:${input.code}`)
+      .digest('hex')
+    const result = await this.prisma.ownershipTransferChallenge.updateMany({
+      where: {
+        id: input.challengeId,
+        actorUserId: input.actorUserId,
+        clubId: input.clubId,
+        targetUserId: input.targetUserId,
+        transferId: input.transferId,
+        action: input.action,
+        codeHash,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+        attempts: { lt: OWNERSHIP_CHALLENGE_MAX_ATTEMPTS },
+      },
+      data: { consumedAt: new Date() },
+    })
+    if (result.count === 1) return
+    await this.prisma.ownershipTransferChallenge.updateMany({
+      where: {
+        id: input.challengeId,
+        actorUserId: input.actorUserId,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: { attempts: { increment: 1 } },
+    })
+    throw new ForbiddenException('Invalid or expired ownership confirmation code')
   }
 
   async listOwnershipTransfersForUser(userId: string) {
@@ -1214,11 +1392,28 @@ export class ClubActivationService {
   }
 
   private async resolveDirectoryEntry(input: SubmitFirstClubClaimInput) {
-    const entry = await this.prisma.clubDirectoryEntry.findUnique({
-      where: { id: input.directoryEntryId },
+    if (input.directoryEntryId) {
+      const entry = await this.prisma.clubDirectoryEntry.findUnique({
+        where: { id: input.directoryEntryId },
+      })
+      if (!entry) throw new NotFoundException('Verified club directory entry not found')
+      return entry
+    }
+    const clubName = input.clubName?.trim()
+    if (!clubName) throw new BadRequestException('Official club name is required')
+    const sourceId = `manual:${randomUUID()}`
+    const normalizedName = clubName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    const slugBase = normalizedName.replace(/\s+/g, '-').slice(0, 60) || 'club'
+    return this.prisma.clubDirectoryEntry.create({
+      data: {
+        source: 'MANUAL',
+        sourceId,
+        name: clubName,
+        normalizedName,
+        slug: `${slugBase}-${sourceId.slice(-8)}`,
+        websiteUrl: input.externalTeamUrl,
+      },
     })
-    if (!entry) throw new NotFoundException('Verified club directory entry not found')
-    return entry
   }
 }
 

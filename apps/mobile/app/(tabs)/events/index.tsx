@@ -68,7 +68,7 @@ const TYPE_CHIPS: FilterChip<FilterType>[] = [
 
 export default function EventsScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
+  const { activeClub, activeTeamId, activeRoleMode, token } = useAuth()
   const c = useClubColors()
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
@@ -116,12 +116,16 @@ export default function EventsScreen() {
   const [scope, setScope] = useState<EventScope>('upcoming')
 
   const locale = getAppLocale(getAppLanguage())
-  const hasSelectedTeamEvents =
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH' ||
-    activeTeamAccess?.role === 'PLAYER'
-  const isParent =
-    activeClub?.role === 'PARENT' && !hasSelectedTeamEvents
+  const resolvedRoleMode = activeRoleMode ?? (
+    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+      ? 'ADMIN'
+      : activeClub?.role === 'COACH'
+        ? 'COACH'
+        : activeClub?.role === 'PARENT'
+          ? 'PARENT'
+          : 'PLAYER'
+  )
+  const isParent = resolvedRoleMode === 'PARENT'
   const viewKey = isParent
     ? `parent:${activeClub?.club.id ?? 'none'}`
     : `team:${activeClub?.club.id ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`
@@ -141,18 +145,9 @@ export default function EventsScreen() {
   const visibleLiveFixture = hasCurrentData ? liveFixture : null
 
   const canCreate = useMemo(() => {
-    if (activeClub?.permissions?.EVENTS != null) {
-      return Boolean(activeClub.permissions.EVENTS)
-    }
-
-    return (
-      activeClub?.role === 'OWNER' ||
-      activeClub?.role === 'ADMIN' ||
-      activeClub?.role === 'COACH' ||
-      activeTeamAccess?.role === 'HEAD_COACH' ||
-      activeTeamAccess?.role === 'ASSISTANT_COACH'
-    )
-  }, [activeClub, activeTeamAccess])
+    if (resolvedRoleMode === 'ADMIN') return Boolean(activeClub?.permissions?.EVENTS ?? true)
+    return resolvedRoleMode === 'COACH'
+  }, [activeClub?.permissions?.EVENTS, resolvedRoleMode])
 
   const fetchEvents = useCallback(async () => {
     const requestViewKey = viewKey

@@ -16,8 +16,10 @@ export type RateLimitType =
   | 'invite-redeem'
   | 'bank-import'
   | 'member-search'
+  | 'join-request'
   | 'dm-message'
   | 'channel-message'
+  | 'ownership-challenge'
 
 /**
  * Decorator: mark an endpoint as read or write for rate limiting.
@@ -113,6 +115,14 @@ export class RateLimitGuard implements CanActivate {
       }),
     )
     this.policyLimiters.set(
+      'join-request',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, '1 d'),
+        prefix: 'rl:join-request',
+      }),
+    )
+    this.policyLimiters.set(
       'dm-message',
       new Ratelimit({
         redis,
@@ -126,6 +136,14 @@ export class RateLimitGuard implements CanActivate {
         redis,
         limiter: Ratelimit.slidingWindow(60, '1 m'),
         prefix: 'rl:channel-message',
+      }),
+    )
+    this.policyLimiters.set(
+      'ownership-challenge',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, '1 h'),
+        prefix: 'rl:ownership-challenge',
       }),
     )
   }
@@ -158,7 +176,7 @@ export class RateLimitGuard implements CanActivate {
       type === 'invite-redeem'
         ? getIpRateLimitIdentifier(request)
         : type === 'invite-campaign'
-          ? `club:${readHeader(request.headers, 'x-club-id') || getRateLimitIdentifier(request)}`
+          ? getClubRateLimitIdentifier(request)
           : getRateLimitIdentifier(request)
 
     const { success, remaining, reset } = await limiter.limit(identifier)
@@ -176,6 +194,17 @@ export class RateLimitGuard implements CanActivate {
 
     return true
   }
+}
+
+export function getClubRateLimitIdentifier(request: {
+  params?: { clubId?: string }
+  user?: { id?: string }
+  headers?: Record<string, string | string[] | undefined>
+  ip?: string
+  socket?: { remoteAddress?: string }
+}) {
+  const clubId = request.params?.clubId?.trim()
+  return clubId ? `club:${clubId}` : getRateLimitIdentifier(request)
 }
 
 function applyRateLimitResults(

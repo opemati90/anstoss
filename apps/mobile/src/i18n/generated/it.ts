@@ -137,8 +137,8 @@ export default {
   invite: {
     changeTeam: 'Cambia squadra',
     heroSubtitle: 'Scegli una squadra, inserisci le email (una per riga), invia.',
-    importRosterCta: 'Importa la rosa dal feed autorizzato',
-    importRosterSub: 'Seleziona i giocatori dal feed autorizzato e invitali insieme.',
+    importRosterCta: 'Aggiungi destinatari e-mail',
+    importRosterSub: 'Aggiungi gli indirizzi e-mail e invia gli inviti insieme.',
     recipientLabelBulk: 'EMAIL · UNA PER RIGA O SEPARATE DA VIRGOLA',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Aggiungi {{count}} agli inviti',
@@ -150,7 +150,7 @@ export default {
       "Estratto dall'ultima formazione autorizzata. Potrebbero mancare i giocatori senza presenze.",
     rosterSubtitle:
       "Seleziona i giocatori di cui hai l'email, inserisci l'indirizzo, invia tutti in una volta.",
-    rosterTitle: 'Rosa dal feed autorizzato',
+    rosterTitle: "Destinatari dell'invito",
     step1Title: 'Scegli la squadra',
     step2Title: 'Aggiungi destinatari',
     step3Title: 'Controlla e invia',
@@ -421,17 +421,17 @@ export default {
     watchLive: 'Guarda il live ticker',
   },
   matches: {
-    dataAttribution: 'Dati: dati squadra esterni',
+    dataAttribution: 'Dettagli partita',
     eventsEmpty: 'Gli eventi appariranno qui man mano che si svolge la partita.',
-    lineupEmpty: 'La formazione apparirà qui non appena fonte pubblica pubblica la rosa.',
+    lineupEmpty: 'La formazione apparirà qui quando lo staff del club pubblica la rosa.',
     liveLabel: "LIVE · {{minute}}'",
     motmChange: 'Cambia voto MOTM',
     motmEyebrow: 'MIGLIORE IN CAMPO · LIVE',
     motmTallyLine: '{{votes}} su {{total}} voti · {{pct}}%',
     motmVote: 'Vota il migliore in campo',
-    openInFussball: 'Apri in fonte pubblica',
+    openInFussball: 'Apri la pagina ufficiale della squadra',
     openPhotoWall: 'Apri la bacheca foto',
-    scraperAttribution: 'Eventi di partita da fonte pubblica',
+    scraperAttribution: 'Eventi inseriti dallo staff del club',
     section: {
       bench: 'Panchina',
       events: 'Eventi di partita',
@@ -512,7 +512,7 @@ export default {
     fussballLinkFailedTitle: 'Impossibile collegare fonte pubblica al momento',
     fussballSyncFailedBody:
       'Non è stato possibile sincronizzare il feed calendario autorizzato. Riprova dalle impostazioni.',
-    fussballSyncFailedTitle: 'Sincronizzazione autorizzata non riuscita',
+    fussballSyncFailedTitle: 'Pagina ufficiale non salvata',
     fussballUrlHint:
       "Salva una pagina ufficiale come riferimento. Non importa gare o giocatori e non dimostra l'autorità del club.",
     fussballUrlPlaceholder: 'Pagina ufficiale della squadra (facoltativa)',

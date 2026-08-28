@@ -8,6 +8,7 @@ const authState: {
   activeClub: any
   activeTeamId: string | null
   activeTeamAccess: any
+  activeRoleMode: string | null
 } = {
   activeClub: {
     role: 'COACH',
@@ -16,6 +17,7 @@ const authState: {
   },
   activeTeamId: 'team-1',
   activeTeamAccess: { role: 'HEAD_COACH' },
+  activeRoleMode: null,
 }
 
 jest.mock('expo-router', () => ({
@@ -127,6 +129,7 @@ describe('EventsScreen', () => {
     }
     authState.activeTeamId = 'team-1'
     authState.activeTeamAccess = { role: 'HEAD_COACH' }
+    authState.activeRoleMode = null
   })
 
   it('keeps event creation in the header only', async () => {
@@ -217,6 +220,7 @@ describe('EventsScreen', () => {
     }
     authState.activeTeamId = 'team-1'
     authState.activeTeamAccess = { role: 'ASSISTANT_COACH' }
+    authState.activeRoleMode = 'COACH'
     mockApi.mockImplementation((path: string) => {
       if (path.startsWith('/clubs/club-1/events?')) {
         return Promise.resolve([
@@ -246,6 +250,7 @@ describe('EventsScreen', () => {
     }
     authState.activeTeamId = 'team-1'
     authState.activeTeamAccess = { role: 'PARENT' }
+    authState.activeRoleMode = 'PARENT'
     mockApi.mockImplementation((path: string) => {
       if (path === '/me/children-events') {
         return Promise.resolve([

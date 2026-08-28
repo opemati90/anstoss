@@ -9,19 +9,10 @@ export type ExternalDataProvider =
   | 'maps'
   | 'veo_manual'
 
-export type ExternalTeamLinkStatus =
-  | 'ACTIVE'
-  | 'NEEDS_REVIEW'
-  | 'ERROR'
-  | 'DISCONNECTED'
+export type ExternalTeamLinkStatus = 'ACTIVE' | 'NEEDS_REVIEW' | 'ERROR' | 'DISCONNECTED'
 
 export type ImportedFixtureStatus =
-  | 'scheduled'
-  | 'live'
-  | 'finished'
-  | 'postponed'
-  | 'cancelled'
-  | 'unknown'
+  'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled' | 'unknown'
 
 export type FixtureDataConfidence =
   | 'official_partner'
@@ -56,6 +47,8 @@ export interface ExternalTeamLink {
   externalTeamId: string
   externalClubId: string | null
   externalUrl: string
+  widgetId: string | null
+  widgetType: string | null
   label: string
   status: ExternalTeamLinkStatus
   lastSyncedAt: string | null
@@ -128,9 +121,11 @@ export interface SyncRun {
 
 export interface FussballTeamPreview {
   input: string
-  provider: 'api_fussball' | 'fussball_public_page'
+  provider: 'api_fussball' | 'fussball_public_page' | 'widget_embed'
   externalTeamId: string
   externalUrl: string
+  widgetId: string | null
+  widgetType: string | null
   label: string
   competition: string | null
   pitchAddress: string | null

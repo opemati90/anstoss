@@ -41,17 +41,22 @@ const BUCKET_LABELS: Record<Bucket, { de: string; en: string }> = {
 
 export default function SquadScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess, activeRoleMode } = useAuth()
   const c = useClubColors()
   const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
   const [bucket, setBucket] = useState<Bucket>('ACTIVE')
   const [refreshing, setRefreshing] = useState(false)
 
-  const isCoach =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const resolvedRoleMode = activeRoleMode ?? (
+    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+      ? 'ADMIN'
+      : activeClub?.role === 'COACH'
+        ? 'COACH'
+        : activeClub?.role === 'PARENT'
+          ? 'PARENT'
+          : 'PLAYER'
+  )
+  const isCoach = resolvedRoleMode === 'ADMIN' || resolvedRoleMode === 'COACH'
 
   const fetchSnapshot = useCallback(async () => {
     if (!activeClub || !activeTeamId) return

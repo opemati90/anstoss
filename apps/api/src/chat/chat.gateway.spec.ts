@@ -354,3 +354,39 @@ describe('ChatGateway.handleMarkChannelRead', () => {
     expect(res).toEqual({ event: 'marked', data: { marked: 3 } })
   })
 })
+
+describe('ChatGateway kill switch', () => {
+  it('blocks reads and presence for a socket that was already connected', async () => {
+    const teams = { assertReadableAccess: jest.fn() }
+    const dm = { getMessages: jest.fn(), markAsRead: jest.fn() }
+    const gateway = new ChatGateway(
+      { message: { findMany: jest.fn() } } as any,
+      {} as any,
+      teams as any,
+      dm as any,
+      {} as any,
+      { listForUser: jest.fn() } as any,
+      {} as any,
+      {} as any,
+      { get: jest.fn().mockResolvedValue('true') } as any,
+    )
+    const client = {
+      data: { userId: 'user-1', userName: 'Mia' },
+      join: jest.fn(),
+      to: jest.fn(),
+    } as any
+
+    await expect(gateway.handleJoin(client, { teamId: 'team-1' })).resolves.toEqual({
+      event: 'error',
+      data: { message: 'Chat is temporarily unavailable' },
+    })
+    await expect(
+      gateway.handleHistory(client, { teamId: 'team-1' }),
+    ).resolves.toEqual({ event: 'error', data: { message: 'Chat is temporarily unavailable' } })
+    await expect(
+      gateway.handleDmHistory(client, { conversationId: 'dm-1' }),
+    ).resolves.toEqual({ event: 'error', data: { message: 'Chat is temporarily unavailable' } })
+    expect(teams.assertReadableAccess).not.toHaveBeenCalled()
+    expect(dm.getMessages).not.toHaveBeenCalled()
+  })
+})

@@ -249,9 +249,6 @@ export default function LeagueTableScreen() {
                 )}
               </View>
             )}
-            <Text variant="caption2" color="tertiary" style={styles.attribution}>
-              {t('matches.dataAttribution', { defaultValue: 'Data: linked source' })}
-            </Text>
           </ScrollView>
         </>
       ) : null}
@@ -262,7 +259,6 @@ export default function LeagueTableScreen() {
 const styles = StyleSheet.create({
   stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: space.sm, paddingBottom: space.xl + space.sm },
-  attribution: { textAlign: 'center', paddingTop: space.lg },
   competition: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,

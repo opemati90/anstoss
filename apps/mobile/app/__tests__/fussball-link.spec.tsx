@@ -234,39 +234,17 @@ describe('FussballLinkScreen', () => {
     })
   })
 
-  it('renders upcoming fixtures as tappable cards', async () => {
+  it('keeps fixture data out of the official-page reference screen', async () => {
     mockUseAuth.mockReturnValue(coachAuth())
-    mockApi.mockImplementation((url: string) => {
-      if (url.includes('team-links')) return Promise.resolve([])
-      if (url.includes('fixtures')) {
-        return Promise.resolve([
-          {
-            id: 'fix1',
-            teamId: 't1',
-            competition: 'Kreisliga A',
-            homeTeam: 'SV Musterstadt',
-            awayTeam: 'FC Beispiel',
-            kickoffAt: '2026-04-12T14:00:00Z',
-            venueName: 'Sportplatz Am Wald',
-            pitchAddress: null,
-            status: 'scheduled',
-          },
-        ])
-      }
-      return Promise.resolve([])
-    })
+    mockApi.mockResolvedValue([])
 
-    const { getByText } = render(<FussballLinkScreen />)
+    const { queryByText } = render(<FussballLinkScreen />)
 
     await waitFor(() => {
-      expect(getByText('SV Musterstadt vs FC Beispiel')).toBeTruthy()
+      expect(mockApi).toHaveBeenCalledWith('/integrations/fussball/team-links?teamId=t1')
     })
-
-    fireEvent.press(getByText('SV Musterstadt vs FC Beispiel'))
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/match-detail',
-      params: { fixtureId: 'fix1', teamId: 't1' },
-    })
+    expect(mockApi).not.toHaveBeenCalledWith(expect.stringContaining('/fixtures'))
+    expect(queryByText('fussball.upcomingFixtures')).toBeNull()
   })
 
   it('shows empty state when no linked feeds', async () => {
@@ -280,7 +258,7 @@ describe('FussballLinkScreen', () => {
     })
   })
 
-  it('shows error status indicator on errored links', async () => {
+  it('treats a historical error row as a passive reference instead of a failed feed', async () => {
     mockUseAuth.mockReturnValue(coachAuth())
     mockApi.mockImplementation((url: string) => {
       if (url.includes('team-links')) {
@@ -299,11 +277,56 @@ describe('FussballLinkScreen', () => {
       return Promise.resolve([])
     })
 
-    const { getByText } = render(<FussballLinkScreen />)
+    const { getByText, queryByText } = render(<FussballLinkScreen />)
 
     await waitFor(() => {
-      expect(getByText('ERROR')).toBeTruthy()
-      expect(getByText('fussball.linkErrorNotice')).toBeTruthy()
+      expect(getByText('fussball.referenceLabel')).toBeTruthy()
+    })
+    expect(queryByText('ERROR')).toBeNull()
+    expect(queryByText('fussball.linkErrorNotice')).toBeNull()
+  })
+
+  it('re-submits the original widget snippet and never replaces it with the root URL', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    const widgetId = '47c66e04-204b-49ec-8a54-9e7e429df6c4'
+    const snippet = `<div class="fussballde_widget" data-id="${widgetId}" data-type="competition"></div>`
+    mockApi.mockImplementation((url: string, options?: { method?: string }) => {
+      if (url.endsWith('/team-preview')) {
+        return Promise.resolve({
+          input: snippet,
+          provider: 'widget_embed',
+          externalTeamId: `widget:${widgetId}:competition`,
+          externalUrl: 'https://www.fussball.de/',
+          widgetId,
+          widgetType: 'competition',
+          label: 'FUSSBALL.DE · live widget',
+          competition: null,
+          pitchAddress: null,
+          sourceConfidence: 'official_widget',
+        })
+      }
+      if (url === '/integrations/fussball/team-links' && options?.method === 'POST') {
+        return Promise.resolve({ link: {} })
+      }
+      return Promise.resolve([])
+    })
+
+    const screen = render(<FussballLinkScreen />)
+    fireEvent.changeText(screen.getByPlaceholderText('fussball.inputPlaceholder'), snippet)
+    fireEvent.press(screen.getByText('fussball.previewAction'))
+    await waitFor(() => expect(screen.getByText('fussball.liveWidget')).toBeTruthy())
+    fireEvent.press(screen.getByText('fussball.connectAction'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('/integrations/fussball/team-links', {
+        method: 'POST',
+        headers: { 'x-club-id': 'c1' },
+        body: {
+          teamId: 't1',
+          input: snippet,
+          label: 'FUSSBALL.DE · live widget',
+        },
+      })
     })
   })
 })

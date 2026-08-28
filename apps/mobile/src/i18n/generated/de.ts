@@ -138,20 +138,17 @@ export default {
   invite: {
     changeTeam: 'Mannschaft wechseln',
     heroSubtitle: 'Mannschaft auswählen, E-Mail-Adressen eintragen (eine pro Zeile), absenden.',
-    importRosterCta: 'Kader aus lizenziertem Feed importieren',
-    importRosterSub: 'Spieler aus dem autorisierten Kader-Feed auswählen und gemeinsam einladen.',
+    importRosterCta: 'E-Mail-Empfänger hinzufügen',
+    importRosterSub: 'E-Mail-Adressen hinzufügen und Einladungen gemeinsam versenden.',
     recipientLabelBulk: 'E-MAILS · EINE PRO ZEILE ODER KOMMAGETRENNT',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: '{{count}} zur Einladungsliste hinzufügen',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty: 'Der autorisierte Kader-Feed hat keine Spieler geliefert.',
-    rosterError:
-      'Der lizenzierte Kader-Feed konnte nicht geladen werden. Versuch es erneut oder trage E-Mails manuell ein.',
-    rosterSourceLineup:
-      'Aus der letzten autorisierten Aufstellung übernommen. Spieler ohne Einsatz können fehlen.',
-    rosterSubtitle:
-      'Wähle die Spieler aus, für die du eine E-Mail-Adresse hast, trag sie ein und lade alle auf einmal ein.',
-    rosterTitle: 'Kader aus lizenziertem Feed',
+    rosterEmpty: 'Noch keine Empfänger hinzugefügt.',
+    rosterError: 'Empfänger konnten nicht geladen werden. Trage E-Mail-Adressen manuell ein.',
+    rosterSourceLineup: 'Empfänger werden von der Vereinsverwaltung eingetragen und geprüft.',
+    rosterSubtitle: 'E-Mail-Adressen eintragen und Einladungen gemeinsam versenden.',
+    rosterTitle: 'Einladungsempfänger',
     step1Title: 'Mannschaft wählen',
     step2Title: 'Empfänger hinzufügen',
     step3Title: 'Prüfen & senden',
@@ -423,18 +420,18 @@ export default {
     watchLive: 'Liveticker ansehen',
   },
   matches: {
-    dataAttribution: 'Daten: externe Teamdaten',
+    dataAttribution: 'Spieldetails',
     eventsEmpty: 'Spielereignisse werden hier angezeigt, sobald es losgeht.',
     lineupEmpty:
-      'Die Aufstellung wird angezeigt, sobald öffentliche Quelle die Mannschaft veröffentlicht.',
+      'Die Aufstellung wird angezeigt, sobald der Vereinsstab die Mannschaft veröffentlicht.',
     liveLabel: "LIVE · {{minute}}'",
     motmChange: 'MOTM-Wahl ändern',
     motmEyebrow: 'SPIELER DES SPIELS · LIVE',
     motmTallyLine: '{{votes}} von {{total}} Stimmen · {{pct}}%',
     motmVote: 'Spieler des Spiels wählen',
-    openInFussball: 'In öffentliche Quelle öffnen',
+    openInFussball: 'Offizielle Teamseite öffnen',
     openPhotoWall: 'Fotowand öffnen',
-    scraperAttribution: 'Spielereignisse von öffentliche Quelle',
+    scraperAttribution: 'Spielereignisse vom Vereinsstab erfasst',
     section: {
       bench: 'Auswechselspieler',
       events: 'Spielereignisse',
@@ -515,8 +512,8 @@ export default {
       'Das Team wurde erstellt. Versuche die Verknüpfung erneut in den Teameinstellungen. Die URL könnte falsch sein.',
     fussballLinkFailedTitle: 'öffentliche Quelle konnte noch nicht verknüpft werden',
     fussballSyncFailedBody:
-      'Der lizenzierte Spielplan-Feed konnte nicht synchronisiert werden. Versuche es in den Teameinstellungen erneut.',
-    fussballSyncFailedTitle: 'Lizenzierte Synchronisierung fehlgeschlagen',
+      'Die offizielle Seite konnte nicht gespeichert werden. Prüfe die URL und versuche es erneut.',
+    fussballSyncFailedTitle: 'Offizielle Seite nicht gespeichert',
     fussballUrlHint:
       'Dies speichert eine offizielle Seite als Referenz. Es werden keine Termine oder Spieler importiert und der Link beweist keine Vereinsberechtigung.',
     fussballUrlPlaceholder: 'Offizielle Teamseite (optional)',

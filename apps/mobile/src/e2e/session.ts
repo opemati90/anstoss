@@ -786,6 +786,8 @@ function createLinkedTeams(status: ExternalTeamLinkStatus = 'ACTIVE'): ExternalT
       externalTeamId: 'team-42',
       externalClubId: 'club-42',
       externalUrl: 'https://fussball.de/team/sv-albatros',
+      widgetId: null,
+      widgetType: null,
       label: 'SV Albatros I',
       status,
       lastSyncedAt: nowIso(-1, 8, 0),

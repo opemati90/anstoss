@@ -87,6 +87,8 @@ export class BillingService {
       else features.delete(o.featureSlug)
     }
 
+    const compliance = await this.clubEntitlements.refreshCompliance(clubId, resolved, usage)
+
     return {
       clubId,
       plan: status.plan,
@@ -94,6 +96,7 @@ export class BillingService {
       limits: resolved.limits,
       usage,
       features: Array.from(features),
+      compliance,
     }
   }
 

@@ -137,8 +137,8 @@ export default {
   invite: {
     changeTeam: 'Mudar de equipa',
     heroSubtitle: 'Escolhe uma equipa, adiciona os e-mails (um por linha), envia.',
-    importRosterCta: 'Importar plantel do feed autorizado',
-    importRosterSub: 'Seleciona jogadores do feed autorizado e convida-os em conjunto.',
+    importRosterCta: 'Adicionar destinatários por e-mail',
+    importRosterSub: 'Adiciona endereços de e-mail e envia os convites em conjunto.',
     recipientLabelBulk: 'E-MAILS · UM POR LINHA OU SEPARADOS POR VÍRGULA',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Adicionar {{count}} aos convites',
@@ -150,7 +150,7 @@ export default {
       'Retirado da última convocatória autorizada. Jogadores sem utilização podem não aparecer.',
     rosterSubtitle:
       'Seleciona os jogadores dos quais tens e-mail, adiciona o endereço, envia tudo de uma vez.',
-    rosterTitle: 'Plantel do feed autorizado',
+    rosterTitle: 'Destinatários do convite',
     step1Title: 'Escolher equipa',
     step2Title: 'Adicionar destinatários',
     step3Title: 'Rever e enviar',
@@ -423,17 +423,17 @@ export default {
     watchLive: 'Ver live ticker',
   },
   matches: {
-    dataAttribution: 'Dados: dados externos da equipa',
+    dataAttribution: 'Detalhes do jogo',
     eventsEmpty: 'Os eventos vão aparecer aqui à medida que o jogo avança.',
-    lineupEmpty: 'O onze aparece aqui assim que o fonte pública publicar o plantel.',
+    lineupEmpty: 'O onze aparece aqui quando a equipa técnica do clube publica o plantel.',
     liveLabel: "LIVE · {{minute}}'",
     motmChange: 'Alterar voto MOTM',
     motmEyebrow: 'MELHOR EM CAMPO · LIVE',
     motmTallyLine: '{{votes}} de {{total}} votos · {{pct}}%',
     motmVote: 'Votar no melhor em campo',
-    openInFussball: 'Abrir no fonte pública',
+    openInFussball: 'Abrir página oficial da equipa',
     openPhotoWall: 'Abrir mural de fotos',
-    scraperAttribution: 'Eventos do jogo via fonte pública',
+    scraperAttribution: 'Eventos registados pela equipa técnica do clube',
     section: {
       bench: 'Banco',
       events: 'Eventos do jogo',
@@ -514,7 +514,7 @@ export default {
     fussballLinkFailedTitle: 'Não foi possível ligar o fonte pública ainda',
     fussballSyncFailedBody:
       'Não foi possível sincronizar o feed de calendário autorizado. Tenta novamente nas definições.',
-    fussballSyncFailedTitle: 'Falha na sincronização autorizada',
+    fussballSyncFailedTitle: 'Página oficial não guardada',
     fussballUrlHint:
       'Isto guarda uma página oficial como referência. Não importa jogos ou jogadores e não comprova autoridade no clube.',
     fussballUrlPlaceholder: 'Página oficial da equipa (opcional)',

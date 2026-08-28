@@ -92,8 +92,7 @@ export default function ClubCreate() {
   const validOfficialUrl = /^https:\/\/(?:[^/]+\.)?(?:fussball\.de|dfb\.de|fupa\.net)(?:\/|$)/i.test(
     officialTeamUrl.trim(),
   )
-  const ready =
-    Boolean(pickedClubId) && name.trim().length > 1 && team.trim().length > 1 && validOfficialUrl
+  const ready = name.trim().length > 1 && team.trim().length > 1 && validOfficialUrl
 
   function handleSubmit() {
     update({
@@ -182,7 +181,7 @@ export default function ClubCreate() {
           <Text style={[styles.matchedHint, { color: colors.success ?? colors.primary }]}>
             {t('onboarding.clubCreate.matched', {
               defaultValue:
-                'Matched in the club directory. Badge and team setup can be prefilled; fixture sync needs a licensed feed.',
+                'Matched in the club directory. The official team page can be saved as a reference; fixtures stay under club control.',
             })}
           </Text>
         ) : null}
@@ -231,7 +230,7 @@ export default function ClubCreate() {
             {scraperAvailable
               ? t('onboarding.clubCreate.noMatch', {
                   defaultValue:
-                    'No verified public club match found. Try the official club name or ask Anstoss support to add it.',
+                    'No directory match found. You can still continue with the official club name and team-page link for platform review.',
                 })
               : t('onboarding.clubCreate.scraperOffline', {
                   defaultValue:

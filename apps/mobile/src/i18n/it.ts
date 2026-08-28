@@ -118,6 +118,7 @@ const base = {
   teamSwitcher: {
     title: 'Cambia squadra',
     current: 'Attuale',
+    currentTeam: 'Squadra attuale',
   },
   clubSwitcher: {
     title: 'Cambia club',
@@ -351,15 +352,13 @@ const base = {
     quickActions: 'Azioni rapide',
     noUpcomingEventsTitle: 'Nessun evento in programma',
     noUpcomingEventsBody: 'Allenamenti e partite appariranno qui una volta programmati.',
-    importedMatchPendingTitle: 'Feed calendario autorizzato collegato',
-    importedMatchPendingBody:
-      'Stiamo aspettando la prossima gara dal feed autorizzato.',
-    importedMatchErrorTitle: 'Il feed autorizzato richiede attenzione',
-    importedMatchErrorBody:
-      "L'ultima sincronizzazione del feed autorizzato è fallita. Apri la fonte del calendario per riprovare.",
-    importedMatchEmptyTitle: 'Nessun feed calendario autorizzato collegato',
+    importedMatchPendingTitle: 'Nessuna partita in programma',
+    importedMatchPendingBody: 'Crea la prossima partita nel calendario Anstoss.',
+    importedMatchErrorTitle: 'Controlla il calendario',
+    importedMatchErrorBody: 'Apri il calendario e controlla le partite gestite manualmente.',
+    importedMatchEmptyTitle: 'Nessuna partita pianificata',
     importedMatchEmptyBody:
-      'Salva la pagina ufficiale della squadra come riferimento e aggiungi le gare manualmente finché non sarà disponibile un feed autorizzato.',
+      'Salva la pagina ufficiale come riferimento, poi aggiungi le gare al calendario Anstoss.',
     manageImportedMatch: 'Gestisci fonte del calendario',
     linkFussballTeam: 'Link ufficiali della squadra',
     actionCreateEvent: 'Crea evento',
@@ -367,7 +366,7 @@ const base = {
     actionChat: 'Apri chat',
     actionRoster: 'Apri rosa',
     actionInvite: 'Invita giocatori',
-    actionFussball: 'Sincro partite',
+    actionFussball: 'Pagina ufficiale',
     activation: {
       eyebrow: 'PRONTI PER LA PARTITA',
       title: 'Completa la configurazione del club',
@@ -377,6 +376,9 @@ const base = {
       invite: 'Invita la rosa',
       availability: 'Crea la prima richiesta di disponibilità',
       progress: '{{completed}} di {{total}} passaggi completati',
+      loadErrorTitle: 'Configurazione non disponibile',
+      loadErrorBody:
+        'Non è stato possibile verificare alcuni passaggi. Riprova prima di continuare.',
     },
     actionMyTeam: 'Apri squadra',
     announce: 'Annuncio',
@@ -763,48 +765,55 @@ const base = {
     eyebrow: 'Riferimento ufficiale del club',
     title: 'Link squadra FUSSBALL.DE',
     subtitle:
-      'Salva la pagina pubblica ufficiale di {{team}}. Le importazioni automatiche restano disattivate finché Anstoss non dispone di un feed autorizzato.',
+      'Mostra il widget ufficiale live di {{team}}, oppure salva la pagina ufficiale come riferimento.',
     linkTitle: 'Salva la pagina ufficiale della squadra',
     linkBody:
-      "Incolla l'URL canonico FUSSBALL.DE. Il link è solo un riferimento: non prova l'autorità del club e non importa dati dei membri.",
-    inputPlaceholder: 'https://www.fussball.de/mannschaft/...',
-    previewAction: 'Verifica link',
-    connectAction: 'Salva link ufficiale',
-    linkedFeeds: 'Link ufficiali e feed autorizzati',
-    upcomingFixtures: 'Prossime gare importate',
-    syncNow: 'Sincronizza ora',
+      'Incolla il codice da FUSSBALL.DE → I miei widget → Mostra codice, oppure l’URL HTTPS ufficiale della squadra.',
+    inputPlaceholder: '<div class="fussballde_widget" data-id="…" data-type="…">',
+    previewAction: 'Verifica codice o link',
+    connectAction: 'Salva widget o pagina',
+    linkedPages: 'Pagine ufficiali della squadra',
+    referenceOnly: 'Solo riferimento · nessun dato viene importato',
+    liveWidget: 'Widget ufficiale in tempo reale · gestito da FUSSBALL.DE/DFBnet',
+    widgetLabel: 'Widget live',
+    referenceLabel: 'Riferimento',
+    openPage: 'Apri la pagina {{provider}}',
+    openExternal: 'Apri nel browser',
+    createFixtureManually: 'Crea partita manualmente',
+    linkedFeeds: 'Widget e pagine ufficiali della squadra',
+    upcomingFixtures: 'Gare mostrate nel widget ufficiale',
+    syncNow: 'Apri pagina',
     loadError: 'Impossibile caricare i dati dati squadra esterni in questo momento.',
-    inputRequired: 'Incolla prima un URL o un ID squadra dati squadra esterni.',
+    inputRequired: 'Incolla prima il codice widget o l’URL ufficiale della squadra.',
     previewErrorTitle: 'Impossibile visualizzare la squadra',
     previewErrorBody:
       'La pagina della squadra su dati squadra esterni non è raggiungibile in questo momento.',
     connectSuccessTitle: 'Squadra collegata',
     connectSuccessBody: 'Il riferimento alla pagina ufficiale della squadra è stato salvato.',
     connectPartialBody:
-      'Il collegamento è stato salvato, ma non ci sono ancora dati aggiornati. Controlla la fonte e sincronizza di nuovo.',
+      'La pagina ufficiale è stata salvata come riferimento. Le gare Anstoss restano gestite manualmente.',
     connectSyncFailedBody:
-      'La squadra è stata collegata, ma la prima sincronizzazione è fallita. Controlla la fonte e riprova.',
+      'La pagina ufficiale è stata salvata, ma il widget non può essere mostrato. Controlla il codice fornito.',
     connectErrorTitle: 'Impossibile salvare il collegamento',
     connectErrorBody: 'Il collegamento della squadra non può essere salvato in questo momento.',
-    syncSuccessTitle: 'Feed aggiornato',
-    syncSuccessBody: '{{count}} record di gare aggiornati.',
-    syncErrorTitle: 'Impossibile sincronizzare la squadra',
-    syncErrorBody:
-      'Non è stato possibile aggiornare il feed dati squadra esterni collegato in questo momento.',
+    syncSuccessTitle: 'Pagina ufficiale aperta',
+    syncSuccessBody: 'Il contenuto è fornito direttamente da FUSSBALL.DE.',
+    syncErrorTitle: 'Impossibile aprire la pagina',
+    syncErrorBody: 'La pagina ufficiale non è disponibile in questo momento.',
     competitionUnknown: 'Competizione ancora sconosciuta',
     pitchPending: "L'indirizzo del campo non era ancora visibile sulla fonte pubblica.",
     noTeamTitle: 'Nessuna squadra attiva selezionata',
-    noTeamBody: 'Scegli prima una squadra prima di collegare un feed dati squadra esterni.',
-    noLinksTitle: 'Nessun feed collegato',
+    noTeamBody: 'Scegli prima una squadra prima di aggiungere il suo widget o la pagina ufficiale.',
+    noLinksTitle: 'Nessun widget o pagina salvato',
     noLinksBody:
-      'Salva qui la pagina ufficiale della squadra. Inserisci le gare manualmente finché non sarà disponibile un feed autorizzato.',
-    noFixturesTitle: 'Nessuna gara importata',
+      'Salva qui la pagina ufficiale della squadra e inserisci le gare manualmente in Anstoss.',
+    noFixturesTitle: 'Gare gestite in Anstoss',
     noFixturesBody:
-      'Il feed è collegato, ma non abbiamo ancora una gara in programma nella finestra di sincronizzazione attuale.',
+      'Il widget ufficiale appare separatamente; aggiungi manualmente gli eventi al calendario Anstoss.',
     linkErrorNotice:
-      "Questo feed necessita di revisione. L'ultima sincronizzazione è fallita o ha restituito dati incompleti.",
-    lastSynced: 'Ultima sincronizzazione: {{value}}',
-    neverSynced: 'Mai sincronizzato',
+      'Questa pagina ufficiale deve essere verificata. Salva di nuovo un codice widget o un URL valido.',
+    lastSynced: 'Ultimo aggiornamento: {{value}}',
+    neverSynced: 'Non ancora aggiornato',
     status: {
       scheduled: 'Programmata',
       live: 'In corso',
@@ -872,9 +881,9 @@ const base = {
       factsTitle: 'Ancora nessuna statistica',
       factsEmpty: 'Possesso palla, tiri e scontri diretti appariranno appena disponibili.',
     },
-    openFussball: 'Apri su fonte pubblica',
+    openFussball: 'Apri la pagina ufficiale della squadra',
     tableEmpty: 'Ancora nessun dato di classifica',
-    tableEmptyBody: 'La classifica apparirà qui una volta importate le partite con le istantanee.',
+    tableEmptyBody: 'La classifica apparirà quando saranno disponibili dati per le partite gestite dal club.',
   },
   event: {
     upcoming: 'Prossimi eventi',
@@ -1152,6 +1161,9 @@ const base = {
       "Scegli la squadra, il ruolo e il tipo di accesso affinché ogni invito arrivi nella squadra giusta fin dall'inizio.",
     teamLabel: 'Squadra',
     roleLabel: 'Ruolo',
+    coachRoleLabel: 'RUOLO ALLENATORE',
+    coachRoleHelp:
+      'L’allenatore accede solo a questa squadra. I permessi amministrativi del club vengono assegnati separatamente.',
     phaseLabel: 'Accesso',
     recipientLabel: 'Destinatario',
     rolePlayer: 'Giocatore',
@@ -1244,7 +1256,8 @@ const base = {
     pendingBody:
       "Abbiamo richiesto l'approvazione del genitore. Non appena sarà confermata, potrai usare la squadra su Anstoss.",
     pendingClubTitle: 'Richiesta inviata al club',
-    pendingClubBody: "Un amministratore del club esaminerà la richiesta prima di attivare l'accesso.",
+    pendingClubBody:
+      "Un amministratore del club esaminerà la richiesta prima di attivare l'accesso.",
     inactiveTitle: 'Questo invito non è più attivo',
     acceptedBody:
       'Questo invito è già stato riscattato. Se il tuo accesso è già attivo, apri direttamente Anstoss.',
@@ -1330,6 +1343,7 @@ const base = {
     timeMinutes: '{{count}} min fa',
     timeHours: '{{count}} h fa',
     messageDeleted: 'Messaggio eliminato',
+    moderationHint: 'Tieni premuto per segnalare o bloccare',
     menuReply: 'Rispondi',
     menuCopy: 'Copia',
     menuPin: 'Fissa',
@@ -1445,7 +1459,7 @@ const base = {
     invitePlayers: 'Invita giocatori',
     activeTeam: 'Squadra attiva',
     fussballLink: 'Link ufficiale della squadra',
-    fussballLinkSubtitle: 'Salva la pagina pubblica come riferimento; i feed autorizzati si sincronizzano separatamente',
+    fussballLinkSubtitle: 'Salva e visualizza la pagina ufficiale della squadra in Anstoss',
     manageTeams: 'Gestisci squadre',
     manageStaff: 'Gestisci ruoli del club',
     manageStaffSubtitle: 'Assegna admin, allenatori e altro staff del club',
@@ -1589,6 +1603,11 @@ const base = {
     title: 'Mantieni chiare le responsabilità del club',
     subtitle: "Decidi chi ha responsabilità amministrative o sportive all'interno di {{clubName}}.",
     accessRequests: 'Richieste di accesso in sospeso',
+    addStaff: 'Aggiungi membro dello staff',
+    addStaffHelp:
+      'Invita un allenatore per una sola squadra. L’accesso da allenatore non concede l’amministrazione del club.',
+    inviteCoach: 'Invita allenatore',
+    inviteCoachBody: 'Invia un invito personale via email e scegli il ruolo nella squadra.',
     accessRequestsHint:
       'Solo proprietari e amministratori possono approvare l’accesso al club o come allenatore.',
     noTeamRole: 'Nessun ruolo nella squadra',
@@ -1652,6 +1671,7 @@ const base = {
       'Assegna le responsabilità di segretario o tesoriere a qualcun altro prima di rimuovere questo membro.',
     roleLockedGeneric: 'Nessuna modifica disponibile',
     loadError: 'Impossibile caricare i membri del club in questo momento.',
+    loadErrorTitle: 'Impossibile caricare lo staff',
     roleUpdateError: 'Impossibile salvare il ruolo del club in questo momento.',
     operationalRolesSaveError: 'Impossibile salvare le responsabilità operative in questo momento.',
     offboardTitle: 'Rimuovere {{name}}?',
@@ -1924,7 +1944,8 @@ const base = {
     },
     clubCreate: {
       officialTeamUrlLabel: 'Pagina ufficiale della squadra',
-      officialTeamUrlHelp: 'Incolla la pagina ufficiale della squadra come contesto per la revisione della piattaforma. Il link non dimostra la tua autorità nel club.',
+      officialTeamUrlHelp:
+        'Incolla la pagina ufficiale della squadra come contesto per la revisione della piattaforma. Il link non dimostra la tua autorità nel club.',
       title: 'Crea il tuo club',
       hint: 'Inserisci il tuo club e una squadra per iniziare. Potrai aggiungere altre squadre in seguito.',
       nameLabel: 'Nome del club',
@@ -2195,6 +2216,7 @@ const base = {
     removeConfirm: 'Rimuovi',
     removeOwnerError: 'I proprietari non possono essere rimossi.',
     removeError: 'Impossibile rimuoverlo. Riprova.',
+    loadErrorTitle: 'Impossibile caricare lo staff',
   },
   adminBilling: {
     title: 'Finanze del club',
@@ -2222,9 +2244,19 @@ const base = {
     stripeNotConnected: 'Account Stripe non collegato',
     setupStripe: 'Configura Stripe',
     unavailable: 'La configurazione dei pagamenti non è disponibile.',
+    overQuotaTitle: 'Limite del piano superato',
+    overQuotaBody:
+      '{{teams}} squadra/e e {{players}} posto/i giocatore in più. I dati restano disponibili; le nuove attivazioni sono bloccate fino al {{date}}.',
+    reviewPlan: 'Gestisci capacità del club',
   },
   contributions: {
     sectionTitle: 'Contributi dei membri',
+    reconciliationTitle: 'Riconciliazione bancaria',
+    reconciliationSubtitle:
+      'Importa un file CSV o CAMT.053 e conferma manualmente gli abbinamenti.',
+    reconciliation: {
+      title: 'Riconciliazione bancaria', fileTooLargeTitle: 'File troppo grande', fileTooLargeBody: 'Scegli un file CSV o CAMT.053 inferiore a 10 MB.', invalidAmount: 'Inserisci un importo non superiore al bonifico o alla quota residua.', accessErrorTitle: 'Impossibile verificare l’accesso al piano', accessErrorBody: 'Controlla la connessione e riprova. Il piano non è stato modificato.', proTitle: 'La riconciliazione bancaria è una funzione Pro', proBody: 'Import CSV e CAMT.053, abbinamenti, storni e cronologia sono disponibili con Pro e Scale.', viewPlans: 'Vedi piani', introTitle: 'Abbina i bonifici', introBody: 'Importa i movimenti in entrata. Anstoss propone gli abbinamenti; un amministratore conferma ogni allocazione.', importing: 'Importazione…', importAction: 'Importa CSV o CAMT.053', loadErrorTitle: 'Impossibile caricare le importazioni', loadErrorBody: 'Controlla la connessione e riprova.', emptyTitle: 'Nessun estratto importato', emptyBody: 'Inizia con un export CSV o un file CAMT.053 del conto del club.', recentImports: 'Importazioni recenti', transactionCount: '{{count}} transazioni', manualTitle: 'Abbinamento manuale', manualFooter: 'Scegli la quota e l’importo esatto. Ogni allocazione resta reversibile e registrata.', unknownPayer: 'Pagante sconosciuto', noReference: 'Nessun riferimento', match: 'Abbina', suggestionsTitle: 'Abbinamenti suggeriti', suggestionsFooter: 'I suggerimenti non segnano una quota come pagata finché non li confermi.', noSuggestionsTitle: 'Nessun suggerimento aperto', noSuggestionsBody: 'L’estratto è stato esaminato o richiede un abbinamento manuale.', confidence: 'Confidenza {{value}}%', confirm: 'Conferma', confirmedTitle: 'Allocazioni confermate', reverse: 'Storna', reverseTitle: 'Storna l’abbinamento', reverseBody: 'L’allocazione verrà rimossa dal saldo. L’abbinamento originale e il motivo restano nella cronologia.', reason: 'Motivo', reasonPlaceholder: 'Ad esempio: bonifico restituito dalla banca', reverseAction: 'Storna allocazione', manualSheetTitle: 'Abbina manualmente il bonifico', manualSheetBody: 'Seleziona la quota e conferma l’importo da allocare.', outstandingListLabel: 'Quote in sospeso', amount: 'Importo', confirmAllocation: 'Conferma allocazione',
+    },
     heroTitle: 'Gestisci le quote senza rincorrere su WhatsApp',
     heroBody:
       'Crea piani mensili o annuali, assegna i membri, aggiorna lo stato dei pagamenti e invia promemoria da un unico spazio finance.',
@@ -2403,7 +2435,8 @@ const base = {
     conversationWith: 'Conversazione con',
     startConversationWith: 'Inizia conversazione con',
     resolveError: 'Impossibile aprire la conversazione.',
-    restricted: 'Per proteggere i minori, i messaggi privati sono consentiti solo ai tutori collegati.',
+    restricted:
+      'Per proteggere i minori, i messaggi privati sono consentiti solo ai tutori collegati.',
   },
   myTeam: {
     title: 'La Mia Squadra',

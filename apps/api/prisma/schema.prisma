@@ -74,6 +74,7 @@ model User {
   messageReactions               MessageReaction[]
   messageReadReceipts            MessageReadReceipt[]
   messageReports                 MessageReport[]           @relation("MessageReportReporter")
+  directMessageReports           DirectMessageReport[]     @relation("DirectMessageReportReporter")
   blocksMade                     UserBlock[]               @relation("UserBlockBlocker")
   blocksReceived                 UserBlock[]               @relation("UserBlockBlocked")
   pollVotes                      PollVote[]
@@ -159,6 +160,7 @@ model Club {
   inviteCampaigns         InviteCampaign[]
   inviteRedemptions       InviteRedemption[]
   entitlementGrants       EntitlementGrant[]
+  planCompliance          ClubPlanCompliance?
   bankImportBatches       BankImportBatch[]
   bankTransactions        BankTransaction[]
   contributionMatches     ContributionMatch[]
@@ -246,6 +248,11 @@ enum OwnershipTransferStatus {
   EXPIRED
 }
 
+enum OwnershipTransferChallengeAction {
+  INITIATE
+  ACCEPT
+}
+
 enum InviteCampaignType {
   IDENTITY_BOUND
   APPROVAL_REQUIRED
@@ -283,6 +290,11 @@ enum EntitlementStatus {
   REVOKED
 }
 
+enum ClubPlanComplianceStatus {
+  OVER_QUOTA
+  RESOLVED
+}
+
 enum BankImportStatus {
   PARSED
   REVIEWED
@@ -294,6 +306,7 @@ enum ContributionMatchStatus {
   SUGGESTED
   CONFIRMED
   REJECTED
+  REVERSED
 }
 
 // ─── Membership (User ↔ Club bridge) ────────────────────
@@ -521,6 +534,23 @@ model OwnershipTransfer {
 
   @@index([clubId, status])
   @@index([toUserId, status])
+}
+
+model OwnershipTransferChallenge {
+  id           String                           @id @default(cuid())
+  clubId       String
+  transferId   String?
+  actorUserId  String
+  targetUserId String
+  action       OwnershipTransferChallengeAction
+  codeHash     String
+  attempts     Int                              @default(0)
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime                         @default(now())
+
+  @@index([actorUserId, action, createdAt])
+  @@index([transferId, action])
 }
 
 // ─── Team hierarchy ─────────────────────────────────────
@@ -946,6 +976,9 @@ model MessageReport {
   messageId      String
   reporterUserId String
   reason         String // free-text + canonical reasons (SPAM/ABUSE/INAPPROPRIATE/OTHER)
+  evidenceContent        String?
+  evidenceAttachmentUrl  String?
+  evidenceAttachmentMeta Json?
   resolvedAt     DateTime?
   resolvedById   String?
   resolution     String? // free-text resolution note from admin
@@ -1123,6 +1156,7 @@ model InviteCampaign {
   useCount       Int                  @default(0)
   status         InviteCampaignStatus @default(ACTIVE)
   expiresAt      DateTime
+  retiredAt      DateTime?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
@@ -1159,6 +1193,8 @@ model ExternalTeamLink {
   externalTeamId String
   externalClubId String?
   externalUrl    String
+  widgetId       String?
+  widgetType     String?
   label          String
   status         ExternalTeamLinkStatus @default(ACTIVE)
   lastSyncedAt   DateTime?
@@ -1454,6 +1490,23 @@ model EntitlementGrant {
   @@index([planDefinitionId])
 }
 
+model ClubPlanCompliance {
+  id                String                   @id @default(cuid())
+  clubId            String                   @unique
+  status            ClubPlanComplianceStatus @default(OVER_QUOTA)
+  tier              PlanTier
+  excessTeams       Int                      @default(0)
+  excessPlayers     Int                      @default(0)
+  detectedAt        DateTime                 @default(now())
+  remediationEndsAt DateTime
+  notifiedAt        DateTime?
+  resolvedAt        DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
+
 model PaymentEvent {
   id            String   @id @default(cuid())
   clubId        String
@@ -1606,6 +1659,9 @@ model ContributionMatch {
   status        ContributionMatchStatus @default(SUGGESTED)
   confirmedById String?
   confirmedAt   DateTime?
+  reversedById  String?
+  reversedAt    DateTime?
+  reversalReason String?
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
 
@@ -1840,8 +1896,29 @@ model DirectMessage {
   createdAt      DateTime     @default(now())
 
   translations DirectMessageTranslation[]
+  reports      DirectMessageReport[]
 
   @@index([conversationId, createdAt])
+}
+
+model DirectMessageReport {
+  id              String   @id @default(cuid())
+  directMessageId String
+  reporterUserId  String
+  reason          String
+  evidenceContent String?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolution      String?
+  createdAt       DateTime @default(now())
+
+  directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+  reporter      User          @relation("DirectMessageReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+
+  @@unique([directMessageId, reporterUserId])
+  @@index([directMessageId])
+  @@index([reporterUserId])
+  @@index([resolvedAt])
 }
 
 model DirectMessageTranslation {

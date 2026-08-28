@@ -5,6 +5,7 @@ import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
 import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
 import { isHttpOriginAllowed } from './http-cors'
+import { defaultHttpBodyParsers, httpBodyParsers } from './http-body-parsers'
 
 // Sentry must init before NestJS bootstrap
 initSentry()
@@ -21,7 +22,7 @@ async function bootstrap() {
     }
   }
 
-  const app = await NestFactory.create(AppModule, { rawBody: true })
+  const app = await NestFactory.create(AppModule, { rawBody: true, bodyParser: false })
 
   const express = app.getHttpAdapter().getInstance()
 
@@ -32,6 +33,12 @@ async function bootstrap() {
   // than the immediate hop. The rate-limit guard keys anonymous requests on
   // `req.ip`; without this, every request looks like it comes from the proxy.
   express.set('trust proxy', 1)
+
+  // Only the bank-statement import accepts a large JSON envelope. Mount this
+  // parser first so uploads up to the service's strict 10 MB decoded-file
+  // limit reach validation; every other API route keeps the 100 KB ceiling.
+  express.post('/clubs/:clubId/contributions/imports', ...httpBodyParsers())
+  app.use(...defaultHttpBodyParsers())
 
   // Helmet: secure headers (CSP, X-Frame-Options, HSTS, etc). Default
   // policy is sane for a JSON API; CSP is loosened slightly for /docs

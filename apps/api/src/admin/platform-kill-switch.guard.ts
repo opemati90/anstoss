@@ -37,7 +37,8 @@ const ROUTES: Array<{ key: KillSwitchKey; pattern: RegExp }> = [
   },
   {
     key: 'kill_switch_chat',
-    pattern: /^\/(?:chat|channels|dm|conversations|messages)(?:\/|$)/,
+    pattern:
+      /^\/(?:chat|channels|dm|conversations|messages|polls|teams\/[^/]+\/(?:channels|messages)|clubs\/[^/]+\/(?:channels|conversations|teams\/[^/]+\/messages))(?:\/|$)/,
   },
 ]
 
@@ -54,6 +55,10 @@ export class PlatformKillSwitchGuard implements CanActivate {
     }>()
     const path = normalizePath(request.path ?? request.originalUrl ?? '/')
     if (path.startsWith('/admin/')) return true
+    // Stripe lifecycle events remain authoritative even when new billing
+    // mutations are paused. Blocking this route would leave paid access in a
+    // stale state after cancellations or failed payments.
+    if (path === '/billing/webhooks/stripe') return true
 
     const route = ROUTES.find((candidate) => candidate.pattern.test(path))
     if (!route) return true

@@ -25,9 +25,7 @@ import {
   type MatchComparisonMetric,
   type MatchFacts,
   type MatchFormResult,
-  type MatchGoalTiming,
   type MatchRecentForm,
-  type MatchTopScorers,
   type SaveFixtureLineupInput,
   type SyncRun,
   type TeamFixturesQueryInput,
@@ -49,7 +47,6 @@ import {
   FussballScraperClient,
   isLicensedFussballFeedEnabled,
   type ScraperGame,
-  type ScraperScoringInsights,
 } from './fussball-scraper.client'
 import {
   type ApiFussballGame,
@@ -110,6 +107,8 @@ type TeamLinkRecord = {
   externalTeamId: string
   externalClubId: string | null
   externalUrl: string
+  widgetId: string | null
+  widgetType: string | null
   label: string
   status: string
   lastSyncedAt: Date | null
@@ -219,6 +218,22 @@ export class FussballService {
   }
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
+    const widget = parseOfficialFussballWidget(input)
+    if (widget) {
+      return {
+        input,
+        provider: 'widget_embed',
+        externalTeamId: `widget:${widget.id}:${widget.type}`,
+        externalUrl: 'https://www.fussball.de/',
+        widgetId: widget.id,
+        widgetType: widget.type,
+        label: 'FUSSBALL.DE · live widget',
+        competition: null,
+        pitchAddress: null,
+        sourceConfidence: 'official_widget',
+      }
+    }
+
     const externalUrl = canonicalOfficialTeamPage(input)
     const externalTeamId =
       extractFussballTeamId(externalUrl) ??
@@ -229,6 +244,8 @@ export class FussballService {
       provider: 'fussball_public_page',
       externalTeamId,
       externalUrl,
+      widgetId: null,
+      widgetType: null,
       label: `${brand} · official team page`,
       competition: null,
       pitchAddress: null,
@@ -368,7 +385,8 @@ export class FussballService {
     }
 
     const preview = await this.previewTeamLink(input.input)
-    const provider: ExternalDataProvider = 'FUSSBALL_PUBLIC_PAGE'
+    const provider: ExternalDataProvider =
+      preview.provider === 'widget_embed' ? 'WIDGET_EMBED' : 'FUSSBALL_PUBLIC_PAGE'
     const existing = await this.prisma.externalTeamLink.findFirst({
       where: {
         teamId: input.teamId,
@@ -382,6 +400,8 @@ export class FussballService {
           where: { id: existing.id },
           data: {
             externalUrl: preview.externalUrl,
+            widgetId: preview.widgetId,
+            widgetType: preview.widgetType,
             label: input.label?.trim() || preview.label,
             status: 'ACTIVE',
           },
@@ -394,6 +414,8 @@ export class FussballService {
             externalTeamId: preview.externalTeamId,
             externalClubId: null,
             externalUrl: preview.externalUrl,
+            widgetId: preview.widgetId,
+            widgetType: preview.widgetType,
             label: input.label?.trim() || preview.label,
             status: 'ACTIVE',
           },
@@ -722,9 +744,8 @@ export class FussballService {
 
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
 
-    // Prefer a coach-built lineup (fussball.de exposes no structured amateur
-    // lineups). It's stored on the fixture overlay for the linked team; place it
-    // on the home/away side that matches the linked team's perspective.
+    // Coach-built lineups are the only runtime lineup source. Official
+    // association pages are reference-only and are never scraped.
     const storedSide = getStoredLineupSide(fixture.overlay)
     if (storedSide) {
       const link = await this.prisma.externalTeamLink.findFirst({
@@ -747,44 +768,13 @@ export class FussballService {
       }
     }
 
-    const licensedLineup = extractLineupFromRawPayload(fixture.rawPayload)
-    if (licensedLineup) {
-      void this.seedRosterFromLineup(fixture, licensedLineup).catch(() => undefined)
-      return {
-        fixtureId: fixture.id,
-        externalMatchId: fixture.externalMatchId,
-        fetchedAt: fixture.updatedAt.toISOString(),
-        status: 'available',
-        home: normalizeLineupSide(licensedLineup.home),
-        away: normalizeLineupSide(licensedLineup.away),
-      }
-    }
-
-    const bundle = await this.provider.fetchMatchLineup(fixture.externalMatchId).catch(() => null)
-
-    if (!bundle) {
-      return {
-        fixtureId: fixture.id,
-        externalMatchId: fixture.externalMatchId,
-        fetchedAt: new Date().toISOString(),
-        status: 'pending',
-        home: null,
-        away: null,
-      }
-    }
-
-    // Seed RosterSlot rows for the linked team using the public lineup —
-    // public Fussball.de exposes name, jersey, position (no DOB or phone).
-    // Fire-and-forget: a seed failure must never break the lineup view.
-    void this.seedRosterFromLineup(fixture, bundle).catch(() => undefined)
-
     return {
       fixtureId: fixture.id,
       externalMatchId: fixture.externalMatchId,
       fetchedAt: new Date().toISOString(),
-      status: 'available',
-      home: normalizeLineupSide(bundle.home),
-      away: normalizeLineupSide(bundle.away),
+      status: 'pending',
+      home: null,
+      away: null,
     }
   }
 
@@ -856,86 +846,18 @@ export class FussballService {
     if (!fixture) throw new NotFoundException('Imported fixture not found')
     await this.teamsService.assertReadableAccess(userId, fixture.teamId)
 
-    const [recentForm, scoring] = await Promise.all([
-      this.buildRecentForm(fixture.teamId, fixture.teamLink?.label ?? '', fixture.kickoffAt),
-      this.buildScraperScoringFacts(fixture.teamLink, fixture.homeTeam, fixture.awayTeam),
-    ])
+    const recentForm = await this.buildRecentForm(
+      fixture.teamId,
+      fixture.teamLink?.label ?? '',
+      fixture.kickoffAt,
+    )
 
     return {
       comparison: buildMatchComparison(fixture.tableSnapshot, fixture.homeTeam, fixture.awayTeam),
       recentForm,
-      goalTiming: scoring.goalTiming,
-      topScorers: scoring.topScorers,
+      goalTiming: null,
+      topScorers: null,
     }
-  }
-
-  /**
-   * Goal-timing + top-scorer facts derived from the fussball scraper's
-   * `scoring-insights` endpoint for the linked team. Best-effort: any missing
-   * config, wrong provider, open circuit, or scrape failure degrades to nulls
-   * so the DB-only facts (comparison, form) always render.
-   */
-  private async buildScraperScoringFacts(
-    link: {
-      label: string
-      provider: ExternalDataProvider
-      externalTeamId: string
-    } | null,
-    homeTeam: string,
-    awayTeam: string,
-  ): Promise<{
-    goalTiming: MatchGoalTiming | null
-    topScorers: MatchTopScorers | null
-  }> {
-    const empty = { goalTiming: null, topScorers: null }
-    if (!link || link.provider !== 'API_FUSSBALL' || !link.externalTeamId) {
-      return empty
-    }
-    if (!this.scraper.isAvailable()) return empty
-
-    let insights: ScraperScoringInsights | null
-    try {
-      insights = await this.scraper.getTeamScoringInsights(link.externalTeamId)
-    } catch {
-      return empty
-    }
-    if (!insights) return empty
-
-    const teamName = insights.team_name || link.label || ''
-
-    // Goal timing — only surface when the sample actually has goals.
-    const bands = insights.goal_timing?.bands ?? []
-    const hasGoals = bands.some((b) => b.scored > 0 || b.conceded > 0)
-    const goalTiming: MatchGoalTiming | null = hasGoals
-      ? {
-          teamName,
-          bands: bands.map((b) => ({
-            label: b.label,
-            scored: b.scored,
-            conceded: b.conceded,
-          })),
-        }
-      : null
-
-    // Top scorers — attach to whichever side the linked team plays here.
-    const scorers = (insights.top_scorers ?? []).map((s) => ({
-      name: s.name,
-      goals: s.goals,
-      matches: s.matches,
-    }))
-    let topScorers: MatchTopScorers | null = null
-    if (scorers.length > 0) {
-      const perspective = inferLinkedTeamPerspective(link.label || teamName, homeTeam, awayTeam)
-      const linkedIsHome = perspective.isHome ?? true
-      topScorers = {
-        homeTeam,
-        awayTeam,
-        home: linkedIsHome ? scorers : [],
-        away: linkedIsHome ? [] : scorers,
-      }
-    }
-
-    return { goalTiming, topScorers }
   }
 
   /** Linked team's last 5 finished results going into the given kickoff. */
@@ -1965,12 +1887,8 @@ function toSharedProvider(provider: string): ExternalTeamLink['provider'] {
   }
 }
 
-function serializeLink(
-  link: TeamLinkRecord,
-  licensedFeedOperational: boolean,
-): ExternalTeamLink {
-  const licensedApiAvailable =
-    link.provider === 'API_FUSSBALL' && licensedFeedOperational
+function serializeLink(link: TeamLinkRecord, licensedFeedOperational: boolean): ExternalTeamLink {
+  const licensedApiAvailable = link.provider === 'API_FUSSBALL' && licensedFeedOperational
 
   return {
     id: link.id,
@@ -1980,6 +1898,8 @@ function serializeLink(
     externalTeamId: link.externalTeamId,
     externalClubId: link.externalClubId,
     externalUrl: link.externalUrl,
+    widgetId: link.widgetId,
+    widgetType: link.widgetType,
     label: link.label,
     status: link.status as ExternalTeamLink['status'],
     lastSyncedAt: link.lastSyncedAt?.toISOString() || null,
@@ -2116,50 +2036,6 @@ function isTableSnapshotRow(value: unknown): value is ClubPublicSummary['table']
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function extractLineupFromRawPayload(rawPayload: unknown): ApiFussballLineupBundle | null {
-  const payload = getFeedPayload(rawPayload)
-  const lineup = isRecord(payload?.lineup) ? payload.lineup : null
-  if (!lineup) return null
-
-  const home = parseLineupSide(lineup.home)
-  const away = parseLineupSide(lineup.away)
-  if (!home && !away) return null
-
-  return {
-    home: home ?? { formation: null, starters: [], bench: [] },
-    away: away ?? { formation: null, starters: [], bench: [] },
-  }
-}
-
-function parseLineupSide(value: unknown): ApiFussballLineupSide | null {
-  if (!isRecord(value)) return null
-  const starters = parseLineupPlayers(value.starters)
-  const bench = parseLineupPlayers(value.bench)
-  if (starters.length === 0 && bench.length === 0) return null
-  return {
-    formation: typeof value.formation === 'string' ? value.formation : null,
-    starters,
-    bench,
-  }
-}
-
-function parseLineupPlayers(value: unknown): ApiFussballLineupSide['starters'] {
-  if (!Array.isArray(value)) return []
-  const players: ApiFussballLineupSide['starters'] = []
-  for (const entry of value) {
-    if (!isRecord(entry)) continue
-    const name = typeof entry.name === 'string' ? entry.name.trim() : ''
-    if (!name) continue
-    players.push({
-      name,
-      number: toNullableInt(entry.number as string | number | null | undefined),
-      position: typeof entry.position === 'string' ? entry.position : null,
-      isCaptain: entry.isCaptain === true,
-    })
-  }
-  return players
 }
 
 function extractTimelineEventsFromRawPayload(
@@ -2502,6 +2378,41 @@ function buildMatchComparison(
 
 const OFFICIAL_TEAM_PAGE_HOSTS = ['fussball.de', 'dfb.de', 'fupa.net'] as const
 
+function parseOfficialFussballWidget(input: string) {
+  const trimmed = input.trim()
+  if (!/fussballde_widget/i.test(trimmed)) return null
+
+  const widgetId = trimmed.match(/data-id\s*=\s*["']([A-Za-z0-9-]{8,80})["']/i)?.[1]
+  const widgetType = trimmed.match(/data-type\s*=\s*["']([a-z][a-z0-9_-]{1,39})["']/i)?.[1]
+  if (!widgetId || !widgetType) {
+    throw new BadRequestException(
+      'Paste the complete FUSSBALL.DE widget code from “Meine Widgets” → “Code anzeigen”.',
+    )
+  }
+
+  const scriptSources = Array.from(
+    trimmed.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi),
+  ).map((match) => match[1])
+  if (
+    scriptSources.some((source) => {
+      try {
+        const url = new URL(source)
+        const hostname = url.hostname.toLowerCase()
+        return (
+          url.protocol !== 'https:' ||
+          (hostname !== 'fussball.de' && !hostname.endsWith('.fussball.de'))
+        )
+      } catch {
+        return true
+      }
+    })
+  ) {
+    throw new BadRequestException('Only the official FUSSBALL.DE widget script is allowed.')
+  }
+
+  return { id: widgetId, type: widgetType }
+}
+
 function canonicalOfficialTeamPage(input: string) {
   const trimmed = input.trim()
   let parsed: URL
@@ -2509,7 +2420,7 @@ function canonicalOfficialTeamPage(input: string) {
     parsed = new URL(trimmed)
   } catch {
     throw new BadRequestException(
-      'Paste a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
+      'Paste a FUSSBALL.DE widget code or a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
     )
   }
   const hostname = parsed.hostname.toLowerCase()
@@ -2525,7 +2436,7 @@ function canonicalOfficialTeamPage(input: string) {
     !isOfficialHost
   ) {
     throw new BadRequestException(
-      'Paste a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
+      'Paste a FUSSBALL.DE widget code or a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
     )
   }
   parsed.hash = ''

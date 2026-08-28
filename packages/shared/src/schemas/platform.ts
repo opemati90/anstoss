@@ -55,26 +55,33 @@ export const auditEventTypeSchema = z.enum([
   'club.claim_reviewed',
   'club.claim_withdrawn',
   'club.claim_information_submitted',
+  'club.claim_expired',
   'club.staff_access_approved',
   'club.ownership_transfer_started',
   'club.ownership_transfer_accepted',
   'club.ownership_transfer_cancelled',
+  'club.ownership_transfer_expired',
   'club.ownership_dispute_opened',
   'club.ownership_dispute_resolved',
   'membership.created',
   'invite.created',
   'invite.redeemed',
+  'invite.expired',
+  'invite.campaign_expired',
   'event.created',
   'support.action',
   'billing.status_changed',
   'billing.plan_published',
   'billing.entitlement_granted',
   'billing.entitlement_revoked',
+  'billing.over_quota_detected',
+  'billing.over_quota_resolved',
   'contribution.plan_created',
   'contribution.status_updated',
   'contribution.reminder_sent',
   'contribution.bank_imported',
   'contribution.bank_match_confirmed',
+  'contribution.bank_match_reversed',
   'admin.broadcast.sent',
   'admin.broadcast.failed',
   'admin.feature_flag.updated',
@@ -334,16 +341,9 @@ export const createEntitlementGrantSchema = z
     source: z.enum(['COMPLIMENTARY', 'TRIAL']),
     reason: z.string().trim().min(3).max(500),
     startsAt: z.string().datetime().optional(),
-    expiresAt: z.string().datetime().nullable().optional(),
+    expiresAt: z.string().datetime(),
   })
   .superRefine((value, ctx) => {
-    if (value.source === 'TRIAL' && !value.expiresAt) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['expiresAt'],
-        message: 'Trials require an expiry date',
-      })
-    }
     if (
       value.expiresAt &&
       new Date(value.expiresAt).getTime() <=
@@ -378,6 +378,10 @@ export const confirmContributionMatchSchema = z.object({
   transactionId: z.string().min(1),
   recordId: z.string().min(1),
   amount: z.number().int().positive(),
+})
+
+export const reverseContributionMatchSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
 })
 
 export const auditEventSchema = z.object({
@@ -433,6 +437,7 @@ export type CreateEntitlementGrantInput = z.infer<typeof createEntitlementGrantS
 export type PublishPlanDefinitionInput = z.infer<typeof publishPlanDefinitionSchema>
 export type CreateBankImportInput = z.infer<typeof createBankImportSchema>
 export type ConfirmContributionMatchInput = z.infer<typeof confirmContributionMatchSchema>
+export type ReverseContributionMatchInput = z.infer<typeof reverseContributionMatchSchema>
 export type AuditEventInput = z.infer<typeof auditEventSchema>
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),

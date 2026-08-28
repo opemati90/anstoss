@@ -118,6 +118,7 @@ describe('DmListView', () => {
       pathname: '/dm-chat',
       params: {
         conversationId: 'conversation-1',
+        userId: 'user-2',
         userName: 'Mina Meyer',
       },
     })

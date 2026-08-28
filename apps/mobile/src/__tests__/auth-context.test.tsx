@@ -260,11 +260,15 @@ describe('AuthContext signOut', () => {
     })
   })
 
-  it('selects the highest-priority active access for the selected team', async () => {
+  it('keeps team access consistent with the selected persona', async () => {
     let tree: ReturnType<typeof renderer.create>
     mockBackendUser({
       withClub: true,
       teamMembers: [
+        makeTeamMember({
+          id: 'player-access',
+          role: 'PLAYER',
+        }),
         makeTeamMember({
           id: 'parent-access',
           role: 'PARENT',
@@ -286,6 +290,17 @@ describe('AuthContext signOut', () => {
 
     await waitFor(() => {
       expect(latestAuth?.activeTeamId).toBe('team-1')
+      expect(latestAuth?.activeRoleMode).toBe('PLAYER')
+      expect(latestAuth?.activeTeamAccess?.id).toBe('player-access')
+      expect(latestAuth?.activeTeamAccess?.role).toBe('PLAYER')
+    })
+
+    act(() => {
+      latestAuth?.setActiveRoleMode('COACH')
+    })
+
+    await waitFor(() => {
+      expect(latestAuth?.activeRoleMode).toBe('COACH')
       expect(latestAuth?.activeTeamAccess?.id).toBe('coach-access')
       expect(latestAuth?.activeTeamAccess?.role).toBe('ASSISTANT_COACH')
       expect(latestAuth?.teamsForActiveClub).toHaveLength(1)

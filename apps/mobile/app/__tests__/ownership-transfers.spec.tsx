@@ -45,28 +45,28 @@ describe('ownership transfer step-up', () => {
       .mockResolvedValueOnce([
         { id: 'member-row', userId: 'member-1', role: 'ADMIN', user: { id: 'member-1', name: 'Alex', email: 'alex@example.com', avatarUrl: null } },
       ])
-      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ challengeId: 'challenge-1' })
       .mockResolvedValueOnce({ id: 'transfer-1' })
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
   })
 
-  it('requires a fresh email code before starting a transfer', async () => {
+  it('requires a transaction-bound email code before starting a transfer', async () => {
     const screen = render(<OwnershipTransfersScreen />)
     await waitFor(() => expect(screen.getByText('Alex')).toBeTruthy())
     fireEvent.press(screen.getByText('Alex'))
     await waitFor(() =>
-      expect(mockApi).toHaveBeenCalledWith('/auth/otp/request', {
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/ownership-transfers/challenge', {
         method: 'POST',
-        body: { email: 'owner@example.com' },
+        body: { toUserId: 'member-1' },
       }),
     )
     fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
     fireEvent.press(screen.getByText('common.confirm'))
-    await waitFor(() => expect(mockReauthenticate).toHaveBeenCalledWith('123456'))
+    await waitFor(() => expect(mockReauthenticate).not.toHaveBeenCalled())
     expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/ownership-transfers', {
       method: 'POST',
-      body: { toUserId: 'member-1' },
+      body: { toUserId: 'member-1', challengeId: 'challenge-1', code: '123456' },
     })
   })
 })

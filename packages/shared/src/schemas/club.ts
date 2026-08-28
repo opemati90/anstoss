@@ -229,7 +229,8 @@ const officialTeamUrlSchema = z
   }, 'Use a direct HTTPS team link from Fussball.de, DFB.de, or FuPa')
 
 export const submitFirstClubClaimSchema = z.object({
-  directoryEntryId: z.string().min(1),
+  directoryEntryId: z.string().min(1).optional(),
+  clubName: z.string().trim().min(2).max(120).optional(),
   primaryColor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
@@ -245,6 +246,8 @@ export const submitFirstClubClaimSchema = z.object({
     }),
   externalTeamUrl: officialTeamUrlSchema,
   officialEmail: z.string().email().max(254).optional(),
+}).refine((value) => Boolean(value.directoryEntryId || value.clubName), {
+  message: 'Choose a directory club or provide the official club name',
 })
 
 export const submitStaffAccessRequestSchema = z.object({
@@ -276,6 +279,17 @@ export const respondClubClaimSchema = z
 
 export const createOwnershipTransferSchema = z.object({
   toUserId: z.string().min(1),
+  challengeId: z.string().min(1),
+  code: z.string().regex(/^\d{6}$/),
+})
+
+export const requestOwnershipTransferChallengeSchema = z.object({
+  toUserId: z.string().min(1),
+})
+
+export const verifyOwnershipTransferChallengeSchema = z.object({
+  challengeId: z.string().min(1),
+  code: z.string().regex(/^\d{6}$/),
 })
 
 export const openClubDisputeSchema = z.object({
@@ -355,6 +369,12 @@ export type SubmitStaffAccessRequestInput = z.infer<typeof submitStaffAccessRequ
 export type ReviewClubClaimInput = z.infer<typeof reviewClubClaimSchema>
 export type RespondClubClaimInput = z.infer<typeof respondClubClaimSchema>
 export type CreateOwnershipTransferInput = z.infer<typeof createOwnershipTransferSchema>
+export type RequestOwnershipTransferChallengeInput = z.infer<
+  typeof requestOwnershipTransferChallengeSchema
+>
+export type VerifyOwnershipTransferChallengeInput = z.infer<
+  typeof verifyOwnershipTransferChallengeSchema
+>
 export type OpenClubDisputeInput = z.infer<typeof openClubDisputeSchema>
 export type ResolveClubDisputeInput = z.infer<typeof resolveClubDisputeSchema>
 export type CreateInviteCampaignInput = z.infer<typeof createInviteCampaignSchema>

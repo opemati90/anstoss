@@ -380,7 +380,7 @@
         <p class="eyebrow">Billing</p>
         <h1 class="welcome">Revenue</h1>
         <p class="lede">
-          Naive estimate based on active subscriptions. Replace with Stripe Reporting in V2.
+          Monthly-equivalent revenue from active paid entitlements reconciled by Stripe webhooks.
         </p>
         <nav class="section-tabs" aria-label="Billing views">
           <a class="section-tab" href="#/subscriptions">Subscriptions</a>
@@ -437,8 +437,8 @@
         <div class="tool-links" aria-label="Operational tools">
           <a href="#/audit"><strong>Audit log</strong><span>Review platform actions</span></a>
           <a href="#/support"><strong>Support notes</strong><span>Record club context</span></a>
-          <a href="#/sync"
-            ><strong>FUSSBALL.DE sync</strong><span>Inspect imports and runs</span></a
+          <a href="#/clubs"
+            ><strong>Official team pages</strong><span>Review club-owned references</span></a
           >
           <a href="#/moderation"><strong>Moderation</strong><span>Review reported content</span></a>
           <a href="#/flags"
@@ -526,30 +526,6 @@
             </div>
           </article>
         </div>
-      </section>
-
-      <section class="page" data-page="sync" hidden>
-        <p class="eyebrow">Sync</p>
-        <h1 class="welcome">FUSSBALL.DE.</h1>
-        <p class="lede">Team links and recent sync runs from the legacy scraper.</p>
-        <article class="panel">
-          <div class="panel-head">
-            <h2>Team links</h2>
-            <button class="pill" id="sync-links-refresh">Reload</button>
-          </div>
-          <div id="sync-links" class="stack-list">
-            <p class="placeholder">Loading...</p>
-          </div>
-        </article>
-        <article class="panel">
-          <div class="panel-head">
-            <h2>Recent sync runs</h2>
-            <button class="pill" id="sync-runs-refresh">Reload</button>
-          </div>
-          <div id="sync-runs" class="stack-list">
-            <p class="placeholder">Loading...</p>
-          </div>
-        </article>
       </section>
 
       <section class="page" data-page="broadcast" hidden>

@@ -186,7 +186,7 @@ describe('ClubSearchScreen', () => {
 
     await waitFor(() => expect(Share.share).toHaveBeenCalledWith({
       message:
-        'I found SV Directory in Anstoss. Can a coach or club admin activate the club so players can join?',
+        'I found SV Directory in Anstoss. Can an authorized club administrator activate the club so players can join?',
     }))
     expect(mockApi).toHaveBeenCalledTimes(1)
 

@@ -175,3 +175,67 @@ describe('ContributionImportsService.confirm', () => {
     })
   })
 })
+
+describe('ContributionImportsService.reverse', () => {
+  it('reverses one confirmed allocation and recomputes the contribution balance', async () => {
+    const match = {
+      id: 'match-1',
+      clubId: 'club-1',
+      transactionId: 'bank-1',
+      recordId: 'record-1',
+      amount: 4_000,
+      status: 'CONFIRMED',
+    }
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      contributionMatch: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce({ recordId: 'record-1', transactionId: 'bank-1' })
+          .mockResolvedValueOnce(match),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 2_000 } }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      contributionRecord: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'record-1',
+          clubId: 'club-1',
+          amount: 10_000,
+          paidAmount: 7_000,
+          manualPaidAmount: 1_000,
+          paidAt: null,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    const prisma = {
+      membership: { findUnique: jest.fn().mockResolvedValue({ role: 'ADMIN' }) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+
+    const result = await new ContributionImportsService(prisma as never).reverse(
+      'club-1',
+      'admin-1',
+      'match-1',
+      { reason: 'Bank returned the transfer' },
+    )
+
+    expect(result).toEqual({ id: 'match-1', status: 'REVERSED', paidAmount: 3_000 })
+    expect(tx.contributionMatch.update).toHaveBeenCalledWith({
+      where: { id: 'match-1' },
+      data: expect.objectContaining({
+        status: 'REVERSED',
+        reversedById: 'admin-1',
+        reversalReason: 'Bank returned the transfer',
+      }),
+    })
+    expect(tx.contributionRecord.update).toHaveBeenCalledWith({
+      where: { id: 'record-1' },
+      data: expect.objectContaining({ paidAmount: 3_000, status: 'PARTIAL', paidAt: null }),
+    })
+    expect(tx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ type: 'contribution.bank_match_reversed' }),
+    })
+  })
+})

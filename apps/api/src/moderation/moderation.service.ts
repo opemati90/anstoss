@@ -36,15 +36,22 @@ export class ModerationService {
   ): Promise<{ ok: true; hidden: boolean }> {
     const reasonKey = (input.reason || '').toUpperCase().trim()
     if (!REPORT_REASONS.has(reasonKey)) {
-      throw new BadRequestException(
-        'Reason must be one of: SPAM, ABUSE, INAPPROPRIATE, OTHER',
-      )
+      throw new BadRequestException('Reason must be one of: SPAM, ABUSE, INAPPROPRIATE, OTHER')
     }
     const details = (input.details ?? '').trim().slice(0, MAX_REASON_LEN)
 
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
-      select: { id: true, teamId: true, channelId: true, senderId: true, deletedAt: true },
+      select: {
+        id: true,
+        teamId: true,
+        channelId: true,
+        senderId: true,
+        deletedAt: true,
+        content: true,
+        attachmentUrl: true,
+        attachmentMeta: true,
+      },
     })
     if (!message) throw new NotFoundException('Message not found')
     if (message.deletedAt) {
@@ -72,6 +79,9 @@ export class ModerationService {
           messageId,
           reporterUserId: userId,
           reason,
+          evidenceContent: message.content,
+          evidenceAttachmentUrl: message.attachmentUrl,
+          evidenceAttachmentMeta: message.attachmentMeta ?? undefined,
         },
       })
     } catch (err: unknown) {
@@ -89,25 +99,53 @@ export class ModerationService {
       throw err
     }
 
-    // Severe-reason auto-hide: ABUSE / INAPPROPRIATE soft-deletes the
-    // message immediately. Admins can revert via the existing
-    // contributions/audit reconciliation tools. SPAM and OTHER stay
-    // visible until admins triage.
-    let hidden = false
-    if (reasonKey === 'ABUSE' || reasonKey === 'INAPPROPRIATE') {
-      await this.prisma.message.update({
-        where: { id: messageId },
+    // A report is evidence, not a deletion authority. One member must
+    // never be able to censor a team announcement by choosing a severe
+    // reason. Platform moderators explicitly remove or restore content
+    // from the audited moderation queue.
+    return { ok: true, hidden: false }
+  }
+
+  async reportDirectMessage(
+    userId: string,
+    messageId: string,
+    input: { reason: string; details?: string },
+  ): Promise<{ ok: true }> {
+    const reasonKey = (input.reason || '').toUpperCase().trim()
+    if (!REPORT_REASONS.has(reasonKey)) {
+      throw new BadRequestException('Reason must be one of: SPAM, ABUSE, INAPPROPRIATE, OTHER')
+    }
+    const message = await this.prisma.directMessage.findFirst({
+      where: {
+        id: messageId,
+        conversation: { participants: { some: { userId } } },
+      },
+      select: { id: true, senderId: true, content: true },
+    })
+    if (!message) throw new NotFoundException('Direct message not found')
+    if (message.senderId === userId) throw new BadRequestException('Cannot report your own message')
+    const details = (input.details ?? '').trim().slice(0, MAX_REASON_LEN)
+    const reason = details ? `${reasonKey}: ${details}` : reasonKey
+    try {
+      await this.prisma.directMessageReport.create({
         data: {
-          deletedAt: new Date(),
-          content: '',
-          attachmentUrl: null,
-          attachmentMeta: null as never,
+          directMessageId: messageId,
+          reporterUserId: userId,
+          reason,
+          evidenceContent: message.content,
         },
       })
-      hidden = true
+    } catch (err: unknown) {
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      )
+        return { ok: true }
+      throw err
     }
-
-    return { ok: true, hidden }
+    return { ok: true }
   }
 
   async blockUser(blockerUserId: string, blockedUserId: string) {

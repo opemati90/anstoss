@@ -94,6 +94,7 @@ export function DmListView() {
             params: {
               conversationId: item.id,
               userName: name,
+              userId: item.otherUser?.id,
             },
           })
         }

@@ -7,7 +7,6 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -19,13 +18,11 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
-import { Screen, Button, Text, Icon, BottomSheet } from '../src/components/ui'
+import { Screen, Button, Text, BottomSheet } from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
 import {
-  fontSize,
   space,
   radius,
-  fonts,
   elevation,
   TAB_BAR_CLEARANCE,
   hairline,
@@ -92,14 +89,6 @@ type TeamMemberResponse = {
   }
 }
 
-type RosterPlayer = {
-  name: string
-  jerseyNumber: number | null
-  externalPlayerId: string | null
-  selected: boolean
-  email: string
-}
-
 const PHASE_OPTIONS: Array<{
   value: TeamAccessPhase
   labelKey: string
@@ -131,15 +120,15 @@ function parseRecipientEmails(value: string) {
 export default function InviteScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, isLoading: authIsLoading } = useAuth()
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
+  const { returnTo, mode } = useLocalSearchParams<{ returnTo?: string; mode?: string }>()
   const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
-  // This is the "Invite players" entry point — role is always PLAYER. (Coach/
-  // parent invites live in their own flows, so a one-option role selector here
-  // was just clutter.)
-  const role = TeamRole.PLAYER as TeamRole
+  const isCoachInvite = mode === 'coach'
+  const [role, setRole] = useState<TeamRole>(
+    isCoachInvite ? TeamRole.ASSISTANT_COACH : TeamRole.PLAYER,
+  )
   const [phase, setPhase] = useState<TeamAccessPhase>(TeamAccessPhase.FULL)
   // Once a team is selected, collapse the team grid into a 1-line summary
   // chip so the screen shrinks. Tapping "Change" re-expands it. Default
@@ -251,7 +240,10 @@ export default function InviteScreen() {
         : '',
     [activeClub],
   )
-  const supportsBulkRecipients = role === TeamRole.PLAYER
+  const supportsBulkRecipients =
+    role === TeamRole.PLAYER ||
+    role === TeamRole.HEAD_COACH ||
+    role === TeamRole.ASSISTANT_COACH
   const playerOptions = useMemo(
     () => teamMembers.filter((member) => member?.role === 'PLAYER' && member?.user?.id),
     [teamMembers],
@@ -305,114 +297,6 @@ export default function InviteScreen() {
     }
   }, [playerOptions, selectedPlayerUserId])
 
-  // ─── External roster import ─────────────────────────────────────
-  // When a team has an external team-data link, fetch the roster on demand and
-  // let the admin tick names to bulk-create invites. Roster results are
-  // cached per teamId so repeated taps don't re-scrape.
-  const [teamLinkId, setTeamLinkId] = useState<string | null>(null)
-  const [rosterImportVisible, setRosterImportVisible] = useState(false)
-  const [rosterPlayers, setRosterPlayers] = useState<RosterPlayer[]>([])
-  const [rosterLoading, setRosterLoading] = useState(false)
-  const [rosterError, setRosterError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!selectedTeamId) {
-      setTeamLinkId(null)
-      return
-    }
-    let isCancelled = false
-    ;(async () => {
-      try {
-        const links = await api<Array<{
-          id: string
-          capabilities: { canImportRoster: boolean }
-        }>>(
-          `/integrations/fussball/team-links?teamId=${selectedTeamId}`,
-        )
-        if (isCancelled) return
-        const link = (links || []).find((l) => l.capabilities.canImportRoster)
-        setTeamLinkId(link?.id ?? null)
-      } catch {
-        if (!isCancelled) setTeamLinkId(null)
-      }
-    })()
-    return () => {
-      isCancelled = true
-    }
-  }, [selectedTeamId])
-
-  const [rosterSource, setRosterSource] = useState<'team_page' | 'recent_lineup' | 'empty' | null>(
-    null,
-  )
-
-  const openRosterImport = async () => {
-    if (!teamLinkId) return
-    setRosterImportVisible(true)
-    if (rosterPlayers.length > 0) return
-    setRosterLoading(true)
-    setRosterError(null)
-    try {
-      const data = await api<{
-        players: Array<{
-          name: string
-          jerseyNumber: number | null
-          externalPlayerId: string | null
-        }>
-        rawCount: number
-        externalUrl: string
-        source?: 'team_page' | 'recent_lineup' | 'empty'
-      }>(`/integrations/fussball/team-links/${teamLinkId}/roster`)
-      setRosterPlayers(
-        (data.players || []).map((p) => ({
-          ...p,
-          selected: false,
-          email: '',
-        })),
-      )
-      setRosterSource(data.source ?? null)
-      if ((data.players?.length ?? 0) === 0) {
-        setRosterError(
-          t('invite.rosterEmpty', {
-            defaultValue:
-              'The licensed roster feed returned no players. Enter email addresses manually.',
-          }),
-        )
-      }
-    } catch {
-      setRosterError(
-        t('invite.rosterError', {
-          defaultValue: "Couldn't fetch the licensed roster feed. Try again or enter emails manually.",
-        }),
-      )
-    } finally {
-      setRosterLoading(false)
-    }
-  }
-
-  const toggleRosterPlayer = (id: string) => {
-    setRosterPlayers((prev) =>
-      prev.map((p) =>
-        (p.externalPlayerId || p.name) === id ? { ...p, selected: !p.selected } : p,
-      ),
-    )
-  }
-
-  const updateRosterPlayerEmail = (id: string, email: string) => {
-    setRosterPlayers((prev) =>
-      prev.map((p) => ((p.externalPlayerId || p.name) === id ? { ...p, email } : p)),
-    )
-  }
-
-  const applyRosterEmailsToBulk = () => {
-    const emails = rosterPlayers
-      .filter((p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()))
-      .map((p) => p.email.trim())
-    if (emails.length === 0) return
-    const merged = [...recipientEmails, ...emails.filter((e) => !recipientEmails.includes(e))]
-    setRecipientEmail(merged.join('\n'))
-    setRosterImportVisible(false)
-  }
-
   const handleCreateInvite = async (deliveryChannel: 'EMAIL' | 'LINK') => {
     if (!activeClub || !selectedTeamId || !selectedTeam) return
 
@@ -456,29 +340,42 @@ export default function InviteScreen() {
       }
       const recipients = deliveryChannel === 'EMAIL' ? recipientEmails : [undefined]
       let sharedInvite: CreatedInvite | null = null
+      let successfulRecipients = 0
+      let failedRecipients = 0
 
       for (const recipient of recipients) {
-        const invite = await api<CreatedInvite>(`/clubs/${activeClub.club.id}/invites`, {
-          method: 'POST',
-          body: {
-            teamId: selectedTeamId,
-            role,
-            phase,
-            deliveryChannel,
-            recipientEmail: deliveryChannel === 'EMAIL' ? recipient : undefined,
-            linkedPlayerUserId:
-              role === TeamRole.PARENT ? selectedPlayerUserId || undefined : undefined,
-            childName:
-              role === TeamRole.PARENT && !selectedPlayerUserId
-                ? childName.trim() || undefined
-                : undefined,
-          },
-        })
-
-        sharedInvite = invite
+        try {
+          const invite = await api<CreatedInvite>(`/clubs/${activeClub.club.id}/invites`, {
+            method: 'POST',
+            body: {
+              teamId: selectedTeamId,
+              role,
+              phase,
+              deliveryChannel,
+              recipientEmail: deliveryChannel === 'EMAIL' ? recipient : undefined,
+              linkedPlayerUserId:
+                role === TeamRole.PARENT ? selectedPlayerUserId || undefined : undefined,
+              childName:
+                role === TeamRole.PARENT && !selectedPlayerUserId
+                  ? childName.trim() || undefined
+                  : undefined,
+            },
+          })
+          sharedInvite = invite
+          successfulRecipients += 1
+        } catch {
+          failedRecipients += 1
+        }
       }
 
       if (deliveryChannel === 'EMAIL') {
+        if (failedRecipients > 0) {
+          Alert.alert(
+            t('invite.createErrorTitle'),
+            `${successfulRecipients}/${recipients.length} · ${t('invite.createErrorBody')}`,
+          )
+          return
+        }
         Alert.alert(
           t('invite.emailSentTitle'),
           recipientEmails.length > 1
@@ -584,12 +481,18 @@ export default function InviteScreen() {
     >
       <View style={styles.hero}>
         <Text variant="title2" weight="semibold" color="primary" style={styles.title}>
-          {t('invite.heroTitle', { defaultValue: 'Invite players' })}
+          {isCoachInvite
+            ? t('clubStaff.inviteCoach', { defaultValue: 'Invite coach' })
+            : t('invite.heroTitle', { defaultValue: 'Invite players' })}
         </Text>
         <Text variant="body" color="secondary">
-          {t('invite.heroSubtitle', {
-            defaultValue: 'Pick a squad, drop email addresses (one per line), send.',
-          })}
+          {isCoachInvite
+            ? t('clubStaff.inviteCoachBody', {
+                defaultValue: 'Send a personal email invitation and choose the team role.',
+              })
+            : t('invite.heroSubtitle', {
+                defaultValue: 'Pick a squad, drop email addresses (one per line), send.',
+              })}
         </Text>
       </View>
 
@@ -770,6 +673,57 @@ export default function InviteScreen() {
             )}
           </View>
 
+          {isCoachInvite ? (
+            <View style={styles.section}>
+              <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+                {t('invite.coachRoleLabel', { defaultValue: 'COACH ROLE' })}
+              </Text>
+              <View style={styles.segmentRow}>
+                {[
+                  {
+                    value: TeamRole.HEAD_COACH,
+                    label: t('teamRoles.HEAD_COACH', { defaultValue: 'Head coach' }),
+                  },
+                  {
+                    value: TeamRole.ASSISTANT_COACH,
+                    label: t('teamRoles.ASSISTANT_COACH', { defaultValue: 'Assistant coach' }),
+                  },
+                ].map((option) => {
+                  const isActive = role === option.value
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[
+                        styles.segment,
+                        { borderColor: c.borderDefault, backgroundColor: c.surface },
+                        isActive && { borderColor: c.primary, backgroundColor: c.primary },
+                      ]}
+                      onPress={() => setRole(option.value)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive }}
+                      accessibilityLabel={option.label}
+                    >
+                      <Text
+                        variant="callout"
+                        weight={isActive ? 'semibold' : 'medium'}
+                        color={isActive ? 'inverse' : 'primary'}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+              <Text variant="caption1" color="tertiary" style={styles.helperLine}>
+                {t('invite.coachRoleHelp', {
+                  defaultValue:
+                    'The coach receives access only to this team. Club-wide admin rights are separate.',
+                })}
+              </Text>
+            </View>
+          ) : null}
+
+          {!isCoachInvite ? (
           <View style={styles.section}>
             <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
               {t('invite.phaseLabel')}
@@ -821,41 +775,12 @@ export default function InviteScreen() {
               )}
             </Text>
           </View>
+          ) : null}
         </>
       ) : null}
 
       {step === 2 ? (
         <View style={styles.section}>
-          {teamLinkId && supportsBulkRecipients ? (
-            <Pressable
-              onPress={() => void openRosterImport()}
-              accessibilityRole="button"
-              accessibilityLabel={t('invite.importRosterCta', {
-                defaultValue: 'Import roster from licensed feed',
-              })}
-              style={({ pressed }) => [
-                styles.importBanner,
-                { borderColor: c.primary, backgroundColor: c.primary50 },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <Icon name="square.and.arrow.down" size={18} color={c.primary} />
-              <View style={styles.importBannerCopy}>
-                <Text variant="footnote" weight="semibold" color="primary">
-                  {t('invite.importRosterCta', {
-                    defaultValue: 'Import roster from licensed feed',
-                  })}
-                </Text>
-                <Text variant="caption1" color="secondary">
-                  {t('invite.importRosterSub', {
-                    defaultValue: 'Select players from the authorized roster feed and invite them together.',
-                  })}
-                </Text>
-              </View>
-              <Icon name="chevron.right" size={14} color={c.primary} />
-            </Pressable>
-          ) : null}
-
           <FormInput
             testID="invite-recipient-input"
             label={
@@ -1019,9 +944,11 @@ export default function InviteScreen() {
               </Text>
               <Text variant="footnote" color="secondary">
                 {selectedTeam.groupDisplayName}
-                {phase === TeamAccessPhase.TRIAL
-                  ? ` · ${t('invite.phaseTrial')}`
-                  : ` · ${t('invite.phaseFull')}`}
+                {isCoachInvite
+                  ? ` · ${t(`teamRoles.${role}`)}`
+                  : phase === TeamAccessPhase.TRIAL
+                    ? ` · ${t('invite.phaseTrial')}`
+                    : ` · ${t('invite.phaseFull')}`}
                 {role === TeamRole.PARENT
                   ? ` · ${
                       selectedPlayer?.user.name ||
@@ -1158,108 +1085,6 @@ export default function InviteScreen() {
         ) : null}
       </BottomSheet>
 
-      <BottomSheet
-        visible={rosterImportVisible}
-        onClose={() => setRosterImportVisible(false)}
-        heightPct="auto"
-      >
-        <View style={styles.rosterSheet}>
-          <Text variant="title2" weight="bold" color="primary" style={styles.rosterTitle}>
-            {t('invite.rosterTitle', { defaultValue: 'Squad from linked team data' })}
-          </Text>
-          <Text variant="footnote" color="secondary" style={styles.rosterSubtitle}>
-            {t('invite.rosterSubtitle', {
-              defaultValue:
-                'Tick the players you have an email for, drop the address, send all at once.',
-            })}
-          </Text>
-          {rosterSource === 'recent_lineup' ? (
-            <Text variant="caption2" color="tertiary" style={styles.rosterSourceHint}>
-              {t('invite.rosterSourceLineup', {
-                defaultValue:
-                  'Pulled from your most recent linked match lineup. Names that did not play yet will not show up.',
-              })}
-            </Text>
-          ) : null}
-
-          {rosterLoading ? (
-            <ActivityIndicator color={c.primary} style={{ marginVertical: space.lg }} />
-          ) : rosterError ? (
-            <Text variant="footnote" color="secondary" style={styles.rosterError}>
-              {rosterError}
-            </Text>
-          ) : (
-            <View style={styles.rosterList}>
-              {rosterPlayers.map((player) => {
-                const id = player.externalPlayerId || player.name
-                return (
-                  <View key={id} style={[styles.rosterRow, { borderColor: c.borderDefault }]}>
-                    <Pressable
-                      onPress={() => toggleRosterPlayer(id)}
-                      hitSlop={8}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: player.selected }}
-                      style={[
-                        styles.rosterCheckbox,
-                        {
-                          borderColor: player.selected ? c.primary : c.borderDefault,
-                          backgroundColor: player.selected ? c.primary : 'transparent',
-                        },
-                      ]}
-                    >
-                      {player.selected ? <Icon name="checkmark" size={11} color="inverse" /> : null}
-                    </Pressable>
-                    <View style={styles.rosterRowBody}>
-                      <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-                        {player.jerseyNumber ? `#${player.jerseyNumber} · ` : ''}
-                        {player.name}
-                      </Text>
-                      <TextInput
-                        value={player.email}
-                        onChangeText={(value) => updateRosterPlayerEmail(id, value)}
-                        placeholder={t('invite.rosterEmailPlaceholder', {
-                          defaultValue: 'email@example.com',
-                        })}
-                        placeholderTextColor={c.textTertiary}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="email-address"
-                        style={[
-                          styles.rosterEmailInput,
-                          {
-                            borderColor: c.borderDefault,
-                            color: c.textPrimary,
-                            backgroundColor: c.surfaceSunken,
-                          },
-                        ]}
-                        editable={player.selected}
-                      />
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          )}
-
-          <Button
-            label={t('invite.rosterApply', {
-              defaultValue: 'Add {{count}} to invites',
-              count: rosterPlayers.filter(
-                (p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()),
-              ).length,
-            })}
-            variant="filled"
-            size="lg"
-            fullWidth
-            disabled={
-              rosterPlayers.filter(
-                (p) => p.selected && p.email.trim() && isValidEmail(p.email.trim()),
-              ).length === 0
-            }
-            onPress={applyRosterEmailsToBulk}
-          />
-        </View>
-      </BottomSheet>
     </Screen>
   )
 }
@@ -1386,19 +1211,6 @@ const styles = StyleSheet.create({
   helperLine: {
     marginTop: space.xs,
   },
-  importBanner: {
-    marginTop: space.sm,
-    marginBottom: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  importBannerCopy: { flex: 1 },
   recipientPreviewRow: {
     marginTop: space.sm,
     flexDirection: 'row',
@@ -1413,48 +1225,6 @@ const styles = StyleSheet.create({
   },
   recipientPreviewText: {
     letterSpacing: 0.2,
-  },
-  rosterSheet: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    paddingBottom: space.xl,
-    gap: space.md,
-  },
-  rosterTitle: { marginTop: space.sm },
-  rosterSourceHint: { fontStyle: 'italic' },
-  rosterSubtitle: { lineHeight: 18 },
-  rosterError: {
-    paddingVertical: space.lg,
-    textAlign: 'center',
-  },
-  rosterList: {
-    gap: space.sm,
-    maxHeight: 360,
-  },
-  rosterRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
-    paddingVertical: space.sm,
-    borderTopWidth: hairline,
-  },
-  rosterCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: space.xs,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: space['2xs'],
-  },
-  rosterRowBody: { flex: 1, gap: space.xs },
-  rosterEmailInput: {
-    borderWidth: hairline,
-    borderRadius: radius.sm,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
   },
   emptyContainer: {
     flex: 1,

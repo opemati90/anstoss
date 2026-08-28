@@ -62,6 +62,8 @@ export const externalTeamLinkSchema = z.object({
   externalTeamId: z.string().min(1),
   externalClubId: z.string().min(1).nullable(),
   externalUrl: z.string().url(),
+  widgetId: z.string().min(8).max(80).nullable(),
+  widgetType: z.string().min(2).max(40).nullable(),
   label: z.string().min(1).max(140),
   status: externalTeamLinkStatusSchema,
   lastSyncedAt: z.string().datetime().nullable(),
@@ -132,14 +134,16 @@ export const syncRunSchema = z.object({
 })
 
 export const fussballTeamPreviewRequestSchema = z.object({
-  input: z.string().min(1).max(500),
+  input: z.string().min(1).max(4000),
 })
 
 export const fussballTeamPreviewSchema = z.object({
   input: z.string().min(1),
-  provider: z.enum(['api_fussball', 'fussball_public_page']),
+  provider: z.enum(['api_fussball', 'fussball_public_page', 'widget_embed']),
   externalTeamId: z.string().min(1),
   externalUrl: z.string().url(),
+  widgetId: z.string().min(8).max(80).nullable(),
+  widgetType: z.string().min(2).max(40).nullable(),
   label: z.string().min(1).max(140),
   competition: z.string().max(160).nullable(),
   pitchAddress: z.string().max(500).nullable(),
@@ -148,7 +152,7 @@ export const fussballTeamPreviewSchema = z.object({
 
 export const createExternalTeamLinkSchema = z.object({
   teamId: z.string().min(1),
-  input: z.string().min(1).max(500),
+  input: z.string().min(1).max(4000),
   label: z.string().min(1).max(140).optional(),
 })
 
@@ -234,12 +238,8 @@ export const fixtureTimelineStateSchema = z.object({
 
 export const fixtureTimelineResponseSchema = fixtureTimelineStateSchema.nullable()
 
-export type FussballTeamPreviewRequestInput = z.infer<
-  typeof fussballTeamPreviewRequestSchema
->
-export type CreateExternalTeamLinkInput = z.infer<
-  typeof createExternalTeamLinkSchema
->
+export type FussballTeamPreviewRequestInput = z.infer<typeof fussballTeamPreviewRequestSchema>
+export type CreateExternalTeamLinkInput = z.infer<typeof createExternalTeamLinkSchema>
 export type SyncTeamLinkInput = z.infer<typeof syncTeamLinkSchema>
 export type TeamFixturesQueryInput = z.infer<typeof teamFixturesQuerySchema>
 export type UpdateFixtureOverlayInput = z.infer<typeof updateFixtureOverlaySchema>

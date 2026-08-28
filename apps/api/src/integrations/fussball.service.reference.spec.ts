@@ -12,6 +12,8 @@ function createService(role: MembershipRole = MembershipRole.OWNER) {
     externalTeamId: TEAM_ID,
     externalClubId: null,
     externalUrl: `https://next.fussball.de/mannschaft/-/${TEAM_ID}`,
+    widgetId: null,
+    widgetType: null,
     label: 'FUSSBALL.DE · 01234567',
     status: 'ACTIVE',
     lastSyncedAt: null,
@@ -77,6 +79,70 @@ describe('FussballService public team-page references', () => {
     expect(provider.fetchTeamPage).not.toHaveBeenCalled()
   })
 
+  it('extracts safe metadata from the official widget code without storing raw HTML', async () => {
+    const { provider, service } = createService()
+    const widgetId = '47c66e04-204b-49ec-8a54-9e7e429df6c4'
+
+    await expect(
+      service.previewTeamLink(
+        `<script src="https://www.fussball.de/widgets.js"></script><div class="fussballde_widget" data-id="${widgetId}" data-type="competition"></div>`,
+      ),
+    ).resolves.toMatchObject({
+      provider: 'widget_embed',
+      externalTeamId: `widget:${widgetId}:competition`,
+      externalUrl: 'https://www.fussball.de/',
+      widgetId,
+      widgetType: 'competition',
+      sourceConfidence: 'official_widget',
+    })
+    expect(provider.fetchTeamPage).not.toHaveBeenCalled()
+  })
+
+  it('rejects a widget snippet that references a third-party script', async () => {
+    const { service } = createService()
+
+    await expect(
+      service.previewTeamLink(
+        '<script src="https://evil.example/widget.js"></script><div class="fussballde_widget" data-id="47c66e04-204b-49ec-8a54-9e7e429df6c4" data-type="competition"></div>',
+      ),
+    ).rejects.toThrow('Only the official FUSSBALL.DE widget script')
+  })
+
+  it('stores only validated widget metadata as a non-ingesting official embed', async () => {
+    const { persistedLink, prisma, service } = createService()
+    const widgetId = '47c66e04-204b-49ec-8a54-9e7e429df6c4'
+    prisma.externalTeamLink.create.mockResolvedValueOnce({
+      ...persistedLink,
+      provider: 'WIDGET_EMBED',
+      externalTeamId: `widget:${widgetId}:competition`,
+      externalUrl: 'https://www.fussball.de/',
+      widgetId,
+      widgetType: 'competition',
+    })
+
+    await expect(
+      service.createTeamLink('owner-1', 'club-1', {
+        teamId: 'team-1',
+        input: `<div class="fussballde_widget" data-id="${widgetId}" data-type="competition"></div>`,
+      }),
+    ).resolves.toEqual({
+      link: expect.objectContaining({
+        provider: 'widget_embed',
+        widgetId,
+        widgetType: 'competition',
+        capabilities: { canManualSync: false, canImportRoster: false },
+      }),
+      sync: null,
+    })
+    expect(prisma.externalTeamLink.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        provider: 'WIDGET_EMBED',
+        widgetId,
+        widgetType: 'competition',
+      }),
+    })
+  })
+
   it.each([
     ['DFB.DE', 'https://www.dfb.de/vereine/example-team'],
     ['FUPA', 'https://www.fupa.net/team/example-team'],
@@ -97,7 +163,7 @@ describe('FussballService public team-page references', () => {
 
     await expect(
       service.previewTeamLink(`https://fussball.de.attacker.example/team/${TEAM_ID}`),
-    ).rejects.toThrow('Paste a direct HTTPS team link')
+    ).rejects.toThrow('direct HTTPS team link')
   })
 
   it('stores a public reference without syncing fixtures or importing a roster', async () => {
@@ -142,7 +208,6 @@ describe('FussballService public team-page references', () => {
         capabilities: { canManualSync: false, canImportRoster: false },
       }),
     ])
-
   })
 
   it('lets a club admin save a reference without changing semantics when licensed ingestion is enabled', async () => {

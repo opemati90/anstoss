@@ -42,6 +42,13 @@ export class ContributionsReminderWorker implements OnModuleInit, OnModuleDestro
   }
 
   async runCycle() {
+    const killSwitch = await this.prisma.platformSetting.findUnique({
+      where: { key: 'kill_switch_contributions' },
+      select: { value: true },
+    })
+    if (killSwitch?.value === 'true') return
+    if (!isContributionDeliveryWindow(new Date())) return
+
     const clubs = await this.prisma.clubContributionSettings.findMany({
       where: {
         enabled: true,
@@ -83,6 +90,17 @@ export class ContributionsReminderWorker implements OnModuleInit, OnModuleDestro
       this.running = false
     }
   }
+}
+
+export function isContributionDeliveryWindow(now: Date) {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Berlin',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(now),
+  )
+  return hour >= 8 && hour < 20
 }
 
 function resolveReminderInterval() {

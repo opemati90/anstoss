@@ -8,6 +8,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActionSheetIOS,
 } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -99,6 +101,73 @@ export default function DmChatScreen() {
     typingTimerRef.current = setTimeout(() => {}, 3000)
   }
 
+  const reportMessage = async (
+    message: DmMessage,
+    reason: 'SPAM' | 'ABUSE' | 'INAPPROPRIATE' | 'OTHER',
+  ) => {
+    try {
+      await api(`/direct-messages/${message.id}/report`, { method: 'POST', body: { reason } })
+      Alert.alert(t('chat.reportSubmitted'), t('chat.reportSubmittedBody'))
+    } catch {
+      Alert.alert(t('chat.reportFailed'), t('chat.reportFailedBody'))
+    }
+  }
+
+  const chooseReportReason = (message: DmMessage) => {
+    const options = [
+      t('chat.reportSpam'),
+      t('chat.reportAbuse'),
+      t('chat.reportInappropriate'),
+      t('chat.reportOther'),
+      t('common.cancel'),
+    ]
+    const select = (index: number) => {
+      const reasons = ['SPAM', 'ABUSE', 'INAPPROPRIATE', 'OTHER'] as const
+      if (index < reasons.length) void reportMessage(message, reasons[index])
+    }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: t('chat.reportTitle'), options, destructiveButtonIndex: 1, cancelButtonIndex: 4 },
+        select,
+      )
+      return
+    }
+    Alert.alert(t('chat.reportTitle'), undefined, [
+      { text: options[0], onPress: () => select(0) },
+      { text: options[1], style: 'destructive', onPress: () => select(1) },
+      { text: options[2], style: 'destructive', onPress: () => select(2) },
+      { text: options[3], onPress: () => select(3) },
+      { text: options[4], style: 'cancel' },
+    ])
+  }
+
+  const blockSender = (message: DmMessage) => {
+    Alert.alert(t('chat.blockTitle', { name: message.senderName }), t('chat.blockBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('chat.blockConfirm'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api(`/users/${message.senderId}/block`, { method: 'POST' })
+            Alert.alert(t('chat.blocked'), t('chat.blockedBody', { name: message.senderName }))
+          } catch {
+            Alert.alert(t('chat.blockFailed'), t('chat.blockFailedBody'))
+          }
+        },
+      },
+    ])
+  }
+
+  const handleMessageLongPress = (message: DmMessage) => {
+    if (message.senderId === user?.id) return
+    Alert.alert(message.senderName, t('chat.moderationHint', { defaultValue: 'Choose an action' }), [
+      { text: t('chat.reportTitle'), onPress: () => chooseReportReason(message) },
+      { text: t('chat.blockConfirm'), style: 'destructive', onPress: () => blockSender(message) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ])
+  }
+
   const renderMessage = ({ item }: { item: DmMessage }) => {
     const isMine = item.senderId === user?.id
     const time = new Date(item.createdAt).toLocaleTimeString([], {
@@ -108,7 +177,12 @@ export default function DmChatScreen() {
 
     return (
       <View style={[styles.messageBubbleRow, isMine && styles.messageBubbleRowMine]}>
-        <View
+        <Pressable
+          disabled={isMine}
+          onLongPress={() => handleMessageLongPress(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.senderName}: ${item.content}`}
+          accessibilityHint={!isMine ? t('chat.moderationHint', { defaultValue: 'Long press to report or block' }) : undefined}
           style={[
             styles.messageBubble,
             isMine
@@ -127,7 +201,7 @@ export default function DmChatScreen() {
           >
             {time}
           </Text>
-        </View>
+        </Pressable>
       </View>
     )
   }

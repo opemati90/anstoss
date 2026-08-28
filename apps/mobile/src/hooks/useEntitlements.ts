@@ -9,6 +9,12 @@ export type EntitlementsResponse = {
   limits: { teams: number; players: number }
   usage: { teams: number; players: number }
   features: string[]
+  compliance?: {
+    status: 'OVER_QUOTA' | 'RESOLVED'
+    excessTeams: number
+    excessPlayers: number
+    remediationEndsAt: string
+  } | null
 }
 
 const STALE_MS = 5 * 60 * 1000
@@ -19,7 +25,7 @@ const CORE_CLUB_FEATURES = [
   'contribution_intake',
   'staff_chat',
   'club_player_search',
-  'fixture_sync',
+  'official_team_pages',
 ]
 
 function safeUseAuth(): { activeClub: { club: { id: string } } | null } {
@@ -39,7 +45,8 @@ export function useEntitlements() {
   const [data, setData] = useState<EntitlementsResponse | null>(
     clubId ? (cache.get(clubId)?.data ?? null) : null,
   )
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(Boolean(clubId && !cache.has(clubId)))
+  const [error, setError] = useState<Error | null>(null)
   const inflightRef = useRef<string | null>(null)
 
   const refresh = useCallback(async () => {
@@ -47,6 +54,7 @@ export function useEntitlements() {
     if (inflightRef.current === clubId) return null
     inflightRef.current = clubId
     setLoading(true)
+    setError(null)
     try {
       const raw = await api<EntitlementsResponse>(`/clubs/${clubId}/billing/entitlements`)
       const fresh: EntitlementsResponse = {
@@ -56,6 +64,7 @@ export function useEntitlements() {
         limits: raw?.limits ?? FREE_LIMITS,
         usage: raw?.usage ?? { teams: 0, players: 0 },
         features: Array.isArray(raw?.features) ? raw.features : [],
+        compliance: raw?.compliance ?? null,
       }
       cache.set(clubId, { data: fresh, fetchedAt: Date.now() })
       setData(fresh)
@@ -76,6 +85,7 @@ export function useEntitlements() {
         setData(fallback)
         return fallback
       }
+      setError(err instanceof Error ? err : new Error('Could not load entitlements'))
       return null
     } finally {
       inflightRef.current = null
@@ -86,13 +96,19 @@ export function useEntitlements() {
   useEffect(() => {
     if (!clubId) {
       setData(null)
+      setLoading(false)
+      setError(null)
       return
     }
     const cached = cache.get(clubId)
     if (cached && Date.now() - cached.fetchedAt < STALE_MS) {
       setData(cached.data)
+      setLoading(false)
+      setError(null)
       return
     }
+    setData(null)
+    setLoading(true)
     void refresh()
   }, [clubId, refresh])
 
@@ -106,12 +122,13 @@ export function useEntitlements() {
     () => ({
       data,
       loading,
+      error,
       isPremium,
       plan: data?.plan ?? 'FOUNDATION',
       features: data?.features ?? [],
       has,
       refresh,
     }),
-    [data, loading, isPremium, has, refresh],
+    [data, loading, error, isPremium, has, refresh],
   )
 }

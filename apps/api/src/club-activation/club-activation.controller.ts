@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
 import {
   createOwnershipTransferSchema,
+  requestOwnershipTransferChallengeSchema,
+  verifyOwnershipTransferChallengeSchema,
   reviewClubClaimSchema,
   respondClubClaimSchema,
   submitFirstClubClaimSchema,
@@ -98,7 +100,7 @@ export class ClubActivationController {
   @Post('clubs/:clubId/ownership-transfers')
   @UseGuards(RolesGuard)
   @RequireRole(MembershipRole.OWNER)
-  @RateLimit('write')
+  @RateLimit('ownership-challenge')
   startOwnershipTransfer(
     @CurrentUser() user: { id: string; authenticatedAt?: number },
     @Param('clubId') clubId: string,
@@ -111,13 +113,43 @@ export class ClubActivationController {
     )
   }
 
+  @Post('clubs/:clubId/ownership-transfers/challenge')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.OWNER)
+  @RateLimit('ownership-challenge')
+  requestOwnershipTransferChallenge(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Body() body: unknown,
+  ) {
+    return this.activation.requestOwnershipTransferChallenge(
+      user,
+      clubId,
+      requestOwnershipTransferChallengeSchema.parse(body),
+    )
+  }
+
+  @Post('ownership-transfers/:transferId/challenge')
+  @RateLimit('ownership-challenge')
+  requestOwnershipAcceptanceChallenge(
+    @CurrentUser() user: { id: string },
+    @Param('transferId') transferId: string,
+  ) {
+    return this.activation.requestOwnershipAcceptanceChallenge(user, transferId)
+  }
+
   @Post('ownership-transfers/:transferId/accept')
-  @RateLimit('write')
+  @RateLimit('ownership-challenge')
   acceptOwnershipTransfer(
     @CurrentUser() user: { id: string; authenticatedAt?: number },
     @Param('transferId') transferId: string,
+    @Body() body: unknown,
   ) {
-    return this.activation.acceptOwnershipTransfer(user, transferId)
+    return this.activation.acceptOwnershipTransfer(
+      user,
+      transferId,
+      verifyOwnershipTransferChallengeSchema.parse(body),
+    )
   }
 
   @Get('ownership-transfers/mine')

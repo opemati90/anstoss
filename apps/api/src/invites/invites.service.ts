@@ -88,8 +88,29 @@ export class InvitesService {
       throw new NotFoundException('Team not found')
     }
 
+    const normalizedRecipientEmail = input.recipientEmail?.trim().toLowerCase() || null
     const linkedPlayerUserId =
       input.role === TeamRole.PARENT ? input.linkedPlayerUserId?.trim() || null : null
+    if (normalizedRecipientEmail) {
+      const existing = await this.prisma.invite.findFirst({
+        where: {
+          clubId,
+          teamId: team.id,
+          role: input.role as TeamRole,
+          phase: input.phase as TeamAccessPhase,
+          recipientEmail: normalizedRecipientEmail,
+          linkedPlayerUserId,
+          status: { in: [InviteStatus.PENDING, InviteStatus.SENT] },
+          expiresAt: { gt: new Date() },
+        },
+        include: {
+          club: { select: { id: true, name: true, slug: true, badgeUrl: true, primaryColor: true } },
+          team: { include: { group: true } },
+          createdBy: { select: { preferredLanguage: true } },
+        },
+      })
+      if (existing) return { ...existing, link: buildInviteLink(existing.club.slug, existing.code) }
+    }
 
     if (linkedPlayerUserId) {
       const linkedPlayerAccess = await this.prisma.teamAccess.findFirst({
@@ -119,7 +140,7 @@ export class InvitesService {
         role: input.role as TeamRole,
         phase: input.phase as TeamAccessPhase,
         deliveryChannel: input.deliveryChannel as InviteDeliveryChannel,
-        recipientEmail: input.recipientEmail?.trim().toLowerCase() || null,
+        recipientEmail: normalizedRecipientEmail,
         linkedPlayerUserId,
         guardianEmail: input.guardianEmail?.trim().toLowerCase() || null,
         childName: input.childName?.trim() || null,
@@ -469,6 +490,25 @@ export class InvitesService {
           }
           result = { status: 'ACTIVE', clubId: current.clubId, teamId: current.teamId }
         } else {
+          if (!user.dateOfBirth) {
+            throw new BadRequestException('Date of birth is required to request player access')
+          }
+          if (getAge(user.dateOfBirth) < 16) {
+            const approvedConsent = await tx.parentalConsent.findFirst({
+              where: {
+                playerUserId: userId,
+                clubId: current.clubId,
+                teamId: current.teamId,
+                status: ParentalConsentStatus.APPROVED,
+              },
+              select: { id: true },
+            })
+            if (!approvedConsent) {
+              throw new BadRequestException(
+                'Players under 16 need guardian approval before requesting club access',
+              )
+            }
+          }
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`join-request-user:${current.clubId}:${userId}`}))`
           let request = await tx.joinRequest.findUnique({
             where: { clubId_userId: { clubId: current.clubId, userId } },

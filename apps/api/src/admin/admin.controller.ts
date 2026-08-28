@@ -19,10 +19,7 @@ import { ModerationService } from './moderation.service'
 import { PlatformSettingsService } from './platform-settings.service'
 import { PlatformAdminGuard } from './platform-admin.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import {
-  type PlatformAdminRequestUser,
-  toPlatformAdminActor,
-} from './platform-admin.types'
+import { type PlatformAdminRequestUser, toPlatformAdminActor } from './platform-admin.types'
 
 @Controller('admin')
 @UseGuards(PlatformAdminGuard)
@@ -78,10 +75,7 @@ export class AdminController {
   }
 
   @Get('subscriptions')
-  async listSubscriptions(
-    @Query('status') status?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async listSubscriptions(@Query('status') status?: string, @Query('limit') limit?: string) {
     return this.adminService.listSubscriptions({
       status,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -131,26 +125,10 @@ export class AdminController {
     return this.adminService.revenueSummary()
   }
 
-  @Get('fussball/team-links')
-  async listFussballTeamLinks() {
-    return this.adminService.listFussballTeamLinks()
-  }
-
-  @Get('fussball/sync-runs')
-  async listFussballSyncRuns() {
-    return this.adminService.listFussballSyncRuns()
-  }
-
   @Post('support-actions')
-  async performSupportAction(
-    @CurrentUser() user: PlatformAdminRequestUser,
-    @Body() body: unknown,
-  ) {
+  async performSupportAction(@CurrentUser() user: PlatformAdminRequestUser, @Body() body: unknown) {
     const input = supportActionSchema.parse(body)
-    return this.adminService.performSupportAction(
-      toPlatformAdminActor(user),
-      input,
-    )
+    return this.adminService.performSupportAction(toPlatformAdminActor(user), input)
   }
 
   @Get('support-actions')
@@ -175,9 +153,7 @@ export class AdminController {
 
   @Get('broadcasts')
   async listBroadcasts(@Query('limit') limit?: string) {
-    return this.broadcastsService.listRecent(
-      limit ? parseInt(limit, 10) : undefined,
-    )
+    return this.broadcastsService.listRecent(limit ? parseInt(limit, 10) : undefined)
   }
 
   @Post('broadcasts')
@@ -186,9 +162,7 @@ export class AdminController {
     @Body() body: { title?: string; body?: string; segment?: string },
   ) {
     if (user.authMethod !== 'session' || !user.id) {
-      throw new ForbiddenException(
-        'Broadcasts require a signed-in platform admin account',
-      )
+      throw new ForbiddenException('Broadcasts require a signed-in platform admin account')
     }
     const actor = toPlatformAdminActor(user)
     return this.broadcastsService.createAndSend({
@@ -229,10 +203,7 @@ export class AdminController {
   }
 
   @Delete('feature-flags/:id')
-  async removeFeatureFlag(
-    @CurrentUser() user: PlatformAdminRequestUser,
-    @Param('id') id: string,
-  ) {
+  async removeFeatureFlag(@CurrentUser() user: PlatformAdminRequestUser, @Param('id') id: string) {
     await this.featureFlagsService.remove(id, toPlatformAdminActor(user))
     return { removed: true }
   }
@@ -240,13 +211,9 @@ export class AdminController {
   // ─── V2: Moderation queue ───────────────────────────────
 
   @Get('moderation/reports')
-  async listReports(
-    @Query('resolved') resolved?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async listReports(@Query('resolved') resolved?: string, @Query('limit') limit?: string) {
     return this.moderationService.listReports({
-      resolved:
-        resolved === 'true' ? true : resolved === 'false' ? false : undefined,
+      resolved: resolved === 'true' ? true : resolved === 'false' ? false : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     })
   }
@@ -255,12 +222,13 @@ export class AdminController {
   async resolveReport(
     @CurrentUser() user: PlatformAdminRequestUser,
     @Param('id') id: string,
-    @Body() body: { resolution?: string },
+    @Body() body: { resolution?: string; action?: 'dismiss' | 'remove' },
   ) {
     return this.moderationService.resolveReport(
       id,
       toPlatformAdminActor(user),
       body?.resolution ?? '',
+      body?.action ?? 'dismiss',
     )
   }
 

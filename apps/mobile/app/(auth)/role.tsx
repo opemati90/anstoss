@@ -36,7 +36,8 @@ export default function Role() {
     <WizardStep
       title={t('onboarding.role.title')}
       hint={t('onboarding.role.hint', {
-        defaultValue: 'Pick what fits best. You can always change it.',
+        defaultValue:
+          'Choose how you are joining today. Club and staff authority always requires an invitation or approval.',
       })}
       step={onboardingStep('role')}
       stepLabel={t('onboarding.stepOf', {

@@ -2079,8 +2079,9 @@ export class UsersService {
         })
       }
 
-      // 6. Anonymize audit actor fields where this user was the actor. Audit
-      // summaries/metadata may still need a formal retention policy.
+      // 6. Anonymize audit actor fields where this user was the actor. The
+      // event remains for security and governance accountability under the
+      // documented retention matrix, without a direct user identifier.
       await tx.auditLog.updateMany({
         where: { actorId: userId },
         data: { actorId: null, actorLabel: 'Deleted User' },

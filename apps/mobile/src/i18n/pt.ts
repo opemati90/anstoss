@@ -117,6 +117,7 @@ const base = {
   teamSwitcher: {
     title: 'Mudar de equipa',
     current: 'Atual',
+    currentTeam: 'Equipa atual',
   },
   clubSwitcher: {
     title: 'Mudar de clube',
@@ -346,15 +347,13 @@ const base = {
     quickActions: 'Ações rápidas',
     noUpcomingEventsTitle: 'Sem eventos futuros',
     noUpcomingEventsBody: 'Treinos e jogos aparecerão aqui quando forem agendados.',
-    importedMatchPendingTitle: 'Feed de calendário autorizado ligado',
-    importedMatchPendingBody:
-      'Estamos à espera do próximo jogo do feed autorizado.',
-    importedMatchErrorTitle: 'O feed autorizado precisa de atenção',
-    importedMatchErrorBody:
-      'A última sincronização do feed autorizado falhou. Abre a fonte do calendário para repetir.',
-    importedMatchEmptyTitle: 'Nenhum feed de calendário autorizado ligado',
+    importedMatchPendingTitle: 'Ainda não há próximo jogo',
+    importedMatchPendingBody: 'Cria o próximo jogo no calendário Anstoss.',
+    importedMatchErrorTitle: 'Verifica o calendário',
+    importedMatchErrorBody: 'Abre o calendário e verifica os jogos geridos manualmente.',
+    importedMatchEmptyTitle: 'Sem jogos agendados',
     importedMatchEmptyBody:
-      'Guarda a página oficial da equipa como referência e adiciona os jogos manualmente até existir um feed autorizado.',
+      'Guarda a página oficial como referência e adiciona os jogos ao calendário Anstoss.',
     manageImportedMatch: 'Gerir fonte do calendário',
     linkFussballTeam: 'Links oficiais da equipa',
     actionCreateEvent: 'Criar evento',
@@ -362,7 +361,7 @@ const base = {
     actionChat: 'Abrir chat',
     actionRoster: 'Abrir plantel',
     actionInvite: 'Convidar jogadores',
-    actionFussball: 'Sincr. jogos',
+    actionFussball: 'Página oficial',
     activation: {
       eyebrow: 'PRONTO PARA O JOGO',
       title: 'Concluir configuração do clube',
@@ -372,6 +371,9 @@ const base = {
       invite: 'Convidar o plantel',
       availability: 'Criar o primeiro pedido de disponibilidade',
       progress: '{{completed}} de {{total}} passos concluídos',
+      loadErrorTitle: 'Configuração indisponível',
+      loadErrorBody:
+        'Não foi possível verificar alguns passos. Tenta novamente antes de continuar.',
     },
     actionMyTeam: 'Abrir equipa',
     announce: 'Anunciar',
@@ -755,48 +757,55 @@ const base = {
     eyebrow: 'Referência oficial do clube',
     title: 'Ligação da equipa no FUSSBALL.DE',
     subtitle:
-      'Guarda a página pública oficial de {{team}}. As importações automáticas ficam desativadas até o Anstoss ter um feed autorizado.',
+      'Mostra o widget oficial em direto de {{team}} ou guarda a página oficial como referência.',
     linkTitle: 'Guardar a página oficial da equipa',
     linkBody:
-      'Cola o URL canónico do FUSSBALL.DE. A ligação é apenas uma referência: não comprova autoridade do clube nem importa dados de membros.',
-    inputPlaceholder: 'https://www.fussball.de/mannschaft/...',
-    previewAction: 'Verificar ligação',
-    connectAction: 'Guardar ligação oficial',
-    linkedFeeds: 'Ligações oficiais e feeds autorizados',
-    upcomingFixtures: 'Próximos jogos importados',
-    syncNow: 'Sincronizar agora',
+      'Cola o código de FUSSBALL.DE → Os meus widgets → Mostrar código, ou o URL HTTPS oficial da equipa.',
+    inputPlaceholder: '<div class="fussballde_widget" data-id="…" data-type="…">',
+    previewAction: 'Verificar código ou ligação',
+    connectAction: 'Guardar widget ou página',
+    linkedPages: 'Páginas oficiais da equipa',
+    referenceOnly: 'Apenas referência · nenhum dado é importado',
+    liveWidget: 'Widget oficial em direto · mantido por FUSSBALL.DE/DFBnet',
+    widgetLabel: 'Widget em direto',
+    referenceLabel: 'Referência',
+    openPage: 'Abrir página {{provider}}',
+    openExternal: 'Abrir no navegador',
+    createFixtureManually: 'Criar jogo manualmente',
+    linkedFeeds: 'Widgets e páginas oficiais da equipa',
+    upcomingFixtures: 'Jogos mostrados no widget oficial',
+    syncNow: 'Abrir página',
     loadError: 'Não foi possível carregar os dados do dados externos da equipa neste momento.',
-    inputRequired: 'Cola primeiro um URL ou ID de equipa do dados externos da equipa.',
+    inputRequired: 'Cola primeiro o código do widget ou o URL oficial da equipa.',
     previewErrorTitle: 'Não foi possível pré-visualizar a equipa',
     previewErrorBody:
       'A página da equipa dados externos da equipa não pôde ser carregada neste momento.',
     connectSuccessTitle: 'Equipa ligada',
     connectSuccessBody: 'A referência para a página oficial da equipa foi guardada.',
     connectPartialBody:
-      'A ligação da equipa foi guardada, mas ainda não há dados de jogos recentes. Revê a fonte e sincroniza novamente.',
+      'A página oficial foi guardada como referência. Os jogos no Anstoss continuam a ser geridos manualmente.',
     connectSyncFailedBody:
-      'A equipa foi ligada, mas a primeira sincronização falhou. Revê a fonte e tenta outra sincronização.',
+      'A página oficial foi guardada, mas o widget não pôde ser apresentado. Verifica o código fornecido.',
     connectErrorTitle: 'Não foi possível guardar a ligação da equipa',
     connectErrorBody: 'A ligação da equipa não pôde ser guardada neste momento.',
-    syncSuccessTitle: 'Feed atualizado',
-    syncSuccessBody: '{{count}} registos de jogos foram atualizados.',
-    syncErrorTitle: 'Não foi possível sincronizar a equipa',
-    syncErrorBody:
-      'Não foi possível atualizar o feed dados externos da equipa ligado neste momento.',
+    syncSuccessTitle: 'Página oficial aberta',
+    syncSuccessBody: 'O conteúdo é fornecido diretamente pelo FUSSBALL.DE.',
+    syncErrorTitle: 'Não foi possível abrir a página',
+    syncErrorBody: 'A página oficial não está disponível neste momento.',
     competitionUnknown: 'Competição ainda desconhecida',
     pitchPending: 'A morada do campo ainda não estava visível na fonte pública.',
     noTeamTitle: 'Nenhuma equipa ativa selecionada',
-    noTeamBody: 'Escolhe uma equipa primeiro antes de ligar um feed dados externos da equipa.',
-    noLinksTitle: 'Nenhum feed ligado ainda',
+    noTeamBody: 'Escolhe primeiro uma equipa antes de adicionar o widget ou a página oficial.',
+    noLinksTitle: 'Nenhum widget ou página guardado',
     noLinksBody:
-      'Guarda aqui a página oficial da equipa. Adiciona os jogos manualmente até existir um feed autorizado.',
-    noFixturesTitle: 'Sem jogos importados ainda',
+      'Guarda aqui a página oficial da equipa e adiciona os jogos manualmente no Anstoss.',
+    noFixturesTitle: 'Jogos geridos no Anstoss',
     noFixturesBody:
-      'O feed está ligado, mas ainda não temos um jogo futuro na janela de sincronização atual.',
+      'O widget oficial aparece em separado; adiciona manualmente os eventos ao calendário do Anstoss.',
     linkErrorNotice:
-      'Este feed precisa de revisão. A última sincronização falhou ou retornou dados incompletos.',
-    lastSynced: 'Última sincronização: {{value}}',
-    neverSynced: 'Ainda não sincronizado',
+      'Esta página oficial precisa de revisão. Guarda novamente um código de widget ou URL válido.',
+    lastSynced: 'Última atualização: {{value}}',
+    neverSynced: 'Ainda não atualizado',
     status: {
       scheduled: 'Agendado',
       live: 'A decorrer',
@@ -864,9 +873,9 @@ const base = {
       factsTitle: 'Ainda sem estatísticas',
       factsEmpty: 'Posse de bola, remates e confrontos diretos aparecerão assim que disponíveis.',
     },
-    openFussball: 'Abrir no fonte pública',
+    openFussball: 'Abrir página oficial da equipa',
     tableEmpty: 'Ainda sem dados de classificação',
-    tableEmptyBody: 'A classificação aparece aqui depois de importar jogos com instantâneos.',
+    tableEmptyBody: 'A classificação aparece quando houver dados para os jogos geridos pelo clube.',
   },
   event: {
     upcoming: 'Próximos eventos',
@@ -1143,6 +1152,9 @@ const base = {
       'Escolhe o plantel, o papel e o tipo de acesso para que cada convite chegue à equipa certa desde o início.',
     teamLabel: 'Equipa',
     roleLabel: 'Papel',
+    coachRoleLabel: 'FUNÇÃO DO TREINADOR',
+    coachRoleHelp:
+      'O treinador recebe acesso apenas a esta equipa. A administração geral do clube é atribuída separadamente.',
     phaseLabel: 'Acesso',
     recipientLabel: 'Destinatário',
     rolePlayer: 'Jogador',
@@ -1321,6 +1333,7 @@ const base = {
     timeMinutes: 'há {{count}} min',
     timeHours: 'há {{count}} h',
     messageDeleted: 'Mensagem eliminada',
+    moderationHint: 'Mantém premido para denunciar ou bloquear',
     menuReply: 'Responder',
     menuCopy: 'Copiar',
     menuPin: 'Fixar',
@@ -1436,7 +1449,7 @@ const base = {
     invitePlayers: 'Convidar jogadores',
     activeTeam: 'Equipa ativa',
     fussballLink: 'Link oficial da equipa',
-    fussballLinkSubtitle: 'Guardar a página pública como referência; os feeds autorizados sincronizam separadamente',
+    fussballLinkSubtitle: 'Guardar e ver a página oficial da equipa no Anstoss',
     manageTeams: 'Gerir equipas',
     manageStaff: 'Gerir cargos do clube',
     manageStaffSubtitle: 'Atribuir admins, treinadores e outro staff do clube',
@@ -1580,6 +1593,11 @@ const base = {
     subtitle:
       'Decide quem tem responsabilidade administrativa ou desportiva dentro do {{clubName}}.',
     accessRequests: 'Pedidos de acesso pendentes',
+    addStaff: 'Adicionar membro da equipa técnica',
+    addStaffHelp:
+      'Convide um treinador para uma equipa. O acesso de treinador não concede administração do clube.',
+    inviteCoach: 'Convidar treinador',
+    inviteCoachBody: 'Envie um convite pessoal por email e escolha a função na equipa.',
     accessRequestsHint:
       'Só proprietários e administradores podem aprovar acesso ao clube ou de treinador.',
     noTeamRole: 'Sem função na equipa',
@@ -1643,6 +1661,7 @@ const base = {
       'Atribui as responsabilidades de secretário ou tesoureiro a outra pessoa antes de remover este membro.',
     roleLockedGeneric: 'Nenhuma alteração disponível',
     loadError: 'Não foi possível carregar os membros do clube neste momento.',
+    loadErrorTitle: 'Não foi possível carregar a equipa técnica',
     roleUpdateError: 'Não foi possível guardar o cargo do clube neste momento.',
     operationalRolesSaveError:
       'Não foi possível guardar as responsabilidades operacionais neste momento.',
@@ -1964,7 +1983,8 @@ const base = {
     },
     clubCreate: {
       officialTeamUrlLabel: 'Página oficial da equipa',
-      officialTeamUrlHelp: 'Cole a página oficial da equipa como contexto para a análise da plataforma. O link não comprova autoridade no clube.',
+      officialTeamUrlHelp:
+        'Cole a página oficial da equipa como contexto para a análise da plataforma. O link não comprova autoridade no clube.',
       title: 'Criar o teu clube',
       hint: 'Introduz o clube e uma equipa para começar. Podes adicionar mais equipas depois.',
       nameLabel: 'Nome do clube',
@@ -2183,6 +2203,7 @@ const base = {
     removeConfirm: 'Remover',
     removeOwnerError: 'Os proprietários não podem ser removidos.',
     removeError: 'Não foi possível remover. Tente novamente.',
+    loadErrorTitle: 'Não foi possível carregar a equipa técnica',
   },
   adminBilling: {
     title: 'Finanças do clube',
@@ -2210,9 +2231,19 @@ const base = {
     stripeNotConnected: 'Conta Stripe não ligada',
     setupStripe: 'Configurar Stripe',
     unavailable: 'A configuração de pagamentos não está disponível.',
+    overQuotaTitle: 'Limite do plano excedido',
+    overQuotaBody:
+      '{{teams}} equipa(s) e {{players}} vaga(s) de jogador adicionais. Os dados continuam disponíveis; novas ativações ficam bloqueadas até {{date}}.',
+    reviewPlan: 'Gerir capacidade do clube',
   },
   contributions: {
     sectionTitle: 'Contribuições dos membros',
+    reconciliationTitle: 'Reconciliação bancária',
+    reconciliationSubtitle:
+      'Importe um ficheiro CSV ou CAMT.053 e confirme as correspondências manualmente.',
+    reconciliation: {
+      title: 'Reconciliação bancária', fileTooLargeTitle: 'Ficheiro demasiado grande', fileTooLargeBody: 'Escolhe um ficheiro CSV ou CAMT.053 com menos de 10 MB.', invalidAmount: 'Introduz um valor não superior à transferência ou contribuição em falta.', accessErrorTitle: 'Não foi possível verificar o acesso ao plano', accessErrorBody: 'Verifica a ligação e tenta novamente. O plano não foi alterado.', proTitle: 'A reconciliação bancária é uma funcionalidade Pro', proBody: 'Importações CSV e CAMT.053, correspondências, reversões e histórico estão disponíveis no Pro e Scale.', viewPlans: 'Ver planos', introTitle: 'Associar transferências', introBody: 'Importa movimentos recebidos. O Anstoss sugere correspondências; um administrador confirma cada atribuição.', importing: 'A importar…', importAction: 'Importar CSV ou CAMT.053', loadErrorTitle: 'Não foi possível carregar importações', loadErrorBody: 'Verifica a ligação e tenta novamente.', emptyTitle: 'Nenhum extrato importado', emptyBody: 'Começa com uma exportação CSV ou ficheiro CAMT.053 da conta do clube.', recentImports: 'Importações recentes', transactionCount: '{{count}} transações', manualTitle: 'Correspondência manual', manualFooter: 'Escolhe a contribuição e o valor exato. Cada atribuição pode ser revertida e fica auditada.', unknownPayer: 'Pagador desconhecido', noReference: 'Sem referência', match: 'Associar', suggestionsTitle: 'Correspondências sugeridas', suggestionsFooter: 'As sugestões nunca marcam uma contribuição como paga antes da confirmação.', noSuggestionsTitle: 'Sem sugestões pendentes', noSuggestionsBody: 'Este extrato está revisto ou precisa de correspondência manual.', confidence: '{{value}}% de confiança', confirm: 'Confirmar', confirmedTitle: 'Atribuições confirmadas', reverse: 'Reverter', reverseTitle: 'Reverter correspondência', reverseBody: 'A atribuição será removida do saldo. A correspondência original e o motivo permanecem no histórico.', reason: 'Motivo', reasonPlaceholder: 'Por exemplo: transferência devolvida pelo banco', reverseAction: 'Reverter atribuição', manualSheetTitle: 'Associar transferência manualmente', manualSheetBody: 'Seleciona a contribuição e confirma o valor a atribuir.', outstandingListLabel: 'Contribuições pendentes', amount: 'Valor', confirmAllocation: 'Confirmar atribuição',
+    },
     heroTitle: 'Gerir quotas sem correr atrás no WhatsApp',
     heroBody:
       'Cria planos mensais ou anuais, atribui membros, atualiza o estado de pagamento e envia lembretes a partir de uma única área financeira.',
@@ -2392,7 +2423,8 @@ const base = {
     conversationWith: 'Conversa com',
     startConversationWith: 'Iniciar conversa com',
     resolveError: 'Não foi possível abrir a conversa.',
-    restricted: 'Para proteger menores, as mensagens privadas estão limitadas aos responsáveis associados.',
+    restricted:
+      'Para proteger menores, as mensagens privadas estão limitadas aos responsáveis associados.',
   },
   myTeam: {
     title: 'Minha Equipa',

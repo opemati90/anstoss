@@ -37,6 +37,7 @@ export default function OwnershipTransfersScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [stepUpCode, setStepUpCode] = useState('')
+  const [stepUpChallengeId, setStepUpChallengeId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<
     | { kind: 'start'; member: ClubMember }
     | { kind: 'accept' | 'cancel'; transfer: OwnershipTransfer }
@@ -79,7 +80,23 @@ export default function OwnershipTransfersScreen() {
     }
     setBusyId(action.kind === 'start' ? action.member.userId : action.transfer.id)
     try {
-      await api('/auth/otp/request', { method: 'POST', body: { email: user.email } })
+      if (action.kind === 'start') {
+        if (!activeClub) return
+        const challenge = await api<{ challengeId: string }>(
+          `/clubs/${activeClub.club.id}/ownership-transfers/challenge`,
+          { method: 'POST', body: { toUserId: action.member.userId } },
+        )
+        setStepUpChallengeId(challenge.challengeId)
+      } else if (action.kind === 'accept') {
+        const challenge = await api<{ challengeId: string }>(
+          `/ownership-transfers/${action.transfer.id}/challenge`,
+          { method: 'POST', body: {} },
+        )
+        setStepUpChallengeId(challenge.challengeId)
+      } else {
+        await api('/auth/otp/request', { method: 'POST', body: { email: user.email } })
+        setStepUpChallengeId(null)
+      }
       setStepUpCode('')
       setPendingAction(action)
     } catch (error) {
@@ -90,24 +107,39 @@ export default function OwnershipTransfersScreen() {
   }
 
   const performPendingAction = async () => {
-    if (!pendingAction || stepUpCode.length !== 6 || !activeClub) return
+    if (!pendingAction || stepUpCode.length !== 6) return
     const busyKey =
       pendingAction.kind === 'start' ? pendingAction.member.userId : pendingAction.transfer.id
     setBusyId(busyKey)
     try {
-      await reauthenticate(stepUpCode)
       if (pendingAction.kind === 'start') {
+        if (!activeClub || !stepUpChallengeId) return
         await api(`/clubs/${activeClub.club.id}/ownership-transfers`, {
           method: 'POST',
-          body: { toUserId: pendingAction.member.userId },
+          body: {
+            toUserId: pendingAction.member.userId,
+            challengeId: stepUpChallengeId,
+            code: stepUpCode,
+          },
         })
-      } else {
-        const { transfer, kind } = pendingAction
-        await api(`/ownership-transfers/${transfer.id}/${kind}`, { method: 'POST', body: {} })
+      } else if (pendingAction.kind === 'accept') {
+        if (!stepUpChallengeId) return
+        const { transfer } = pendingAction
+        await api(`/ownership-transfers/${transfer.id}/accept`, {
+          method: 'POST',
+          body: { challengeId: stepUpChallengeId, code: stepUpCode },
+        })
         await refreshUser(undefined, { preferredClubId: transfer.club.id })
+      } else {
+        await reauthenticate(stepUpCode)
+        await api(`/ownership-transfers/${pendingAction.transfer.id}/cancel`, {
+          method: 'POST',
+          body: {},
+        })
       }
       setPendingAction(null)
       setStepUpCode('')
+      setStepUpChallengeId(null)
       await load()
     } catch (error) {
       Alert.alert(t('common.error'), error instanceof Error ? error.message : t('common.tryAgain'))
@@ -174,6 +206,7 @@ export default function OwnershipTransfersScreen() {
                     onPress={() => {
                       setPendingAction(null)
                       setStepUpCode('')
+                      setStepUpChallengeId(null)
                     }}
                   />
                   <Button

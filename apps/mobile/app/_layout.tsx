@@ -182,6 +182,10 @@ export default function RootLayout() {
                 name="admin-contribution-plan"
                 options={{ presentation: 'fullScreenModal' }}
               />
+              <Stack.Screen
+                name="admin-contribution-reconciliation"
+                options={{ presentation: 'fullScreenModal' }}
+              />
               <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />

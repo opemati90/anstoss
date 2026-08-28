@@ -25,6 +25,7 @@ import { ChannelsService } from '../channels/channels.service'
 import { ModerationService } from '../moderation/moderation.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { ChatService } from './chat.service'
+import { PlatformSettingsService } from '../admin/platform-settings.service'
 
 /**
  * Socket.io gateway for team chat.
@@ -103,7 +104,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // so the dependency is mutual.
     @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
+    private readonly platformSettings?: PlatformSettingsService,
   ) {}
+
+  private async isChatDisabled() {
+    return (await this.platformSettings?.get('kill_switch_chat')) === 'true'
+  }
+
+  private chatDisabledError() {
+    return { event: 'error', data: { message: 'Chat is temporarily unavailable' } }
+  }
 
   /**
    * Wire Redis adapter for multi-instance pub/sub + rate limiting.
@@ -300,6 +310,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
     const room = `team:${data.teamId}`
@@ -369,6 +380,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.userId as string
     if (!userId) return
+    if (await this.isChatDisabled()) {
+      return { event: 'error', data: { message: 'Chat is temporarily unavailable' } }
+    }
 
     const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
 
@@ -577,6 +591,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId || !userName || !data.teamId) {
       return
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
@@ -594,11 +609,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async handleSearch(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId: string; query: string },
-  ) {
+  ): Promise<{ event: string; data: { message?: string; messages?: { id: string }[] } }> {
     const userId = client.data.userId as string | undefined
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     const query = data.query?.trim()
     if (!query || query.length < 2) {
@@ -652,6 +668,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
@@ -723,6 +740,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
     // Only channel-scoped streams carry an unread badge; skip the legacy
     // team-wide (null channelId) stream.
     if (typeof data.channelId !== 'string' || data.channelId.length === 0) {
@@ -789,6 +807,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     // assertConversationAccess is called inside getMessages
     await this.dmService.getMessages(userId, data.conversationId)
@@ -807,6 +826,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.userId as string
     if (!userId) return
+    if (await this.isChatDisabled()) {
+      return { event: 'error', data: { message: 'Chat is temporarily unavailable' } }
+    }
 
     const content = data.content?.trim()
     if (!content || content.length > CHAT.MAX_MESSAGE_LENGTH) {
@@ -916,6 +938,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId as string | undefined
     const userName = client.data.userName as string | undefined
     if (!userId || !userName || !data?.conversationId) return
+    if (await this.isChatDisabled()) return this.chatDisabledError()
     if (await this.isTypingRateLimited(userId, data.conversationId)) return
 
     await this.dmService.assertCanMessageConversation(userId, data.conversationId)
@@ -936,6 +959,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.userId as string | undefined
     if (!userId) return
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     await this.dmService.markAsRead(userId, data.conversationId)
 
@@ -957,6 +981,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
 
     const result = await this.dmService.getMessages(userId, data.conversationId, data.cursor)
 

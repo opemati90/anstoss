@@ -8,6 +8,7 @@ const mockRedirect = jest.fn((_props?: unknown) => null)
 const authState: {
   activeClub: any
   activeTeamAccess: any
+  activeRoleMode: string | null
   memberships: any[]
   user: any
   isLoading: boolean
@@ -24,6 +25,7 @@ const authState: {
     role: 'PLAYER',
   },
   activeTeamAccess: null,
+  activeRoleMode: null,
   memberships: [
     {
       club: {
@@ -50,6 +52,7 @@ function resetAuthState() {
     role: 'PLAYER',
   }
   authState.activeTeamAccess = null
+  authState.activeRoleMode = null
   authState.memberships = [
     {
       club: {
@@ -219,6 +222,7 @@ describe('TabLayout role access', () => {
 
   it('keeps the events tab label for parents with selected coach team access', () => {
     authState.activeClub.role = 'PARENT'
+    authState.activeRoleMode = 'COACH'
     authState.activeTeamAccess = {
       role: 'ASSISTANT_COACH',
       team: {

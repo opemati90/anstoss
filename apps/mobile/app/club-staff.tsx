@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { ClubCapability, ClubOperationalRole, MembershipRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
+import { router } from 'expo-router'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { MultiSelectSheet } from '../src/components/MultiSelectSheet'
@@ -18,6 +19,7 @@ import { SelectionSheet } from '../src/components/SelectionSheet'
 import {
   Avatar,
   Badge,
+  Banner,
   ListRow,
   Screen,
   SectionGroup,
@@ -105,6 +107,7 @@ export default function ClubStaffScreen() {
   const [members, setMembers] = useState<ClubMember[]>([])
   const [staffClaims, setStaffClaims] = useState<StaffClaim[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [roleSheetMember, setRoleSheetMember] = useState<ClubMember | null>(null)
@@ -121,6 +124,7 @@ export default function ClubStaffScreen() {
     }
 
     try {
+      setLoadError(false)
       const [data, claims] = await Promise.all([
         api<ClubMember[]>(`/clubs/${activeClub.club.id}/members`),
         api<StaffClaim[]>(`/clubs/${activeClub.club.id}/staff-access-requests`),
@@ -144,7 +148,7 @@ export default function ClubStaffScreen() {
         ),
       )
     } catch {
-      Alert.alert(t('common.error'), t('clubStaff.loadError'))
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -447,6 +451,41 @@ export default function ClubStaffScreen() {
       contentStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {loadError ? (
+        <Banner
+          tone="error"
+          title={t('clubStaff.loadErrorTitle', { defaultValue: 'Staff could not be loaded' })}
+          description={t('clubStaff.loadError')}
+          action={{
+            label: t('common.retry', { defaultValue: 'Retry' }),
+            onPress: () => void fetchMembers(),
+          }}
+          style={styles.section}
+        />
+      ) : null}
+
+      <SectionGroup
+        header={t('clubStaff.addStaff', { defaultValue: 'Add staff' })}
+        footer={t('clubStaff.addStaffHelp', {
+          defaultValue:
+            'Invite a coach to one team. Coach access never grants club administration rights.',
+        })}
+        style={styles.section}
+      >
+        <ListRow
+          left={<SettingsIcon name="person.badge.plus" tint={SettingsIconTint.red} />}
+          title={t('clubStaff.inviteCoach', { defaultValue: 'Invite a coach' })}
+          subtitle={t('clubStaff.inviteCoachBody', {
+            defaultValue: 'Send an identity-bound email invitation and choose their team role.',
+          })}
+          subtitleNumberOfLines={2}
+          showChevron
+          onPress={() =>
+            router.push({ pathname: '/invite', params: { mode: 'coach', returnTo: '/club-staff' } })
+          }
+        />
+      </SectionGroup>
+
       {/* Overview section — 3 stats as iOS Settings rows. */}
       <SectionGroup
         header={t('clubStaff.overview', { defaultValue: 'Overview' })}

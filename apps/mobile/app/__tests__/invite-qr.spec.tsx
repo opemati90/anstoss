@@ -4,11 +4,12 @@ import InviteScreen from '../invite'
 import { api } from '../../src/api/client'
 
 const mockQrCode = jest.fn((_props: Record<string, unknown>) => null)
+const mockParams: { mode?: string; returnTo?: string } = {}
 jest.mock('react-native-qrcode-svg', () => (props: Record<string, unknown>) => mockQrCode(props))
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('expo-router', () => ({
   router: { dismissTo: jest.fn(), push: jest.fn() },
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
 }))
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
@@ -57,6 +58,8 @@ const mockApi = api as jest.MockedFunction<typeof api>
 
 describe('InviteScreen QR campaigns', () => {
   beforeEach(() => {
+    delete mockParams.mode
+    delete mockParams.returnTo
     mockApi.mockReset()
     mockApi.mockImplementation((path: string, options?: { method?: string }) => {
       if (path.endsWith('/team-groups')) {
@@ -89,6 +92,12 @@ describe('InviteScreen QR campaigns', () => {
         }) as ReturnType<typeof api>
       }
       if (path.endsWith('/invite-campaigns')) return Promise.resolve([]) as ReturnType<typeof api>
+      if (path.endsWith('/invites') && options?.method === 'POST') {
+        return Promise.resolve({
+          code: 'COACH123',
+          link: 'https://anstoss.io/join/fc-qa/COACH123',
+        }) as ReturnType<typeof api>
+      }
       return Promise.resolve(null) as ReturnType<typeof api>
     })
   })
@@ -123,5 +132,37 @@ describe('InviteScreen QR campaigns', () => {
         backgroundColor: '#FFFFFF',
       }),
     )
+  })
+
+  it('sends a team-scoped coach invite and never creates a public staff campaign', async () => {
+    mockParams.mode = 'coach'
+    const screen = render(<InviteScreen />)
+
+    fireEvent.press(await screen.findByLabelText('Head coach'))
+    fireEvent.press(screen.getByLabelText('Next'))
+    fireEvent.changeText(screen.getByTestId('invite-recipient-input'), 'coach@example.com')
+    fireEvent.press(screen.getByLabelText('Next'))
+    fireEvent.press(screen.getByLabelText('invite.sendEmail'))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/invites', {
+        method: 'POST',
+        body: {
+          teamId: 'team-1',
+          role: 'HEAD_COACH',
+          phase: 'FULL',
+          deliveryChannel: 'EMAIL',
+          recipientEmail: 'coach@example.com',
+          linkedPlayerUserId: undefined,
+          childName: undefined,
+        },
+      })
+    })
+    expect(
+      mockApi.mock.calls.some(
+        ([path, options]) =>
+          path === '/clubs/club-1/invite-campaigns' && options?.method === 'POST',
+      ),
+    ).toBe(false)
   })
 })

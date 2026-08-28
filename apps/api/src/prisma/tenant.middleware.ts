@@ -109,9 +109,11 @@ export const TENANT_UNSCOPED_MODELS = new Set([
   'ClubClaim',
   'ClubDispute',
   'OwnershipTransfer',
+  'OwnershipTransferChallenge',
   // Platform-managed commercial state is created from signed webhooks or the
   // platform console and is intentionally queried across clubs.
   'EntitlementGrant',
+  'ClubPlanCompliance',
 ])
 
 export const READ_ACTIONS = new Set([

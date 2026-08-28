@@ -15,8 +15,10 @@ export const CORE_CLUB_FEATURES = [
   'contribution_intake',
   'staff_chat',
   'club_player_search',
-  'fixture_sync',
+  'official_team_pages',
 ] as const
+
+const DOWNGRADE_REMEDIATION_DAYS = 30
 
 type DbClient = PrismaService | Prisma.TransactionClient
 
@@ -135,6 +137,96 @@ export class ClubEntitlementsService {
         `${tier} supports ${limits.players} player seats. Reduce this batch or upgrade first.`,
       )
     }
+  }
+
+  async refreshCompliance(
+    clubId: string,
+    resolved?: Awaited<ReturnType<ClubEntitlementsService['resolve']>>,
+    currentUsage?: Awaited<ReturnType<ClubEntitlementsService['usage']>>,
+  ) {
+    const [entitlement, usage] = await Promise.all([
+      resolved ?? this.resolve(clubId),
+      currentUsage ?? this.usage(clubId),
+    ])
+    const excessTeams = Math.max(0, usage.teams - entitlement.limits.teams)
+    const excessPlayers = Math.max(0, usage.players - entitlement.limits.players)
+    const existing = await this.prisma.clubPlanCompliance.findUnique({ where: { clubId } })
+
+    if (excessTeams > 0 || excessPlayers > 0) {
+      const isNewIncident = !existing || existing.status === 'RESOLVED'
+      const now = new Date()
+      const compliance = await this.prisma.clubPlanCompliance.upsert({
+        where: { clubId },
+        create: {
+          clubId,
+          status: 'OVER_QUOTA',
+          tier: entitlement.tier,
+          excessTeams,
+          excessPlayers,
+          detectedAt: now,
+          remediationEndsAt: new Date(
+            now.getTime() + DOWNGRADE_REMEDIATION_DAYS * 24 * 60 * 60 * 1000,
+          ),
+        },
+        update: {
+          status: 'OVER_QUOTA',
+          tier: entitlement.tier,
+          excessTeams,
+          excessPlayers,
+          ...(isNewIncident
+            ? {
+                detectedAt: now,
+                remediationEndsAt: new Date(
+                  now.getTime() + DOWNGRADE_REMEDIATION_DAYS * 24 * 60 * 60 * 1000,
+                ),
+                notifiedAt: null,
+                resolvedAt: null,
+              }
+            : {}),
+        },
+      })
+      if (isNewIncident) {
+        await this.prisma.auditLog.create({
+          data: {
+            clubId,
+            type: 'billing.over_quota_detected',
+            actorType: 'system',
+            actorId: null,
+            actorLabel: 'entitlement-compliance',
+            summary: 'Club entered the 30-day downgrade remediation window.',
+            metadata: {
+              tier: entitlement.tier,
+              limits: entitlement.limits,
+              usage,
+              excessTeams,
+              excessPlayers,
+              remediationEndsAt: compliance.remediationEndsAt.toISOString(),
+            },
+          },
+        })
+      }
+      return compliance
+    }
+
+    if (existing?.status === 'OVER_QUOTA') {
+      const compliance = await this.prisma.clubPlanCompliance.update({
+        where: { clubId },
+        data: { status: 'RESOLVED', excessTeams: 0, excessPlayers: 0, resolvedAt: new Date() },
+      })
+      await this.prisma.auditLog.create({
+        data: {
+          clubId,
+          type: 'billing.over_quota_resolved',
+          actorType: 'system',
+          actorId: null,
+          actorLabel: 'entitlement-compliance',
+          summary: 'Club returned within its active plan limits.',
+          metadata: { tier: entitlement.tier, limits: entitlement.limits, usage },
+        },
+      })
+      return compliance
+    }
+    return existing
   }
 
   async publishPlan(
@@ -296,7 +388,8 @@ export class ClubEntitlementsService {
         orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
       }),
     ])
-    return { clubId, ...entitlement, grants, usage }
+    const compliance = await this.refreshCompliance(clubId, entitlement, usage)
+    return { clubId, ...entitlement, grants, usage, compliance }
   }
 
   private async lockClubQuota(clubId: string, db: DbClient) {

@@ -5,11 +5,12 @@ import { ChannelsModule } from '../channels/channels.module'
 import { ClubActivationController } from './club-activation.controller'
 import { PlatformClubActivationController } from './platform-club-activation.controller'
 import { ClubActivationService } from './club-activation.service'
+import { GovernanceRetentionWorker } from './governance-retention.worker'
 
 @Module({
   imports: [AuditModule, BillingModule, ChannelsModule],
   controllers: [ClubActivationController, PlatformClubActivationController],
-  providers: [ClubActivationService],
+  providers: [ClubActivationService, GovernanceRetentionWorker],
   exports: [ClubActivationService],
 })
 export class ClubActivationModule {}

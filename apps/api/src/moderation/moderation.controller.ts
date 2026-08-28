@@ -34,6 +34,16 @@ export class ModerationController {
     return this.moderationService.reportMessage(user.id, messageId, body)
   }
 
+  @Post('direct-messages/:messageId/report')
+  @RateLimit('write')
+  async reportDirectMessage(
+    @CurrentUser() user: { id: string },
+    @Param('messageId') messageId: string,
+    @Body() body: { reason: string; details?: string },
+  ) {
+    return this.moderationService.reportDirectMessage(user.id, messageId, body)
+  }
+
   /**
    * Block a user. Idempotent. Hides the blocked user's messages from
    * the caller's chat history + search and suppresses DM conversations.

@@ -21,6 +21,7 @@ import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import {
   Avatar,
+  Banner,
   BottomSheet,
   Button,
   ListRow,
@@ -231,6 +232,28 @@ export default function AdminBillingScreen() {
         </View>
       ) : contributions ? (
         <>
+          {entitlements.data?.compliance?.status === 'OVER_QUOTA' ? (
+            <Banner
+              tone="warning"
+              title={t('adminBilling.overQuotaTitle', {
+                defaultValue: 'Plan limit action needed',
+              })}
+              description={t('adminBilling.overQuotaBody', {
+                defaultValue:
+                  'Archive {{teams}} excess team(s) and {{players}} excess player seat(s), or change plan, before {{date}}. Existing data is safe; new activations are blocked.',
+                teams: entitlements.data.compliance.excessTeams,
+                players: entitlements.data.compliance.excessPlayers,
+                date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+                  new Date(entitlements.data.compliance.remediationEndsAt),
+                ),
+              })}
+              action={{
+                label: t('adminBilling.reviewPlan', { defaultValue: 'Review plan' }),
+                onPress: () => router.push('/team-management'),
+              }}
+              style={styles.section}
+            />
+          ) : null}
           {/* ── Progress-to-collected hero ── */}
           <View style={styles.section}>
             <ProgressToCollected
@@ -291,6 +314,17 @@ export default function AdminBillingScreen() {
               }
               showChevron
               onPress={() => router.push('/admin-contribution-bank')}
+            />
+            <ListRow
+              left={<SoftIcon name="doc.text.fill" />}
+              title={t('contributions.reconciliationTitle', {
+                defaultValue: 'Bank reconciliation',
+              })}
+              subtitle={t('contributions.reconciliationSubtitle', {
+                defaultValue: 'Import CSV/CAMT.053 and confirm payment matches',
+              })}
+              showChevron
+              onPress={() => router.push('/admin-contribution-reconciliation')}
             />
           </SectionGroup>
 

@@ -415,7 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(sessionToken)
   }, [sessionToken, e2eSession, hasHydratedE2E])
 
-  const teamsForActiveClub = useMemo(
+  const allTeamsForActiveClub = useMemo(
     () =>
       activeClub
         ? selectPrimaryAccessPerTeam(
@@ -445,25 +445,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const validatedTeamId = useMemo(() => {
     if (!activeClub) return null
     if (!activeTeamId) return null
-    const belongsToClub = teamsForActiveClub.some((tm) => tm.team.id === activeTeamId)
+    const belongsToClub = allTeamsForActiveClub.some((tm) => tm.team.id === activeTeamId)
     return belongsToClub ? activeTeamId : null
-  }, [activeTeamId, activeClub, teamsForActiveClub])
-
-  useEffect(() => {
-    if (activeClub && validatedTeamId === null && teamsForActiveClub.length > 0) {
-      setActiveTeamId(teamsForActiveClub[0].team.id)
-    }
-  }, [validatedTeamId, activeClub, teamsForActiveClub])
+  }, [activeTeamId, activeClub, allTeamsForActiveClub])
 
   const activeTeamAccess = useMemo(() => {
     if (!validatedTeamId) return null
     const activeAccess = teamMembers.filter(
       (tm) => tm.team.id === validatedTeamId && isActiveTeamMember(tm),
     )
-    return (
-      activeAccess.find((teamMember) => teamAccessMatchesMode(teamMember, activeRoleMode)) ??
-      selectPrimaryTeamAccess(activeAccess)
-    )
+    if (activeRoleMode === 'ADMIN') return selectPrimaryTeamAccess(activeAccess)
+    return activeAccess.find((teamMember) => teamAccessMatchesMode(teamMember, activeRoleMode)) ?? null
   }, [activeRoleMode, teamMembers, validatedTeamId])
 
   const availableRoleModes = useMemo(() => {
@@ -484,6 +476,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return Array.from(modes)
   }, [activeClub, teamMembers, user?.registrationRole])
+
+  const teamsForActiveClub = useMemo(() => {
+    if (activeRoleMode === 'ADMIN' || activeRoleMode === null) return allTeamsForActiveClub
+    const compatible = teamMembers.filter(
+      (access) =>
+        access.team.clubId === activeClub?.club.id &&
+        isActiveTeamMember(access) &&
+        teamAccessMatchesMode(access, activeRoleMode),
+    )
+    return selectPrimaryAccessPerTeam(compatible)
+  }, [activeClub?.club.id, activeRoleMode, allTeamsForActiveClub, teamMembers])
+
+  useEffect(() => {
+    if (!activeClub || teamsForActiveClub.length === 0) return
+    if (!validatedTeamId || !teamsForActiveClub.some((access) => access.team.id === validatedTeamId)) {
+      setActiveTeamId(teamsForActiveClub[0].team.id)
+    }
+  }, [activeClub, teamsForActiveClub, validatedTeamId])
 
   useEffect(() => {
     let cancelled = false

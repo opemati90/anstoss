@@ -6,7 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { createHash } from 'node:crypto'
-import type { ConfirmContributionMatchInput, CreateBankImportInput } from '@anstoss/shared'
+import type {
+  ConfirmContributionMatchInput,
+  CreateBankImportInput,
+  ReverseContributionMatchInput,
+} from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { Prisma } from '@prisma/client'
@@ -118,6 +122,48 @@ export class ContributionImportsService {
     })
   }
 
+  async listBatches(clubId: string, actorId: string) {
+    await this.assertAdmin(clubId, actorId)
+    return this.prisma.bankImportBatch.findMany({
+      where: { clubId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        transactions: {
+          include: {
+            matches: {
+              include: {
+                record: { include: { member: { select: { id: true, name: true } } } },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+      },
+    })
+  }
+
+  async batchDetails(clubId: string, actorId: string, batchId: string) {
+    await this.assertAdmin(clubId, actorId)
+    const batch = await this.prisma.bankImportBatch.findFirst({
+      where: { id: batchId, clubId },
+      include: {
+        transactions: {
+          include: {
+            matches: {
+              include: {
+                record: { include: { member: { select: { id: true, name: true } } } },
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+      },
+    })
+    if (!batch) throw new NotFoundException('Import batch not found')
+    return batch
+  }
+
   async suggestions(clubId: string, actorId: string, batchId: string) {
     await this.assertAdmin(clubId, actorId)
     const batch = await this.prisma.bankImportBatch.findFirst({
@@ -150,6 +196,16 @@ export class ContributionImportsService {
         .filter((candidate) => candidate.confidence >= 40)
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, 3)
+    })
+  }
+
+  async outstandingRecords(clubId: string, actorId: string) {
+    await this.assertAdmin(clubId, actorId)
+    return this.prisma.contributionRecord.findMany({
+      where: { clubId, status: { in: ['PENDING', 'PARTIAL'] } },
+      include: { member: { select: { id: true, name: true } } },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+      take: 250,
     })
   }
 
@@ -259,6 +315,79 @@ export class ContributionImportsService {
           },
         })
         return match
+      }),
+    )
+  }
+
+  async reverse(
+    clubId: string,
+    actorId: string,
+    matchId: string,
+    input: ReverseContributionMatchInput,
+  ) {
+    await this.assertAdmin(clubId, actorId)
+    return tenantContext.run({ clubId, userId: actorId }, () =>
+      this.prisma.$transaction(async (tx) => {
+        const initial = await tx.contributionMatch.findFirst({
+          where: { id: matchId, clubId, status: 'CONFIRMED' },
+          select: { recordId: true, transactionId: true },
+        })
+        if (!initial) throw new NotFoundException('Confirmed bank match not found')
+        for (const lockKey of [
+          `contribution-record:${initial.recordId}`,
+          `bank-transaction:${initial.transactionId}`,
+        ].sort()) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+        }
+        const match = await tx.contributionMatch.findFirst({
+          where: { id: matchId, clubId, status: 'CONFIRMED' },
+        })
+        const record = await tx.contributionRecord.findFirst({
+          where: { id: initial.recordId, clubId },
+        })
+        if (!match || !record) throw new ConflictException('Bank match changed before reversal')
+        const remaining = await tx.contributionMatch.aggregate({
+          where: { recordId: record.id, status: 'CONFIRMED', id: { not: match.id } },
+          _sum: { amount: true },
+        })
+        const paidAmount = (record.manualPaidAmount ?? 0) + (remaining._sum.amount ?? 0)
+        await tx.contributionMatch.update({
+          where: { id: match.id },
+          data: {
+            status: 'REVERSED',
+            reversedById: actorId,
+            reversedAt: new Date(),
+            reversalReason: input.reason,
+          },
+        })
+        await tx.contributionRecord.update({
+          where: { id: record.id },
+          data: {
+            paidAmount,
+            paidAt: paidAmount >= record.amount ? record.paidAt ?? new Date() : null,
+            status: paidAmount >= record.amount ? 'PAID' : paidAmount > 0 ? 'PARTIAL' : 'PENDING',
+            note: `Bank match ${match.id} reversed: ${input.reason}`,
+          },
+        })
+        await tx.auditLog.create({
+          data: {
+            clubId,
+            type: 'contribution.bank_match_reversed',
+            actorType: 'user',
+            actorId,
+            actorLabel: null,
+            summary: `Reversed a bank match for contribution ${record.id}.`,
+            metadata: {
+              matchId: match.id,
+              transactionId: match.transactionId,
+              recordId: record.id,
+              reversedAmount: match.amount,
+              resultingPaidAmount: paidAmount,
+              reason: input.reason,
+            },
+          },
+        })
+        return { id: match.id, status: 'REVERSED', paidAmount }
       }),
     )
   }

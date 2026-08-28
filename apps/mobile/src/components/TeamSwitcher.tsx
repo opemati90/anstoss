@@ -27,7 +27,8 @@ interface TeamSwitcherProps {
 
 export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
   const { t } = useTranslation()
-  const { activeTeamId, teamsForActiveClub, setActiveTeam } = useAuth()
+  const { activeTeamId, teamsForActiveClub: teamsForActiveClubFromAuth, setActiveTeam } = useAuth()
+  const teamsForActiveClub = teamsForActiveClubFromAuth ?? []
   const c = useClubColors()
   const reduceMotion = useReducedMotion()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
@@ -56,7 +57,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
   }, [reduceMotion, translateY, visible])
 
   const handleSelect = (teamId: string) => {
-    setActiveTeam(teamId)
+    setActiveTeam?.(teamId)
     onClose()
   }
 

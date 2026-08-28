@@ -185,6 +185,7 @@ describe('ClubEntitlementsService', () => {
       team: { count: jest.fn().mockResolvedValue(1) },
       teamAccess: { findMany: jest.fn().mockResolvedValue([]) },
       rosterSlot: { count: jest.fn().mockResolvedValue(0) },
+      clubPlanCompliance: { findUnique: jest.fn().mockResolvedValue(null) },
     }
     const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
 
@@ -220,5 +221,87 @@ describe('ClubEntitlementsService', () => {
     )
     expect(tx.entitlementGrant.updateMany).not.toHaveBeenCalled()
     expect(tx.auditLog.create).not.toHaveBeenCalled()
+  })
+
+  it('opens one non-destructive 30-day remediation window after a downgrade', async () => {
+    const compliance = {
+      id: 'compliance-1',
+      clubId: 'club-1',
+      status: 'OVER_QUOTA',
+      tier: 'FREE',
+      excessTeams: 2,
+      excessPlayers: 10,
+      remediationEndsAt: new Date(Date.now() + 30 * 86400000),
+    }
+    const prisma = {
+      clubPlanCompliance: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue(compliance),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(
+      service.refreshCompliance(
+        'club-1',
+        { tier: 'FREE', limits: { teams: 1, players: 30 } } as never,
+        { teams: 3, players: 40 } as never,
+      ),
+    ).resolves.toEqual(compliance)
+
+    expect(prisma.clubPlanCompliance.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          status: 'OVER_QUOTA',
+          excessTeams: 2,
+          excessPlayers: 10,
+          remediationEndsAt: expect.any(Date),
+        }),
+      }),
+    )
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'billing.over_quota_detected' }),
+      }),
+    )
+  })
+
+  it('resolves the downgrade incident after the club returns within quota', async () => {
+    const prisma = {
+      clubPlanCompliance: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'compliance-1',
+          clubId: 'club-1',
+          status: 'OVER_QUOTA',
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'compliance-1',
+          status: 'RESOLVED',
+          excessTeams: 0,
+          excessPlayers: 0,
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(
+      service.refreshCompliance(
+        'club-1',
+        { tier: 'FREE', limits: { teams: 1, players: 30 } } as never,
+        { teams: 1, players: 30 } as never,
+      ),
+    ).resolves.toMatchObject({ status: 'RESOLVED' })
+    expect(prisma.clubPlanCompliance.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'RESOLVED', resolvedAt: expect.any(Date) }),
+      }),
+    )
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'billing.over_quota_resolved' }),
+      }),
+    )
   })
 })

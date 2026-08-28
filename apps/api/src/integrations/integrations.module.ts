@@ -7,13 +7,12 @@ import { FussballController } from './fussball.controller'
 import { FussballProviderService } from './fussball.provider'
 import { FussballScraperClient } from './fussball-scraper.client'
 import { FussballService } from './fussball.service'
-import { FussballLiveWorker } from './fussball-live.worker'
 import { BillingModule } from '../billing/billing.module'
 
 @Module({
   imports: [AuthModule, TeamsModule, PushModule, LiveModule, BillingModule],
   controllers: [FussballController],
-  providers: [FussballProviderService, FussballScraperClient, FussballService, FussballLiveWorker],
+  providers: [FussballProviderService, FussballScraperClient, FussballService],
   exports: [FussballService, FussballScraperClient],
 })
 export class IntegrationsModule {}

@@ -833,3 +833,23 @@ export function buildOtpCodeEmail(params: OtpCodeEmailParams): {
   })
   return { subject: t.subject({ code: params.code }), html, text }
 }
+
+export function buildOwnershipTransferCodeEmail(params: OtpCodeEmailParams): {
+  subject: string
+  html: string
+  text: string
+} {
+  const { html, text } = renderEmail({
+    clubName: 'Anstoss',
+    preheader: `Confirm this ownership change with ${params.code}`,
+    heading: 'Confirm club ownership change',
+    intro: [
+      `Enter this one-time code in Anstoss to confirm the ownership action you just requested. It expires in ${params.expiresInMinutes} minutes.`,
+    ],
+    meta: [{ label: 'Confirmation code', value: params.code, mono: true }],
+    footnote:
+      'This code is tied to one club and one ownership action. If you did not request it, do not share it.',
+    footer: 'Anstoss security',
+  })
+  return { subject: `Confirm Anstoss ownership change: ${params.code}`, html, text }
+}

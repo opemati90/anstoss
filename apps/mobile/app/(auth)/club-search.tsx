@@ -94,17 +94,17 @@ export default function ClubSearchScreen() {
         }),
         t('clubSearch.directoryBody', {
           defaultValue:
-            'We found the club in the German football directory, but a coach or club admin still needs to activate it on Anstoss.',
+            'We found the club in the German football directory, but an authorized club administrator still needs to activate it on Anstoss.',
         }),
         [
           { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
           {
-            text: t('clubSearch.shareWithCoach', { defaultValue: 'Share with coach' }),
+            text: t('clubSearch.shareWithCoach', { defaultValue: 'Share with club admin' }),
             onPress: () => {
               void Share.share({
                 message: t('clubSearch.shareMessage', {
                   defaultValue:
-                    'I found {{name}} in Anstoss. Can a coach or club admin activate the club so players can join?',
+                    'I found {{name}} in Anstoss. Can an authorized club administrator activate the club so players can join?',
                   name: club.name,
                 }),
               })
@@ -205,7 +205,7 @@ export default function ClubSearchScreen() {
       title={t('clubSearch.title', { defaultValue: 'Find your club' })}
       hint={t('clubSearch.hint', {
         defaultValue:
-          'Request to join active Anstoss clubs. Directory matches need a coach or admin to activate them first.',
+          'Request to join active Anstoss clubs. Directory matches need an authorized club administrator to activate them first.',
       })}
       scrollable
     >

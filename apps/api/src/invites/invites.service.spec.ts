@@ -485,4 +485,55 @@ describe('InvitesService campaign identity binding', () => {
     )
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
+
+  it('does not turn an approval-required campaign into a minor join request without consent', async () => {
+    const campaign = {
+      id: 'campaign-minor',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      type: 'APPROVAL_REQUIRED',
+      role: TeamRole.PLAYER,
+      recipientEmail: null,
+      status: 'ACTIVE',
+      expiresAt: new Date(Date.now() + 60_000),
+      useCount: 0,
+      maxUses: 10,
+      club: {},
+      team: {},
+    }
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findMany: jest.fn().mockResolvedValue([{ id: 'minor-1' }]) },
+      inviteCampaign: { findUnique: jest.fn().mockResolvedValue(campaign) },
+      inviteRedemption: { findUnique: jest.fn().mockResolvedValue(null) },
+      parentalConsent: { findFirst: jest.fn().mockResolvedValue(null) },
+      joinRequest: { findUnique: jest.fn(), upsert: jest.fn() },
+    }
+    const prisma = {
+      inviteCampaign: { findUnique: jest.fn().mockResolvedValue(campaign) },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          email: 'minor@example.com',
+          dateOfBirth: new Date(),
+        }),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never)
+
+    await expect(service.redeemCampaign('MINOR123', 'minor-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
+    expect(tx.parentalConsent.findFirst).toHaveBeenCalledWith({
+      where: {
+        playerUserId: 'minor-1',
+        clubId: 'club-1',
+        teamId: 'team-1',
+        status: 'APPROVED',
+      },
+      select: { id: true },
+    })
+    expect(tx.joinRequest.upsert).not.toHaveBeenCalled()
+    expect(tx.inviteRedemption.findUnique).toHaveBeenCalled()
+  })
 })

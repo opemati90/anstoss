@@ -11,8 +11,10 @@ import { AuditService } from '../audit/audit.service'
 import { PushService } from '../push/push.service'
 import { CacheService } from '../cache/cache.service'
 import {
+  getAge,
   JoinRequestStatus,
   MembershipRole,
+  ParentalConsentStatus,
   TeamAccessPhase,
   TeamAccessStatus,
   TeamRole,
@@ -48,49 +50,49 @@ export class JoinRequestsService {
         await this.lockActiveUser(tx, userId)
         await this.lockJoinRequestUser(tx, clubId, userId)
         let existing = await tx.joinRequest.findUnique({
-        where: { clubId_userId: { clubId, userId } },
-      })
-      if (existing) {
-        await this.lockJoinRequest(tx, existing.id)
-        existing = await tx.joinRequest.findUnique({
           where: { clubId_userId: { clubId, userId } },
         })
-        if (!existing) throw new ConflictException('Join request changed. Try again')
-        if (existing.status === JoinRequestStatus.PENDING) {
-          throw new ConflictException('You already have a pending request for this club')
-        }
-        if (existing.status === JoinRequestStatus.APPROVED) {
-          throw new ConflictException('You are already a member of this club')
-        }
-      }
-
-      const club = await tx.club.findUnique({ where: { id: clubId } })
-      if (!club) throw new NotFoundException('Club not found')
-      if (input.teamId) {
-        const team = await tx.team.findFirst({
-          where: { id: input.teamId, clubId },
-          select: { id: true },
-        })
-        if (!team) throw new BadRequestException('Team does not belong to this club')
-      }
-
-      const request = existing
-        ? await tx.joinRequest.update({
-            where: { id: existing.id },
-            data: { ...requestData, revision: { increment: 1 } },
+        if (existing) {
+          await this.lockJoinRequest(tx, existing.id)
+          existing = await tx.joinRequest.findUnique({
+            where: { clubId_userId: { clubId, userId } },
           })
-        : await tx.joinRequest.create({ data: { clubId, userId, ...requestData } })
-      await tx.auditLog.create({
-        data: {
-          clubId,
-          type: 'join_request.created',
-          actorType: 'user',
-          actorId: userId,
-          actorLabel: null,
-          summary: `Join request created for club ${club.name}`,
-          metadata: { requestId: request.id, teamId: request.teamId },
-        },
-      })
+          if (!existing) throw new ConflictException('Join request changed. Try again')
+          if (existing.status === JoinRequestStatus.PENDING) {
+            throw new ConflictException('You already have a pending request for this club')
+          }
+          if (existing.status === JoinRequestStatus.APPROVED) {
+            throw new ConflictException('You are already a member of this club')
+          }
+        }
+
+        const club = await tx.club.findUnique({ where: { id: clubId } })
+        if (!club) throw new NotFoundException('Club not found')
+        if (input.teamId) {
+          const team = await tx.team.findFirst({
+            where: { id: input.teamId, clubId },
+            select: { id: true },
+          })
+          if (!team) throw new BadRequestException('Team does not belong to this club')
+        }
+
+        const request = existing
+          ? await tx.joinRequest.update({
+              where: { id: existing.id },
+              data: { ...requestData, revision: { increment: 1 } },
+            })
+          : await tx.joinRequest.create({ data: { clubId, userId, ...requestData } })
+        await tx.auditLog.create({
+          data: {
+            clubId,
+            type: 'join_request.created',
+            actorType: 'user',
+            actorId: userId,
+            actorLabel: null,
+            summary: `Join request created for club ${club.name}`,
+            metadata: { requestId: request.id, teamId: request.teamId },
+          },
+        })
         return { request, club }
       })
     } catch (error) {
@@ -216,8 +218,38 @@ export class JoinRequestsService {
       })
       if (!request) throw new NotFoundException('Join request not found or already reviewed')
       const membershipRole =
-        request.role === TeamRole.PARENT ? MembershipRole.PARENT : MembershipRole.PLAYER
+        request.role === TeamRole.PARENT
+          ? MembershipRole.PARENT
+          : request.role === TeamRole.HEAD_COACH || request.role === TeamRole.ASSISTANT_COACH
+            ? MembershipRole.COACH
+            : MembershipRole.PLAYER
       if (request.role === TeamRole.PLAYER) {
+        const player = await tx.user.findUnique({
+          where: { id: request.userId },
+          select: { dateOfBirth: true },
+        })
+        if (!player?.dateOfBirth) {
+          throw new BadRequestException('Player date of birth is required before approval')
+        }
+        if (getAge(player.dateOfBirth) < 16) {
+          if (!request.teamId) {
+            throw new BadRequestException('Players under 16 must request access to a specific team')
+          }
+          const approvedConsent = await tx.parentalConsent.findFirst({
+            where: {
+              playerUserId: request.userId,
+              clubId,
+              teamId: request.teamId,
+              status: ParentalConsentStatus.APPROVED,
+            },
+            select: { id: true },
+          })
+          if (!approvedConsent) {
+            throw new BadRequestException(
+              'Guardian approval is required before approving this player',
+            )
+          }
+        }
         await this.requireEntitlements().assertCanActivatePlayer(clubId, request.userId, tx)
       }
       // All player-activation paths acquire the club quota lock before
@@ -278,25 +310,27 @@ export class JoinRequestsService {
             teamId: request.teamId,
             userId: request.userId,
             role: request.role,
-            phase: TeamAccessPhase.TRIAL,
+            phase: request.role === TeamRole.PLAYER ? TeamAccessPhase.TRIAL : TeamAccessPhase.FULL,
             status: TeamAccessStatus.ACTIVE,
           },
           update: {},
         })
 
-        await tx.teamMember.upsert({
-          where: {
-            teamId_userId: {
+        if (request.role === TeamRole.PLAYER) {
+          await tx.teamMember.upsert({
+            where: {
+              teamId_userId: {
+                teamId: request.teamId,
+                userId: request.userId,
+              },
+            },
+            create: {
               teamId: request.teamId,
               userId: request.userId,
             },
-          },
-          create: {
-            teamId: request.teamId,
-            userId: request.userId,
-          },
-          update: {},
-        })
+            update: {},
+          })
+        }
       }
       await tx.auditLog.create({
         data: {
@@ -417,8 +451,9 @@ export class JoinRequestsService {
     reviewerId: string,
     targetUserId?: string,
   ) {
-    const userIds = Array.from(new Set([reviewerId, targetUserId].filter(Boolean) as string[]))
-      .sort()
+    const userIds = Array.from(
+      new Set([reviewerId, targetUserId].filter(Boolean) as string[]),
+    ).sort()
     const rows = await tx.$queryRaw<Array<{ userId: string; role: MembershipRole }>>`
       SELECT "userId", "role"::text AS "role"
       FROM "Membership"

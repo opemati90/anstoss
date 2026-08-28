@@ -11,6 +11,7 @@ import { ChannelsModule } from '../channels/channels.module'
 import { BillingModule } from '../billing/billing.module'
 import { ModerationModule } from '../moderation/moderation.module'
 import { AssetsModule } from '../assets/assets.module'
+import { AdminModule } from '../admin/admin.module'
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AssetsModule } from '../assets/assets.module'
     ChannelsModule,
     BillingModule,
     AssetsModule,
+    AdminModule,
     forwardRef(() => ModerationModule),
   ],
   controllers: [ChatController],

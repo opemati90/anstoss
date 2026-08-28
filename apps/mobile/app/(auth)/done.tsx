@@ -330,12 +330,13 @@ export default function Done() {
         role === RegistrationRole.CLUB_ADMIN &&
         state.clubName &&
         state.teamName &&
-        state.fussballExternalClubId
+        state.officialTeamUrl
       ) {
         const claim = await api<{ id: string }>('/club-claims/first', {
           method: 'POST',
           body: {
             directoryEntryId: state.fussballExternalClubId,
+            clubName: state.fussballExternalClubId ? undefined : state.clubName,
             primaryColor: state.clubPrimaryColor,
             teamName: state.teamName,
             teamGroupType: 'SENIOR',

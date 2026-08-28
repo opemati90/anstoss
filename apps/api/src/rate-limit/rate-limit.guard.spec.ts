@@ -1,6 +1,7 @@
 import { Reflector } from '@nestjs/core'
 import {
   RateLimitGuard,
+  getClubRateLimitIdentifier,
   getRateLimitIdentifier,
   inferRateLimitTypeFromMethod,
 } from './rate-limit.guard'
@@ -135,6 +136,22 @@ describe('getRateLimitIdentifier', () => {
       'anon:10.0.0.1',
     )
     expect(getRateLimitIdentifier({})).toBe('anon:anonymous')
+  })
+})
+
+describe('getClubRateLimitIdentifier', () => {
+  it('uses the authenticated route parameter and ignores a spoofed club header', () => {
+    expect(
+      getClubRateLimitIdentifier({
+        params: { clubId: 'real-club' },
+        headers: { 'x-club-id': 'rotating-attacker-value' },
+        user: { id: 'admin-1' },
+      }),
+    ).toBe('club:real-club')
+  })
+
+  it('falls back to the authenticated caller when a route has no club parameter', () => {
+    expect(getClubRateLimitIdentifier({ user: { id: 'admin-1' } })).toBe('user:admin-1')
   })
 })
 

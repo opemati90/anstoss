@@ -291,21 +291,13 @@ export default function TeamManagementScreen() {
         },
       )
 
-      // Best-effort external team-data auto-link. If the URL is invalid or the
-      // upstream is down, the team itself is still created — the admin
-      // can re-link from the team detail screen later.
+      // Saving an official team page is best-effort and never imports data.
+      // The team remains usable with manual fixtures if the URL is invalid.
       const urlInput = fussballUrl.trim()
       if (urlInput && created?.id) {
         try {
           const result = await api<{
             link: { id: string; label: string }
-            sync: {
-              status: 'SUCCESS' | 'PARTIAL' | 'FAILED'
-              importedCount: number
-              updatedCount: number
-              skippedCount: number
-              errorSummary: string | null
-            } | null
           }>('/integrations/fussball/team-links', {
             method: 'POST',
             body: {
@@ -314,40 +306,15 @@ export default function TeamManagementScreen() {
             },
             headers: { 'x-club-id': activeClub.club.id },
           })
-          const total = (result?.sync?.importedCount ?? 0) + (result?.sync?.updatedCount ?? 0)
-          if (!result?.sync) {
-            Alert.alert(
-              t('teamManagement.fussballLinkedTitle', {
-                defaultValue: 'Official page saved',
-              }),
-              t('teamManagement.fussballLinkedBody', {
-                defaultValue: '{{label}} is saved as a reference. Add fixtures manually.',
-                label: result.link.label,
-              }),
-            )
-          } else if (result.sync.status === 'FAILED') {
-            Alert.alert(
-              t('teamManagement.fussballSyncFailedTitle', {
-                defaultValue: 'External team data linked, but sync failed',
-              }),
-              result.sync.errorSummary ??
-                t('teamManagement.fussballSyncFailedBody', {
-                  defaultValue:
-                    'The licensed fixture feed could not sync. Retry from team settings.',
-                }),
-            )
-          } else if (total > 0) {
-            Alert.alert(
-              t('teamManagement.fussballLinkedTitle', {
-                defaultValue: 'External team data linked',
-              }),
-              t('teamManagement.fussballLinkedBody', {
-                defaultValue: '{{label}} · {{count}} licensed fixture records updated.',
-                label: result.link.label,
-                count: total,
-              }),
-            )
-          }
+          Alert.alert(
+            t('teamManagement.fussballLinkedTitle', {
+              defaultValue: 'Official page saved',
+            }),
+            t('teamManagement.fussballLinkedBody', {
+              defaultValue: '{{label}} is saved as a reference. Add fixtures manually.',
+              label: result.link.label,
+            }),
+          )
         } catch (err) {
           const message =
             err instanceof Error && err.message
