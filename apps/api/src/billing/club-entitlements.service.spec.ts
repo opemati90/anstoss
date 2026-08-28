@@ -15,6 +15,24 @@ describe('ClubEntitlementsService', () => {
     })
   })
 
+  it('keeps a suspended paid grant effective during its payment grace window', async () => {
+    const prisma = {
+      entitlementGrant: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            tier: 'PRO',
+            status: 'SUSPENDED',
+            graceEndsAt: new Date(Date.now() + 86400000),
+            planDefinitionId: null,
+          },
+        ]),
+      },
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(service.resolve('club-1')).resolves.toMatchObject({ tier: 'PRO' })
+  })
+
   it('enforces the free player-seat limit', async () => {
     const prisma = {
       $executeRaw: jest.fn().mockResolvedValue(1),
@@ -37,7 +55,7 @@ describe('ClubEntitlementsService', () => {
     )
   })
 
-  it('archives the prior term version before publishing a replacement', async () => {
+  it('publishes a new immutable version without rewriting prior prices', async () => {
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue(1),
       planDefinition: {
@@ -45,6 +63,7 @@ describe('ClubEntitlementsService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         create: jest.fn().mockResolvedValue({ id: 'plan-v3', version: 3 }),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
     }
     const prisma = {
       $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
@@ -63,19 +82,143 @@ describe('ClubEntitlementsService', () => {
       stripePriceId: 'price_pro_annual',
     })
 
-    expect(tx.planDefinition.updateMany).toHaveBeenCalledWith({
-      where: {
-        tier: 'PRO',
-        interval: 'TWELVE_MONTHS',
-        publishedAt: { not: null },
-      },
-      data: { publishedAt: null },
-    })
+    expect(tx.planDefinition.updateMany).not.toHaveBeenCalled()
     expect(tx.planDefinition.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ version: 3, stripePriceId: 'price_pro_annual' }),
     })
-    expect(audit.log).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'billing.plan_published', actorId: 'admin-1' }),
+    expect(tx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'billing.plan_published', actorId: 'admin-1' }),
+      }),
     )
+  })
+
+  it('creates a grant and its audit record in one serialized transaction', async () => {
+    const grant = {
+      id: 'grant-1',
+      clubId: 'club-1',
+      tier: 'PRO',
+      source: 'COMPLIMENTARY',
+      reason: 'Pilot club',
+    }
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      planDefinition: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'plan-1' }),
+      },
+      entitlementGrant: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(grant),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    const prisma = {
+      club: { findUnique: jest.fn().mockResolvedValue({ id: 'club-1' }) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(
+      service.grant('club-1', 'admin-1', {
+        tier: 'PRO',
+        interval: 'TWELVE_MONTHS',
+        source: 'COMPLIMENTARY',
+        reason: 'Pilot club',
+        expiresAt: '2027-01-01T00:00:00.000Z',
+      }),
+    ).resolves.toEqual(grant)
+
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(tx.entitlementGrant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ clubId: 'club-1', planDefinitionId: 'plan-1' }),
+    })
+    expect(tx.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: 'billing.entitlement_granted',
+        actorId: 'admin-1',
+        metadata: { grantId: 'grant-1', planDefinitionId: 'plan-1' },
+      }),
+    })
+  })
+
+  it('rejects a duplicate overlapping grant before writing or auditing', async () => {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      planDefinition: { findFirst: jest.fn().mockResolvedValue({ id: 'plan-1' }) },
+      entitlementGrant: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'existing-grant' }),
+        create: jest.fn(),
+      },
+      auditLog: { create: jest.fn() },
+    }
+    const prisma = {
+      club: { findUnique: jest.fn().mockResolvedValue({ id: 'club-1' }) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(
+      service.grant('club-1', 'admin-1', {
+        tier: 'PRO',
+        interval: 'TWELVE_MONTHS',
+        source: 'COMPLIMENTARY',
+        reason: 'Duplicate pilot grant',
+        expiresAt: '2027-01-01T00:00:00.000Z',
+      }),
+    ).rejects.toThrow('overlapping entitlement grant')
+    expect(tx.entitlementGrant.create).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
+  })
+
+  it('returns scheduled and historical grants in the platform snapshot', async () => {
+    const allGrants = [
+      { id: 'future', status: 'ACTIVE', startsAt: new Date('2027-01-01') },
+      { id: 'expired', status: 'REVOKED', startsAt: new Date('2025-01-01') },
+    ]
+    const prisma = {
+      entitlementGrant: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce(allGrants),
+      },
+      team: { count: jest.fn().mockResolvedValue(1) },
+      teamAccess: { findMany: jest.fn().mockResolvedValue([]) },
+      rosterSlot: { count: jest.fn().mockResolvedValue(0) },
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(service.snapshot('club-1')).resolves.toMatchObject({ grants: allGrants })
+    expect(prisma.entitlementGrant.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { clubId: 'club-1' },
+        include: { planDefinition: true },
+      }),
+    )
+  })
+
+  it('refuses to manually revoke a paid subscription grant', async () => {
+    const tx = {
+      entitlementGrant: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'paid-1',
+          clubId: 'club-1',
+          source: 'PAID',
+        }),
+        updateMany: jest.fn(),
+      },
+      $executeRaw: jest.fn(),
+      auditLog: { create: jest.fn() },
+    }
+    const prisma = {
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+    const service = new ClubEntitlementsService(prisma as never, { log: jest.fn() } as never)
+
+    await expect(service.revoke('paid-1', 'admin-1')).rejects.toThrow(
+      'subscription lifecycle',
+    )
+    expect(tx.entitlementGrant.updateMany).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
   })
 })

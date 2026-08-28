@@ -94,7 +94,8 @@ type E2EApiState = {
     id: string
     role: string
     message: string | null
-    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'
+    revision: number
     createdAt: string
     user: { id: string; name: string; email: string }
   }>
@@ -790,6 +791,7 @@ function createLinkedTeams(status: ExternalTeamLinkStatus = 'ACTIVE'): ExternalT
       lastSyncedAt: nowIso(-1, 8, 0),
       createdAt: nowIso(-10, 8, 0),
       updatedAt: nowIso(-1, 8, 0),
+      capabilities: { canManualSync: true, canImportRoster: true },
     },
   ]
 }
@@ -1061,6 +1063,7 @@ function createJoinRequests(): E2EApiState['joinRequests'] {
       role: 'PLAYER',
       message: 'Hi, I played for TSV Linden last season and would love to join.',
       status: 'PENDING',
+      revision: 1,
       createdAt: nowIso(-1, 17, 30),
       user: {
         id: 'join-user-1',
@@ -1073,6 +1076,7 @@ function createJoinRequests(): E2EApiState['joinRequests'] {
       role: 'PLAYER',
       message: null,
       status: 'PENDING',
+      revision: 1,
       createdAt: nowIso(-2, 11, 0),
       user: {
         id: 'join-user-2',
@@ -3854,6 +3858,7 @@ export function handleE2EApiRequest(
               id: request.id,
               clubId: CLUB_ID,
               status: request.status,
+              revision: request.revision,
             }
           : null,
       },
@@ -3862,14 +3867,26 @@ export function handleE2EApiRequest(
 
   if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/join-requests`) {
     const session = currentSession
-    const existing = session.api.joinRequests.find(
-      (r) => r.user.id === session.user.id && r.status === 'PENDING',
-    )
-    const request = existing ?? {
+    const existing = session.api.joinRequests.find((r) => r.user.id === session.user.id)
+    if (existing?.status === 'APPROVED') {
+      return { handled: true, ok: false, status: 409, message: 'Already a member' }
+    }
+    if (existing?.status === 'PENDING') {
+      return { handled: true, ok: false, status: 409, message: 'Request already pending' }
+    }
+    const request = existing ? {
+      ...existing,
+      role: 'PLAYER',
+      message: null,
+      status: 'PENDING' as const,
+      revision: existing.revision + 1,
+      createdAt: new Date().toISOString(),
+    } : {
       id: `join-request-${session.user.id}`,
       role: 'PLAYER',
       message: null,
       status: 'PENDING' as const,
+      revision: 1,
       createdAt: new Date().toISOString(),
       user: {
         id: session.user.id,
@@ -3877,7 +3894,10 @@ export function handleE2EApiRequest(
         email: session.user.email,
       },
     }
-    if (!existing) {
+    if (existing) {
+      Object.assign(existing, request)
+      persistCurrentSession()
+    } else {
       session.api.joinRequests.unshift(request)
       persistCurrentSession()
     }
@@ -3903,6 +3923,30 @@ export function handleE2EApiRequest(
     }
   }
 
+  const joinRequestWithdrawMatch = pathname.match(
+    new RegExp(`^/clubs/${CLUB_ID}/join-requests/([^/]+)/withdraw$`),
+  )
+  if (method === 'POST' && joinRequestWithdrawMatch) {
+    const session = currentSession
+    if (!session) return { handled: false }
+    const requestId = joinRequestWithdrawMatch[1]
+    const idx = session.api.joinRequests.findIndex(
+      (request) =>
+        request.id === requestId &&
+        request.user.id === session.user.id &&
+        request.status === 'PENDING',
+    )
+    if (idx === -1) {
+      return { handled: true, ok: false, status: 404, message: 'Pending join request not found' }
+    }
+    session.api.joinRequests[idx] = {
+      ...session.api.joinRequests[idx],
+      status: 'WITHDRAWN',
+    }
+    persistCurrentSession()
+    return { handled: true, ok: true, status: 200, body: { withdrawn: true } }
+  }
+
   // Approve / reject a join request — POST
   // /clubs/:clubId/join-requests/:id/approve|reject. Remove the row from the
   // seeded list so the admin screen visibly updates after the action.
@@ -3912,8 +3956,13 @@ export function handleE2EApiRequest(
   if (method === 'POST' && joinRequestDecisionMatch) {
     const requestId = joinRequestDecisionMatch[1]
     const action = joinRequestDecisionMatch[2]
+    const expectedRevision = (options.body as { revision?: number } | undefined)?.revision
     const idx = currentSession.api.joinRequests.findIndex((r) => r.id === requestId)
-    if (idx === -1) {
+    if (
+      idx === -1 ||
+      currentSession.api.joinRequests[idx].status !== 'PENDING' ||
+      currentSession.api.joinRequests[idx].revision !== expectedRevision
+    ) {
       return {
         handled: true,
         ok: false,
@@ -4885,9 +4934,10 @@ export function handleE2EApiRequest(
   }
 
   // Admin: send reminders — POST /clubs/:clubId/contributions/plans/:planId/remind
-  // OR  /clubs/:clubId/contributions/reminders (bulk). Returns a dispatch result.
+  // or the real bulk endpoint /reminders/send. Keep this contract exact so the
+  // E2E layer cannot hide a mobile/API path mismatch.
   const remindMatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/contributions/(?:plans/[^/]+/remind|reminders)$`),
+    new RegExp(`^/clubs/${CLUB_ID}/contributions/(?:plans/[^/]+/remind|reminders/send)$`),
   )
   if (method === 'POST' && remindMatch) {
     const overdue = currentSession.api.adminContributions.summary.overdueMembers

@@ -11,6 +11,7 @@ import {
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChannelsService } from './channels.service'
+import { RateLimit } from '../rate-limit/rate-limit.guard'
 
 @Controller()
 @UseGuards(ClerkAuthGuard)
@@ -49,6 +50,7 @@ export class ChannelsController {
 
   @Post('clubs/:clubId/channels/:channelId/messages')
   @HttpCode(201)
+  @RateLimit('channel-message')
   async postMessage(
     @Param('clubId') clubId: string,
     @Param('channelId') channelId: string,

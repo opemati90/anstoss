@@ -54,6 +54,17 @@ type NextEvent = {
   readiness?: EventReadiness | null
 }
 
+type ActivationLink = { id: string; teamId: string }
+type ActivationCampaign = { id: string; teamId: string; status: string }
+type ActivationRosterAccess = { role?: string | null }
+type ActivationResult<T> = { ok: true; value: T } | { ok: false; value: T }
+
+function activationRequest<T>(request: Promise<T>, fallback: T): Promise<ActivationResult<T>> {
+  return request
+    .then((value) => ({ ok: true as const, value }))
+    .catch(() => ({ ok: false as const, value: fallback }))
+}
+
 export type AdminHomeProps = {
   clubId: string
   teamId?: string | null
@@ -71,15 +82,20 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const [pendingCoachCount, setPendingCoachCount] = useState(0)
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
   const [nudgingEventId, setNudgingEventId] = useState<string | null>(null)
+  const [activationLinks, setActivationLinks] = useState<ActivationLink[]>([])
+  const [activationCampaigns, setActivationCampaigns] = useState<ActivationCampaign[]>([])
+  const [activationRosterCount, setActivationRosterCount] = useState(0)
+  const [activationStatus, setActivationStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const nudgingRef = useRef(false)
 
   const load = useCallback(async () => {
     setStatsError(false)
+    setActivationStatus('loading')
     const eventPath = teamId
       ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=1`
       : `/clubs/${clubId}/events?scope=upcoming&limit=1`
 
-    const [s, a, contrib, pauses, rosterOps, events] = await Promise.all([
+    const [s, a, contrib, pauses, rosterOps, events, links, campaigns, roster] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
       api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
       api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
@@ -87,7 +103,20 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
       teamId
         ? api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null)
         : Promise.resolve(null),
-      api<NextEvent[]>(eventPath).catch(() => []),
+      activationRequest(api<NextEvent[]>(eventPath), []),
+      teamId
+        ? activationRequest(
+            api<ActivationLink[]>(`/integrations/fussball/team-links?teamId=${teamId}`),
+            [],
+          )
+        : Promise.resolve({ ok: true as const, value: [] }),
+      activationRequest(api<ActivationCampaign[]>(`/clubs/${clubId}/invite-campaigns`), []),
+      teamId
+        ? activationRequest(
+            api<ActivationRosterAccess[]>(`/clubs/${clubId}/members?teamId=${teamId}`),
+            [],
+          )
+        : Promise.resolve({ ok: true as const, value: [] }),
     ])
     if (s) setStats(s)
     else setStatsError(true)
@@ -95,7 +124,17 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     setContributions(contrib)
     setPendingPauses(Array.isArray(pauses) ? pauses : [])
     setPendingCoachCount(rosterOps?.operations?.pendingCoaches?.length ?? 0)
-    setNextEvent(Array.isArray(events) && events.length > 0 ? events[0] : null)
+    setNextEvent(Array.isArray(events.value) && events.value.length > 0 ? events.value[0] : null)
+    setActivationLinks(Array.isArray(links.value) ? links.value : [])
+    setActivationCampaigns(Array.isArray(campaigns.value) ? campaigns.value : [])
+    setActivationRosterCount(
+      Array.isArray(roster.value)
+        ? roster.value.filter((entry) => entry.role === 'PLAYER').length
+        : 0,
+    )
+    setActivationStatus(
+      events.ok && links.ok && campaigns.ok && roster.ok ? 'ready' : 'error',
+    )
   }, [clubId, teamId])
 
   useEffect(() => {
@@ -277,6 +316,20 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           onShare={shareNextEventReadiness}
           onNudge={nudgeNextEventReadiness}
           nudgePending={nudgingEventId === nextEvent.id}
+        />
+      ) : null}
+
+      {activationStatus === 'ready' && teamId ? (
+        <ActivationChecklist
+          teamConfirmed
+          fixtureSourceReady={activationLinks.some((link) => link.teamId === teamId)}
+          rosterReady={activationRosterCount > 0}
+          invitationsReady={activationCampaigns.some(
+            (campaign) => campaign.teamId === teamId && campaign.status !== 'REVOKED',
+          )}
+          availabilityReady={nextEvent != null}
+          t={t}
+          c={c}
         />
       ) : null}
 
@@ -516,6 +569,114 @@ function Kpi({ label, value, suffix }: { label: string; value: number; suffix?: 
   )
 }
 
+function ActivationChecklist({
+  teamConfirmed,
+  fixtureSourceReady,
+  rosterReady,
+  invitationsReady,
+  availabilityReady,
+  t,
+  c,
+}: {
+  teamConfirmed: boolean
+  fixtureSourceReady: boolean
+  rosterReady: boolean
+  invitationsReady: boolean
+  availabilityReady: boolean
+  t: (key: string, options?: Record<string, unknown>) => string
+  c: ReturnType<typeof useClubColors>
+}) {
+  const steps = [
+    {
+      key: 'team',
+      done: teamConfirmed,
+      label: t('home.activation.team', { defaultValue: 'Confirm club and team' }),
+      route: '/team-management',
+    },
+    {
+      key: 'fixtures',
+      done: fixtureSourceReady,
+      label: t('home.activation.fixtures', { defaultValue: 'Link official fixtures' }),
+      route: '/fussball-link',
+    },
+    {
+      key: 'roster',
+      done: rosterReady,
+      label: t('home.activation.roster', { defaultValue: 'Build the roster' }),
+      route: '/invite',
+    },
+    {
+      key: 'invite',
+      done: invitationsReady,
+      label: t('home.activation.invite', { defaultValue: 'Invite the squad' }),
+      route: '/invite',
+    },
+    {
+      key: 'availability',
+      done: availabilityReady,
+      label: t('home.activation.availability', { defaultValue: 'Create first availability event' }),
+      route: '/create-event',
+    },
+  ]
+  const completed = steps.filter((step) => step.done).length
+  if (completed === steps.length) return null
+
+  return (
+    <View
+      style={[
+        styles.activationCard,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+      accessibilityLabel={t('home.activation.progress', {
+        defaultValue: '{{completed}} of {{total}} setup steps complete',
+        completed,
+        total: steps.length,
+      })}
+    >
+      <View style={styles.activationHeader}>
+        <View style={{ flex: 1, gap: space['2xs'] }}>
+          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            {t('home.activation.eyebrow', { defaultValue: 'GET MATCH-READY' })}
+          </Text>
+          <Text variant="headline" weight="semibold" color="primary">
+            {t('home.activation.title', { defaultValue: 'Finish club setup' })}
+          </Text>
+        </View>
+        <Text variant="footnote" color="secondary" tabular>
+          {completed}/{steps.length}
+        </Text>
+      </View>
+      <View style={styles.activationList}>
+        {steps.map((step) => (
+          <Pressable
+            key={step.key}
+            disabled={step.done}
+            accessibilityRole={step.done ? 'text' : 'button'}
+            accessibilityState={{ disabled: step.done }}
+            onPress={() => router.push(step.route as never)}
+            style={({ pressed }) => [styles.activationRow, pressed && { opacity: 0.7 }]}
+          >
+            <Icon
+              name={step.done ? 'checkmark.circle.fill' : 'circle'}
+              size={20}
+              color={step.done ? c.success : c.textTertiary}
+            />
+            <Text
+              variant="callout"
+              weight={step.done ? 'regular' : 'semibold'}
+              color={step.done ? 'secondary' : 'primary'}
+              style={{ flex: 1 }}
+            >
+              {step.label}
+            </Text>
+            {!step.done ? <Icon name="chevron.right" size={14} color="tertiary" /> : null}
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 function StatusPill({
   tone,
   icon,
@@ -569,12 +730,7 @@ function ActionTile({
       <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
         <Icon name={icon} size={18} color="tint" />
       </View>
-      <Text
-        variant="footnote"
-        color="primary"
-        weight="semibold"
-        style={styles.actionLabel}
-      >
+      <Text variant="footnote" color="primary" weight="semibold" style={styles.actionLabel}>
         {label}
       </Text>
     </Pressable>
@@ -606,8 +762,8 @@ function BeitragRadar({
     setReminding(true)
     try {
       const result = await api<{ requested: number; sent: number; skipped: number }>(
-        `/clubs/${clubId}/contributions/reminders`,
-        { method: 'POST' },
+        `/clubs/${clubId}/contributions/reminders/send`,
+        { method: 'POST', body: { onlyOverdue: true } },
       )
       Alert.alert(
         t('home.admin.remindersSentTitle', { defaultValue: 'Reminders sent' }),
@@ -689,7 +845,7 @@ function BeitragRadar({
         <Pressable
           accessibilityRole="button"
           onPress={(e) => {
-            ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
+            ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
             void sendReminders()
           }}
           disabled={reminding}
@@ -914,6 +1070,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderCurve: 'continuous',
     borderWidth: hairline,
+    gap: space.sm,
+  },
+  activationCard: {
+    padding: space.md,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    gap: space.md,
+  },
+  activationHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  activationList: { gap: space['2xs'] },
+  activationRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: space.sm,
   },
   eyebrow: {

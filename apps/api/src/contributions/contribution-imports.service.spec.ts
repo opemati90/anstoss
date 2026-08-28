@@ -37,6 +37,26 @@ describe('bank statement parsing', () => {
     expect(parsed[0].amount).toBe(123_456)
   })
 
+  it('rejects malformed amounts instead of stripping punctuation into a larger value', () => {
+    expect(() =>
+      parseCsv(
+        ['date,amount,currency,payer,direction', '2026-08-24,12.3.4,EUR,Alex,CRDT'].join(
+          '\n',
+        ),
+      ),
+    ).toThrow('Invalid transaction')
+  })
+
+  it('rejects impossible calendar dates instead of normalizing them', () => {
+    expect(() =>
+      parseCsv(
+        ['date,amount,currency,payer,direction', '31.02.2026,25.00,EUR,Alex,CRDT'].join(
+          '\n',
+        ),
+      ),
+    ).toThrow('Invalid transaction')
+  })
+
   it('accepts only explicit CAMT credits and ignores debits', () => {
     const parsed = parseCamt053(`
       <Document><BkToCstmrStmt><Stmt>
@@ -103,6 +123,55 @@ describe('ContributionImportsService.confirm', () => {
         type: 'contribution.bank_match_confirmed',
         actorId: 'owner-1',
       }),
+    })
+  })
+
+  it('combines manual adjustments with every confirmed bank match without losing money', async () => {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      bankTransaction: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'bank-2',
+          clubId: 'club-1',
+          amount: 2_000,
+          currency: 'eur',
+        }),
+      },
+      contributionRecord: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'record-1',
+          clubId: 'club-1',
+          amount: 10_000,
+          paidAmount: 8_000,
+          manualPaidAmount: 2_000,
+          currency: 'eur',
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      contributionMatch: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        aggregate: jest
+          .fn()
+          .mockResolvedValueOnce({ _sum: { amount: 0 } })
+          .mockResolvedValueOnce({ _sum: { amount: 6_000 } }),
+        upsert: jest.fn().mockResolvedValue({ id: 'match-2' }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    const prisma = {
+      membership: { findUnique: jest.fn().mockResolvedValue({ role: 'OWNER' }) },
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+    }
+
+    await new ContributionImportsService(prisma as never).confirm('club-1', 'owner-1', {
+      transactionId: 'bank-2',
+      recordId: 'record-1',
+      amount: 2_000,
+    })
+
+    expect(tx.contributionRecord.update).toHaveBeenCalledWith({
+      where: { id: 'record-1' },
+      data: expect.objectContaining({ paidAmount: 10_000, status: 'PAID' }),
     })
   })
 })

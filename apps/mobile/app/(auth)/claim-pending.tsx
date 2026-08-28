@@ -14,6 +14,8 @@ type Claim = {
   id: string
   status: 'SUBMITTED' | 'NEEDS_INFO' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'EXPIRED'
   reviewNote?: string | null
+  expiresAt?: string
+  escalatesAt?: string | null
   directoryEntry: { name: string; city?: string | null; badgeUrl?: string | null }
 }
 
@@ -28,18 +30,24 @@ export default function ClaimPendingScreen() {
   const [response, setResponse] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
+  const [claimMissing, setClaimMissing] = useState(false)
 
-  const claimId = params.claimId
+  const claimId = Array.isArray(params.claimId) ? params.claimId[0] : params.claimId
   const checkStatus = useCallback(
     async (notify = true) => {
       setChecking(true)
       try {
         const claims = await api<Claim[]>('/club-claims/mine')
-        const claim = claims.find((item) => item.id === claimId) ?? claims[0]
+        // When navigation supplied a claim id it is an authority boundary: do
+        // not silently display, respond to, or withdraw a different claim.
+        const claim = claimId ? claims.find((item) => item.id === claimId) : claims[0]
         if (!claim) {
+          setClaim(null)
+          setClaimMissing(true)
           Alert.alert(t('common.error'), t('claimPending.missing'))
           return
         }
+        setClaimMissing(false)
         setClaim(claim)
         if (claim.status === 'APPROVED') {
           await refreshUser(undefined, { throwOnError: true })
@@ -142,6 +150,22 @@ export default function ClaimPendingScreen() {
           <Text variant="footnote" color="secondary">
             {t('claimPending.step3')}
           </Text>
+          {claim?.escalatesAt ? (
+            <Text variant="footnote" color="secondary">
+              {t('claimPending.escalatesAt', {
+                defaultValue: 'Platform review becomes available on {{date}}.',
+                date: new Date(claim.escalatesAt).toLocaleDateString(),
+              })}
+            </Text>
+          ) : null}
+          {claim?.expiresAt ? (
+            <Text variant="footnote" color="secondary">
+              {t('claimPending.expiresAt', {
+                defaultValue: 'This request expires on {{date}}.',
+                date: new Date(claim.expiresAt).toLocaleDateString(),
+              })}
+            </Text>
+          ) : null}
         </View>
         {claim?.status === 'NEEDS_INFO' ? (
           <View style={styles.responseSection}>
@@ -172,6 +196,13 @@ export default function ClaimPendingScreen() {
             />
           </View>
         ) : null}
+        {claimMissing ? (
+          <View style={[styles.notice, { backgroundColor: colors.primary50 }]}>
+            <Text variant="footnote" color="secondary">
+              {t('claimPending.missing')}
+            </Text>
+          </View>
+        ) : null}
         <Button
           label={t('claimPending.check')}
           onPress={() => void checkStatus()}
@@ -189,7 +220,8 @@ export default function ClaimPendingScreen() {
         ) : null}
         {claim?.status === 'REJECTED' ||
         claim?.status === 'EXPIRED' ||
-        claim?.status === 'WITHDRAWN' ? (
+        claim?.status === 'WITHDRAWN' ||
+        claimMissing ? (
           <Button
             label={t('claimPending.startAgain')}
             onPress={() => router.replace('/find-club')}

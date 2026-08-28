@@ -181,6 +181,17 @@ export default function JoinInviteScreen() {
         return
       }
 
+      if (result?.status === 'PENDING') {
+        Alert.alert(
+          t('join.pendingClubTitle', { defaultValue: 'Request sent to the club' }),
+          t('join.pendingClubBody', {
+            defaultValue: 'A club administrator will review your request before access is activated.',
+          }),
+        )
+        router.replace('/pending-approval')
+        return
+      }
+
       Alert.alert(
         t('join.successTitle'),
         t('join.successBody', { teamName: invite.team.displayName }),

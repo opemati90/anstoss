@@ -1,0 +1,19 @@
+appId: com.renuirug.anstoss
+---
+- tapOn:
+    text: "Anstoss"
+    index: 1
+- extendedWaitUntil:
+    visible: ".*(Get started|Log in|Home|Today|Welcome).*"
+    timeout: 180000
+- runFlow:
+    when:
+      visible: ".*developer menu.*"
+    commands:
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      visible: "Go home"
+    commands:
+      - tapOn:
+          point: "50%,10%"

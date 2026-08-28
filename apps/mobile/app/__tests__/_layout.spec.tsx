@@ -8,7 +8,10 @@ const mockRouterPush = jest.fn()
 const mockUsePushContext = jest.fn<any, any>(() => ({ lastNotification: null }))
 const mockUseUpdateCheck = jest.fn(() => ({
   forceUpdate: false,
+  softUpdate: false,
   openStore: jest.fn(),
+  dismissSoftUpdate: jest.fn(),
+  dismissAnnouncement: jest.fn(),
 }))
 
 jest.mock('expo-splash-screen', () => ({
@@ -65,6 +68,10 @@ jest.mock('../../src/components/ForceUpdateScreen', () => ({
     const { Text } = require('react-native')
     return <Text>Force update</Text>
   },
+}))
+
+jest.mock('../../src/components/ReleaseNotices', () => ({
+  ReleaseNotices: () => null,
 }))
 
 jest.mock('../../src/hooks/useUpdateCheck', () => ({

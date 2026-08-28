@@ -123,4 +123,15 @@ export class JoinRequestsController {
     await this.joinRequests.sendReminder(user.id, clubId, requestId)
     return { ok: true }
   }
+
+  @Post(':clubId/join-requests/:id/withdraw')
+  @UseGuards(ClerkAuthGuard, AgeGateGuard)
+  @RateLimit('write')
+  async withdrawJoinRequest(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('id') requestId: string,
+  ) {
+    return this.joinRequests.withdraw(user.id, clubId, requestId)
+  }
 }

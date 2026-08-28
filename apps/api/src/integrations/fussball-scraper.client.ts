@@ -1,20 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 
 /**
- * Thin HTTP client for the self-hosted Zetabytes scraper sidecar
- * (services/fussball-scraper). The scraper exposes a stable REST
- * surface around fussball.de that includes data api-fussball.de
- * doesn't: match events (goals, cards, subs), venue addresses, team
- * search.
- *
- * This client is intentionally permissive — every method returns
- * `null` on failure so callers can blend it with the primary
- * api-fussball.de provider via a circuit breaker without try/catch
- * scattered everywhere.
- *
- * Configure via:
- *   FUSSBALL_SCRAPER_URL=https://scraper.example.app
- *   FUSSBALL_SCRAPER_API_KEY=<the scraper's API_KEY env value>
+ * Compatibility types and interface for historical fixture records. Network
+ * access is deliberately absent: official federation pages are reference-only.
  */
 
 export type ScraperGame = {
@@ -111,35 +99,11 @@ export type ScraperScoringInsights = {
 
 @Injectable()
 export class FussballScraperClient {
-  private readonly logger = new Logger(FussballScraperClient.name)
-  private readonly baseUrl = (process.env.FUSSBALL_SCRAPER_URL || '').replace(
-    /\/$/,
-    '',
-  )
-  private readonly apiKey = process.env.FUSSBALL_SCRAPER_API_KEY || ''
-  private readonly requestTimeoutMs = 15_000
-
-  // Lightweight in-memory circuit breaker. After 3 consecutive failures
-  // we open the circuit for a cool-off window so the API doesn't waste
-  // 15-second timeouts trying a downed scraper on every request.
-  private consecutiveFailures = 0
-  private circuitOpenedAt: number | null = null
-  private readonly failureThreshold = 3
-  private readonly cooloffMs = 60_000
-
   isConfigured(): boolean {
-    return Boolean(this.baseUrl && this.apiKey)
+    return false
   }
 
   isAvailable(): boolean {
-    if (!this.isConfigured()) return false
-    if (this.circuitOpenedAt === null) return true
-    if (Date.now() - this.circuitOpenedAt > this.cooloffMs) {
-      // Half-open: let one probe through.
-      this.circuitOpenedAt = null
-      this.consecutiveFailures = 0
-      return true
-    }
     return false
   }
 
@@ -198,102 +162,19 @@ export class FussballScraperClient {
    * a `null` is a fallthrough cue or a hard failure for that endpoint.
    */
   private async get<T>(path: string): Promise<T | null> {
-    if (!this.isConfigured()) {
-      return null
-    }
-
-    if (!this.isAvailable()) {
-      this.logger.debug(
-        `Scraper circuit open; skipping ${path} until cool-off elapses`,
-      )
-      return null
-    }
-
-    const controller = new AbortController()
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.requestTimeoutMs,
-    )
-
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: 'GET',
-        headers: {
-          'X-API-Key': this.apiKey,
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      })
-
-      if (response.status === 404) {
-        // 404 isn't a circuit-breaker signal — it just means upstream
-        // doesn't have the resource. Reset failure counter; let caller
-        // decide what to do with `null`.
-        this.consecutiveFailures = 0
-        return null
-      }
-
-      if (!response.ok) {
-        this.recordFailure(`${response.status} ${response.statusText}`, path)
-        return null
-      }
-
-      const json = (await response.json()) as T
-      this.consecutiveFailures = 0
-      return json
-    } catch (error) {
-      const reason =
-        error instanceof Error
-          ? error.name === 'AbortError'
-            ? 'timeout'
-            : error.message
-          : String(error)
-      this.recordFailure(reason, path)
-      return null
-    } finally {
-      clearTimeout(timeoutId)
-    }
-  }
-
-  private recordFailure(reason: string, path: string) {
-    this.consecutiveFailures += 1
-    this.logger.warn(
-      `Scraper failure (${this.consecutiveFailures}/${this.failureThreshold}) on ${path}: ${reason}`,
-    )
-    if (this.consecutiveFailures >= this.failureThreshold) {
-      this.circuitOpenedAt = Date.now()
-      this.logger.error(
-        `Scraper circuit opened for ${this.cooloffMs}ms after ${this.consecutiveFailures} consecutive failures`,
-      )
-    }
+    void path
+    return null
   }
 
   /** Test-only: explicitly close the circuit. */
   resetCircuit(): void {
-    this.consecutiveFailures = 0
-    this.circuitOpenedAt = null
+    // Compatibility no-op.
   }
 
   /** Public health probe — used by an admin debug endpoint to confirm
    * connectivity without going through circuit-breaker bookkeeping. */
   async healthCheck(): Promise<{ ok: boolean; reason?: string }> {
-    if (!this.isConfigured()) {
-      return { ok: false, reason: 'FUSSBALL_SCRAPER_URL or API_KEY not set' }
-    }
-    try {
-      const response = await fetch(`${this.baseUrl}/`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      })
-      return response.ok
-        ? { ok: true }
-        : { ok: false, reason: `${response.status} ${response.statusText}` }
-    } catch (error) {
-      return {
-        ok: false,
-        reason: error instanceof Error ? error.message : String(error),
-      }
-    }
+    return { ok: false, reason: 'Official team pages are reference-only' }
   }
 
   /**
@@ -321,6 +202,12 @@ export class FussballScraperClient {
       rawPayload: game as unknown as Record<string, unknown>,
     }
   }
+}
+
+export function isLicensedFussballFeedEnabled() {
+  // Product decision: official federation pages are reference-only. Clubs
+  // paste a link that Anstoss displays; the API never scrapes or ingests it.
+  return false
 }
 
 function parseScore(value: string | null): number | null {

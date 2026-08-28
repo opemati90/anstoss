@@ -6,10 +6,18 @@ import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/context/OnboardingFlowCon
 const mockUseAuth = jest.fn()
 
 jest.mock('expo-router', () => ({
-  Redirect: ({ href }: { href: string }) => {
+  Redirect: ({
+    href,
+  }: {
+    href: string | { pathname: string; params?: Record<string, string> }
+  }) => {
     const React = require('react')
     const { Text } = require('react-native')
-    return React.createElement(Text, null, href)
+    const rendered =
+      typeof href === 'string'
+        ? href
+        : `${href.pathname}${href.params?.claimId ? `?claimId=${href.params.claimId}` : ''}`
+    return React.createElement(Text, null, rendered)
   },
 }))
 
@@ -101,6 +109,40 @@ describe('Index routing', () => {
     const { getByText } = render(<Index />)
 
     expect(getByText('/account-next-step')).toBeTruthy()
+  })
+
+  it('routes an unlinked player with a pending join request to pollable approval UX', () => {
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsRegistration: false,
+      pendingJoinRequest: { id: 'join-1', clubId: 'club-1' },
+      pendingClubClaim: null,
+      user: { registrationRole: 'PLAYER' },
+    })
+
+    const { getByText } = render(<Index />)
+
+    expect(getByText('/pending-approval')).toBeTruthy()
+  })
+
+  it('routes an unlinked coach with a pending staff claim to that exact claim', () => {
+    mockUseAuth.mockReturnValue({
+      isLoading: false,
+      isSignedIn: true,
+      memberships: [],
+      ageGate: null,
+      needsRegistration: false,
+      pendingJoinRequest: null,
+      pendingClubClaim: { id: 'staff-claim-7', status: 'SUBMITTED' },
+      user: { registrationRole: 'COACH' },
+    })
+
+    const { getByText } = render(<Index />)
+
+    expect(getByText('/(auth)/claim-pending?claimId=staff-claim-7')).toBeTruthy()
   })
 
   it('keeps the standalone DOB gate for already-registered users', () => {

@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common'
 import { TeamAccessDeniedError, RosterSlotAlreadyClaimedError } from '@anstoss/shared'
 import { RosterSlotsService } from './roster-slots.service'
 
@@ -182,6 +183,8 @@ describe('RosterSlotsService.claim', () => {
     const { prisma, service } = createService()
     const claimedAt = new Date()
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
@@ -199,17 +202,17 @@ describe('RosterSlotsService.claim', () => {
         }),
       },
       membership: {
-        findFirst: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }),
         create: jest.fn().mockResolvedValue({}),
       },
       teamAccess: {
-        findFirst: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue({ id: 'access-1', status: 'ACTIVE' }),
         create: jest.fn().mockResolvedValue({}),
       },
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    const result = await service.claim('team-1', 'slot-1', 'user-1')
+    const result = await service.claim('club-1', 'team-1', 'slot-1', 'user-1')
 
     expect(result.claimedByUserId).toBe('user-1')
     expect(result.claimedAt).toBeInstanceOf(Date)
@@ -217,24 +220,74 @@ describe('RosterSlotsService.claim', () => {
       where: { id: 'slot-1', claimedByUserId: null },
       data: { claimedByUserId: 'user-1', claimedAt: expect.any(Date) },
     })
-    expect(tx.membership.create).toHaveBeenCalledWith({
-      data: { userId: 'user-1', clubId: 'club-1', role: 'PLAYER' },
-    })
-    expect(tx.teamAccess.create).toHaveBeenCalledWith({
-      data: {
+    expect(tx.membership.create).not.toHaveBeenCalled()
+    expect(tx.teamAccess.create).not.toHaveBeenCalled()
+    expect(tx.rosterSlot.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'slot-1' } })
+  })
+
+  it('rejects a club member without active player access to the exact team', async () => {
+    const { prisma, service } = createService()
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      rosterSlot: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: null,
+          team: { id: 'team-1', clubId: 'club-1' },
+        }),
+        findFirst: jest.fn(),
+      },
+      membership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
+      teamAccess: { findFirst: jest.fn().mockResolvedValue(null) },
+    }
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+    await expect(
+      service.claim('club-1', 'team-1', 'slot-1', 'user-1'),
+    ).rejects.toThrow(TeamAccessDeniedError)
+    expect(tx.rosterSlot.findFirst).not.toHaveBeenCalled()
+    expect(tx.teamAccess.findFirst).toHaveBeenCalledWith({
+      where: {
         userId: 'user-1',
         teamId: 'team-1',
         clubId: 'club-1',
         role: 'PLAYER',
         status: 'ACTIVE',
+        OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
       },
     })
-    expect(tx.rosterSlot.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'slot-1' } })
+  })
+
+  it('rejects a claim when the route club does not own the team', async () => {
+    const { prisma, service } = createService()
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      rosterSlot: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: null,
+          team: { id: 'team-1', clubId: 'other-club' },
+        }),
+      },
+    }
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+    await expect(
+      service.claim('club-1', 'team-1', 'slot-1', 'user-1'),
+    ).rejects.toBeInstanceOf(NotFoundException)
   })
 
   it('rejects claim on an already-claimed slot', async () => {
     const { prisma, service } = createService()
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-2' }) },
+      membership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
+      teamAccess: { findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }) },
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
@@ -249,7 +302,7 @@ describe('RosterSlotsService.claim', () => {
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-2')).rejects.toThrow(/already claimed/i)
+    await expect(service.claim('club-1', 'team-1', 'slot-1', 'user-2')).rejects.toThrow(/already claimed/i)
     // Defense-in-depth pre-check should short-circuit before write.
     expect(tx.rosterSlot.updateMany).not.toHaveBeenCalled()
   })
@@ -257,16 +310,25 @@ describe('RosterSlotsService.claim', () => {
   it('rejects when user already claimed a different slot', async () => {
     const { prisma, service } = createService()
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      membership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
+      teamAccess: { findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }) },
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue({ id: 'other-slot' }),
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'slot-1',
+          teamId: 'team-1',
+          claimedByUserId: null,
+          team: { id: 'team-1', clubId: 'club-1' },
+        }),
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
       },
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-1')).rejects.toThrow(
+    await expect(service.claim('club-1', 'team-1', 'slot-1', 'user-1')).rejects.toThrow(
       /already on the roster/i,
     )
   })
@@ -276,6 +338,10 @@ describe('RosterSlotsService.claim', () => {
     // findFirst sees no existing claim by this user; findUnique sees an unclaimed slot;
     // but updateMany returns count: 0 because another concurrent tx claimed it first.
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      membership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership-1' }) },
+      teamAccess: { findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }) },
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue({
@@ -290,7 +356,7 @@ describe('RosterSlotsService.claim', () => {
     }
     prisma.$transaction.mockImplementation((fn: any) => fn(tx))
 
-    await expect(service.claim('team-1', 'slot-1', 'user-1')).rejects.toThrow(
+    await expect(service.claim('club-1', 'team-1', 'slot-1', 'user-1')).rejects.toThrow(
       RosterSlotAlreadyClaimedError,
     )
     expect(tx.rosterSlot.updateMany).toHaveBeenCalledWith({

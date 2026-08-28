@@ -37,7 +37,13 @@ export class ClubEntitlementsService {
       },
       orderBy: [{ createdAt: 'desc' }],
     })
-    const active = grants.filter((grant) => grant.status === EntitlementStatus.ACTIVE)
+    const active = grants.filter(
+      (grant) =>
+        grant.status === EntitlementStatus.ACTIVE ||
+        (grant.status === EntitlementStatus.SUSPENDED &&
+          grant.graceEndsAt !== null &&
+          grant.graceEndsAt > now),
+    )
     const winningGrant = active.reduce<(typeof active)[number] | null>((best, grant) => {
       if (!best || tierRank(grant.tier) > tierRank(best.tier)) return grant
       return best
@@ -131,19 +137,30 @@ export class ClubEntitlementsService {
     }
   }
 
-  async publishPlan(actorId: string | null, input: PublishPlanDefinitionInput) {
-    const plan = await this.prisma.$transaction(async (tx) => {
+  async publishPlan(
+    actorId: string | null,
+    input: PublishPlanDefinitionInput,
+    actorLabel: string | null = null,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`plan:${input.tier}:${input.interval}`}))`
       const latest = await tx.planDefinition.findFirst({
         where: { tier: input.tier, interval: input.interval },
         orderBy: { version: 'desc' },
-        select: { version: true },
       })
-      await tx.planDefinition.updateMany({
-        where: { tier: input.tier, interval: input.interval, publishedAt: { not: null } },
-        data: { publishedAt: null },
-      })
-      return tx.planDefinition.create({
+      const normalizedFeatures = [...new Set(input.features)].sort()
+      if (
+        latest &&
+        latest.priceCents === input.priceCents &&
+        latest.currency === input.currency.toLowerCase() &&
+        latest.teamLimit === input.teamLimit &&
+        latest.playerLimit === input.playerLimit &&
+        latest.stripePriceId === (input.stripePriceId ?? null) &&
+        [...latest.features].sort().join('\u0000') === normalizedFeatures.join('\u0000')
+      ) {
+        return latest
+      }
+      const plan = await tx.planDefinition.create({
         data: {
           tier: input.tier,
           interval: input.interval,
@@ -152,21 +169,24 @@ export class ClubEntitlementsService {
           currency: input.currency.toLowerCase(),
           teamLimit: input.teamLimit,
           playerLimit: input.playerLimit,
-          features: input.features,
+          features: normalizedFeatures,
           stripePriceId: input.stripePriceId ?? null,
           publishedAt: new Date(),
         },
       })
+      await tx.auditLog.create({
+        data: {
+          clubId: null,
+          type: 'billing.plan_published',
+          actorType: 'admin',
+          actorId,
+          actorLabel,
+          summary: `Published ${plan.tier} ${plan.interval} plan version ${plan.version}`,
+          metadata: { planDefinitionId: plan.id },
+        },
+      })
+      return plan
     })
-    await this.audit.log({
-      clubId: null,
-      type: 'billing.plan_published',
-      actorType: 'admin',
-      actorId,
-      actorLabel: null,
-      summary: `Published ${plan.tier} ${plan.interval} plan version ${plan.version}`,
-    })
-    return plan
   }
 
   listPlans() {
@@ -175,62 +195,108 @@ export class ClubEntitlementsService {
     })
   }
 
-  async grant(clubId: string, actorId: string | null, input: CreateEntitlementGrantInput) {
+  async grant(
+    clubId: string,
+    actorId: string | null,
+    input: CreateEntitlementGrantInput,
+    actorLabel: string | null = null,
+  ) {
     const club = await this.prisma.club.findUnique({
       where: { id: clubId },
       select: { id: true },
     })
     if (!club) throw new ConflictException('Club not found')
-    const definition = await this.prisma.planDefinition.findFirst({
-      where: { tier: input.tier, interval: input.interval, publishedAt: { not: null } },
-      orderBy: [{ version: 'desc' }, { publishedAt: 'desc' }],
+    const startsAt = input.startsAt ? new Date(input.startsAt) : new Date()
+    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`entitlement-grant:${clubId}`}))`
+      const definition = await tx.planDefinition.findFirst({
+        where: { tier: input.tier, interval: input.interval, publishedAt: { not: null } },
+        orderBy: [{ version: 'desc' }, { publishedAt: 'desc' }],
+      })
+      if (!definition) throw new ConflictException('No published definition exists for this tier')
+      const overlapping = await tx.entitlementGrant.findFirst({
+        where: {
+          clubId,
+          tier: input.tier,
+          source: input.source,
+          status: { in: ['ACTIVE', 'SUSPENDED'] },
+          ...(expiresAt ? { startsAt: { lt: expiresAt } } : {}),
+          OR: [{ expiresAt: null }, { expiresAt: { gt: startsAt } }],
+        },
+        select: { id: true },
+      })
+      if (overlapping) {
+        throw new ConflictException('An overlapping entitlement grant already exists')
+      }
+      const grant = await tx.entitlementGrant.create({
+        data: {
+          clubId,
+          tier: input.tier,
+          source: input.source,
+          startsAt,
+          expiresAt,
+          reason: input.reason,
+          createdById: actorId,
+          planDefinitionId: definition.id,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'billing.entitlement_granted',
+          actorType: 'admin',
+          actorId,
+          actorLabel,
+          summary: `Granted ${grant.tier} via ${grant.source}: ${grant.reason ?? 'No reason'}`,
+          metadata: { grantId: grant.id, planDefinitionId: definition.id },
+        },
+      })
+      return grant
     })
-    if (!definition) throw new ConflictException('No published definition exists for this tier')
-    const grant = await this.prisma.entitlementGrant.create({
-      data: {
-        clubId,
-        tier: input.tier,
-        source: input.source,
-        startsAt: input.startsAt ? new Date(input.startsAt) : new Date(),
-        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-        reason: input.reason,
-        createdById: actorId,
-        planDefinitionId: definition.id,
-      },
-    })
-    await this.audit.log({
-      clubId,
-      type: 'billing.entitlement_granted',
-      actorType: 'admin',
-      actorId,
-      actorLabel: null,
-      summary: `Granted ${grant.tier} via ${grant.source}: ${grant.reason ?? 'No reason'}`,
-    })
-    return grant
   }
 
-  async revoke(grantId: string, actorId: string | null) {
-    const grant = await this.prisma.entitlementGrant.findUnique({ where: { id: grantId } })
-    if (!grant) throw new ConflictException('Active entitlement grant not found')
-    const result = await this.prisma.entitlementGrant.updateMany({
-      where: { id: grantId, status: { in: ['ACTIVE', 'SUSPENDED'] } },
-      data: { status: 'REVOKED' },
+  async revoke(grantId: string, actorId: string | null, actorLabel: string | null = null) {
+    return this.prisma.$transaction(async (tx) => {
+      const grant = await tx.entitlementGrant.findUnique({ where: { id: grantId } })
+      if (!grant) throw new ConflictException('Active entitlement grant not found')
+      if (grant.source === 'PAID' || grant.source === 'MIGRATED') {
+        throw new ConflictException(
+          'Paid or migrated access must be changed through its subscription lifecycle',
+        )
+      }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`entitlement-grant:${grant.clubId}`}))`
+      const result = await tx.entitlementGrant.updateMany({
+        where: { id: grantId, status: { in: ['ACTIVE', 'SUSPENDED'] } },
+        data: { status: 'REVOKED' },
+      })
+      if (result.count !== 1) throw new ConflictException('Active entitlement grant not found')
+      await tx.auditLog.create({
+        data: {
+          clubId: grant.clubId,
+          type: 'billing.entitlement_revoked',
+          actorType: 'admin',
+          actorId,
+          actorLabel,
+          summary: `Revoked ${grant.tier} entitlement ${grant.id}`,
+          metadata: { grantId: grant.id },
+        },
+      })
+      return { revoked: true }
     })
-    if (result.count !== 1) throw new ConflictException('Active entitlement grant not found')
-    await this.audit.log({
-      clubId: grant.clubId,
-      type: 'billing.entitlement_revoked',
-      actorType: 'admin',
-      actorId,
-      actorLabel: null,
-      summary: `Revoked ${grant.tier} entitlement ${grant.id}`,
-    })
-    return { revoked: true }
   }
 
   async snapshot(clubId: string) {
-    const [entitlement, usage] = await Promise.all([this.resolve(clubId), this.usage(clubId)])
-    return { clubId, ...entitlement, usage }
+    const [entitlement, usage, grants] = await Promise.all([
+      this.resolve(clubId),
+      this.usage(clubId),
+      this.prisma.entitlementGrant.findMany({
+        where: { clubId },
+        include: { planDefinition: true },
+        orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+    ])
+    return { clubId, ...entitlement, grants, usage }
   }
 
   private async lockClubQuota(clubId: string, db: DbClient) {

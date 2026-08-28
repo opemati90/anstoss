@@ -73,6 +73,7 @@ describe('ManagedSubProfilesService.create', () => {
     }
 
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(slotRow),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -95,6 +96,7 @@ describe('ManagedSubProfilesService.create', () => {
         create: jest.fn().mockResolvedValue({ id: 'consent-1' }),
       },
       user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'parent-1' }),
         create: jest.fn().mockResolvedValue(newUser),
       },
     }
@@ -209,6 +211,33 @@ describe('ManagedSubProfilesService.create', () => {
     expect(result.slot.claimedByUserId).toBe('user-kid')
   })
 
+  it('does not create child or access rows for a deleted parent', async () => {
+    const { prisma, service } = createService()
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
+      rosterSlot: { findFirst: jest.fn() },
+      membership: { upsert: jest.fn(), create: jest.fn() },
+      teamAccess: { upsert: jest.fn(), create: jest.fn() },
+      guardianRelationship: { create: jest.fn() },
+    }
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+    await expect(
+      service.create('parent-1', {
+        fullName: 'Mara',
+        dateOfBirth: new Date('2017-05-04').toISOString(),
+        teamId: 'team-1',
+        rosterSlotId: 'slot-1',
+      }),
+    ).rejects.toThrow(ManagedSubProfileSlotUnavailableError)
+
+    expect(tx.$executeRaw).toHaveBeenCalled()
+    expect(tx.rosterSlot.findFirst).not.toHaveBeenCalled()
+    expect(tx.user.create).not.toHaveBeenCalled()
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+  })
+
   it('rejects when DOB is 16 or older with ManagedSubProfileAgeError', async () => {
     const { prisma, service } = createService()
 
@@ -228,6 +257,7 @@ describe('ManagedSubProfilesService.create', () => {
     const { prisma, service } = createService()
 
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn(),
@@ -250,6 +280,7 @@ describe('ManagedSubProfilesService.create', () => {
         create: jest.fn(),
       },
       user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'parent-1' }),
         create: jest.fn(),
       },
     }
@@ -291,6 +322,7 @@ describe('ManagedSubProfilesService.create', () => {
     // findFirst sees the slot as unclaimed, but a concurrent transaction
     // claims it before our updateMany runs — count: 0 forces rollback.
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(slotRow),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -313,6 +345,7 @@ describe('ManagedSubProfilesService.create', () => {
         create: jest.fn(),
       },
       user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'parent-1' }),
         create: jest.fn().mockResolvedValue(newUser),
       },
     }
@@ -360,6 +393,7 @@ describe('ManagedSubProfilesService.create', () => {
     }
     const updatedSlot = { id: 'slot-1', teamId: 'team-1', claimedByUserId: 'user-kid', claimedAt: new Date() }
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       rosterSlot: {
         findFirst: jest.fn().mockResolvedValue(slotRow),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -382,6 +416,7 @@ describe('ManagedSubProfilesService.create', () => {
         create: jest.fn(),
       },
       user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'parent-1' }),
         create: jest.fn().mockResolvedValue(newUser),
       },
     }

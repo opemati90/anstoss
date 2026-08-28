@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import type { SupportActionInput } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import type { PlatformAdminActor } from './platform-admin.types'
+import { tenantContext } from '../prisma/tenant.context'
 
 @Injectable()
 export class AdminService {
@@ -228,6 +229,100 @@ export class AdminService {
       cancelAtPeriodEnd: s.cancelAtPeriodEnd,
       club: s.club,
     }))
+  }
+
+  async listInviteCampaigns(opts: { suspiciousOnly?: boolean; limit?: number } = {}) {
+    const limit = Math.min(opts.limit ?? 100, 200)
+    return this.prisma.inviteCampaign.findMany({
+      where: opts.suspiciousOnly
+        ? {
+            status: 'ACTIVE',
+            OR: [{ maxUses: { gte: 100 } }, { useCount: { gte: 50 } }],
+          }
+        : undefined,
+      orderBy: [{ createdAt: 'desc' }],
+      take: limit,
+      include: {
+        club: { select: { id: true, name: true } },
+        team: { select: { id: true, displayName: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+  }
+
+  async revokeInviteCampaign(
+    campaignId: string,
+    actor: PlatformAdminActor,
+    reason: string,
+  ) {
+    const campaign = await this.prisma.inviteCampaign.findUnique({
+      where: { id: campaignId },
+      select: { id: true, clubId: true, status: true },
+    })
+    if (!campaign) throw new BadRequestException('Invite campaign not found')
+    const normalizedReason = reason.trim()
+    if (normalizedReason.length < 5) {
+      throw new BadRequestException('Add a clear revocation reason')
+    }
+    return tenantContext.run(
+      { clubId: campaign.clubId, userId: actor.id ?? 'platform-admin' },
+      () =>
+        this.prisma.$transaction(async (tx) => {
+          const result = await tx.inviteCampaign.updateMany({
+            where: { id: campaign.id, status: 'ACTIVE' },
+            data: { status: 'REVOKED' },
+          })
+          if (result.count !== 1) {
+            throw new BadRequestException('Invite campaign is no longer active')
+          }
+          await tx.auditLog.create({
+            data: {
+              clubId: campaign.clubId,
+              type: 'invite.campaign_revoked',
+              actorType: 'admin',
+              actorId: actor.id,
+              actorLabel: actor.name,
+              summary: 'Platform admin revoked an invite campaign.',
+              metadata: { campaignId, reason: normalizedReason },
+            },
+          })
+          return { revoked: true }
+        }),
+    )
+  }
+
+  listJoinRequests(opts: { status?: string; limit?: number } = {}) {
+    return this.prisma.joinRequest.findMany({
+      where: opts.status ? { status: opts.status as any } : undefined,
+      orderBy: [{ createdAt: 'desc' }],
+      take: Math.min(opts.limit ?? 100, 200),
+      include: {
+        club: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
+    })
+  }
+
+  async contributionHealth() {
+    const now = new Date()
+    const [records, failedReminders, recentImports] = await Promise.all([
+      this.prisma.contributionRecord.groupBy({
+        by: ['clubId', 'status'],
+        _count: { _all: true },
+        _sum: { amount: true, paidAmount: true },
+      }),
+      this.prisma.contributionReminder.groupBy({
+        by: ['clubId'],
+        where: { status: 'FAILED' },
+        _count: { _all: true },
+      }),
+      this.prisma.bankImportBatch.groupBy({
+        by: ['clubId'],
+        where: { createdAt: { gte: new Date(now.getTime() - 30 * 86400000) } },
+        _count: { _all: true },
+      }),
+    ])
+    return { generatedAt: now, records, failedReminders, recentImports }
   }
 
   async revenueSummary() {

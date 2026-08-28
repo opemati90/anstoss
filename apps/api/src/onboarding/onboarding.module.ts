@@ -4,9 +4,10 @@ import { OnboardingService } from './onboarding.service'
 import { PrismaModule } from '../prisma/prisma.module'
 import { ChannelsModule } from '../channels/channels.module'
 import { ClubsModule } from '../clubs/clubs.module'
+import { ClubActivationModule } from '../club-activation/club-activation.module'
 
 @Module({
-  imports: [PrismaModule, ChannelsModule, ClubsModule],
+  imports: [PrismaModule, ChannelsModule, ClubsModule, ClubActivationModule],
   controllers: [OnboardingController],
   providers: [OnboardingService],
 })

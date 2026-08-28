@@ -305,7 +305,7 @@ export default function TeamManagementScreen() {
               updatedCount: number
               skippedCount: number
               errorSummary: string | null
-            }
+            } | null
           }>('/integrations/fussball/team-links', {
             method: 'POST',
             body: {
@@ -315,7 +315,17 @@ export default function TeamManagementScreen() {
             headers: { 'x-club-id': activeClub.club.id },
           })
           const total = (result?.sync?.importedCount ?? 0) + (result?.sync?.updatedCount ?? 0)
-          if (result?.sync?.status === 'FAILED') {
+          if (!result?.sync) {
+            Alert.alert(
+              t('teamManagement.fussballLinkedTitle', {
+                defaultValue: 'Official page saved',
+              }),
+              t('teamManagement.fussballLinkedBody', {
+                defaultValue: '{{label}} is saved as a reference. Add fixtures manually.',
+                label: result.link.label,
+              }),
+            )
+          } else if (result.sync.status === 'FAILED') {
             Alert.alert(
               t('teamManagement.fussballSyncFailedTitle', {
                 defaultValue: 'External team data linked, but sync failed',
@@ -323,7 +333,7 @@ export default function TeamManagementScreen() {
               result.sync.errorSummary ??
                 t('teamManagement.fussballSyncFailedBody', {
                   defaultValue:
-                    'We linked the team but couldn’t pull fixtures yet. Retry from team settings.',
+                    'The licensed fixture feed could not sync. Retry from team settings.',
                 }),
             )
           } else if (total > 0) {
@@ -332,7 +342,7 @@ export default function TeamManagementScreen() {
                 defaultValue: 'External team data linked',
               }),
               t('teamManagement.fussballLinkedBody', {
-                defaultValue: '{{label}} · {{count}} fixtures imported.',
+                defaultValue: '{{label}} · {{count}} licensed fixture records updated.',
                 label: result.link.label,
                 count: total,
               }),
@@ -780,7 +790,7 @@ export default function TeamManagementScreen() {
                         >
                           {t('teamManagement.fussballUrlHint', {
                             defaultValue:
-                              'Linking pulls fixtures + squad. Admins can bulk-invite from the imported roster.',
+                              'This saves an official page as a reference. It does not import fixtures or players and does not prove club authority.',
                           })}
                         </Text>
                       </View>

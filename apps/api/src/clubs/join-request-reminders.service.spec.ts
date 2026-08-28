@@ -8,6 +8,7 @@ describe('JoinRequestsService.sendReminder', () => {
       findAdminUserIds?: jest.Mock
       cacheGet?: jest.Mock
       cacheSet?: jest.Mock
+      cacheReserve?: jest.Mock
       pushSend?: jest.Mock
     } = {},
   ) {
@@ -36,6 +37,7 @@ describe('JoinRequestsService.sendReminder', () => {
     const cache = {
       get: overrides.cacheGet ?? jest.fn().mockResolvedValue(null),
       set: overrides.cacheSet ?? jest.fn().mockResolvedValue('OK'),
+      reserve: overrides.cacheReserve ?? jest.fn().mockResolvedValue(true),
     }
 
     const push = {
@@ -78,17 +80,16 @@ describe('JoinRequestsService.sendReminder', () => {
       expect.objectContaining({ type: 'JOIN_REQUEST_REMINDER' }),
       expect.objectContaining({ clubId: 'c1' }),
     )
-    expect(cache.set).toHaveBeenCalledWith(
+    expect(cache.reserve).toHaveBeenCalledWith(
       'join-request-reminder:jr1',
-      '1',
-      'EX',
+      'u1',
       5 * 60,
     )
   })
 
   it('throws BadRequest when cooldown still active', async () => {
     const { service } = makeService({
-      cacheGet: jest.fn().mockResolvedValue('1'),
+      cacheReserve: jest.fn().mockResolvedValue(false),
     })
 
     await expect(service.sendReminder('u1', 'c1', 'jr1')).rejects.toBeInstanceOf(

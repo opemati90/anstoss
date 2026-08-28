@@ -14,7 +14,10 @@ export default function JoinCodeScreen() {
   const c = useClubColors()
   const [code, setCode] = useState('')
 
-  const trimmed = code.trim().toUpperCase()
+  // Campaign links created before the human-friendly uppercase format used
+  // case-sensitive Base64URL codes. Preserve what the user enters so those
+  // still redeem; newly generated manual codes are uppercase already.
+  const trimmed = code.trim()
   const canContinue = useMemo(() => trimmed.length >= 4 && trimmed.length <= 32, [trimmed])
 
   const handleContinue = () => {
@@ -33,7 +36,7 @@ export default function JoinCodeScreen() {
             placeholder={t('joinCode.placeholder')}
             value={code}
             onChangeText={setCode}
-            autoCapitalize="characters"
+            autoCapitalize="none"
             autoCorrect={false}
             maxLength={32}
             style={[styles.input, { backgroundColor: c.background }]}

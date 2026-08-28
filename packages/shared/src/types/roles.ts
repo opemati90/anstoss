@@ -72,6 +72,7 @@ export enum JoinRequestStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  WITHDRAWN = 'WITHDRAWN',
 }
 
 export const ROLE_HIERARCHY: Record<MembershipRole, number> = {

@@ -34,6 +34,7 @@ type JoinRequestItem = {
   role: string
   message: string | null
   status: string
+  revision: number
   createdAt: string
   user: { id: string; name: string; email: string }
 }
@@ -77,17 +78,17 @@ export default function PendingRequestsScreen() {
   }
 
   const performAction = async (
-    requestId: string,
+    request: Pick<JoinRequestItem, 'id' | 'revision'>,
     action: 'approve' | 'reject',
   ) => {
     if (!clubId) return
-    setProcessingId(requestId)
+    setProcessingId(request.id)
     try {
-      await api(`/clubs/${clubId}/join-requests/${requestId}/${action}`, {
+      await api(`/clubs/${clubId}/join-requests/${request.id}/${action}`, {
         method: 'POST',
-        body: {},
+        body: { revision: request.revision },
       })
-      setRequests((prev) => prev.filter((r) => r.id !== requestId))
+      setRequests((prev) => prev.filter((r) => r.id !== request.id))
     } catch (err) {
       const msg =
         err instanceof ApiError && err.message ? err.message : t('common.error')
@@ -97,7 +98,7 @@ export default function PendingRequestsScreen() {
     }
   }
 
-  const handleAction = (requestId: string, action: 'approve' | 'reject') => {
+  const handleAction = (request: JoinRequestItem, action: 'approve' | 'reject') => {
     if (action === 'reject') {
       Alert.alert(
         t('pendingRequests.rejectConfirmTitle'),
@@ -107,13 +108,13 @@ export default function PendingRequestsScreen() {
           {
             text: t('pendingRequests.reject'),
             style: 'destructive',
-            onPress: () => performAction(requestId, action),
+            onPress: () => performAction(request, action),
           },
         ],
       )
       return
     }
-    performAction(requestId, action)
+    performAction(request, action)
   }
 
   return (
@@ -217,7 +218,7 @@ export default function PendingRequestsScreen() {
                             { borderColor: c.borderDefault },
                             pressed && { opacity: 0.6 },
                           ]}
-                          onPress={() => handleAction(item.id, 'reject')}
+                          onPress={() => handleAction(item, 'reject')}
                           disabled={isProcessing}
                           accessibilityRole="button"
                           accessibilityLabel={`${t('pendingRequests.reject')} ${item.user.name}`}
@@ -251,7 +252,7 @@ export default function PendingRequestsScreen() {
                             { backgroundColor: c.primary },
                             pressed && { opacity: 0.7 },
                           ]}
-                          onPress={() => handleAction(item.id, 'approve')}
+                          onPress={() => handleAction(item, 'approve')}
                           disabled={isProcessing}
                           accessibilityRole="button"
                           accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}

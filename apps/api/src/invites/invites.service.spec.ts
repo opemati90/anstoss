@@ -9,7 +9,83 @@ import {
   TeamAccessStatus,
   TeamRole,
 } from '@anstoss/shared'
-import { InvitesService } from './invites.service'
+import { generateCampaignCode, InvitesService } from './invites.service'
+
+describe('invite campaign lifecycle', () => {
+  it('generates eight-character uppercase manual codes without ambiguous characters', () => {
+    for (let index = 0; index < 50; index += 1) {
+      expect(generateCampaignCode()).toMatch(/^[2-9A-HJ-NP-Z]{8}$/)
+    }
+  })
+
+  it('reports elapsed and exhausted active campaigns as effectively expired', async () => {
+    const prisma = {
+      membership: {
+        findUnique: jest.fn().mockResolvedValue({ role: MembershipRole.ADMIN }),
+      },
+      inviteCampaign: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'elapsed',
+            status: 'ACTIVE',
+            expiresAt: new Date(Date.now() - 1_000),
+            useCount: 0,
+            maxUses: 10,
+          },
+          {
+            id: 'exhausted',
+            status: 'ACTIVE',
+            expiresAt: new Date(Date.now() + 60_000),
+            useCount: 10,
+            maxUses: 10,
+          },
+          {
+            id: 'usable',
+            status: 'ACTIVE',
+            expiresAt: new Date(Date.now() + 60_000),
+            useCount: 2,
+            maxUses: 10,
+          },
+        ]),
+      },
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never)
+
+    await expect(service.listCampaigns('club-1', 'admin-1')).resolves.toEqual([
+      expect.objectContaining({ id: 'elapsed', status: 'EXPIRED' }),
+      expect.objectContaining({ id: 'exhausted', status: 'EXPIRED' }),
+      expect.objectContaining({ id: 'usable', status: 'ACTIVE' }),
+    ])
+  })
+
+  it('resolves a lowercase manual entry to a new uppercase campaign code', async () => {
+    const campaign = {
+      code: 'ABCD2345',
+      type: 'APPROVAL_REQUIRED',
+      role: TeamRole.PLAYER,
+      status: 'ACTIVE',
+      expiresAt: new Date(Date.now() + 60_000),
+      useCount: 0,
+      maxUses: 10,
+      club: { id: 'club-1' },
+      team: { id: 'team-1' },
+    }
+    const prisma = {
+      inviteCampaign: {
+        findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(campaign),
+      },
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never)
+
+    await expect(service.validateCampaign('abcd2345')).resolves.toMatchObject({
+      code: 'ABCD2345',
+    })
+    expect(prisma.inviteCampaign.findUnique).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: { code: 'ABCD2345' } }),
+    )
+  })
+})
 
 describe('InvitesService — role propagation through redemption', () => {
   beforeEach(() => {
@@ -19,6 +95,7 @@ describe('InvitesService — role propagation through redemption', () => {
   function createService() {
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findMany: jest.fn(({ where }) => Promise.resolve(where.id.in.map((id: string) => ({ id })))) },
       membership: {
         upsert: jest.fn().mockResolvedValue({ id: 'membership-1' }),
       },

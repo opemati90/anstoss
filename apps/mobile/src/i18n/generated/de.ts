@@ -138,21 +138,20 @@ export default {
   invite: {
     changeTeam: 'Mannschaft wechseln',
     heroSubtitle: 'Mannschaft auswählen, E-Mail-Adressen eintragen (eine pro Zeile), absenden.',
-    importRosterCta: 'Kader von externe Teamdaten importieren',
-    importRosterSub: 'Kaderliste laden, Namen auswählen, alle auf einmal einladen.',
+    importRosterCta: 'Kader aus lizenziertem Feed importieren',
+    importRosterSub: 'Spieler aus dem autorisierten Kader-Feed auswählen und gemeinsam einladen.',
     recipientLabelBulk: 'E-MAILS · EINE PRO ZEILE ODER KOMMAGETRENNT',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: '{{count}} zur Einladungsliste hinzufügen',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty:
-      'Die Kaderseite konnte nicht automatisch ausgelesen werden. Öffne sie auf externe Teamdaten und füge die Namen unten ein.',
+    rosterEmpty: 'Der autorisierte Kader-Feed hat keine Spieler geliefert.',
     rosterError:
-      'Kader von externe Teamdaten konnte nicht geladen werden. Versuch es nochmal oder trage die Namen manuell ein.',
+      'Der lizenzierte Kader-Feed konnte nicht geladen werden. Versuch es erneut oder trage E-Mails manuell ein.',
     rosterSourceLineup:
-      'Aus deiner letzten externe Teamdaten-Aufstellung übernommen. Spieler ohne Einsatz werden nicht angezeigt.',
+      'Aus der letzten autorisierten Aufstellung übernommen. Spieler ohne Einsatz können fehlen.',
     rosterSubtitle:
       'Wähle die Spieler aus, für die du eine E-Mail-Adresse hast, trag sie ein und lade alle auf einmal ein.',
-    rosterTitle: 'Kader von externe Teamdaten',
+    rosterTitle: 'Kader aus lizenziertem Feed',
     step1Title: 'Mannschaft wählen',
     step2Title: 'Empfänger hinzufügen',
     step3Title: 'Prüfen & senden',
@@ -510,17 +509,17 @@ export default {
     createFirstGroup: 'Erste Gruppe erstellen',
     emptyBody:
       'Beginne mit einer Gruppe wie Herren, Jugend oder Bambini. Darunter kommen dann die Mannschaften.',
-    fussballLinkedBody: '{{label}} · {{count}} Spielpläne importiert.',
-    fussballLinkedTitle: 'öffentliche Quelle verknüpft',
+    fussballLinkedBody: '{{label}} wurde als Referenz gespeichert. Erfasse Termine manuell.',
+    fussballLinkedTitle: 'Offizielle Seite gespeichert',
     fussballLinkFailedBody:
       'Das Team wurde erstellt. Versuche die Verknüpfung erneut in den Teameinstellungen. Die URL könnte falsch sein.',
     fussballLinkFailedTitle: 'öffentliche Quelle konnte noch nicht verknüpft werden',
     fussballSyncFailedBody:
-      'Das Team wurde verknüpft, aber die Spielpläne konnten noch nicht abgerufen werden. Wiederholen in den Teameinstellungen.',
-    fussballSyncFailedTitle: 'öffentliche Quelle verknüpft, aber Synchronisierung fehlgeschlagen',
+      'Der lizenzierte Spielplan-Feed konnte nicht synchronisiert werden. Versuche es in den Teameinstellungen erneut.',
+    fussballSyncFailedTitle: 'Lizenzierte Synchronisierung fehlgeschlagen',
     fussballUrlHint:
-      'Die Verknüpfung importiert Spielpläne und den Kader. Admins können die importierte Liste für Masseneinladungen nutzen.',
-    fussballUrlPlaceholder: 'öffentliche Quelle-Team-URL (optional)',
+      'Dies speichert eine offizielle Seite als Referenz. Es werden keine Termine oder Spieler importiert und der Link beweist keine Vereinsberechtigung.',
+    fussballUrlPlaceholder: 'Offizielle Teamseite (optional)',
     manageLabel: 'Verwalten',
     memberCount: '{{count}}',
     emptyTitle: 'Vereinsstruktur aufbauen',

@@ -36,7 +36,7 @@ describe('RosterSlotsController', () => {
   it('POST claim calls claim', async () => {
     service.claim.mockResolvedValue({ id: 's1', claimedByUserId: 'u1' })
     const res = await controller.claim('c1', 't1', 's1', { id: 'u1' } as any)
-    expect(service.claim).toHaveBeenCalledWith('t1', 's1', 'u1')
+    expect(service.claim).toHaveBeenCalledWith('c1', 't1', 's1', 'u1')
     expect(res.claimedByUserId).toBe('u1')
   })
 })

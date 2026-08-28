@@ -42,10 +42,10 @@ describe('JoinCodeScreen', () => {
     expect(mockReplace).toHaveBeenCalledWith('/join/ABCD1234')
   })
 
-  it('upper-cases and trims before routing', () => {
+  it('preserves case for legacy campaign codes and trims before routing', () => {
     const { getByText, getByPlaceholderText } = render(<JoinCodeScreen />)
     fireEvent.changeText(getByPlaceholderText('Invite code'), '  ab12xy  ')
     fireEvent.press(getByText('Continue'))
-    expect(mockReplace).toHaveBeenCalledWith('/join/AB12XY')
+    expect(mockReplace).toHaveBeenCalledWith('/join/ab12xy')
   })
 })

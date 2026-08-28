@@ -8,9 +8,81 @@ import {
 import { AUTH_IDENTITY_PROVIDER_CLERK, hashAuthSubject } from '../auth/auth-identity-tombstone'
 import { UsersService } from './users.service'
 
+describe('UsersService.searchClubMemberDirectory', () => {
+  function createDirectoryService() {
+    const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      membership: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'requester-membership' }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'membership-1',
+            role: MembershipRole.PLAYER,
+            user: {
+              id: 'player-1',
+              name: 'Mina Beispiel',
+              avatarUrl: null,
+              teamAccess: [
+                {
+                  role: 'PLAYER',
+                  team: { id: 'team-1', displayName: 'Frauen I' },
+                },
+              ],
+            },
+          },
+        ]),
+      },
+    }
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+    return { prisma, service }
+  }
+
+  it('requires two search characters and current club membership', async () => {
+    const { prisma, service } = createDirectoryService()
+    await expect(
+      service.searchClubMemberDirectory('club-1', 'user-1', { query: 'm', limit: 50 }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+
+    prisma.membership.findUnique.mockResolvedValueOnce(null)
+    await expect(
+      service.searchClubMemberDirectory('club-1', 'outsider', { query: 'mi', limit: 50 }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(prisma.membership.findMany).not.toHaveBeenCalled()
+  })
+
+  it('returns only the privacy-safe projection with team context and cursor', async () => {
+    const { prisma, service } = createDirectoryService()
+    const result = await service.searchClubMemberDirectory('club-1', 'user-1', {
+      query: 'mina',
+      role: 'player',
+      limit: 1,
+    })
+
+    expect(result).toEqual({
+      items: [
+        expect.objectContaining({
+          id: 'membership-1',
+          user: expect.not.objectContaining({ email: expect.anything(), dateOfBirth: expect.anything() }),
+        }),
+      ],
+      nextCursor: null,
+    })
+    expect(prisma.membership.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 2, orderBy: [{ user: { name: 'asc' } }, { id: 'asc' }] }),
+    )
+  })
+})
+
 describe('UsersService.updateClubMemberRole', () => {
   function createService() {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
       membership: {
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -18,7 +90,8 @@ describe('UsersService.updateClubMemberRole', () => {
       teamAccess: {
         findMany: jest.fn(),
       },
-    }
+    } as any
+    prisma.$transaction = jest.fn(async (cb: (tx: typeof prisma) => unknown) => cb(prisma))
 
     const events = { emit: jest.fn() }
     const service = new UsersService(
@@ -414,12 +487,17 @@ describe('UsersService.deleteAccount', () => {
       $queryRaw: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(0),
       authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
-      teamAccess: { deleteMany: deleteMany() },
+      teamAccess: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       teamMember: { deleteMany: deleteMany() },
       channelMember: { deleteMany: deleteMany() },
       conversationParticipant: { deleteMany: deleteMany() },
-      membership: { deleteMany: deleteMany() },
+      membership: {
+        deleteMany: deleteMany(),
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([{ clubId: 'club-1' }]),
+      },
       joinRequest: { deleteMany: deleteMany() },
+      clubClaim: { updateMany: updateMany() },
       messageReaction: { deleteMany: deleteMany() },
       messageReadReceipt: { deleteMany: deleteMany() },
       messageReport: { deleteMany: deleteMany() },
@@ -566,6 +644,19 @@ describe('UsersService.deleteAccount', () => {
         dateOfBirth: null,
       }),
     })
+  })
+
+  it('refreshes club scope after the lifecycle lock before tenant cleanup', async () => {
+    const { tx, service } = createService()
+    tx.membership.findMany.mockResolvedValue([{ clubId: 'club-2' }])
+
+    await service.deleteAccount('user-1')
+
+    expect(tx.membership.findMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      select: { clubId: true },
+    })
+    expect(tx.teamAccess.deleteMany).toHaveBeenCalledTimes(2)
   })
 
   it('tombstones legacy Clerk subjects during deletion', async () => {
@@ -966,5 +1057,87 @@ describe('UsersService.removeUnderageAccountInTransaction', () => {
         dateOfBirth: null,
       },
     })
+  })
+})
+
+describe('UsersService.getMe pending onboarding contracts', () => {
+  it('exposes pending staff claims as well as first-club claims', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'coach-1',
+          dateOfBirth: new Date('1990-01-01T00:00:00.000Z'),
+          memberships: [],
+          teamMembers: [],
+          teamAccess: [],
+          guardianRelationshipsAsParent: [],
+          parentalConsentsAsPlayer: [],
+        }),
+      },
+      joinRequest: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      clubClaim: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'staff-claim-1', status: 'SUBMITTED' }),
+      },
+    }
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+
+    const result = await service.getMe('coach-1')
+
+    expect(prisma.clubClaim.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          claimantUserId: 'coach-1',
+          kind: { in: ['FIRST_CLAIM', 'STAFF_CLAIM'] },
+          status: { in: ['SUBMITTED', 'NEEDS_INFO'] },
+        }),
+      }),
+    )
+    expect(result.pendingClubClaim).toEqual({ id: 'staff-claim-1', status: 'SUBMITTED' })
+  })
+
+  it('exposes a pending join request for pollable player onboarding', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'player-1',
+          dateOfBirth: new Date('1990-01-01T00:00:00.000Z'),
+          memberships: [],
+          teamMembers: [],
+          teamAccess: [],
+          guardianRelationshipsAsParent: [],
+          parentalConsentsAsPlayer: [],
+        }),
+      },
+      joinRequest: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'join-1', clubId: 'club-1' }),
+      },
+      clubClaim: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+    }
+    const service = new UsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    )
+
+    const result = await service.getMe('player-1')
+
+    expect(prisma.joinRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'player-1', status: 'PENDING' },
+      }),
+    )
+    expect(result.pendingJoinRequest).toEqual({ id: 'join-1', clubId: 'club-1' })
   })
 })

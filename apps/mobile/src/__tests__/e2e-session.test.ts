@@ -101,6 +101,27 @@ describe('E2E API session shim', () => {
     })
   })
 
+  it('withdraws the signed-in player request and removes it from active polling', async () => {
+    await activateE2EScenario('signup-player')
+    const created = handleE2EApiRequest('/clubs/club-e2e-sv-albatros/join-requests', {
+      method: 'POST',
+      body: { role: 'PLAYER' },
+    })
+    if (!created.handled || !created.body) throw new Error('Expected request to be created')
+    const requestId = (created.body as { id: string }).id
+
+    const withdrawn = handleE2EApiRequest(
+      `/clubs/club-e2e-sv-albatros/join-requests/${requestId}/withdraw`,
+      { method: 'POST' },
+    )
+    expect(withdrawn).toEqual(
+      expect.objectContaining({ handled: true, ok: true, body: { withdrawn: true } }),
+    )
+
+    const active = handleE2EApiRequest('/me/join-requests/active', { method: 'GET' })
+    expect(active.handled && active.body).toEqual({ request: null })
+  })
+
   it('turns post-signup club setup into an active owner membership', async () => {
     await activateE2EScenario('signup-club-admin')
 

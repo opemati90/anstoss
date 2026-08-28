@@ -135,19 +135,18 @@ export default {
   invite: {
     changeTeam: 'Change team',
     heroSubtitle: 'Pick a squad, drop email addresses (one per line), send.',
-    importRosterCta: 'Import roster from public source',
-    importRosterSub: 'Pull squad list, tick names, send all at once.',
+    importRosterCta: 'Import roster from licensed feed',
+    importRosterSub: 'Select players from the authorized roster feed and invite them together.',
     recipientLabelBulk: 'EMAILS · ONE PER LINE OR COMMA-SEPARATED',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Add {{count}} to invites',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty:
-      "Couldn't read the squad page automatically. Open it on public source and paste names below.",
-    rosterError: "Couldn't fetch the public source roster. Try again or paste names manually.",
+    rosterEmpty: 'No players were returned by the authorized roster feed.',
+    rosterError: "Couldn't fetch the licensed roster feed. Try again or enter emails manually.",
     rosterSourceLineup:
-      "Pulled from your most recent public source match lineup. Names that didn't play yet won't show up.",
+      "Pulled from the latest authorized lineup. Players who haven't appeared may be missing.",
     rosterSubtitle: 'Tick the players you have an email for, drop the address, send all at once.',
-    rosterTitle: 'Squad from public source',
+    rosterTitle: 'Squad from licensed feed',
     step1Title: 'Pick squad',
     step2Title: 'Add recipients',
     step3Title: 'Review & send',
@@ -317,7 +316,7 @@ export default {
     cadenceYearly: 'Yearly',
     checkoutError: 'Digital checkout is disabled in this store build.',
     compliance:
-      'Stripe is used only for real-world club contributions and dues. Digital feature upgrades are disabled for this store submission.',
+      'Club dues go directly to the club bank account. Digital feature upgrades are disabled for this store submission.',
     eyebrow: 'LAUNCH ACCESS',
     heroSubtitle:
       'No digital upgrade is sold in this app build. Club tools remain available while we complete store-compliant billing.',
@@ -498,17 +497,17 @@ export default {
   teamManagement: {
     createFirstGroup: 'Create your first group',
     emptyBody: 'Start with a group like Men, Youth, or Bambini, then place squads underneath it.',
-    fussballLinkedBody: '{{label}} · {{count}} fixtures imported.',
-    fussballLinkedTitle: 'public source linked',
+    fussballLinkedBody: '{{label}} is saved as a reference. Add fixtures manually.',
+    fussballLinkedTitle: 'Official page saved',
     fussballLinkFailedBody:
       'The team was created. Try linking again from team settings. The URL might be incorrect.',
     fussballLinkFailedTitle: "Couldn't link public source yet",
     fussballSyncFailedBody:
-      "We linked the team but couldn't pull fixtures yet. Retry from team settings.",
-    fussballSyncFailedTitle: 'public source linked, but sync failed',
+      'The licensed fixture feed could not sync. Retry from team settings.',
+    fussballSyncFailedTitle: 'Licensed fixture sync failed',
     fussballUrlHint:
-      'Linking pulls fixtures + squad. Admins can bulk-invite from the imported roster.',
-    fussballUrlPlaceholder: 'public source team URL (optional)',
+      'This saves an official page as a reference. It does not import fixtures or players and does not prove club authority.',
+    fussballUrlPlaceholder: 'Official team page (optional)',
     manageLabel: 'Manage',
     memberCount: '{{count}}',
     emptyTitle: 'Build your club structure',

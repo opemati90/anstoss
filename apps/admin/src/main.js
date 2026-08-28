@@ -15,11 +15,11 @@ const SESSION_USER_STORAGE = 'anstoss.admin.sessionUser'
 const ADMIN_EMAIL_STORAGE = 'anstoss.admin.email'
 
 function getApiKey() {
-  return localStorage.getItem(KEY_STORAGE) || ''
+  return sessionStorage.getItem(KEY_STORAGE) || ''
 }
 function setApiKey(value) {
-  if (value) localStorage.setItem(KEY_STORAGE, value)
-  else localStorage.removeItem(KEY_STORAGE)
+  if (value) sessionStorage.setItem(KEY_STORAGE, value)
+  else sessionStorage.removeItem(KEY_STORAGE)
 }
 function getApiBase() {
   return localStorage.getItem(BASE_STORAGE) || ''
@@ -402,6 +402,10 @@ function bindClubs() {
     const trigger = event.target.closest('[data-dispute-resolve]')
     if (trigger) void resolveClubDispute(trigger.dataset.disputeResolve)
   })
+  document.querySelector('#invite-campaigns-table tbody').addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-campaign-revoke]')
+    if (trigger) void revokeInviteCampaign(trigger.dataset.campaignRevoke)
+  })
   const dialog = document.getElementById('club-detail-dialog')
   document.getElementById('club-detail-close').addEventListener('click', closeClubDetail)
   dialog.addEventListener('click', (event) => {
@@ -410,6 +414,13 @@ function bindClubs() {
   dialog.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-grant-entitlement]')
     if (trigger) void grantClubEntitlement(trigger.dataset.grantEntitlement)
+    const revokeTrigger = event.target.closest('[data-revoke-entitlement]')
+    if (revokeTrigger) {
+      void revokeClubEntitlement(
+        revokeTrigger.dataset.revokeEntitlement,
+        revokeTrigger.dataset.clubId,
+      )
+    }
   })
 }
 
@@ -423,7 +434,10 @@ async function openClubDetail(clubId) {
   if (!dialog.open) dialog.showModal()
 
   try {
-    const club = await adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}`)
+    const [club, entitlements] = await Promise.all([
+      adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}`),
+      adminFetch(`/admin/clubs/${encodeURIComponent(clubId)}/entitlements`),
+    ])
     if (requestId !== clubDetailRequestId || !dialog.open) return
     if (!club) throw new Error('Club not found.')
     title.textContent = club.name
@@ -442,6 +456,27 @@ async function openClubDetail(clubId) {
     const subscription = club.subscription
       ? `${badge(club.subscription.status)} <strong>${esc(club.subscription.plan)}</strong>`
       : '<span class="badge">Free</span>'
+    const grants = entitlements.grants?.length
+      ? entitlements.grants
+          .map(
+            (grant) => `
+              <li>
+                <span>
+                  <strong>${esc(grant.tier)}</strong>
+                  ${badge(grant.status)}
+                  <small>${esc(grant.source)} · ${grant.expiresAt ? `ends ${fmtDate(grant.expiresAt)}` : 'no expiry'}</small>
+                </span>
+                ${
+                  (grant.status === 'ACTIVE' || grant.status === 'SUSPENDED') &&
+                  (grant.source === 'COMPLIMENTARY' || grant.source === 'TRIAL')
+                    ? `<button class="button-secondary" type="button" data-revoke-entitlement="${esc(grant.id)}" data-club-id="${esc(club.id)}">Revoke</button>`
+                    : ''
+                }
+              </li>
+            `,
+          )
+          .join('')
+      : '<li><span>No active, scheduled, or historical grants in the current window.</span></li>'
     content.innerHTML = `
       <div class="detail-meta">
         <div><span>Slug</span><code>${esc(club.slug)}</code></div>
@@ -468,6 +503,8 @@ async function openClubDetail(clubId) {
       </section>
       <section class="detail-section">
         <p class="eyebrow">Plan override</p>
+        <p class="muted-line">Effective tier: <strong>${esc(entitlements.tier)}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players} player seats</p>
+        <ul class="detail-owners">${grants}</ul>
         <div class="toolbar">
           <select class="text-input" id="grant-tier"><option value="PRO">Pro</option><option value="SCALE">Scale</option></select>
           <select class="text-input" id="grant-interval" aria-label="Plan definition term"><option value="TWELVE_MONTHS">12-month definition</option><option value="SIX_MONTHS">6-month definition</option></select>
@@ -495,9 +532,7 @@ async function loadClubs() {
     document.getElementById('clubs-count').textContent = `${total} club${total === 1 ? '' : 's'}`
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="placeholder">No clubs match.</td></tr>'
-      return
-    }
-    tbody.innerHTML = rows
+    } else tbody.innerHTML = rows
       .map(
         (c) => `
           <tr>
@@ -517,6 +552,62 @@ async function loadClubs() {
   }
   await loadClubClaims()
   await loadClubDisputes()
+  await Promise.all([loadInviteCampaigns(), loadJoinRequests(), loadContributionHealth()])
+}
+
+async function loadInviteCampaigns() {
+  const tbody = document.querySelector('#invite-campaigns-table tbody')
+  try {
+    const campaigns = await adminFetch('/admin/invite-campaigns?suspiciousOnly=true')
+    tbody.innerHTML = campaigns.length
+      ? campaigns
+          .map(
+            (campaign) => `<tr><td><strong>${esc(campaign.club?.name)}</strong><br><span class="muted-line">${esc(campaign.team?.displayName)}</span></td><td>${esc(campaign.createdBy?.name || campaign.createdBy?.email || 'Unknown')}</td><td>${campaign.useCount} / ${campaign.maxUses}</td><td>${fmtDate(campaign.expiresAt)}</td><td><button class="pill" type="button" data-campaign-revoke="${esc(campaign.id)}">Revoke</button></td></tr>`,
+          )
+          .join('')
+      : '<tr><td colspan="5" class="placeholder">No suspicious active campaigns.</td></tr>'
+  } catch (error) {
+    setError(tbody, error)
+  }
+}
+
+async function revokeInviteCampaign(campaignId) {
+  const reason = window.prompt('Why is this campaign being revoked?')?.trim()
+  if (!reason) return
+  await adminFetch(`/admin/invite-campaigns/${encodeURIComponent(campaignId)}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+  await loadInviteCampaigns()
+}
+
+async function loadJoinRequests() {
+  const tbody = document.querySelector('#join-requests-table tbody')
+  try {
+    const requests = await adminFetch('/admin/join-requests?status=PENDING')
+    tbody.innerHTML = requests.length
+      ? requests
+          .map(
+            (request) => `<tr><td>${esc(request.club?.name)}</td><td><strong>${esc(request.user?.name)}</strong><br><span class="muted-line">${esc(request.user?.email)}</span></td><td>${esc(request.role)}</td><td>${fmtDate(request.createdAt)}</td></tr>`,
+          )
+          .join('')
+      : '<tr><td colspan="4" class="placeholder">No pending join requests.</td></tr>'
+  } catch (error) {
+    setError(tbody, error)
+  }
+}
+
+async function loadContributionHealth() {
+  const output = document.getElementById('contribution-health')
+  try {
+    const health = await adminFetch('/admin/contributions/health')
+    const records = health.records.reduce((sum, row) => sum + row._count._all, 0)
+    const failed = health.failedReminders.reduce((sum, row) => sum + row._count._all, 0)
+    const imports = health.recentImports.reduce((sum, row) => sum + row._count._all, 0)
+    output.textContent = `${records} issued records · ${failed} failed reminders · ${imports} bank imports in the last 30 days.`
+  } catch (error) {
+    output.textContent = error.message || String(error)
+  }
 }
 
 async function loadClubClaims() {
@@ -532,7 +623,7 @@ async function loadClubClaims() {
       .map(
         (claim) => `
       <tr>
-        <td><strong>${esc(claim.directoryEntry?.name || 'Unknown club')}</strong></td>
+        <td><strong>${esc(claim.directoryEntry?.name || 'Unknown club')}</strong><br><span class="muted-line">${claim.platformEscalated ? 'Staff claim · escalated after 7 days' : 'First club claim'}</span></td>
         <td>${esc(claim.claimant?.name || 'Unknown')}<br><span class="muted-line">${esc(claim.claimant?.email || '')}</span></td>
         <td>${claim.externalTeamUrl ? `<strong>Official team page</strong><br><a href="${esc(claim.externalTeamUrl)}" target="_blank" rel="noopener noreferrer">${esc(claim.externalTeamUrl)}</a>${claim.evidence?.length ? '<br>' : ''}` : ''}${claim.evidence?.length ? claim.evidence.map((item) => `<strong>${esc(item.type.replaceAll('_', ' '))}</strong>${item.value ? `<br><span class="muted-line">${esc(item.value)}</span>` : ''}`).join('<br>') : claim.externalTeamUrl ? '' : 'No authority evidence'}</td>
         <td>${badge(claim.status)}</td>
@@ -579,17 +670,31 @@ async function loadClubDisputes() {
     }
     tbody.innerHTML = disputes
       .map(
-        (dispute) => `<tr>
+        (dispute) => {
+          const candidates = (dispute.club?.memberships || [])
+            .map(
+              (membership) =>
+                `${membership.user?.name || membership.user?.email || membership.userId} (${membership.role}: ${membership.userId})`,
+            )
+            .join(' · ')
+          const candidateOptions = (dispute.club?.memberships || [])
+            .map(
+              (membership) =>
+                `<option value="${esc(membership.userId)}">${esc(membership.user?.name || membership.user?.email || membership.userId)} · ${esc(membership.role)}</option>`,
+            )
+            .join('')
+          return `<tr>
           <td><strong>${esc(dispute.club?.name || dispute.clubId)}</strong></td>
-          <td>${esc(dispute.reason)}</td>
+          <td>${esc(dispute.reason)}${candidates ? `<small>Owner candidates: ${esc(candidates)}</small>` : ''}</td>
           <td>${badge(dispute.status)}</td>
           <td>${fmtDate(dispute.createdAt)}</td>
           <td>${
             dispute.status === 'OPEN' || dispute.status === 'FROZEN'
-              ? `<button class="pill" type="button" data-dispute-resolve="${esc(dispute.id)}">Resolve</button>`
+              ? `<select data-dispute-owner="${esc(dispute.id)}" aria-label="New owner"><option value="">Keep current owner</option>${candidateOptions}</select><button class="pill" type="button" data-dispute-resolve="${esc(dispute.id)}">Resolve / reassign</button>`
               : '-'
           }</td>
-        </tr>`,
+        </tr>`
+        },
       )
       .join('')
   } catch (err) {
@@ -616,10 +721,13 @@ async function openClubDispute() {
 async function resolveClubDispute(disputeId) {
   const resolution = window.prompt('Resolution note')?.trim()
   if (!resolution) return
+  const newOwnerUserId = document
+    .querySelector(`[data-dispute-owner="${CSS.escape(disputeId)}"]`)
+    ?.value?.trim()
   try {
     await adminFetch(`/admin/club-claims/disputes/${encodeURIComponent(disputeId)}/resolve`, {
       method: 'POST',
-      body: JSON.stringify({ resolution }),
+      body: JSON.stringify({ resolution, ...(newOwnerUserId ? { newOwnerUserId } : {}) }),
     })
     await loadClubDisputes()
   } catch (error) {
@@ -645,9 +753,27 @@ async function grantClubEntitlement(clubId) {
         ...(expiry ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() } : {}),
       }),
     })
-    output.textContent = `${tier} access granted.`
+    output.textContent = `${tier} access granted. Refreshing club entitlements…`
+    await openClubDetail(clubId)
   } catch (err) {
     output.textContent = err.message || String(err)
+  }
+}
+
+async function revokeClubEntitlement(grantId, clubId) {
+  if (!grantId || !clubId) return
+  if (!window.confirm('Revoke this entitlement grant? The club will fall back to its next active plan.')) {
+    return
+  }
+  try {
+    await adminFetch(`/admin/entitlements/${encodeURIComponent(grantId)}`, {
+      method: 'DELETE',
+    })
+    await openClubDetail(clubId)
+  } catch (error) {
+    window.alert(
+      `Could not revoke entitlement: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 

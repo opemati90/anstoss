@@ -182,7 +182,7 @@ export class InvitesService {
   }
 
   async validate(code: string) {
-    const invite = await this.prisma.invite.findUnique({
+    let invite = await this.prisma.invite.findUnique({
       where: { code },
       include: {
         club: {
@@ -202,6 +202,25 @@ export class InvitesService {
         parentalConsent: true,
       },
     })
+    const uppercaseInviteCode = uppercaseCodeFallback(code, 'invite')
+    if (!invite && uppercaseInviteCode) {
+      invite = await this.prisma.invite.findUnique({
+        where: { code: uppercaseInviteCode },
+        include: {
+          club: {
+            select: {
+              id: true,
+              name: true,
+              badgeUrl: true,
+              primaryColor: true,
+              slug: true,
+            },
+          },
+          team: { include: { group: true } },
+          parentalConsent: true,
+        },
+      })
+    }
 
     if (!invite) {
       throw new NotFoundException('Invite not found')
@@ -253,7 +272,10 @@ export class InvitesService {
           type: input.type,
           role: input.role,
           recipientEmail: input.recipientEmail?.trim().toLowerCase() ?? null,
-          code: randomBytes(24).toString('base64url'),
+          // Manual campaign codes must survive keyboards, screenshots and
+          // spoken hand-off. Keep them short and case-insensitive instead of
+          // using mixed-case Base64URL tokens.
+          code: generateCampaignCode(),
           maxUses: input.maxUses,
           expiresAt: new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000),
         },
@@ -266,13 +288,23 @@ export class InvitesService {
   }
 
   async validateCampaign(code: string) {
-    const campaign = await this.prisma.inviteCampaign.findUnique({
+    let campaign = await this.prisma.inviteCampaign.findUnique({
       where: { code },
       include: {
         club: { select: { id: true, name: true, slug: true, badgeUrl: true, primaryColor: true } },
         team: { include: { group: true } },
       },
     })
+    const uppercaseCampaignCode = uppercaseCodeFallback(code, 'campaign')
+    if (!campaign && uppercaseCampaignCode) {
+      campaign = await this.prisma.inviteCampaign.findUnique({
+        where: { code: uppercaseCampaignCode },
+        include: {
+          club: { select: { id: true, name: true, slug: true, badgeUrl: true, primaryColor: true } },
+          team: { include: { group: true } },
+        },
+      })
+    }
     if (
       !campaign ||
       campaign.status !== 'ACTIVE' ||
@@ -294,11 +326,20 @@ export class InvitesService {
 
   async listCampaigns(clubId: string, userId: string) {
     await this.assertCampaignManager(clubId, userId)
-    return this.prisma.inviteCampaign.findMany({
+    const campaigns = await this.prisma.inviteCampaign.findMany({
       where: { clubId },
       include: { team: { select: { id: true, displayName: true } } },
       orderBy: { createdAt: 'desc' },
     })
+    const now = new Date()
+    return campaigns.map((campaign) => ({
+      ...campaign,
+      status:
+        (campaign.status === 'ACTIVE' || campaign.status === 'PAUSED') &&
+        (campaign.expiresAt <= now || campaign.useCount >= campaign.maxUses)
+          ? ('EXPIRED' as const)
+          : campaign.status,
+    }))
   }
 
   async revokeCampaign(clubId: string, campaignId: string, userId: string) {
@@ -314,11 +355,20 @@ export class InvitesService {
   }
 
   async redeemAny(code: string, userId: string, input?: RedeemInviteInput) {
-    const campaign = await this.prisma.inviteCampaign.findUnique({
+    let campaign = await this.prisma.inviteCampaign.findUnique({
       where: { code },
-      select: { id: true },
+      select: { id: true, code: true },
     })
-    return campaign ? this.redeemCampaign(code, userId) : this.redeem(code, userId, input)
+    const uppercaseCampaignCode = uppercaseCodeFallback(code, 'campaign')
+    if (!campaign && uppercaseCampaignCode) {
+      campaign = await this.prisma.inviteCampaign.findUnique({
+        where: { code: uppercaseCampaignCode },
+        select: { id: true, code: true },
+      })
+    }
+    return campaign
+      ? this.redeemCampaign(campaign.code, userId)
+      : this.redeem(code, userId, input)
   }
 
   private async assertCampaignManager(clubId: string, userId: string) {
@@ -332,10 +382,17 @@ export class InvitesService {
   }
 
   async redeemCampaign(code: string, userId: string) {
-    const campaign = await this.prisma.inviteCampaign.findUnique({
+    let campaign = await this.prisma.inviteCampaign.findUnique({
       where: { code },
       include: { club: true, team: true },
     })
+    const uppercaseCampaignCode = uppercaseCodeFallback(code, 'campaign')
+    if (!campaign && uppercaseCampaignCode) {
+      campaign = await this.prisma.inviteCampaign.findUnique({
+        where: { code: uppercaseCampaignCode },
+        include: { club: true, team: true },
+      })
+    }
     if (!campaign) throw new NotFoundException('Invite link is invalid or expired')
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -351,6 +408,7 @@ export class InvitesService {
 
     return tenantContext.run({ clubId: campaign.clubId, userId }, () =>
       this.prisma.$transaction(async (tx) => {
+        await this.lockActiveUsers(tx, [userId])
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invite-campaign:${campaign.id}`}))`
         const current = await tx.inviteCampaign.findUnique({ where: { id: campaign.id } })
         if (
@@ -411,9 +469,16 @@ export class InvitesService {
           }
           result = { status: 'ACTIVE', clubId: current.clubId, teamId: current.teamId }
         } else {
-          const request = await tx.joinRequest.findUnique({
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`join-request-user:${current.clubId}:${userId}`}))`
+          let request = await tx.joinRequest.findUnique({
             where: { clubId_userId: { clubId: current.clubId, userId } },
           })
+          if (request) {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`join-request:${request.id}`}))`
+            request = await tx.joinRequest.findUnique({
+              where: { clubId_userId: { clubId: current.clubId, userId } },
+            })
+          }
           if (request?.status === 'APPROVED') {
             throw new ConflictException('You already belong to this club')
           }
@@ -433,6 +498,7 @@ export class InvitesService {
               status: 'PENDING',
               reviewedBy: null,
               reviewedAt: null,
+              revision: { increment: 1 },
             },
           })
           result = { status: 'PENDING', clubId: current.clubId, teamId: current.teamId }
@@ -530,6 +596,10 @@ export class InvitesService {
     const membershipRole = mapTeamRoleToMembershipRole(invite.role)
 
     const [membership, teamAccess] = await this.prisma.$transaction(async (tx: any) => {
+      await this.lockActiveUsers(
+        tx,
+        invite.linkedPlayerUserId ? [user.id, invite.linkedPlayerUserId] : [user.id],
+      )
       if (invite.role === TeamRole.PLAYER) {
         await this.requireEntitlements().assertCanActivatePlayer(invite.clubId, user.id, tx)
       }
@@ -733,6 +803,7 @@ export class InvitesService {
     approvalExpiresAt.setDate(approvalExpiresAt.getDate() + INVITE.PARENT_APPROVAL_EXPIRY_DAYS)
 
     const result = await this.prisma.$transaction(async (tx: any) => {
+      await this.lockActiveUsers(tx, [user.id])
       await this.claimInviteForRedemption(tx, invite.id, user.id)
 
       await tx.membership.upsert({
@@ -888,6 +959,7 @@ export class InvitesService {
     const membershipRole = MembershipRole.PARENT
 
     const result = await this.prisma.$transaction(async (tx: any) => {
+      await this.lockActiveUsers(tx, [user.id, consent.playerUserId])
       await this.claimInviteForRedemption(tx, invite.id, user.id)
 
       const parentMembership = await tx.membership.upsert({
@@ -1058,6 +1130,20 @@ export class InvitesService {
     }
   }
 
+  private async lockActiveUsers(tx: any, userIds: string[]) {
+    const orderedUserIds = Array.from(new Set(userIds)).sort()
+    for (const userId of orderedUserIds) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+    }
+    const activeUsers = await tx.user.findMany({
+      where: { id: { in: orderedUserIds }, deletedAt: null },
+      select: { id: true },
+    })
+    if (activeUsers.length !== orderedUserIds.length) {
+      throw new ConflictException('An account required for this invitation is no longer active')
+    }
+  }
+
   private requireEntitlements() {
     if (!this.clubEntitlements) {
       throw new ServiceUnavailableException('Player-seat enforcement is unavailable')
@@ -1068,6 +1154,24 @@ export class InvitesService {
 
 export function generateInviteCode(): string {
   return randomBytes(16).toString('hex').toUpperCase()
+}
+
+const CAMPAIGN_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+
+export function generateCampaignCode(): string {
+  const bytes = randomBytes(8)
+  return Array.from(bytes, (byte) => CAMPAIGN_CODE_ALPHABET[byte % CAMPAIGN_CODE_ALPHABET.length])
+    .join('')
+}
+
+function uppercaseCodeFallback(code: string, kind: 'campaign' | 'invite'): string | null {
+  const trimmed = code.trim()
+  const isKnownUppercaseFormat =
+    kind === 'campaign'
+      ? /^[2-9A-HJ-NP-Z]{8}$/i.test(trimmed)
+      : /^[0-9A-F]{32}$/i.test(trimmed)
+  if (!isKnownUppercaseFormat || trimmed === trimmed.toUpperCase()) return null
+  return trimmed.toUpperCase()
 }
 
 function buildInviteLink(clubSlug: string, code: string) {

@@ -233,6 +233,26 @@ describe('ParentHandoffService', () => {
       expect(managedSubProfiles.createInTransaction).not.toHaveBeenCalled()
     })
 
+    it('rejects a parent deleted before the lifecycle-locked activation', async () => {
+      const { prisma, managedSubProfiles, service } = createService()
+      const tx = createRedeemTx()
+      tx.user.findFirst.mockResolvedValue(null)
+      prisma.team.findUnique.mockResolvedValue({ id: 'team-1', clubId: 'club-1' })
+      prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+      await expect(
+        service.redeem('parent-1', {
+          code: 'AB12CD34',
+          teamJoinCode: 'T3AM9K7P2Q',
+          rosterSlotId: 'slot-1',
+        }),
+      ).rejects.toThrow(ForbiddenException)
+
+      expect(tx.$executeRaw).toHaveBeenCalled()
+      expect(tx.parentHandoff.updateMany).not.toHaveBeenCalled()
+      expect(managedSubProfiles.createInTransaction).not.toHaveBeenCalled()
+    })
+
     it('rejects a mismatched guardian email before burning the code', async () => {
       const { prisma, managedSubProfiles, service } = createService()
       const tx = createRedeemTx({
@@ -262,12 +282,13 @@ describe('ParentHandoffService', () => {
     },
   ) {
     return {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       parentHandoff: {
         findUnique: jest.fn().mockResolvedValue(pending),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       user: {
-        findUnique: jest.fn().mockResolvedValue(user),
+        findFirst: jest.fn().mockResolvedValue(user),
       },
     }
   }

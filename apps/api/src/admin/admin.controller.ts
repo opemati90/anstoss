@@ -18,6 +18,7 @@ import { FeatureFlagsService } from './feature-flags.service'
 import { ModerationService } from './moderation.service'
 import { PlatformSettingsService } from './platform-settings.service'
 import { PlatformAdminGuard } from './platform-admin.guard'
+import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
   type PlatformAdminRequestUser,
   toPlatformAdminActor,
@@ -85,6 +86,44 @@ export class AdminController {
       status,
       limit: limit ? parseInt(limit, 10) : undefined,
     })
+  }
+
+  @Get('invite-campaigns')
+  listInviteCampaigns(
+    @Query('suspiciousOnly') suspiciousOnly?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.listInviteCampaigns({
+      suspiciousOnly: suspiciousOnly === 'true',
+      limit: limit ? parseInt(limit, 10) : undefined,
+    })
+  }
+
+  @Post('invite-campaigns/:campaignId/revoke')
+  @RateLimit('write')
+  revokeInviteCampaign(
+    @CurrentUser() user: PlatformAdminRequestUser,
+    @Param('campaignId') campaignId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.adminService.revokeInviteCampaign(
+      campaignId,
+      toPlatformAdminActor(user),
+      body?.reason ?? '',
+    )
+  }
+
+  @Get('join-requests')
+  listJoinRequests(@Query('status') status?: string, @Query('limit') limit?: string) {
+    return this.adminService.listJoinRequests({
+      status,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    })
+  }
+
+  @Get('contributions/health')
+  contributionHealth() {
+    return this.adminService.contributionHealth()
   }
 
   @Get('revenue')
@@ -247,6 +286,7 @@ export class AdminController {
   }
 
   @Post('settings')
+  @RateLimit('write')
   async upsertSetting(
     @CurrentUser() user: PlatformAdminRequestUser,
     @Body() body: { key?: string; value?: string; description?: string | null },

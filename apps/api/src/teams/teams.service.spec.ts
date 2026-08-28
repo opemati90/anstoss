@@ -303,6 +303,7 @@ describe('TeamsService.createPlayerLoan', () => {
   function createService() {
     const prisma = {
       $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'player-1' }) },
       team: { findUnique: jest.fn() },
       teamAccess: {
         findFirst: jest.fn(),
@@ -381,7 +382,7 @@ describe('TeamsService.createPlayerLoan', () => {
       'A loaned player cannot be loaned to another team.',
     )
     expect(prisma.teamAccess.findUnique).not.toHaveBeenCalled()
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2)
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3)
   })
 
   it('rejects when player already has access on target team', async () => {
@@ -456,6 +457,52 @@ describe('TeamsService.createPlayerLoan', () => {
     await expect(service.createPlayerLoan('club-1', 'team-1', 'coach-1', input)).rejects.toThrow(
       'Player already has access to the target team.',
     )
+  })
+
+  it('does not create a loan for an account deleted before its lifecycle lock', async () => {
+    const { prisma, service } = createService()
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-2', clubId: 'club-1' })
+    prisma.user.findFirst.mockResolvedValue(null)
+
+    await expect(service.createPlayerLoan('club-1', 'team-1', 'coach-1', input)).rejects.toThrow(
+      'Player account is no longer active.',
+    )
+
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(prisma.teamAccess.findFirst).not.toHaveBeenCalled()
+    expect(prisma.teamAccess.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('TeamsService coach assignment lifecycle', () => {
+  it('locks target users in stable order and rejects deleted staff before activating access', async () => {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      membership: { findMany: jest.fn().mockResolvedValue([]) },
+      teamAccess: { updateMany: jest.fn(), upsert: jest.fn() },
+    }
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    }
+    const service = new TeamsService(prisma as never)
+
+    await expect(
+      (service as any).syncCoachAssignments('club-1', 'team-1', {
+        headCoachUserId: 'user-z',
+        assistantCoachUserIds: ['user-a'],
+      }),
+    ).rejects.toThrow('Assigned coaches must be active members of the club staff')
+
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(2)
+    expect(tx.membership.findMany).toHaveBeenCalledWith({
+      where: {
+        clubId: 'club-1',
+        userId: { in: ['user-a', 'user-z'] },
+        user: { deletedAt: null },
+      },
+      select: { userId: true, role: true },
+    })
+    expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
   })
 })
 

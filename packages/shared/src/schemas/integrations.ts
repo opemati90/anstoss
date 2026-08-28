@@ -137,7 +137,7 @@ export const fussballTeamPreviewRequestSchema = z.object({
 
 export const fussballTeamPreviewSchema = z.object({
   input: z.string().min(1),
-  provider: z.literal('api_fussball'),
+  provider: z.enum(['api_fussball', 'fussball_public_page']),
   externalTeamId: z.string().min(1),
   externalUrl: z.string().url(),
   label: z.string().min(1).max(140),

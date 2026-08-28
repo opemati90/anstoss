@@ -35,11 +35,11 @@ export class RosterSlotsController {
   @Post(':slotId/claim')
   @RateLimit('write')
   claim(
-    @Param('clubId') _clubId: string,
+    @Param('clubId') clubId: string,
     @Param('teamId') teamId: string,
     @Param('slotId') slotId: string,
     @CurrentUser() user: { id: string },
   ) {
-    return this.service.claim(teamId, slotId, user.id)
+    return this.service.claim(clubId, teamId, slotId, user.id)
   }
 }

@@ -213,11 +213,20 @@ const officialTeamUrlSchema = z
   .url()
   .max(500)
   .refine((value) => {
-    const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '')
-    return ['fussball.de', 'dfb.de', 'fupa.net'].some(
+    const parsed = new URL(value)
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
+    const isOfficialHost = ['fussball.de', 'dfb.de', 'fupa.net'].some(
       (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
     )
-  }, 'Use an official Fussball.de, DFB.de, or FuPa team link')
+    return (
+      parsed.protocol === 'https:' &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.port &&
+      parsed.pathname !== '/' &&
+      isOfficialHost
+    )
+  }, 'Use a direct HTTPS team link from Fussball.de, DFB.de, or FuPa')
 
 export const submitFirstClubClaimSchema = z.object({
   directoryEntryId: z.string().min(1),
@@ -277,6 +286,7 @@ export const openClubDisputeSchema = z.object({
 
 export const resolveClubDisputeSchema = z.object({
   resolution: z.string().trim().min(10).max(2000),
+  newOwnerUserId: z.string().min(1).optional(),
 })
 
 export const createInviteCampaignSchema = z
@@ -357,6 +367,7 @@ export const createJoinRequestSchema = z.object({
 })
 
 export const reviewJoinRequestSchema = z.object({
+  revision: z.number().int().positive(),
   reason: z.string().max(500).optional(),
 })
 

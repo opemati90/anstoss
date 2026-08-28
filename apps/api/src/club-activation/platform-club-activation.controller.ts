@@ -22,12 +22,12 @@ export class PlatformClubActivationController {
 
   @Post(':claimId/decision')
   @RateLimit('write')
-  reviewFirstClaim(
+  reviewClaim(
     @CurrentUser() user: PlatformAdminRequestUser,
     @Param('claimId') claimId: string,
     @Body() body: unknown,
   ) {
-    return this.activation.reviewFirstClaim(
+    return this.activation.reviewPlatformClaim(
       user.id ?? user.email ?? 'platform-admin',
       claimId,
       reviewClubClaimSchema.parse(body),

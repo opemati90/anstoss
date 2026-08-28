@@ -11,6 +11,7 @@ import { normalizePhone } from '../teams/roster-slots.service'
 import { AGE_GATE, ParentalConsentStatus } from '@anstoss/shared'
 import { JoinRequestsService } from '../clubs/join-requests.service'
 import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
+import { ClubActivationService } from '../club-activation/club-activation.service'
 
 export type PendingClaim = {
   slotId: string
@@ -38,6 +39,7 @@ export class OnboardingService {
     private readonly prisma: PrismaService,
     private readonly channelsService: ChannelsService,
     @Optional() private readonly joinRequestsService?: JoinRequestsService,
+    @Optional() private readonly clubActivationService?: ClubActivationService,
   ) {}
 
   /**
@@ -228,40 +230,19 @@ export class OnboardingService {
     }
 
     if (input.role === 'COACH') {
+      if (!this.clubActivationService) {
+        throw new ForbiddenException('Coach access requests are temporarily unavailable')
+      }
       const team = await this.prisma.team.findUnique({
         where: { joinCode: code },
-        select: {
-          id: true,
-          clubId: true,
-          club: { select: { directoryEntry: { select: { id: true } } } },
-        },
+        select: { id: true, clubId: true },
       })
       if (!team) throw new NotFoundException('Team not found for this code')
-      if (!team.club.directoryEntry) {
-        throw new ForbiddenException('Ask a club administrator for a coach invitation')
-      }
-      const existing = await this.prisma.clubClaim.findFirst({
-        where: {
-          clubId: team.clubId,
-          claimantUserId: userId,
-          kind: 'STAFF_CLAIM',
-          status: { in: ['SUBMITTED', 'NEEDS_INFO'] },
-        },
+      await this.clubActivationService.submitStaffRequest(userId, team.clubId, {
+        desiredRole: 'COACH',
+        requestedTeamIds: [team.id],
+        teamRoles: ['ASSISTANT_COACH'],
       })
-      if (!existing) {
-        await this.prisma.clubClaim.create({
-          data: {
-            directoryEntryId: team.club.directoryEntry.id,
-            clubId: team.clubId,
-            claimantUserId: userId,
-            kind: 'STAFF_CLAIM',
-            desiredRole: 'COACH',
-            requestedTeamIds: [team.id],
-            requestedTeamRoles: ['ASSISTANT_COACH'],
-            expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-          },
-        })
-      }
       return { clubId: team.clubId, teamId: team.id, status: 'PENDING' }
     }
 

@@ -87,7 +87,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
   // Redis client for rate limiting (shared with adapter connection)
   private rateLimitRedis: Redis | null = null
-  private readonly localRateLimits = new Map<string, number>()
+  private warnedRateLimitRedisUnavailable = false
+  private readonly localRateLimits = new Map<string, { count: number; resetAt: number }>()
+  private readonly localTypingRateLimits = new Map<string, number>()
 
   constructor(
     private readonly prisma: PrismaService,
@@ -135,25 +137,69 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       })
   }
 
-  private async isChatRateLimited(userId: string): Promise<boolean> {
-    const ttlMs = Math.ceil(1000 / CHAT.MESSAGES_PER_SECOND)
+  private async isChatRateLimited(
+    userId: string,
+    kind: 'channel' | 'dm' = 'channel',
+  ): Promise<boolean> {
+    const ttlMs = 60_000
+    const limit = kind === 'dm' ? 30 : 60
+    const key = `chat:rate:${kind}:${userId}`
     if (this.rateLimitRedis) {
       try {
-        const result = await this.rateLimitRedis.set(`chat:rate:${userId}`, '1', 'PX', ttlMs, 'NX')
-        return !result
+        const count = await this.rateLimitRedis.incr(key)
+        if (count === 1) await this.rateLimitRedis.pexpire(key, ttlMs)
+        this.warnedRateLimitRedisUnavailable = false
+        return count > limit
       } catch {
-        this.logger.warn('Chat rate limit Redis unavailable; using bounded local fallback')
+        if (!this.warnedRateLimitRedisUnavailable) {
+          this.warnedRateLimitRedisUnavailable = true
+          this.logger.warn('Chat rate limit Redis unavailable; using bounded local fallback')
+        }
       }
     }
 
     const now = Date.now()
-    const blockedUntil = this.localRateLimits.get(userId) ?? 0
-    if (blockedUntil > now) return true
-    this.localRateLimits.set(userId, now + ttlMs)
+    const current = this.localRateLimits.get(key)
+    const next = !current || current.resetAt <= now
+      ? { count: 1, resetAt: now + ttlMs }
+      : { count: current.count + 1, resetAt: current.resetAt }
+    this.localRateLimits.set(key, next)
     // Keep the emergency map bounded during prolonged Redis outages.
     if (this.localRateLimits.size > 10_000) {
-      for (const [key, expiry] of this.localRateLimits) {
-        if (expiry <= now) this.localRateLimits.delete(key)
+      for (const [entryKey, value] of this.localRateLimits) {
+        if (value.resetAt <= now) this.localRateLimits.delete(entryKey)
+      }
+    }
+    return next.count > limit
+  }
+
+  private async isTypingRateLimited(userId: string, conversationId: string): Promise<boolean> {
+    const ttlMs = 1_500
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(conversationId)) return true
+    // The user-wide key must be checked first. Otherwise an attacker can use
+    // arbitrary conversation IDs to force a fresh authorization query each
+    // time and bypass per-conversation coalescing.
+    if (await this.claimTypingWindow(`chat:typing-user:${userId}`, ttlMs)) return true
+    const key = `chat:typing:${userId}:${conversationId}`
+    return this.claimTypingWindow(key, ttlMs)
+  }
+
+  private async claimTypingWindow(key: string, ttlMs: number): Promise<boolean> {
+    if (this.rateLimitRedis) {
+      try {
+        const result = await this.rateLimitRedis.set(key, '1', 'PX', ttlMs, 'NX')
+        return !result
+      } catch {
+        this.logger.warn('Typing rate limit Redis unavailable; using bounded local fallback')
+      }
+    }
+    const now = Date.now()
+    const blockedUntil = this.localTypingRateLimits.get(key) ?? 0
+    if (blockedUntil > now) return true
+    this.localTypingRateLimits.set(key, now + ttlMs)
+    if (this.localTypingRateLimits.size > 10_000) {
+      for (const [entryKey, expiry] of this.localTypingRateLimits) {
+        if (expiry <= now) this.localTypingRateLimits.delete(entryKey)
       }
     }
     return false
@@ -768,7 +814,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
 
     // Rate limit (reuse team chat rate limiter)
-    if (await this.isChatRateLimited(userId)) {
+    if (await this.isChatRateLimited(userId, 'dm')) {
       return { event: 'error', data: { message: 'Too fast' } }
     }
 
@@ -865,11 +911,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('dm:typing')
   async handleDmTyping(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string },
+    @MessageBody() data?: { conversationId?: string },
   ) {
     const userId = client.data.userId as string | undefined
     const userName = client.data.userName as string | undefined
-    if (!userId || !userName) return
+    if (!userId || !userName || !data?.conversationId) return
+    if (await this.isTypingRateLimited(userId, data.conversationId)) return
+
+    await this.dmService.assertCanMessageConversation(userId, data.conversationId)
 
     client.to(`dm:${data.conversationId}`).emit('dm:typing', {
       userId,

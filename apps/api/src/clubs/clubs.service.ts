@@ -75,6 +75,17 @@ export class ClubsService {
       // clubId), not "one OWNER club per user". The lock auto-releases at commit.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
 
+      const activeUser = await tx.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: { registrationRole: true },
+      })
+      if (!activeUser) {
+        throw new NotFoundException('User not found')
+      }
+      if (activeUser.registrationRole !== RegistrationRole.CLUB_ADMIN) {
+        throw new ForbiddenException('Only active club administrators can create a club')
+      }
+
       // Idempotency guard: setup is the only club-creation path (no
       // multi-club-create UI exists), so a user owns at most one club — if they
       // already own one, return it instead of minting a duplicate. Returning
@@ -262,7 +273,7 @@ export class ClubsService {
    */
   async leaveClub(userId: string, clubId: string): Promise<{ left: boolean }> {
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clubId}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
 
       const membership = await tx.membership.findUnique({
         where: { userId_clubId: { userId, clubId } },
@@ -297,28 +308,35 @@ export class ClubsService {
     clubId: string,
     targetUserId: string,
   ): Promise<{ removed: boolean }> {
-    const actor = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId: actingUserId, clubId } },
-      select: { role: true },
-    })
-    if (!actor || (actor.role !== MembershipRole.OWNER && actor.role !== MembershipRole.ADMIN)) {
-      throw new ForbiddenException('Only club owners or admins can remove members')
-    }
     if (actingUserId === targetUserId) {
       throw new ConflictException('Use leave club to remove yourself')
     }
-    const target = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId: targetUserId, clubId } },
-      select: { role: true },
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Ownership transfer/recovery and membership deletion share this lock.
+      // Re-read both roles after acquiring it so a newly promoted OWNER can
+      // never be deleted by a stale removal decision.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const [actor, target] = await Promise.all([
+        tx.membership.findUnique({
+          where: { userId_clubId: { userId: actingUserId, clubId } },
+          select: { role: true },
+        }),
+        tx.membership.findUnique({
+          where: { userId_clubId: { userId: targetUserId, clubId } },
+          select: { role: true },
+        }),
+      ])
+      if (!actor || (actor.role !== MembershipRole.OWNER && actor.role !== MembershipRole.ADMIN)) {
+        throw new ForbiddenException('Only club owners or admins can remove members')
+      }
+      if (!target) {
+        throw new NotFoundException('That member is not in this club')
+      }
+      if (target.role === MembershipRole.OWNER) {
+        throw new ForbiddenException('An owner cannot be removed')
+      }
+      await this.purgeFromClubInTransaction(tx, targetUserId, clubId)
     })
-    if (!target) {
-      throw new NotFoundException('That member is not in this club')
-    }
-    if (target.role === MembershipRole.OWNER) {
-      throw new ForbiddenException('An owner cannot be removed')
-    }
-
-    await this.purgeFromClub(targetUserId, clubId)
     this.eventEmitter?.emit('realtime.access.changed', { userId: targetUserId })
     return { removed: true }
   }
@@ -329,17 +347,12 @@ export class ClubsService {
    * rows, pending join requests, and the membership itself. Shared by
    * leaveClub + removeMemberFromClub.
    */
-  private async purgeFromClub(userId: string, clubId: string): Promise<void> {
-    await this.prisma.$transaction((tx: Prisma.TransactionClient) =>
-      this.purgeFromClubInTransaction(tx, userId, clubId),
-    )
-  }
-
   private async purgeFromClubInTransaction(
     tx: Prisma.TransactionClient,
     userId: string,
     clubId: string,
   ): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-access:${clubId}:${userId}`}))`
     await tx.channelMember.deleteMany({
       where: { userId, channel: { is: { clubId } } },
     })

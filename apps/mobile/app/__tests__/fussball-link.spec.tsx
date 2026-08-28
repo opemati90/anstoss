@@ -48,6 +48,12 @@ const coachAuth = () => ({
   activeTeamAccess: { team: { displayName: '1. Herren' }, role: 'HEAD_COACH' },
 })
 
+const managerAuth = (role: 'OWNER' | 'ADMIN') => ({
+  activeClub: { club: { id: 'c1', name: 'FC Test' }, role },
+  activeTeamId: 't1',
+  activeTeamAccess: { team: { displayName: '1. Herren' }, role: 'HEAD_COACH' },
+})
+
 const playerAuth = () => ({
   activeClub: { club: { id: 'c1', name: 'FC Test' }, role: 'PLAYER' },
   activeTeamId: 't1',
@@ -73,8 +79,8 @@ describe('FussballLinkScreen', () => {
     expect(getByText('fussball.noTeamBody')).toBeTruthy()
   })
 
-  it('renders link form for coaches', async () => {
-    mockUseAuth.mockReturnValue(coachAuth())
+  it.each(['OWNER', 'ADMIN'] as const)('renders link form for %s members', async (role) => {
+    mockUseAuth.mockReturnValue(managerAuth(role))
     mockApi.mockImplementation(() => Promise.resolve([]))
 
     const { getByText } = render(<FussballLinkScreen />)
@@ -82,6 +88,19 @@ describe('FussballLinkScreen', () => {
     await waitFor(() => {
       expect(getByText('fussball.linkTitle')).toBeTruthy()
       expect(getByText('fussball.previewAction')).toBeTruthy()
+    })
+  })
+
+  it('hides link form and sync controls for coaches', async () => {
+    mockUseAuth.mockReturnValue(coachAuth())
+    mockApi.mockImplementation(() => Promise.resolve([]))
+
+    const { queryByText } = render(<FussballLinkScreen />)
+
+    await waitFor(() => {
+      expect(queryByText('fussball.linkTitle')).toBeNull()
+      expect(queryByText('fussball.previewAction')).toBeNull()
+      expect(queryByText('fussball.syncNow')).toBeNull()
     })
   })
 
@@ -97,28 +116,93 @@ describe('FussballLinkScreen', () => {
     })
   })
 
-  it('shows linked feeds and allows coaches to sync', async () => {
-    mockUseAuth.mockReturnValue(coachAuth())
+  it('never exposes ingestion controls even for a historical capable row', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('ADMIN'))
     mockApi.mockImplementation((url: string) => {
       if (url.includes('team-links')) {
         return Promise.resolve([
           {
             id: 'link1',
             label: 'SV Musterstadt',
+            provider: 'licensed_feed',
+            externalUrl: 'https://www.fussball.de/mannschaft/example-team',
             externalTeamId: '011MI9MUDK',
             status: 'ACTIVE',
             lastSyncedAt: '2026-04-01T12:00:00Z',
+            capabilities: { canManualSync: true, canImportRoster: true },
           },
         ])
       }
       return Promise.resolve([])
     })
 
-    const { getByText } = render(<FussballLinkScreen />)
+    const { getByText, queryByText } = render(<FussballLinkScreen />)
 
     await waitFor(() => {
       expect(getByText('SV Musterstadt')).toBeTruthy()
-      expect(getByText('fussball.syncNow')).toBeTruthy()
+      expect(queryByText('fussball.syncNow')).toBeNull()
+    })
+  })
+
+  it('does not expose sync for a licensed-feed label without server capability', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('ADMIN'))
+    mockApi.mockImplementation((url: string) => {
+      if (url.includes('team-links')) {
+        return Promise.resolve([
+          {
+            id: 'link1',
+            label: 'SV Musterstadt',
+            provider: 'licensed_feed',
+            externalUrl: 'https://feed.example.test/team/1',
+            externalTeamId: '011MI9MUDK',
+            status: 'ACTIVE',
+            lastSyncedAt: null,
+            capabilities: { canManualSync: false, canImportRoster: false },
+          },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const { getByText, queryByText } = render(<FussballLinkScreen />)
+
+    await waitFor(() => expect(getByText('SV Musterstadt')).toBeTruthy())
+    expect(queryByText('fussball.syncNow')).toBeNull()
+  })
+
+  it('does not offer sync for an admin-managed public-page reference', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('ADMIN'))
+    mockApi.mockImplementation((url: string) => {
+      if (url.includes('team-links')) {
+        return Promise.resolve([
+          {
+            id: 'link1',
+            label: 'SV Musterstadt',
+            provider: 'fussball_public_page',
+            externalUrl: 'https://next.fussball.de/mannschaft/-/TEAM',
+            externalTeamId: 'TEAM',
+            status: 'ACTIVE',
+            lastSyncedAt: null,
+            capabilities: { canManualSync: false, canImportRoster: false },
+          },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const { getByText, getByRole, queryByText } = render(<FussballLinkScreen />)
+
+    await waitFor(() => {
+      expect(getByText('SV Musterstadt')).toBeTruthy()
+      expect(queryByText('fussball.syncNow')).toBeNull()
+    })
+    fireEvent.press(getByRole('link', { name: 'FUSSBALL.DE · SV Musterstadt' }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/official-team-page',
+      params: {
+        url: 'https://next.fussball.de/mannschaft/-/TEAM',
+        title: 'SV Musterstadt',
+      },
     })
   })
 
@@ -130,9 +214,12 @@ describe('FussballLinkScreen', () => {
           {
             id: 'link1',
             label: 'SV Musterstadt',
+            provider: 'fussball_public_page',
+            externalUrl: 'https://www.fussball.de/mannschaft/example-team',
             externalTeamId: '011MI9MUDK',
             status: 'ACTIVE',
             lastSyncedAt: '2026-04-01T12:00:00Z',
+            capabilities: { canManualSync: true, canImportRoster: true },
           },
         ])
       }
@@ -201,6 +288,8 @@ describe('FussballLinkScreen', () => {
           {
             id: 'link1',
             label: 'SV Broken',
+            provider: 'fussball_public_page',
+            externalUrl: 'https://www.fussball.de/mannschaft/broken-team',
             externalTeamId: '011ERR',
             status: 'ERROR',
             lastSyncedAt: '2026-03-01T12:00:00Z',

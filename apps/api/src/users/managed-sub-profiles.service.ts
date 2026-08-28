@@ -51,6 +51,15 @@ export class ManagedSubProfilesService {
   ) {
     const dob = assertUnder16(input.dateOfBirth)
 
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${parentUserId}))`
+    const activeParent = await tx.user.findFirst({
+      where: { id: parentUserId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!activeParent) {
+      throw new ManagedSubProfileSlotUnavailableError()
+    }
+
     const slot = await tx.rosterSlot.findFirst({
       where: {
         id: input.rosterSlotId,

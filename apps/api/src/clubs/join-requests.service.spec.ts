@@ -1,13 +1,15 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
-import { JoinRequestStatus } from '@anstoss/shared'
+import { JoinRequestStatus, MembershipRole, TeamRole } from '@anstoss/shared'
 import { JoinRequestsService } from './join-requests.service'
 
 describe('JoinRequestsService.create', () => {
   function makeService() {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       joinRequest: {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
+        update: jest.fn(),
         updateMany: jest.fn(),
         findUniqueOrThrow: jest.fn(),
       },
@@ -22,8 +24,14 @@ describe('JoinRequestsService.create', () => {
       },
       user: {
         findUnique: jest.fn().mockResolvedValue({ name: 'Mara' }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+      $transaction: jest.fn(),
     }
+    prisma.$transaction.mockImplementation(async (callback: (client: typeof prisma) => unknown) =>
+      callback(prisma),
+    )
     const audit = { log: jest.fn().mockResolvedValue(undefined) }
     const push = { sendToUserLocalized: jest.fn().mockResolvedValue(undefined) }
     const cache = { get: jest.fn(), set: jest.fn() }
@@ -44,7 +52,7 @@ describe('JoinRequestsService.create', () => {
   }
 
   it('creates one pending player request and notifies club staff', async () => {
-    const { service, prisma, audit, push } = makeService()
+    const { service, prisma, push } = makeService()
     const request = {
       id: 'jr-1',
       clubId: 'club-1',
@@ -69,8 +77,18 @@ describe('JoinRequestsService.create', () => {
         reviewedAt: null,
       },
     })
-    expect(audit.log).toHaveBeenCalledTimes(1)
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1)
     expect(push.sendToUserLocalized).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not create a request for an account deleted before the lifecycle lock', async () => {
+    const { service, prisma } = makeService()
+    prisma.user.findFirst.mockResolvedValue(null)
+
+    await expect(
+      service.create('user-1', 'club-1', { role: 'PLAYER' }),
+    ).rejects.toBeInstanceOf(ConflictException)
+    expect(prisma.joinRequest.create).not.toHaveBeenCalled()
   })
 
   it('accepts a team request only when the team belongs to the target club', async () => {
@@ -103,7 +121,7 @@ describe('JoinRequestsService.create', () => {
   })
 
   it('rejects a team request when the team does not belong to the target club', async () => {
-    const { service, prisma, audit, push } = makeService()
+    const { service, prisma, push } = makeService()
     prisma.team.findFirst.mockResolvedValue(null)
 
     await expect(
@@ -111,55 +129,199 @@ describe('JoinRequestsService.create', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
 
     expect(prisma.joinRequest.create).not.toHaveBeenCalled()
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(prisma.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 
   it('maps a concurrent unique-create loser to 409 without side effects', async () => {
-    const { service, prisma, audit, push } = makeService()
+    const { service, prisma, push } = makeService()
     prisma.joinRequest.create.mockRejectedValue({ code: 'P2002' })
 
     await expect(
       service.create('user-1', 'club-1', { role: 'PLAYER', message: 'Again' }),
     ).rejects.toBeInstanceOf(ConflictException)
 
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(prisma.auditLog.create).not.toHaveBeenCalled()
     expect(prisma.membership.findMany).not.toHaveBeenCalled()
     expect(prisma.user.findUnique).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 
-  it('does not emit side effects when a reviewed request reopen loses a race', async () => {
-    const { service, prisma, audit, push } = makeService()
+  it('increments the attempt revision when a withdrawn request is resubmitted', async () => {
+    const { service, prisma } = makeService()
     prisma.joinRequest.findUnique.mockResolvedValue({
       id: 'jr-1',
-      status: JoinRequestStatus.REJECTED,
+      status: JoinRequestStatus.WITHDRAWN,
+      revision: 2,
     })
-    prisma.joinRequest.updateMany.mockResolvedValue({ count: 0 })
+    prisma.joinRequest.update.mockResolvedValue({
+      id: 'jr-1',
+      status: JoinRequestStatus.PENDING,
+      revision: 3,
+    })
+
+    await service.create('user-1', 'club-1', { role: 'PLAYER', message: 'Try again' })
+
+    expect(prisma.joinRequest.update).toHaveBeenCalledWith({
+      where: { id: 'jr-1' },
+      data: expect.objectContaining({ revision: { increment: 1 }, status: 'PENDING' }),
+    })
+  })
+
+  it('rejects a request that is pending when re-read under the lifecycle lock', async () => {
+    const { service, prisma, push } = makeService()
+    prisma.joinRequest.findUnique.mockResolvedValue({
+      id: 'jr-1',
+      status: JoinRequestStatus.PENDING,
+    })
 
     await expect(
       service.create('user-1', 'club-1', { role: 'PLAYER', message: 'Reopen' }),
     ).rejects.toBeInstanceOf(ConflictException)
 
-    expect(prisma.joinRequest.findUniqueOrThrow).not.toHaveBeenCalled()
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(prisma.joinRequest.updateMany).not.toHaveBeenCalled()
+    expect(prisma.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
+  })
+})
+
+describe('JoinRequestsService.sendReminder', () => {
+  function makeReminderService() {
+    const prisma = {
+      joinRequest: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'jr-1',
+          club: { name: 'FC Test' },
+        }),
+      },
+      membership: {
+        findMany: jest.fn().mockResolvedValue([{ userId: 'admin-1' }]),
+      },
+    }
+    const audit = { log: jest.fn().mockResolvedValue(undefined) }
+    const push = { sendToUserLocalized: jest.fn().mockResolvedValue(undefined) }
+    const cache = {
+      reserve: jest.fn().mockResolvedValue(true),
+    }
+    return {
+      service: new JoinRequestsService(
+        prisma as never,
+        audit as never,
+        push as never,
+        cache as never,
+      ),
+      audit,
+      push,
+      cache,
+    }
+  }
+
+  it('atomically reserves the cooldown so a concurrent reminder cannot duplicate delivery', async () => {
+    const { service, cache, push } = makeReminderService()
+    cache.reserve.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+
+    await service.sendReminder('user-1', 'club-1', 'jr-1')
+    await expect(
+      service.sendReminder('user-1', 'club-1', 'jr-1'),
+    ).rejects.toBeInstanceOf(BadRequestException)
+
+    expect(push.sendToUserLocalized).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the reservation when fanout partially fails so retries cannot duplicate delivery', async () => {
+    const { service, cache, push, audit } = makeReminderService()
+    push.sendToUserLocalized.mockRejectedValueOnce(new Error('push offline'))
+
+    await expect(
+      service.sendReminder('user-1', 'club-1', 'jr-1'),
+    ).rejects.toThrow('push offline')
+
+    expect(cache.reserve).toHaveBeenCalledTimes(1)
+    expect(audit.log).not.toHaveBeenCalled()
+  })
+})
+
+describe('JoinRequestsService.withdraw', () => {
+  function makeWithdrawalService(overrides?: { request?: { id: string } | null; count?: number }) {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([{ userId: 'reviewer-1', role: MembershipRole.ADMIN }]),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      joinRequest: {
+        findFirst: jest.fn().mockResolvedValue(overrides?.request === undefined ? { id: 'jr-1' } : overrides.request),
+        updateMany: jest.fn().mockResolvedValue({ count: overrides?.count ?? 1 }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    }
+    const prisma = {
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    }
+    return {
+      tx,
+      service: new JoinRequestsService(
+        prisma as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      ),
+    }
+  }
+
+  it('lets only the requester atomically withdraw a pending request and audits it', async () => {
+    const { service, tx } = makeWithdrawalService()
+
+    await expect(service.withdraw('user-1', 'club-1', 'jr-1')).resolves.toEqual({
+      withdrawn: true,
+    })
+    expect(tx.joinRequest.findFirst).toHaveBeenCalledWith({
+      where: { id: 'jr-1', clubId: 'club-1', userId: 'user-1', status: 'PENDING' },
+      select: { id: true },
+    })
+    expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'WITHDRAWN' }) }),
+    )
+    expect(tx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ type: 'join_request.withdrawn' }) }),
+    )
+  })
+
+  it('rejects a different requester, wrong club, or non-pending row without auditing', async () => {
+    const { service, tx } = makeWithdrawalService({ request: null })
+    await expect(service.withdraw('intruder', 'other-club', 'jr-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
+  })
+
+  it('does not audit when the row changes after the locked read', async () => {
+    const { service, tx } = makeWithdrawalService({ count: 0 })
+    await expect(service.withdraw('user-1', 'club-1', 'jr-1')).rejects.toBeInstanceOf(
+      ConflictException,
+    )
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
   })
 })
 
 describe('JoinRequestsService.approve', () => {
   function makeService() {
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([{ userId: 'reviewer-1', role: MembershipRole.ADMIN }]),
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
       membership: { upsert: jest.fn().mockResolvedValue(undefined) },
       team: { findFirst: jest.fn().mockResolvedValue({ id: 'team-9' }) },
       teamAccess: { upsert: jest.fn().mockResolvedValue(undefined) },
       teamMember: { upsert: jest.fn().mockResolvedValue(undefined) },
-      joinRequest: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-    }
-    const prisma = {
       joinRequest: {
         findFirst: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    }
+    const prisma = {
+      joinRequest: tx.joinRequest,
       club: {
         findUnique: jest.fn().mockResolvedValue({ name: 'FC Test' }),
       },
@@ -186,7 +348,7 @@ describe('JoinRequestsService.approve', () => {
   }
 
   it('grants club membership and marks the request approved', async () => {
-    const { service, prisma, tx, audit } = makeService()
+    const { service, prisma, tx } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-1',
       clubId: 'club-1',
@@ -196,7 +358,7 @@ describe('JoinRequestsService.approve', () => {
       status: JoinRequestStatus.PENDING,
     })
 
-    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', {})).resolves.toEqual({
+    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 })).resolves.toEqual({
       status: 'APPROVED',
     })
 
@@ -211,14 +373,33 @@ describe('JoinRequestsService.approve', () => {
     expect(tx.teamMember.upsert).not.toHaveBeenCalled()
     expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING' },
+        where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING', revision: 1 },
         data: expect.objectContaining({
           status: 'APPROVED',
           reviewedBy: 'reviewer-1',
         }),
       }),
     )
-    expect(audit.log).toHaveBeenCalledTimes(1)
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not activate a request after the requester deleted their account', async () => {
+    const { service, prisma, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-1',
+      clubId: 'club-1',
+      userId: 'user-1',
+      role: 'PLAYER',
+      teamId: null,
+      status: JoinRequestStatus.PENDING,
+    })
+    tx.user.findFirst.mockResolvedValue(null)
+
+    await expect(
+      service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 }),
+    ).rejects.toBeInstanceOf(ConflictException)
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
   })
 
   it('sends a JOIN_APPROVED push to the approved user', async () => {
@@ -232,7 +413,7 @@ describe('JoinRequestsService.approve', () => {
       status: JoinRequestStatus.PENDING,
     })
 
-    await service.approve('club-1', 'jr-1', 'reviewer-1', {})
+    await service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 })
     // sendToUserLocalized is fire-and-forget — flush the microtask queue
     await new Promise((resolve) => setImmediate(resolve))
 
@@ -255,7 +436,7 @@ describe('JoinRequestsService.approve', () => {
       status: JoinRequestStatus.PENDING,
     })
 
-    await service.approve('club-1', 'jr-2', 'reviewer-1', {})
+    await service.approve('club-1', 'jr-2', 'reviewer-1', { revision: 1 })
 
     expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -274,7 +455,7 @@ describe('JoinRequestsService.approve', () => {
   })
 
   it('rejects a stored request whose team no longer belongs to the club', async () => {
-    const { service, prisma, tx, audit, push } = makeService()
+    const { service, prisma, tx, push } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-2',
       clubId: 'club-1',
@@ -285,7 +466,7 @@ describe('JoinRequestsService.approve', () => {
     })
     tx.team.findFirst.mockResolvedValue(null)
 
-    await expect(service.approve('club-1', 'jr-2', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.approve('club-1', 'jr-2', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       BadRequestException,
     )
 
@@ -293,15 +474,15 @@ describe('JoinRequestsService.approve', () => {
     expect(tx.teamMember.upsert).not.toHaveBeenCalled()
     expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'jr-2', clubId: 'club-1', status: 'PENDING' },
+        where: { id: 'jr-2', clubId: 'club-1', status: 'PENDING', revision: 1 },
       }),
     )
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 
   it('does not grant access when another reviewer already claimed the request', async () => {
-    const { service, prisma, tx, audit, push } = makeService()
+    const { service, prisma, tx, push } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-3',
       clubId: 'club-1',
@@ -312,28 +493,28 @@ describe('JoinRequestsService.approve', () => {
     })
     tx.joinRequest.updateMany.mockResolvedValue({ count: 0 })
 
-    await expect(service.approve('club-1', 'jr-3', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.approve('club-1', 'jr-3', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       NotFoundException,
     )
 
     expect(tx.membership.upsert).not.toHaveBeenCalled()
     expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 
   it('rejects an already-decided request without granting access', async () => {
-    const { service, prisma, tx, audit } = makeService()
+    const { service, prisma, tx } = makeService()
     // findFirst is scoped to status PENDING -> a decided request is not found
     prisma.joinRequest.findFirst.mockResolvedValue(null)
 
-    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       NotFoundException,
     )
 
-    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
     expect(tx.membership.upsert).not.toHaveBeenCalled()
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
   })
 
   it('does not grant access for a request belonging to another club', async () => {
@@ -341,31 +522,72 @@ describe('JoinRequestsService.approve', () => {
     // Wrong-club actor: clubId filter on findFirst excludes the row
     prisma.joinRequest.findFirst.mockResolvedValue(null)
 
-    await expect(service.approve('other-club', 'jr-1', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.approve('other-club', 'jr-1', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       NotFoundException,
     )
 
     expect(prisma.joinRequest.findFirst).toHaveBeenCalledWith({
-      where: { id: 'jr-1', clubId: 'other-club', status: 'PENDING' },
+      where: { id: 'jr-1', clubId: 'other-club', status: 'PENDING', revision: 1 },
     })
     expect(tx.membership.upsert).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the reviewer was demoted before the locked decision', async () => {
+    const { service, tx } = makeService()
+    tx.joinRequest.findFirst.mockResolvedValueOnce({
+      id: 'jr-1',
+      userId: 'target-1',
+      role: TeamRole.PLAYER,
+      teamId: null,
+    })
+    tx.$queryRaw.mockResolvedValueOnce([{ userId: 'reviewer-1', role: MembershipRole.PLAYER }])
+
+    await expect(
+      service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+
+    expect(tx.joinRequest.findFirst).toHaveBeenCalled()
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
+  })
+
+  it('binds an approval to the request revision the reviewer saw', async () => {
+    const { service, tx } = makeService()
+    tx.joinRequest.findFirst.mockResolvedValueOnce(null)
+
+    await expect(
+      service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+
+    expect(tx.joinRequest.findFirst).toHaveBeenCalledWith({
+      where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING', revision: 1 },
+    })
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
   })
 })
 
 describe('JoinRequestsService.reject', () => {
   function makeService() {
-    const prisma = {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([{ userId: 'reviewer-1', role: MembershipRole.ADMIN }]),
       joinRequest: {
         findFirst: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    }
+    const prisma = {
+      joinRequest: tx.joinRequest,
       club: {
         findUnique: jest.fn().mockResolvedValue({ name: 'FC Test' }),
       },
       membership: { upsert: jest.fn() },
       teamAccess: { upsert: jest.fn() },
       teamMember: { upsert: jest.fn() },
-      $transaction: jest.fn(),
+      $transaction: jest.fn(async (cb: (client: typeof tx) => unknown) => cb(tx)),
     }
     const audit = { log: jest.fn().mockResolvedValue(undefined) }
     const push = { sendToUserLocalized: jest.fn().mockResolvedValue(undefined) }
@@ -379,13 +601,14 @@ describe('JoinRequestsService.reject', () => {
         cache as never,
       ),
       prisma,
+      tx,
       audit,
       push,
     }
   }
 
   it('marks the request rejected and creates no membership', async () => {
-    const { service, prisma, audit } = makeService()
+    const { service, prisma, tx } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-1',
       clubId: 'club-1',
@@ -396,12 +619,12 @@ describe('JoinRequestsService.reject', () => {
     })
 
     await expect(
-      service.reject('club-1', 'jr-1', 'reviewer-1', { reason: 'Not eligible' }),
+      service.reject('club-1', 'jr-1', 'reviewer-1', { revision: 1, reason: 'Not eligible' }),
     ).resolves.toEqual({ status: 'REJECTED' })
 
-    expect(prisma.joinRequest.updateMany).toHaveBeenCalledWith(
+    expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING' },
+        where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING', revision: 1 },
         data: expect.objectContaining({
           status: 'REJECTED',
           reviewedBy: 'reviewer-1',
@@ -411,8 +634,8 @@ describe('JoinRequestsService.reject', () => {
     expect(prisma.membership.upsert).not.toHaveBeenCalled()
     expect(prisma.teamAccess.upsert).not.toHaveBeenCalled()
     expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
-    expect(prisma.$transaction).not.toHaveBeenCalled()
-    expect(audit.log).toHaveBeenCalledTimes(1)
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1)
   })
 
   it('sends a JOIN_REJECTED push to the requester', async () => {
@@ -426,7 +649,7 @@ describe('JoinRequestsService.reject', () => {
       status: JoinRequestStatus.PENDING,
     })
 
-    await service.reject('club-1', 'jr-1', 'reviewer-1', {})
+    await service.reject('club-1', 'jr-1', 'reviewer-1', { revision: 1 })
 
     // sendToUserLocalized is fire-and-forget — flush the microtask queue.
     await Promise.resolve()
@@ -441,34 +664,26 @@ describe('JoinRequestsService.reject', () => {
   })
 
   it('404s an already-decided or wrong-club request and writes nothing', async () => {
-    const { service, prisma, audit } = makeService()
+    const { service, prisma, tx } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue(null)
 
-    await expect(service.reject('club-1', 'jr-1', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.reject('club-1', 'jr-1', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       NotFoundException,
     )
 
-    expect(prisma.joinRequest.updateMany).not.toHaveBeenCalled()
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
   })
 
-  it('does not emit rejection side effects when another reviewer already claimed the request', async () => {
-    const { service, prisma, audit, push } = makeService()
-    prisma.joinRequest.findFirst.mockResolvedValue({
-      id: 'jr-1',
-      clubId: 'club-1',
-      userId: 'user-1',
-      role: 'PLAYER',
-      teamId: null,
-      status: JoinRequestStatus.PENDING,
-    })
-    prisma.joinRequest.updateMany.mockResolvedValue({ count: 0 })
+  it('does not emit rejection side effects when the locked request is already decided', async () => {
+    const { service, prisma, tx, push } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue(null)
 
-    await expect(service.reject('club-1', 'jr-1', 'reviewer-1', {})).rejects.toBeInstanceOf(
+    await expect(service.reject('club-1', 'jr-1', 'reviewer-1', { revision: 1 })).rejects.toBeInstanceOf(
       NotFoundException,
     )
 
-    expect(audit.log).not.toHaveBeenCalled()
+    expect(tx.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 })

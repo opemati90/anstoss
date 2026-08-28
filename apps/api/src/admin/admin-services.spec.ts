@@ -14,7 +14,7 @@ const ACTOR: PlatformAdminActor = {
 
 describe('admin mutation services', () => {
   it('returns city and club summary data required by the admin directory', async () => {
-    const prisma = {
+    const prisma: any = {
       club: {
         findMany: jest.fn(async () => [
           {
@@ -93,18 +93,53 @@ describe('admin mutation services', () => {
     ).rejects.toThrow(BadRequestException)
   })
 
+  it('revokes a suspicious invite campaign and audits the platform action atomically', async () => {
+    const prisma: any = {
+      inviteCampaign: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'campaign-1',
+          clubId: 'club-1',
+          status: 'ACTIVE',
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    }
+    prisma.$transaction = jest.fn(async (callback) => callback(prisma))
+    const service = new AdminService(prisma)
+
+    await expect(
+      service.revokeInviteCampaign('campaign-1', ACTOR, 'Unexpected public distribution'),
+    ).resolves.toEqual({ revoked: true })
+    expect(prisma.inviteCampaign.updateMany).toHaveBeenCalledWith({
+      where: { id: 'campaign-1', status: 'ACTIVE' },
+      data: { status: 'REVOKED' },
+    })
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: 'invite.campaign_revoked',
+        actorId: 'admin_1',
+      }),
+    })
+  })
+
   it('rejects unknown platform settings and audits valid updates', async () => {
-    const prisma = {
+    const prisma: any = {
+      $executeRaw: jest.fn(async () => 1),
       platformSetting: {
-        findUnique: jest.fn(async () => ({ value: '1.0.0' })),
+        findUnique: jest.fn(async ({ where }) => ({
+          key: where.key,
+          value: where.key === 'recommended_app_version' ? '1.2.3' : '1.0.0',
+        })),
         upsert: jest.fn(async ({ create }) => ({
           ...create,
           updatedAt: new Date('2026-06-27T00:00:00.000Z'),
         })),
       },
+      auditLog: { create: jest.fn(async () => ({})) },
     }
-    const auditService = { log: jest.fn(async () => ({})) }
-    const service = new PlatformSettingsService(prisma as any, auditService as any)
+    prisma.$transaction = jest.fn(async (callback) => callback(prisma))
+    const service = new PlatformSettingsService(prisma as any)
 
     await expect(
       service.set({ key: 'unknown_key', value: 'x', actor: ACTOR }),
@@ -116,12 +151,21 @@ describe('admin mutation services', () => {
     await expect(
       service.set({ key: 'min_app_version', value: '1.2.3', actor: ACTOR }),
     ).resolves.toMatchObject({ key: 'min_app_version', value: '1.2.3' })
-    expect(auditService.log).toHaveBeenCalledWith(
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'admin.setting.updated',
-        actorId: 'admin_1',
+        data: expect.objectContaining({
+          type: 'admin.setting.updated',
+          actorId: 'admin_1',
+        }),
       }),
     )
+
+    await expect(
+      service.set({ key: 'min_app_version', value: '2.0.0', actor: ACTOR }),
+    ).rejects.toThrow('Recommended app version must be equal to or newer')
+    await expect(
+      service.set({ key: 'force_update_message', value: '   ', actor: ACTOR }),
+    ).rejects.toThrow('cannot be empty')
   })
 
   it('validates feature flag slugs and audits overrides', async () => {

@@ -6,8 +6,16 @@ import { useWelcomeSeen } from '../src/onboarding/welcomeSeen'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 export default function Index() {
-  const { isLoading, isSignedIn, memberships, ageGate, user, needsRegistration, pendingClubClaim } =
-    useAuth()
+  const {
+    isLoading,
+    isSignedIn,
+    memberships,
+    ageGate,
+    user,
+    needsRegistration,
+    pendingClubClaim,
+    pendingJoinRequest,
+  } = useAuth()
   const welcomeSeen = useWelcomeSeen()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
   const shouldResumeOnboarding = isSignedIn && memberships.length === 0 && needsRegistration
@@ -70,17 +78,24 @@ export default function Index() {
   //   too aggressive. Soft state: tabs render, home prompts setup.
   // - PLAYER / COACH / PARENT: holding screen with a join-club CTA.
   if (memberships.length === 0) {
+    // Pending server-side work always wins over persona routing. Both join
+    // requests and staff claims intentionally leave membership empty until an
+    // authorised club operator approves them, so role-only routing would loop
+    // these users back into onboarding.
+    if (pendingClubClaim) {
+      return (
+        <Redirect
+          href={{ pathname: '/(auth)/claim-pending', params: { claimId: pendingClubClaim.id } }}
+        />
+      )
+    }
+    if (pendingJoinRequest) {
+      return <Redirect href="/pending-approval" />
+    }
     if (user?.registrationRole === 'FREE_AGENT') {
       return <Redirect href="/free-agent/profile" />
     }
     if (user?.registrationRole === 'CLUB_ADMIN') {
-      if (pendingClubClaim) {
-        return (
-          <Redirect
-            href={{ pathname: '/(auth)/claim-pending', params: { claimId: pendingClubClaim.id } }}
-          />
-        )
-      }
       return <Redirect href="/(tabs)" />
     }
     return <Redirect href="/account-next-step" />

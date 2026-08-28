@@ -9,6 +9,7 @@ import {
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
+import { activeTeamAccessWhere } from './active-team-access'
 
 /** Mirror the age-gate guard's age calculation. */
 function getAge(dateOfBirth: Date): number {
@@ -60,15 +61,40 @@ export class RosterSlotsService {
     })
   }
 
-  async claim(teamId: string, slotId: string, userId: string) {
+  async claim(clubId: string, teamId: string, slotId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.rosterSlot.findFirst({ where: { teamId, claimedByUserId: userId } })
-      if (existing) throw new UserAlreadyOnRosterError()
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const activeUser = await tx.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!activeUser) throw new TeamAccessDeniedError('This account is no longer active.')
+
       const slot = await tx.rosterSlot.findUnique({
         where: { id: slotId },
         include: { team: { select: { id: true, clubId: true } } },
       })
-      if (!slot || slot.teamId !== teamId) throw new NotFoundException('Slot not found')
+      if (!slot || slot.teamId !== teamId || slot.team.clubId !== clubId) {
+        throw new NotFoundException('Slot not found')
+      }
+
+      const existingAccess = await tx.teamAccess.findFirst({
+        where: {
+          userId,
+          teamId,
+          clubId,
+          role: 'PLAYER',
+          ...activeTeamAccessWhere(),
+        },
+      })
+      if (!existingAccess) {
+        throw new TeamAccessDeniedError('Club approval is required before claiming a roster slot.')
+      }
+
+      const existingMembership = await tx.membership.findFirst({ where: { userId, clubId } })
+
+      const existing = await tx.rosterSlot.findFirst({ where: { teamId, claimedByUserId: userId } })
+      if (existing) throw new UserAlreadyOnRosterError()
       // Defense-in-depth: short-circuit if we already know it's claimed (no write needed).
       if (slot.claimedByUserId) throw new RosterSlotAlreadyClaimedError()
       // Race-safe write: re-assert claimedByUserId: null at write-time. Under READ COMMITTED,
@@ -87,8 +113,6 @@ export class RosterSlotsService {
       // association and every team-scoped fetch 401s/403s. Mirror what
       // OnboardingService.claimSlot does: ensure Membership + TeamAccess
       // exist in the same transaction so home/agenda/chat work post-done.
-      const clubId = slot.team.clubId
-
       // Age-gate: under-16 without approved parental consent must receive
       // PENDING access, consistent with GDPR Article 8 / German 16-yr rule.
       let teamAccessStatus: 'ACTIVE' | 'PENDING' = 'ACTIVE'
@@ -109,17 +133,11 @@ export class RosterSlotsService {
         }
       }
 
-      const existingMembership = await tx.membership.findFirst({
-        where: { userId, clubId },
-      })
       if (!existingMembership) {
         await tx.membership.create({
           data: { userId, clubId, role: 'PLAYER' },
         })
       }
-      const existingAccess = await tx.teamAccess.findFirst({
-        where: { userId, teamId, role: 'PLAYER' },
-      })
       if (!existingAccess) {
         await tx.teamAccess.create({
           data: {

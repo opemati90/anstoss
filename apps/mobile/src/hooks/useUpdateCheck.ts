@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, Linking } from 'react-native'
 import { setResponseChecker } from '../api/client'
 
@@ -12,30 +12,36 @@ interface UpdateState {
   softUpdate: boolean
   minVersion?: string
   recommendedVersion?: string
+  forceUpdateMessage?: string
+  announcement?: string
+}
+
+type UpdateErrorBody = {
+  error?: { minVersion?: string; message?: string }
 }
 
 export function getUpdateStateFromResponse(
   response: Pick<Response, 'status' | 'headers'>,
-  body?: { error?: { minVersion?: string } },
+  body?: UpdateErrorBody,
 ): UpdateState | null {
   if (response.status === 426) {
     return {
       forceUpdate: true,
       softUpdate: false,
       minVersion: body?.error?.minVersion,
+      forceUpdateMessage: body?.error?.message,
     }
   }
 
   const recommendedVersion = response.headers.get('x-update-available')
-  if (recommendedVersion) {
-    return {
-      forceUpdate: false,
-      softUpdate: true,
-      recommendedVersion,
-    }
+  const encodedAnnouncement = response.headers.get('x-anstoss-announcement')
+  const announcement = decodeHeaderValue(encodedAnnouncement)
+  return {
+    forceUpdate: false,
+    softUpdate: Boolean(recommendedVersion),
+    recommendedVersion: recommendedVersion ?? undefined,
+    announcement: announcement || undefined,
   }
-
-  return null
 }
 
 /**
@@ -49,6 +55,8 @@ export function useUpdateCheck() {
     forceUpdate: false,
     softUpdate: false,
   })
+  const dismissedRecommendedVersionRef = useRef<string | undefined>(undefined)
+  const dismissedAnnouncementRef = useRef<string | undefined>(undefined)
 
   const checkResponse = useCallback((response: Response) => {
     if (response.status === 426) {
@@ -64,13 +72,24 @@ export function useUpdateCheck() {
     }
 
     const nextState = getUpdateStateFromResponse(response)
-    if (nextState?.softUpdate) {
-      setUpdateState((prev) => ({
-        ...prev,
-        softUpdate: true,
-        recommendedVersion: nextState.recommendedVersion,
-      }))
+    if (!nextState) return
+
+    if (!nextState.recommendedVersion) {
+      dismissedRecommendedVersionRef.current = undefined
     }
+    if (!nextState.announcement) {
+      dismissedAnnouncementRef.current = undefined
+    }
+    setUpdateState({
+      ...nextState,
+      softUpdate:
+        nextState.softUpdate &&
+        nextState.recommendedVersion !== dismissedRecommendedVersionRef.current,
+      announcement:
+        nextState.announcement === dismissedAnnouncementRef.current
+          ? undefined
+          : nextState.announcement,
+    })
   }, [])
 
   const openStore = useCallback(() => {
@@ -86,7 +105,17 @@ export function useUpdateCheck() {
   }, [checkResponse])
 
   const dismissSoftUpdate = useCallback(() => {
-    setUpdateState((prev) => ({ ...prev, softUpdate: false }))
+    setUpdateState((prev) => {
+      dismissedRecommendedVersionRef.current = prev.recommendedVersion
+      return { ...prev, softUpdate: false }
+    })
+  }, [])
+
+  const dismissAnnouncement = useCallback(() => {
+    setUpdateState((prev) => {
+      dismissedAnnouncementRef.current = prev.announcement
+      return { ...prev, announcement: undefined }
+    })
   }, [])
 
   return {
@@ -94,5 +123,15 @@ export function useUpdateCheck() {
     checkResponse,
     openStore,
     dismissSoftUpdate,
+    dismissAnnouncement,
+  }
+}
+
+function decodeHeaderValue(value: string | null) {
+  if (!value) return ''
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
   }
 }

@@ -27,7 +27,7 @@ import { fonts, fontSize, space, radius, lineHeight ,
 
 type CreateTeamLinkResponse = {
   link: ExternalTeamLink
-  sync: SyncRun
+  sync: SyncRun | null
 }
 
 export default function FussballLinkScreen() {
@@ -36,10 +36,7 @@ export default function FussballLinkScreen() {
   const c = useClubColors()
   const canManage =
     activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH' ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
+    activeClub?.role === 'ADMIN'
   const [input, setInput] = useState('')
   const [preview, setPreview] = useState<FussballTeamPreview | null>(null)
   const [links, setLinks] = useState<ExternalTeamLink[]>([])
@@ -47,7 +44,6 @@ export default function FussballLinkScreen() {
   const [loading, setLoading] = useState(true)
   const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [syncingId, setSyncingId] = useState<string | null>(null)
 
   const locale = getAppLocale(getAppLanguage())
 
@@ -124,6 +120,11 @@ export default function FussballLinkScreen() {
       setPreview(null)
       setInput('')
 
+      if (!result.sync) {
+        Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
+        return
+      }
+
       if (result.sync.status === 'FAILED') {
         Alert.alert(
           t('fussball.syncErrorTitle'),
@@ -152,44 +153,6 @@ export default function FussballLinkScreen() {
       )
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleSyncNow = async (teamLinkId: string) => {
-    if (!activeClub) return
-
-    try {
-      setSyncingId(teamLinkId)
-      const result = await api<SyncRun>(`/integrations/fussball/team-links/${teamLinkId}/sync`, {
-        method: 'POST',
-        headers: {
-          'x-club-id': activeClub.club.id,
-        },
-        body: { force: true },
-      })
-      await loadData()
-
-      if (result.status === 'FAILED') {
-        Alert.alert(
-          t('fussball.syncErrorTitle'),
-          result.errorSummary || t('fussball.syncErrorBody'),
-        )
-        return
-      }
-
-      Alert.alert(
-        t('fussball.syncSuccessTitle'),
-        t('fussball.syncSuccessBody', {
-          count: result.importedCount + result.updatedCount,
-        }),
-      )
-    } catch (error) {
-      Alert.alert(
-        t('fussball.syncErrorTitle'),
-        error instanceof Error ? error.message : t('fussball.syncErrorBody'),
-      )
-    } finally {
-      setSyncingId(null)
     }
   }
 
@@ -334,14 +297,7 @@ export default function FussballLinkScreen() {
                   {link.label}
                 </Text>
                 <Text style={[styles.metaText, { color: c.textSecondary }]}>
-                  {t('fussball.lastSynced', {
-                    value: link.lastSyncedAt
-                      ? new Intl.DateTimeFormat(locale, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        }).format(new Date(link.lastSyncedAt))
-                      : t('fussball.neverSynced'),
-                  })}
+                  {officialPageBrand(link.externalUrl)}
                 </Text>
               </View>
               <View
@@ -373,26 +329,21 @@ export default function FussballLinkScreen() {
                 {t('fussball.linkErrorNotice')}
               </Text>
             ) : null}
-            {canManage ? (
+            {link.provider === 'fussball_public_page' || link.provider === 'api_fussball' ? (
               <Pressable
-                style={[
-                  styles.secondaryButton,
-                  { borderColor: c.primary },
-                ]}
-                onPress={() => handleSyncNow(link.id)}
-                disabled={syncingId === link.id}
-                accessibilityRole="button"
-                accessibilityLabel={t('fussball.syncNow')}
+                style={[styles.secondaryButton, { borderColor: c.borderDefault }]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/official-team-page',
+                    params: { url: link.externalUrl, title: link.label },
+                  })
+                }
+                accessibilityRole="link"
+                accessibilityLabel={`${officialPageBrand(link.externalUrl)} · ${link.label}`}
               >
-                {syncingId === link.id ? (
-                  <ActivityIndicator color={c.primary} />
-                ) : (
-                  <Text
-                    style={[styles.secondaryButtonText, { color: c.primary }]}
-                  >
-                    {t('fussball.syncNow')}
-                  </Text>
-                )}
+                <Text style={[styles.secondaryButtonText, { color: c.textPrimary }]}>
+                  {officialPageBrand(link.externalUrl)}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -463,6 +414,13 @@ export default function FussballLinkScreen() {
       )}
     </Screen>
   )
+}
+
+function officialPageBrand(url: string) {
+  const lower = typeof url === 'string' ? url.toLowerCase() : ''
+  if (lower.includes('dfb.de')) return 'DFB.DE'
+  if (lower.includes('fupa.net')) return 'FUPA'
+  return 'FUSSBALL.DE'
 }
 
 const styles = StyleSheet.create({

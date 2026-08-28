@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { FussballService } from './fussball.service'
 import { tenantContext } from '../prisma/tenant.context'
+import { isLicensedFussballFeedEnabled } from './fussball-scraper.client'
 
 const DEFAULT_INTERVAL_MS = 60 * 1000
 const MIN_INTERVAL_MS = 15 * 1000
@@ -36,7 +37,8 @@ export class FussballLiveWorker implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     if (
       process.env.NODE_ENV === 'test' ||
-      process.env.FUSSBALL_LIVE_WORKER_DISABLED === 'true'
+      process.env.FUSSBALL_LIVE_WORKER_DISABLED === 'true' ||
+      !isLicensedFussballFeedEnabled()
     ) {
       return
     }
@@ -65,6 +67,7 @@ export class FussballLiveWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async runCycle() {
+    if (!isLicensedFussballFeedEnabled()) return
     // Skip if the previous cycle is still in flight (a slow upstream must not
     // stack overlapping polls).
     if (this.running) {

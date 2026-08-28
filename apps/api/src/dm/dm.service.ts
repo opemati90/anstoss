@@ -1,13 +1,11 @@
-import {
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common'
+import { ForbiddenException, Injectable } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { TranslationService } from '../translation/translation.service'
 
 /** Returns true if either user has blocked the other. */
 async function eitherHasBlocked(
-  prisma: PrismaService,
+  prisma: PrismaService | Prisma.TransactionClient,
   userIdA: string,
   userIdB: string,
 ): Promise<boolean> {
@@ -85,9 +83,7 @@ export class DmService {
 
     return participations
       .map((p) => {
-        const otherParticipant = p.conversation.participants.find(
-          (pp) => pp.userId !== userId,
-        )
+        const otherParticipant = p.conversation.participants.find((pp) => pp.userId !== userId)
         // Hide conversations where either party has blocked the other.
         if (otherParticipant && blockedRelated.has(otherParticipant.userId)) {
           return null
@@ -115,17 +111,15 @@ export class DmService {
   /**
    * Get or create a 1:1 conversation between two users in a club.
    */
-  async findOrCreateConversation(
-    userId: string,
-    clubId: string,
-    participantId: string,
-  ) {
+  async findOrCreateConversation(userId: string, clubId: string, participantId: string) {
     await this.assertClubMembership(userId, clubId)
     await this.assertClubMembership(participantId, clubId)
 
     if (userId === participantId) {
       throw new ForbiddenException('Cannot create conversation with yourself')
     }
+
+    await this.assertPrivateMessagingAllowed(userId, participantId, clubId)
 
     // Block check: prevent conversation creation if either party has blocked
     // the other. This enforces the moderation.service intent of suppressing DMs.
@@ -140,6 +134,7 @@ export class DmService {
         AND: [
           { participants: { some: { userId } } },
           { participants: { some: { userId: participantId } } },
+          { participants: { every: { userId: { in: [userId, participantId] } } } },
         ],
       },
       include: {
@@ -235,41 +230,38 @@ export class DmService {
    * Save a DM message (called from WebSocket gateway).
    */
   async saveMessage(userId: string, conversationId: string, content: string) {
-    await this.assertConversationAccess(userId, conversationId)
+    const message = await this.prisma.$transaction(async (tx) => {
+      const initial = await this.assertConversationAccess(userId, conversationId, tx)
+      const participants = [userId, initial.peerUserId].sort()
+      const lockKeys = [
+        ...participants.map((participantId) => `dm-user:${participantId}`),
+        ...participants.map((participantId) => `dm-access:${initial.clubId}:${participantId}`),
+      ]
+      for (const lockKey of lockKeys) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+      }
 
-    // Block check: if either participant has blocked the other, sending is
-    // forbidden. Look up the other participant in this conversation.
-    const otherParticipant = await this.prisma.conversationParticipant.findFirst({
-      where: { conversationId, userId: { not: userId } },
-      select: { userId: true },
+      // Re-check after the locks. Club removal takes the same per-member lock,
+      // so a completed revocation cannot race a final persisted message.
+      await this.assertCanMessageConversation(userId, conversationId, tx)
+      const created = await tx.directMessage.create({
+        data: {
+          conversationId,
+          senderId: userId,
+          content,
+        },
+        include: {
+          sender: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      })
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      })
+      return created
     })
-    if (
-      otherParticipant &&
-      (await eitherHasBlocked(this.prisma, userId, otherParticipant.userId))
-    ) {
-      throw new ForbiddenException('Cannot send messages to this user')
-    }
 
-    const message = await this.prisma.directMessage.create({
-      data: {
-        conversationId,
-        senderId: userId,
-        content,
-      },
-      include: {
-        sender: { select: { id: true, name: true, avatarUrl: true } },
-      },
-    })
-
-    void this.translation
-      .detectAndPersistSource('dm', message.id, content)
-      .catch(() => undefined)
-
-    // Update conversation timestamp
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
-    })
+    void this.translation.detectAndPersistSource('dm', message.id, content).catch(() => undefined)
 
     return message
   }
@@ -285,8 +277,12 @@ export class DmService {
     return participant?.user || null
   }
 
-  private async assertClubMembership(userId: string, clubId: string) {
-    const membership = await this.prisma.membership.findFirst({
+  private async assertClubMembership(
+    userId: string,
+    clubId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const membership = await client.membership.findFirst({
       where: { userId, clubId },
     })
     if (!membership) {
@@ -294,12 +290,117 @@ export class DmService {
     }
   }
 
-  private async assertConversationAccess(userId: string, conversationId: string) {
-    const participant = await this.prisma.conversationParticipant.findFirst({
+  async assertConversationAccess(
+    userId: string,
+    conversationId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const participant = await client.conversationParticipant.findFirst({
       where: { conversationId, userId },
+      select: {
+        conversation: {
+          select: {
+            clubId: true,
+            participants: { select: { userId: true } },
+          },
+        },
+      },
     })
-    if (!participant) {
+    const participants = participant?.conversation.participants ?? []
+    const peer = participants.find((entry) => entry.userId !== userId)
+    if (!participant || participants.length !== 2 || !peer) {
       throw new ForbiddenException('Not a participant in this conversation')
     }
+    return { clubId: participant.conversation.clubId, peerUserId: peer.userId }
   }
+
+  /**
+   * Authorize an interaction that communicates presence or content to the
+   * other DM participant. Keeping this in the DM service prevents socket-only
+   * events (notably typing) from bypassing participant, block, or safeguarding
+   * checks enforced for persisted messages.
+   */
+  async assertCanMessageConversation(
+    userId: string,
+    conversationId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const { clubId, peerUserId } = await this.assertConversationAccess(
+      userId,
+      conversationId,
+      client,
+    )
+    // Conversation rows are retained for history after somebody leaves a
+    // club. Retention must not become a way to keep messaging across the
+    // tenant boundary, so both sides must still belong to this club whenever
+    // content or presence is sent.
+    await this.assertClubMembership(userId, clubId, client)
+    await this.assertClubMembership(peerUserId, clubId, client)
+    await this.assertPrivateMessagingAllowed(userId, peerUserId, clubId, client)
+    if (await eitherHasBlocked(client, userId, peerUserId)) {
+      throw new ForbiddenException('Cannot send messages to this user')
+    }
+  }
+
+  private async assertPrivateMessagingAllowed(
+    userIdA: string,
+    userIdB: string,
+    clubId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const users = await client.user.findMany({
+      where: { id: { in: [userIdA, userIdB] }, deletedAt: null },
+      select: { id: true, dateOfBirth: true, managedById: true },
+    })
+    if (users.length !== 2 || users.some((user) => !user.dateOfBirth)) {
+      throw new ForbiddenException('Age verification is required before private messaging')
+    }
+
+    const first = users.find((user) => user.id === userIdA)!
+    const second = users.find((user) => user.id === userIdB)!
+    const firstIsMinor = isUnder16(first.dateOfBirth!)
+    const secondIsMinor = isUnder16(second.dateOfBirth!)
+
+    // Adult-adult and minor-minor conversations remain available. The
+    // safeguarding boundary is specifically a private adult/minor channel.
+    if (firstIsMinor === secondIsMinor) return
+
+    const minor = firstIsMinor ? first : second
+    const adult = firstIsMinor ? second : first
+    if (minor.managedById === adult.id) return
+
+    const [guardianLink, approvedConsent] = await Promise.all([
+      client.guardianRelationship.findFirst({
+        where: {
+          clubId,
+          parentUserId: adult.id,
+          playerUserId: minor.id,
+        },
+        select: { id: true },
+      }),
+      client.parentalConsent.findFirst({
+        where: {
+          clubId,
+          playerUserId: minor.id,
+          guardianUserId: adult.id,
+          status: 'APPROVED',
+        },
+        select: { id: true },
+      }),
+    ])
+    if (guardianLink || approvedConsent) return
+
+    throw new ForbiddenException(
+      'Direct messages between minors and adults are limited to linked guardians',
+    )
+  }
+}
+
+function isUnder16(dateOfBirth: Date, now = new Date()) {
+  let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear()
+  const monthDelta = now.getUTCMonth() - dateOfBirth.getUTCMonth()
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < dateOfBirth.getUTCDate())) {
+    age -= 1
+  }
+  return age < 16
 }

@@ -414,17 +414,7 @@ export class MarketplaceService {
         throw new BadRequestException('Trial invite has already been handled')
       }
 
-      const updatedInvite =
-        status === TrialInviteStatus.ACCEPTED
-          ? await this.acceptTrialInvite(invite, userId)
-          : await this.prisma.trialInvite.update({
-              where: { id: invite.id },
-              data: {
-                status: TrialInviteStatus.DECLINED,
-                respondedAt: new Date(),
-              },
-              include: trialInviteInclude,
-            })
+      const updatedInvite = await this.decideTrialInvite(invite, userId, status)
 
       void this.push
         .sendToUserLocalized(
@@ -529,66 +519,111 @@ export class MarketplaceService {
     return this.mapProfile(profile)
   }
 
-  private async acceptTrialInvite(invite: any, userId: string) {
+  private async decideTrialInvite(
+    invite: any,
+    userId: string,
+    decision: TrialInviteStatus.ACCEPTED | TrialInviteStatus.DECLINED,
+  ) {
     return this.prisma.$transaction(async (tx: any) => {
-      await this.requireEntitlements().assertCanActivatePlayer(invite.clubId, userId, tx)
-      await tx.membership.upsert({
-        where: {
-          userId_clubId: {
-            userId,
-            clubId: invite.clubId,
-          },
-        },
-        update: {},
-        create: {
-          userId,
-          clubId: invite.clubId,
-          role: MembershipRole.PLAYER,
-        },
+      // Account deletion uses this same lifecycle lock. Re-read both the user
+      // and invitation after acquiring it so acceptance cannot recreate access
+      // after deletion cleanup or redeem stale/revoked state.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const activeUser = await tx.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: { id: true },
       })
+      if (!activeUser) {
+        throw new ForbiddenException('This account is no longer active')
+      }
 
-      await tx.teamAccess.upsert({
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${invite.id}`}))`
+      const currentInvite = await tx.trialInvite.findFirst({
         where: {
-          teamId_userId_role: {
-            teamId: invite.teamId,
+          id: invite.id,
+          clubId: invite.clubId,
+          teamId: invite.teamId,
+          status: TrialInviteStatus.PENDING,
+          expiresAt: { gt: new Date() },
+          freeAgentProfile: { userId },
+        },
+        select: { id: true, clubId: true, teamId: true },
+      })
+      if (!currentInvite) {
+        throw new BadRequestException('Trial invite is no longer available')
+      }
+
+      if (decision === TrialInviteStatus.ACCEPTED) {
+        await this.requireEntitlements().assertCanActivatePlayer(currentInvite.clubId, userId, tx)
+        await tx.membership.upsert({
+          where: {
+            userId_clubId: {
+              userId,
+              clubId: currentInvite.clubId,
+            },
+          },
+          update: {},
+          create: {
+            userId,
+            clubId: currentInvite.clubId,
+            role: MembershipRole.PLAYER,
+          },
+        })
+
+        await tx.teamAccess.upsert({
+          where: {
+            teamId_userId_role: {
+              teamId: currentInvite.teamId,
+              userId,
+              role: TeamRole.PLAYER,
+            },
+          },
+          update: {
+            phase: TeamAccessPhase.TRIAL,
+            status: TeamAccessStatus.ACTIVE,
+          },
+          create: {
+            clubId: currentInvite.clubId,
+            teamId: currentInvite.teamId,
             userId,
             role: TeamRole.PLAYER,
+            phase: TeamAccessPhase.TRIAL,
+            status: TeamAccessStatus.ACTIVE,
           },
-        },
-        update: {
-          phase: TeamAccessPhase.TRIAL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-        create: {
-          clubId: invite.clubId,
-          teamId: invite.teamId,
-          userId,
-          role: TeamRole.PLAYER,
-          phase: TeamAccessPhase.TRIAL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-      })
+        })
 
-      await tx.teamMember.upsert({
-        where: {
-          teamId_userId: {
-            teamId: invite.teamId,
+        await tx.teamMember.upsert({
+          where: {
+            teamId_userId: {
+              teamId: currentInvite.teamId,
+              userId,
+            },
+          },
+          update: {},
+          create: {
+            teamId: currentInvite.teamId,
             userId,
           },
-        },
-        update: {},
-        create: {
-          teamId: invite.teamId,
-          userId,
-        },
-      })
+        })
+      }
 
-      return tx.trialInvite.update({
-        where: { id: invite.id },
+      const transition = await tx.trialInvite.updateMany({
+        where: {
+          id: currentInvite.id,
+          status: TrialInviteStatus.PENDING,
+          expiresAt: { gt: new Date() },
+        },
         data: {
-          status: TrialInviteStatus.ACCEPTED,
+          status: decision,
           respondedAt: new Date(),
         },
+      })
+      if (transition.count !== 1) {
+        throw new BadRequestException('Trial invite has already been handled')
+      }
+
+      return tx.trialInvite.findUniqueOrThrow({
+        where: { id: currentInvite.id },
         include: trialInviteInclude,
       })
     })

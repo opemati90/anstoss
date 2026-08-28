@@ -309,7 +309,10 @@ scanForbidden(
   ],
   [
     { re: /TestFlight/i, label: 'TestFlight release copy' },
-    { re: /FUSSBALL\.DE|fussball\.de/i, label: 'unlicensed source-brand copy' },
+    {
+      re: /(?:scrap(?:e|ing)|auto(?:matic)?(?:ally)?\s+(?:sync|import)).{0,60}(?:FUSSBALL\.DE|fussball\.de)/i,
+      label: 'unlicensed source-ingestion claim',
+    },
     { re: /Anstoss Plus/i, label: 'Anstoss Plus digital-upgrade copy' },
     { re: /STRIPE_PLUS|EXPO_PUBLIC_STRIPE_PLUS/i, label: 'external Plus price env' },
     { re: /Upgrade to/i, label: 'digital upgrade copy' },

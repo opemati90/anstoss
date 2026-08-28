@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { Alert } from 'react-native'
 import PendingApprovalScreen from '../pending-approval'
 
 const mockReplace = jest.fn()
@@ -23,6 +24,11 @@ jest.mock('react-i18next', () => {
       'pendingApproval.checkUpdated': 'Status changed. Refreshing your account.',
       'pendingApproval.checkError': "Couldn't check right now. Try again.",
       'pendingApproval.signOut': 'Sign out',
+      'pendingApproval.withdrawCta': 'Withdraw request',
+      'pendingApproval.withdrawTitle': 'Withdraw this request?',
+      'pendingApproval.withdrawBody': 'You can choose another club or team.',
+      'pendingApproval.withdrawConfirm': 'Withdraw',
+      'pendingApproval.withdrawError': 'Could not withdraw the request.',
     }
     return map[key] ?? (opts as { defaultValue?: string } | undefined)?.defaultValue ?? key
   }
@@ -53,6 +59,7 @@ jest.mock('../../src/context/AuthContext', () => ({
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
 const mockApi = jest.fn()
+const mockAlert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 jest.mock('../../src/api/client', () => ({
   api: (...args: unknown[]) => mockApi(...args),
   ApiError: class extends Error {
@@ -107,6 +114,7 @@ describe('PendingApprovalScreen', () => {
     mockPendingJoinRequest = { clubId: 'c1', id: 'jr1' }
     mockReplace.mockReset()
     mockApi.mockReset()
+    mockRefreshUser.mockResolvedValue(undefined)
     // Default: the on-mount /me/join-requests/active poll resolves to a
     // still-pending request so the screen stays put. Individual tests
     // override with mockImplementationOnce for the action they trigger.
@@ -118,6 +126,123 @@ describe('PendingApprovalScreen', () => {
       }
       return Promise.resolve({ ok: true })
     })
+  })
+
+  it('withdraws the current request and lets the user choose another club', async () => {
+    const screen = render(<PendingApprovalScreen />)
+    const withdraw = await screen.findByTestId('pending-approval-withdraw')
+    fireEvent.press(withdraw)
+
+    const buttons = mockAlert.mock.calls.at(-1)?.[2]
+    const confirm = buttons?.find((button) => button.style === 'destructive')
+    await act(async () => {
+      await confirm?.onPress?.()
+    })
+
+    expect(mockApi).toHaveBeenCalledWith('/clubs/c1/join-requests/jr1/withdraw', {
+      method: 'POST',
+    })
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/club-search')
+  })
+
+  it('keeps a committed withdrawal successful when the account refresh is offline', async () => {
+    mockRefreshUser.mockRejectedValueOnce(new Error('offline'))
+    const screen = render(<PendingApprovalScreen />)
+    fireEvent.press(await screen.findByTestId('pending-approval-withdraw'))
+    const confirm = mockAlert.mock.calls.at(-1)?.[2]?.find(
+      (button) => button.style === 'destructive',
+    )
+    await act(async () => {
+      await confirm?.onPress?.()
+    })
+
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/club-search')
+    expect(mockAlert).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'Could not withdraw the request.',
+    )
+  })
+
+  it('ignores background polling while a withdrawal is in flight', async () => {
+    const poll = captureBackgroundPoll()
+    const withdrawal = deferred<{ withdrawn: true }>()
+    let screen: ReturnType<typeof render> | undefined
+    try {
+      mockApi.mockImplementation((url: string) => {
+        if (url.endsWith('/withdraw')) return withdrawal.promise
+        if (url.includes('/me/join-requests/active')) {
+          return Promise.resolve({ request: { id: 'jr1', clubId: 'c1', status: 'PENDING' } })
+        }
+        return Promise.resolve({ ok: true })
+      })
+      screen = render(<PendingApprovalScreen />)
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      fireEvent.press(screen.getByTestId('pending-approval-withdraw'))
+      const confirm = mockAlert.mock.calls.at(-1)?.[2]?.find(
+        (button) => button.style === 'destructive',
+      )
+      let confirmation: Promise<void> | undefined
+      act(() => {
+        confirmation = confirm?.onPress?.() as Promise<void> | undefined
+      })
+      const activeCallsBefore = mockApi.mock.calls.filter(([url]) =>
+        String(url).includes('/me/join-requests/active'),
+      ).length
+      await poll.run()
+      expect(
+        mockApi.mock.calls.filter(([url]) => String(url).includes('/me/join-requests/active')),
+      ).toHaveLength(activeCallsBefore)
+
+      await act(async () => {
+        withdrawal.resolve({ withdrawn: true })
+        await confirmation
+      })
+      expect(mockReplace).toHaveBeenCalledWith('/(auth)/club-search')
+      expect(mockReplace).not.toHaveBeenCalledWith('/')
+    } finally {
+      screen?.unmount()
+      poll.restore()
+    }
+  })
+
+  it('ignores an older manual status check after withdrawal commits', async () => {
+    const statusCheck = deferred<{ request: null }>()
+    let activeChecks = 0
+    mockApi.mockImplementation((url: string) => {
+      if (url.endsWith('/withdraw')) return Promise.resolve({ withdrawn: true })
+      if (url.includes('/me/join-requests/active')) {
+        activeChecks += 1
+        if (activeChecks === 1) {
+          return Promise.resolve({
+            request: { id: 'jr1', clubId: 'c1', status: 'PENDING' },
+          })
+        }
+        return statusCheck.promise
+      }
+      return Promise.resolve({ ok: true })
+    })
+
+    const screen = render(<PendingApprovalScreen />)
+    await screen.findByText('Ping the club admin')
+    fireEvent.press(screen.getByText('Check again'))
+    await waitFor(() => expect(activeChecks).toBe(2))
+
+    fireEvent.press(screen.getByTestId('pending-approval-withdraw'))
+    const confirm = mockAlert.mock.calls.at(-1)?.[2]?.find(
+      (button) => button.style === 'destructive',
+    )
+    await act(async () => {
+      await confirm?.onPress?.()
+      statusCheck.resolve({ request: null })
+      await statusCheck.promise
+      await Promise.resolve()
+    })
+
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/club-search')
+    expect(mockReplace).not.toHaveBeenCalledWith('/')
   })
 
   it('renders the empty-state copy', async () => {

@@ -14,7 +14,11 @@ export class PlatformEntitlementsController {
   @Post('plans')
   @RateLimit('write')
   publishPlan(@CurrentUser() user: PlatformAdminRequestUser, @Body() body: unknown) {
-    return this.entitlements.publishPlan(user.id, publishPlanDefinitionSchema.parse(body))
+    return this.entitlements.publishPlan(
+      user.id,
+      publishPlanDefinitionSchema.parse(body),
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+    )
   }
 
   @Get('plans')
@@ -34,12 +38,21 @@ export class PlatformEntitlementsController {
     @Param('clubId') clubId: string,
     @Body() body: unknown,
   ) {
-    return this.entitlements.grant(clubId, user.id, createEntitlementGrantSchema.parse(body))
+    return this.entitlements.grant(
+      clubId,
+      user.id,
+      createEntitlementGrantSchema.parse(body),
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+    )
   }
 
   @Delete('entitlements/:grantId')
   @RateLimit('write')
   revoke(@CurrentUser() user: PlatformAdminRequestUser, @Param('grantId') grantId: string) {
-    return this.entitlements.revoke(grantId, user.id)
+    return this.entitlements.revoke(
+      grantId,
+      user.id,
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+    )
   }
 }

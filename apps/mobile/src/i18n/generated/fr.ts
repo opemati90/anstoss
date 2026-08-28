@@ -138,21 +138,20 @@ export default {
   invite: {
     changeTeam: "Changer d'équipe",
     heroSubtitle: 'Choisis une équipe, saisis les e-mails (un par ligne), envoie.',
-    importRosterCta: "Importer l'effectif depuis données d'équipe externes",
-    importRosterSub: "Charge la liste, coche les noms, envoie tout d'un coup.",
+    importRosterCta: "Importer l'effectif depuis le flux sous licence",
+    importRosterSub: 'Sélectionne les joueurs du flux autorisé et invite-les ensemble.',
     recipientLabelBulk: 'E-MAILS · UN PAR LIGNE OU SÉPARÉS PAR UNE VIRGULE',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Ajouter {{count}} aux invitations',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty:
-      "Impossible de lire la page d'effectif automatiquement. Ouvre-la sur données d'équipe externes et colle les noms ci-dessous.",
+    rosterEmpty: "Le flux d'effectif autorisé n'a renvoyé aucun joueur.",
     rosterError:
-      "Impossible de récupérer l'effectif données d'équipe externes. Réessaie ou colle les noms manuellement.",
+      "Impossible de récupérer le flux d'effectif sous licence. Réessaie ou saisis les e-mails manuellement.",
     rosterSourceLineup:
-      "Extrait de ta dernière feuille de match données d'équipe externes. Les joueurs n'ayant pas encore joué n'apparaîtront pas.",
+      "Extrait de la dernière composition autorisée. Les joueurs n'ayant pas encore joué peuvent manquer.",
     rosterSubtitle:
       "Coche les joueurs dont tu as l'e-mail, saisis l'adresse, envoie tout d'un coup.",
-    rosterTitle: "Effectif depuis données d'équipe externes",
+    rosterTitle: 'Effectif du flux sous licence',
     step1Title: "Choisir l'équipe",
     step2Title: 'Ajouter des destinataires',
     step3Title: 'Vérifier et envoyer',
@@ -509,17 +508,17 @@ export default {
     createFirstGroup: 'Crée ton premier groupe',
     emptyBody:
       'Commence par un groupe comme Séniors, Jeunes ou Bambini. Puis place les équipes en dessous.',
-    fussballLinkedBody: '{{label}} · {{count}} match(s) importé(s).',
-    fussballLinkedTitle: 'source publique lié',
+    fussballLinkedBody: '{{label}} est enregistrée comme référence. Ajoute les matchs manuellement.',
+    fussballLinkedTitle: 'Page officielle enregistrée',
     fussballLinkFailedBody:
       "L'équipe a été créée. Réessaie de lier depuis les paramètres de l'équipe. L'URL est peut-être incorrecte.",
     fussballLinkFailedTitle: "Impossible de lier source publique pour l'instant",
     fussballSyncFailedBody:
-      "L'équipe est liée mais les matchs n'ont pas pu être récupérés. Réessaie depuis les paramètres.",
-    fussballSyncFailedTitle: 'source publique lié, mais la synchronisation a échoué',
+      "Le flux de calendrier sous licence n'a pas pu être synchronisé. Réessaie depuis les paramètres.",
+    fussballSyncFailedTitle: 'Échec de la synchronisation sous licence',
     fussballUrlHint:
-      "Le lien importe les matchs et l'effectif : les admins peuvent inviter en masse depuis la liste importée.",
-    fussballUrlPlaceholder: "URL de l'équipe source publique (facultatif)",
+      "Ceci enregistre une page officielle comme référence. Aucun match ni joueur n'est importé et le lien ne prouve pas l'autorité du club.",
+    fussballUrlPlaceholder: "Page officielle de l'équipe (facultatif)",
     manageLabel: 'Gérer',
     memberCount: '{{count}}',
     emptyTitle: 'Construire la structure du club',

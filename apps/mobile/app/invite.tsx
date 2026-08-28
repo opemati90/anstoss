@@ -4,6 +4,7 @@ import {
   Alert,
   BackHandler,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   TextInput,
@@ -11,6 +12,7 @@ import {
 } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import QRCode from 'react-native-qrcode-svg'
 import { TeamAccessPhase, TeamRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -28,6 +30,7 @@ import {
   TAB_BAR_CLEARANCE,
   hairline,
 } from '../src/theme/tokens'
+import { BORDER_DEFAULT, QR_BACKGROUND, QR_FOREGROUND } from '../src/theme/colors'
 
 function withAlpha(hex: string, alpha: number): string {
   // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
@@ -157,6 +160,7 @@ export default function InviteScreen() {
   const [childName, setChildName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [campaigns, setCampaigns] = useState<InviteCampaign[]>([])
+  const [qrCampaign, setQrCampaign] = useState<InviteCampaign | null>(null)
   const [isBootstrapping, setIsBootstrapping] = useState(true)
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
   const dismissTarget = typeof returnTo === 'string' && returnTo.length > 0 ? returnTo : '/(tabs)'
@@ -240,6 +244,13 @@ export default function InviteScreen() {
 
   const selectedTeam = teamOptions.find((team) => team.id === selectedTeamId) || null
   const recipientEmails = useMemo(() => parseRecipientEmails(recipientEmail), [recipientEmail])
+  const campaignLink = useCallback(
+    (campaign: InviteCampaign) =>
+      activeClub
+        ? `https://anstoss.io/join/${encodeURIComponent(activeClub.club.slug)}/${encodeURIComponent(campaign.code)}`
+        : '',
+    [activeClub],
+  )
   const supportsBulkRecipients = role === TeamRole.PLAYER
   const playerOptions = useMemo(
     () => teamMembers.filter((member) => member?.role === 'PLAYER' && member?.user?.id),
@@ -312,11 +323,14 @@ export default function InviteScreen() {
     let isCancelled = false
     ;(async () => {
       try {
-        const links = await api<Array<{ id: string; provider: string }>>(
+        const links = await api<Array<{
+          id: string
+          capabilities: { canImportRoster: boolean }
+        }>>(
           `/integrations/fussball/team-links?teamId=${selectedTeamId}`,
         )
         if (isCancelled) return
-        const link = (links || []).find((l) => l.provider === 'API_FUSSBALL')
+        const link = (links || []).find((l) => l.capabilities.canImportRoster)
         setTeamLinkId(link?.id ?? null)
       } catch {
         if (!isCancelled) setTeamLinkId(null)
@@ -360,14 +374,14 @@ export default function InviteScreen() {
         setRosterError(
           t('invite.rosterEmpty', {
             defaultValue:
-              "Couldn't read the squad page automatically. Open the public source page and paste names below.",
+              'The licensed roster feed returned no players. Enter email addresses manually.',
           }),
         )
       }
     } catch {
       setRosterError(
         t('invite.rosterError', {
-          defaultValue: "Couldn't fetch the linked roster. Try again or paste names manually.",
+          defaultValue: "Couldn't fetch the licensed roster feed. Try again or enter emails manually.",
         }),
       )
     } finally {
@@ -437,14 +451,7 @@ export default function InviteScreen() {
           },
         )
         await loadCampaigns()
-        const link = `https://anstoss.io/join/${encodeURIComponent(activeClub.club.slug)}/${encodeURIComponent(campaign.code)}`
-        await Share.share({
-          message: t('invite.shareScopedMessage', {
-            clubName: activeClub.club.name,
-            teamName: selectedTeam.displayName,
-            link,
-          }),
-        })
+        setQrCampaign(campaign)
         return
       }
       const recipients = deliveryChannel === 'EMAIL' ? recipientEmails : [undefined]
@@ -514,6 +521,17 @@ export default function InviteScreen() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const shareCampaign = async (campaign: InviteCampaign) => {
+    if (!activeClub) return
+    await Share.share({
+      message: t('invite.shareScopedMessage', {
+        clubName: activeClub.club.name,
+        teamName: campaign.team.displayName,
+        link: campaignLink(campaign),
+      }),
+    })
   }
 
   if (!activeClub && authIsLoading) {
@@ -593,6 +611,12 @@ export default function InviteScreen() {
                   {campaign.useCount}/{campaign.maxUses} · {new Date(campaign.expiresAt).toLocaleDateString()}
                 </Text>
               </View>
+              <Button
+                label={t('invite.showQr', { defaultValue: 'QR' })}
+                variant="bordered"
+                size="sm"
+                onPress={() => setQrCampaign(campaign)}
+              />
               <Button
                 label={t('invite.revokeLink', { defaultValue: 'Revoke' })}
                 variant="bordered"
@@ -807,7 +831,7 @@ export default function InviteScreen() {
               onPress={() => void openRosterImport()}
               accessibilityRole="button"
               accessibilityLabel={t('invite.importRosterCta', {
-                defaultValue: 'Import roster from linked team data',
+                defaultValue: 'Import roster from licensed feed',
               })}
               style={({ pressed }) => [
                 styles.importBanner,
@@ -819,12 +843,12 @@ export default function InviteScreen() {
               <View style={styles.importBannerCopy}>
                 <Text variant="footnote" weight="semibold" color="primary">
                   {t('invite.importRosterCta', {
-                    defaultValue: 'Import roster from linked team data',
+                    defaultValue: 'Import roster from licensed feed',
                   })}
                 </Text>
                 <Text variant="caption1" color="secondary">
                   {t('invite.importRosterSub', {
-                    defaultValue: 'Pull squad list, tick names, send all at once.',
+                    defaultValue: 'Select players from the authorized roster feed and invite them together.',
                   })}
                 </Text>
               </View>
@@ -857,6 +881,21 @@ export default function InviteScreen() {
             multiline={supportsBulkRecipients}
             numberOfLines={supportsBulkRecipients ? 4 : 1}
           />
+          {role === TeamRole.PLAYER ? (
+            <Button
+              label={t('invite.createQrInstead', { defaultValue: 'Create QR without emails' })}
+              variant="bordered"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              disabled={isLoading || !selectedTeamId}
+              onPress={() => void handleCreateInvite('LINK')}
+              accessibilityLabel={t('invite.createQrInstead', {
+                defaultValue: 'Create QR without emails',
+              })}
+              style={styles.qrAlternativeButton}
+            />
+          ) : null}
           {supportsBulkRecipients && recipientEmails.length > 0 ? (
             <View style={styles.recipientPreviewRow}>
               {recipientEmails.slice(0, 6).map((email) => (
@@ -1017,7 +1056,7 @@ export default function InviteScreen() {
 
           {role === TeamRole.PLAYER ? (
             <Button
-              label={t('invite.shareLink')}
+              label={t('invite.createQrLink', { defaultValue: 'Create QR & link' })}
               variant="secondary"
               size="lg"
               fullWidth
@@ -1057,6 +1096,67 @@ export default function InviteScreen() {
           />
         ) : null}
       </View>
+
+      <BottomSheet
+        visible={qrCampaign != null}
+        onClose={() => setQrCampaign(null)}
+        heightPct={88}
+        paddingBottom={0}
+      >
+        {qrCampaign ? (
+          <ScrollView
+            contentContainerStyle={styles.qrSheet}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <Text variant="title2" weight="bold" color="primary" style={styles.qrTitle}>
+              {t('invite.qrTitle', { defaultValue: 'Scan to request a place' })}
+            </Text>
+            <Text variant="footnote" color="secondary" style={styles.qrSubtitle}>
+              {t('invite.qrSubtitle', {
+                defaultValue:
+                  'Players scan this code, complete their details, and send an approval request to {{team}}.',
+                team: qrCampaign.team.displayName,
+              })}
+            </Text>
+            <View
+              style={[
+                styles.qrCodeFrame,
+                { backgroundColor: QR_BACKGROUND, borderColor: BORDER_DEFAULT },
+              ]}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={t('invite.qrAccessibilityLabel', {
+                defaultValue: 'Join-request QR code for {{team}}',
+                team: qrCampaign.team.displayName,
+              })}
+            >
+              <QRCode
+                value={campaignLink(qrCampaign)}
+                size={196}
+                quietZone={12}
+                color={QR_FOREGROUND}
+                backgroundColor={QR_BACKGROUND}
+              />
+            </View>
+            <View style={[styles.manualCode, { backgroundColor: c.surfaceSunken }]}>
+              <Text variant="caption2" color="tertiary">
+                {t('invite.manualCodeLabel', { defaultValue: 'Manual code' })}
+              </Text>
+              <Text variant="title3" weight="bold" color="primary" style={styles.manualCodeValue}>
+                {qrCampaign.code}
+              </Text>
+            </View>
+            <Button
+              label={t('invite.shareLink')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              onPress={() => void shareCampaign(qrCampaign)}
+            />
+          </ScrollView>
+        ) : null}
+      </BottomSheet>
 
       <BottomSheet
         visible={rosterImportVisible}
@@ -1280,6 +1380,9 @@ const styles = StyleSheet.create({
   secondaryButtonSpacing: {
     marginTop: space.sm,
   },
+  qrAlternativeButton: {
+    marginTop: space.sm,
+  },
   helperLine: {
     marginTop: space.xs,
   },
@@ -1390,4 +1493,31 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   campaignCopy: { flex: 1, minWidth: 0 },
+  qrSheet: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.xl,
+    alignItems: 'center',
+    gap: space.md,
+  },
+  qrTitle: { marginTop: space.sm, textAlign: 'center' },
+  qrSubtitle: { textAlign: 'center', maxWidth: 320 },
+  qrCodeFrame: {
+    width: 228,
+    height: 228,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualCode: {
+    width: '100%',
+    minHeight: 64,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  manualCodeValue: { letterSpacing: 3 },
 })

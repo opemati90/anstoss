@@ -788,6 +788,17 @@ export class TeamsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Account deletion uses this same per-user lock. Taking it before team
+      // locks prevents a loan from recreating access after deletion cleanup.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.playerUserId}))`
+      const activePlayer = await tx.user.findFirst({
+        where: { id: input.playerUserId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!activePlayer) {
+        throw new BadRequestException('Player account is no longer active.')
+      }
+
       const lockTeamIds = [sourceTeamId, input.targetTeamId].sort()
       for (const teamId of lockTeamIds) {
         await lockPlayerTeamAccess(tx, clubId, teamId, input.playerUserId)
@@ -1727,130 +1738,163 @@ export class TeamsService {
     input: UpdateTeamCoachAssignmentsInput,
   ) {
     const assignments = normalizeCoachAssignments(input)
+    const coachUserIds = [
+      ...(assignments.headCoachUserId ? [assignments.headCoachUserId] : []),
+      ...assignments.assistantCoachUserIds,
+    ]
+      .filter((userId, index, values) => values.indexOf(userId) === index)
+      .sort()
 
-    if (assignments.headCoachUserId) {
-      await this.prisma.teamAccess.updateMany({
-        where: {
-          teamId,
-          role: TeamRole.HEAD_COACH,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
-          },
-          NOT: {
-            userId: assignments.headCoachUserId,
-          },
-        },
-        data: {
-          status: TeamAccessStatus.REVOKED,
-        },
-      })
+    await this.prisma.$transaction(async (tx) => {
+      // Serialize against account deletion for every user that will receive
+      // access. Revalidate membership only after the lifecycle locks are held.
+      for (const coachUserId of coachUserIds) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${coachUserId}))`
+      }
 
-      await this.prisma.teamAccess.upsert({
-        where: {
-          teamId_userId_role: {
+      if (coachUserIds.length > 0) {
+        const memberships = await tx.membership.findMany({
+          where: {
+            clubId,
+            userId: { in: coachUserIds },
+            user: { deletedAt: null },
+          },
+          select: { userId: true, role: true },
+        })
+        if (
+          memberships.length !== coachUserIds.length ||
+          memberships.some((membership) => !isClubManager(membership.role))
+        ) {
+          throw new BadRequestException('Assigned coaches must be active members of the club staff')
+        }
+      }
+
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${teamId}`}))`
+
+      if (assignments.headCoachUserId) {
+        await tx.teamAccess.updateMany({
+          where: {
+            teamId,
+            role: TeamRole.HEAD_COACH,
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
+            NOT: {
+              userId: assignments.headCoachUserId,
+            },
+          },
+          data: {
+            status: TeamAccessStatus.REVOKED,
+          },
+        })
+
+        await tx.teamAccess.upsert({
+          where: {
+            teamId_userId_role: {
+              teamId,
+              userId: assignments.headCoachUserId,
+              role: TeamRole.HEAD_COACH,
+            },
+          },
+          update: {
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
+          },
+          create: {
+            clubId,
             teamId,
             userId: assignments.headCoachUserId,
             role: TeamRole.HEAD_COACH,
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
           },
-        },
-        update: {
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-        create: {
-          clubId,
-          teamId,
-          userId: assignments.headCoachUserId,
-          role: TeamRole.HEAD_COACH,
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-      })
-    } else {
-      await this.prisma.teamAccess.updateMany({
-        where: {
-          teamId,
-          role: TeamRole.HEAD_COACH,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+        })
+      } else {
+        await tx.teamAccess.updateMany({
+          where: {
+            teamId,
+            role: TeamRole.HEAD_COACH,
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
           },
-        },
-        data: {
-          status: TeamAccessStatus.REVOKED,
-        },
-      })
-    }
+          data: {
+            status: TeamAccessStatus.REVOKED,
+          },
+        })
+      }
 
-    if (assignments.assistantCoachUserIds.length > 0) {
-      await this.prisma.teamAccess.updateMany({
-        where: {
-          teamId,
-          role: TeamRole.ASSISTANT_COACH,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+      if (assignments.assistantCoachUserIds.length > 0) {
+        await tx.teamAccess.updateMany({
+          where: {
+            teamId,
+            role: TeamRole.ASSISTANT_COACH,
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
+            userId: {
+              notIn: assignments.assistantCoachUserIds,
+            },
           },
-          userId: {
-            notIn: assignments.assistantCoachUserIds,
+          data: {
+            status: TeamAccessStatus.REVOKED,
           },
-        },
-        data: {
-          status: TeamAccessStatus.REVOKED,
-        },
-      })
-    } else {
-      await this.prisma.teamAccess.updateMany({
-        where: {
-          teamId,
-          role: TeamRole.ASSISTANT_COACH,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+        })
+      } else {
+        await tx.teamAccess.updateMany({
+          where: {
+            teamId,
+            role: TeamRole.ASSISTANT_COACH,
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
           },
-        },
-        data: {
-          status: TeamAccessStatus.REVOKED,
-        },
-      })
-    }
+          data: {
+            status: TeamAccessStatus.REVOKED,
+          },
+        })
+      }
 
-    if (assignments.headCoachUserId) {
-      await this.prisma.teamAccess.updateMany({
-        where: {
-          teamId,
-          role: TeamRole.ASSISTANT_COACH,
-          userId: assignments.headCoachUserId,
-          status: {
-            in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+      if (assignments.headCoachUserId) {
+        await tx.teamAccess.updateMany({
+          where: {
+            teamId,
+            role: TeamRole.ASSISTANT_COACH,
+            userId: assignments.headCoachUserId,
+            status: {
+              in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
+            },
           },
-        },
-        data: {
-          status: TeamAccessStatus.REVOKED,
-        },
-      })
-    }
+          data: {
+            status: TeamAccessStatus.REVOKED,
+          },
+        })
+      }
 
-    for (const assistantCoachUserId of assignments.assistantCoachUserIds) {
-      await this.prisma.teamAccess.upsert({
-        where: {
-          teamId_userId_role: {
+      for (const assistantCoachUserId of assignments.assistantCoachUserIds) {
+        await tx.teamAccess.upsert({
+          where: {
+            teamId_userId_role: {
+              teamId,
+              userId: assistantCoachUserId,
+              role: TeamRole.ASSISTANT_COACH,
+            },
+          },
+          update: {
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
+          },
+          create: {
+            clubId,
             teamId,
             userId: assistantCoachUserId,
             role: TeamRole.ASSISTANT_COACH,
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
           },
-        },
-        update: {
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-        create: {
-          clubId,
-          teamId,
-          userId: assistantCoachUserId,
-          role: TeamRole.ASSISTANT_COACH,
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
-      })
-    }
+        })
+      }
+    })
   }
 
   private async getTeamCoachAssignments(teamId: string) {

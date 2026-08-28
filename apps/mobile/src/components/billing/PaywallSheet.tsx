@@ -152,7 +152,7 @@ export function PaywallSheet({ visible, onClose, triggerFeature }: PaywallSheetP
         <Text variant="caption2" color="tertiary" align="center" style={styles.complianceFinePrint}>
           {t('paywall.compliance', {
             defaultValue:
-              'Stripe is used only for real-world club contributions and dues. Digital feature upgrades are disabled for this store submission.',
+              'Club dues go directly to the club bank account. Digital feature upgrades are disabled for this store submission.',
           })}
         </Text>
 

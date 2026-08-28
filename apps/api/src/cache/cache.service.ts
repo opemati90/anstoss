@@ -27,6 +27,12 @@ export class CacheService {
     return value ?? null
   }
 
+  async reserve(key: string, value: string, seconds: number): Promise<boolean> {
+    if (!this.redis) return true
+    const result = await this.redis.set(key, value, { ex: seconds, nx: true })
+    return result === 'OK'
+  }
+
   async set(key: string, value: string, mode: 'EX', seconds: number): Promise<'OK' | null>
   async set(key: string, value: string, options?: SetOptions): Promise<'OK' | null>
   async set(

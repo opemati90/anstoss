@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
+import * as Device from 'expo-device'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const PUSH_TOKEN_KEY = 'anstoss:push-token'
@@ -125,9 +126,11 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     // A native APNs/FCM token can roll while the app is installed. Re-acquire
     // the associated Expo token and sync it immediately instead of waiting for
     // the next launch.
-    const pushTokenSubscription = Notifications.addPushTokenListener(() => {
-      void acquireAndRegister()
-    })
+    const pushTokenSubscription = Device.isDevice
+      ? Notifications.addPushTokenListener(() => {
+          void acquireAndRegister()
+        })
+      : null
 
     // Listen for incoming notifications (app in foreground)
     const notificationSubscription = Notifications.addNotificationReceivedListener(() => {
@@ -148,7 +151,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
       cancelled = true
       retryTimers.forEach((timer) => clearTimeout(timer))
       retryTimers.clear()
-      pushTokenSubscription.remove()
+      pushTokenSubscription?.remove()
       notificationSubscription.remove()
       responseSubscription.remove()
     }
@@ -181,6 +184,11 @@ export async function unregisterPushToken(apiUrl: string, authToken: string) {
 }
 
 async function registerForPushNotifications(): Promise<string | null> {
+  // APNs/FCM registration is unavailable in the iOS simulator and some
+  // emulators. Calling into expo-notifications there can surface a native
+  // keychain error as a development LogBox before the promise rejects.
+  if (!Device.isDevice) return null
+
   // Android 13 will not present the permission prompt until at least one
   // channel exists. Create it before reading/requesting permissions.
   if (Platform.OS === 'android') {

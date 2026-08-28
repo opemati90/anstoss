@@ -1,4 +1,7 @@
 import { OnboardingService } from './onboarding.service'
+import { ClubActivationService } from '../club-activation/club-activation.service'
+import { ConflictException } from '@nestjs/common'
+import { MembershipRole } from '@prisma/client'
 
 // Regression: ISSUE-005 — a guessed short team code granted immediate player access
 // Found by /qa on 2026-08-21
@@ -37,21 +40,18 @@ describe('OnboardingService secure team-code join', () => {
         findUnique: jest.fn().mockResolvedValue({
           id: 'team-1',
           clubId: 'club-1',
-          club: { directoryEntry: { id: 'directory-1' } },
         }),
-      },
-      clubClaim: {
-        findFirst: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue({ id: 'claim-1' }),
       },
       membership: { create: jest.fn() },
       teamAccess: { create: jest.fn() },
       $transaction: jest.fn(),
     }
+    const staffClaims = { submitStaffRequest: jest.fn().mockResolvedValue({ id: 'claim-1' }) }
     const service = new OnboardingService(
       prisma as never,
       {} as never,
       { create: jest.fn() } as never,
+      staffClaims as never,
     )
 
     await expect(
@@ -60,18 +60,60 @@ describe('OnboardingService secure team-code join', () => {
         role: 'COACH',
       }),
     ).resolves.toEqual({ clubId: 'club-1', teamId: 'team-1', status: 'PENDING' })
-    expect(prisma.clubClaim.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        clubId: 'club-1',
-        claimantUserId: 'coach-1',
-        kind: 'STAFF_CLAIM',
-        desiredRole: 'COACH',
-        requestedTeamIds: ['team-1'],
-        requestedTeamRoles: ['ASSISTANT_COACH'],
-      }),
+    expect(staffClaims.submitStaffRequest).toHaveBeenCalledWith('coach-1', 'club-1', {
+      desiredRole: 'COACH',
+      requestedTeamIds: ['team-1'],
+      teamRoles: ['ASSISTANT_COACH'],
     })
     expect(prisma.membership.create).not.toHaveBeenCalled()
     expect(prisma.teamAccess.create).not.toHaveBeenCalled()
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
+
+  it.each([MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.COACH])(
+    'rejects an existing %s whose authority appears while a coach-code claim is locking',
+    async (role) => {
+      const tx = {
+        $executeRaw: jest.fn().mockResolvedValue(1),
+        membership: { findUnique: jest.fn().mockResolvedValue({ role }) },
+        clubClaim: {
+          findMany: jest.fn().mockResolvedValue([]),
+          updateMany: jest.fn(),
+          findFirst: jest.fn(),
+          create: jest.fn(),
+        },
+      }
+      const prisma = {
+        team: {
+          findUnique: jest.fn().mockResolvedValue({ id: 'team-1', clubId: 'club-1' }),
+          count: jest.fn().mockResolvedValue(1),
+        },
+        clubDirectoryEntry: { findFirst: jest.fn().mockResolvedValue({ id: 'directory-1' }) },
+        membership: { findUnique: jest.fn().mockResolvedValue(null) },
+        clubClaim: { findFirst: jest.fn().mockResolvedValue(null) },
+        $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      }
+      const staffClaims = new ClubActivationService(
+        prisma as never,
+        { log: jest.fn() } as never,
+        {} as never,
+        {} as never,
+      )
+      const service = new OnboardingService(
+        prisma as never,
+        {} as never,
+        { create: jest.fn() } as never,
+        staffClaims as never,
+      )
+
+      await expect(
+        service.joinTeamByCode(`${role.toLowerCase()}-1`, {
+          joinCode: 'AB23XC45ZK',
+          role: 'COACH',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException)
+      expect(tx.$executeRaw).toHaveBeenCalledTimes(1)
+      expect(tx.clubClaim.create).not.toHaveBeenCalled()
+    },
+  )
 })

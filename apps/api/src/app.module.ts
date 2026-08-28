@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { APP_GUARD } from '@nestjs/core'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { WellKnownController } from './well-known.controller'
 import { PrismaModule } from './prisma/prisma.module'
@@ -39,6 +40,7 @@ import { ModerationModule } from './moderation/moderation.module'
 import { SponsorsModule } from './sponsors/sponsors.module'
 import { I18nModule, I18nMiddleware } from './i18n'
 import { ClubActivationModule } from './club-activation/club-activation.module'
+import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
 
 @Module({
   imports: [
@@ -83,7 +85,7 @@ import { ClubActivationModule } from './club-activation/club-activation.module'
     ClubActivationModule,
   ],
   controllers: [WellKnownController],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: PlatformKillSwitchGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

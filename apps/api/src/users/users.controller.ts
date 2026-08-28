@@ -125,6 +125,32 @@ export class UsersController {
     return this.usersService.listClubMembers(clubId, user.id, teamId)
   }
 
+  /** Privacy-safe, server-side club directory for DMs and member pickers. */
+  @Get('clubs/:clubId/member-directory')
+  @RateLimit('member-search')
+  async searchMemberDirectory(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Query('query') query?: string,
+    @Query('role') role?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') rawLimit?: string,
+  ) {
+    const limit = rawLimit == null ? 50 : Number(rawLimit)
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+      throw new BadRequestException('limit must be between 1 and 50')
+    }
+    if ((query ?? '').trim().length > 120) {
+      throw new BadRequestException('query must be 120 characters or fewer')
+    }
+    return this.usersService.searchClubMemberDirectory(clubId, user.id, {
+      query: query ?? '',
+      role,
+      cursor,
+      limit,
+    })
+  }
+
   /**
    * PATCH /clubs/:clubId/members/:userId/role — update a club member role.
    */

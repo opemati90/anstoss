@@ -111,6 +111,7 @@ export class ParentHandoffService {
 
     return tenantContext.run({ clubId: team.clubId, userId: parentUserId }, () =>
       this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${parentUserId}))`
         const now = new Date()
         const handoff = await tx.parentHandoff.findUnique({
           where: { code: input.code.trim().toUpperCase() },
@@ -177,12 +178,12 @@ export class ParentHandoffService {
   }
 
   private async assertAdultGuardian(
-    tx: { user: { findUnique: (args: unknown) => Promise<{ email: string | null; dateOfBirth: Date | null } | null> } },
+    tx: { user: { findFirst: (args: unknown) => Promise<{ email: string | null; dateOfBirth: Date | null } | null> } },
     parentUserId: string,
     guardianEmail: string,
   ) {
-    const user = await tx.user.findUnique({
-      where: { id: parentUserId },
+    const user = await tx.user.findFirst({
+      where: { id: parentUserId, deletedAt: null },
       select: { email: true, dateOfBirth: true },
     })
     if (normalizeEmail(user?.email) !== normalizeEmail(guardianEmail)) {

@@ -267,7 +267,7 @@ export default function ClubCreate() {
           <Text variant="caption2" color="secondary" style={styles.fieldHelp}>
             {t('onboarding.clubCreate.officialTeamUrlHelp', {
               defaultValue:
-                'Paste the Fussball.de, DFB.de, or FuPa page used to verify your authority.',
+                'Paste the official team page as context for platform review. The link does not prove club authority.',
             })}
           </Text>
         </View>

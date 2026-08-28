@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { AuditService } from '../audit/audit.service'
 import type { PlatformAdminActor } from './platform-admin.types'
 
-const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/
+const SEMVER_RE = /^\d+\.\d+\.\d+$/
 
 /**
  * Runtime-tunable platform settings. Reads fall back to env vars so the
@@ -19,6 +18,7 @@ const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/
  */
 @Injectable()
 export class PlatformSettingsService {
+  private releaseSettingsRevision = 0
   // The default fallbacks mirror what apps/api/.env.example documents.
   // Used when no DB row exists yet, so the mobile gate doesn't break in
   // a fresh deploy.
@@ -28,14 +28,17 @@ export class PlatformSettingsService {
     force_update_message:
       'A newer version of Anstoss is required. Please update to continue.',
     announcement_banner: '',
+    kill_switch_claims: 'false',
+    kill_switch_invites: 'false',
+    kill_switch_official_pages: 'false',
+    kill_switch_contributions: 'false',
+    kill_switch_billing: 'false',
+    kill_switch_chat: 'false',
   }
 
   static readonly KNOWN_KEYS = Object.keys(PlatformSettingsService.DEFAULTS)
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listAll() {
     const rows = await this.prisma.platformSetting.findMany({
@@ -65,6 +68,36 @@ export class PlatformSettingsService {
     return row?.value ?? PlatformSettingsService.DEFAULTS[key] ?? ''
   }
 
+  async getRuntimeReleaseSettings() {
+    const keys = [
+      'min_app_version',
+      'recommended_app_version',
+      'force_update_message',
+      'announcement_banner',
+    ]
+    const rows = await this.prisma.platformSetting.findMany({
+      where: { key: { in: keys } },
+      select: { key: true, value: true },
+    })
+    const values = new Map(rows.map((row: { key: string; value: string }) => [row.key, row.value]))
+    return {
+      minVersion: values.get('min_app_version') ?? PlatformSettingsService.DEFAULTS.min_app_version,
+      recommendedVersion:
+        values.get('recommended_app_version') ??
+        PlatformSettingsService.DEFAULTS.recommended_app_version,
+      forceUpdateMessage:
+        values.get('force_update_message') ??
+        PlatformSettingsService.DEFAULTS.force_update_message,
+      announcementBanner:
+        values.get('announcement_banner') ??
+        PlatformSettingsService.DEFAULTS.announcement_banner,
+    }
+  }
+
+  getRuntimeReleaseSettingsRevision() {
+    return this.releaseSettingsRevision
+  }
+
   async set(input: {
     key: string
     value: string
@@ -75,39 +108,65 @@ export class PlatformSettingsService {
     const value = input.value.trim()
     validateSetting(key, value)
 
-    const before = await this.prisma.platformSetting.findUnique({
-      where: { key },
-    })
+    const setting = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('platform-release-settings'))`
+      const [before, minRow, recommendedRow] = await Promise.all([
+        tx.platformSetting.findUnique({ where: { key } }),
+        tx.platformSetting.findUnique({ where: { key: 'min_app_version' } }),
+        tx.platformSetting.findUnique({ where: { key: 'recommended_app_version' } }),
+      ])
 
-    const setting = await this.prisma.platformSetting.upsert({
-      where: { key },
-      update: {
-        value,
-        description: input.description ?? null,
-        updatedById: input.actor.id,
-      },
-      create: {
-        key,
-        value,
-        description: input.description ?? null,
-        updatedById: input.actor.id,
-      },
-    })
+      if (key === 'min_app_version' || key === 'recommended_app_version') {
+        const minVersion =
+          key === 'min_app_version'
+            ? value
+            : minRow?.value ?? PlatformSettingsService.DEFAULTS.min_app_version
+        const recommendedVersion =
+          key === 'recommended_app_version'
+            ? value
+            : recommendedRow?.value ??
+              PlatformSettingsService.DEFAULTS.recommended_app_version
+        if (compareReleaseVersions(recommendedVersion, minVersion) < 0) {
+          throw new BadRequestException(
+            'Recommended app version must be equal to or newer than the minimum version',
+          )
+        }
+      }
 
-    await this.auditService.log({
-      clubId: null,
-      type: 'admin.setting.updated',
-      actorType: 'admin',
-      actorId: input.actor.id,
-      actorLabel: input.actor.email ?? input.actor.name,
-      summary: `Updated platform setting ${key}.`,
-      metadata: {
-        key,
-        previousValue: before?.value ?? null,
-        value,
-      },
-    })
+      const setting = await tx.platformSetting.upsert({
+        where: { key },
+        update: {
+          value,
+          description: input.description ?? null,
+          updatedById: input.actor.id,
+        },
+        create: {
+          key,
+          value,
+          description: input.description ?? null,
+          updatedById: input.actor.id,
+        },
+      })
 
+      await tx.auditLog.create({
+        data: {
+          clubId: null,
+          type: 'admin.setting.updated',
+          actorType: 'admin',
+          actorId: input.actor.id,
+          actorLabel: input.actor.email ?? input.actor.name,
+          summary: `Updated platform setting ${key}.`,
+          metadata: {
+            key,
+            previousValue: before?.value ?? null,
+            value,
+          },
+        },
+      })
+
+      return setting
+    })
+    this.releaseSettingsRevision += 1
     return setting
   }
 }
@@ -124,10 +183,31 @@ function validateSetting(key: string, value: string) {
     return
   }
 
+  if (key.startsWith('kill_switch_')) {
+    if (value !== 'true' && value !== 'false') {
+      throw new BadRequestException('Kill switches must be true or false')
+    }
+    return
+  }
+
+  if (key === 'force_update_message' && value.length === 0) {
+    throw new BadRequestException('Force update message cannot be empty')
+  }
+
   const maxLength = key === 'force_update_message' ? 240 : 280
   if (value.length > maxLength) {
     throw new BadRequestException(
       `Setting value must be ${maxLength} characters or fewer`,
     )
   }
+}
+
+function compareReleaseVersions(a: string, b: string) {
+  const aParts = a.split('.').map(Number)
+  const bParts = b.split('.').map(Number)
+  for (let index = 0; index < 3; index += 1) {
+    const difference = (aParts[index] ?? 0) - (bParts[index] ?? 0)
+    if (difference !== 0) return difference
+  }
+  return 0
 }

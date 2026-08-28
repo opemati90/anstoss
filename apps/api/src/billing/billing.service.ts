@@ -454,17 +454,7 @@ export class BillingService {
     const subscription = event.data.object as Stripe.Subscription
     const clubId = subscription.metadata?.clubId
     if (!clubId) return
-
-    const period = this.getSubscriptionPeriod(subscription)
-    await this.upsertSubscription(clubId, {
-      stripeSubscriptionId: subscription.id,
-      status: subscription.status,
-      plan: 'PREMIUM',
-      currentPeriodStart: period.start,
-      currentPeriodEnd: period.end,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-    })
-    await this.syncPaidEntitlement(subscription, clubId, period)
+    await this.processSubscriptionWebhook(event, subscription, clubId, false)
   }
 
   private async handleSubscriptionDeleted(event: Stripe.Event) {
@@ -472,18 +462,114 @@ export class BillingService {
     const clubId = subscription.metadata?.clubId
     if (!clubId) return
 
-    const period = this.getSubscriptionPeriod(subscription)
-    await this.upsertSubscription(clubId, {
-      stripeSubscriptionId: subscription.id,
-      status: 'canceled',
-      plan: 'PREMIUM',
-      currentPeriodStart: period.start,
-      currentPeriodEnd: period.end,
-      cancelAtPeriodEnd: false,
-    })
-    await this.prisma.entitlementGrant.updateMany({
-      where: { stripeSubscriptionId: subscription.id },
-      data: { status: EntitlementStatus.REVOKED, expiresAt: new Date() },
+    await this.processSubscriptionWebhook(event, subscription, clubId, true)
+  }
+
+  private async processSubscriptionWebhook(
+    event: Stripe.Event,
+    subscription: Stripe.Subscription,
+    clubId: string,
+    deleted: boolean,
+  ) {
+    let effectiveSubscription = subscription
+    let authoritativeEqualSecondState = false
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`stripe-subscription:${effectiveSubscription.id}`}))`
+      const duplicate = await tx.paymentEvent.findUnique({
+        where: { stripeEventId: event.id },
+        select: { id: true },
+      })
+      if (duplicate) return
+
+      const existing = await tx.subscription.findUnique({
+        where: { stripeSubscriptionId: effectiveSubscription.id },
+      })
+      if (
+        !deleted &&
+        this.stripe &&
+        existing?.lastStripeEventCreated === event.created &&
+        existing.lastStripeEventId !== event.id
+      ) {
+        effectiveSubscription = (await this.stripe.subscriptions.retrieve(
+          subscription.id,
+        )) as Stripe.Subscription
+        authoritativeEqualSecondState = true
+      }
+      const boundClubId = existing?.clubId ?? clubId
+      if (existing?.clubId && existing.clubId !== clubId) {
+        this.logger.error(
+          `Rejected Stripe metadata club change for subscription ${effectiveSubscription.id}: ${existing.clubId} -> ${clubId}`,
+        )
+      }
+      const stale = isSubscriptionEventStale(
+        existing,
+        event,
+        deleted,
+        authoritativeEqualSecondState,
+      )
+
+      if (!stale) {
+        const period = this.getSubscriptionPeriod(effectiveSubscription)
+        const status = deleted ? 'canceled' : effectiveSubscription.status
+        await tx.subscription.upsert({
+          where: { stripeSubscriptionId: effectiveSubscription.id },
+          create: {
+            clubId: boundClubId,
+            stripeSubscriptionId: effectiveSubscription.id,
+            status,
+            plan: 'PREMIUM',
+            currentPeriodStart: period.start,
+            currentPeriodEnd: period.end,
+            cancelAtPeriodEnd: deleted ? false : effectiveSubscription.cancel_at_period_end,
+            lastStripeEventCreated: event.created,
+            lastStripeEventId: event.id,
+          },
+          update: {
+            status,
+            plan: 'PREMIUM',
+            currentPeriodStart: period.start,
+            currentPeriodEnd: period.end,
+            cancelAtPeriodEnd: deleted ? false : effectiveSubscription.cancel_at_period_end,
+            lastStripeEventCreated: event.created,
+            lastStripeEventId: event.id,
+          },
+        })
+        if (deleted) {
+          await tx.entitlementGrant.updateMany({
+            where: { stripeSubscriptionId: effectiveSubscription.id },
+            data: { status: EntitlementStatus.REVOKED, expiresAt: new Date() },
+          })
+        } else {
+          await this.syncPaidEntitlement(effectiveSubscription, boundClubId, period, tx)
+        }
+        await tx.auditLog.create({
+          data: {
+            clubId: boundClubId,
+            type: 'billing.status_changed',
+            actorType: 'system',
+            actorId: null,
+            actorLabel: null,
+            summary: `Subscription status changed to ${status} (plan: PREMIUM)`,
+            metadata: {
+              stripeSubscriptionId: effectiveSubscription.id,
+              stripeEventId: event.id,
+              stripeEventCreated: event.created,
+              status,
+            },
+          },
+        })
+      }
+
+      await tx.paymentEvent.create({
+        data: {
+          clubId: boundClubId,
+          stripeEventId: event.id,
+          type: event.type,
+          amount: 0,
+          currency: 'eur',
+          status: stale ? 'ignored_stale' : 'processed',
+        },
+      })
     })
   }
 
@@ -501,14 +587,16 @@ export class BillingService {
     subscription: Stripe.Subscription,
     clubId: string,
     period: { start: Date; end: Date },
+    tx?: any,
   ) {
+    const db = tx ?? this.prisma
     const priceId = subscription.items.data[0]?.price?.id
     const definition = priceId
-      ? await this.prisma.planDefinition.findUnique({ where: { stripePriceId: priceId } })
+      ? await db.planDefinition.findUnique({ where: { stripePriceId: priceId } })
       : null
-    const existing = await this.prisma.entitlementGrant.findUnique({
+    const existing = await db.entitlementGrant.findUnique({
       where: { stripeSubscriptionId: subscription.id },
-      select: { tier: true },
+      select: { tier: true, graceEndsAt: true },
     })
     const tier = definition?.tier ?? existing?.tier
     if (!tier) {
@@ -522,8 +610,12 @@ export class BillingService {
       : ['canceled', 'unpaid', 'incomplete_expired'].includes(subscription.status)
         ? EntitlementStatus.REVOKED
         : EntitlementStatus.SUSPENDED
+    const graceEndsAt =
+      subscription.status === 'past_due'
+        ? existing?.graceEndsAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        : null
 
-    await this.prisma.entitlementGrant.upsert({
+    await db.entitlementGrant.upsert({
       where: { stripeSubscriptionId: subscription.id },
       create: {
         clubId,
@@ -532,6 +624,7 @@ export class BillingService {
         status,
         startsAt: period.start,
         expiresAt: period.end,
+        graceEndsAt,
         reason: `Stripe subscription ${subscription.id}`,
         stripeSubscriptionId: subscription.id,
         planDefinitionId: definition?.id ?? null,
@@ -541,6 +634,7 @@ export class BillingService {
         status,
         startsAt: period.start,
         expiresAt: period.end,
+        graceEndsAt,
         ...(definition ? { planDefinitionId: definition.id } : {}),
       },
     })
@@ -634,4 +728,28 @@ export class BillingService {
       update: {},
     })
   }
+}
+
+export function isSubscriptionEventStale(
+  existing: {
+    status?: string | null
+    lastStripeEventCreated?: number | null
+    lastStripeEventId?: string | null
+  } | null,
+  event: { created: number; id: string },
+  deleted: boolean,
+  authoritativeEqualSecondState = false,
+) {
+  if (existing?.lastStripeEventCreated == null) return false
+  if (existing.lastStripeEventCreated > event.created) return true
+  if (existing.lastStripeEventCreated < event.created) return false
+
+  // A deletion always wins within Stripe's one-second timestamp resolution.
+  if (existing.status === 'canceled' && !deleted) return true
+  if (deleted) return false
+
+  // Stripe event IDs do not encode causal order. An equal-second update is
+  // accepted only when processSubscriptionWebhook refreshed the canonical
+  // subscription object directly from Stripe; otherwise preserve stored state.
+  return !authoritativeEqualSecondState
 }

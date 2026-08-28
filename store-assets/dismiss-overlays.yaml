@@ -1,0 +1,10 @@
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    stopApp: false
+- tapOn:
+    point: "33%,60%"
+- tapOn:
+    point: "92%,92%"
+- waitForAnimationToEnd:
+    timeout: 2000

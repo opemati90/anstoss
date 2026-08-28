@@ -54,6 +54,11 @@ export const INFO_BG = '#E8EBFF'
 // App-level chrome (Anstoss-specific)
 export const APP_BACKGROUND = '#FAFAF8' // warm off-white body behind cards
 
+// Machine-readable QR codes stay high-contrast regardless of the club theme
+// or system appearance. These values must never be theme-inverted.
+export const QR_FOREGROUND = '#000000'
+export const QR_BACKGROUND = '#FFFFFF'
+
 /**
  * Light theme — the Renuir-derived default palette.
  * `primary*` are fallbacks; the live values come from ClubThemeContext.

@@ -1,5 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common'
 import { Request, Response, NextFunction } from 'express'
+import { PlatformSettingsService } from '../admin/platform-settings.service'
 
 /**
  * Reads X-App-Version header and enforces minimum client version.
@@ -13,7 +14,17 @@ import { Request, Response, NextFunction } from 'express'
  */
 @Injectable()
 export class VersionMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
+  private cached:
+    | {
+        expiresAt: number
+        revision: number
+        value: Awaited<ReturnType<PlatformSettingsService['getRuntimeReleaseSettings']>>
+      }
+    | undefined
+
+  constructor(private readonly settings: PlatformSettingsService) {}
+
+  async use(req: Request, res: Response, next: NextFunction) {
     const clientVersion = req.headers['x-app-version'] as string | undefined
     if (!clientVersion || clientVersion === '0.0.0') {
       // No header → allow (web clients, monitoring, health checks)
@@ -21,24 +32,56 @@ export class VersionMiddleware implements NestMiddleware {
       return next()
     }
 
-    const minVersion = process.env.MIN_APP_VERSION
+    const release = await this.getReleaseSettings()
+    const minVersion = release.minVersion
     if (minVersion && this.compareSemver(clientVersion, minVersion) < 0) {
       res.status(426).json({
         error: {
           code: 'UPGRADE_REQUIRED',
-          message: 'Please update the app to continue.',
+          message: release.forceUpdateMessage,
           minVersion,
         },
       })
       return
     }
 
-    const recommendedVersion = process.env.RECOMMENDED_APP_VERSION
+    const recommendedVersion = release.recommendedVersion
     if (recommendedVersion && this.compareSemver(clientVersion, recommendedVersion) < 0) {
       res.setHeader('X-Update-Available', recommendedVersion)
     }
+    if (release.announcementBanner) {
+      res.setHeader('X-Anstoss-Announcement', encodeURIComponent(release.announcementBanner))
+    }
 
     next()
+  }
+
+  private async getReleaseSettings() {
+    const now = Date.now()
+    const revision = this.settings.getRuntimeReleaseSettingsRevision()
+    if (
+      this.cached &&
+      this.cached.expiresAt > now &&
+      this.cached.revision === revision
+    ) {
+      return this.cached.value
+    }
+    let value: Awaited<ReturnType<PlatformSettingsService['getRuntimeReleaseSettings']>>
+    try {
+      value = await this.settings.getRuntimeReleaseSettings()
+    } catch {
+      // A release-control read must not turn a transient database outage into
+      // a platform-wide API outage. Fall back to the deploy-time safety floor.
+      value = {
+        minVersion: process.env.MIN_APP_VERSION ?? '1.0.0',
+        recommendedVersion: process.env.RECOMMENDED_APP_VERSION ?? '1.0.0',
+        forceUpdateMessage:
+          'A newer version of Anstoss is required. Please update to continue.',
+        announcementBanner: '',
+      }
+    }
+    this.cached = { expiresAt: now + 10_000, revision, value }
+    return value
   }
 
   /**

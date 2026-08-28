@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common'
 import { randomInt } from 'node:crypto'
 import { createClerkClient } from '@clerk/backend'
-import { Prisma } from '@prisma/client'
+import { ClubClaimStatus, Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
@@ -385,7 +385,11 @@ export class UsersService {
       this.prisma.clubClaim.findFirst({
         where: {
           claimantUserId: userId,
-          kind: 'FIRST_CLAIM',
+          // A staff-code onboarding flow deliberately creates a STAFF_CLAIM
+          // without granting membership. Surface it through /me as well so the
+          // client can keep the user in the review flow instead of sending
+          // them back to the unlinked-account screen.
+          kind: { in: ['FIRST_CLAIM', 'STAFF_CLAIM'] },
           status: { in: ['SUBMITTED', 'NEEDS_INFO'] },
           expiresAt: { gt: new Date() },
         },
@@ -776,14 +780,123 @@ export class UsersService {
     })
   }
 
+  async searchClubMemberDirectory(
+    clubId: string,
+    userId: string,
+    input: { query: string; role?: string; cursor?: string; limit: number },
+  ) {
+    const query = input.query.trim()
+    if (query.length < 2) {
+      throw new BadRequestException('Enter at least two characters')
+    }
+    if (query.length > 120) {
+      throw new BadRequestException('Enter no more than 120 characters')
+    }
+    const requester = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { id: true },
+    })
+    if (!requester) throw new NotFoundException('Club membership not found')
+
+    const membershipRoles = Object.values(MembershipRole) as string[]
+    const teamRoles = Object.values(TeamRole) as string[]
+    const requestedRole = input.role?.trim().toUpperCase()
+    if (
+      requestedRole &&
+      !membershipRoles.includes(requestedRole) &&
+      !teamRoles.includes(requestedRole)
+    ) {
+      throw new BadRequestException('Unknown member role')
+    }
+
+    const roleWhere = requestedRole
+      ? {
+          OR: [
+            ...(membershipRoles.includes(requestedRole)
+              ? [{ role: requestedRole as MembershipRole }]
+              : []),
+            ...(teamRoles.includes(requestedRole)
+              ? [
+                  {
+                    user: {
+                      teamAccess: {
+                        some: {
+                          clubId,
+                          role: requestedRole as TeamRole,
+                          ...activeTeamAccessWhere(),
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : {}
+
+    const rows = await this.prisma.membership.findMany({
+      where: {
+        clubId,
+        ...roleWhere,
+        user: {
+          deletedAt: null,
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            {
+              teamAccess: {
+                some: {
+                  clubId,
+                  ...activeTeamAccessWhere(),
+                  team: { displayName: { contains: query, mode: 'insensitive' } },
+                },
+              },
+            },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        role: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            teamAccess: {
+              where: { clubId, ...activeTeamAccessWhere() },
+              select: {
+                role: true,
+                team: { select: { id: true, displayName: true } },
+              },
+              orderBy: [{ createdAt: 'asc' }],
+            },
+          },
+        },
+      },
+      orderBy: [{ user: { name: 'asc' } }, { id: 'asc' }],
+      cursor: input.cursor ? { id: input.cursor } : undefined,
+      skip: input.cursor ? 1 : 0,
+      take: input.limit + 1,
+    })
+
+    const hasMore = rows.length > input.limit
+    const items = hasMore ? rows.slice(0, input.limit) : rows
+    return {
+      items,
+      nextCursor: hasMore ? items.at(-1)?.id ?? null : null,
+    }
+  }
+
   async updateClubMemberRole(
     clubId: string,
     actorUserId: string,
     memberUserId: string,
     nextRole: MembershipRole,
   ) {
-    const [actorMembership, targetMembership] = await Promise.all([
-      this.prisma.membership.findUnique({
+    const membership = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const [actorMembership, targetMembership] = await Promise.all([
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: actorUserId,
@@ -791,7 +904,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.membership.findUnique({
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: memberUserId,
@@ -809,7 +922,7 @@ export class UsersService {
           },
         },
       }),
-    ])
+      ])
 
     if (!actorMembership) {
       throw new NotFoundException('Club membership not found')
@@ -846,7 +959,7 @@ export class UsersService {
       return targetMembership
     }
 
-    const activeCoachAssignments = await this.prisma.teamAccess.findMany({
+    const activeCoachAssignments = await tx.teamAccess.findMany({
       where: {
         clubId,
         userId: memberUserId,
@@ -866,7 +979,7 @@ export class UsersService {
       )
     }
 
-    const membership = await this.prisma.membership.update({
+      return tx.membership.update({
       where: {
         userId_clubId: {
           userId: memberUserId,
@@ -886,6 +999,7 @@ export class UsersService {
           },
         },
       },
+      })
     })
 
     this.eventEmitter?.emit('realtime.access.changed', { userId: memberUserId })
@@ -901,8 +1015,10 @@ export class UsersService {
     memberUserId: string,
     operationalRoles: ClubOperationalRole[],
   ) {
-    const [actorMembership, targetMembership] = await Promise.all([
-      this.prisma.membership.findUnique({
+    const updatedMembership = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const [actorMembership, targetMembership] = await Promise.all([
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: actorUserId,
@@ -910,7 +1026,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.membership.findUnique({
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: memberUserId,
@@ -928,7 +1044,7 @@ export class UsersService {
           },
         },
       }),
-    ])
+      ])
 
     if (!actorMembership) {
       throw new NotFoundException('Club membership not found')
@@ -958,7 +1074,7 @@ export class UsersService {
       throw new ForbiddenException('Admins cannot change other admins')
     }
 
-    const updatedMembership = await this.prisma.membership.update({
+      return tx.membership.update({
       where: {
         userId_clubId: {
           userId: memberUserId,
@@ -978,6 +1094,7 @@ export class UsersService {
           },
         },
       },
+      })
     })
 
     return {
@@ -991,8 +1108,10 @@ export class UsersService {
     memberUserId: string,
     options: { preservePlayerAccess: boolean },
   ) {
-    const [actorMembership, targetMembership] = await Promise.all([
-      this.prisma.membership.findUnique({
+    const updatedMembership = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const [actorMembership, targetMembership] = await Promise.all([
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: actorUserId,
@@ -1000,7 +1119,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.membership.findUnique({
+      tx.membership.findUnique({
         where: {
           userId_clubId: {
             userId: memberUserId,
@@ -1018,7 +1137,7 @@ export class UsersService {
           },
         },
       }),
-    ])
+      ])
 
     if (!actorMembership) {
       throw new NotFoundException('Club membership not found')
@@ -1047,7 +1166,7 @@ export class UsersService {
       throw new ForbiddenException('Admins cannot change other admins')
     }
 
-    const remainingCriticalHolders = await this.prisma.membership.findMany({
+    const remainingCriticalHolders = await tx.membership.findMany({
       where: {
         clubId,
         userId: {
@@ -1060,15 +1179,17 @@ export class UsersService {
     })
 
     const hasReplacementForAllCriticalRoles = targetMembership.operationalRoles
-      .filter((role) => CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole))
-      .every((role) =>
+      .filter((role: ClubOperationalRole) =>
+        CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole),
+      )
+      .every((role: ClubOperationalRole) =>
         remainingCriticalHolders.some((membership: any) =>
           membership.operationalRoles.includes(role),
         ),
       )
 
     if (
-      targetMembership.operationalRoles.some((role) =>
+      targetMembership.operationalRoles.some((role: ClubOperationalRole) =>
         CRITICAL_OPERATIONAL_ROLES.has(role as ClubOperationalRole),
       ) &&
       !hasReplacementForAllCriticalRoles
@@ -1083,7 +1204,6 @@ export class UsersService {
         ? MembershipRole.PARENT
         : MembershipRole.PLAYER
 
-    const updatedMembership = await this.prisma.$transaction(async (tx: any) => {
       await tx.teamAccess.updateMany({
         where: {
           clubId,
@@ -1708,6 +1828,37 @@ export class UsersService {
     })
 
     await this.prisma.$transaction(async (tx: any) => {
+      // Account lifecycle lock shared with club setup and ownership acceptance.
+      // It prevents a club OWNER membership from being created after the
+      // deletion preflight but before access rows are removed.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      // Serialize deletion against persisted DM sends. A send takes this same
+      // participant lock and revalidates after acquiring it.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${userId}`}))`
+      // Membership/invite approvals share the lifecycle lock above. Refresh
+      // the access-derived club set after acquiring it so a transaction that
+      // completed during deletion preflight cannot leave tenant-scoped rows.
+      const [freshMemberships, freshTeamAccess] = await Promise.all([
+        tx.membership.findMany({ where: { userId }, select: { clubId: true } }),
+        tx.teamAccess.findMany({ where: { userId }, select: { clubId: true } }),
+      ])
+      const deletionClubIds = uniqueValues([
+        ...accountDeletionClubIds,
+        ...freshMemberships.map((row: { clubId: string }) => row.clubId),
+        ...freshTeamAccess.map((row: { clubId: string }) => row.clubId),
+      ])
+      for (const clubId of [...deletionClubIds].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      }
+      const ownerMembership = await tx.membership.findFirst({
+        where: { userId, role: MembershipRole.OWNER },
+        select: { clubId: true },
+      })
+      if (ownerMembership) {
+        throw new BadRequestException(
+          'Transfer club ownership before deleting your account',
+        )
+      }
       // Block legacy Clerk subjects from being linked back to this row if an
       // old client/auth path is ever re-enabled. Custom JWTs are still blocked
       // by deletedAt below.
@@ -1739,6 +1890,17 @@ export class UsersService {
       await tx.conversationParticipant.deleteMany({ where: { userId } })
       await tx.membership.deleteMany({ where: { userId } })
       await tx.joinRequest.deleteMany({ where: { userId } })
+      await tx.clubClaim.updateMany({
+        where: {
+          claimantUserId: userId,
+          status: { in: [ClubClaimStatus.SUBMITTED, ClubClaimStatus.NEEDS_INFO] },
+        },
+        data: {
+          status: ClubClaimStatus.WITHDRAWN,
+          reviewNote: 'Claim withdrawn because the claimant deleted their account.',
+          reviewedAt: deletedAt,
+        },
+      })
 
       // 2. Remove per-user interaction traces that would otherwise continue to
       // identify the deleted user in chat, event, moderation, and poll surfaces.
@@ -1793,7 +1955,7 @@ export class UsersService {
         }
       }
 
-      for (const clubId of accountDeletionClubIds) {
+      for (const clubId of deletionClubIds) {
         await tenantContext.run({ clubId, userId }, async () => {
           await tx.teamAccess.deleteMany({ where: { userId } })
           await tx.eventCheckIn.deleteMany({ where: { userId } })

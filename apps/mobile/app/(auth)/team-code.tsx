@@ -79,12 +79,9 @@ export default function TeamCode() {
       clubName: team.clubName,
       teamJoinCode: code.trim().toUpperCase(),
     })
-    // Coaches don't claim a player slot — role is finalised server-side.
-    if (state.role === RegistrationRole.COACH) {
-      router.push('/(auth)/done')
-      return
-    }
-    router.push('/(auth)/roster-claim')
+    // Shared team codes create an approval request; they never grant roster
+    // access. Identity-bound invitations activate members separately.
+    router.push('/(auth)/done')
   }
 
   return (

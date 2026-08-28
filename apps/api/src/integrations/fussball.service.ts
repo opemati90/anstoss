@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { createHash } from 'node:crypto'
 import { Prisma, type ExternalDataProvider } from '@prisma/client'
 import {
   MembershipRole,
@@ -45,6 +47,7 @@ import {
 } from './fussball.provider'
 import {
   FussballScraperClient,
+  isLicensedFussballFeedEnabled,
   type ScraperGame,
   type ScraperScoringInsights,
 } from './fussball-scraper.client'
@@ -216,21 +219,19 @@ export class FussballService {
   }
 
   async previewTeamLink(input: string): Promise<FussballTeamPreview> {
-    const externalTeamId = extractFussballTeamId(input)
-    if (!externalTeamId) {
-      throw new BadRequestException('Provide a valid FUSSBALL.DE team URL or team ID')
-    }
-
-    const { externalUrl, preview } = await this.provider.fetchTeamPage(input)
-
+    const externalUrl = canonicalOfficialTeamPage(input)
+    const externalTeamId =
+      extractFussballTeamId(externalUrl) ??
+      `reference-${createHash('sha256').update(externalUrl).digest('hex').slice(0, 32)}`
+    const brand = officialTeamPageBrand(externalUrl)
     return {
       input,
-      provider: 'api_fussball',
+      provider: 'fussball_public_page',
       externalTeamId,
       externalUrl,
-      label: preview.label,
-      competition: preview.competition,
-      pitchAddress: preview.pitchAddress,
+      label: `${brand} · official team page`,
+      competition: null,
+      pitchAddress: null,
       sourceConfidence: 'unofficial_public',
     }
   }
@@ -243,31 +244,10 @@ export class FussballService {
       orderBy: [{ updatedAt: 'desc' }],
     })
 
-    return links.map((link: any) => serializeLink(link))
+    return links.map((link: any) => serializeLink(link, this.canUseLicensedFeed()))
   }
 
-  /**
-   * Fetch the squad/roster from a linked fussball.de team page. Used by
-   * the bulk-invite flow on the admin side: roster comes back, admin
-   * picks who they actually have email addresses for, sends in one go.
-   *
-   * Returns an empty `players: []` when scraping doesn't find anyone —
-   * the UI surfaces "we couldn't read the squad page; paste names
-   * manually" rather than treating that as an error.
-   */
-  /**
-   * Type-ahead search for clubs on fussball.de via the self-hosted
-   * scraper sidecar. Used by the club-create flow to let an admin type
-   * "SV Albatros" and pick from real fussball.de hits with logos.
-   *
-   * Returns [] when:
-   *   - query is fewer than 3 characters (avoids hammering the upstream)
-   *   - the scraper sidecar isn't configured / circuit breaker is open
-   *   - the upstream returned no matches
-   *
-   * The mobile UI treats all three the same way ("no matches; type
-   * more or paste a URL manually").
-   */
+  /** Search is available only through an explicitly enabled licensed feed. */
   async searchFussballClubs(query: string) {
     const trimmed = query.trim()
     if (trimmed.length < 3) {
@@ -283,11 +263,7 @@ export class FussballService {
     }
   }
 
-  /**
-   * After search picks a club, list its teams so the admin can choose
-   * which to import. Returns null when the sidecar is unavailable —
-   * caller falls through to manual team-URL paste.
-   */
+  /** Team discovery is available only through an explicitly enabled licensed feed. */
   async fetchClubTeamsFromScraper(externalClubId: string) {
     if (!this.scraper.isAvailable()) {
       return { available: false, teams: [] }
@@ -309,50 +285,6 @@ export class FussballService {
     }
 
     await this.teamsService.assertManageAccess(userId, link.teamId)
-    if (link.provider !== 'API_FUSSBALL') {
-      return {
-        teamLinkId: link.id,
-        externalTeamId: link.externalTeamId,
-        externalUrl: link.externalUrl,
-        players: [],
-        rawCount: 0,
-        source: 'empty' as const,
-      }
-    }
-
-    // Primary: try the team-page Kader scrape (regex-based on the
-    // current SPA HTML — fragile but free).
-    const roster = await this.provider.fetchTeamRoster(link.externalTeamId)
-    if (roster.players.length > 0) {
-      return {
-        teamLinkId: link.id,
-        externalTeamId: link.externalTeamId,
-        externalUrl: link.externalUrl,
-        players: roster.players,
-        rawCount: roster.rawCount,
-        source: 'team_page' as const,
-      }
-    }
-
-    // Fallback: fussball.de's SPA renders the squad client-side, so
-    // the regex scrape regularly returns 0. The lineup of the most
-    // recent finished match is effectively the same data — every
-    // rostered player gets minutes eventually. Combine starters + bench
-    // for the side our linked team played on. This is what
-    // api-fussball.de's /match endpoint already gives us, no extra
-    // upstream call needed beyond what the fixture sync already did.
-    const lineupRoster = await this.fetchRosterFromRecentMatch(link)
-    if (lineupRoster) {
-      return {
-        teamLinkId: link.id,
-        externalTeamId: link.externalTeamId,
-        externalUrl: link.externalUrl,
-        players: lineupRoster,
-        rawCount: lineupRoster.length,
-        source: 'recent_lineup' as const,
-      }
-    }
-
     return {
       teamLinkId: link.id,
       externalTeamId: link.externalTeamId,
@@ -428,12 +360,19 @@ export class FussballService {
   ) {
     const access = await this.teamsService.assertManageAccess(userId, input.teamId)
     assertClubScope(clubId, access.team.clubId)
+    if (
+      access.membership?.role !== MembershipRole.OWNER &&
+      access.membership?.role !== MembershipRole.ADMIN
+    ) {
+      throw new ForbiddenException('Only a club owner or admin can manage official data links')
+    }
 
     const preview = await this.previewTeamLink(input.input)
+    const provider: ExternalDataProvider = 'FUSSBALL_PUBLIC_PAGE'
     const existing = await this.prisma.externalTeamLink.findFirst({
       where: {
         teamId: input.teamId,
-        provider: 'API_FUSSBALL',
+        provider,
         externalTeamId: preview.externalTeamId,
       },
     })
@@ -451,7 +390,7 @@ export class FussballService {
           data: {
             clubId: access.team.clubId,
             teamId: input.teamId,
-            provider: 'API_FUSSBALL',
+            provider,
             externalTeamId: preview.externalTeamId,
             externalClubId: null,
             externalUrl: preview.externalUrl,
@@ -460,19 +399,7 @@ export class FussballService {
           },
         })
 
-    const sync = await this.syncTeamLink(userId, clubId, persisted.id, true)
-
-    // Auto-seed RosterSlot rows from the fussball.de roster so the admin
-    // doesn't have to enter players manually. Slots are claim-able via
-    // the existing team-code flow — players who later join match by
-    // normalized name and inherit jersey + position. Fire-and-forget;
-    // a roster scrape miss must never break team-link creation.
-    void this.seedRosterFromTeamLinkAuto(persisted.id).catch(() => undefined)
-
-    return {
-      link: serializeLink(persisted),
-      sync,
-    }
+    return { link: serializeLink(persisted, false), sync: null }
   }
 
   private async seedRosterFromTeamLinkAuto(teamLinkId: string): Promise<void> {
@@ -558,12 +485,23 @@ export class FussballService {
       throw new NotFoundException('FUSSBALL.DE team link not found')
     }
 
-    await this.teamsService.assertManageAccess(userId, link.teamId)
+    const access = await this.teamsService.assertManageAccess(userId, link.teamId)
     assertClubScope(clubId, link.clubId)
+    if (
+      access.membership?.role !== MembershipRole.OWNER &&
+      access.membership?.role !== MembershipRole.ADMIN
+    ) {
+      throw new ForbiddenException('Only a club owner or admin can sync official data')
+    }
 
     if (link.provider !== 'API_FUSSBALL') {
       throw new BadRequestException(
-        'This team link is imported from a licensed feed and cannot be synced through the FUSSBALL.DE scraper.',
+        'This public reference does not support automated fixture sync.',
+      )
+    }
+    if (!isLicensedFussballFeedEnabled()) {
+      throw new ServiceUnavailableException(
+        'Automated fixture sync is disabled until a licensed feed is configured',
       )
     }
 
@@ -1344,7 +1282,7 @@ export class FussballService {
     return {
       clubId,
       teamId: linkedTeam.teamId,
-      linkedTeam: serializeLink(linkedTeam),
+      linkedTeam: serializeLink(linkedTeam, this.canUseLicensedFeed()),
       nextMatch: nextMatch
         ? serializeFixture(nextMatch, await this.findLinkedEventId(nextMatch))
         : null,
@@ -1364,8 +1302,12 @@ export class FussballService {
         linkedTeam.label,
       ),
       updatedAt: linkedTeam.lastSyncedAt?.toISOString() || null,
-      widgetUrl: linkedTeam.externalUrl,
+      widgetUrl: linkedTeam.provider === 'WIDGET_EMBED' ? linkedTeam.externalUrl : null,
     }
+  }
+
+  private canUseLicensedFeed() {
+    return false
   }
 
   private normalizeFixtures(
@@ -2023,7 +1965,13 @@ function toSharedProvider(provider: string): ExternalTeamLink['provider'] {
   }
 }
 
-function serializeLink(link: TeamLinkRecord): ExternalTeamLink {
+function serializeLink(
+  link: TeamLinkRecord,
+  licensedFeedOperational: boolean,
+): ExternalTeamLink {
+  const licensedApiAvailable =
+    link.provider === 'API_FUSSBALL' && licensedFeedOperational
+
   return {
     id: link.id,
     clubId: link.clubId,
@@ -2037,6 +1985,10 @@ function serializeLink(link: TeamLinkRecord): ExternalTeamLink {
     lastSyncedAt: link.lastSyncedAt?.toISOString() || null,
     createdAt: link.createdAt.toISOString(),
     updatedAt: link.updatedAt.toISOString(),
+    capabilities: {
+      canManualSync: licensedApiAvailable,
+      canImportRoster: licensedApiAvailable,
+    },
   }
 }
 
@@ -2546,4 +2498,43 @@ function buildMatchComparison(
     },
   ]
   return { homeTeam, awayTeam, metrics }
+}
+
+const OFFICIAL_TEAM_PAGE_HOSTS = ['fussball.de', 'dfb.de', 'fupa.net'] as const
+
+function canonicalOfficialTeamPage(input: string) {
+  const trimmed = input.trim()
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    throw new BadRequestException(
+      'Paste a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
+    )
+  }
+  const hostname = parsed.hostname.toLowerCase()
+  const isOfficialHost = OFFICIAL_TEAM_PAGE_HOSTS.some(
+    (host) => hostname === host || hostname.endsWith(`.${host}`),
+  )
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.pathname === '/' ||
+    !isOfficialHost
+  ) {
+    throw new BadRequestException(
+      'Paste a direct HTTPS team link from Fussball.de, DFB.de, or FuPa',
+    )
+  }
+  parsed.hash = ''
+  return parsed.toString()
+}
+
+function officialTeamPageBrand(url: string) {
+  const hostname = new URL(url).hostname.toLowerCase()
+  if (hostname === 'dfb.de' || hostname.endsWith('.dfb.de')) return 'DFB.DE'
+  if (hostname === 'fupa.net' || hostname.endsWith('.fupa.net')) return 'FUPA'
+  return 'FUSSBALL.DE'
 }

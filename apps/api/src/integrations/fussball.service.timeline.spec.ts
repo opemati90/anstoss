@@ -20,7 +20,9 @@ function createService(prismaOverrides: Record<string, unknown> = {}) {
   }
   const teamsService = {
     assertReadableAccess: jest.fn().mockResolvedValue({}),
-    assertManageAccess: jest.fn().mockResolvedValue({}),
+    assertManageAccess: jest.fn().mockResolvedValue({
+      membership: { role: 'OWNER' },
+    }),
   }
   const provider = {
     fetchMatchLineup: jest.fn().mockResolvedValue(null),
@@ -170,7 +172,7 @@ describe('FussballService licensed feed surfaces', () => {
 
     await expect(
       service.syncTeamLink('user-1', 'club-1', 'link-1'),
-    ).rejects.toThrow('licensed feed')
+    ).rejects.toThrow('does not support automated fixture sync')
 
     expect(provider.fetchTeamPage).not.toHaveBeenCalled()
   })

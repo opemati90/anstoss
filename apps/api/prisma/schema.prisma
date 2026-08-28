@@ -1400,6 +1400,8 @@ model Subscription {
   currentPeriodStart   DateTime
   currentPeriodEnd     DateTime
   cancelAtPeriodEnd    Boolean  @default(false)
+  lastStripeEventCreated Int?
+  lastStripeEventId      String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1437,6 +1439,7 @@ model EntitlementGrant {
   status               EntitlementStatus @default(ACTIVE)
   startsAt             DateTime          @default(now())
   expiresAt            DateTime?
+  graceEndsAt          DateTime?
   reason               String?
   createdById          String?
   stripeSubscriptionId String?           @unique
@@ -1554,7 +1557,12 @@ model BankImportBatch {
   status       BankImportStatus @default(PARSED)
   rowCount     Int              @default(0)
   error        String?
-  expiresAt    DateTime
+  // The uploaded bytes are parsed in memory and are never persisted. These
+  // fields document/enforce the 24-hour ceiling if raw-object storage is ever
+  // enabled; normalized transactions and confirmed matches remain auditable.
+  rawExpiresAt DateTime @map("expiresAt")
+  rawObjectKey String?
+  rawPurgedAt  DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -1623,6 +1631,7 @@ model ContributionRecord {
   currency           String                   @default("eur")
   status             ContributionRecordStatus @default(PENDING)
   paidAmount         Int?
+  manualPaidAmount   Int?                     @default(0)
   paidAt             DateTime?
   note               String?
   lastReminderKey    String?
@@ -1707,6 +1716,7 @@ enum JoinRequestStatus {
   PENDING
   APPROVED
   REJECTED
+  WITHDRAWN
 }
 
 enum PlayerPosition {
@@ -1781,6 +1791,7 @@ model JoinRequest {
   status     JoinRequestStatus @default(PENDING)
   reviewedBy String?
   reviewedAt DateTime?
+  revision   Int               @default(1)
   createdAt  DateTime          @default(now())
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)

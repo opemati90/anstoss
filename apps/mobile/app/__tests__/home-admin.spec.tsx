@@ -9,7 +9,7 @@ const mockShare = jest.fn((_content: unknown, _options?: unknown) =>
   Promise.resolve({ action: 'sharedAction' }),
 )
 const mockAlert = jest.fn()
-const mockApi = jest.fn((path: string) => {
+function defaultApi(path: string): Promise<unknown> {
   if (path.includes('/stats')) {
     return Promise.resolve({
       memberCount: 42,
@@ -63,9 +63,7 @@ const mockApi = jest.fn((path: string) => {
             injuryRiskCount: 1,
             suspensionRiskCount: 0,
           },
-          signals: [
-            { key: 'low_confirmations', severity: 'critical', count: 8, target: 11 },
-          ],
+          signals: [{ key: 'low_confirmations', severity: 'critical', count: 8, target: 11 }],
           nudge: {
             recommended: true,
             reason: 'low_confirmations',
@@ -79,8 +77,26 @@ const mockApi = jest.fn((path: string) => {
   if (path.includes('/remind-rsvp')) {
     return Promise.resolve({ sent: 4, nextAvailableAt: new Date().toISOString() })
   }
+  if (path === '/clubs/club-1/contributions') {
+    return Promise.resolve({
+      summary: {
+        assignedMembers: 14,
+        paidMembers: 9,
+        overdueMembers: 3,
+        totalExpectedCents: 14000,
+        totalPaidCents: 9000,
+        totalOutstandingCents: 5000,
+      },
+      plans: [],
+      assignments: [],
+    })
+  }
+  if (path === '/clubs/club-1/contributions/reminders/send') {
+    return Promise.resolve({ requested: 3, sent: 3, skipped: 0 })
+  }
   return Promise.resolve([])
-})
+}
+const mockApi = jest.fn<Promise<unknown>, [path: string, options?: unknown]>(defaultApi)
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
@@ -88,16 +104,12 @@ jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
 }))
 
-jest.spyOn(Share, 'share').mockImplementation(
-  ((content: unknown, options?: unknown) =>
-    options === undefined
-      ? mockShare(content)
-      : mockShare(content, options)) as typeof Share.share,
-)
+jest
+  .spyOn(Share, 'share')
+  .mockImplementation(((content: unknown, options?: unknown) =>
+    options === undefined ? mockShare(content) : mockShare(content, options)) as typeof Share.share)
 
-jest.spyOn(Alert, 'alert').mockImplementation(
-  (...args: unknown[]) => mockAlert(...args),
-)
+jest.spyOn(Alert, 'alert').mockImplementation((...args: unknown[]) => mockAlert(...args))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
@@ -117,12 +129,7 @@ jest.mock('../../src/api/client', () => ({
     code?: string
     data?: unknown
 
-    constructor(
-      message: string,
-      mockStatus: number,
-      mockCode?: string,
-      mockData?: unknown,
-    ) {
+    constructor(message: string, mockStatus: number, mockCode?: string, mockData?: unknown) {
       super(message)
       this.status = mockStatus
       this.code = mockCode
@@ -149,6 +156,7 @@ describe('AdminHome', () => {
     mockApi.mockClear()
     mockShare.mockClear()
     mockAlert.mockClear()
+    mockApi.mockImplementation(defaultApi)
   })
 
   it('renders the KPI card with member + RSVP + upcoming + teams', async () => {
@@ -211,10 +219,68 @@ describe('AdminHome', () => {
     render(wrap(<AdminHome clubId="club-1" />))
 
     await waitFor(() => {
-      expect(mockApi).toHaveBeenCalledWith(
-        '/clubs/club-1/events?scope=upcoming&limit=1',
-      )
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events?scope=upcoming&limit=1')
     })
+  })
+
+  it('does not complete selected-team setup from club-wide stats or staff-only roster rows', async () => {
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/events?')) return Promise.resolve([])
+      if (path.includes('/team-links?')) return Promise.resolve([])
+      if (path.includes('/invite-campaigns')) return Promise.resolve([])
+      if (path.includes('/members?teamId=')) {
+        return Promise.resolve([{ id: 'coach-access', role: 'HEAD_COACH' }])
+      }
+      return defaultApi(path)
+    })
+    const { findByText } = render(
+      wrap(<AdminHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect(await findByText('Finish club setup')).toBeTruthy()
+    expect(await findByText('1/5')).toBeTruthy()
+  })
+
+  it('hides the activation checklist only after real team-scoped setup signals exist', async () => {
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/team-links?')) return Promise.resolve([{ id: 'link-1', teamId: 'team-1' }])
+      if (path.includes('/invite-campaigns')) {
+        return Promise.resolve([{ id: 'campaign-1', teamId: 'team-1', status: 'ACTIVE' }])
+      }
+      if (path.includes('/members?teamId=')) {
+        return Promise.resolve([
+          { id: 'coach-access', role: 'HEAD_COACH' },
+          { id: 'player-access', role: 'PLAYER' },
+        ])
+      }
+      return defaultApi(path)
+    })
+    const { queryByText, findAllByText } = render(
+      wrap(<AdminHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect((await findAllByText('Cup match')).length).toBeGreaterThan(0)
+    await waitFor(() => expect(queryByText('Finish club setup')).toBeNull())
+  })
+
+  it('does not turn activation API failures into false incomplete steps', async () => {
+    mockApi.mockImplementation((path: string) => {
+      if (
+        path.includes('/events?') ||
+        path.includes('/team-links?') ||
+        path.includes('/invite-campaigns') ||
+        path.includes('/members?teamId=')
+      ) {
+        return Promise.reject(new Error('offline'))
+      }
+      return defaultApi(path)
+    })
+    const { queryByText, findByText } = render(
+      wrap(<AdminHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect(await findByText('42')).toBeTruthy()
+    await waitFor(() => expect(queryByText('Finish club setup')).toBeNull())
   })
 
   it('shares the selected next-event readiness briefing', async () => {
@@ -237,11 +303,25 @@ describe('AdminHome', () => {
     fireEvent.press(await findByText('Nudge now'))
 
     await waitFor(() => {
-      expect(mockApi).toHaveBeenCalledWith(
-        '/clubs/club-1/events/evt-1/remind-rsvp',
-        { method: 'POST' },
-      )
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events/evt-1/remind-rsvp', {
+        method: 'POST',
+      })
     })
     expect(mockAlert).toHaveBeenCalledWith('Nudge sent', expect.stringContaining('4'))
+  })
+
+  it('sends overdue contribution reminders through the API bulk endpoint', async () => {
+    const { findByText } = render(wrap(<AdminHome clubId="club-1" />))
+
+    // This suite intentionally runs without an i18next instance, so the
+    // interpolation placeholder remains visible in the fallback copy.
+    fireEvent.press(await findByText(/Remind .* overdue/i))
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/contributions/reminders/send', {
+        method: 'POST',
+        body: { onlyOverdue: true },
+      })
+    })
   })
 })

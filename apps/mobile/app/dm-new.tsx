@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react'
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Alert, View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { router, useFocusEffect } from 'expo-router'
+import { router } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
-import { api } from '../src/api/client'
+import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Banner, Icon, Screen, Text } from '../src/components/ui'
 import { SearchBar } from '../src/components/ui/SearchBar'
@@ -13,8 +13,15 @@ import { elevation, hairline, radius, space } from '../src/theme/tokens'
 type MemberItem = {
   id: string
   role: string
-  user: { id: string; name: string; email: string; avatarUrl: string | null }
+  user: {
+    id: string
+    name: string
+    avatarUrl: string | null
+    teamAccess: Array<{ role: string; team: { id: string; displayName: string } }>
+  }
 }
+
+type DirectoryPage = { items: MemberItem[]; nextCursor: string | null }
 
 export default function DmNewScreen() {
   const { t } = useTranslation()
@@ -25,35 +32,61 @@ export default function DmNewScreen() {
   const [members, setMembers] = useState<MemberItem[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [creating, setCreating] = useState<string | null>(null)
   const [error, setError] = useState(false)
+  const requestGeneration = useRef(0)
+  const cursorsInFlight = useRef(new Set<string>())
 
-  const loadMembers = useCallback(() => {
-    if (!clubId) return
-    setLoading(true)
-    api<MemberItem[]>(`/clubs/${clubId}/members`)
+  const loadMembers = useCallback((query: string, cursor?: string, generation = requestGeneration.current) => {
+    if (!clubId || query.trim().length < 2) {
+      setMembers([])
+      setNextCursor(null)
+      setLoading(false)
+      setError(false)
+      return
+    }
+    if (cursor && cursorsInFlight.current.has(cursor)) return
+    if (cursor) cursorsInFlight.current.add(cursor)
+    else setLoading(true)
+    const params = new URLSearchParams({ query: query.trim(), limit: '50' })
+    if (cursor) params.set('cursor', cursor)
+    api<DirectoryPage>(`/clubs/${clubId}/member-directory?${params.toString()}`)
       .then((data) => {
+        if (generation !== requestGeneration.current) return
         setError(false)
-        setMembers((data || []).filter((m) => m.user.id !== user?.id))
+        const visible = (data.items || []).filter((member) => member.user.id !== user?.id)
+        setMembers((current) => {
+          if (!cursor) return visible
+          const byId = new Map(current.map((member) => [member.id, member]))
+          for (const member of visible) byId.set(member.id, member)
+          return [...byId.values()]
+        })
+        setNextCursor(data.nextCursor)
       })
       .catch(() => {
-        setError(true)
+        if (generation === requestGeneration.current && !cursor) setError(true)
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (cursor) cursorsInFlight.current.delete(cursor)
+        if (generation === requestGeneration.current && !cursor) setLoading(false)
+      })
   }, [clubId, user?.id])
 
-  useFocusEffect(
-    useCallback(() => {
-      loadMembers()
-    }, [loadMembers]),
-  )
-
-  const filtered = search.trim()
-    ? members.filter((m) => {
-        const q = search.toLowerCase()
-        return m.user.name.toLowerCase().includes(q) || m.user.email.toLowerCase().includes(q)
-      })
-    : members
+  useEffect(() => {
+    const generation = ++requestGeneration.current
+    cursorsInFlight.current.clear()
+    setNextCursor(null)
+    const normalized = search.trim()
+    if (normalized.length < 2) {
+      setMembers([])
+      setLoading(false)
+      setError(false)
+      return
+    }
+    const timer = setTimeout(() => loadMembers(normalized, undefined, generation), 300)
+    return () => clearTimeout(timer)
+  }, [loadMembers, search])
 
   const handleSelectMember = async (memberId: string, memberName: string) => {
     if (!clubId || creating) return
@@ -67,7 +100,14 @@ export default function DmNewScreen() {
         pathname: '/dm-chat',
         params: { conversationId: conversation.id, userName: memberName },
       })
-    } catch {
+    } catch (err) {
+      Alert.alert(
+        t('common.errorTitle'),
+        err instanceof ApiError && err.status === 403
+          ? t('dm.restricted')
+          : t('dm.resolveError'),
+      )
+    } finally {
       setCreating(null)
     }
   }
@@ -99,7 +139,7 @@ export default function DmNewScreen() {
             {item.user.name}
           </Text>
           <Text variant="footnote" color="secondary">
-            {t(`roles.${item.role}`)}
+            {item.user.teamAccess[0]?.team.displayName ?? t(`roles.${item.role}`)}
           </Text>
         </View>
         {isCreating ? (
@@ -131,19 +171,23 @@ export default function DmNewScreen() {
           <Banner
             tone="error"
             title={t('common.loadError')}
-            action={{ label: t('common.retry'), onPress: loadMembers }}
+            action={{ label: t('common.retry'), onPress: () => loadMembers(search) }}
           />
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={members}
           keyExtractor={(item) => item.id}
           renderItem={renderMember}
           contentContainerStyle={styles.list}
+          onEndReached={() => {
+            if (nextCursor && !loading) loadMembers(search, nextCursor)
+          }}
+          onEndReachedThreshold={0.4}
           ListEmptyComponent={
             <View style={styles.center}>
               <Text variant="subheadline" color="secondary">
-                {t('common.noResults')}
+                {search.trim().length < 2 ? t('dm.searchHint') : t('common.noResults')}
               </Text>
             </View>
           }

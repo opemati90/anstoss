@@ -28,6 +28,7 @@ import {
   ContributionRecordStatus,
   ContributionReminderStatus,
   ContributionReminderTrigger,
+  PlanTier,
   Prisma,
   TeamRole,
 } from '@prisma/client'
@@ -35,6 +36,7 @@ import { AuditService } from '../audit/audit.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import {
   buildContributionReminderEmail,
   buildPaymentReceiptEmail,
@@ -71,6 +73,7 @@ type EnsuredRecord = {
     currency: string
     status: ContributionRecordStatus
     paidAmount: number | null
+    manualPaidAmount: number
     paidAt: Date | null
     note: string | null
     lastReminderKey: string | null
@@ -86,6 +89,7 @@ export class ContributionsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly pushService: PushService,
+    private readonly clubEntitlements: ClubEntitlementsService,
   ) {}
 
   async getSettings(clubId: string, userId: string): Promise<ContributionSettings> {
@@ -121,25 +125,50 @@ export class ContributionsService {
       }
     }
 
-    const settings = await this.prisma.clubContributionSettings.upsert({
-      where: { clubId },
-      create: {
-        clubId,
-        enabled: input.enabled,
-        autoRemindersEnabled: input.autoRemindersEnabled,
-        defaultCurrency: normalizeCurrency(input.defaultCurrency),
-        bankAccountHolder: bankAccountHolder ?? null,
-        bankIban: bankIban ?? null,
-        bankReference: bankReference ?? null,
-      },
-      update: {
-        enabled: input.enabled,
-        autoRemindersEnabled: input.autoRemindersEnabled,
-        defaultCurrency: normalizeCurrency(input.defaultCurrency),
-        bankAccountHolder,
-        bankIban,
-        bankReference,
-      },
+    const settings = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-settings:${clubId}`}))`
+      const before = await tx.clubContributionSettings.findUnique({ where: { clubId } })
+      const updated = await tx.clubContributionSettings.upsert({
+        where: { clubId },
+        create: {
+          clubId,
+          enabled: input.enabled,
+          autoRemindersEnabled: input.autoRemindersEnabled,
+          defaultCurrency: normalizeCurrency(input.defaultCurrency),
+          bankAccountHolder: bankAccountHolder ?? null,
+          bankIban: bankIban ?? null,
+          bankReference: bankReference ?? null,
+        },
+        update: {
+          enabled: input.enabled,
+          autoRemindersEnabled: input.autoRemindersEnabled,
+          defaultCurrency: normalizeCurrency(input.defaultCurrency),
+          bankAccountHolder,
+          bankIban,
+          bankReference,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.settings_updated',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: 'Contribution settings updated.',
+          metadata: {
+            beforeEnabled: before?.enabled ?? false,
+            afterEnabled: updated.enabled,
+            beforeAutoReminders: before?.autoRemindersEnabled ?? true,
+            afterAutoReminders: updated.autoRemindersEnabled,
+            bankDetailsChanged:
+              before?.bankIban !== updated.bankIban ||
+              before?.bankAccountHolder !== updated.bankAccountHolder ||
+              before?.bankReference !== updated.bankReference,
+          },
+        },
+      })
+      return updated
     })
 
     return toContributionSettings(settings)
@@ -160,8 +189,10 @@ export class ContributionsService {
 
     validatePlanInput(input)
 
-    const plan = await this.prisma.contributionPlan.create({
-      data: {
+    const refreshed = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plans:${clubId}`}))`
+      const plan = await tx.contributionPlan.create({
+        data: {
         clubId,
         name: input.name.trim(),
         description: input.description?.trim() || null,
@@ -176,62 +207,76 @@ export class ContributionsService {
         reminderDaysAfter: normalizeDayOffsets(input.reminderPolicy.daysAfter),
         active: input.active ?? true,
         createdById: userId,
-      },
-      include: {
-        assignments: {
-          where: { endDate: null },
-          select: { id: true },
         },
-      },
-    })
-
-    if (input.memberUserIds?.length) {
-      await this.replaceAssignments(clubId, userId, {
-        planId: plan.id,
-        memberUserIds: input.memberUserIds,
+        include: {
+          assignments: { where: { endDate: null }, select: { id: true } },
+        },
       })
-    }
-
-    await this.prisma.clubContributionSettings.upsert({
-      where: { clubId },
-      create: {
-        clubId,
-        enabled: true,
-        autoRemindersEnabled: true,
-        defaultCurrency: normalizeCurrency(input.currency),
-      },
-      update: {
-        enabled: true,
-      },
-    })
-
-    await this.auditService.log({
-      clubId,
-      type: 'contribution.plan_created',
-      actorType: 'user',
-      actorId: userId,
-      actorLabel: null,
-      summary: `${input.name.trim()} contribution plan created.`,
-      metadata: {
-        cadence: input.cadence,
-        targetRole: input.targetRole,
-        amount: input.amount,
-      },
-    })
-
-    const refreshed = await this.prisma.contributionPlan.findFirst({
-      where: { id: plan.id },
-      include: {
-        assignments: {
-          where: { endDate: null },
-          select: { id: true },
+      const desiredUserIds = Array.from(
+        new Set((input.memberUserIds ?? []).map((value) => value.trim()).filter(Boolean)),
+      )
+      if (desiredUserIds.length) {
+        const eligible = await this.listEligibleMembers(clubId, plan.targetRole, tx)
+        const eligibleIds = new Set(eligible.map((member) => member.userId))
+        if (desiredUserIds.some((memberUserId) => !eligibleIds.has(memberUserId))) {
+          throw new BadRequestException(
+            'Selected member is not compatible with this contribution plan.',
+          )
+        }
+        const now = new Date()
+        for (const memberUserId of desiredUserIds) {
+          await tx.contributionAssignment.create({
+            data: {
+              clubId,
+              planId: plan.id,
+              memberUserId,
+              assignedById: userId,
+              startDate: now,
+            },
+          })
+        }
+        const assignments = await this.listActiveAssignments(
+          clubId,
+          { planId: plan.id, memberUserIds: desiredUserIds },
+          tx,
+        )
+        await this.ensureCurrentRecords(assignments, tx)
+      }
+      await tx.clubContributionSettings.upsert({
+        where: { clubId },
+        create: {
+          clubId,
+          enabled: true,
+          autoRemindersEnabled: true,
+          defaultCurrency: normalizeCurrency(input.currency),
         },
-      },
+        update: { enabled: true },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.plan_created',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `${input.name.trim()} contribution plan created.`,
+          metadata: {
+            cadence: input.cadence,
+            targetRole: input.targetRole,
+            amount: input.amount,
+            memberUserIds: desiredUserIds,
+          },
+        },
+      })
+      return tx.contributionPlan.findFirst({
+        where: { id: plan.id },
+        include: {
+          assignments: { where: { endDate: null }, select: { id: true } },
+        },
+      })
     })
 
-    if (!refreshed) {
-      throw new NotFoundException('Contribution plan not found after create')
-    }
+    if (!refreshed) throw new NotFoundException('Contribution plan not found after create')
 
     return toContributionPlan(refreshed)
   }
@@ -244,15 +289,14 @@ export class ContributionsService {
   ): Promise<ContributionPlan> {
     await this.assertBillingAccess(clubId, userId)
 
-    const currentPlan = await this.prisma.contributionPlan.findFirst({
-      where: { id: planId, clubId },
-    })
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plan:${clubId}:${planId}`}))`
+      const currentPlan = await tx.contributionPlan.findFirst({
+        where: { id: planId, clubId },
+      })
+      if (!currentPlan) throw new NotFoundException('Contribution plan not found')
 
-    if (!currentPlan) {
-      throw new NotFoundException('Contribution plan not found')
-    }
-
-    validatePlanInput({
+      validatePlanInput({
       name: input.name ?? currentPlan.name,
       description: input.description ?? currentPlan.description ?? undefined,
       amount: input.amount ?? currentPlan.amount,
@@ -267,9 +311,9 @@ export class ContributionsService {
         daysAfter: input.reminderPolicy?.daysAfter ?? currentPlan.reminderDaysAfter,
       },
       active: input.active ?? currentPlan.active,
-    })
+      })
 
-    const updated = await this.prisma.contributionPlan.update({
+      const next = await tx.contributionPlan.update({
       where: { id: planId },
       data: {
         ...(input.name !== undefined && { name: input.name.trim() }),
@@ -303,6 +347,27 @@ export class ContributionsService {
           select: { id: true },
         },
       },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.plan_updated',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `${next.name} contribution plan updated.`,
+          metadata: {
+            planId,
+            previousAmount: currentPlan.amount,
+            amount: next.amount,
+            previousCadence: currentPlan.cadence,
+            cadence: next.cadence,
+            previousActive: currentPlan.active,
+            active: next.active,
+          },
+        },
+      })
+      return next
     })
 
     return toContributionPlan(updated)
@@ -318,50 +383,45 @@ export class ContributionsService {
   async deletePlan(clubId: string, planId: string, userId: string) {
     await this.assertBillingAccess(clubId, userId)
 
-    const plan = await this.prisma.contributionPlan.findFirst({
-      where: { id: planId, clubId },
-    })
-    if (!plan) {
-      throw new NotFoundException('Contribution plan not found')
-    }
+    return this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plan:${clubId}:${planId}`}))`
+      const plan = await tx.contributionPlan.findFirst({ where: { id: planId, clubId } })
+      if (!plan) throw new NotFoundException('Contribution plan not found')
+      const recordCount = await tx.contributionRecord.count({ where: { planId } })
+      const now = new Date()
 
-    const recordCount = await this.prisma.contributionRecord.count({
-      where: { planId },
-    })
-
-    const now = new Date()
-
-    if (recordCount === 0) {
+      if (recordCount === 0) {
       // No financial history yet — safe to fully drop. End assignments
       // first to satisfy the FK chain, then delete the plan.
-      await this.prisma.contributionAssignment.deleteMany({
+      await tx.contributionAssignment.deleteMany({
         where: { planId },
       })
-      await this.prisma.contributionPlan.delete({ where: { id: planId } })
-    } else {
+      await tx.contributionPlan.delete({ where: { id: planId } })
+      } else {
       // History exists — soft-delete: deactivate the plan + end open
       // assignments. Records and reminders stay intact for audit.
-      await this.prisma.contributionAssignment.updateMany({
+      await tx.contributionAssignment.updateMany({
         where: { planId, endDate: null },
         data: { endDate: now },
       })
-      await this.prisma.contributionPlan.update({
+      await tx.contributionPlan.update({
         where: { id: planId },
         data: { active: false },
       })
-    }
-
-    await this.auditService.log({
-      clubId,
-      type: 'contribution.plan_deleted',
-      actorType: 'user',
-      actorId: userId,
-      actorLabel: null,
-      summary: `${plan.name} contribution plan ${recordCount === 0 ? 'deleted' : 'archived (history retained)'}.`,
-      metadata: { planId, hadHistory: recordCount > 0 },
+      }
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.plan_deleted',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `${plan.name} contribution plan ${recordCount === 0 ? 'deleted' : 'archived (history retained)'}.`,
+          metadata: { planId, hadHistory: recordCount > 0 },
+        },
+      })
+      return { ok: true, planId, hardDeleted: recordCount === 0 }
     })
-
-    return { ok: true, planId, hardDeleted: recordCount === 0 }
   }
 
   async replaceAssignments(
@@ -371,55 +431,38 @@ export class ContributionsService {
   ) {
     await this.assertBillingAccess(clubId, userId)
 
-    const plan = await this.prisma.contributionPlan.findFirst({
-      where: { id: input.planId, clubId },
-    })
-
-    if (!plan) {
-      throw new NotFoundException('Contribution plan not found')
-    }
-
     const desiredUserIds = Array.from(
       new Set(input.memberUserIds.map((memberUserId) => memberUserId.trim())),
     ).filter(Boolean)
-
-    const eligibleMembers = await this.listEligibleMembers(clubId, plan.targetRole)
-    const eligibleUserIds = new Set(eligibleMembers.map((member) => member.userId))
-
-    const incompatibleMemberId = desiredUserIds.find(
-      (memberUserId) => !eligibleUserIds.has(memberUserId),
-    )
-
-    if (incompatibleMemberId) {
-      throw new BadRequestException(
-        'Selected member is not compatible with this contribution plan.',
-      )
-    }
-
-    const existingAssignments = await this.prisma.contributionAssignment.findMany({
-      where: {
-        planId: plan.id,
-      },
-    })
-
-    const now = new Date()
-    const activeAssignments = existingAssignments.filter(
-      (assignment) => assignment.endDate === null,
-    )
-    const activeUserIds = new Set(activeAssignments.map((assignment) => assignment.memberUserId))
-
-    for (const memberUserId of desiredUserIds) {
-      await this.prisma.contributionAssignment.updateMany({
-        where: {
-          clubId,
-          memberUserId,
-          endDate: null,
-          planId: { not: plan.id },
-        },
-        data: { endDate: now },
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plan:${clubId}:${input.planId}`}))`
+      const plan = await tx.contributionPlan.findFirst({
+        where: { id: input.planId, clubId },
       })
+      if (!plan) throw new NotFoundException('Contribution plan not found')
 
-      await this.prisma.contributionAssignment.upsert({
+      const eligibleMembers = await this.listEligibleMembers(clubId, plan.targetRole, tx)
+      const eligibleUserIds = new Set(eligibleMembers.map((member) => member.userId))
+      if (desiredUserIds.some((memberUserId) => !eligibleUserIds.has(memberUserId))) {
+        throw new BadRequestException(
+          'Selected member is not compatible with this contribution plan.',
+        )
+      }
+      const existingAssignments = await tx.contributionAssignment.findMany({
+        where: { planId: plan.id },
+      })
+      const now = new Date()
+      const activeAssignments = existingAssignments.filter(
+        (assignment: any) => assignment.endDate === null,
+      )
+      const activeUserIds = new Set(
+        activeAssignments.map((assignment: any) => assignment.memberUserId),
+      )
+
+      for (const memberUserId of desiredUserIds) {
+        // Assignments are additive: a one-off fee must not silently end a
+        // member's recurring dues (and vice versa).
+        await tx.contributionAssignment.upsert({
         where: {
           planId_memberUserId: {
             planId: plan.id,
@@ -438,35 +481,49 @@ export class ContributionsService {
           assignedById: userId,
           startDate: now,
         },
-      })
-    }
+        })
+      }
 
-    const removedUserIds = activeAssignments
-      .map((assignment) => assignment.memberUserId)
-      .filter((memberUserId) => !desiredUserIds.includes(memberUserId))
-
-    if (removedUserIds.length > 0) {
-      await this.prisma.contributionAssignment.updateMany({
+      const removedUserIds = activeAssignments
+        .map((assignment: any) => assignment.memberUserId)
+        .filter((memberUserId: string) => !desiredUserIds.includes(memberUserId))
+      if (removedUserIds.length > 0) {
+        await tx.contributionAssignment.updateMany({
         where: {
           planId: plan.id,
           memberUserId: { in: removedUserIds },
           endDate: null,
         },
         data: { endDate: now },
+        })
+      }
+      const nextActiveUserIds = desiredUserIds.filter(
+        (memberUserId) => !activeUserIds.has(memberUserId),
+      )
+      if (nextActiveUserIds.length > 0) {
+        const assignments = await this.listActiveAssignments(
+          clubId,
+          { planId: plan.id, memberUserIds: nextActiveUserIds },
+          tx,
+        )
+        await this.ensureCurrentRecords(assignments, tx)
+      }
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.assignments_replaced',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `Updated assignments for ${plan.name}.`,
+          metadata: {
+            planId: plan.id,
+            beforeUserIds: activeAssignments.map((item: any) => item.memberUserId),
+            afterUserIds: desiredUserIds,
+          },
+        },
       })
-    }
-
-    const nextActiveUserIds = desiredUserIds.filter(
-      (memberUserId) => !activeUserIds.has(memberUserId),
-    )
-
-    if (nextActiveUserIds.length > 0) {
-      const assignments = await this.listActiveAssignments(clubId, {
-        planId: plan.id,
-        memberUserIds: nextActiveUserIds,
-      })
-      await this.ensureCurrentRecords(assignments)
-    }
+    })
 
     return this.getOverview(clubId, userId)
   }
@@ -495,6 +552,7 @@ export class ContributionsService {
             email: true,
             avatarUrl: true,
             preferredLanguage: true,
+            dateOfBirth: true,
           },
         },
       },
@@ -511,35 +569,59 @@ export class ContributionsService {
       throw new NotFoundException('Contribution period not found')
     }
 
-    const paidAmount =
-      input.status === 'PAID'
-        ? (input.paidAmount ?? current.record.amount)
-        : input.status === 'PARTIAL'
-          ? (input.paidAmount ?? Math.max(Math.round(current.record.amount / 2), 1))
-          : null
+    const paidAmount = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-record:${current.record.id}`}))`
+      const latest = await tx.contributionRecord.findUnique({
+        where: { id: current.record.id },
+      })
+      if (!latest || latest.clubId !== clubId) {
+        throw new NotFoundException('Contribution period not found')
+      }
 
-    await this.prisma.contributionRecord.update({
-      where: { id: current.record.id },
-      data: {
-        status: input.status as ContributionRecordStatus,
-        paidAmount,
-        paidAt: input.status === 'PAID' || input.status === 'PARTIAL' ? new Date() : null,
-        note: input.note?.trim() || null,
-      },
-    })
-
-    await this.auditService.log({
-      clubId,
-      type: 'contribution.status_updated',
-      actorType: 'user',
-      actorId: userId,
-      actorLabel: null,
-      summary: `${assignment.member.name} marked as ${input.status.toLowerCase()} for ${assignment.plan.name}.`,
-      metadata: {
-        memberUserId,
-        planId: assignment.planId,
-        status: input.status,
-      },
+      const nextPaidAmount = validatePaidAmount(input.status, input.paidAmount, latest.amount)
+      const imported = await tx.contributionMatch.aggregate({
+        where: { recordId: latest.id, status: 'CONFIRMED' },
+        _sum: { amount: true },
+      })
+      const importedPaidAmount = imported._sum.amount ?? 0
+      const desiredPaidAmount = nextPaidAmount ?? 0
+      if (desiredPaidAmount < importedPaidAmount) {
+        throw new BadRequestException(
+          'The entered amount cannot be lower than confirmed bank payments. Reverse the bank match first.',
+        )
+      }
+      const manualPaidAmount = desiredPaidAmount - importedPaidAmount
+      await tx.contributionRecord.update({
+        where: { id: latest.id },
+        data: {
+          status: input.status as ContributionRecordStatus,
+          paidAmount: nextPaidAmount,
+          manualPaidAmount,
+          paidAt: input.status === 'PAID' || input.status === 'PARTIAL' ? new Date() : null,
+          note: input.note?.trim() || null,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.status_updated',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `${assignment.member.name} marked as ${input.status.toLowerCase()} for ${assignment.plan.name}.`,
+          metadata: {
+            memberUserId,
+            planId: assignment.planId,
+            previousStatus: latest.status,
+            previousPaidAmount: latest.paidAmount,
+            status: input.status,
+            paidAmount: nextPaidAmount,
+            manualPaidAmount,
+            importedPaidAmount,
+          },
+        },
+      })
+      return nextPaidAmount
     })
 
     if (input.status === 'PAID') {
@@ -605,6 +687,10 @@ export class ContributionsService {
   }
 
   async runAutomaticReminderSweep(clubId: string): Promise<ContributionReminderDispatchResult> {
+    const entitlement = await this.clubEntitlements.resolve(clubId)
+    if (entitlement.tier === PlanTier.FREE) {
+      return { requested: 0, sent: 0, skipped: 0 }
+    }
     const settings = await this.ensureSettings(clubId)
     if (!settings.enabled || !settings.autoRemindersEnabled) {
       return {
@@ -780,6 +866,7 @@ export class ContributionsService {
             email: true,
             avatarUrl: true,
             preferredLanguage: true,
+            dateOfBirth: true,
           },
         },
       },
@@ -803,31 +890,37 @@ export class ContributionsService {
       return this.getMyContributions(clubId, userId)
     }
 
-    await this.prisma.contributionRecord.update({
-      where: { id: current.record.id },
-      data: {
-        // A member tap is an unverified report, not proof that money moved.
-        // Keep it outstanding until a Stripe webhook or a treasurer confirms
-        // it through updateMemberStatus(). PARTIAL + zero amount is an existing
-        // non-settled state and the note makes the report explicit to admins.
-        status: ContributionRecordStatus.PARTIAL,
-        paidAmount: 0,
-        paidAt: null,
-        note: 'PAYMENT_REPORTED_BY_MEMBER',
-      },
-    })
-
-    await this.auditService.log({
-      clubId,
-      type: 'contribution.self_marked_paid',
-      actorType: 'user',
-      actorId: userId,
-      actorLabel: null,
-      summary: `Member reported an offline payment for ${assignment.plan.name}; awaiting verification.`,
-      metadata: {
-        planId,
-        recordId: current.record.id,
-      },
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-record:${current.record.id}`}))`
+      const latest = await tx.contributionRecord.findUnique({
+        where: { id: current.record.id },
+      })
+      if (!latest || latest.clubId !== clubId) {
+        throw new NotFoundException('Contribution period not found')
+      }
+      if (
+        latest.status === ContributionRecordStatus.PAID ||
+        latest.note === 'PAYMENT_REPORTED_BY_MEMBER'
+      ) {
+        return
+      }
+      await tx.contributionRecord.update({
+        where: { id: latest.id },
+        data: {
+          note: 'PAYMENT_REPORTED_BY_MEMBER',
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'contribution.self_marked_paid',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `Member reported an offline payment for ${assignment.plan.name}; awaiting verification.`,
+          metadata: { planId, recordId: latest.id },
+        },
+      })
     })
 
     return this.getMyContributions(clubId, userId, locale)
@@ -973,8 +1066,8 @@ export class ContributionsService {
     })
   }
 
-  private async listClubMembers(clubId: string): Promise<ClubMember[]> {
-    return this.prisma.membership.findMany({
+  private async listClubMembers(clubId: string, db: any = this.prisma): Promise<ClubMember[]> {
+    return db.membership.findMany({
       where: {
         clubId,
         role: {
@@ -1001,8 +1094,12 @@ export class ContributionsService {
     })
   }
 
-  private async listEligibleMembers(clubId: string, targetRole: string): Promise<ClubMember[]> {
-    const members = await this.listClubMembers(clubId)
+  private async listEligibleMembers(
+    clubId: string,
+    targetRole: string,
+    db: any = this.prisma,
+  ): Promise<ClubMember[]> {
+    const members = await this.listClubMembers(clubId, db)
     if (targetRole === 'CUSTOM' || targetRole === 'ADMIN') {
       return members.filter((member) => isMemberCompatible(member.role, targetRole))
     }
@@ -1012,7 +1109,7 @@ export class ContributionsService {
         : targetRole === 'COACH'
           ? [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
           : [TeamRole.PARENT]
-    const access = await this.prisma.teamAccess.findMany({
+    const access = await db.teamAccess.findMany({
       where: {
         clubId,
         status: 'ACTIVE',
@@ -1021,7 +1118,7 @@ export class ContributionsService {
       distinct: ['userId'],
       select: { userId: true },
     })
-    const additiveUsers = new Set(access.map((row) => row.userId))
+    const additiveUsers = new Set(access.map((row: { userId: string }) => row.userId))
     return members.filter(
       (member) =>
         additiveUsers.has(member.userId) || isMemberCompatible(member.role, targetRole),
@@ -1031,8 +1128,9 @@ export class ContributionsService {
   private async listActiveAssignments(
     clubId: string,
     filters?: { planId?: string; memberUserIds?: string[] },
+    db: any = this.prisma,
   ) {
-    return this.prisma.contributionAssignment.findMany({
+    return db.contributionAssignment.findMany({
       where: {
         clubId,
         endDate: null,
@@ -1053,13 +1151,17 @@ export class ContributionsService {
             email: true,
             avatarUrl: true,
             preferredLanguage: true,
+            dateOfBirth: true,
           },
         },
       },
     })
   }
 
-  private async ensureCurrentRecords(assignments: AssignmentRow[]): Promise<EnsuredRecord[]> {
+  private async ensureCurrentRecords(
+    assignments: AssignmentRow[],
+    db: any = this.prisma,
+  ): Promise<EnsuredRecord[]> {
     const now = new Date()
     const records: EnsuredRecord[] = []
 
@@ -1074,7 +1176,7 @@ export class ContributionsService {
         now,
       )
 
-      const record = await this.prisma.contributionRecord.upsert({
+      const record = await db.contributionRecord.upsert({
         where: {
           assignmentId_periodStart: {
             assignmentId: assignment.id,
@@ -1093,12 +1195,9 @@ export class ContributionsService {
           currency: assignment.plan.currency,
           status: ContributionRecordStatus.PENDING,
         },
-        update: {
-          periodEnd: period.periodEnd,
-          dueDate: period.dueDate,
-          amount: assignment.amountOverride ?? assignment.plan.amount,
-          currency: assignment.plan.currency,
-        },
+        // Issued financial records are immutable snapshots. Plan edits affect
+        // only future periods; they must never rewrite an existing obligation.
+        update: {},
       })
 
       records.push({ assignment, record })
@@ -1158,10 +1257,24 @@ export class ContributionsService {
       },
     })
 
-    if (existing && existing.status !== ContributionReminderStatus.PROCESSING) {
+    if (
+      existing &&
+      (existing.status === ContributionReminderStatus.SENT ||
+        existing.status === ContributionReminderStatus.SKIPPED)
+    ) {
       return { sent: false }
     }
-    if (existing) {
+    if (existing?.status === ContributionReminderStatus.FAILED) {
+      const retried = await this.prisma.contributionReminder.updateMany({
+        where: { id: existing.id, status: ContributionReminderStatus.FAILED },
+        data: {
+          status: ContributionReminderStatus.PROCESSING,
+          sentAt: new Date(),
+          message: 'Retrying failed reminder dispatch.',
+        },
+      })
+      if (retried.count !== 1) return { sent: false }
+    } else if (existing) {
       const reclaimed = await this.prisma.contributionReminder.updateMany({
         where: {
           id: existing.id,
@@ -1209,58 +1322,82 @@ export class ContributionsService {
     const amountLabel = formatAmount(item.record.amount, item.record.currency)
     const dueDateLabel = formatGermanDate(item.record.dueDate)
 
-    // Email: branded + localized to the member's preferred language (de fallback).
-    const locale = resolveEmailLocale(item.assignment.member.preferredLanguage)
-    const email = buildContributionReminderEmail({
-      locale,
-      clubName: input.clubName,
-      primaryColor: input.clubPrimaryColor,
-      badgeUrl: input.clubBadgeUrl,
-      memberName: item.assignment.member.name,
-      planName: item.assignment.plan.name,
-      amountCents: item.record.amount,
-      currency: item.record.currency,
-      dueDate: item.record.dueDate,
-      status: derivedStatus === 'OVERDUE' ? 'OVERDUE' : 'OUTSTANDING',
-    })
+    const memberIsMinor = isUnder16(item.assignment.member.dateOfBirth)
+    const recipients = memberIsMinor
+      ? (
+          await this.prisma.guardianRelationship.findMany({
+            where: {
+              clubId: input.clubId,
+              playerUserId: item.assignment.memberUserId,
+            },
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  preferredLanguage: true,
+                },
+              },
+            },
+          })
+        ).map((relationship: any) => relationship.parent)
+      : [item.assignment.member]
 
-    // Push: same locale as the email; localized prose + glanceable data.
-    const duePush = formatPush(
-      'CONTRIBUTION_DUE',
-      {
-        clubName: input.clubName,
-        planName: item.assignment.plan.name,
-        amountLabel,
-        dueDate: dueDateLabel,
-      },
-      locale,
-    )
-
-    const memberEmail = item.assignment.member.email
-    const [emailSent, pushSent] = await Promise.all([
-      memberEmail
-        ? sendContributionReminderEmail({
-            to: memberEmail,
-            subject: email.subject,
-            html: email.html,
-            text: email.text,
-          }).catch(() => false)
-        : Promise.resolve(false),
-      this.pushService
-        .sendToUser(
-          item.assignment.memberUserId,
-          duePush.title,
-          duePush.body,
+    const deliveries = await Promise.all(
+      recipients.map(async (recipient: any) => {
+        const locale = resolveEmailLocale(recipient.preferredLanguage)
+        const email = buildContributionReminderEmail({
+          locale,
+          clubName: input.clubName,
+          primaryColor: input.clubPrimaryColor,
+          badgeUrl: input.clubBadgeUrl,
+          memberName: recipient.name,
+          planName: item.assignment.plan.name,
+          amountCents: item.record.amount,
+          currency: item.record.currency,
+          dueDate: item.record.dueDate,
+          status: derivedStatus === 'OVERDUE' ? 'OVERDUE' : 'OUTSTANDING',
+        })
+        const duePush = formatPush(
+          'CONTRIBUTION_DUE',
           {
-            type: 'contribution',
-            clubId: input.clubId,
-            memberUserId: item.assignment.memberUserId,
+            clubName: input.clubName,
+            planName: item.assignment.plan.name,
+            amountLabel,
+            dueDate: dueDateLabel,
           },
-          { clubId: input.clubId },
+          locale,
         )
-        .then(() => true)
-        .catch(() => false),
-    ])
+        const [emailSent, pushSent] = await Promise.all([
+          recipient.email
+            ? sendContributionReminderEmail({
+                to: recipient.email,
+                subject: email.subject,
+                html: email.html,
+                text: email.text,
+              }).catch(() => false)
+            : Promise.resolve(false),
+          this.pushService
+            .sendToUser(
+              recipient.id,
+              duePush.title,
+              duePush.body,
+              {
+                type: 'contribution',
+                clubId: input.clubId,
+                memberUserId: item.assignment.memberUserId,
+              },
+              { clubId: input.clubId },
+            )
+            .then(() => true)
+            .catch(() => false),
+        ])
+        return { emailSent, pushSent }
+      }),
+    )
+    const emailSent = deliveries.some((delivery) => delivery.emailSent)
+    const pushSent = deliveries.some((delivery) => delivery.pushSent)
 
     await this.prisma.contributionReminder.update({
       where: { recordId_reminderKey: { recordId: item.record.id, reminderKey: input.reminderKey } },
@@ -1271,17 +1408,24 @@ export class ContributionsService {
           emailSent || pushSent
             ? ContributionReminderStatus.SENT
             : ContributionReminderStatus.FAILED,
-        message: emailSent || pushSent ? null : 'No reminder channel succeeded.',
+        message:
+          emailSent || pushSent
+            ? null
+            : memberIsMinor && recipients.length === 0
+              ? 'No linked guardian is available for this minor.'
+              : 'No reminder channel succeeded.',
       },
     })
 
-    await this.prisma.contributionRecord.update({
-      where: { id: item.record.id },
-      data: {
-        lastReminderKey: input.reminderKey,
-        lastReminderSentAt: new Date(),
-      },
-    })
+    if (emailSent || pushSent) {
+      await this.prisma.contributionRecord.update({
+        where: { id: item.record.id },
+        data: {
+          lastReminderKey: input.reminderKey,
+          lastReminderSentAt: new Date(),
+        },
+      })
+    }
 
     await this.auditService.log({
       clubId: input.clubId,
@@ -1546,6 +1690,40 @@ function deriveContributionStatus(
   if (record.status === ContributionRecordStatus.WAIVED) return 'WAIVED'
   if (record.status === ContributionRecordStatus.EXEMPT) return 'EXEMPT'
   return isPastGraceWindow(record.dueDate, plan.graceDays) ? 'OVERDUE' : 'PENDING'
+}
+
+function validatePaidAmount(
+  status: UpdateContributionMemberStatusInput['status'],
+  requestedAmount: number | undefined,
+  amountDue: number,
+) {
+  if (status === 'PAID') {
+    const paidAmount = requestedAmount ?? amountDue
+    if (paidAmount !== amountDue) {
+      throw new BadRequestException('Paid amount must equal the amount due.')
+    }
+    return paidAmount
+  }
+  if (status === 'PARTIAL') {
+    if (requestedAmount === undefined || requestedAmount <= 0 || requestedAmount >= amountDue) {
+      throw new BadRequestException(
+        'Partial amount must be greater than zero and less than the amount due.',
+      )
+    }
+    return requestedAmount
+  }
+  if (requestedAmount !== undefined && requestedAmount !== 0) {
+    throw new BadRequestException('Paid amount is only valid for paid or partial status.')
+  }
+  return null
+}
+
+function isUnder16(dateOfBirth: Date | null | undefined, now = new Date()) {
+  if (!dateOfBirth) return false
+  const cutoff = new Date(
+    Date.UTC(now.getUTCFullYear() - 16, now.getUTCMonth(), now.getUTCDate()),
+  )
+  return dateOfBirth > cutoff
 }
 
 function isPastGraceWindow(dueDate: Date, graceDays: number) {

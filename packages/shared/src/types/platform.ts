@@ -41,6 +41,8 @@ export type AuditEventType =
   | 'join_request.created'
   | 'join_request.approved'
   | 'join_request.rejected'
+  | 'join_request.withdrawn'
+  | 'join_request.reminder_sent'
   | 'admin.broadcast.sent'
   | 'admin.broadcast.failed'
   | 'admin.feature_flag.updated'

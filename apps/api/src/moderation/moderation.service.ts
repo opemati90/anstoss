@@ -121,8 +121,13 @@ export class ModerationService {
     if (!target) throw new NotFoundException('User not found')
 
     try {
-      await this.prisma.userBlock.create({
-        data: { blockerUserId, blockedUserId },
+      await this.prisma.$transaction(async (tx) => {
+        for (const participantId of [blockerUserId, blockedUserId].sort()) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${participantId}`}))`
+        }
+        await tx.userBlock.create({
+          data: { blockerUserId, blockedUserId },
+        })
       })
     } catch (err: unknown) {
       if (

@@ -27,6 +27,11 @@ describe('ClubsService.createClubWithTeam', () => {
     const tx = {
       // Advisory lock for per-user setup serialization — no-op in tests.
       $executeRaw: jest.fn().mockResolvedValue(1),
+      user: {
+        findFirst: jest.fn().mockResolvedValue({
+          registrationRole: RegistrationRole.CLUB_ADMIN,
+        }),
+      },
       club: {
         findMany: jest.fn(),
         findUnique: jest.fn().mockResolvedValue(null),
@@ -128,6 +133,21 @@ describe('ClubsService.createClubWithTeam', () => {
       { clubId: 'club-1', userId: 'user-1' },
       expect.any(Function),
     )
+  })
+
+  it('does not create ownership after the creator account is deleted', async () => {
+    const { service, tx } = createService()
+    tx.user.findFirst.mockResolvedValue(null)
+
+    await expect(
+      service.createClubWithTeam(
+        'user-1',
+        { name: 'FC Deleted', primaryColor: '#111111' },
+        { name: 'First team' },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(tx.club.create).not.toHaveBeenCalled()
+    expect(tx.membership.create).not.toHaveBeenCalled()
   })
 
   it('does not reuse an unclaimed directory slug during manual club setup', async () => {
@@ -879,6 +899,7 @@ describe('ClubsService.removeMemberFromClub', () => {
 
   function createService(actorRole: string | null, targetRole: string | null) {
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
       conversationParticipant: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
@@ -901,14 +922,15 @@ describe('ClubsService.removeMemberFromClub', () => {
       contributionAssignment: { updateMany: jest.fn().mockResolvedValue({}) },
       contributionReminder: { deleteMany: jest.fn().mockResolvedValue({}) },
       joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
-      membership: { deleteMany: jest.fn().mockResolvedValue({}) },
+      membership: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(actorRole ? { role: actorRole } : null)
+          .mockResolvedValueOnce(targetRole ? { role: targetRole } : null),
+        deleteMany: jest.fn().mockResolvedValue({}),
+      },
     }
-    const findUnique = jest
-      .fn()
-      .mockResolvedValueOnce(actorRole ? { role: actorRole } : null)
-      .mockResolvedValueOnce(targetRole ? { role: targetRole } : null)
     const prisma = {
-      membership: { findUnique },
       $transaction: jest.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
     }
     return { prisma, tx, service: new ClubsService(prisma as never) }

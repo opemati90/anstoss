@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Alert, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../src/api/client'
@@ -28,12 +28,17 @@ export default function PendingApprovalScreen() {
   const [checkStatus, setCheckStatus] =
     useState<'idle' | 'stillPending' | 'updated' | 'error'>('idle')
   const [checkLoading, setCheckLoading] = useState(false)
+  const [withdrawing, setWithdrawing] = useState(false)
   const [activeJoinRequest, setActiveJoinRequest] =
     useState<PendingJoinRequest | null | undefined>(undefined)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const remindRunRef = useRef(0)
+  const checkRunRef = useRef(0)
+  const withdrawingRef = useRef(false)
+  const withdrawPromptOpenRef = useRef(false)
 
   useEffect(() => {
+    if (withdrawingRef.current) return
     setActiveJoinRequest(undefined)
   }, [pendingJoinRequest])
 
@@ -47,9 +52,10 @@ export default function PendingApprovalScreen() {
     }
     let isMounted = true
     const tick = async () => {
+      if (withdrawingRef.current) return
       try {
         const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
-        if (!isMounted) return
+        if (!isMounted || withdrawingRef.current) return
         if (!res.request || res.request.status !== 'PENDING') {
           remindRunRef.current += 1
           setRemindLoading(false)
@@ -85,7 +91,7 @@ export default function PendingApprovalScreen() {
   }
 
   const handleRemind = async () => {
-    if (!effectiveJoinRequest) return
+    if (!effectiveJoinRequest || withdrawingRef.current) return
     const remindRunId = ++remindRunRef.current
     setRemindLoading(true)
     setRemindStatus('idle')
@@ -95,11 +101,11 @@ export default function PendingApprovalScreen() {
         `/clubs/${effectiveJoinRequest.clubId}/join-requests/${effectiveJoinRequest.id}/remind`,
         { method: 'POST' },
       )
-      if (remindRunId === remindRunRef.current) {
+      if (!withdrawingRef.current && remindRunId === remindRunRef.current) {
         setRemindStatus('sent')
       }
     } catch (e) {
-      if (remindRunId === remindRunRef.current) {
+      if (!withdrawingRef.current && remindRunId === remindRunRef.current) {
         if (e instanceof ApiError && e.status === 400) {
           setRemindStatus('cooldown')
         } else {
@@ -107,30 +113,35 @@ export default function PendingApprovalScreen() {
         }
       }
     } finally {
-      if (remindRunId === remindRunRef.current) {
+      if (!withdrawingRef.current && remindRunId === remindRunRef.current) {
         setRemindLoading(false)
       }
     }
   }
 
   const handleCheckStatus = async () => {
+    if (withdrawingRef.current) return
+    const checkRunId = ++checkRunRef.current
     setCheckLoading(true)
     setCheckStatus('idle')
     setRemindStatus('idle')
     try {
       if (isAgeGate) {
         await refreshUser(undefined, { throwOnError: true })
+        if (withdrawingRef.current || checkRunId !== checkRunRef.current) return
         setCheckStatus('updated')
         router.replace('/')
         return
       }
 
       const res = await api<ActiveJoinRequestResponse>('/me/join-requests/active')
+      if (withdrawingRef.current || checkRunId !== checkRunRef.current) return
       if (!res.request || res.request.status !== 'PENDING') {
         remindRunRef.current += 1
         setRemindLoading(false)
         setActiveJoinRequest(null)
         await refreshUser(undefined, { throwOnError: true })
+        if (withdrawingRef.current || checkRunId !== checkRunRef.current) return
         setCheckStatus('updated')
         router.replace('/')
         return
@@ -139,10 +150,75 @@ export default function PendingApprovalScreen() {
       setActiveJoinRequest({ id: res.request.id, clubId: res.request.clubId })
       setCheckStatus('stillPending')
     } catch {
-      setCheckStatus('error')
+      if (!withdrawingRef.current && checkRunId === checkRunRef.current) {
+        setCheckStatus('error')
+      }
     } finally {
-      setCheckLoading(false)
+      if (!withdrawingRef.current && checkRunId === checkRunRef.current) {
+        setCheckLoading(false)
+      }
     }
+  }
+
+  const handleWithdraw = () => {
+    if (
+      !effectiveJoinRequest ||
+      withdrawingRef.current ||
+      withdrawPromptOpenRef.current
+    ) return
+    withdrawPromptOpenRef.current = true
+    Alert.alert(
+      t('pendingApproval.withdrawTitle'),
+      t('pendingApproval.withdrawBody'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+          onPress: () => {
+            withdrawPromptOpenRef.current = false
+          },
+        },
+        {
+          text: t('pendingApproval.withdrawConfirm'),
+          style: 'destructive',
+          onPress: async () => {
+            withdrawPromptOpenRef.current = false
+            withdrawingRef.current = true
+            checkRunRef.current += 1
+            remindRunRef.current += 1
+            setWithdrawing(true)
+            setCheckLoading(false)
+            setRemindLoading(false)
+            try {
+              await api(
+                `/clubs/${effectiveJoinRequest.clubId}/join-requests/${effectiveJoinRequest.id}/withdraw`,
+                { method: 'POST' },
+              )
+              if (pollingRef.current) {
+                clearInterval(pollingRef.current)
+                pollingRef.current = null
+              }
+              setActiveJoinRequest(null)
+              // The server mutation is already committed. Refresh is useful
+              // for local context but must never turn a successful withdrawal
+              // into a false failure message.
+              await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
+              router.replace('/(auth)/club-search')
+            } catch {
+              withdrawingRef.current = false
+              Alert.alert(t('common.errorTitle'), t('pendingApproval.withdrawError'))
+            } finally {
+              setWithdrawing(false)
+            }
+          },
+        },
+      ],
+      {
+        onDismiss: () => {
+          withdrawPromptOpenRef.current = false
+        },
+      },
+    )
   }
 
   const bodyText = isAgeGate
@@ -217,7 +293,12 @@ export default function PendingApprovalScreen() {
               size="lg"
               fullWidth
               loading={remindLoading}
-              disabled={checkLoading || remindStatus === 'sent' || remindStatus === 'cooldown'}
+              disabled={
+                checkLoading ||
+                withdrawing ||
+                remindStatus === 'sent' ||
+                remindStatus === 'cooldown'
+              }
               onPress={() => void handleRemind()}
               testID="pending-approval-remind"
             />
@@ -228,14 +309,27 @@ export default function PendingApprovalScreen() {
             size="lg"
             fullWidth
             loading={checkLoading}
-            disabled={remindLoading}
+            disabled={remindLoading || withdrawing}
             onPress={() => void handleCheckStatus()}
           />
+          {effectiveJoinRequest && !isAgeGate ? (
+            <Button
+              label={t('pendingApproval.withdrawCta')}
+              variant="plain"
+              size="lg"
+              fullWidth
+              loading={withdrawing}
+              disabled={withdrawing}
+              onPress={handleWithdraw}
+              testID="pending-approval-withdraw"
+            />
+          ) : null}
           <Button
             label={t('pendingApproval.signOut')}
             variant="plain"
             size="lg"
             fullWidth
+            disabled={withdrawing}
             onPress={handleSignOut}
           />
         </View>

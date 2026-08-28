@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { ContributionsService } from './contributions.service'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
+import { PlanTier } from '@prisma/client'
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000
 
@@ -13,6 +15,7 @@ export class ContributionsReminderWorker implements OnModuleInit, OnModuleDestro
   constructor(
     private readonly prisma: PrismaService,
     private readonly contributionsService: ContributionsService,
+    private readonly entitlements: ClubEntitlementsService,
   ) {}
 
   onModuleInit() {
@@ -51,6 +54,8 @@ export class ContributionsReminderWorker implements OnModuleInit, OnModuleDestro
 
     for (const { clubId } of clubs) {
       try {
+        const entitlement = await this.entitlements.resolve(clubId)
+        if (entitlement.tier === PlanTier.FREE) continue
         const result = await this.contributionsService.runAutomaticReminderSweep(clubId)
 
         if (result.sent > 0) {

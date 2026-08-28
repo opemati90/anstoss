@@ -8,10 +8,12 @@ describe('ChatGateway rate-limit fallback', () => {
       {} as never, {} as never, {} as never, {} as never,
     )
     ;(gateway as any).rateLimitRedis = {
-      set: jest.fn().mockRejectedValue(new Error('redis down')),
+      incr: jest.fn().mockRejectedValue(new Error('redis down')),
     }
 
-    await expect((gateway as any).isChatRateLimited('user-1')).resolves.toBe(false)
+    for (let index = 0; index < 60; index += 1) {
+      await expect((gateway as any).isChatRateLimited('user-1')).resolves.toBe(false)
+    }
     await expect((gateway as any).isChatRateLimited('user-1')).resolves.toBe(true)
   })
 })

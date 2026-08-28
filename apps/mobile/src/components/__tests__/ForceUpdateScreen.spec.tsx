@@ -36,4 +36,16 @@ describe('ForceUpdateScreen', () => {
 
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
+
+  it('renders the platform-provided force update message', () => {
+    const screen = render(
+      <ForceUpdateScreen
+        onUpdate={jest.fn()}
+        message="This release is no longer supported."
+      />,
+    )
+
+    expect(screen.getByText('This release is no longer supported.')).toBeTruthy()
+    expect(screen.queryByText('Install the latest version to continue.')).toBeNull()
+  })
 })

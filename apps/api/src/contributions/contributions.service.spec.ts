@@ -14,6 +14,7 @@ describe('ContributionsService', () => {
 
   beforeEach(() => {
     prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
       membership: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
@@ -38,16 +39,25 @@ describe('ContributionsService', () => {
       },
       contributionRecord: {
         upsert: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn(),
       },
+      contributionMatch: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
       contributionReminder: {
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      guardianRelationship: { findMany: jest.fn().mockResolvedValue([]) },
       teamAccess: { findMany: jest.fn().mockResolvedValue([]) },
     }
+    prisma.$transaction = jest.fn(async (callback: (tx: typeof prisma) => unknown) =>
+      callback(prisma),
+    )
     auditService = {
       log: jest.fn(),
     }
@@ -59,10 +69,11 @@ describe('ContributionsService', () => {
       prisma as never,
       auditService as never,
       pushService as never,
+      { resolve: jest.fn().mockResolvedValue({ tier: 'PRO' }) } as never,
     )
   })
 
-  it('ends conflicting active assignments when a member is moved onto a new plan', async () => {
+  it('keeps other contribution plans active when assigning a new plan', async () => {
     prisma.membership.findUnique.mockResolvedValue({
       role: 'OWNER',
       operationalRoles: [],
@@ -134,15 +145,9 @@ describe('ContributionsService', () => {
       memberUserIds: ['member-1'],
     })
 
-    expect(prisma.contributionAssignment.updateMany).toHaveBeenCalledWith({
-      where: {
-        clubId: 'club-1',
-        memberUserId: 'member-1',
-        endDate: null,
-        planId: { not: 'plan-new' },
-      },
-      data: { endDate: expect.any(Date) },
-    })
+    expect(prisma.contributionAssignment.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ planId: { not: 'plan-new' } }) }),
+    )
     expect(getOverviewSpy).toHaveBeenCalledWith('club-1', 'admin-1')
   })
 
@@ -311,6 +316,133 @@ describe('ContributionsService', () => {
     expect(pushService.sendToUser).toHaveBeenCalledTimes(1)
   })
 
+  it('routes a minor contribution reminder to the linked guardian only', async () => {
+    prisma.contributionReminder.findFirst.mockResolvedValue(null)
+    prisma.contributionReminder.create.mockResolvedValue({ id: 'reminder-minor' })
+    prisma.contributionReminder.update.mockResolvedValue({})
+    prisma.contributionRecord.update.mockResolvedValue({})
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      {
+        parent: {
+          id: 'guardian-1',
+          name: 'Guardian',
+          email: null,
+          preferredLanguage: 'en',
+        },
+      },
+    ])
+    pushService.sendToUser.mockResolvedValue({ sent: 1 })
+    const item = {
+      assignment: {
+        id: 'assignment-minor',
+        clubId: 'club-1',
+        planId: 'plan-1',
+        memberUserId: 'minor-1',
+        plan: { id: 'plan-1', name: 'Youth dues', graceDays: 0 },
+        member: {
+          id: 'minor-1',
+          name: 'Junior Player',
+          email: 'minor@example.com',
+          preferredLanguage: 'en',
+          dateOfBirth: new Date(),
+        },
+      },
+      record: {
+        id: 'record-minor',
+        clubId: 'club-1',
+        planId: 'plan-1',
+        assignmentId: 'assignment-minor',
+        memberUserId: 'minor-1',
+        dueDate: new Date(Date.now() + 86_400_000),
+        amount: 2500,
+        currency: 'eur',
+        status: 'PENDING',
+        paidAmount: null,
+      },
+    }
+
+    await (service as any).dispatchReminder(item, {
+      clubId: 'club-1',
+      clubName: 'Club',
+      trigger: 'MANUAL',
+      reminderKey: 'manual:minor',
+    })
+
+    expect(pushService.sendToUser).toHaveBeenCalledWith(
+      'guardian-1',
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ memberUserId: 'minor-1' }),
+      { clubId: 'club-1' },
+    )
+    expect(pushService.sendToUser).not.toHaveBeenCalledWith(
+      'minor-1',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('does not run scheduled contribution reminders on the Free tier', async () => {
+    ;(service as any).clubEntitlements.resolve.mockResolvedValue({ tier: 'FREE' })
+
+    await expect(service.runAutomaticReminderSweep('club-1')).resolves.toEqual({
+      requested: 0,
+      sent: 0,
+      skipped: 0,
+    })
+    expect(prisma.clubContributionSettings.upsert).not.toHaveBeenCalled()
+  })
+
+  it('retries a failed reminder and records no sent timestamp when delivery fails again', async () => {
+    prisma.contributionReminder.findFirst.mockResolvedValue({ id: 'reminder-1', status: 'FAILED' })
+    prisma.contributionReminder.updateMany.mockResolvedValue({ count: 1 })
+    prisma.contributionReminder.update.mockResolvedValue({})
+    prisma.guardianRelationship.findMany.mockResolvedValue([])
+    pushService.sendToUser.mockRejectedValue(new Error('push unavailable'))
+    const item = {
+      assignment: {
+        id: 'assignment-1',
+        planId: 'plan-1',
+        memberUserId: 'minor-1',
+        assignedById: 'admin-1',
+        plan: { name: 'Youth dues', graceDays: 0 },
+        member: {
+          id: 'minor-1',
+          name: 'Minor',
+          email: null,
+          preferredLanguage: 'en',
+          dateOfBirth: new Date(),
+        },
+      },
+      record: {
+        id: 'record-1',
+        dueDate: new Date(Date.now() + 86_400_000),
+        amount: 2500,
+        currency: 'eur',
+        status: 'PENDING',
+      },
+    }
+
+    await expect(
+      (service as any).dispatchReminder(item, {
+        clubId: 'club-1',
+        clubName: 'Club',
+        trigger: 'AUTOMATIC',
+        reminderKey: 'auto:retry',
+      }),
+    ).resolves.toEqual({ sent: false })
+
+    expect(prisma.contributionReminder.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'reminder-1', status: 'FAILED' },
+        data: expect.objectContaining({ status: 'PROCESSING' }),
+      }),
+    )
+    expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
+  })
+
   // --- Dues payment paths (markOwnAsPaid / startCheckoutForOwnPlan) ---
 
   const ownAssignment = {
@@ -349,6 +481,31 @@ describe('ContributionsService', () => {
     },
   ]
 
+  it('rejects impossible paid and partial amounts without mutating the ledger', async () => {
+    prisma.membership.findUnique.mockResolvedValue({ role: 'OWNER', operationalRoles: [] })
+    prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
+    jest
+      .spyOn(service as never, 'ensureCurrentRecords')
+      .mockResolvedValue(ensuredFor('PENDING') as never)
+    prisma.contributionRecord.findUnique.mockResolvedValue(ensuredFor('PENDING')[0].record)
+
+    await expect(
+      service.updateMemberStatus('club-1', 'member-1', 'owner-1', {
+        planId: 'plan-1',
+        status: 'PAID',
+        paidAmount: 3000,
+      }),
+    ).rejects.toThrow('must equal the amount due')
+    await expect(
+      service.updateMemberStatus('club-1', 'member-1', 'owner-1', {
+        planId: 'plan-1',
+        status: 'PARTIAL',
+      }),
+    ).rejects.toThrow('Partial amount')
+    expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
+    expect(prisma.auditLog.create).not.toHaveBeenCalled()
+  })
+
   it('markOwnAsPaid records an unverified report without forging paid status', async () => {
     prisma.membership.findUnique.mockResolvedValue({ role: 'PLAYER' })
     prisma.contributionAssignment.findFirst.mockResolvedValue(ownAssignment)
@@ -356,6 +513,7 @@ describe('ContributionsService', () => {
       .spyOn(service as never, 'ensureCurrentRecords')
       .mockResolvedValue(ensuredFor('PENDING') as never)
     prisma.contributionRecord.update.mockResolvedValue({})
+    prisma.contributionRecord.findUnique.mockResolvedValue(ensuredFor('PENDING')[0].record)
     const myContribsSpy = jest
       .spyOn(service, 'getMyContributions')
       .mockResolvedValue({ items: [], hasContributions: true } as never)
@@ -365,9 +523,6 @@ describe('ContributionsService', () => {
     expect(prisma.contributionRecord.update).toHaveBeenCalledWith({
       where: { id: 'record-1' },
       data: {
-        status: 'PARTIAL',
-        paidAmount: 0,
-        paidAt: null,
         note: 'PAYMENT_REPORTED_BY_MEMBER',
       },
     })
@@ -436,6 +591,29 @@ describe('ContributionsService', () => {
 
     expect(prisma.contributionRecord.update).not.toHaveBeenCalled()
     expect(myContribsSpy).toHaveBeenCalledWith('club-1', 'member-1')
+  })
+
+  it('does not rewrite an issued record when the plan amount later changes', async () => {
+    prisma.contributionRecord.upsert.mockResolvedValue({ id: 'record-1' })
+    const assignment = {
+      ...ownAssignment,
+      startDate: new Date('2026-06-01T00:00:00.000Z'),
+      amountOverride: null,
+      plan: {
+        ...ownAssignment.plan,
+        amount: 9900,
+        currency: 'eur',
+        cadence: ContributionCadence.MONTHLY,
+        dueDay: 5,
+        dueMonth: null,
+      },
+    }
+
+    await (service as any).ensureCurrentRecords([assignment])
+
+    expect(prisma.contributionRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: {} }),
+    )
   })
 
 })

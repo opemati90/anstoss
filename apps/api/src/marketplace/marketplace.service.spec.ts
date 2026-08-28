@@ -263,14 +263,22 @@ describe('MarketplaceService — free-agent profile', () => {
     // Tx surface used by acceptTrialInvite (membership grant path).
     function createTrialService() {
       const trialTx = {
+        $executeRaw: jest.fn().mockResolvedValue(1),
+        user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }) },
         membership: { upsert: jest.fn().mockResolvedValue({}) },
         teamAccess: { upsert: jest.fn().mockResolvedValue({}) },
         teamMember: { upsert: jest.fn().mockResolvedValue({}) },
         trialInvite: {
-          update: jest.fn().mockImplementation(async ({ data }: { data: any }) =>
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'invite-1',
+            clubId: 'club-1',
+            teamId: 'team-1',
+          }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUniqueOrThrow: jest.fn().mockImplementation(async () =>
             buildInvite({
-              status: data.status,
-              respondedAt: data.respondedAt ?? null,
+              status: TrialInviteStatus.ACCEPTED,
+              respondedAt: new Date(),
             }),
           ),
         },
@@ -384,11 +392,15 @@ describe('MarketplaceService — free-agent profile', () => {
         }),
       )
 
-      // TeamMember row created and the invite flipped to ACCEPTED.
+      // TeamMember row created and the invite flipped from PENDING atomically.
       expect(trialTx.teamMember.upsert).toHaveBeenCalledTimes(1)
-      expect(trialTx.trialInvite.update).toHaveBeenCalledWith(
+      expect(trialTx.trialInvite.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'invite-1' },
+          where: {
+            id: 'invite-1',
+            status: TrialInviteStatus.PENDING,
+            expiresAt: { gt: expect.any(Date) },
+          },
           data: expect.objectContaining({
             status: TrialInviteStatus.ACCEPTED,
           }),
@@ -399,6 +411,9 @@ describe('MarketplaceService — free-agent profile', () => {
     it('declining marks the invite DECLINED and creates NO membership', async () => {
       const { service, prisma, trialTx } = createTrialService()
       prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+      trialTx.trialInvite.findUniqueOrThrow.mockResolvedValue(
+        buildInvite({ status: TrialInviteStatus.DECLINED, respondedAt: new Date() }),
+      )
 
       const result = await service.respondToTrialInvite(
         'invite-1',
@@ -408,20 +423,74 @@ describe('MarketplaceService — free-agent profile', () => {
 
       expect(result.status).toBe(TrialInviteStatus.DECLINED)
 
-      // Decline path never enters the membership-grant transaction.
-      expect(prisma.$transaction).not.toHaveBeenCalled()
+      // Decline uses the same decision lock/transaction but never grants access.
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(trialTx.$executeRaw).toHaveBeenCalledTimes(2)
       expect(trialTx.membership.upsert).not.toHaveBeenCalled()
       expect(trialTx.teamAccess.upsert).not.toHaveBeenCalled()
       expect(trialTx.teamMember.upsert).not.toHaveBeenCalled()
 
-      expect(prisma.trialInvite.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'invite-1' },
-          data: expect.objectContaining({
-            status: TrialInviteStatus.DECLINED,
-          }),
-        }),
-      )
+      expect(trialTx.trialInvite.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'invite-1',
+          status: TrialInviteStatus.PENDING,
+          expiresAt: { gt: expect.any(Date) },
+        },
+        data: { status: TrialInviteStatus.DECLINED, respondedAt: expect.any(Date) },
+      })
+    })
+
+    it('rejects a losing mixed decision instead of overwriting the winner', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+      trialTx.trialInvite.updateMany.mockResolvedValue({ count: 0 })
+
+      await expect(
+        service.respondToTrialInvite('invite-1', 'user-1', TrialInviteStatus.DECLINED),
+      ).rejects.toThrow('Trial invite has already been handled')
+
+      expect(trialTx.teamAccess.upsert).not.toHaveBeenCalled()
+      expect(trialTx.trialInvite.findUniqueOrThrow).not.toHaveBeenCalled()
+    })
+
+    it('cannot recreate access for an account deleted before the lifecycle lock', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+      trialTx.user.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.respondToTrialInvite('invite-1', 'user-1', TrialInviteStatus.ACCEPTED),
+      ).rejects.toThrow('This account is no longer active')
+
+      expect(trialTx.$executeRaw).toHaveBeenCalledTimes(1)
+      expect(trialTx.trialInvite.findFirst).not.toHaveBeenCalled()
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
+      expect(trialTx.teamAccess.upsert).not.toHaveBeenCalled()
+      expect(trialTx.teamMember.upsert).not.toHaveBeenCalled()
+    })
+
+    it('revalidates that the invite is still pending and route-bound after locking', async () => {
+      const { service, prisma, trialTx } = createTrialService()
+      prisma.trialInvite.findUnique.mockResolvedValue(buildInvite())
+      trialTx.trialInvite.findFirst.mockResolvedValue(null)
+
+      await expect(
+        service.respondToTrialInvite('invite-1', 'user-1', TrialInviteStatus.ACCEPTED),
+      ).rejects.toThrow('Trial invite is no longer available')
+
+      expect(trialTx.$executeRaw).toHaveBeenCalledTimes(2)
+      expect(trialTx.trialInvite.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'invite-1',
+          clubId: 'club-1',
+          teamId: 'team-1',
+          status: TrialInviteStatus.PENDING,
+          expiresAt: { gt: expect.any(Date) },
+          freeAgentProfile: { userId: 'user-1' },
+        },
+        select: { id: true, clubId: true, teamId: true },
+      })
+      expect(trialTx.membership.upsert).not.toHaveBeenCalled()
     })
 
     it('rejects an expired PENDING invite (marks EXPIRED, no membership)', async () => {

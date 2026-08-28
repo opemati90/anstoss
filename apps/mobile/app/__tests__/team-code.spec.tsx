@@ -115,7 +115,7 @@ describe('TeamCode', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('player branch: confirm routes to /roster-claim to pick a roster slot', async () => {
+  it('player branch: confirm routes to approval submission without exposing roster slots', async () => {
     mockState.role = 'PLAYER'
     mockApi.mockResolvedValue({
       team: { id: 't1', clubId: 'c1', name: 'U17', displayName: null },
@@ -131,7 +131,8 @@ describe('TeamCode', () => {
       clubName: 'FC K.',
       teamJoinCode: 'AB23XC45ZK',
     })
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/roster-claim')
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/done')
+    expect(mockPush).not.toHaveBeenCalledWith('/(auth)/roster-claim')
   })
 
   it('coach branch: confirm bypasses roster-claim and routes to /done', async () => {

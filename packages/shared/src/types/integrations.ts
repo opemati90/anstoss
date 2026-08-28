@@ -61,6 +61,10 @@ export interface ExternalTeamLink {
   lastSyncedAt: string | null
   createdAt: string
   updatedAt: string
+  capabilities: {
+    canManualSync: boolean
+    canImportRoster: boolean
+  }
 }
 
 export interface ImportedFixture {
@@ -124,7 +128,7 @@ export interface SyncRun {
 
 export interface FussballTeamPreview {
   input: string
-  provider: 'api_fussball'
+  provider: 'api_fussball' | 'fussball_public_page'
   externalTeamId: string
   externalUrl: string
   label: string

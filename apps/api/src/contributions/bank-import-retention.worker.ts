@@ -28,8 +28,14 @@ export class BankImportRetentionWorker implements OnModuleInit, OnModuleDestroy 
     let count = 0
     for (const club of clubs) {
       const result = await tenantContext.run({ clubId: club.id, userId: 'system' }, () =>
-        this.prisma.bankImportBatch.deleteMany({
-          where: { clubId: club.id, expiresAt: { lte: now } },
+        this.prisma.bankImportBatch.updateMany({
+          where: {
+            clubId: club.id,
+            rawExpiresAt: { lte: now },
+            rawObjectKey: { not: null },
+            rawPurgedAt: null,
+          },
+          data: { rawObjectKey: null, rawPurgedAt: now },
         }),
       )
       count += result.count
@@ -42,7 +48,7 @@ export class BankImportRetentionWorker implements OnModuleInit, OnModuleDestroy 
     this.running = true
     try {
       const result = await this.purgeExpired()
-      if (result.count > 0) this.logger.log(`Purged ${result.count} expired bank import batches.`)
+      if (result.count > 0) this.logger.log(`Purged raw payload metadata for ${result.count} bank imports.`)
     } catch (error) {
       this.logger.error(
         `Bank import retention sweep failed: ${error instanceof Error ? error.message : 'unknown error'}`,

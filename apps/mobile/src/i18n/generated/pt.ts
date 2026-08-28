@@ -137,21 +137,20 @@ export default {
   invite: {
     changeTeam: 'Mudar de equipa',
     heroSubtitle: 'Escolhe uma equipa, adiciona os e-mails (um por linha), envia.',
-    importRosterCta: 'Importar plantel do dados externos da equipa',
-    importRosterSub: 'Carrega a lista, seleciona os nomes, envia tudo de uma vez.',
+    importRosterCta: 'Importar plantel do feed autorizado',
+    importRosterSub: 'Seleciona jogadores do feed autorizado e convida-os em conjunto.',
     recipientLabelBulk: 'E-MAILS · UM POR LINHA OU SEPARADOS POR VÍRGULA',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Adicionar {{count}} aos convites',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty:
-      'Não foi possível ler a página do plantel automaticamente. Abre-a no dados externos da equipa e cola os nomes abaixo.',
+    rosterEmpty: 'O feed de plantel autorizado não devolveu jogadores.',
     rosterError:
-      'Não foi possível obter o plantel do dados externos da equipa. Tenta novamente ou cola os nomes manualmente.',
+      'Não foi possível obter o feed de plantel autorizado. Tenta novamente ou introduz os e-mails manualmente.',
     rosterSourceLineup:
-      'Retirado da tua última convocatória no dados externos da equipa. Os jogadores que ainda não jogaram não aparecerão.',
+      'Retirado da última convocatória autorizada. Jogadores sem utilização podem não aparecer.',
     rosterSubtitle:
       'Seleciona os jogadores dos quais tens e-mail, adiciona o endereço, envia tudo de uma vez.',
-    rosterTitle: 'Plantel do dados externos da equipa',
+    rosterTitle: 'Plantel do feed autorizado',
     step1Title: 'Escolher equipa',
     step2Title: 'Adicionar destinatários',
     step3Title: 'Rever e enviar',
@@ -508,17 +507,17 @@ export default {
     createFirstGroup: 'Criar o primeiro grupo',
     emptyBody:
       'Começa com um grupo como Seniores, Juvenis ou Bambini. Depois coloca as equipas abaixo.',
-    fussballLinkedBody: '{{label}} · {{count}} jogos importados.',
-    fussballLinkedTitle: 'fonte pública ligado',
+    fussballLinkedBody: '{{label}} foi guardada como referência. Adiciona os jogos manualmente.',
+    fussballLinkedTitle: 'Página oficial guardada',
     fussballLinkFailedBody:
       'A equipa foi criada. Tenta ligar novamente a partir das definições da equipa. O URL pode estar incorreto.',
     fussballLinkFailedTitle: 'Não foi possível ligar o fonte pública ainda',
     fussballSyncFailedBody:
-      'A equipa foi ligada mas não foi possível obter os jogos. Tenta novamente nas definições.',
-    fussballSyncFailedTitle: 'fonte pública ligado, mas sincronização falhou',
+      'Não foi possível sincronizar o feed de calendário autorizado. Tenta novamente nas definições.',
+    fussballSyncFailedTitle: 'Falha na sincronização autorizada',
     fussballUrlHint:
-      'A ligação importa jogos e plantel. Os admins podem convidar em massa a partir do plantel importado.',
-    fussballUrlPlaceholder: 'URL da equipa fonte pública (opcional)',
+      'Isto guarda uma página oficial como referência. Não importa jogos ou jogadores e não comprova autoridade no clube.',
+    fussballUrlPlaceholder: 'Página oficial da equipa (opcional)',
     manageLabel: 'Gerir',
     memberCount: '{{count}}',
     emptyTitle: 'Construir a estrutura do clube',

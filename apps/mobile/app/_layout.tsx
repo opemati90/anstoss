@@ -18,6 +18,7 @@ import {
 } from '../src/components/PushNotificationProvider'
 import { AppErrorBoundary } from '../src/components/AppErrorBoundary'
 import { ForceUpdateScreen } from '../src/components/ForceUpdateScreen'
+import { ReleaseNotices } from '../src/components/ReleaseNotices'
 import { getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/runtime'
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
@@ -39,7 +40,16 @@ export default function RootLayout() {
   })
   const [i18nReady, setI18nReady] = useState(false)
   const [startupTimedOut, setStartupTimedOut] = useState(false)
-  const { forceUpdate, openStore } = useUpdateCheck()
+  const {
+    forceUpdate,
+    forceUpdateMessage,
+    softUpdate,
+    recommendedVersion,
+    announcement,
+    openStore,
+    dismissSoftUpdate,
+    dismissAnnouncement,
+  } = useUpdateCheck()
   const isDark = useColorScheme() === 'dark'
   const palette = isDark ? darkTheme : lightTheme
   const startupReady =
@@ -76,7 +86,7 @@ export default function RootLayout() {
   }
 
   if (forceUpdate) {
-    return <ForceUpdateScreen onUpdate={openStore} />
+    return <ForceUpdateScreen onUpdate={openStore} message={forceUpdateMessage} />
   }
 
   const runtimeConfigIssues = getRuntimeConfigIssues()
@@ -88,6 +98,14 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ClubThemeProvider>
+        <ReleaseNotices
+          announcement={announcement}
+          softUpdate={softUpdate}
+          recommendedVersion={recommendedVersion}
+          onOpenStore={openStore}
+          onDismissAnnouncement={dismissAnnouncement}
+          onDismissSoftUpdate={dismissSoftUpdate}
+        />
         <PushNotificationProvider>
           <URLDeepLinkHandler />
           <PushDeepLinkHandler />
@@ -170,6 +188,7 @@ export default function RootLayout() {
               <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="official-team-page" options={{ presentation: 'card' }} />
               <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />

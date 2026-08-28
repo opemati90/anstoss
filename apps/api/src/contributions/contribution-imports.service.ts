@@ -21,7 +21,7 @@ type ParsedTransaction = {
   externalId: string | null
 }
 
-const MAX_IMPORT_ROWS = 5_000
+const MAX_IMPORT_ROWS = 10_000
 const MAX_BANK_TEXT_LENGTH = 500
 
 @Injectable()
@@ -60,7 +60,9 @@ export class ContributionImportsService {
             fileName: input.fileName,
             format: input.format,
             rowCount: parsed.length,
-            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            rawExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            // Raw bytes are parsed in memory and discarded before this write.
+            rawPurgedAt: new Date(),
           },
         })
         for (const row of parsed) {
@@ -194,11 +196,23 @@ export class ContributionImportsService {
           throw new ConflictException('Confirmed matches exceed the bank transaction amount')
         }
         const previousMatchAmount = existingMatch?.status === 'CONFIRMED' ? existingMatch.amount : 0
-        const nonImportPaidAmount = Math.max(0, (record.paidAmount ?? 0) - previousMatchAmount)
-        if (nonImportPaidAmount + input.amount > record.amount) {
+        const confirmedForRecord = await tx.contributionMatch.aggregate({
+          where: {
+            recordId: record.id,
+            status: 'CONFIRMED',
+            transactionId: { not: transaction.id },
+          },
+          _sum: { amount: true },
+        })
+        const importedPaidAmount = confirmedForRecord._sum.amount ?? 0
+        const manualPaidAmount = record.manualPaidAmount ?? Math.max(
+          0,
+          (record.paidAmount ?? 0) - importedPaidAmount - previousMatchAmount,
+        )
+        if (manualPaidAmount + importedPaidAmount + input.amount > record.amount) {
           throw new ConflictException('Confirmed match exceeds the outstanding contribution amount')
         }
-        const paidAmount = nonImportPaidAmount + input.amount
+        const paidAmount = manualPaidAmount + importedPaidAmount + input.amount
         const match = await tx.contributionMatch.upsert({
           where: { transactionId_recordId: { transactionId: transaction.id, recordId: record.id } },
           create: {
@@ -269,6 +283,9 @@ export function parseCsv(value: string): ParsedTransaction[] {
     .filter(Boolean)
     .map(parseCsvRow)
   if (rows.length < 2) return []
+  if (rows.length - 1 > MAX_IMPORT_ROWS) {
+    throw new BadRequestException(`Bank imports are limited to ${MAX_IMPORT_ROWS} rows`)
+  }
   const headers = rows[0].map((item) => item.trim().toLowerCase())
   return rows.slice(1).flatMap((columns, index) => {
     const get = (...names: string[]) => {
@@ -301,18 +318,33 @@ export function parseCsv(value: string): ParsedTransaction[] {
 
 function parseBankAmount(raw: string) {
   const compact = raw.trim().replace(/\s/g, '').replace(/[^0-9,.-]/g, '')
-  if (!compact) return Number.NaN
+  if (!compact || !/^-?[0-9.,]+$/.test(compact)) return Number.NaN
   const comma = compact.lastIndexOf(',')
   const dot = compact.lastIndexOf('.')
   const separator = Math.max(comma, dot)
   let normalized = compact
   if (separator >= 0) {
     const fractionalDigits = compact.length - separator - 1
-    if (fractionalDigits === 2) {
-      const integer = compact.slice(0, separator).replace(/[.,]/g, '')
+    if (fractionalDigits === 1 || fractionalDigits === 2) {
+      const integerPart = compact.slice(0, separator)
+      const groupingMarks = integerPart.match(/[.,]/g) ?? []
+      if (
+        groupingMarks.length > 0 &&
+        (!/^-?\d{1,3}([.,]\d{3})+$/.test(integerPart) ||
+          (integerPart.includes('.') && integerPart.includes(',')))
+      ) {
+        return Number.NaN
+      }
+      const integer = integerPart.replace(/[.,]/g, '')
       normalized = `${integer}.${compact.slice(separator + 1)}`
-    } else {
+    } else if (
+      fractionalDigits === 3 &&
+      !compact.slice(0, separator).includes(compact[separator] === ',' ? '.' : ',') &&
+      /^-?\d{1,3}([.,]\d{3})+$/.test(compact)
+    ) {
       normalized = compact.replace(/[.,]/g, '')
+    } else {
+      return Number.NaN
     }
   }
   return Math.round(Number(normalized) * 100)
@@ -342,6 +374,9 @@ export function parseCamt053(xml: string): ParsedTransaction[] {
   if (!/<(?:\w+:)?Document[\s>]/.test(xml))
     throw new BadRequestException('Invalid CAMT.053 document')
   const entries = xml.match(/<(?:\w+:)?Ntry\b[\s\S]*?<\/(?:\w+:)?Ntry>/g) ?? []
+  if (entries.length > MAX_IMPORT_ROWS) {
+    throw new BadRequestException(`Bank imports are limited to ${MAX_IMPORT_ROWS} rows`)
+  }
   return entries.flatMap((entry, index) => {
     const direction = xmlValue(entry, 'CdtDbtInd')?.toUpperCase()
     if (direction === 'DBIT') return []
@@ -351,7 +386,7 @@ export function parseCamt053(xml: string): ParsedTransaction[] {
     const amountText = xmlValue(entry, 'Amt')
     const amount = Math.round(Number(amountText?.replace(',', '.')) * 100)
     const dateText = xmlValue(entry, 'BookgDt') || xmlValue(entry, 'Dt')
-    const bookedAt = new Date(dateText ?? '')
+    const bookedAt = parseBankDate(dateText ?? '')
     if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(bookedAt.getTime())) {
       throw new BadRequestException(`Invalid CAMT transaction ${index + 1}`)
     }
@@ -374,9 +409,26 @@ function parseBankDate(value: string) {
   const german = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
   if (german) {
     const [, day, month, year] = german
-    return new Date(`${year}-${month}-${day}T00:00:00.000Z`)
+    return strictUtcDate(Number(year), Number(month), Number(day))
   }
-  return new Date(value)
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/)
+  if (iso) {
+    const [, year, month, day] = iso
+    return strictUtcDate(Number(year), Number(month), Number(day))
+  }
+  return new Date(Number.NaN)
+}
+
+function strictUtcDate(year: number, month: number, day: number) {
+  const value = new Date(Date.UTC(year, month - 1, day))
+  if (
+    value.getUTCFullYear() !== year ||
+    value.getUTCMonth() !== month - 1 ||
+    value.getUTCDate() !== day
+  ) {
+    return new Date(Number.NaN)
+  }
+  return value
 }
 
 function limitedText(value: string | null) {

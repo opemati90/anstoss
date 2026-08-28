@@ -34,6 +34,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 
 const CLAIM_TTL_DAYS = 14
+const STAFF_CLAIM_ESCALATION_DAYS = 7
 const OWNERSHIP_TRANSFER_TTL_HOURS = 72
 const STEP_UP_MAX_AGE_SECONDS = 10 * 60
 
@@ -252,7 +253,13 @@ export class ClubActivationService {
       },
       orderBy: { createdAt: 'desc' },
     })
-    return claims.map(withEffectiveClaimStatus)
+    return claims.map((claim) => ({
+      ...withEffectiveClaimStatus(claim),
+      escalatesAt:
+        claim.kind === ClubClaimKind.STAFF_CLAIM
+          ? addDays(claim.createdAt, STAFF_CLAIM_ESCALATION_DAYS)
+          : null,
+    }))
   }
 
   async listClubRequests(clubId: string) {
@@ -265,8 +272,18 @@ export class ClubActivationService {
   }
 
   async listPlatformClaims() {
+    const escalationCutoff = addDays(new Date(), -STAFF_CLAIM_ESCALATION_DAYS)
     const claims = await this.prisma.clubClaim.findMany({
-      where: { kind: ClubClaimKind.FIRST_CLAIM },
+      where: {
+        OR: [
+          { kind: ClubClaimKind.FIRST_CLAIM },
+          {
+            kind: ClubClaimKind.STAFF_CLAIM,
+            status: { in: [ClubClaimStatus.SUBMITTED, ClubClaimStatus.NEEDS_INFO] },
+            createdAt: { lte: escalationCutoff },
+          },
+        ],
+      },
       include: {
         directoryEntry: true,
         claimant: { select: { id: true, name: true, email: true, createdAt: true } },
@@ -274,7 +291,119 @@ export class ClubActivationService {
       },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     })
-    return claims.map(withEffectiveClaimStatus)
+    return claims.map((claim) => ({
+      ...withEffectiveClaimStatus(claim),
+      platformEscalated: claim.kind === ClubClaimKind.STAFF_CLAIM,
+      escalatesAt:
+        claim.kind === ClubClaimKind.STAFF_CLAIM
+          ? addDays(claim.createdAt, STAFF_CLAIM_ESCALATION_DAYS)
+          : null,
+    }))
+  }
+
+  async reviewPlatformClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput) {
+    const claim = await this.prisma.clubClaim.findUnique({
+      where: { id: claimId },
+      select: { kind: true, clubId: true, createdAt: true },
+    })
+    if (!claim) throw new NotFoundException('Reviewable claim not found')
+    if (claim.kind === ClubClaimKind.FIRST_CLAIM) {
+      return this.reviewFirstClaim(reviewerId, claimId, input)
+    }
+    if (
+      claim.kind !== ClubClaimKind.STAFF_CLAIM ||
+      !claim.clubId ||
+      claim.createdAt > addDays(new Date(), -STAFF_CLAIM_ESCALATION_DAYS)
+    ) {
+      throw new ForbiddenException('This staff claim has not escalated to the platform yet')
+    }
+    if (input.decision !== 'APPROVE') {
+      return this.updateReviewState(reviewerId, claimId, input, claim.clubId)
+    }
+    return this.approveEscalatedStaffClaim(reviewerId, claim.clubId, claimId)
+  }
+
+  private async approveEscalatedStaffClaim(
+    reviewerId: string,
+    clubId: string,
+    claimId: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
+      const claim = await tx.clubClaim.findUnique({ where: { id: claimId } })
+      this.assertReviewableClaim(claim, ClubClaimKind.STAFF_CLAIM, clubId)
+      if (claim.createdAt > addDays(new Date(), -STAFF_CLAIM_ESCALATION_DAYS)) {
+        throw new ForbiddenException('This staff claim has not escalated to the platform yet')
+      }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.claimantUserId}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const claimant = await tx.user.findFirst({
+        where: { id: claim.claimantUserId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!claimant) throw new ConflictException('The claimant account is no longer active')
+      if (claim.desiredRole === MembershipRole.OWNER) {
+        throw new ConflictException('Club ownership requires the ownership transfer workflow')
+      }
+      const requestedTeams = await tx.team.findMany({
+        where: { clubId, id: { in: claim.requestedTeamIds } },
+        select: { id: true },
+      })
+      if (requestedTeams.length !== new Set(claim.requestedTeamIds).size) {
+        throw new ConflictException('One or more requested teams no longer exist')
+      }
+      if (claim.requestedTeamRoles.includes(TeamRole.PLAYER)) {
+        await this.entitlements.assertCanActivatePlayer(clubId, claim.claimantUserId, tx)
+      }
+      const existingMembership = await tx.membership.findUnique({
+        where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
+        select: { role: true },
+      })
+      if (existingMembership?.role === MembershipRole.OWNER) {
+        throw new ConflictException('Club ownership requires the ownership transfer workflow')
+      }
+      await tx.membership.upsert({
+        where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
+        create: { userId: claim.claimantUserId, clubId, role: claim.desiredRole },
+        update: { role: strongestStaffRole(existingMembership?.role, claim.desiredRole) },
+      })
+      await tenantContext.run({ clubId, userId: reviewerId }, async () => {
+        for (const team of requestedTeams) {
+          await this.applyTeamRoles(
+            tx,
+            clubId,
+            team.id,
+            claim.claimantUserId,
+            claim.requestedTeamRoles.length > 0
+              ? claim.requestedTeamRoles
+              : claim.desiredRole === MembershipRole.COACH
+                ? [TeamRole.ASSISTANT_COACH]
+                : [],
+          )
+        }
+      })
+      const updated = await tx.clubClaim.update({
+        where: { id: claim.id },
+        data: {
+          status: ClubClaimStatus.APPROVED,
+          reviewerId,
+          reviewedAt: new Date(),
+          reviewNote: 'Approved after the seven-day club review window elapsed.',
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'club.staff_access_escalation_approved',
+          actorType: 'admin',
+          actorId: reviewerId,
+          actorLabel: null,
+          summary: 'Platform approved an escalated staff access claim.',
+          metadata: { claimId, claimantUserId: claim.claimantUserId },
+        },
+      })
+      return updated
+    })
   }
 
   async reviewFirstClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput) {
@@ -289,6 +418,14 @@ export class ClubActivationService {
         include: { directoryEntry: true },
       })
       this.assertReviewableClaim(claim, ClubClaimKind.FIRST_CLAIM)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.claimantUserId}))`
+      const claimant = await tx.user.findFirst({
+        where: { id: claim.claimantUserId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!claimant) {
+        throw new ConflictException('The claimant account is no longer active')
+      }
       if (claim.directoryEntry.activeClubId) {
         throw new ConflictException('This directory club has already been activated')
       }
@@ -423,6 +560,12 @@ export class ClubActivationService {
   ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
+      const claim = await tx.clubClaim.findUnique({ where: { id: claimId } })
+      this.assertReviewableClaim(claim, ClubClaimKind.STAFF_CLAIM, clubId)
+      if (input.decision === 'APPROVE') {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.claimantUserId}))`
+      }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       // Lock the reviewer's membership row so a concurrent demotion/removal or
       // ownership transfer is ordered before or after this decision—not between
       // authorization and mutation.
@@ -440,8 +583,6 @@ export class ClubActivationService {
           'Only club owners and administrators can review staff access',
         )
       }
-      const claim = await tx.clubClaim.findUnique({ where: { id: claimId } })
-      this.assertReviewableClaim(claim, ClubClaimKind.STAFF_CLAIM, clubId)
       if (claim.claimantUserId === reviewerId) {
         throw new ForbiddenException('You cannot approve your own staff request')
       }
@@ -479,6 +620,20 @@ export class ClubActivationService {
         return updatedClaim
       }
 
+      if (claim.desiredRole === MembershipRole.OWNER) {
+        throw new ConflictException(
+          'Club ownership can only be changed through an ownership transfer',
+        )
+      }
+
+      const claimant = await tx.user.findFirst({
+        where: { id: claim.claimantUserId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!claimant) {
+        throw new ConflictException('The claimant account is no longer active')
+      }
+
       const requestedTeams = await tx.team.findMany({
         where: { clubId, id: { in: claim.requestedTeamIds } },
         select: { id: true },
@@ -491,10 +646,25 @@ export class ClubActivationService {
         await this.entitlements.assertCanActivatePlayer(clubId, claim.claimantUserId, tx)
       }
 
+      // Staff claims can add ADMIN/COACH authority, but ownership is governed
+      // exclusively by the dedicated transfer workflow. Take the same club
+      // ownership lock used by transfer operations and re-check here so a
+      // legacy, forged, or concurrently submitted claim can never demote an
+      // existing owner through the upsert below.
+      const claimantMembership = await tx.membership.findUnique({
+        where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
+        select: { role: true },
+      })
+      if (claimantMembership?.role === MembershipRole.OWNER) {
+        throw new ConflictException(
+          'Club ownership can only be changed through an ownership transfer',
+        )
+      }
+
       await tx.membership.upsert({
         where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
         create: { userId: claim.claimantUserId, clubId, role: claim.desiredRole },
-        update: { role: claim.desiredRole },
+        update: { role: strongestStaffRole(claimantMembership?.role, claim.desiredRole) },
       })
       await tenantContext.run({ clubId, userId: reviewerId }, async () => {
         for (const team of requestedTeams) {
@@ -648,6 +818,7 @@ export class ClubActivationService {
     })
     if (!target) throw new BadRequestException('New owner must already belong to the club')
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.toUserId}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       const currentOwner = await tx.membership.findFirst({
         where: { clubId, role: MembershipRole.OWNER },
@@ -655,6 +826,13 @@ export class ClubActivationService {
       })
       if (currentOwner?.userId !== actor.id) {
         throw new ConflictException('Club ownership changed before this transfer was created')
+      }
+      const currentTarget = await tx.membership.findUnique({
+        where: { userId_clubId: { userId: input.toUserId, clubId } },
+        select: { id: true },
+      })
+      if (!currentTarget) {
+        throw new ConflictException('New owner is no longer a member of this club')
       }
       const frozen = await tx.clubDispute.findFirst({
         where: { clubId, status: { in: ['OPEN', 'FROZEN'] } },
@@ -698,6 +876,7 @@ export class ClubActivationService {
       if (!initial || initial.toUserId !== actor.id || initial.status !== 'PENDING') {
         throw new NotFoundException('Pending ownership transfer not found')
       }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${actor.id}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${initial.clubId}`}))`
       const transfer = await tx.ownershipTransfer.findUnique({ where: { id: transferId } })
       if (!transfer || transfer.status !== 'PENDING' || transfer.expiresAt <= new Date()) {
@@ -792,7 +971,22 @@ export class ClubActivationService {
 
   listPlatformDisputes() {
     return this.prisma.clubDispute.findMany({
-      include: { club: { select: { id: true, name: true, slug: true } } },
+      include: {
+        club: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            memberships: {
+              select: {
+                userId: true,
+                role: true,
+                user: { select: { name: true, email: true } },
+              },
+            },
+          },
+        },
+      },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     })
   }
@@ -834,6 +1028,51 @@ export class ClubActivationService {
       const dispute = await tx.clubDispute.findUnique({ where: { id: disputeId } })
       if (!dispute) throw new NotFoundException('Open dispute not found')
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${dispute.clubId}`}))`
+
+      let formerOwnerIds: string[] = []
+      if (input.newOwnerUserId) {
+        const [target, currentOwners] = await Promise.all([
+          tx.membership.findUnique({
+            where: {
+              userId_clubId: {
+                userId: input.newOwnerUserId,
+                clubId: dispute.clubId,
+              },
+            },
+            select: { id: true, userId: true, role: true },
+          }),
+          tx.membership.findMany({
+            where: { clubId: dispute.clubId, role: 'OWNER' },
+            select: { userId: true },
+          }),
+        ])
+        if (!target) {
+          throw new ConflictException('The selected new owner must already belong to this club')
+        }
+        formerOwnerIds = currentOwners
+          .map((owner) => owner.userId)
+          .filter((userId) => userId !== input.newOwnerUserId)
+        await tx.membership.updateMany({
+          where: {
+            clubId: dispute.clubId,
+            role: 'OWNER',
+            userId: { not: input.newOwnerUserId },
+          },
+          data: { role: 'ADMIN' },
+        })
+        const promoted = await tx.membership.updateMany({
+          where: { id: target.id, clubId: dispute.clubId },
+          data: { role: 'OWNER' },
+        })
+        if (promoted.count !== 1) {
+          throw new ConflictException('The selected new owner is no longer available')
+        }
+      }
+
+      await tx.ownershipTransfer.updateMany({
+        where: { clubId: dispute.clubId, status: 'PENDING' },
+        data: { status: 'CANCELLED', cancelledAt: new Date() },
+      })
       const result = await tx.clubDispute.updateMany({
         where: { id: disputeId, status: { in: ['OPEN', 'FROZEN'] } },
         data: {
@@ -852,7 +1091,11 @@ export class ClubActivationService {
           actorId,
           actorLabel: null,
           summary: 'Ownership dispute resolved.',
-          metadata: { disputeId },
+          metadata: {
+            disputeId,
+            newOwnerUserId: input.newOwnerUserId ?? null,
+            formerOwnerIds: formerOwnerIds.join(','),
+          },
         },
       })
       return tx.clubDispute.findUniqueOrThrow({ where: { id: disputeId } })
@@ -981,6 +1224,13 @@ export class ClubActivationService {
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+}
+
+function strongestStaffRole(
+  existing: MembershipRole | undefined,
+  desired: MembershipRole,
+) {
+  return existing === MembershipRole.ADMIN ? MembershipRole.ADMIN : desired
 }
 
 function withEffectiveClaimStatus<

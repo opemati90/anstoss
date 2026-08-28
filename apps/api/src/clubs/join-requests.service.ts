@@ -31,34 +31,6 @@ export class JoinRequestsService {
   ) {}
 
   async create(userId: string, clubId: string, input: CreateJoinRequestInput) {
-    const existing = await this.prisma.joinRequest.findUnique({
-      where: { clubId_userId: { clubId, userId } },
-    })
-
-    if (existing) {
-      if (existing.status === JoinRequestStatus.PENDING) {
-        throw new ConflictException('You already have a pending request for this club')
-      }
-      if (existing.status === JoinRequestStatus.APPROVED) {
-        throw new ConflictException('You are already a member of this club')
-      }
-    }
-
-    const club = await this.prisma.club.findUnique({ where: { id: clubId } })
-    if (!club) {
-      throw new NotFoundException('Club not found')
-    }
-
-    if (input.teamId) {
-      const team = await this.prisma.team.findFirst({
-        where: { id: input.teamId, clubId },
-        select: { id: true },
-      })
-      if (!team) {
-        throw new BadRequestException('Team does not belong to this club')
-      }
-    }
-
     const requestData = {
       // Club-search join requests are PLAYER-only. Coaches use team codes;
       // parents use the child setup handoff. Prevents silent role downgrades.
@@ -70,24 +42,70 @@ export class JoinRequestsService {
       reviewedAt: null,
     }
 
-    const request = existing
-      ? await this.reopenReviewedRequest(existing.id, requestData)
-      : await this.createNewRequest(clubId, userId, requestData)
+    let created: { request: any; club: { id: string; name: string } }
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        await this.lockActiveUser(tx, userId)
+        await this.lockJoinRequestUser(tx, clubId, userId)
+        let existing = await tx.joinRequest.findUnique({
+        where: { clubId_userId: { clubId, userId } },
+      })
+      if (existing) {
+        await this.lockJoinRequest(tx, existing.id)
+        existing = await tx.joinRequest.findUnique({
+          where: { clubId_userId: { clubId, userId } },
+        })
+        if (!existing) throw new ConflictException('Join request changed. Try again')
+        if (existing.status === JoinRequestStatus.PENDING) {
+          throw new ConflictException('You already have a pending request for this club')
+        }
+        if (existing.status === JoinRequestStatus.APPROVED) {
+          throw new ConflictException('You are already a member of this club')
+        }
+      }
 
-    await this.audit.log({
-      clubId,
-      type: 'join_request.created',
-      actorType: 'user',
-      actorId: userId,
-      actorLabel: null,
-      summary: `Join request created for club ${club.name}`,
-    })
+      const club = await tx.club.findUnique({ where: { id: clubId } })
+      if (!club) throw new NotFoundException('Club not found')
+      if (input.teamId) {
+        const team = await tx.team.findFirst({
+          where: { id: input.teamId, clubId },
+          select: { id: true },
+        })
+        if (!team) throw new BadRequestException('Team does not belong to this club')
+      }
 
-    // Push notification to club admins/coaches
+      const request = existing
+        ? await tx.joinRequest.update({
+            where: { id: existing.id },
+            data: { ...requestData, revision: { increment: 1 } },
+          })
+        : await tx.joinRequest.create({ data: { clubId, userId, ...requestData } })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'join_request.created',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `Join request created for club ${club.name}`,
+          metadata: { requestId: request.id, teamId: request.teamId },
+        },
+      })
+        return { request, club }
+      })
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('You already have a request for this club')
+      }
+      throw error
+    }
+    const { request, club } = created
+
+    // Push notification only to the club authorities who can decide it.
     const admins = await this.prisma.membership.findMany({
       where: {
         clubId,
-        role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.COACH] },
+        role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
       },
       select: { userId: true },
     })
@@ -108,62 +126,6 @@ export class JoinRequestsService {
     }
 
     return request
-  }
-
-  private async createNewRequest(
-    clubId: string,
-    userId: string,
-    data: {
-      role: TeamRole
-      teamId: string | null
-      message: string | null
-      status: JoinRequestStatus
-      reviewedBy: null
-      reviewedAt: null
-    },
-  ) {
-    try {
-      return await this.prisma.joinRequest.create({
-        data: {
-          clubId,
-          userId,
-          ...data,
-        },
-      })
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        throw new ConflictException('You already have a request for this club')
-      }
-      throw error
-    }
-  }
-
-  private async reopenReviewedRequest(
-    requestId: string,
-    data: {
-      role: TeamRole
-      teamId: string | null
-      message: string | null
-      status: JoinRequestStatus
-      reviewedBy: null
-      reviewedAt: null
-    },
-  ) {
-    const result = await this.prisma.joinRequest.updateMany({
-      where: {
-        id: requestId,
-        status: { notIn: [JoinRequestStatus.PENDING, JoinRequestStatus.APPROVED] },
-      },
-      data,
-    })
-
-    if (result.count !== 1) {
-      throw new ConflictException('You already have a request for this club')
-    }
-
-    return this.prisma.joinRequest.findUniqueOrThrow({
-      where: { id: requestId },
-    })
   }
 
   async listPending(clubId: string) {
@@ -194,29 +156,81 @@ export class JoinRequestsService {
     })
   }
 
+  async withdraw(userId: string, clubId: string, requestId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockJoinRequest(tx, requestId)
+      const request = await tx.joinRequest.findFirst({
+        where: { id: requestId, clubId, userId, status: JoinRequestStatus.PENDING },
+        select: { id: true },
+      })
+      if (!request) throw new NotFoundException('Pending join request not found')
+      const updated = await tx.joinRequest.updateMany({
+        where: { id: requestId, clubId, userId, status: JoinRequestStatus.PENDING },
+        data: {
+          status: JoinRequestStatus.WITHDRAWN,
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+        },
+      })
+      if (updated.count !== 1) throw new ConflictException('Join request already changed')
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'join_request.withdrawn',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: 'Member withdrew a pending join request.',
+          metadata: { requestId },
+        },
+      })
+      return { withdrawn: true }
+    })
+  }
+
   async approve(
     clubId: string,
     requestId: string,
     reviewerId: string,
     _input: ReviewJoinRequestInput,
   ) {
-    const request = await this.prisma.joinRequest.findFirst({
-      where: { id: requestId, clubId, status: 'PENDING' },
-    })
-
-    if (!request) {
-      throw new NotFoundException('Join request not found or already reviewed')
-    }
-
-    const membershipRole =
-      request.role === TeamRole.PARENT ? MembershipRole.PARENT : MembershipRole.PLAYER
-
-    await this.prisma.$transaction(async (tx) => {
+    const request = await this.prisma.$transaction(async (tx) => {
+      let request = await tx.joinRequest.findFirst({
+        where: {
+          id: requestId,
+          clubId,
+          status: JoinRequestStatus.PENDING,
+          revision: _input.revision,
+        },
+      })
+      if (!request) throw new NotFoundException('Join request not found or already reviewed')
+      await this.lockActiveUser(tx, request.userId)
+      await this.lockJoinRequest(tx, requestId)
+      request = await tx.joinRequest.findFirst({
+        where: {
+          id: requestId,
+          clubId,
+          status: JoinRequestStatus.PENDING,
+          revision: _input.revision,
+        },
+      })
+      if (!request) throw new NotFoundException('Join request not found or already reviewed')
+      const membershipRole =
+        request.role === TeamRole.PARENT ? MembershipRole.PARENT : MembershipRole.PLAYER
       if (request.role === TeamRole.PLAYER) {
         await this.requireEntitlements().assertCanActivatePlayer(clubId, request.userId, tx)
       }
+      // All player-activation paths acquire the club quota lock before
+      // Membership rows. Preserve that global order to avoid a quota ↔
+      // membership deadlock with invite redemption.
+      await this.assertReviewerCanDecide(tx, clubId, reviewerId, request.userId)
       const claimed = await tx.joinRequest.updateMany({
-        where: { id: requestId, clubId, status: 'PENDING' },
+        where: {
+          id: requestId,
+          clubId,
+          status: 'PENDING',
+          revision: _input.revision,
+        },
         data: {
           status: 'APPROVED',
           reviewedBy: reviewerId,
@@ -284,15 +298,18 @@ export class JoinRequestsService {
           update: {},
         })
       }
-    })
-
-    await this.audit.log({
-      clubId,
-      type: 'join_request.approved',
-      actorType: 'user',
-      actorId: reviewerId,
-      actorLabel: null,
-      summary: `Approved join request ${requestId}`,
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'join_request.approved',
+          actorType: 'user',
+          actorId: reviewerId,
+          actorLabel: null,
+          summary: `Approved join request ${requestId}`,
+          metadata: { requestId, userId: request.userId, teamId: request.teamId },
+        },
+      })
+      return request
     })
 
     // Welcome the approved user with a localized push.
@@ -317,34 +334,46 @@ export class JoinRequestsService {
     reviewerId: string,
     input: ReviewJoinRequestInput,
   ) {
-    const request = await this.prisma.joinRequest.findFirst({
-      where: { id: requestId, clubId, status: 'PENDING' },
-    })
-
-    if (!request) {
-      throw new NotFoundException('Join request not found or already reviewed')
-    }
-
-    const claimed = await this.prisma.joinRequest.updateMany({
-      where: { id: requestId, clubId, status: 'PENDING' },
-      data: {
-        status: 'REJECTED',
-        reviewedBy: reviewerId,
-        reviewedAt: new Date(),
-      },
-    })
-
-    if (claimed.count !== 1) {
-      throw new NotFoundException('Join request not found or already reviewed')
-    }
-
-    await this.audit.log({
-      clubId,
-      type: 'join_request.rejected',
-      actorType: 'user',
-      actorId: reviewerId,
-      actorLabel: null,
-      summary: `Rejected join request ${requestId}${input.reason ? `: ${input.reason}` : ''}`,
+    const request = await this.prisma.$transaction(async (tx) => {
+      await this.lockJoinRequest(tx, requestId)
+      const request = await tx.joinRequest.findFirst({
+        where: {
+          id: requestId,
+          clubId,
+          status: JoinRequestStatus.PENDING,
+          revision: input.revision,
+        },
+      })
+      if (!request) throw new NotFoundException('Join request not found or already reviewed')
+      await this.assertReviewerCanDecide(tx, clubId, reviewerId)
+      const updated = await tx.joinRequest.updateMany({
+        where: {
+          id: request.id,
+          clubId,
+          status: JoinRequestStatus.PENDING,
+          revision: input.revision,
+        },
+        data: {
+          status: JoinRequestStatus.REJECTED,
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+        },
+      })
+      if (updated.count !== 1) {
+        throw new ConflictException('Join request changed. Refresh and review it again')
+      }
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'join_request.rejected',
+          actorType: 'user',
+          actorId: reviewerId,
+          actorLabel: null,
+          summary: `Rejected join request ${requestId}${input.reason ? `: ${input.reason}` : ''}`,
+          metadata: { requestId, userId: request.userId, reason: input.reason ?? null },
+        },
+      })
+      return request
     })
 
     // Notify the requester that their request was not accepted.
@@ -363,6 +392,46 @@ export class JoinRequestsService {
     return { status: 'REJECTED' }
   }
 
+  private lockJoinRequest(tx: Prisma.TransactionClient, requestId: string) {
+    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`join-request:${requestId}`}))`
+  }
+
+  private lockJoinRequestUser(tx: Prisma.TransactionClient, clubId: string, userId: string) {
+    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`join-request-user:${clubId}:${userId}`}))`
+  }
+
+  private async lockActiveUser(tx: Prisma.TransactionClient, userId: string) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+    const user = await tx.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!user) {
+      throw new ConflictException('This account is no longer active')
+    }
+  }
+
+  private async assertReviewerCanDecide(
+    tx: Prisma.TransactionClient,
+    clubId: string,
+    reviewerId: string,
+    targetUserId?: string,
+  ) {
+    const userIds = Array.from(new Set([reviewerId, targetUserId].filter(Boolean) as string[]))
+      .sort()
+    const rows = await tx.$queryRaw<Array<{ userId: string; role: MembershipRole }>>`
+      SELECT "userId", "role"::text AS "role"
+      FROM "Membership"
+      WHERE "clubId" = ${clubId} AND "userId" IN (${Prisma.join(userIds)})
+      ORDER BY "userId"
+      FOR UPDATE
+    `
+    const role = rows.find((row) => row.userId === reviewerId)?.role
+    if (role !== MembershipRole.OWNER && role !== MembershipRole.ADMIN) {
+      throw new NotFoundException('Join request not found or reviewer access changed')
+    }
+  }
+
   async sendReminder(userId: string, clubId: string, requestId: string) {
     const request = await this.prisma.joinRequest.findFirst({
       where: { id: requestId, clubId, userId, status: JoinRequestStatus.PENDING },
@@ -373,8 +442,8 @@ export class JoinRequestsService {
     }
 
     const cooldownKey = `join-request-reminder:${requestId}`
-    const existing = await this.cache.get(cooldownKey)
-    if (existing) {
+    const reserved = await this.cache.reserve(cooldownKey, userId, 5 * 60)
+    if (!reserved) {
       throw new BadRequestException('You already sent a reminder in the last 5 minutes')
     }
 
@@ -397,8 +466,15 @@ export class JoinRequestsService {
         ),
       ),
     )
-
-    await this.cache.set(cooldownKey, '1', 'EX', 5 * 60)
+    await this.audit.log({
+      clubId,
+      type: 'join_request.reminder_sent',
+      actorType: 'user',
+      actorId: userId,
+      actorLabel: null,
+      summary: `Reminder sent for join request ${requestId}`,
+      metadata: { requestId },
+    })
   }
 
   private requireEntitlements() {
@@ -410,10 +486,7 @@ export class JoinRequestsService {
 }
 
 function isUniqueConstraintError(error: unknown) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return error.code === 'P2002'
-  }
-
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return error.code === 'P2002'
   return (
     typeof error === 'object' &&
     error !== null &&

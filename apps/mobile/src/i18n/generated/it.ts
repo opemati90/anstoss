@@ -137,21 +137,20 @@ export default {
   invite: {
     changeTeam: 'Cambia squadra',
     heroSubtitle: 'Scegli una squadra, inserisci le email (una per riga), invia.',
-    importRosterCta: 'Importa la rosa da dati squadra esterni',
-    importRosterSub: 'Carica la lista, seleziona i nomi, invia tutti in una volta.',
+    importRosterCta: 'Importa la rosa dal feed autorizzato',
+    importRosterSub: 'Seleziona i giocatori dal feed autorizzato e invitali insieme.',
     recipientLabelBulk: 'EMAIL · UNA PER RIGA O SEPARATE DA VIRGOLA',
     recipientPlaceholderBulk: 'kai@example.com\\ntim@example.com\\nlukas@example.com',
     rosterApply: 'Aggiungi {{count}} agli inviti',
     rosterEmailPlaceholder: 'email@example.com',
-    rosterEmpty:
-      'Impossibile leggere la pagina della rosa automaticamente. Aprila su dati squadra esterni e incolla i nomi qui sotto.',
+    rosterEmpty: 'Il feed rosa autorizzato non ha restituito giocatori.',
     rosterError:
-      'Impossibile recuperare la rosa da dati squadra esterni. Riprova o incolla i nomi manualmente.',
+      'Impossibile recuperare il feed rosa autorizzato. Riprova o inserisci le email manualmente.',
     rosterSourceLineup:
-      'Estratto dalla tua ultima formazione dati squadra esterni. I giocatori che non hanno ancora giocato non verranno mostrati.',
+      "Estratto dall'ultima formazione autorizzata. Potrebbero mancare i giocatori senza presenze.",
     rosterSubtitle:
       "Seleziona i giocatori di cui hai l'email, inserisci l'indirizzo, invia tutti in una volta.",
-    rosterTitle: 'Rosa da dati squadra esterni',
+    rosterTitle: 'Rosa dal feed autorizzato',
     step1Title: 'Scegli la squadra',
     step2Title: 'Aggiungi destinatari',
     step3Title: 'Controlla e invia',
@@ -506,17 +505,17 @@ export default {
     createFirstGroup: 'Crea il tuo primo gruppo',
     emptyBody:
       'Inizia con un gruppo come Seniores, Giovanili o Bambini, poi aggiungi le squadre sotto.',
-    fussballLinkedBody: '{{label}} · {{count}} partite importate.',
-    fussballLinkedTitle: 'fonte pubblica collegato',
+    fussballLinkedBody: '{{label}} è salvata come riferimento. Aggiungi le gare manualmente.',
+    fussballLinkedTitle: 'Pagina ufficiale salvata',
     fussballLinkFailedBody:
       "La squadra è stata creata. Prova a collegarla di nuovo dalle impostazioni della squadra: l'URL potrebbe essere errato.",
     fussballLinkFailedTitle: 'Impossibile collegare fonte pubblica al momento',
     fussballSyncFailedBody:
-      'La squadra è collegata ma non è stato possibile recuperare le partite. Riprova dalle impostazioni.',
-    fussballSyncFailedTitle: 'fonte pubblica collegato, ma sincronizzazione fallita',
+      'Non è stato possibile sincronizzare il feed calendario autorizzato. Riprova dalle impostazioni.',
+    fussballSyncFailedTitle: 'Sincronizzazione autorizzata non riuscita',
     fussballUrlHint:
-      "Il collegamento importa partite e rosa. Gli admin possono invitare in blocco dall'elenco importato.",
-    fussballUrlPlaceholder: 'URL squadra fonte pubblica (facoltativo)',
+      "Salva una pagina ufficiale come riferimento. Non importa gare o giocatori e non dimostra l'autorità del club.",
+    fussballUrlPlaceholder: 'Pagina ufficiale della squadra (facoltativa)',
     manageLabel: 'Gestisci',
     memberCount: '{{count}}',
     emptyTitle: 'Costruisci la struttura del club',

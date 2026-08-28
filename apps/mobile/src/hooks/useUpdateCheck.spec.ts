@@ -1,4 +1,5 @@
-import { getUpdateStateFromResponse } from './useUpdateCheck'
+import { act, renderHook } from '@testing-library/react-native'
+import { getUpdateStateFromResponse, useUpdateCheck } from './useUpdateCheck'
 
 describe('getUpdateStateFromResponse', () => {
   function createResponse(status: number, headers: Record<string, string> = {}) {
@@ -19,6 +20,7 @@ describe('getUpdateStateFromResponse', () => {
       forceUpdate: true,
       softUpdate: false,
       minVersion: '1.2.0',
+      forceUpdateMessage: undefined,
     })
   })
 
@@ -29,6 +31,69 @@ describe('getUpdateStateFromResponse', () => {
       forceUpdate: false,
       softUpdate: true,
       recommendedVersion: '1.3.0',
+      announcement: undefined,
     })
+  })
+
+  it('returns the custom force-update message from the API', () => {
+    expect(
+      getUpdateStateFromResponse(createResponse(426), {
+        error: { minVersion: '2.0.0', message: 'Install the supported release.' },
+      }),
+    ).toMatchObject({
+      forceUpdate: true,
+      forceUpdateMessage: 'Install the supported release.',
+    })
+  })
+
+  it('decodes an announcement even when no update is required', () => {
+    expect(
+      getUpdateStateFromResponse(
+        createResponse(200, {
+          'x-anstoss-announcement': encodeURIComponent('Maintenance at 20:00'),
+        }),
+      ),
+    ).toEqual({
+      forceUpdate: false,
+      softUpdate: false,
+      recommendedVersion: undefined,
+      announcement: 'Maintenance at 20:00',
+    })
+  })
+
+  it('keeps a dismissed notice hidden until the server clears or changes it', () => {
+    const announcementResponse = createResponse(200, {
+      'x-anstoss-announcement': encodeURIComponent('Maintenance at 20:00'),
+    }) as Response
+    const clearResponse = createResponse(200) as Response
+    const changedResponse = createResponse(200, {
+      'x-anstoss-announcement': encodeURIComponent('Maintenance complete'),
+    }) as Response
+    const { result } = renderHook(() => useUpdateCheck())
+
+    act(() => result.current.checkResponse(announcementResponse))
+    expect(result.current.announcement).toBe('Maintenance at 20:00')
+    act(() => result.current.dismissAnnouncement())
+    act(() => result.current.checkResponse(announcementResponse))
+    expect(result.current.announcement).toBeUndefined()
+    act(() => result.current.checkResponse(clearResponse))
+    expect(result.current.announcement).toBeUndefined()
+    act(() => result.current.checkResponse(changedResponse))
+    expect(result.current.announcement).toBe('Maintenance complete')
+  })
+
+  it('clears a visible recommended update when the server removes the header', () => {
+    const { result } = renderHook(() => useUpdateCheck())
+    act(() =>
+      result.current.checkResponse(
+        createResponse(200, { 'x-update-available': '1.4.0' }) as Response,
+      ),
+    )
+    expect(result.current.softUpdate).toBe(true)
+
+    act(() => result.current.checkResponse(createResponse(200) as Response))
+
+    expect(result.current.softUpdate).toBe(false)
+    expect(result.current.recommendedVersion).toBeUndefined()
   })
 })
