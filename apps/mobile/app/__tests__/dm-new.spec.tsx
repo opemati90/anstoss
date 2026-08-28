@@ -69,13 +69,13 @@ function member(id: string, name: string) {
 
 describe('DmNewScreen server directory', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
     jest.clearAllMocks()
   })
 
   afterEach(() => jest.useRealTimers())
 
   it('ignores an older search response after the query changes', async () => {
+    jest.useFakeTimers()
     const older = deferred<{ items: ReturnType<typeof member>[]; nextCursor: null }>()
     const newer = deferred<{ items: ReturnType<typeof member>[]; nextCursor: null }>()
     mockApi.mockImplementation((path: string) => {
@@ -95,6 +95,9 @@ describe('DmNewScreen server directory', () => {
 
     expect(screen.getByText('New Result')).toBeTruthy()
     expect(screen.queryByText('Old Result')).toBeNull()
+    // Restore real timers before RNTL's auto-cleanup hook. Leaving fake timers
+    // active can make cleanup stall on slower CI runners after this test.
+    jest.useRealTimers()
   })
 
   it('explains a safeguarding denial instead of silently doing nothing', async () => {
@@ -110,7 +113,6 @@ describe('DmNewScreen server directory', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
     const screen = render(<DmNewScreen />)
     fireEvent.changeText(screen.getByPlaceholderText('Search members...'), 'yo')
-    await act(async () => jest.advanceTimersByTime(300))
     fireEvent.press(await screen.findByLabelText('Start conversation with Young Player'))
 
     await waitFor(() =>
