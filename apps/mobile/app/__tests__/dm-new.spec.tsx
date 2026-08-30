@@ -72,10 +72,7 @@ describe('DmNewScreen server directory', () => {
     jest.clearAllMocks()
   })
 
-  afterEach(() => jest.useRealTimers())
-
   it('ignores an older search response after the query changes', async () => {
-    jest.useFakeTimers()
     const older = deferred<{ items: ReturnType<typeof member>[]; nextCursor: null }>()
     const newer = deferred<{ items: ReturnType<typeof member>[]; nextCursor: null }>()
     mockApi.mockImplementation((path: string) => {
@@ -87,17 +84,14 @@ describe('DmNewScreen server directory', () => {
     const input = screen.getByPlaceholderText('Search members...')
 
     fireEvent.changeText(input, 'ab')
-    await act(async () => jest.advanceTimersByTime(300))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith(expect.stringContaining('query=ab&')))
     fireEvent.changeText(input, 'abc')
-    await act(async () => jest.advanceTimersByTime(300))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith(expect.stringContaining('query=abc&')))
     await act(async () => newer.resolve({ items: [member('new', 'New Result')], nextCursor: null }))
     await act(async () => older.resolve({ items: [member('old', 'Old Result')], nextCursor: null }))
 
     expect(screen.getByText('New Result')).toBeTruthy()
     expect(screen.queryByText('Old Result')).toBeNull()
-    // Restore real timers before RNTL's auto-cleanup hook. Leaving fake timers
-    // active can make cleanup stall on slower CI runners after this test.
-    jest.useRealTimers()
   })
 
   it('explains a safeguarding denial instead of silently doing nothing', async () => {
