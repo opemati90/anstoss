@@ -1,4 +1,3 @@
-import { SPACING_XS } from '../../src/theme/spacing';
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -10,7 +9,7 @@ import { TEAM_CODE_LENGTH, TeamCodeInput } from '../../src/components/wizard/Tea
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
 
 type TeamLookup = {
   teamId: string
@@ -147,8 +146,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  club: { fontFamily: fonts.heading, fontSize: fontSize.lg, fontWeight: '700' },
-  team: { fontFamily: fonts.body, fontSize: fontSize.md, marginTop: SPACING_XS },
+  club: { fontFamily: fonts.heading, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  team: { fontFamily: fonts.body, fontSize: fontSize.md, marginTop: space.xs },
   searchLink: {
     alignSelf: 'center',
     marginTop: space.xl,
@@ -157,7 +156,7 @@ const styles = StyleSheet.create({
   searchLinkText: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     textDecorationLine: 'underline',
   },
 })

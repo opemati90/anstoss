@@ -26,7 +26,7 @@ import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Icon, Text } from '../../src/components/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
 import { Sentry } from '../../src/utils/sentry'
-import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
 
@@ -551,9 +551,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.heading,
-    fontSize: 32,
+    fontSize: fontSize['3xl'],
     lineHeight: 36,
-    fontWeight: '800',
+    fontWeight: fontWeight.bold,
     letterSpacing: -0.6,
   },
   hint: {
@@ -582,12 +582,12 @@ const styles = StyleSheet.create({
   phoneSummaryText: {
     fontFamily: fonts.body,
     fontSize: fontSize.lg,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   phoneSummaryEdit: {
     fontFamily: fonts.label,
     fontSize: fontSize.sm,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   otpWrap: {
     marginTop: space.lg,
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontFamily: fonts.label,
     fontSize: fontSize.xs,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     textTransform: 'uppercase',
   },
   resend: {
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   resendText: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   error: {
     marginTop: space.md,
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   ctaLabel: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   consent: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSize.xs,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     textDecorationLine: 'underline',
   },
 })

@@ -26,6 +26,7 @@ import {
 } from '@anstoss/shared'
 
 export const E2E_SESSION_KEY = 'anstoss:e2e:session'
+const STRICT_E2E_MOCKS = process.env.EXPO_PUBLIC_E2E_MOCK_STRICT === '1'
 
 export type E2EScenarioName =
   | 'signed-out'
@@ -5391,6 +5392,15 @@ export function handleE2EApiRequest(
   // the sign-out flow.
   if (__DEV__) {
     console.info(`[e2e] unmocked ${method} ${pathname} → returning default response`)
+  }
+  if (STRICT_E2E_MOCKS) {
+    return {
+      handled: true,
+      ok: false,
+      status: 501,
+      code: 'e2e_unmocked_endpoint',
+      message: `No mock for ${method} ${pathname}. Add this endpoint in apps/mobile/src/e2e/session.ts.`,
+    }
   }
   if (method === 'GET') {
     // Lists are far more common than singletons in this app; bias to [].

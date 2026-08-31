@@ -7,7 +7,7 @@ import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
 
 export default function TeamCodeShare() {
   const router = useRouter()
@@ -73,6 +73,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
-  code: { fontFamily: fonts.data, fontSize: 48, fontWeight: '800', letterSpacing: 8 },
-  copy: { fontFamily: fonts.body, fontSize: fontSize.md, fontWeight: '700' },
+  code: {
+    fontFamily: fonts.data,
+    fontSize: fontSize['2xl'] * 2,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 8,
+  },
+  copy: { fontFamily: fonts.body, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 })

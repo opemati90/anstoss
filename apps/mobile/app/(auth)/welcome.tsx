@@ -9,7 +9,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { markWelcomeSeen } from '../../src/onboarding/welcomeSeen'
 import { hexToRgba } from '../../src/theme/club-theme'
 import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
 import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../../src/i18n'
 
 const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   langText: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     color: TEXT_WHITE,
   },
   card: {
@@ -325,9 +325,9 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: fonts.heading,
-    fontSize: 30,
+    fontSize: fontSize['3xl'],
     lineHeight: 36,
-    fontWeight: '800',
+    fontWeight: fontWeight.bold,
     letterSpacing: -0.4,
     marginBottom: space.sm,
   },
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   primaryText: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   policyRow: {
@@ -367,12 +367,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     lineHeight: 20,
   },
-  policyLink: { fontWeight: '700', textDecorationLine: 'underline' },
+  policyLink: { fontWeight: fontWeight.bold, textDecorationLine: 'underline' },
   secondary: { alignSelf: 'center', paddingVertical: space.sm },
   secondaryText: {
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   sheet: {
     position: 'absolute',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,
-    fontWeight: '800',
+    fontWeight: fontWeight.bold,
     color: TEXT_WHITE,
     marginBottom: space.md,
   },
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   sheetRowLabel: {
     fontFamily: fonts.body,
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     color: TEXT_WHITE,
   },
   devChip: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   devChipText: {
     fontFamily: fonts.data,
     fontSize: fontSize.xs,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 1.5,
     color: TEXT_WHITE,
   },

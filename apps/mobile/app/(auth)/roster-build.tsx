@@ -6,7 +6,7 @@ import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
 
 export default function RosterBuild() {
   const router = useRouter()
@@ -87,5 +87,5 @@ const styles = StyleSheet.create({
     marginBottom: space.sm,
   },
   addBtn: { paddingVertical: space.md, alignItems: 'center' },
-  addText: { fontFamily: fonts.body, fontSize: fontSize.sm, fontWeight: '700' },
+  addText: { fontFamily: fonts.body, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 })

@@ -1,4 +1,3 @@
-import { SPACING_XL, SPACING_XS } from '../src/theme/spacing';
 import { useEffect, useRef, useState } from 'react'
 import {
   View,
@@ -22,7 +21,7 @@ import { ErrorState } from '../src/components/ErrorState'
 import { Banner, Icon, Text } from '../src/components/ui'
 import { API_URL, api } from '../src/api/client'
 import { getE2ESession } from '../src/e2e/session'
-import { fonts, fontSize, hairline, space } from '../src/theme/tokens'
+import { fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 const isE2EMockMode = () => Boolean(getE2ESession())
 
@@ -347,16 +346,13 @@ const styles = StyleSheet.create({
     maxWidth: '78%',
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderCurve: 'continuous',
   },
-  // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-  messageBubbleMine: { borderBottomRightRadius: 6 },
+  messageBubbleMine: { borderBottomRightRadius: radius.sm },
   messageBubbleOther: {
     borderWidth: hairline,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderBottomLeftRadius: 6,
+    borderBottomLeftRadius: radius.sm,
   },
   messageTime: {
     marginTop: space['2xs'],
@@ -379,7 +375,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 100,
-    borderRadius: SPACING_XL,
+    borderRadius: radius.xl,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
@@ -390,11 +386,10 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 36,
     height: 36,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 18,
+    borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING_XS,
+    marginBottom: space.xs,
   },
   emptyChat: {
     flex: 1,

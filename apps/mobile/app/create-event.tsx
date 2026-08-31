@@ -841,8 +841,7 @@ const styles = StyleSheet.create({
   sheetGrabber: {
     width: 36,
     height: 5,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 3,
+    borderRadius: radius.sm,
   },
   sheetHeader: {
     flexDirection: 'row',

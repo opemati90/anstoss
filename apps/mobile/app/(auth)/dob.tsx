@@ -6,7 +6,7 @@ import { Text } from '../../src/components/ui'
 import { WizardStep } from '../../src/components/wizard/WizardStep'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
 
 function parseDeDate(s: string): Date | null {
   const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   code: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xl'],
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 4,
   },
 })

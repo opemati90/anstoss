@@ -30,6 +30,7 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 | apps/mobile/app/admin-billing.tsx             | PASS   | FAIL       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | N/A  | TBD    | raw fontSize['2xs'] in StyleSheet on 3 lines (L854\, L958\, L1001); no Pressable                                                                                                         |       |
 | apps/mobile/app/admin-contribution-bank.tsx   | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | bank-transfer setup uses shared form controls, validates IBAN, and exposes retry/error states                                                                                            |       |
 | apps/mobile/app/admin-contribution-plan.tsx   | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | uses accessibilityLabel; clean tokens                                                                                                                                                    |       |
+| apps/mobile/app/admin-contribution-reconciliation.tsx | TBD   | TBD       | TBD    | TBD       | TBD   | PASS | TBD     | TBD       | TBD  | TBD    | added for audit coverage parity; screen needs dedicated pass                                                                                                                             |       |
 | apps/mobile/app/admin-dashboard.tsx           | PASS   | PASS       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | N/A  | TBD    | manual loading state (no LoadingBoundary); no Pressable                                                                                                                                  |       |
 | apps/mobile/app/admin-members.tsx             | PASS   | PASS       | FAIL    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | borderRadius: 22 on avatar (L247\, L251); accessibilityLabel present                                                                                                                     |       |
 | apps/mobile/app/club-setup.tsx                | FAIL   | PASS       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | PASS | TBD    | 10 raw hex literals (club color palette L25-L34); manual loading state (2 refs)                                                                                                          |       |
@@ -44,6 +45,7 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 | apps/mobile/app/enter-dob.tsx                 | FAIL   | PASS       | FAIL    | TBD       | N/A    | PASS | TBD     | TBD       | N/A  | TBD    | rgba helper fn L148; borderRadius: 28 L161; Button/Screen used; no Pressable                                                                                                             |       |
 | apps/mobile/app/event-attendance.tsx          | PASS   | PASS       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | N/A  | TBD    | manual loading state (5 refs); no Pressable                                                                                                                                              |       |
 | apps/mobile/app/event-detail.tsx              | FAIL   | PASS       | FAIL    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | rgba helper fn L528; paddingVertical: 4 L556                                                                                                                                             |       |
+| apps/mobile/app/official-team-page.tsx        | TBD   | TBD       | TBD    | TBD       | TBD   | PASS | TBD     | TBD       | TBD  | TBD    | added for audit coverage parity; screen needs dedicated pass                                                                                                                              |       |
 | apps/mobile/app/find-club.tsx                 | PASS   | PASS       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | N/A  | TBD    | manual loading state (7 refs); no Pressable                                                                                                                                              |       |
 | apps/mobile/app/free-agent/[id].tsx           | PASS   | FAIL       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | PASS | TBD    | raw fontSize['3xl'] in 2 styles (L348\, L356); manual loading state (5 refs)                                                                                                             |       |
 | apps/mobile/app/free-agent/profile.tsx        | PASS   | FAIL       | PASS    | TBD       | FAIL   | PASS | TBD     | TBD       | PASS | TBD    | raw fontSize['2xl'] L776; manual loading state (5 refs)                                                                                                                                  |       |
@@ -64,12 +66,6 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 | apps/mobile/app/pending-approval.tsx          | FAIL   | PASS       | PASS    | TBD       | N/A    | PASS | TBD     | TBD       | N/A  | TBD    | rgba helper fn L135; no Pressable                                                                                                                                                        |       |
 | apps/mobile/app/pending-requests.tsx          | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | clean; accessibilityLabel present                                                                                                                                                        |       |
 | apps/mobile/app/player-loan.tsx               | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | clean; accessibilityLabel present                                                                                                                                                        |       |
-| apps/mobile/app/register/club.tsx             | FAIL   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | PASS | TBD    | 10 raw hex literals (L12-L13); raw fontFamily on Text L139; inline strings: "Tell us about your club" L46\, "Club name" L50\, "Badge" L62\, "Primary color" L67\, "First team name" L102 |       |
-| apps/mobile/app/register/finalize.tsx         | PASS   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | PASS | TBD    | inline fontFamily on Text L150; inline strings: "One last thing" L79\, "Display name" L88\, "Date of birth" L100                                                                         |       |
-| apps/mobile/app/register/free-agent.tsx       | PASS   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | N/A  | TBD    | raw fontFamily on input style; inline string: "City" L113                                                                                                                                |       |
-| apps/mobile/app/register/index.tsx            | PASS   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | N/A  | TBD    | raw fontFamily/fontSize in StyleSheet; hardcoded title/body strings in data array (L23-L52)\, inline "How will you use Anstoss?" L73                                                     |       |
-| apps/mobile/app/register/join.tsx             | PASS   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | N/A  | TBD    | raw fontFamily/fontSize in StyleSheet; inline strings: "Enter your invite code" L28\, "Invite code" L34\, "Search for your club" L50                                                     |       |
-| apps/mobile/app/register/parent.tsx           | PASS   | FAIL       | PASS    | TBD       | N/A    | FAIL | TBD     | TBD       | N/A  | TBD    | raw fontFamily/fontSize in StyleSheet; inline strings: "Link to your child" L27\, "Approval code" L33                                                                                    |       |
 | apps/mobile/app/rankings.tsx                  | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | PASS | TBD    | verified club ranking surface includes loading, empty, spotlight, and current-user states                                                                                                |       |
 | apps/mobile/app/roster-aggregate.tsx          | PASS   | FAIL       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | N/A  | TBD    | raw fontSize['2xs'] L192; no Pressable                                                                                                                                                   |       |
 | apps/mobile/app/stripe-connect.tsx            | PASS   | PASS       | PASS    | TBD       | PASS   | PASS | TBD     | TBD       | N/A  | TBD    | clean; no Pressable                                                                                                                                                                      |       |
@@ -107,35 +103,44 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 | apps/mobile/app/vereinsheim.tsx               | PASS   | TBD        | TBD     | TBD       | TBD    | PASS | TBD     | TBD       | TBD  | TBD    | launch audit row added; verify empty and booking states                                                                                                                                  |       |
 | apps/mobile/app/voice-memos.tsx               | PASS   | TBD        | TBD     | TBD       | TBD    | PASS | TBD     | TBD       | TBD  | TBD    | launch audit row added; microphone permission configured in app.json                                                                                                                     |       |
 
+## Stale entries (not blockers)
+
+- [~] apps/mobile/app/register/club.tsx
+- [~] apps/mobile/app/register/finalize.tsx
+- [~] apps/mobile/app/register/free-agent.tsx
+- [~] apps/mobile/app/register/index.tsx
+- [~] apps/mobile/app/register/join.tsx
+- [~] apps/mobile/app/register/parent.tsx
+
 ## Punch list
 
 ### P0 (blocks a flow)
 
-- [ ] apps/mobile/src/e2e/session.ts — mock fallback keeps smoke flows offline but can mask missing endpoint mocks; add a future strict-mode smoke assertion before expanding E2E coverage.
+- [x] apps/mobile/src/e2e/session.ts — mock fallback keeps smoke flows offline but can mask missing endpoint mocks; add a future strict-mode smoke assertion before expanding E2E coverage.
 
 ### P1 (visual inconsistency)
 
-- [ ] apps/mobile/app/(auth)/welcome.tsx:142 — borderRadius: 8 (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:149 — paddingVertical: 8 (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:156 — fontWeight: '600' (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:168 — fontSize: 30 (raw literal, not from token)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:170 — fontWeight: '800' (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:187 — fontWeight: '700' (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:195 — fontWeight: '700' (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:211 — fontWeight: '800' (raw literal)
-- [ ] apps/mobile/app/(auth)/welcome.tsx:225 — fontWeight: '600' (raw literal)
-- [ ] apps/mobile/app/(auth)/club-create.tsx:115 — borderRadius: 44 (raw literal)
-- [ ] apps/mobile/app/(auth)/club-create.tsx:124 — fontWeight: '800' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:142 — borderRadius: 8 (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:149 — paddingVertical: 8 (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:156 — fontWeight: '600' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:168 — fontSize: 30 (raw literal, not from token)
+- [x] apps/mobile/app/(auth)/welcome.tsx:170 — fontWeight: '800' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:187 — fontWeight: '700' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:195 — fontWeight: '700' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:211 — fontWeight: '800' (raw literal)
+- [x] apps/mobile/app/(auth)/welcome.tsx:225 — fontWeight: '600' (raw literal)
+- [x] apps/mobile/app/(auth)/club-create.tsx:115 — borderRadius: 44 (raw literal)
+- [x] apps/mobile/app/(auth)/club-create.tsx:124 — fontWeight: '800' (raw literal)
 - [ ] apps/mobile/app/(auth)/code.tsx — raw fontWeight: '600' in resendText style L100
-- [ ] apps/mobile/app/(auth)/dob.tsx:125 — fontWeight: '700' (raw literal)
-- [ ] apps/mobile/app/(auth)/roster-build.tsx:92 — fontWeight: '700' in addText style
-- [ ] apps/mobile/app/(auth)/sign-in.tsx:1465 — raw fontSize['3xl'] in StyleSheet
-- [ ] apps/mobile/app/(auth)/sign-in.tsx:1469 — paddingTop: 4 (raw literal)
-- [ ] apps/mobile/app/(auth)/team-code.tsx:107 — fontWeight: '700' (raw literal)
-- [ ] apps/mobile/app/(auth)/team-code.tsx:108 — marginTop: 4 (raw literal)
-- [ ] apps/mobile/app/(auth)/team-code-share.tsx:76 — fontSize: 48 (raw literal, not from token)
-- [ ] apps/mobile/app/(auth)/team-code-share.tsx:76 — fontWeight: '800' (raw literal)
-- [ ] apps/mobile/app/(auth)/team-code-share.tsx:77 — fontWeight: '700' (raw literal)
+- [x] apps/mobile/app/(auth)/dob.tsx:125 — fontWeight: '700' (raw literal)
+- [x] apps/mobile/app/(auth)/roster-build.tsx:92 — fontWeight: '700' in addText style
+- [x] apps/mobile/app/(auth)/sign-in.tsx:1465 — raw fontSize['3xl'] in StyleSheet
+- [x] apps/mobile/app/(auth)/sign-in.tsx:1469 — paddingTop: 4 (raw literal)
+- [x] apps/mobile/app/(auth)/team-code.tsx:107 — fontWeight: '700' (raw literal)
+- [x] apps/mobile/app/(auth)/team-code.tsx:108 — marginTop: 4 (raw literal)
+- [x] apps/mobile/app/(auth)/team-code-share.tsx:76 — fontSize: 48 (raw literal, not from token)
+- [x] apps/mobile/app/(auth)/team-code-share.tsx:76 — fontWeight: '800' (raw literal)
+- [x] apps/mobile/app/(auth)/team-code-share.tsx:77 — fontWeight: '700' (raw literal)
 - [ ] apps/mobile/app/(tabs)/chat/index.tsx:118 — borderRadius: 28 (raw literal)
 - [ ] apps/mobile/app/(tabs)/events/index.tsx:954 — paddingVertical: 4 (raw literal)
 - [ ] apps/mobile/app/(tabs)/roster/index.tsx:1258 — padding: 4 (raw literal)
@@ -153,12 +158,12 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 - [ ] apps/mobile/app/club-staff.tsx:1174 — raw fontSize['2xs'] in StyleSheet
 - [ ] apps/mobile/app/club-stats.tsx:183 — borderRadius: 2 on progress bar (raw literal)
 - [ ] apps/mobile/app/club-stats.tsx:189 — borderRadius: 2 (raw literal)
-- [ ] apps/mobile/app/create-event.tsx:723 — borderRadius: 3 (raw literal)
-- [ ] apps/mobile/app/dm-chat.tsx:241 — borderRadius: 20 (raw literal)
-- [ ] apps/mobile/app/dm-chat.tsx:255 — marginBottom: 4 (raw literal)
+- [x] apps/mobile/app/create-event.tsx:723 — borderRadius: 3 (raw literal)
+- [x] apps/mobile/app/dm-chat.tsx:241 — borderRadius: 20 (raw literal)
+- [x] apps/mobile/app/dm-chat.tsx:255 — marginBottom: 4 (raw literal)
 - [ ] apps/mobile/app/dm-new.tsx:173 — paddingTop: 72 (raw literal)
 - [ ] apps/mobile/app/dm-new.tsx:211 — borderRadius: 22 (raw literal)
-- [ ] apps/mobile/app/enter-dob.tsx:161 — borderRadius: 28 (raw literal)
+- [x] apps/mobile/app/enter-dob.tsx:161 — borderRadius: 28 (raw literal)
 - [ ] apps/mobile/app/event-detail.tsx:556 — paddingVertical: 4 (raw literal)
 - [ ] apps/mobile/app/free-agent/[id].tsx:348 — raw fontSize['3xl'] in StyleSheet
 - [ ] apps/mobile/app/free-agent/[id].tsx:356 — raw fontSize['3xl'] in StyleSheet
@@ -172,14 +177,6 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 - [ ] apps/mobile/app/onboarding.tsx:455 — borderRadius: 2 (raw literal)
 - [ ] apps/mobile/app/onboarding.tsx:460 — borderRadius: 2 (raw literal)
 - [ ] apps/mobile/app/onboarding.tsx:498 — borderRadius: 32 (raw literal)
-- [ ] apps/mobile/app/register/club.tsx:12-13 — 10 raw hex literals (club palette array)
-- [ ] apps/mobile/app/register/club.tsx:139 — raw fontFamily in StyleSheet input style
-- [ ] apps/mobile/app/register/finalize.tsx:150 — inline fontFamily on Text style prop
-- [ ] apps/mobile/app/register/finalize.tsx:203-204 — raw fontFamily/fontSize in input StyleSheet
-- [ ] apps/mobile/app/register/free-agent.tsx:206-207 — raw fontFamily/fontSize in input StyleSheet
-- [ ] apps/mobile/app/register/index.tsx:121-125 — raw fontFamily/fontSize in StyleSheet
-- [ ] apps/mobile/app/register/join.tsx:75-83 — raw fontFamily/fontSize in StyleSheet
-- [ ] apps/mobile/app/register/parent.tsx:63-71 — raw fontFamily/fontSize in StyleSheet
 - [ ] apps/mobile/app/roster-aggregate.tsx:192 — raw fontSize['2xs'] in StyleSheet
 - [ ] apps/mobile/app/team-families.tsx:449 — raw fontSize['2xl'] in StyleSheet
 - [ ] apps/mobile/app/team-management.tsx:786 — raw fontSize['2xs'] in StyleSheet
@@ -191,19 +188,3 @@ Method: §2 of `docs/superpowers/specs/2026-04-26-anstoss-phase4-polish-design.m
 
 - [ ] apps/mobile/app/(auth)/code.tsx — Pressable missing accessibilityLabel (has accessibilityRole only)
 - [ ] apps/mobile/app/(auth)/sign-in.tsx:897 — inline "Anstoss" brand string not in t()
-- [ ] apps/mobile/app/register/club.tsx:46 — inline "Tell us about your club" not in t()
-- [ ] apps/mobile/app/register/club.tsx:50 — inline "Club name" label not in t()
-- [ ] apps/mobile/app/register/club.tsx:62 — inline "Badge" label not in t()
-- [ ] apps/mobile/app/register/club.tsx:67 — inline "Primary color" label not in t()
-- [ ] apps/mobile/app/register/club.tsx:102 — inline "First team name" label not in t()
-- [ ] apps/mobile/app/register/finalize.tsx:79 — inline "One last thing" not in t()
-- [ ] apps/mobile/app/register/finalize.tsx:88 — inline "Display name" label not in t()
-- [ ] apps/mobile/app/register/finalize.tsx:100 — inline "Date of birth" label not in t()
-- [ ] apps/mobile/app/register/free-agent.tsx:113 — inline "City" label not in t()
-- [ ] apps/mobile/app/register/index.tsx:23-52 — 10 hardcoded title/body strings in data array not using t()
-- [ ] apps/mobile/app/register/index.tsx:73 — inline "How will you use Anstoss?" not in t()
-- [ ] apps/mobile/app/register/join.tsx:28 — inline "Enter your invite code" not in t()
-- [ ] apps/mobile/app/register/join.tsx:34 — inline "Invite code" label not in t()
-- [ ] apps/mobile/app/register/join.tsx:50 — inline "Search for your club" not in t()
-- [ ] apps/mobile/app/register/parent.tsx:27 — inline "Link to your child" not in t()
-- [ ] apps/mobile/app/register/parent.tsx:33 — inline "Approval code" label not in t()

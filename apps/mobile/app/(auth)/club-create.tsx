@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -10,7 +9,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { api } from '../../src/api/client'
 import { TeamRole } from '@anstoss/shared'
-import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { fontSize, fontWeight, fonts, hairline, radius, space } from '../../src/theme/tokens'
 import { onboardingStep } from '../../src/onboarding/steps'
 
 type DirectoryHit = {
@@ -325,7 +324,7 @@ const styles = StyleSheet.create({
   badge: {
     width: 88,
     height: 88,
-    borderRadius: 44,
+    borderRadius: radius.full,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
@@ -341,13 +340,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: fontSize['2xl'],
     lineHeight: fontSize['2xl'] * 1.3,
-    fontWeight: '800',
+    fontWeight: fontWeight.bold,
   },
   fieldLabel: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: fontSize.xs,
     letterSpacing: 1.4,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     textTransform: 'uppercase',
     marginBottom: space.xs,
   },
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
   searchSpinner: {
     position: 'absolute',
     right: space.md,
-    top: space.md + 4,
+    top: space.md + space.xs,
   },
   input: {
     height: 56,
@@ -395,7 +394,7 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   suggestList: {
     marginTop: space.sm,
@@ -415,7 +414,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: radius.sm,
   },
-  suggestCopy: { flex: 1, gap: 2 },
+  suggestCopy: { flex: 1, gap: space.xs },
   noMatch: {
     marginTop: space.sm,
     fontFamily: fonts.body,

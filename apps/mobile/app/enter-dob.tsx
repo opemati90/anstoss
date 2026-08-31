@@ -158,8 +158,7 @@ const styles = StyleSheet.create({
   iconTile: {
     width: 112,
     height: 112,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    borderRadius: 28,
+    borderRadius: radius.full,
     borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
