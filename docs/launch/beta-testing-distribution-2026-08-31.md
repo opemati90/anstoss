@@ -50,13 +50,14 @@ Steps:
 3. Open the generated opt-in URL and send it to testers.
 4. If you only need quick testing, continue with direct APK while Google Play review is pending.
 
-## Remaining blocker (must be resolved before true Play release submission)
+## Play release path (without service-account submit automation)
 
-Automated Play submission is blocked by non-interactive credentials:
+You can ship to testers and release without enforcing service-account based
+automated submission:
 
-- `eas submit --platform android --latest --non-interactive` requires a Google
-  service-account JSON configured in EAS credentials.
-
-Until this is configured, keep using:
 - Android preview APK for ad-hoc testing.
 - Manual AAB upload for internal testing/Play rollout.
+
+If/when you want one-click automated Android submission, set up service-account
+credentials in EAS and then use `eas submit`. Until then, follow the manual path
+above.
