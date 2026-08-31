@@ -41,6 +41,7 @@ import {
   space,
   radius,
   fonts,
+  fontWeight,
   lineHeight,
   hairline,
   elevation,
@@ -1481,7 +1482,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
     lineHeight: lineHeight.md,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   sectionDescription: {
     fontSize: fontSize.sm,
@@ -1491,7 +1492,7 @@ const styles = StyleSheet.create({
   sectionAction: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -1502,7 +1503,7 @@ const styles = StyleSheet.create({
   toggleTitle: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   toggleHint: {
     fontFamily: fonts.body,
@@ -1523,7 +1524,7 @@ const styles = StyleSheet.create({
   segmentText: {
     fontFamily: fonts.label,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   chipRow: {
     flexDirection: 'row',
@@ -1541,7 +1542,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: fontSize.sm,
     fontFamily: fonts.label,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   textarea: { minHeight: 120 },
   helperText: {
@@ -1642,7 +1643,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   yearRow: { flexDirection: 'row', gap: space.sm },
   yearInput: { flex: 1 },
@@ -1661,7 +1662,7 @@ const styles = StyleSheet.create({
   inviteClub: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
   },
   inviteTeam: {
     marginTop: space['2xs'],
@@ -1688,7 +1689,7 @@ const styles = StyleSheet.create({
   inlinePillText: {
     fontSize: fontSize['2xs'],
     fontFamily: fonts.label,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.4,
   },
   tabStrip: {
@@ -1710,7 +1711,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: fonts.label,
     fontSize: fontSize.sm,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   tabBadge: {
@@ -1724,7 +1725,7 @@ const styles = StyleSheet.create({
   tabBadgeText: {
     fontFamily: fonts.data,
     fontSize: fontSize['2xs'],
-    fontWeight: '800',
+    fontWeight: fontWeight.bold,
   },
   saveBar: {
     position: 'absolute',

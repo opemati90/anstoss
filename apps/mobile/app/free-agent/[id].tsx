@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   sectionGroup: { gap: space.sm },
   eyebrow: {
     fontFamily: fonts.label,
-    fontSize: 10,
+    fontSize: fontSize.xs,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     marginLeft: space.xs,

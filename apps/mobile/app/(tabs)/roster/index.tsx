@@ -38,6 +38,7 @@ import {
   elevation,
   fonts,
   fontSize,
+  fontWeight,
   lineHeight,
   radius,
   space,
@@ -1359,7 +1360,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 10,
     fontFamily: fonts.data,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   emptyBlockCopy: {
     fontSize: 13,
@@ -1389,12 +1390,12 @@ const styles = StyleSheet.create({
   memberJersey: {
     fontSize: 13,
     fontFamily: fonts.data,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
   },
   memberName: {
     fontSize: 15,
     fontFamily: fonts.heading,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: -0.1,
   },
   memberMeta: {
@@ -1419,7 +1420,7 @@ const styles = StyleSheet.create({
   smallActionText: {
     fontSize: 13,
     fontFamily: fonts.label,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: 0.1,
   },
   statusBadge: {
@@ -1458,7 +1459,7 @@ const styles = StyleSheet.create({
   infoCardTitle: {
     fontSize: 15,
     fontFamily: fonts.heading,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: -0.1,
   },
   infoCardSubtitle: {
@@ -1484,7 +1485,7 @@ const styles = StyleSheet.create({
   simpleRowTitle: {
     fontSize: 14,
     fontFamily: fonts.heading,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: -0.1,
   },
   simpleRowSubtitle: {
@@ -1531,13 +1532,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     marginTop: space.xs + 2,
   },
   modalTitleSleek: {
     fontSize: 24,
     fontFamily: fonts.heading,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     letterSpacing: -0.3,
     marginTop: space.xs,
   },
@@ -1552,7 +1553,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
-    fontWeight: '700',
+    fontWeight: fontWeight.bold,
     marginTop: space.xs,
     marginLeft: space.xs,
   },
@@ -1587,14 +1588,14 @@ const styles = StyleSheet.create({
   playerAvatarText: {
     fontSize: 12,
     fontFamily: fonts.heading,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: 0.3,
   },
   playerCopy: { flex: 1, gap: space['2xs'] },
   playerName: {
     fontSize: 15,
     fontFamily: fonts.heading,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: -0.1,
   },
   playerMeta: {
@@ -1622,7 +1623,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 13,
     fontFamily: fonts.label,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: 0.1,
   },
 
@@ -1635,7 +1636,7 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 14,
     fontFamily: fonts.label,
-    fontWeight: '600',
+    fontWeight: fontWeight.medium,
     letterSpacing: 0.1,
   },
   modalHeader: {
