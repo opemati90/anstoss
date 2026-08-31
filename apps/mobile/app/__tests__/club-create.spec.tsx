@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 const mockPush = jest.fn()
 const mockUpdate = jest.fn()
@@ -47,6 +47,16 @@ jest.mock('../../src/api/client', () => ({
 
 import ClubCreate from '../(auth)/club-create'
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('ClubCreate', () => {
   beforeEach(() => {
     jest.useFakeTimers()
@@ -92,5 +102,62 @@ describe('ClubCreate', () => {
       adminTeamRoles: [],
     })
     expect(mockPush).toHaveBeenCalledWith('/(auth)/club-identity')
+  })
+
+  it('keeps only the latest search result when earlier requests resolve last', async () => {
+    const firstSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: string | null
+    }>()
+    const secondSearch = deferred<{
+      results: Array<Record<string, unknown>>
+      nextCursor: string | null
+    }>()
+    mockApi.mockReturnValueOnce(firstSearch.promise).mockReturnValueOnce(secondSearch.promise)
+
+    render(<ClubCreate />)
+
+    fireEvent.changeText(screen.getByPlaceholderText(/Köpenick/), 'SV St')
+    await jest.advanceTimersByTimeAsync(350)
+
+    fireEvent.changeText(screen.getByPlaceholderText(/Köpenick/), 'Bayern City')
+    await jest.advanceTimersByTimeAsync(350)
+
+    await act(async () => {
+      secondSearch.resolve({
+        results: [
+          {
+            id: 'new',
+            directoryEntryId: 'dir-new',
+            name: 'FC Bayern',
+            badgeUrl: null,
+            city: 'Munich',
+            isActive: false,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(await screen.findByText('FC Bayern')).toBeTruthy()
+
+    await act(async () => {
+      firstSearch.resolve({
+        results: [
+          {
+            id: 'old',
+            directoryEntryId: 'dir-old',
+            name: 'SV Old Search',
+            badgeUrl: null,
+            city: 'Berlin',
+            isActive: false,
+          },
+        ],
+        nextCursor: null,
+      })
+    })
+
+    expect(screen.queryByText('SV Old Search')).toBeNull()
+    expect(screen.getByText('FC Bayern')).toBeOnTheScreen()
   })
 })

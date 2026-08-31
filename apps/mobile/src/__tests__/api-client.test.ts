@@ -164,4 +164,54 @@ describe('api client', () => {
     expect(alertSpy).not.toHaveBeenCalled()
     expect(signOutHandler).not.toHaveBeenCalled()
   })
+
+  it('retries once on timeout for GET requests', async () => {
+    const abortError = new Error('aborted')
+    ;(abortError as Error & { name: string }).name = 'AbortError'
+
+    mockFetch
+      .mockRejectedValueOnce(abortError)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ id: '1', name: 'Recovered' }),
+      })
+
+    const result = await api('/me')
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ id: '1', name: 'Recovered' })
+  })
+
+  it('does not retry non-idempotent methods on transient errors', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network'))
+
+    await expect(
+      api('/events', {
+        method: 'POST',
+      }),
+    ).rejects.toThrow('Network request failed. Please check your connection.')
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries after 504 and eventually succeeds', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 504,
+        statusText: 'Gateway Timeout',
+        text: async () => JSON.stringify({ message: 'Gateway timeout' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ ok: true }),
+      })
+
+    const result = await api('/me')
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({ ok: true })
+  })
 })

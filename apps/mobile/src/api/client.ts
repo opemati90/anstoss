@@ -8,6 +8,26 @@ const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3001'
 const APP_VERSION = Application.nativeApplicationVersion || '0.0.0'
 const REQUEST_TIMEOUT_MS = 12000
+const RETRIABLE_METHODS = new Set(['GET', 'HEAD'])
+const MAX_RETRIES = 2
+
+const isTestEnv = () => process?.env?.NODE_ENV === 'test'
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), ms)
+  })
+}
+
+function isRetryableError(method: string, status: number, attempt: number, code?: string) {
+  if (attempt >= MAX_RETRIES) return false
+  if (!RETRIABLE_METHODS.has(method.toUpperCase())) return false
+  if (status === 429) return true
+  if (status === 0) return true
+  if (status >= 500) return true
+  if (status === 408) return true
+  return code === 'timeout' || code === 'network_error'
+}
 
 export class ApiError extends Error {
   constructor(
@@ -118,98 +138,127 @@ export async function api<T = unknown>(
     return e2eResponse.body as T
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const normalizedMethod = method.toUpperCase()
 
-  let res: Response
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  try {
-    const acceptLanguage = i18n.resolvedLanguage || i18n.language || 'de'
-    res = await fetch(`${API_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-App-Version': APP_VERSION,
-        'Accept-Language': acceptLanguage,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      signal: controller.signal,
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    })
-  } catch (error) {
-    clearTimeout(timeoutId)
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError(
-        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`,
-        504,
-        'timeout',
-      )
-    }
-    throw new ApiError(
-      'Network request failed. Please check your connection.',
-      0,
-      'network_error',
-    )
-  }
+    try {
+      const acceptLanguage = i18n.resolvedLanguage || i18n.language || 'de'
+      const res = await fetch(`${API_URL}${path}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App-Version': APP_VERSION,
+          'Accept-Language': acceptLanguage,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+        signal: controller.signal,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      })
+      clearTimeout(timeoutId)
 
-  clearTimeout(timeoutId)
-
-  // Check for update signals before consuming the body.
-  // Clone so the checker can independently read the 426 body.
-  if (_responseChecker) {
-    _responseChecker(res.clone())
-  }
-
-  const rawBody = res.status === 204 ? '' : await res.text()
-  const parsedBody = parseResponseText(rawBody)
-
-  if (!res.ok) {
-    // Global 401 handling: sign the user out when the token is invalid/expired.
-    // Guard with _signingOut flag to prevent cascading sign-out calls from
-    // concurrent requests that all receive 401.
-    if (
-      res.status === 401 &&
-      !_suspendAuthExpiryHandling &&
-      !getE2ESession() &&
-      _signOutHandler &&
-      !_signingOut
-    ) {
-      _signingOut = true
-      Alert.alert(
-        i18n.t('common.errorTitle'),
-        i18n.t('auth.sessionExpired'),
-      )
-      try {
-        await _signOutHandler()
-      } catch (err) {
-        if (__DEV__) {
-          console.warn('[api] Auto sign-out on 401 failed:', err)
-        }
-      } finally {
-        _signingOut = false
+      if (_responseChecker) {
+        _responseChecker(res.clone())
       }
+
+      const rawBody = res.status === 204 ? '' : await res.text()
+      const parsedBody = parseResponseText(rawBody)
+
+      if (!res.ok) {
+        const outer =
+          parsedBody && typeof parsedBody === 'object' ? (parsedBody as Record<string, unknown>) : null
+        const nested =
+          outer?.error && typeof outer.error === 'object'
+            ? (outer.error as Record<string, unknown>)
+            : null
+        const error = nested ?? outer
+        const apiError = new ApiError(
+          typeof error?.message === 'string'
+            ? error.message
+            : rawBody.trim() || res.statusText || `API error ${res.status}`,
+          res.status,
+          typeof error?.code === 'string' ? error.code : undefined,
+          outer ?? undefined,
+        )
+
+        if (isRetryableError(normalizedMethod, res.status, attempt, apiError.code)) {
+          const delay = 250 * Math.pow(2, attempt)
+          await sleep(delay)
+          if (__DEV__ && !isTestEnv()) {
+            console.warn('[api] retrying', {
+              path,
+              method: normalizedMethod,
+              status: res.status,
+              attempt: attempt + 1,
+            })
+          }
+          continue
+        }
+
+        // Global 401 handling: sign the user out when token is invalid/expired.
+        if (
+          res.status === 401 &&
+          !_suspendAuthExpiryHandling &&
+          !getE2ESession() &&
+          _signOutHandler &&
+          !_signingOut
+        ) {
+          _signingOut = true
+          Alert.alert(
+            i18n.t('common.errorTitle'),
+            i18n.t('auth.sessionExpired'),
+          )
+          try {
+            await _signOutHandler()
+          } catch (err) {
+            if (__DEV__) {
+              console.warn('[api] Auto sign-out on 401 failed:', err)
+            }
+          } finally {
+            _signingOut = false
+          }
+        }
+
+        throw apiError
+      }
+
+      if (res.status === 204) return undefined as T
+      if (!rawBody.trim()) return undefined as T
+      return parsedBody as T
+    } catch (error) {
+      clearTimeout(timeoutId)
+
+      const apiError =
+        error instanceof ApiError
+          ? error
+          : error instanceof Error && error.name === 'AbortError'
+            ? new ApiError(
+                `Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`,
+                504,
+                'timeout',
+              )
+            : new ApiError('Network request failed. Please check your connection.', 0, 'network_error')
+
+      if (isRetryableError(normalizedMethod, apiError.status, attempt, apiError.code)) {
+        const delay = 250 * Math.pow(2, attempt)
+        await sleep(delay)
+        if (__DEV__ && !isTestEnv()) {
+          console.warn('[api] retrying', {
+            path,
+            method: normalizedMethod,
+            status: apiError.status,
+            attempt: attempt + 1,
+          })
+        }
+        continue
+      }
+
+      throw apiError
     }
-
-    const outer =
-      parsedBody && typeof parsedBody === 'object' ? parsedBody as Record<string, unknown> : null
-    // API wraps errors as { error: { message, code } } — unwrap if present
-    const nested =
-      outer?.error && typeof outer.error === 'object' ? outer.error as Record<string, unknown> : null
-    const error = nested ?? outer
-    throw new ApiError(
-      typeof error?.message === 'string'
-        ? error.message
-        : rawBody.trim() || res.statusText || `API error ${res.status}`,
-      res.status,
-      typeof error?.code === 'string' ? error.code : undefined,
-      outer ?? undefined,
-    )
   }
-
-  if (res.status === 204) return undefined as T
-  if (!rawBody.trim()) return undefined as T
-  return parsedBody as T
 }
 
 export { API_URL }

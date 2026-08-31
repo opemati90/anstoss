@@ -272,20 +272,34 @@ export function ChatScreen({
   const [searchResults, setSearchResults] = useState<ChatMessage[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const searchRequestIdRef = useRef(0)
 
   const handleSearch = useCallback(
     (query: string) => {
+      searchRequestIdRef.current += 1
       setSearchQuery(query)
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
       if (!query.trim()) {
         setSearchResults([])
+        setIsSearching(false)
         return
       }
       setIsSearching(true)
+      const requestId = searchRequestIdRef.current
       searchTimerRef.current = setTimeout(async () => {
-        const results = await searchMessages(query)
-        setSearchResults(results)
-        setIsSearching(false)
+        try {
+          const results = await searchMessages(query)
+          if (requestId !== searchRequestIdRef.current) return
+          setSearchResults(results)
+        } catch {
+          if (requestId === searchRequestIdRef.current) {
+            setSearchResults([])
+          }
+        } finally {
+          if (requestId === searchRequestIdRef.current) {
+            setIsSearching(false)
+          }
+        }
       }, 300)
     },
     [searchMessages],

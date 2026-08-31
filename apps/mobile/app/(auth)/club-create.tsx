@@ -50,30 +50,41 @@ export default function ClubCreate() {
   const [pickedLogo, setPickedLogo] = useState<string | null>(state.fussballClubLogoUrl ?? null)
   const [teamRoles, setTeamRoles] = useState<TeamRole[]>(state.adminTeamRoles ?? [])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRequestIdRef = useRef(0)
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const trimmed = name.trim()
     // Don't search after the user has explicitly picked a hit — the
     // pickedClubId stays sticky until they edit the name field again.
-    if (pickedClubId && trimmed === name) return
-    if (trimmed.length < 3) {
-      setHits([])
+    if (pickedClubId && trimmed === name) {
+      setSearching(false)
       return
     }
+    if (trimmed.length < 3) {
+      setHits([])
+      setSearching(false)
+      return
+    }
+    const requestId = ++searchRequestIdRef.current
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
         const data = await api<SearchResponse>(
           `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=6`,
         )
+        if (requestId !== searchRequestIdRef.current) return
         setHits((data?.results ?? []).filter((result) => !result.isActive))
         setScraperAvailable(true)
       } catch {
-        setHits([])
-        setScraperAvailable(false)
+        if (requestId === searchRequestIdRef.current) {
+          setHits([])
+          setScraperAvailable(false)
+        }
       } finally {
-        setSearching(false)
+        if (requestId === searchRequestIdRef.current) {
+          setSearching(false)
+        }
       }
     }, 300)
     return () => {
