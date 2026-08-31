@@ -1427,8 +1427,16 @@ function renderSettings() {
 }
 
 function bindSettings() {
-  document.getElementById('admin-otp-request').addEventListener('click', async () => {
-    const email = document.getElementById('admin-email-input').value.trim()
+  const requestButton = document.getElementById('admin-otp-request')
+  const verifyButton = document.getElementById('admin-otp-verify')
+  const emailInput = document.getElementById('admin-email-input')
+  const codeInput = document.getElementById('admin-code-input')
+  const setBusy = (target, busy) => {
+    if (target) target.disabled = busy
+  }
+
+  requestButton.addEventListener('click', async () => {
+    const email = emailInput.value.trim()
     const status = document.getElementById('admin-session-status')
     if (!email) {
       status.textContent = 'Enter your operator email first.'
@@ -1436,27 +1444,35 @@ function bindSettings() {
     }
     setAdminEmail(email)
     status.textContent = 'Sending code...'
+    setBusy(requestButton, true)
     try {
       await authFetch('/auth/otp/request', { email })
       status.textContent = 'Code sent if that email can sign in.'
-      document.getElementById('admin-code-input').focus()
+      codeInput.focus()
     } catch (err) {
       status.textContent = err.message
+    } finally {
+      setBusy(requestButton, false)
     }
   })
 
-  document.getElementById('admin-otp-verify').addEventListener('click', async () => {
-    const email = document.getElementById('admin-email-input').value.trim()
-    const code = document.getElementById('admin-code-input').value.trim()
+  const verifyHandler = async () => {
+    const email = emailInput.value.trim()
+    const code = codeInput.value.replace(/\s/g, '')
     const status = document.getElementById('admin-session-status')
     if (!email || !/^\d{6}$/.test(code)) {
       status.textContent = 'Enter your email and 6-digit code.'
+      setBusy(verifyButton, false)
       return
     }
     setAdminEmail(email)
     status.textContent = 'Verifying...'
+    setBusy(verifyButton, true)
     try {
       const result = await authFetch('/auth/otp/verify', { email, code })
+      if (!result?.token) {
+        throw new Error('Verification failed: no session token received.')
+      }
       setSessionToken(result.token)
       setSessionUser(result.user)
       try {
@@ -1473,6 +1489,22 @@ function bindSettings() {
       navigate()
     } catch (err) {
       status.textContent = err.message
+    } finally {
+      setBusy(verifyButton, false)
+    }
+  }
+
+  verifyButton.addEventListener('click', verifyHandler)
+  emailInput.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Enter') {
+      evt.preventDefault()
+      requestButton.click()
+    }
+  })
+  codeInput.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Enter') {
+      evt.preventDefault()
+      verifyHandler()
     }
   })
 
