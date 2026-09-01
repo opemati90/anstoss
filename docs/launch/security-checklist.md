@@ -59,5 +59,5 @@ This maps the common "vibe-coder launch" checklist to Anstoss as of the current
 - Run App Store privacy labels and Google Play Data Safety review against the
   current privacy manifest and policy copy before submission.
 - Create the packaged internal admin static service (`apps/admin/railway.toml`),
-  set `ADMIN_BASIC_AUTH_USERNAME`/`ADMIN_BASIC_AUTH_PASSWORD`, and use
+  set `ADMIN_CONSOLE_USERNAME`/`ADMIN_CONSOLE_PASSWORD_HASH`, and use
   `docs/launch/admin-console-readiness.md` as the ops readiness checklist.

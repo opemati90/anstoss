@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 import { AuditModule } from '../audit/audit.module'
 import { PushModule } from '../push/push.module'
+import { AdminAuthController } from './admin-auth.controller'
+import { AdminAuthService } from './admin-auth.service'
 import { AdminController } from './admin.controller'
 import { AdminService } from './admin.service'
 import { BroadcastsService } from './broadcasts.service'
@@ -12,11 +14,12 @@ import { PlatformAdminGuard } from './platform-admin.guard'
 
 @Module({
   imports: [AuditModule, PushModule],
-  controllers: [AdminController],
+  controllers: [AdminController, AdminAuthController],
   // InternalAdminGuard is kept for backward compatibility; new routes
   // should use PlatformAdminGuard which accepts both the DB flag and the
   // legacy email allowlist.
   providers: [
+    AdminAuthService,
     AdminService,
     BroadcastsService,
     FeatureFlagsService,

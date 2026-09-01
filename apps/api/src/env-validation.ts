@@ -7,6 +7,8 @@
  * booting green with broken/forgeable auth. Mirrors RateLimitGuard's
  * "throw in production for missing UPSTASH_*" pattern.
  */
+import { collectAdminConsoleEnvErrors } from './admin/admin-auth.config'
+
 export const WEAK_JWT_PLACEHOLDER = 'change-me-long-random-secret'
 export const WEAK_OTP_PLACEHOLDER = 'change-me-long-random-pepper'
 
@@ -70,6 +72,8 @@ export function collectProductionEnvErrors(env: NodeJS.ProcessEnv = process.env)
     }
   }
 
+  errors.push(...collectAdminConsoleEnvErrors(env))
+
   return errors
 }
 
@@ -93,7 +97,7 @@ export function collectProductionEnvWarnings(env: NodeJS.ProcessEnv = process.en
   const adminApiKey = (env.ADMIN_API_KEY ?? '').trim()
   if (!adminApiKey) {
     warnings.push(
-      'ADMIN_API_KEY is not set — the static internal admin console cannot authenticate with X-Admin-Key',
+      'ADMIN_API_KEY is not set — break-glass X-Admin-Key access is unavailable for the admin console',
     )
   } else if (adminApiKey.length < 32) {
     warnings.push('ADMIN_API_KEY should be at least 32 characters')

@@ -1,5 +1,5 @@
 # Railway service config for the internal Anstoss admin console.
-# Required env vars: ADMIN_BASIC_AUTH_USERNAME and ADMIN_BASIC_AUTH_PASSWORD.
+# Admin console username/password auth is enforced by the API service.
 # Leave the in-browser API base blank in production so /admin/* and /auth/*
 # use the same-origin nginx proxy to API_UPSTREAM.
 

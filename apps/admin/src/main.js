@@ -2,7 +2,7 @@
  * Anstoss Platform Admin - V1
  *
  * Single-page vanilla JS. Hash-routed (#/overview, #/clubs, ...) so deep
- * links work. Authenticates against /admin/* with a per-operator email OTP
+ * links work. Authenticates against /admin/* with an in-app username/password
  * session when available, falling back to X-Admin-Key for break-glass ops.
  */
 
@@ -12,7 +12,7 @@ const KEY_STORAGE = 'anstoss.admin.apiKey'
 const BASE_STORAGE = 'anstoss.admin.apiBase'
 const SESSION_TOKEN_STORAGE = 'anstoss.admin.sessionToken'
 const SESSION_USER_STORAGE = 'anstoss.admin.sessionUser'
-const ADMIN_EMAIL_STORAGE = 'anstoss.admin.email'
+const ADMIN_USERNAME_STORAGE = 'anstoss.admin.username'
 
 function getApiKey() {
   return sessionStorage.getItem(KEY_STORAGE) || ''
@@ -47,15 +47,15 @@ function setSessionUser(user) {
   if (user) sessionStorage.setItem(SESSION_USER_STORAGE, JSON.stringify(user))
   else sessionStorage.removeItem(SESSION_USER_STORAGE)
 }
-function getAdminEmail() {
-  return localStorage.getItem(ADMIN_EMAIL_STORAGE) || ''
+function getAdminUsername() {
+  return localStorage.getItem(ADMIN_USERNAME_STORAGE) || ''
 }
 function hasAdminCredentials() {
   return Boolean(getSessionToken() || getApiKey())
 }
-function setAdminEmail(value) {
-  if (value) localStorage.setItem(ADMIN_EMAIL_STORAGE, value)
-  else localStorage.removeItem(ADMIN_EMAIL_STORAGE)
+function setAdminUsername(value) {
+  if (value) localStorage.setItem(ADMIN_USERNAME_STORAGE, value)
+  else localStorage.removeItem(ADMIN_USERNAME_STORAGE)
 }
 function apiUrl(path) {
   const base = getApiBase().replace(/\/$/, '')
@@ -83,7 +83,7 @@ async function responseErrorMessage(res, path) {
   const looksLikeHtml = contentType.includes('text/html') || /^<!doctype|^<html/i.test(compact)
 
   if (looksLikeHtml && usesSameOriginApiProxy() && path.startsWith('/admin')) {
-    return 'Admin proxy is not available in this environment. Production must serve this console through the protected nginx admin service.'
+    return 'Admin proxy is not available in this environment. Configure the admin service proxy before using the console.'
   }
 
   if (looksLikeHtml) return res.statusText || 'HTML error response'
@@ -117,6 +117,7 @@ async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
   if (res.status === 401 && sessionToken && retryOnExpiredSession) {
     setSessionToken('')
     setSessionUser(null)
+    renderAuthGate('Session expired. Sign in again.')
     updateAuthSummary()
     if (getApiKey()) {
       return adminFetch(path, options, false)
@@ -125,7 +126,7 @@ async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
 
   if (res.status === 401 || res.status === 403) {
     throw new Error(
-      'Auth failed. Sign in as a platform admin in Settings or use a valid ADMIN_API_KEY.',
+      'Auth failed. Sign in on the admin login page or use a valid ADMIN_API_KEY.',
     )
   }
   if (!res.ok) {
@@ -149,6 +150,24 @@ async function authFetch(path, body) {
   }
 
   return res.json()
+}
+
+function renderAuthGate(message = '') {
+  const loginShell = document.getElementById('login-shell')
+  const appShell = document.getElementById('app-shell')
+  const usernameInput = document.getElementById('admin-login-username')
+  const passwordInput = document.getElementById('admin-login-password')
+  const status = document.getElementById('admin-login-status')
+  const authenticated = hasAdminCredentials()
+
+  loginShell.hidden = authenticated
+  appShell.hidden = !authenticated
+
+  if (!authenticated) {
+    usernameInput.value = getAdminUsername()
+    passwordInput.value = ''
+    status.textContent = message || 'Sign in to open the admin workspace.'
+  }
 }
 
 // - Routing -
@@ -1411,11 +1430,10 @@ function renderSettings() {
   const sessionStatus = document.getElementById('admin-session-status')
   const sessionToken = getSessionToken()
   const sessionUser = getSessionUser()
+  document.getElementById('admin-username-display').value = getAdminUsername()
   sessionStatus.textContent = sessionToken
     ? `Signed in as ${sessionUser?.email || sessionUser?.name || 'platform admin'} for this browser session.`
     : 'No operator session.'
-  document.getElementById('admin-email-input').value = getAdminEmail()
-  document.getElementById('admin-code-input').value = ''
 
   const status = document.getElementById('admin-key-status')
   const stored = getApiKey()
@@ -1426,91 +1444,54 @@ function renderSettings() {
   document.getElementById('api-base-input').value = getApiBase()
 }
 
-function bindSettings() {
-  const requestButton = document.getElementById('admin-otp-request')
-  const verifyButton = document.getElementById('admin-otp-verify')
-  const emailInput = document.getElementById('admin-email-input')
-  const codeInput = document.getElementById('admin-code-input')
-  const setBusy = (target, busy) => {
-    if (target) target.disabled = busy
-  }
+function bindLoginForm() {
+  const form = document.getElementById('admin-login-form')
+  const submitButton = document.getElementById('admin-login-submit')
+  const usernameInput = document.getElementById('admin-login-username')
+  const passwordInput = document.getElementById('admin-login-password')
 
-  requestButton.addEventListener('click', async () => {
-    const email = emailInput.value.trim()
-    const status = document.getElementById('admin-session-status')
-    if (!email) {
-      status.textContent = 'Enter your operator email first.'
+  form.addEventListener('submit', async (evt) => {
+    evt.preventDefault()
+    const username = usernameInput.value.trim()
+    const password = passwordInput.value
+    const status = document.getElementById('admin-login-status')
+
+    if (!username || !password) {
+      status.textContent = 'Enter your username and password.'
       return
     }
-    setAdminEmail(email)
-    status.textContent = 'Sending code...'
-    setBusy(requestButton, true)
-    try {
-      await authFetch('/auth/otp/request', { email })
-      status.textContent = 'Code sent if that email can sign in.'
-      codeInput.focus()
-    } catch (err) {
-      status.textContent = err.message
-    } finally {
-      setBusy(requestButton, false)
-    }
-  })
 
-  const verifyHandler = async () => {
-    const email = emailInput.value.trim()
-    const code = codeInput.value.replace(/\s/g, '')
-    const status = document.getElementById('admin-session-status')
-    if (!email || !/^\d{6}$/.test(code)) {
-      status.textContent = 'Enter your email and 6-digit code.'
-      setBusy(verifyButton, false)
-      return
-    }
-    setAdminEmail(email)
-    status.textContent = 'Verifying...'
-    setBusy(verifyButton, true)
+    setAdminUsername(username)
+    status.textContent = 'Signing in...'
+    submitButton.disabled = true
     try {
-      const result = await authFetch('/auth/otp/verify', { email, code })
+      const result = await authFetch('/admin/auth/login', { username, password })
       if (!result?.token) {
-        throw new Error('Verification failed: no session token received.')
+        throw new Error('Sign-in failed: no session token received.')
       }
       setSessionToken(result.token)
       setSessionUser(result.user)
-      try {
-        await adminFetch('/admin/health')
-      } catch (err) {
-        setSessionToken('')
-        setSessionUser(null)
-        status.textContent = 'Signed in, but this account is not a platform admin.'
-        updateAuthSummary()
-        return
-      }
+      renderAuthGate()
       renderSettings()
       updateAuthSummary()
       navigate()
     } catch (err) {
+      setSessionToken('')
+      setSessionUser(null)
       status.textContent = err.message
+      renderAuthGate(err.message)
     } finally {
-      setBusy(verifyButton, false)
-    }
-  }
-
-  verifyButton.addEventListener('click', verifyHandler)
-  emailInput.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Enter') {
-      evt.preventDefault()
-      requestButton.click()
+      submitButton.disabled = false
     }
   })
-  codeInput.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Enter') {
-      evt.preventDefault()
-      verifyHandler()
-    }
-  })
+}
 
+function bindSettings() {
   document.getElementById('admin-session-clear').addEventListener('click', () => {
     setSessionToken('')
     setSessionUser(null)
+    setApiKey('')
+    renderAuthGate('Signed out.')
     renderSettings()
     updateAuthSummary()
   })
@@ -1521,6 +1502,7 @@ function bindSettings() {
     setApiKey(value)
     renderSettings()
     updateAuthSummary()
+    renderAuthGate()
     navigate()
   })
   document.getElementById('admin-key-clear').addEventListener('click', () => {
@@ -1549,12 +1531,13 @@ function updateAuthSummary() {
   const key = getApiKey()
   el.textContent = key
     ? `Authenticated via X-Admin-Key (${key.slice(0, 4)}...).`
-    : 'Not authenticated. Open Settings to sign in or paste your ADMIN_API_KEY.'
+    : 'Not authenticated. Use the admin login page or a break-glass ADMIN_API_KEY.'
 }
 
 // - Boot -
 
 document.addEventListener('DOMContentLoaded', () => {
+  bindLoginForm()
   bindMobileNavigation()
   bindClubs()
   bindUsers()
@@ -1570,10 +1553,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Surface auth status in the Overview lede.
   updateAuthSummary()
 
-  if (!hasAdminCredentials() && currentSection() !== 'settings') {
-    window.location.hash = '#/settings'
+  if (!hasAdminCredentials()) {
+    renderAuthGate()
     return
   }
 
+  renderAuthGate()
   navigate()
 })

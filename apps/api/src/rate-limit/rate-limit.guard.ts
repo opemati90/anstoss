@@ -11,6 +11,7 @@ export const RATE_LIMIT_KEY = 'rateLimit'
 export type RateLimitType =
   | 'read'
   | 'write'
+  | 'admin-login'
   | 'club-claim'
   | 'invite-campaign'
   | 'invite-redeem'
@@ -82,6 +83,14 @@ export class RateLimitGuard implements CanActivate {
       limiter: Ratelimit.slidingWindow(10, '1 d'),
       prefix: 'rl:club-claim-ip',
     })
+    this.policyLimiters.set(
+      'admin-login',
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, '15 m'),
+        prefix: 'rl:admin-login',
+      }),
+    )
     this.policyLimiters.set(
       'invite-campaign',
       new Ratelimit({

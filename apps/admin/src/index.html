@@ -11,6 +11,52 @@
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
+    <section class="login-shell" id="login-shell" hidden>
+      <div class="login-card">
+        <div class="login-card__brand">
+          <img class="brand-mark" src="./anstoss-mark.png" alt="" />
+          <div>
+            <div class="brand-name">Anstoss</div>
+            <div class="brand-context">Platform Admin</div>
+          </div>
+        </div>
+        <p class="eyebrow">Secure access</p>
+        <h1 class="login-title">Sign in to the admin console.</h1>
+        <p class="login-copy">
+          Use your platform admin username and password. The emergency admin key stays available
+          only as a fallback inside Settings after sign-in.
+        </p>
+        <form class="login-form" id="admin-login-form">
+          <label class="support-form">
+            <span>Username</span>
+            <input
+              id="admin-login-username"
+              class="text-input"
+              type="text"
+              placeholder="admin"
+              autocomplete="username"
+            />
+          </label>
+          <label class="support-form">
+            <span>Password</span>
+            <input
+              id="admin-login-password"
+              class="text-input"
+              type="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+            />
+          </label>
+          <button class="pill pill--dark login-submit" id="admin-login-submit" type="submit">
+            Sign in
+          </button>
+        </form>
+        <p class="muted-line login-status" id="admin-login-status">
+          Sign in to open the admin workspace.
+        </p>
+      </div>
+    </section>
+    <div class="app-shell" id="app-shell" hidden>
     <aside class="sidebar">
       <div class="brand">
         <img class="brand-mark" src="./anstoss-mark.png" alt="" />
@@ -782,33 +828,21 @@ Broadcast sending is disabled for launch.</pre>
         <p class="eyebrow">Account</p>
         <h1 class="welcome">Settings.</h1>
         <p class="lede">
-          Sign in with your Anstoss operator account. Use
+          Admin access now uses the in-app login page. Use
           <code>ADMIN_API_KEY</code> only as a break-glass fallback.
         </p>
         <article class="panel">
           <p class="eyebrow">Auth</p>
-          <h2>Operator sign-in</h2>
+          <h2>Current session</h2>
           <div class="settings-row">
             <input
-              id="admin-email-input"
-              class="text-input"
-              type="email"
-              placeholder="admin@anstoss.app"
-              autocomplete="email"
-            />
-            <button class="pill pill--dark" id="admin-otp-request">Send code</button>
-          </div>
-          <div class="settings-row">
-            <input
-              id="admin-code-input"
+              id="admin-username-display"
               class="text-input"
               type="text"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              maxlength="6"
-              placeholder="6-digit code"
+              placeholder="Signed-in username"
+              autocomplete="username"
+              disabled
             />
-            <button class="pill pill--dark" id="admin-otp-verify">Verify</button>
             <button class="pill" id="admin-session-clear">Sign out</button>
           </div>
           <p class="muted-line" id="admin-session-status">No operator session.</p>
@@ -847,6 +881,7 @@ Broadcast sending is disabled for launch.</pre>
         </article>
       </section>
     </main>
+    </div>
 
     <dialog class="detail-dialog" id="club-detail-dialog" aria-labelledby="club-detail-title">
       <div class="detail-dialog__head">

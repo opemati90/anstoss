@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common'
 import { signSessionToken } from '../auth/otp/jwt.util'
 import { PlatformAdminGuard } from './platform-admin.guard'
+import { ADMIN_CONSOLE_AUDIENCE } from './admin-auth.config'
 
 function ctxFor(headers: Record<string, string> = {}) {
   const request: { headers: Record<string, string>; user?: unknown } = {
@@ -32,6 +33,10 @@ describe('PlatformAdminGuard', () => {
     process.env.AUTH_JWT_SECRET = 'platform-admin-secret'
     process.env.ADMIN_API_KEY = 'super-secret-admin-key'
     process.env.INTERNAL_ADMIN_EMAILS = ''
+    process.env.ADMIN_CONSOLE_USERNAME = 'admin'
+    process.env.ADMIN_CONSOLE_PASSWORD_HASH =
+      'scrypt$0123456789abcdef0123456789abcdef$f6d75a2d38087f4be92c8f237291f0bf005bef1d89f4f190bcfc34a3f860eeed0d82e0bdb34bcd0f39661c03ce2913091b52eb9a46803b82ca2d198f76f6e5f4'
+    process.env.ADMIN_CONSOLE_EMAIL = 'admin@anstoss.io'
   })
 
   afterAll(() => {
@@ -72,6 +77,24 @@ describe('PlatformAdminGuard', () => {
       name: 'Founder',
       authMethod: 'session',
     })
+  })
+
+  it('rejects an admin-console token after credential rotation', async () => {
+    const prisma = prismaWithUser({
+      id: 'user_1',
+      email: 'founder@anstoss.app',
+      name: 'Founder',
+      platformRole: 'PLATFORM_ADMIN',
+    })
+    const guard = new PlatformAdminGuard(prisma as any)
+    const token = signSessionToken('user_1', {
+      audience: ADMIN_CONSOLE_AUDIENCE,
+      adminVersion: 'stale-version',
+      ttlSeconds: 60,
+    })
+    const { ctx } = ctxFor({ authorization: `Bearer ${token}` })
+
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
   })
 
   it('allows a bootstrap internal admin email', async () => {

@@ -6,8 +6,9 @@ Status as of the current `develop` branch.
 
 - Authentication: `/admin/*` accepts the app session JWT for users with
   `platformRole=PLATFORM_ADMIN` and `X-Admin-Key` for break-glass/internal
-  operations. The static admin console can request/verify email OTP and prefers
-  the per-operator session token before falling back to the shared key.
+  operations. The static admin console opens on an in-app username/password
+  login page and prefers the scoped admin session before falling back to the
+  shared key.
 - Overview/health: platform counts, deleted-user count, subscription count, and
   revenue estimate load from the API.
 - Clubs/users/subscriptions: searchable read-only platform inventory.
@@ -26,18 +27,19 @@ Status as of the current `develop` branch.
   audit event.
 - Deployment packaging: `apps/admin` has its own Railway/nginx static service
   descriptors with security headers, noindex headers, no-store caching, and a
-  `/healthz` check. The container requires `ADMIN_BASIC_AUTH_USERNAME` and
-  `ADMIN_BASIC_AUTH_PASSWORD`, then proxies same-origin `/admin/*` and
-  `/auth/*` calls to `API_UPSTREAM` so browser CORS does not block the console.
+  `/healthz` check. The container proxies same-origin `/admin/*` and `/auth/*`
+  calls to `API_UPSTREAM` so browser CORS does not block the console. The API
+  service must define `ADMIN_CONSOLE_USERNAME` and
+  `ADMIN_CONSOLE_PASSWORD_HASH` (`scrypt$<hex-salt>$<hex-hash>`), plus
+  optional `ADMIN_CONSOLE_EMAIL` and `ADMIN_CONSOLE_NAME`.
 
 ## Follow-Up Before Scaling Ops
 
-- Create the `apps/admin` Railway service, set the required Basic Auth env vars,
-  and attach an internal/custom domain such as `admin.anstoss.app`. Basic Auth
-  is enforced in the container; VPN/SSO remains recommended if the hosting plan
-  supports it.
-- Rotate `ADMIN_API_KEY` on operator changes and use OTP operator sign-in for
-  normal work so audit rows identify a human admin.
+- Create the `apps/admin` Railway service, set the API's
+  `ADMIN_CONSOLE_USERNAME` and `ADMIN_CONSOLE_PASSWORD_HASH`, and attach an
+  internal/custom domain such as `admin.anstoss.app`.
+- Rotate `ADMIN_API_KEY` on operator changes and use the scoped admin login for
+  normal work so audit rows identify the current operator session.
 - Add FUSSBALL.DE admin operations: retry a failed sync run, force-refresh a
   stale link, disable/reactivate a bad link, and show full error payloads.
 - Add deeper moderation actions: hide/restore/delete message, warn user, and

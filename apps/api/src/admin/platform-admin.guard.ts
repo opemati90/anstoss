@@ -9,6 +9,10 @@ import { timingSafeEqual } from 'node:crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { JwtVerificationError, verifySessionToken } from '../auth/otp/jwt.util'
 import type { PlatformAdminRequestUser } from './platform-admin.types'
+import {
+  ADMIN_CONSOLE_AUDIENCE,
+  resolveAdminConsoleCredentials,
+} from './admin-auth.config'
 
 /**
  * Platform-admin guard for the internal admin panel (apps/admin).
@@ -63,6 +67,12 @@ export class PlatformAdminGuard implements CanActivate {
     let userId: string
     try {
       const claims = verifySessionToken(authHeader.substring(7))
+      if (claims.aud === ADMIN_CONSOLE_AUDIENCE) {
+        const credentials = resolveAdminConsoleCredentials()
+        if (!credentials || claims.admin_v !== credentials.version) {
+          throw new UnauthorizedException('Admin session expired')
+        }
+      }
       userId = claims.sub
     } catch (error: unknown) {
       if (error instanceof JwtVerificationError) {

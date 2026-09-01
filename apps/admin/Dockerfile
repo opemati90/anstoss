@@ -3,7 +3,6 @@
 
 FROM nginx:1.27-alpine
 
-RUN apk add --no-cache apache2-utils
 RUN rm /etc/nginx/conf.d/default.conf
 
 COPY docker-entrypoint.d/10-admin-basic-auth.sh /docker-entrypoint.d/10-admin-basic-auth.sh

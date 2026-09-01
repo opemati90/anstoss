@@ -19,6 +19,9 @@ function validEnv(): NodeJS.ProcessEnv {
     R2_SECRET_ACCESS_KEY: 'r2-secret',
     R2_BUCKET_NAME: 'anstoss-assets',
     R2_PUBLIC_BASE_URL: 'https://assets.anstoss.io',
+    ADMIN_CONSOLE_USERNAME: 'admin',
+    ADMIN_CONSOLE_PASSWORD_HASH:
+      'scrypt$0123456789abcdef0123456789abcdef$f6d75a2d38087f4be92c8f237291f0bf005bef1d89f4f190bcfc34a3f860eeed0d82e0bdb34bcd0f39661c03ce2913091b52eb9a46803b82ca2d198f76f6e5f4',
     ANDROID_CERT_FINGERPRINTS:
       'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
   } as NodeJS.ProcessEnv
@@ -100,13 +103,26 @@ describe('collectProductionEnvErrors', () => {
     delete env.ANDROID_CERT_FINGERPRINTS
     expect(collectProductionEnvErrors(env)).toEqual([])
   })
+
+  it('requires a hashed admin console credential in production', () => {
+    const env = validEnv()
+    delete env.ADMIN_CONSOLE_PASSWORD_HASH
+    env.ADMIN_CONSOLE_PASSWORD = 'plaintext'
+
+    expect(collectProductionEnvErrors(env)).toEqual(
+      expect.arrayContaining([
+        'ADMIN_CONSOLE_PASSWORD_HASH is required in production',
+        'ADMIN_CONSOLE_PASSWORD is not allowed in production; use ADMIN_CONSOLE_PASSWORD_HASH',
+      ]),
+    )
+  })
 })
 
 describe('collectProductionEnvWarnings', () => {
   it('warns when the static admin console key is missing or weak', () => {
     const missing = collectProductionEnvWarnings(validEnv())
     expect(missing).toContain(
-      'ADMIN_API_KEY is not set — the static internal admin console cannot authenticate with X-Admin-Key',
+      'ADMIN_API_KEY is not set — break-glass X-Admin-Key access is unavailable for the admin console',
     )
 
     const weak = validEnv()

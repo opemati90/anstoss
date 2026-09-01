@@ -31,6 +31,16 @@ describe('jwt.util', () => {
     )
   })
 
+  it('preserves optional audience and admin session version claims', () => {
+    const token = signSessionToken('user_123', {
+      audience: 'admin-console',
+      adminVersion: 'version-1',
+    })
+    const claims = verifySessionToken(token)
+    expect(claims.aud).toBe('admin-console')
+    expect(claims.admin_v).toBe('version-1')
+  })
+
   it('rejects a tampered payload', () => {
     const token = signSessionToken('user_123')
     const [h, , s] = token.split('.')

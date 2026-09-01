@@ -20,6 +20,10 @@ export interface SessionClaims {
   exp: number
   /** Time the user last proved control of their sign-in factor. */
   auth_time: number
+  /** Optional audience for scoped sessions such as the admin console. */
+  aud?: string
+  /** Optional session/credential version for revocable scoped sessions. */
+  admin_v?: string
 }
 
 /** Default session lifetime — 30 days. */
@@ -68,6 +72,8 @@ export function signSessionToken(
     secret?: string
     now?: number
     authenticatedAt?: number
+    audience?: string
+    adminVersion?: string
   } = {},
 ): string {
   const secret = requireSecret(options.secret)
@@ -78,6 +84,8 @@ export function signSessionToken(
     iat,
     exp,
     auth_time: options.authenticatedAt ?? iat,
+    ...(options.audience ? { aud: options.audience } : {}),
+    ...(options.adminVersion ? { admin_v: options.adminVersion } : {}),
   }
 
   const encodedHeader = base64urlEncode(JSON.stringify(HEADER))
