@@ -112,4 +112,124 @@ describe('AdminAuthService', () => {
       ServiceUnavailableException,
     )
   })
+
+  it('logs in with a stored platform admin account', async () => {
+    const accountHash = passwordHashFor('temporary-secret-123')
+    const prisma = {
+      platformAdminAccount: {
+        findUnique: jest.fn(async () => ({
+          userId: 'user_3',
+          loginIdentifier: 'admin',
+          passwordHash: accountHash,
+          sessionVersion: 4,
+          disabledAt: null,
+          mustRotatePassword: true,
+          user: {
+            id: 'user_3',
+            email: 'admin@anstoss.io',
+            name: 'Platform Admin',
+            clerkId: null,
+            platformRole: 'PLATFORM_ADMIN',
+            deletedAt: null,
+          },
+        })),
+        update: jest.fn(async () => undefined),
+      },
+    }
+
+    const service = new AdminAuthService(prisma as any)
+    const result = await service.login('admin', 'temporary-secret-123')
+    const claims = verifySessionToken(result.token)
+
+    expect(result.user).toMatchObject({
+      email: 'admin@anstoss.io',
+      loginIdentifier: 'admin',
+      mustRotatePassword: true,
+    })
+    expect(claims.admin_v).toBe('4')
+    expect(prisma.platformAdminAccount.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user_3' },
+      }),
+    )
+  })
+
+  it('changes the password for a stored platform admin account', async () => {
+    const prisma: any = {
+      platformAdminAccount: {
+        findUnique: jest.fn(async () => ({
+          id: 'paa_1',
+          userId: 'user_4',
+          loginIdentifier: 'ops',
+          passwordHash: passwordHashFor('current-password-123'),
+          sessionVersion: 1,
+        })),
+        update: jest.fn(async () => undefined),
+      },
+      auditLog: {
+        create: jest.fn(async () => undefined),
+      },
+    }
+    prisma.$transaction = jest.fn(async (handler: any) => handler(prisma))
+
+    const service = new AdminAuthService(prisma as any)
+    await expect(
+      service.changePassword(
+        { id: 'user_4', email: 'ops@anstoss.io', name: 'Ops', authMethod: 'session' },
+        { currentPassword: 'current-password-123', newPassword: 'new-password-456' },
+      ),
+    ).resolves.toEqual({ rotated: true })
+    expect(prisma.platformAdminAccount.update).toHaveBeenCalled()
+    expect(prisma.auditLog.create).toHaveBeenCalled()
+  })
+
+  it('creates a new stored platform admin account', async () => {
+    const prisma: any = {
+      platformAdminAccount: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null),
+        create: jest.fn(async () => ({
+          id: 'paa_2',
+          loginIdentifier: 'admin',
+          mustRotatePassword: true,
+          createdAt: new Date('2026-09-01T10:00:00.000Z'),
+        })),
+      },
+      user: {
+        upsert: jest.fn(async () => ({
+          id: 'user_5',
+          email: 'admin@anstoss.io',
+          name: 'Admin',
+          clerkId: null,
+          platformRole: 'PLATFORM_ADMIN',
+        })),
+      },
+      auditLog: {
+        create: jest.fn(async () => undefined),
+      },
+    }
+    prisma.$transaction = jest.fn(async (handler: any) => handler(prisma))
+
+    const service = new AdminAuthService(prisma as any)
+    const result = await service.createPlatformAdmin(
+      { id: 'user_root', email: 'owner@anstoss.io', name: 'Owner', authMethod: 'session' },
+      {
+        name: 'Admin',
+        email: 'admin@anstoss.io',
+        loginIdentifier: 'admin',
+        password: 'temporary-password-123',
+      },
+    )
+
+    expect(result).toMatchObject({
+      userId: 'user_5',
+      email: 'admin@anstoss.io',
+      loginIdentifier: 'admin',
+      mustRotatePassword: true,
+    })
+    expect(prisma.user.upsert).toHaveBeenCalled()
+    expect(prisma.platformAdminAccount.create).toHaveBeenCalled()
+  })
 })

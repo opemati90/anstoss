@@ -193,6 +193,7 @@
           <p class="lede">
             Approve only after confirming the claimant is authorised by the real club.
           </p>
+          <p class="muted-line" id="club-claims-summary">Loading claim queue…</p>
           <div class="table-wrap">
             <table class="data-table" id="club-claims-table">
               <thead>
@@ -221,6 +222,7 @@
             </div>
             <button class="pill" id="dispute-open" type="button">Open dispute</button>
           </div>
+          <p class="muted-line" id="club-disputes-summary">Loading disputes…</p>
           <div class="table-wrap">
             <table class="data-table" id="club-disputes-table">
               <thead>
@@ -270,8 +272,58 @@
 
       <section class="page" data-page="users" hidden>
         <p class="eyebrow">Users</p>
-        <h1 class="welcome">All users.</h1>
-        <p class="lede">Search across every account.</p>
+        <h1 class="welcome">Users and platform admins.</h1>
+        <p class="lede">Search all accounts and provision internal admin access.</p>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Platform access</p>
+              <h2>Admin accounts</h2>
+              <p class="lede">
+                Create a real admin username and password. New admins must rotate their password on first sign-in.
+              </p>
+            </div>
+            <button class="pill" id="platform-admins-refresh" type="button">Refresh</button>
+          </div>
+          <form class="support-form" id="platform-admin-form" autocomplete="off">
+            <label>
+              <span>Name</span>
+              <input id="platform-admin-name" class="text-input" type="text" placeholder="Platform admin name" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input id="platform-admin-email" class="text-input" type="email" placeholder="admin@anstoss.io" />
+            </label>
+            <label>
+              <span>Username</span>
+              <input id="platform-admin-login" class="text-input" type="text" placeholder="admin" />
+            </label>
+            <label>
+              <span>Temporary password</span>
+              <input id="platform-admin-password" class="text-input" type="text" placeholder="Set a strong temporary password" />
+            </label>
+            <button class="pill pill--dark" type="submit">Create platform admin</button>
+          </form>
+          <p class="muted-line" id="platform-admin-feedback">No platform admin changes yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="platform-admins-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Last sign-in</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="5" class="placeholder">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
         <div class="toolbar">
           <input
             id="users-search"
@@ -846,6 +898,27 @@ Broadcast sending is disabled for launch.</pre>
             <button class="pill" id="admin-session-clear">Sign out</button>
           </div>
           <p class="muted-line" id="admin-session-status">No operator session.</p>
+          <p class="muted-line" id="admin-account-status">Loading current account…</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">Security</p>
+          <h2>Change password</h2>
+          <form class="support-form" id="admin-password-form" autocomplete="off">
+            <label>
+              <span>Current password</span>
+              <input id="admin-current-password" class="text-input" type="password" autocomplete="current-password" />
+            </label>
+            <label>
+              <span>New password</span>
+              <input id="admin-new-password" class="text-input" type="password" autocomplete="new-password" />
+            </label>
+            <label>
+              <span>Confirm new password</span>
+              <input id="admin-confirm-password" class="text-input" type="password" autocomplete="new-password" />
+            </label>
+            <button class="pill pill--dark" type="submit">Change password</button>
+          </form>
+          <p class="muted-line" id="admin-password-status">Passwords must be at least 12 characters.</p>
         </article>
         <article class="panel">
           <p class="eyebrow">Break-glass</p>
@@ -900,6 +973,40 @@ Broadcast sending is disabled for launch.</pre>
       </div>
       <div id="club-detail-content" class="detail-dialog__content">
         <p class="placeholder">Loading...</p>
+      </div>
+    </dialog>
+
+    <dialog class="detail-dialog" id="claim-decision-dialog" aria-labelledby="claim-decision-title">
+      <div class="detail-dialog__head">
+        <div>
+          <p class="eyebrow">Authority review</p>
+          <h2 id="claim-decision-title">Review claim</h2>
+        </div>
+        <button class="icon-button" id="claim-decision-close" type="button" aria-label="Close">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div class="detail-dialog__content">
+        <p class="detail-state" id="claim-decision-context">Select a claim action.</p>
+        <form class="support-form" id="claim-decision-form">
+          <input id="claim-decision-id" type="hidden" />
+          <input id="claim-decision-value" type="hidden" />
+          <label>
+            <span>Reviewer note</span>
+            <textarea
+              id="claim-decision-note"
+              class="text-input"
+              placeholder="State what you verified, what is missing, or why the claim is rejected."
+            ></textarea>
+          </label>
+          <div class="settings-row">
+            <button class="pill pill--dark" type="submit">Submit decision</button>
+            <button class="pill" id="claim-decision-cancel" type="button">Cancel</button>
+          </div>
+        </form>
+        <p class="muted-line" id="claim-decision-status">
+          Approval and info-request actions require a reviewer note.
+        </p>
       </div>
     </dialog>
 

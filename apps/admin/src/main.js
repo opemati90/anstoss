@@ -204,7 +204,7 @@ const SECTION_LOADERS = {
   moderation: loadModeration,
   analytics: loadAnalytics,
   releases: loadReleases,
-  settings: renderSettings,
+  settings: loadSettings,
 }
 
 const SECTION_LABELS = {
@@ -391,10 +391,16 @@ async function loadOverview() {
 
 let clubsSearchTimer = null
 let clubDetailRequestId = 0
+let clubClaimsCache = []
 
 function closeClubDetail() {
   clubDetailRequestId += 1
   document.getElementById('club-detail-dialog').close()
+}
+
+function closeClaimDecisionDialog() {
+  const dialog = document.getElementById('claim-decision-dialog')
+  if (dialog.open) dialog.close()
 }
 
 function bindClubs() {
@@ -410,7 +416,7 @@ function bindClubs() {
   document.querySelector('#club-claims-table tbody').addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-claim-decision]')
     if (!trigger) return
-    void reviewClubClaim(trigger.dataset.claimId, trigger.dataset.claimDecision)
+    openClaimDecisionDialog(trigger.dataset.claimId, trigger.dataset.claimDecision)
   })
   document.getElementById('dispute-open').addEventListener('click', () => void openClubDispute())
   document.querySelector('#club-disputes-table tbody').addEventListener('click', (event) => {
@@ -435,6 +441,37 @@ function bindClubs() {
         revokeTrigger.dataset.revokeEntitlement,
         revokeTrigger.dataset.clubId,
       )
+    }
+  })
+
+  const claimDialog = document.getElementById('claim-decision-dialog')
+  document
+    .getElementById('claim-decision-close')
+    .addEventListener('click', closeClaimDecisionDialog)
+  document
+    .getElementById('claim-decision-cancel')
+    .addEventListener('click', closeClaimDecisionDialog)
+  claimDialog.addEventListener('click', (event) => {
+    if (event.target === claimDialog) closeClaimDecisionDialog()
+  })
+  document.getElementById('claim-decision-form').addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const claimId = document.getElementById('claim-decision-id').value
+    const decision = document.getElementById('claim-decision-value').value
+    const note = document.getElementById('claim-decision-note').value.trim()
+    const status = document.getElementById('claim-decision-status')
+    if ((decision === 'APPROVE' || decision === 'NEEDS_INFO') && !note) {
+      status.textContent = 'Add a reviewer note before submitting this action.'
+      return
+    }
+    status.textContent = 'Saving decision...'
+    try {
+      await reviewClubClaim(claimId, decision, note)
+      closeClaimDecisionDialog()
+      document.getElementById('claim-decision-note').value = ''
+      status.textContent = 'Decision saved.'
+    } catch (error) {
+      status.textContent = error.message || String(error)
     }
   })
 }
@@ -630,9 +667,12 @@ async function loadContributionHealth() {
 
 async function loadClubClaims() {
   const tbody = document.querySelector('#club-claims-table tbody')
+  const summary = document.getElementById('club-claims-summary')
   tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
   try {
     const claims = await adminFetch('/admin/club-claims')
+    clubClaimsCache = claims
+    summary.textContent = `${claims.length} claim${claims.length === 1 ? '' : 's'} awaiting review.`
     if (!claims.length) {
       tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No administrator claims.</td></tr>'
       return
@@ -659,19 +699,42 @@ async function loadClubClaims() {
       )
       .join('')
   } catch (err) {
+    summary.textContent = err.message || String(err)
     setError(tbody, err)
   }
 }
 
-async function reviewClubClaim(claimId, decision) {
-  const note =
-    window.prompt(
-      `${decision === 'APPROVE' ? 'Approval attestation — describe the authority source you verified' : decision === 'NEEDS_INFO' ? 'Information request' : 'Rejection'} note ${decision === 'NEEDS_INFO' || decision === 'APPROVE' ? '(required)' : '(optional)'}`,
-    ) || undefined
-  if ((decision === 'NEEDS_INFO' || decision === 'APPROVE') && !note) return
+function openClaimDecisionDialog(claimId, decision) {
+  const claim = clubClaimsCache.find((item) => item.id === claimId)
+  const dialog = document.getElementById('claim-decision-dialog')
+  const title = document.getElementById('claim-decision-title')
+  const context = document.getElementById('claim-decision-context')
+  const status = document.getElementById('claim-decision-status')
+  const note = document.getElementById('claim-decision-note')
+  document.getElementById('claim-decision-id').value = claimId || ''
+  document.getElementById('claim-decision-value').value = decision || ''
+  title.textContent =
+    decision === 'APPROVE'
+      ? 'Approve club claim'
+      : decision === 'NEEDS_INFO'
+        ? 'Request more proof'
+        : 'Reject club claim'
+  context.textContent = claim
+    ? `${claim.directoryEntry?.name || 'Unknown club'} · ${claim.claimant?.name || claim.claimant?.email || 'Unknown claimant'}`
+    : 'Review this club claim.'
+  note.value = ''
+  status.textContent =
+    decision === 'APPROVE' || decision === 'NEEDS_INFO'
+      ? 'Approval and info-request actions require a reviewer note.'
+      : 'Add an optional rejection note.'
+  if (!dialog.open) dialog.showModal()
+}
+
+async function reviewClubClaim(claimId, decision, note = '') {
+  const trimmedNote = note.trim()
   await adminFetch(`/admin/club-claims/${encodeURIComponent(claimId)}/decision`, {
     method: 'POST',
-    body: JSON.stringify({ decision, ...(note ? { note } : {}) }),
+    body: JSON.stringify({ decision, ...(trimmedNote ? { note: trimmedNote } : {}) }),
   })
   await loadClubClaims()
   if (decision === 'APPROVE') await loadClubs()
@@ -679,9 +742,11 @@ async function reviewClubClaim(claimId, decision) {
 
 async function loadClubDisputes() {
   const tbody = document.querySelector('#club-disputes-table tbody')
+  const summary = document.getElementById('club-disputes-summary')
   tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
   try {
     const disputes = await adminFetch('/admin/club-claims/disputes')
+    summary.textContent = `${disputes.length} dispute${disputes.length === 1 ? '' : 's'} recorded.`
     if (!disputes.length) {
       tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No ownership disputes.</td></tr>'
       return
@@ -714,6 +779,7 @@ async function loadClubDisputes() {
       })
       .join('')
   } catch (err) {
+    summary.textContent = err.message || String(err)
     setError(tbody, err)
   }
 }
@@ -809,9 +875,37 @@ let usersSearchTimer = null
 
 function bindUsers() {
   document.getElementById('users-refresh').addEventListener('click', loadUsers)
+  document.getElementById('platform-admins-refresh').addEventListener('click', loadPlatformAdmins)
   document.getElementById('users-search').addEventListener('input', () => {
     clearTimeout(usersSearchTimer)
     usersSearchTimer = setTimeout(loadUsers, 250)
+  })
+  document.getElementById('platform-admin-form').addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const feedback = document.getElementById('platform-admin-feedback')
+    const payload = {
+      name: document.getElementById('platform-admin-name').value.trim(),
+      email: document.getElementById('platform-admin-email').value.trim(),
+      loginIdentifier: document.getElementById('platform-admin-login').value.trim(),
+      password: document.getElementById('platform-admin-password').value,
+    }
+    if (!payload.name || !payload.email || !payload.loginIdentifier || !payload.password) {
+      feedback.textContent = 'Name, email, username, and temporary password are required.'
+      return
+    }
+    feedback.textContent = 'Creating platform admin...'
+    try {
+      const result = await adminFetch('/admin/platform-admins', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      feedback.textContent = `Created ${result.loginIdentifier}. Share the temporary password securely and have them change it after sign-in.`
+      event.currentTarget.reset()
+      await loadPlatformAdmins()
+      await loadUsers()
+    } catch (error) {
+      feedback.textContent = error.message || String(error)
+    }
   })
 }
 
@@ -844,6 +938,40 @@ async function loadUsers() {
       .join('')
   } catch (err) {
     setError(tbody, err)
+  }
+  await loadPlatformAdmins()
+}
+
+async function loadPlatformAdmins() {
+  const tbody = document.querySelector('#platform-admins-table tbody')
+  tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
+  try {
+    const rows = await adminFetch('/admin/platform-admins')
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No stored platform admin accounts yet.</td></tr>'
+      return
+    }
+    tbody.innerHTML = rows
+      .map(
+        (admin) => `
+          <tr>
+            <td><strong>${esc(admin.name)}</strong></td>
+            <td><code>${esc(admin.loginIdentifier)}</code></td>
+            <td>${esc(admin.email) || '-'}</td>
+            <td>${admin.lastLoginAt ? fmtDateTime(admin.lastLoginAt) : '-'}</td>
+            <td>${
+              admin.disabled
+                ? '<span class="badge badge--deleted">disabled</span>'
+                : admin.mustRotatePassword
+                  ? '<span class="badge badge--plus">rotate password</span>'
+                  : '<span class="badge badge--active">active</span>'
+            }</td>
+          </tr>
+        `,
+      )
+      .join('')
+  } catch (error) {
+    setError(tbody, error)
   }
 }
 
@@ -1428,12 +1556,17 @@ async function loadReleases() {
 
 function renderSettings() {
   const sessionStatus = document.getElementById('admin-session-status')
+  const accountStatus = document.getElementById('admin-account-status')
   const sessionToken = getSessionToken()
   const sessionUser = getSessionUser()
-  document.getElementById('admin-username-display').value = getAdminUsername()
+  document.getElementById('admin-username-display').value =
+    sessionUser?.loginIdentifier || getAdminUsername()
   sessionStatus.textContent = sessionToken
     ? `Signed in as ${sessionUser?.email || sessionUser?.name || 'platform admin'} for this browser session.`
     : 'No operator session.'
+  accountStatus.textContent = sessionUser?.mustRotatePassword
+    ? 'This account is marked for password rotation.'
+    : 'Stored platform admin account ready.'
 
   const status = document.getElementById('admin-key-status')
   const stored = getApiKey()
@@ -1442,6 +1575,28 @@ function renderSettings() {
     : 'No key saved.'
   document.getElementById('admin-key-input').value = ''
   document.getElementById('api-base-input').value = getApiBase()
+}
+
+async function loadSettings() {
+  renderSettings()
+  const status = document.getElementById('admin-account-status')
+  if (!getSessionToken()) {
+    status.textContent = 'Signed out. Sign in with a platform admin account to manage passwords.'
+    return
+  }
+  try {
+    const profile = await adminFetch('/admin/auth/me')
+    status.textContent =
+      profile.authSource === 'bootstrap'
+        ? `Signed in via the bootstrap admin path. Set a new password here to convert it into a stored admin account.`
+        : `Username ${profile.loginIdentifier || '—'} · ${profile.mustRotatePassword ? 'password rotation required' : 'password healthy'}${profile.lastLoginAt ? ` · last sign-in ${fmtDateTime(profile.lastLoginAt)}` : ''}`
+    const sessionUser = { ...(getSessionUser() || {}), ...profile }
+    setSessionUser(sessionUser)
+    document.getElementById('admin-username-display').value =
+      profile.loginIdentifier || profile.email || getAdminUsername()
+  } catch (error) {
+    status.textContent = error.message || String(error)
+  }
 }
 
 function bindLoginForm() {
@@ -1514,6 +1669,36 @@ function bindSettings() {
     const value = document.getElementById('api-base-input').value.trim()
     setApiBase(value)
     renderSettings()
+  })
+
+  document.getElementById('admin-password-form').addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const currentPassword = document.getElementById('admin-current-password').value
+    const newPassword = document.getElementById('admin-new-password').value
+    const confirmPassword = document.getElementById('admin-confirm-password').value
+    const status = document.getElementById('admin-password-status')
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      status.textContent = 'Current password, new password, and confirmation are required.'
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      status.textContent = 'New password and confirmation do not match.'
+      return
+    }
+    status.textContent = 'Changing password...'
+    try {
+      await adminFetch('/admin/auth/password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      event.currentTarget.reset()
+      const sessionUser = getSessionUser() || {}
+      setSessionUser({ ...sessionUser, mustRotatePassword: false })
+      status.textContent = 'Password updated. Older admin-console sessions are now invalid.'
+      await loadSettings()
+    } catch (error) {
+      status.textContent = error.message || String(error)
+    }
   })
 }
 

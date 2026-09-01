@@ -1,4 +1,4 @@
-import { createHash, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 
 export const ADMIN_CONSOLE_AUDIENCE = 'admin-console'
 export const ADMIN_CONSOLE_SESSION_TTL_SECONDS = 12 * 60 * 60
@@ -42,6 +42,27 @@ export function verifyAdminConsolePassword(
   password: string,
 ): boolean {
   return verifyScryptPassword(credentials.passwordHash, password)
+}
+
+export function createAdminConsolePasswordHash(password: string): string {
+  const salt = randomBytes(16)
+  const derived = scryptSync(password, salt, 64)
+  return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`
+}
+
+export function isValidAdminConsolePassword(password: string): boolean {
+  return password.length >= 12 && password.length <= 256
+}
+
+export function isValidAdminConsoleLoginIdentifier(loginIdentifier: string): boolean {
+  return /^[a-z0-9._@-]{3,64}$/.test(loginIdentifier)
+}
+
+export function normalizeAdminConsoleLoginIdentifier(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  return value.trim().toLowerCase()
 }
 
 export function collectAdminConsoleEnvErrors(

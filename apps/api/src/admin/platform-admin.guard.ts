@@ -65,13 +65,11 @@ export class PlatformAdminGuard implements CanActivate {
     }
 
     let userId: string
+    let sessionVersion: string | null = null
     try {
       const claims = verifySessionToken(authHeader.substring(7))
       if (claims.aud === ADMIN_CONSOLE_AUDIENCE) {
-        const credentials = resolveAdminConsoleCredentials()
-        if (!credentials || claims.admin_v !== credentials.version) {
-          throw new UnauthorizedException('Admin session expired')
-        }
+        sessionVersion = claims.admin_v ?? null
       }
       userId = claims.sub
     } catch (error: unknown) {
@@ -83,11 +81,39 @@ export class PlatformAdminGuard implements CanActivate {
 
     const fresh = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      select: { id: true, platformRole: true, email: true, name: true },
+      select: {
+        id: true,
+        platformRole: true,
+        email: true,
+        name: true,
+        platformAdminAccount: {
+          select: {
+            sessionVersion: true,
+            disabledAt: true,
+          },
+        },
+      },
     })
 
     if (!fresh) {
       throw new UnauthorizedException('Admin account not found')
+    }
+
+    if (sessionVersion !== null) {
+      const account = fresh.platformAdminAccount
+      if (account) {
+        if (account.disabledAt) {
+          throw new UnauthorizedException('Admin account is disabled')
+        }
+        if (sessionVersion !== String(account.sessionVersion)) {
+          throw new UnauthorizedException('Admin session expired')
+        }
+      } else {
+        const credentials = resolveAdminConsoleCredentials()
+        if (!credentials || sessionVersion !== credentials.version) {
+          throw new UnauthorizedException('Admin session expired')
+        }
+      }
     }
 
     if (fresh?.platformRole === 'PLATFORM_ADMIN') {

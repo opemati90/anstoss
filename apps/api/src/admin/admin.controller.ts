@@ -13,6 +13,7 @@ import { supportActionSchema } from '@anstoss/shared'
 import { CurrentUser } from '../auth/user.decorator'
 import { AdminService } from './admin.service'
 import { AuditService } from '../audit/audit.service'
+import { AdminAuthService } from './admin-auth.service'
 import { BroadcastsService } from './broadcasts.service'
 import { FeatureFlagsService } from './feature-flags.service'
 import { ModerationService } from './moderation.service'
@@ -26,6 +27,7 @@ import { type PlatformAdminRequestUser, toPlatformAdminActor } from './platform-
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly adminAuthService: AdminAuthService,
     private readonly auditService: AuditService,
     private readonly broadcastsService: BroadcastsService,
     private readonly featureFlagsService: FeatureFlagsService,
@@ -71,6 +73,30 @@ export class AdminController {
       search,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
+    })
+  }
+
+  @Get('platform-admins')
+  async listPlatformAdmins() {
+    return this.adminAuthService.listPlatformAdmins()
+  }
+
+  @Post('platform-admins')
+  @RateLimit('write')
+  async createPlatformAdmin(
+    @CurrentUser() user: PlatformAdminRequestUser,
+    @Body() body: {
+      email?: string
+      name?: string
+      loginIdentifier?: string
+      password?: string
+    },
+  ) {
+    return this.adminAuthService.createPlatformAdmin(toPlatformAdminActor(user), {
+      email: body?.email ?? '',
+      name: body?.name ?? '',
+      loginIdentifier: body?.loginIdentifier ?? '',
+      password: body?.password ?? '',
     })
   }
 
