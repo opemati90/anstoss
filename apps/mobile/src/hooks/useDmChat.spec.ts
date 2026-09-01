@@ -27,6 +27,7 @@ jest.mock('socket.io-client', () => ({
 const makeDm = (overrides: Partial<DmMessage> = {}): DmMessage => ({
   id: overrides.id ?? 'dm-1',
   conversationId: overrides.conversationId ?? 'conversation-1',
+  clientMessageId: overrides.clientMessageId ?? null,
   senderId: overrides.senderId ?? 'user-2',
   senderName: overrides.senderName ?? 'Mina',
   content: overrides.content ?? 'Hello',
@@ -162,6 +163,44 @@ describe('useDmChat', () => {
     expect(result.current.typingUsers).toEqual([])
   })
 
+  it('treats a self echo as delivery even when the ack says failed', async () => {
+    const { result } = renderHook(() =>
+      useDmChat({
+        conversationId: 'conversation-1',
+        token: 'token-1',
+        userId: 'user-1',
+        apiUrl: 'http://api.test',
+      }),
+    )
+
+    socket.emit.mockImplementationOnce((event: string, payload: any, ack?: AckHandler) => {
+      socket.emitted.push({ event, payload })
+      socket.trigger(
+        'dm:message',
+        makeDm({
+          id: 'self-dm',
+          senderId: 'user-1',
+          content: 'hello',
+          clientMessageId: payload.clientMessageId,
+        }),
+      )
+      ack?.({ ok: false, error: 'delayed-ack' })
+      return socket
+    })
+
+    act(() => {
+      socket.connected = true
+    })
+
+    let delivered = false
+    await act(async () => {
+      delivered = await result.current.sendMessage('hello')
+    })
+
+    expect(delivered).toBe(true)
+    expect(result.current.lastError).toBeNull()
+  })
+
   it('sends messages, marks reads, loads older history, and reconnects', async () => {
     const { result } = renderHook(() =>
       useDmChat({
@@ -200,7 +239,11 @@ describe('useDmChat', () => {
       expect.arrayContaining([
         {
           event: 'dm:message',
-          payload: { conversationId: 'conversation-1', content: 'hello' },
+          payload: expect.objectContaining({
+            conversationId: 'conversation-1',
+            content: 'hello',
+            clientMessageId: expect.any(String),
+          }),
         },
         { event: 'dm:typing', payload: { conversationId: 'conversation-1' } },
         { event: 'dm:read', payload: { conversationId: 'conversation-1' } },
@@ -269,4 +312,5 @@ describe('useDmChat', () => {
     expect(failedSendResult).toBe(false)
     expect(result.current.lastError).toBe('send_error')
   })
+
 })

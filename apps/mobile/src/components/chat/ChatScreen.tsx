@@ -308,8 +308,14 @@ export function ChatScreen({
   const toggleSearch = useCallback(() => {
     setSearchOpen((prev) => {
       if (prev) {
+        searchRequestIdRef.current += 1
+        if (searchTimerRef.current) {
+          clearTimeout(searchTimerRef.current)
+          searchTimerRef.current = null
+        }
         setSearchQuery('')
         setSearchResults([])
+        setIsSearching(false)
       }
       return !prev
     })

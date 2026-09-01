@@ -16,6 +16,7 @@ export type ChatReactionAggregate = {
 export type ChatMessage = {
   id: string
   teamId: string
+  clientMessageId?: string | null
   senderId: string | null
   senderName: string | null
   senderAvatar?: string | null
@@ -64,7 +65,54 @@ type UseChatOptions = {
   apiUrl: string
 }
 
+type PendingOutgoingMessage = {
+  key: string
+  clientMessageId: string
+  delivered: boolean
+}
+
+const chatMessagesCache = new Map<string, ChatMessage[]>()
+
+function getHistoryCacheKey(userId: string, teamId: string, channelId: string | null | undefined) {
+  return `${userId}:${teamId}:${channelId ?? 'team'}`
+}
+
+type ChatHistoryResponse = {
+  event?: string
+  data?: {
+    messages?: ChatMessage[]
+    hasMore?: boolean
+    message?: string
+  }
+}
+
+function normalizeMessageSendAck(args: unknown[]): { error: Error | null; response: ChatHistoryResponse | null } {
+  const first = args[0]
+  const second = args[1]
+
+  if (args.length >= 2) {
+    return {
+      error: first as Error | null,
+      response: second as ChatHistoryResponse | null,
+    }
+  }
+
+  if (first instanceof Error || typeof first === 'string') {
+    return {
+      error: first instanceof Error ? first : new Error(String(first)),
+      response: null,
+    }
+  }
+
+  if (first && typeof first === 'object' && ('event' in first || 'ok' in first || 'data' in first)) {
+    return { error: null, response: first as ChatHistoryResponse }
+  }
+
+  return { error: null, response: null }
+}
+
 export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: UseChatOptions) {
+  const cacheKey = getHistoryCacheKey(userId, teamId, channelId)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('offline')
@@ -73,10 +121,70 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [messagesOwnerKey, setMessagesOwnerKey] = useState(cacheKey)
 
   const socketRef = useRef<Socket | null>(null)
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const isAtBottomRef = useRef(true)
+  const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
+
+  const completePendingOutgoing = useCallback(
+    (key: string, ok: boolean) => {
+      const pending = pendingOutgoingRef.current.find((item) => item.key === key)
+      pendingOutgoingRef.current = pendingOutgoingRef.current.filter((item) => item.key !== key)
+      if (ok || pending?.delivered) {
+        setLastError(null)
+        return true
+      }
+      setLastError('send_error')
+      return false
+    },
+    [],
+  )
+
+  const markPendingDelivered = useCallback((clientMessageId: string | null | undefined) => {
+    if (!clientMessageId) return false
+    const pending = pendingOutgoingRef.current.find(
+      (item) => !item.delivered && item.clientMessageId === clientMessageId,
+    )
+    if (!pending) return false
+    pending.delivered = true
+    setLastError(null)
+    return true
+  }, [])
+
+  useEffect(() => {
+    const cached = chatMessagesCache.get(cacheKey)
+    setMessages(cached ?? [])
+    setMessagesOwnerKey(cacheKey)
+  }, [cacheKey])
+
+  useEffect(() => {
+    if (messagesOwnerKey !== cacheKey) return
+    chatMessagesCache.set(cacheKey, messages)
+  }, [cacheKey, messages, messagesOwnerKey])
+
+  const loadHistory = useCallback(() => {
+    const socket = socketRef.current
+    if (!socket?.connected) return
+
+    socket.emit(
+      'history',
+      { teamId, channelId: channelId ?? null },
+      (response: ChatHistoryResponse) => {
+        if (response?.event === 'error') {
+          if (__DEV__) console.warn('Chat history error:', response.data?.message)
+          return
+        }
+        if (response?.data?.messages) {
+          setMessages(response.data.messages)
+          setMessagesOwnerKey(cacheKey)
+          setHasMore(response.data.hasMore ?? false)
+          if (channelId) socket.emit('markChannelRead', { teamId, channelId })
+        }
+      },
+    )
+  }, [teamId, channelId])
 
   // Connect socket
   useEffect(() => {
@@ -107,6 +215,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setConnectionState('connected')
       setLastError(null)
       socket.emit('join', { teamId })
+      loadHistory()
     })
 
     socket.on('disconnect', () => {
@@ -142,6 +251,9 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       // whole room (no sender exclusion), and reconnect can replay; without
       // this guard the same message could render twice.
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+      if (msg.senderId === userId) {
+        markPendingDelivered(msg.clientMessageId)
+      }
 
       if (!isAtBottomRef.current && msg.senderId !== userId) {
         setUnreadCount((c) => c + 1)
@@ -188,29 +300,6 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       typingTimeoutsRef.current.set(data.userId, timeout)
     })
 
-    // Load initial history (scoped to channelId when set, otherwise
-    // the General team-wide stream).
-    socket.emit(
-      'history',
-      { teamId, channelId: channelId ?? null },
-      (response: {
-        event?: string
-        data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
-      }) => {
-        if (response?.event === 'error') {
-          if (__DEV__) console.warn('Chat history error:', response.data?.message)
-          return
-        }
-        if (response?.data?.messages) {
-          setMessages(response.data.messages)
-          setHasMore(response.data.hasMore ?? false)
-          // Opening the channel marks it read — clears the rail's unread badge,
-          // which is server-computed from read receipts (never written before).
-          if (channelId) socket.emit('markChannelRead', { teamId, channelId })
-        }
-      },
-    )
-
     return () => {
       socket.emit('leave', { teamId })
       socket.disconnect()
@@ -223,7 +312,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     // history fetch to the new scope; reconnecting the socket on
     // every switch is fine (cheap) and simpler than threading channel
     // changes through the existing connected socket.
-  }, [token, teamId, channelId, apiUrl, userId])
+  }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered])
 
   useEffect(() => {
     if (!token || !clubId || !teamId) return
@@ -299,34 +388,41 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setLastError(null)
 
       return new Promise((resolve) => {
+        const pendingKey = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
+        const clientMessageId = `cm_${pendingKey}`
+        pendingOutgoingRef.current.push({
+          key: pendingKey,
+          clientMessageId,
+          delivered: false,
+        })
         socket.timeout(5000).emit(
           'message',
           {
             teamId,
             clubId,
             content: trimmed,
+            clientMessageId,
             channelId: channelId ?? null,
             ...(replyToId ? { replyToId } : {}),
           },
-          (err: Error | null, response?: { event?: string; data?: { message?: string } }) => {
-            if (err) {
-              setLastError('send_error')
-              resolve(false)
+          (...args: unknown[]) => {
+            const { error, response } = normalizeMessageSendAck(args)
+            if (error) {
+              resolve(completePendingOutgoing(pendingKey, false))
               return
             }
 
             if (response?.event === 'error') {
-              setLastError(response.data?.message || 'Message could not be sent.')
-              resolve(false)
+              resolve(completePendingOutgoing(pendingKey, false))
               return
             }
 
-            resolve(true)
+            resolve(completePendingOutgoing(pendingKey, true))
           },
         )
       })
     },
-    [teamId, channelId, userId],
+    [teamId, channelId, userId, completePendingOutgoing],
   )
 
   // Send typing indicator
@@ -579,6 +675,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       }) => {
         if (response?.data?.messages) {
           setMessages(response.data.messages)
+          setMessagesOwnerKey(cacheKey)
           setHasMore(response.data.hasMore ?? false)
         }
       },

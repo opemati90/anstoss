@@ -28,6 +28,7 @@ jest.mock('socket.io-client', () => ({
 const makeMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   id: overrides.id ?? 'msg-1',
   teamId: overrides.teamId ?? 'team-1',
+  clientMessageId: overrides.clientMessageId ?? null,
   senderId: overrides.senderId ?? 'user-2',
   senderName: overrides.senderName ?? 'Mina',
   content: overrides.content ?? 'Hello',
@@ -191,6 +192,45 @@ describe('useChat', () => {
     expect(result.current.unreadCount).toBe(0)
   })
 
+  it('treats a self echo as delivery even when the ack says failed', async () => {
+    const { result } = renderHook(() =>
+      useChat({
+        clubId: 'club-1',
+        teamId: 'team-1',
+        token: 'token-1',
+        userId: 'user-1',
+        apiUrl: 'http://api.test',
+      }),
+    )
+
+    act(() => {
+      socket.connected = true
+    })
+
+    socket.timeout.mockReturnValueOnce({
+      emit: (_event: string, payload: any, ack: (...args: unknown[]) => void) => {
+        socket.trigger(
+          'message',
+          makeMessage({
+            id: 'self-msg',
+            senderId: 'user-1',
+            content: 'Hi team',
+            clientMessageId: payload.clientMessageId,
+          }),
+        )
+        ack(new Error('timeout'))
+      },
+    })
+
+    let delivered = false
+    await act(async () => {
+      delivered = await result.current.sendMessage('Hi team', 'club-1')
+    })
+
+    expect(delivered).toBe(true)
+    expect(result.current.lastError).toBeNull()
+  })
+
   it('sends, searches, refreshes, and loads older history through the socket', async () => {
     const { result } = renderHook(() =>
       useChat({
@@ -215,12 +255,13 @@ describe('useChat', () => {
       expect.arrayContaining([
         {
           event: 'message',
-          payload: {
+          payload: expect.objectContaining({
             teamId: 'team-1',
             clubId: 'club-1',
             content: 'Hi team',
             channelId: null,
-          },
+            clientMessageId: expect.any(String),
+          }),
         },
       ]),
     )
@@ -286,7 +327,7 @@ describe('useChat', () => {
       blockedSendResult = await result.current.sendMessage('hello', 'club-1')
     })
     expect(blockedSendResult).toBe(false)
-    expect(result.current.lastError).toBe('Blocked')
+    expect(result.current.lastError).toBe('send_error')
     warnSpy.mockRestore()
   })
 })

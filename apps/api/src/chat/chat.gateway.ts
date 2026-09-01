@@ -373,6 +373,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       teamId: string
       clubId: string
       content: string
+      clientMessageId?: string | null
       isAnnouncement?: boolean
       channelId?: string | null
       replyToId?: string | null
@@ -478,6 +479,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       id: message.id,
       teamId: message.teamId,
       channelId: message.channelId,
+      clientMessageId: data.clientMessageId ?? null,
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
@@ -577,7 +579,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         .catch(() => undefined)
     }
 
-    return { event: 'sent', data: { id: message.id } }
+    return {
+      ok: true,
+      id: message.id,
+      clientMessageId: data.clientMessageId ?? null,
+      event: 'sent',
+      data: { id: message.id },
+    }
   }
 
   /**
@@ -822,7 +830,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('dm:message')
   async handleDmMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; content: string },
+    @MessageBody() data: { conversationId: string; content: string; clientMessageId?: string | null },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
@@ -847,6 +855,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.server.to(room).emit('dm:message', {
       id: message.id,
       conversationId: data.conversationId,
+      clientMessageId: data.clientMessageId ?? null,
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
@@ -870,7 +879,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // a failure and surfaced "send_error" even though the message was
     // persisted server-side. Keeping the legacy event/data fields too
     // for any future Socket.io client that reads them.
-    return { ok: true, id: message.id, event: 'dm:sent', data: { id: message.id } }
+    return {
+      ok: true,
+      id: message.id,
+      clientMessageId: data.clientMessageId ?? null,
+      event: 'dm:sent',
+      data: { id: message.id },
+    }
   }
 
   /**

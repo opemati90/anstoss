@@ -10,6 +10,8 @@ import type { Channel } from '@anstoss/shared'
 export type ChannelRailProps = {
   teamId: string
   selectedChannelId: string | null
+  preferredChannelId?: string | null
+  autoSelectEnabled?: boolean
   onSelect: (channel: Channel) => void
 }
 
@@ -22,7 +24,13 @@ const KIND_PRIORITY: Record<string, number> = {
   CUSTOM: 5,
 }
 
-export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRailProps) {
+export function ChannelRail({
+  teamId,
+  selectedChannelId,
+  preferredChannelId,
+  autoSelectEnabled = true,
+  onSelect,
+}: ChannelRailProps) {
   const c = useClubColors()
   const { t } = useTranslation()
   const [channels, setChannels] = useState<Channel[]>([])
@@ -59,7 +67,12 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
               (KIND_PRIORITY[a.kind] ?? 99) - (KIND_PRIORITY[b.kind] ?? 99),
           )
         setChannels(sorted)
-        if (!selectedChannelId && sorted.length > 0) onSelect(sorted[0])
+        if (autoSelectEnabled && !selectedChannelId && sorted.length > 0) {
+          const preferred = preferredChannelId
+            ? sorted.find((channel) => channel.id === preferredChannelId)
+            : null
+          onSelect(preferred ?? sorted[0])
+        }
       })
       .catch(() => {
         // noop
@@ -67,7 +80,7 @@ export function ChannelRail({ teamId, selectedChannelId, onSelect }: ChannelRail
     return () => {
       cancelled = true
     }
-  }, [teamId])
+  }, [autoSelectEnabled, teamId, onSelect, preferredChannelId, selectedChannelId])
 
   if (channels.length === 0) return null
 

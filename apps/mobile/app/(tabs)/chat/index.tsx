@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useEffect, useState } from 'react'
 import { Alert, View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
@@ -17,6 +18,7 @@ import { API_URL } from '../../../src/api/client'
 import { elevation, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type ChatMode = 'team' | 'direct'
+const CHAT_CHANNEL_PREF_PREFIX = 'chat_channel_pref:'
 
 export default function ChatTab() {
   const { t } = useTranslation()
@@ -24,14 +26,68 @@ export default function ChatTab() {
   const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
+  const [activeChannelTeamId, setActiveChannelTeamId] = useState<string | null>(null)
+  const [activeChannelClubId, setActiveChannelClubId] = useState<string | null>(null)
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
   const [channelInfoOpen, setChannelInfoOpen] = useState(false)
   const [channelRailKey, setChannelRailKey] = useState(0)
+  const [preferredChannelId, setPreferredChannelId] = useState<string | null>(null)
+  const [channelPreferenceHydrated, setChannelPreferenceHydrated] = useState(false)
 
   const canCreateGroup =
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
     activeClub?.role === 'COACH'
+
+  const resolvedActiveChannel =
+    activeChannel &&
+    activeTeamId &&
+    activeChannelTeamId === activeTeamId &&
+    activeChannelClubId === activeClub?.club.id &&
+    (activeChannel.teamId === null || activeChannel.teamId === activeTeamId)
+      ? activeChannel
+      : null
+
+  useEffect(() => {
+    if (!activeTeamId) {
+      setPreferredChannelId(null)
+      setActiveChannel(null)
+      setActiveChannelTeamId(null)
+      setActiveChannelClubId(null)
+      setChannelPreferenceHydrated(true)
+      return
+    }
+    setChannelPreferenceHydrated(false)
+    let cancelled = false
+    void AsyncStorage.getItem(CHAT_CHANNEL_PREF_PREFIX + activeTeamId)
+      .then((stored) => {
+        if (cancelled) return
+        setPreferredChannelId(stored || null)
+        setActiveChannel(null)
+        setActiveChannelTeamId(null)
+        setActiveChannelClubId(null)
+        setChannelPreferenceHydrated(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPreferredChannelId(null)
+        setActiveChannel(null)
+        setActiveChannelTeamId(null)
+        setActiveChannelClubId(null)
+        setChannelPreferenceHydrated(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTeamId])
+
+  useEffect(() => {
+    if (!activeTeamId || !resolvedActiveChannel?.id) return
+    void AsyncStorage.setItem(
+      CHAT_CHANNEL_PREF_PREFIX + activeTeamId,
+      resolvedActiveChannel.id,
+    ).catch(() => {})
+  }, [activeTeamId, resolvedActiveChannel?.id])
 
   if (!activeClub || !user || !token) {
     return (
@@ -90,12 +146,16 @@ export default function ChatTab() {
                   <ChannelRail
                     key={channelRailKey}
                     teamId={activeTeamId}
-                    selectedChannelId={activeChannel?.id ?? null}
+                    selectedChannelId={resolvedActiveChannel?.id ?? null}
+                    preferredChannelId={preferredChannelId}
+                    autoSelectEnabled={channelPreferenceHydrated}
                     onSelect={(ch) => {
-                      if (activeChannel?.id === ch.id) {
+                      if (resolvedActiveChannel?.id === ch.id) {
                         setChannelInfoOpen(true)
                       } else {
                         setActiveChannel(ch)
+                        setActiveChannelTeamId(activeTeamId)
+                        setActiveChannelClubId(activeClub.club.id)
                       }
                     }}
                   />
@@ -117,9 +177,9 @@ export default function ChatTab() {
               </View>
             </View>
             <ChatScreen
-              key={`${activeTeamId}:${activeChannel?.id ?? 'team'}`}
+              key={`${activeTeamId}:${resolvedActiveChannel?.id ?? 'team'}`}
               teamId={activeTeamId}
-              channelId={activeChannel?.id ?? null}
+              channelId={resolvedActiveChannel?.id ?? null}
               clubId={activeClub.club.id}
               userId={user.id}
               token={token}
@@ -150,10 +210,10 @@ export default function ChatTab() {
         </View>
       )}
 
-      {activeTeamId && activeChannel ? (
+      {activeTeamId && resolvedActiveChannel ? (
         <ChannelInfoSheet
           visible={channelInfoOpen}
-          channel={activeChannel}
+          channel={resolvedActiveChannel}
           teamId={activeTeamId}
           currentUserId={user.id}
           canManage={canCreateGroup}
