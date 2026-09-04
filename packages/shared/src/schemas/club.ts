@@ -263,10 +263,20 @@ export const submitStaffAccessRequestSchema = z.object({
   message: z.string().trim().max(500).optional(),
 })
 
-export const reviewClubClaimSchema = z.object({
-  decision: z.enum(['APPROVE', 'REJECT', 'NEEDS_INFO']),
-  note: z.string().trim().max(1000).optional(),
-})
+export const reviewClubClaimSchema = z
+  .object({
+    decision: z.enum(['APPROVE', 'REJECT', 'NEEDS_INFO']),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((value, context) => {
+    if ((value.note?.length ?? 0) < 2) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['note'],
+        message: 'Reviewer note is required',
+      })
+    }
+  })
 
 export const respondClubClaimSchema = z
   .object({

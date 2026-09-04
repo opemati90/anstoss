@@ -65,9 +65,14 @@ describe('PlatformAdminGuard', () => {
       email: 'founder@anstoss.app',
       name: 'Founder',
       platformRole: 'PLATFORM_ADMIN',
+      platformAdminAccount: { sessionVersion: 3, disabledAt: null },
     })
     const guard = new PlatformAdminGuard(prisma as any)
-    const token = signSessionToken('user_1')
+    const token = signSessionToken('user_1', {
+      audience: ADMIN_CONSOLE_AUDIENCE,
+      adminVersion: '3',
+      ttlSeconds: 60,
+    })
     const { ctx, request } = ctxFor({ authorization: `Bearer ${token}` })
 
     await expect(guard.canActivate(ctx)).resolves.toBe(true)
@@ -85,6 +90,7 @@ describe('PlatformAdminGuard', () => {
       email: 'founder@anstoss.app',
       name: 'Founder',
       platformRole: 'PLATFORM_ADMIN',
+      platformAdminAccount: { sessionVersion: 4, disabledAt: null },
     })
     const guard = new PlatformAdminGuard(prisma as any)
     const token = signSessionToken('user_1', {
@@ -97,7 +103,7 @@ describe('PlatformAdminGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
   })
 
-  it('allows a bootstrap internal admin email', async () => {
+  it('rejects an ordinary app token even for an allowlisted internal admin email', async () => {
     process.env.INTERNAL_ADMIN_EMAILS = 'ops@anstoss.app'
     const prisma = prismaWithUser({
       id: 'user_2',
@@ -109,7 +115,22 @@ describe('PlatformAdminGuard', () => {
     const token = signSessionToken('user_2')
     const { ctx } = ctxFor({ authorization: `Bearer ${token}` })
 
-    await expect(guard.canActivate(ctx)).resolves.toBe(true)
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
+  })
+
+  it('rejects an ordinary app token for a platform admin user', async () => {
+    const prisma = prismaWithUser({
+      id: 'user_1',
+      email: 'admin@anstoss.io',
+      name: 'Admin',
+      platformRole: 'PLATFORM_ADMIN',
+      platformAdminAccount: { sessionVersion: 1, disabledAt: null },
+    })
+    const guard = new PlatformAdminGuard(prisma as any)
+    const token = signSessionToken('user_1')
+    const { ctx } = ctxFor({ authorization: `Bearer ${token}` })
+
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
   })
 
   it('rejects missing admin credentials', async () => {
@@ -127,9 +148,14 @@ describe('PlatformAdminGuard', () => {
       email: 'member@example.com',
       name: 'Member',
       platformRole: 'NONE',
+      platformAdminAccount: { sessionVersion: 1, disabledAt: null },
     })
     const guard = new PlatformAdminGuard(prisma as any)
-    const token = signSessionToken('user_3')
+    const token = signSessionToken('user_3', {
+      audience: ADMIN_CONSOLE_AUDIENCE,
+      adminVersion: '1',
+      ttlSeconds: 60,
+    })
     const { ctx } = ctxFor({ authorization: `Bearer ${token}` })
 
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException)

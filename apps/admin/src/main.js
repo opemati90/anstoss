@@ -943,6 +943,13 @@ async function loadUsers() {
 }
 
 async function loadPlatformAdmins() {
+  const form = document.getElementById('platform-admin-form')
+  const feedback = document.getElementById('platform-admin-feedback')
+  const canManage = getSessionUser()?.canManagePlatformAdmins !== false
+  form.hidden = !canManage
+  if (!canManage) {
+    feedback.textContent = 'Only the configured super admin can create platform admin accounts.'
+  }
   const tbody = document.querySelector('#platform-admins-table tbody')
   tbody.innerHTML = '<tr><td colspan="5" class="placeholder">Loading...</td></tr>'
   try {
@@ -970,6 +977,9 @@ async function loadPlatformAdmins() {
         `,
       )
       .join('')
+    if (canManage) {
+      feedback.textContent = `${rows.length} platform admin account${rows.length === 1 ? '' : 's'}.`
+    }
   } catch (error) {
     setError(tbody, error)
   }

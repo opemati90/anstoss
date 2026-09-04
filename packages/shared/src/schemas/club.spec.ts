@@ -11,6 +11,7 @@ import {
   clubSearchQuerySchema,
   clubSearchResultSchema,
   clubSearchResponseSchema,
+  reviewClubClaimSchema,
 } from './club'
 
 describe('createClubSchema', () => {
@@ -48,6 +49,17 @@ describe('createClubSchema', () => {
   it('accepts lowercase hex', () => {
     const result = createClubSchema.safeParse({ name: 'FC Test', primaryColor: '#d5aabb' })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('reviewClubClaimSchema', () => {
+  it('requires an auditable reviewer note for every decision', () => {
+    expect(
+      reviewClubClaimSchema.safeParse({ decision: 'APPROVE' }).success,
+    ).toBe(false)
+    expect(
+      reviewClubClaimSchema.safeParse({ decision: 'REJECT', note: 'Not authorised.' }).success,
+    ).toBe(true)
   })
 })
 

@@ -17,19 +17,17 @@ import {
 /**
  * Platform-admin guard for the internal admin panel (apps/admin).
  *
- * Three acceptance paths:
- *   1. User.platformRole === 'PLATFORM_ADMIN' (DB-driven, preferred)
- *   2. Email is in INTERNAL_ADMIN_EMAILS env list (legacy bootstrap so
- *      existing internal tooling keeps working during the transition)
- *   3. X-Admin-Key header matches ADMIN_API_KEY (break-glass/internal ops)
+ * Two acceptance paths:
+ *   1. A dedicated admin-console JWT for a User whose platformRole is
+ *      PLATFORM_ADMIN. Ordinary mobile/web session JWTs are never accepted.
+ *   2. X-Admin-Key header matches ADMIN_API_KEY (break-glass/internal ops).
  *
  * Distinct from RolesGuard, which checks club Membership (OWNER/ADMIN). This
  * guard performs its own session JWT verification so the X-Admin-Key path is
  * not blocked by the general app auth guard.
  *
- * To grant access: either UPDATE User SET platformRole='PLATFORM_ADMIN'
- * WHERE id=... in the DB, OR add the email to INTERNAL_ADMIN_EMAILS. The
- * DB flag is preferred because it survives env rollouts.
+ * To grant access, create a PlatformAdminAccount through the admin console.
+ * The ADMIN_CONSOLE_* credential remains the bootstrap/super-admin identity.
  */
 @Injectable()
 export class PlatformAdminGuard implements CanActivate {
@@ -65,14 +63,20 @@ export class PlatformAdminGuard implements CanActivate {
     }
 
     let userId: string
-    let sessionVersion: string | null = null
+    let sessionVersion: string
     try {
       const claims = verifySessionToken(authHeader.substring(7))
-      if (claims.aud === ADMIN_CONSOLE_AUDIENCE) {
-        sessionVersion = claims.admin_v ?? null
+      if (
+        claims.aud !== ADMIN_CONSOLE_AUDIENCE ||
+        typeof claims.admin_v !== 'string' ||
+        !claims.admin_v
+      ) {
+        throw new UnauthorizedException('Dedicated admin session required')
       }
+      sessionVersion = claims.admin_v
       userId = claims.sub
     } catch (error: unknown) {
+      if (error instanceof UnauthorizedException) throw error
       if (error instanceof JwtVerificationError) {
         throw new UnauthorizedException('Invalid admin session')
       }
@@ -99,41 +103,22 @@ export class PlatformAdminGuard implements CanActivate {
       throw new UnauthorizedException('Admin account not found')
     }
 
-    if (sessionVersion !== null) {
-      const account = fresh.platformAdminAccount
-      if (account) {
-        if (account.disabledAt) {
-          throw new UnauthorizedException('Admin account is disabled')
-        }
-        if (sessionVersion !== String(account.sessionVersion)) {
-          throw new UnauthorizedException('Admin session expired')
-        }
-      } else {
-        const credentials = resolveAdminConsoleCredentials()
-        if (!credentials || sessionVersion !== credentials.version) {
-          throw new UnauthorizedException('Admin session expired')
-        }
+    const account = fresh.platformAdminAccount
+    if (account) {
+      if (account.disabledAt) {
+        throw new UnauthorizedException('Admin account is disabled')
+      }
+      if (sessionVersion !== String(account.sessionVersion)) {
+        throw new UnauthorizedException('Admin session expired')
+      }
+    } else {
+      const credentials = resolveAdminConsoleCredentials()
+      if (!credentials || sessionVersion !== credentials.version) {
+        throw new UnauthorizedException('Admin session expired')
       }
     }
 
     if (fresh?.platformRole === 'PLATFORM_ADMIN') {
-      request.user = {
-        id: fresh.id,
-        email: fresh.email,
-        name: fresh.name,
-        authMethod: 'session',
-      } satisfies PlatformAdminRequestUser
-      return true
-    }
-
-    // Bootstrap allowlist — keep existing internal tooling working until
-    // every operator has been moved to the DB flag. Drop in V2.
-    const adminEmails = (process.env.INTERNAL_ADMIN_EMAILS || '')
-      .split(',')
-      .map((entry) => entry.trim().toLowerCase())
-      .filter(Boolean)
-    const userEmail = fresh?.email?.toLowerCase()
-    if (userEmail && adminEmails.includes(userEmail)) {
       request.user = {
         id: fresh.id,
         email: fresh.email,

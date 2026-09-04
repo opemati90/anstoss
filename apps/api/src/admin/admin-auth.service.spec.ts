@@ -214,7 +214,7 @@ describe('AdminAuthService', () => {
 
     const service = new AdminAuthService(prisma as any)
     const result = await service.createPlatformAdmin(
-      { id: 'user_root', email: 'owner@anstoss.io', name: 'Owner', authMethod: 'session' },
+      { id: 'user_root', email: 'admin@anstoss.io', name: 'Owner', authMethod: 'session' },
       {
         name: 'Admin',
         email: 'admin@anstoss.io',
@@ -231,5 +231,21 @@ describe('AdminAuthService', () => {
     })
     expect(prisma.user.upsert).toHaveBeenCalled()
     expect(prisma.platformAdminAccount.create).toHaveBeenCalled()
+  })
+
+  it('rejects platform-admin creation by a non-super admin', async () => {
+    const service = new AdminAuthService({} as any)
+
+    await expect(
+      service.createPlatformAdmin(
+        { id: 'user_ops', email: 'ops@anstoss.io', name: 'Ops', authMethod: 'session' },
+        {
+          name: 'Another Admin',
+          email: 'another@anstoss.io',
+          loginIdentifier: 'another',
+          password: 'temporary-password-123',
+        },
+      ),
+    ).rejects.toThrow('Only the configured super admin can create platform admins')
   })
 })

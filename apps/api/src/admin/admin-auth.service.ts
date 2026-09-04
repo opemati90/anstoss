@@ -27,10 +27,6 @@ type PlatformAdminUser = {
   clerkId: string | null
 }
 
-type PlatformAdminAccountUser = PlatformAdminUser & {
-  platformRole: 'NONE' | 'PLATFORM_ADMIN'
-}
-
 @Injectable()
 export class AdminAuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -145,6 +141,7 @@ export class AdminAuthService {
       disabled: Boolean(account?.disabledAt),
       lastLoginAt: account?.lastLoginAt ?? null,
       createdAt: account?.createdAt ?? null,
+      canManagePlatformAdmins: this.isConfiguredSuperAdminEmail(user.email),
     }
   }
 
@@ -316,6 +313,9 @@ export class AdminAuthService {
     if (!actor.id || actor.authMethod !== 'session') {
       throw new ForbiddenException('Creating platform admins requires a signed-in admin account')
     }
+    if (!this.isConfiguredSuperAdminEmail(actor.email)) {
+      throw new ForbiddenException('Only the configured super admin can create platform admins')
+    }
     const email = normalizeEmail(input.email)
     const name = normalizeName(input.name)
     const loginIdentifier = normalizeAdminConsoleLoginIdentifier(input.loginIdentifier)
@@ -476,8 +476,18 @@ export class AdminAuthService {
         name: user.name,
         loginIdentifier: options.loginIdentifier,
         mustRotatePassword: options.mustRotatePassword,
+        canManagePlatformAdmins: this.isConfiguredSuperAdminEmail(user.email),
       },
     }
+  }
+
+  private isConfiguredSuperAdminEmail(email: string | null): boolean {
+    const credentials = resolveAdminConsoleCredentials()
+    return Boolean(
+      credentials &&
+        email &&
+        constantTimeEquals(email.trim().toLowerCase(), credentials.email),
+    )
   }
 }
 
