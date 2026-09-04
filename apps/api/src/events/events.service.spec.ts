@@ -656,7 +656,10 @@ describe('EventsService', () => {
         type: 'MATCH',
         date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         _count: { rsvps: 1, checkIns: 0 },
-        rsvps: [{ userId: 'player-1', status: 'NO', reason: 'INJURED' }],
+        rsvps: [
+          { userId: 'player-1', status: 'NO', reason: 'INJURED' },
+          { userId: 'player-2', status: 'NO', reason: 'PERSONAL' },
+        ],
         checkIns: [],
         team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
       })
@@ -667,6 +670,10 @@ describe('EventsService', () => {
       expect(result.team).toEqual({ id: 'team-1', name: 'A-Team' })
       expect(result.teamMemberCount).toBeUndefined()
       expect(result.readiness).toBeUndefined()
+      expect(result.rsvps).toEqual([
+        expect.objectContaining({ userId: 'player-1', reason: 'INJURED' }),
+        expect.objectContaining({ userId: 'player-2', reason: undefined }),
+      ])
     })
 
     it('throws NotFoundException when event does not exist', async () => {

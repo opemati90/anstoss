@@ -5,6 +5,11 @@ import { WizardStep } from '../WizardStep'
 const mockBack = jest.fn()
 const mockCanGoBack = jest.fn()
 const mockReplace = jest.fn()
+let mockReduceMotion = false
+
+jest.mock('../../../hooks/useReducedMotion', () => ({
+  useReducedMotion: () => mockReduceMotion,
+}))
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -35,6 +40,28 @@ describe('WizardStep', () => {
     mockBack.mockReset()
     mockCanGoBack.mockReset().mockReturnValue(true)
     mockReplace.mockReset()
+    mockReduceMotion = false
+  })
+
+  it('settles every animated slot when reduced motion resolves after mount', () => {
+    const setValue = jest.spyOn(require('react-native').Animated.Value.prototype, 'setValue')
+    const view = render(
+      <WizardStep title="About you" hint="Add your details" stepLabel="Step 2 of 5">
+        <Text>Name</Text>
+      </WizardStep>,
+    )
+
+    setValue.mockClear()
+    mockReduceMotion = true
+    view.rerender(
+      <WizardStep title="About you" hint="Add your details" stepLabel="Step 2 of 5">
+        <Text>Name</Text>
+      </WizardStep>,
+    )
+
+    expect(setValue).toHaveBeenCalledTimes(4)
+    expect(setValue).toHaveBeenCalledWith(1)
+    setValue.mockRestore()
   })
 
   it('renders title, hint, child body, and CTA', () => {

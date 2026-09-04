@@ -1,7 +1,7 @@
 import React from 'react'
 import { ActionSheetIOS, Alert } from 'react-native'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
-import DmChatScreen from '../dm-chat'
+import DmChatScreen, { getDmEmptyStateTransform } from '../dm-chat'
 
 const mockApi = jest.fn().mockResolvedValue({ ok: true })
 
@@ -60,5 +60,12 @@ describe('DM moderation controls', () => {
       body: { reason: 'ABUSE' },
     }))
     expect(alert).toHaveBeenCalled()
+  })
+})
+
+describe('DM empty state orientation', () => {
+  it('counteracts Android inverted-list scaling on both axes', () => {
+    expect(getDmEmptyStateTransform('android')).toEqual([{ scale: -1 }])
+    expect(getDmEmptyStateTransform('ios')).toEqual([{ scaleY: -1 }])
   })
 })

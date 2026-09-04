@@ -25,6 +25,14 @@ import { fonts, fontSize, hairline, radius, space } from '../src/theme/tokens'
 
 const isE2EMockMode = () => Boolean(getE2ESession())
 
+export function getDmEmptyStateTransform(platform: typeof Platform.OS = Platform.OS) {
+  // React Native inverts vertical Android lists with `scale: -1` (both axes),
+  // while iOS uses `scaleY: -1`. The empty component is not wrapped in the
+  // normal cell counter-transform, so it must exactly mirror the platform
+  // transform or its copy renders backwards on Android.
+  return platform === 'android' ? [{ scale: -1 }] : [{ scaleY: -1 }]
+}
+
 export default function DmChatScreen() {
   const params = useLocalSearchParams<{
     conversationId?: string
@@ -266,7 +274,7 @@ export default function DmChatScreen() {
         onEndReachedThreshold={0.5}
         inverted
         ListEmptyComponent={
-          <View style={styles.emptyChat}>
+          <View style={[styles.emptyChat, { transform: getDmEmptyStateTransform() }]}>
             <Text variant="subheadline" color="tertiary" align="center">
               {t('dm.chatEmpty')}
             </Text>
@@ -396,6 +404,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: space.xl,
-    transform: [{ scaleY: -1 }],
   },
 })

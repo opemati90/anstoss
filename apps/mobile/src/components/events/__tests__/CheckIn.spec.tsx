@@ -141,6 +141,30 @@ describe('AttendanceSheet', () => {
     })
   })
 
+  it('shows RSVP participants to players without calling the staff attendance endpoint', async () => {
+    render(
+      <AttendanceSheet
+        visible={true}
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-1"
+        eventDate={new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+        canManageAttendance={false}
+        rsvps={[
+          {
+            userId: 'u1',
+            user: { name: 'Alice', avatarUrl: null },
+            status: 'YES',
+            reason: null,
+          },
+        ]}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByText('Alice')).toBeOnTheScreen())
+    expect(mockApi).not.toHaveBeenCalled()
+  })
+
   it('shows checked-in player name after load', async () => {
     mockApi.mockResolvedValueOnce({
       rsvps: [],

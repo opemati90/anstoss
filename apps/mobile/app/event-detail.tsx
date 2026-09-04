@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Animated,
@@ -121,6 +121,17 @@ export default function EventDetailScreen() {
   const rsvpScale = useRef(new Animated.Value(1)).current
   const remindingRef = useRef(false)
   const fetchEventSeqRef = useRef(0)
+
+  const attendanceRsvps = useMemo(
+    () =>
+      (event?.rsvps ?? []).map((r) => ({
+        userId: r.user.id,
+        user: r.user,
+        status: r.status,
+        reason: r.reason,
+      })),
+    [event?.rsvps],
+  )
 
   const rsvpOptions: Array<{
     status: 'YES' | 'MAYBE' | 'NO'
@@ -780,12 +791,8 @@ export default function EventDetailScreen() {
             clubId={activeClub.club.id}
             eventId={event.id}
             eventDate={event.date}
-            rsvps={(event.rsvps ?? []).map((r) => ({
-              userId: r.user.id,
-              user: r.user,
-              status: r.status,
-              reason: r.reason,
-            }))}
+            canManageAttendance={canManage}
+            rsvps={attendanceRsvps}
           />
         ) : null}
 

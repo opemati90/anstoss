@@ -46,7 +46,13 @@ function WizardBody({
   const slots = useRef([0, 1, 2, 3].map(() => new Animated.Value(reduceMotion ? 1 : 0))).current
 
   useEffect(() => {
-    if (reduceMotion) return
+    if (reduceMotion) {
+      // The accessibility value resolves asynchronously on Android. If it
+      // changes while the stagger is running, cleanup stops that animation;
+      // settle every slot explicitly so later content cannot remain invisible.
+      slots.forEach((value) => value.setValue(1))
+      return
+    }
     const animation = Animated.stagger(
       70,
       slots.map((v) =>

@@ -554,9 +554,15 @@ export class EventsService {
 
     const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
     const teamMemberCount = includeReadiness ? (event.team?._count?.access ?? null) : undefined
+    const rsvps = event.rsvps.map((rsvp) =>
+      includeReadiness || rsvp.userId === userId
+        ? rsvp
+        : { ...rsvp, reason: undefined },
+    )
 
     return {
       ...event,
+      rsvps,
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
       myRsvp,
       myCheckInAt,

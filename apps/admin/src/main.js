@@ -882,6 +882,7 @@ function bindUsers() {
   })
   document.getElementById('platform-admin-form').addEventListener('submit', async (event) => {
     event.preventDefault()
+    const form = event.currentTarget
     const feedback = document.getElementById('platform-admin-feedback')
     const payload = {
       name: document.getElementById('platform-admin-name').value.trim(),
@@ -900,7 +901,7 @@ function bindUsers() {
         body: JSON.stringify(payload),
       })
       feedback.textContent = `Created ${result.loginIdentifier}. Share the temporary password securely and have them change it after sign-in.`
-      event.currentTarget.reset()
+      form.reset()
       await loadPlatformAdmins()
       await loadUsers()
     } catch (error) {
@@ -1683,6 +1684,9 @@ function bindSettings() {
 
   document.getElementById('admin-password-form').addEventListener('submit', async (event) => {
     event.preventDefault()
+    const form = event.currentTarget
+    const submitButton = form.querySelector('button[type="submit"]')
+    if (submitButton?.disabled) return
     const currentPassword = document.getElementById('admin-current-password').value
     const newPassword = document.getElementById('admin-new-password').value
     const confirmPassword = document.getElementById('admin-confirm-password').value
@@ -1696,18 +1700,22 @@ function bindSettings() {
       return
     }
     status.textContent = 'Changing password...'
+    if (submitButton) submitButton.disabled = true
     try {
-      await adminFetch('/admin/auth/password', {
+      const result = await adminFetch('/admin/auth/password', {
         method: 'POST',
         body: JSON.stringify({ currentPassword, newPassword }),
       })
-      event.currentTarget.reset()
+      if (result.token) setSessionToken(result.token)
+      form.reset()
       const sessionUser = getSessionUser() || {}
       setSessionUser({ ...sessionUser, mustRotatePassword: false })
       status.textContent = 'Password updated. Older admin-console sessions are now invalid.'
       await loadSettings()
     } catch (error) {
       status.textContent = error.message || String(error)
+    } finally {
+      if (submitButton) submitButton.disabled = false
     }
   })
 }

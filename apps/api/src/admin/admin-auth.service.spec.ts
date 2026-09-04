@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common'
@@ -164,7 +165,7 @@ describe('AdminAuthService', () => {
           passwordHash: passwordHashFor('current-password-123'),
           sessionVersion: 1,
         })),
-        update: jest.fn(async () => undefined),
+        updateMany: jest.fn(async () => ({ count: 1 })),
       },
       auditLog: {
         create: jest.fn(async () => undefined),
@@ -173,14 +174,76 @@ describe('AdminAuthService', () => {
     prisma.$transaction = jest.fn(async (handler: any) => handler(prisma))
 
     const service = new AdminAuthService(prisma as any)
-    await expect(
-      service.changePassword(
-        { id: 'user_4', email: 'ops@anstoss.io', name: 'Ops', authMethod: 'session' },
-        { currentPassword: 'current-password-123', newPassword: 'new-password-456' },
-      ),
-    ).resolves.toEqual({ rotated: true })
-    expect(prisma.platformAdminAccount.update).toHaveBeenCalled()
+    const result = await service.changePassword(
+      { id: 'user_4', email: 'ops@anstoss.io', name: 'Ops', authMethod: 'session' },
+      { currentPassword: 'current-password-123', newPassword: 'new-password-456' },
+    )
+    expect(result).toMatchObject({ rotated: true, token: expect.any(String) })
+    expect(verifySessionToken(result.token).admin_v).toBe('2')
+    expect(prisma.platformAdminAccount.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user_4',
+          sessionVersion: 1,
+        }),
+        data: expect.objectContaining({ sessionVersion: 2 }),
+      }),
+    )
     expect(prisma.auditLog.create).toHaveBeenCalled()
+  })
+
+  it('allows only one of two concurrent password rotations to mint a valid next session', async () => {
+    const account = {
+      id: 'paa_1',
+      userId: 'user_4',
+      loginIdentifier: 'ops',
+      passwordHash: passwordHashFor('current-password-123'),
+      sessionVersion: 7,
+    }
+    let claimed = false
+    const prisma: any = {
+      platformAdminAccount: {
+        findUnique: jest.fn(async () => ({ ...account })),
+        updateMany: jest.fn(async () => {
+          if (claimed) return { count: 0 }
+          claimed = true
+          return { count: 1 }
+        }),
+      },
+      auditLog: { create: jest.fn(async () => undefined) },
+    }
+    prisma.$transaction = jest.fn(async (handler: any) => handler(prisma))
+    const service = new AdminAuthService(prisma as any)
+    const actor = {
+      id: 'user_4',
+      email: 'ops@anstoss.io',
+      name: 'Ops',
+      authMethod: 'session' as const,
+    }
+
+    const results = await Promise.allSettled([
+      service.changePassword(actor, {
+        currentPassword: 'current-password-123',
+        newPassword: 'new-password-456',
+      }),
+      service.changePassword(actor, {
+        currentPassword: 'current-password-123',
+        newPassword: 'other-password-789',
+      }),
+    ])
+
+    const fulfilled = results.filter(
+      (result): result is PromiseFulfilledResult<{ rotated: boolean; token: string }> =>
+        result.status === 'fulfilled',
+    )
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    )
+    expect(fulfilled).toHaveLength(1)
+    expect(verifySessionToken(fulfilled[0].value.token).admin_v).toBe('8')
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0].reason).toBeInstanceOf(ConflictException)
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1)
   })
 
   it('creates a new stored platform admin account', async () => {

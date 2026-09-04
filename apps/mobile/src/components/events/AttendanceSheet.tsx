@@ -44,6 +44,9 @@ export type AttendanceSheetProps = {
   /** RSVPs the caller already has (event endpoint). Used for the "who's
    * coming" groups so they show even if the /attendance payload omits rsvps. */
   rsvps?: RsvpEntry[]
+  /** Staff can load check-ins/no-shows. Players use the already-authorized
+   * RSVP projection supplied by the event endpoint. */
+  canManageAttendance?: boolean
 }
 
 export function AttendanceSheet({
@@ -53,6 +56,7 @@ export function AttendanceSheet({
   eventId,
   eventDate,
   rsvps: rsvpsProp,
+  canManageAttendance = true,
 }: AttendanceSheetProps) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -72,6 +76,12 @@ export function AttendanceSheet({
   // Fetch lazily when opened, and refresh if navigation swaps the event while open.
   useEffect(() => {
     if (!visible) return
+    if (!canManageAttendance) {
+      setLoading(false)
+      setError(false)
+      setData({ rsvps: rsvpsProp ?? [], checkIns: [], noShows: [] })
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(false)
@@ -101,7 +111,7 @@ export function AttendanceSheet({
     return () => {
       cancelled = true
     }
-  }, [clubId, eventId, visible])
+  }, [canManageAttendance, clubId, eventId, rsvpsProp, visible])
 
   // Reset data on close so next open re-fetches fresh attendance
   const handleClose = useCallback(() => {
@@ -207,7 +217,7 @@ export function AttendanceSheet({
                       >
                         {entry.user.name}
                       </Text>
-                      {st === 'NO' && entry.reason ? (
+                      {canManageAttendance && st === 'NO' && entry.reason ? (
                         <View style={[styles.statusBadge, { backgroundColor: `${c.error}1f` }]}>
                           <Text variant="caption1" weight="semibold" color={c.error} numberOfLines={1}>
                             {t(`event.rsvpReasons.${entry.reason}`, { defaultValue: entry.reason })}
@@ -223,7 +233,7 @@ export function AttendanceSheet({
 
           {/* Checked-In section — only once it's relevant (event started or has
               check-ins); hidden for a future match so it isn't an empty block. */}
-          {eventEnded || (data?.checkIns.length ?? 0) > 0 ? (
+          {canManageAttendance && (eventEnded || (data?.checkIns.length ?? 0) > 0) ? (
           <>
           <View style={[styles.sectionHeader, { marginTop: space.lg }]}>
             <Icon name="checkmark.circle.fill" size="sm" color="success" />
@@ -271,7 +281,7 @@ export function AttendanceSheet({
           ) : null}
 
           {/* No-Shows section — only after event ends */}
-          {eventEnded ? (
+          {canManageAttendance && eventEnded ? (
             <>
               <View style={[styles.sectionHeader, { marginTop: space.lg }]}>
                 <Icon name="xmark.circle.fill" size="sm" color="error" />

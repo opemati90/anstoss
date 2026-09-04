@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   ServiceUnavailableException,
@@ -173,15 +174,26 @@ export class AdminAuthService {
       if (!verifyScryptPassword(account.passwordHash, currentPassword)) {
         throw new UnauthorizedException('Current password is incorrect')
       }
+      const nextSessionVersion = account.sessionVersion + 1
+      const nextPasswordHash = createAdminConsolePasswordHash(newPassword)
       await this.prisma.$transaction(async (tx) => {
-        await tx.platformAdminAccount.update({
-          where: { userId: actor.id! },
+        const updated = await tx.platformAdminAccount.updateMany({
+          where: {
+            userId: actor.id!,
+            sessionVersion: account.sessionVersion,
+            passwordHash: account.passwordHash,
+          },
           data: {
-            passwordHash: createAdminConsolePasswordHash(newPassword),
-            sessionVersion: { increment: 1 },
+            passwordHash: nextPasswordHash,
+            sessionVersion: nextSessionVersion,
             mustRotatePassword: false,
           },
         })
+        if (updated.count !== 1) {
+          throw new ConflictException(
+            'Password changed in another session. Sign in again and retry.',
+          )
+        }
         await tx.auditLog.create({
           data: {
             clubId: null,
@@ -193,7 +205,10 @@ export class AdminAuthService {
           },
         })
       })
-      return { rotated: true }
+      return {
+        rotated: true,
+        token: this.buildAdminSessionToken(actor.id, nextSessionVersion),
+      }
     }
 
     const credentials = resolveAdminConsoleCredentials()
@@ -235,7 +250,11 @@ export class AdminAuthService {
       })
     })
 
-    return { rotated: true, bootstrapPromoted: true }
+    return {
+      rotated: true,
+      bootstrapPromoted: true,
+      token: this.buildAdminSessionToken(actor.id, 1),
+    }
   }
 
   async listPlatformAdmins() {
@@ -464,11 +483,7 @@ export class AdminAuthService {
     options: { loginIdentifier: string | null; mustRotatePassword: boolean },
   ) {
     return {
-      token: signSessionToken(user.id, {
-        ttlSeconds: ADMIN_CONSOLE_SESSION_TTL_SECONDS,
-        audience: ADMIN_CONSOLE_AUDIENCE,
-        adminVersion,
-      }),
+      token: this.buildAdminSessionToken(user.id, adminVersion),
       user: {
         id: user.id,
         clerkId: user.clerkId,
@@ -479,6 +494,14 @@ export class AdminAuthService {
         canManagePlatformAdmins: this.isConfiguredSuperAdminEmail(user.email),
       },
     }
+  }
+
+  private buildAdminSessionToken(userId: string, adminVersion: string | number) {
+    return signSessionToken(userId, {
+      ttlSeconds: ADMIN_CONSOLE_SESSION_TTL_SECONDS,
+      audience: ADMIN_CONSOLE_AUDIENCE,
+      adminVersion: String(adminVersion),
+    })
   }
 
   private isConfiguredSuperAdminEmail(email: string | null): boolean {
