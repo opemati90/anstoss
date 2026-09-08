@@ -5,6 +5,7 @@ import {
   ActionSheetIOS,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -566,7 +567,48 @@ export function ChatScreen({
         </View>
       ) : null}
 
-      <View style={styles.composerDock}>
+      {Platform.OS === 'ios' ? (
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={0}
+          style={styles.composerDock}
+        >
+          <ChatInput
+            onSend={(content: string) => {
+              const promise = handleSend(content, replyTarget?.id ?? null)
+              if (replyTarget) setReplyTarget(null)
+              return promise
+            }}
+            onSendAttachment={async (att) => {
+              const upload = await uploadMedia({
+                teamId,
+                token: token!,
+                uri: att.uri,
+                contentType: att.contentType,
+                kind: att.kind === 'voice' ? 'voice' : 'image',
+              })
+              if (!upload) return false
+              const meta: Record<string, unknown> =
+                att.kind === 'voice'
+                  ? { durationMs: att.durationMs }
+                  : { width: att.width, height: att.height }
+              const ok = await sendMediaMessage({
+                messageType: att.kind === 'voice' ? 'VOICE' : 'IMAGE',
+                attachmentUrl: upload.publicUrl,
+                attachmentMeta: meta,
+                replyToId: replyTarget?.id,
+              })
+              if (replyTarget) setReplyTarget(null)
+              return ok
+            }}
+            onTyping={sendTyping}
+            disabled={isDisabled}
+            primaryColor={primaryColor}
+            errorMessage={localizedError}
+          />
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={styles.composerDock}>
         <ChatInput
           onSend={(content: string) => {
             const promise = handleSend(content, replyTarget?.id ?? null)
@@ -599,8 +641,9 @@ export function ChatScreen({
           disabled={isDisabled}
           primaryColor={primaryColor}
           errorMessage={localizedError}
-        />
-      </View>
+          />
+        </View>
+      )}
 
       <EditMessageSheet
         visible={!!editTarget}
