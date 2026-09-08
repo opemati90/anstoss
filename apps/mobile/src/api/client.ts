@@ -7,13 +7,9 @@ import i18n from '../i18n'
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3001'
 const APP_VERSION = Application.nativeApplicationVersion || '0.0.0'
-// Production Railway instances can cold-start while Prisma establishes a
-// pooled connection. A 12s deadline made several independent Home/Events/DM
-// requests fail together with a misleading generic error. Give a request
-// enough time to recover, while still bounding a genuinely unavailable API.
-const REQUEST_TIMEOUT_MS = 30000
+const REQUEST_TIMEOUT_MS = 12000
 const RETRIABLE_METHODS = new Set(['GET', 'HEAD'])
-const MAX_RETRIES = 3
+const MAX_RETRIES = 2
 
 const isTestEnv = () => process?.env?.NODE_ENV === 'test'
 
