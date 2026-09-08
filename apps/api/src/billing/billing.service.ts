@@ -271,11 +271,9 @@ export class BillingService {
   }
 
   /**
-   * Stripe Checkout-session subscription. Returns a hosted-checkout URL
-   * that the mobile app opens via Linking, avoiding the
-   * Stripe-React-Native PaymentSheet integration. This mirrors what
-   * PaywallSheet expects (`{ url }`) — without it the upgrade button
-   * fires `Linking.openURL(undefined)` and silently fails.
+   * Stripe Checkout-session subscription for Anstoss software plans.
+   * This is retained for admin-web acquisition, not for store-submitted
+   * mobile paywall flows or player contribution collection.
    */
   async createCheckoutSession(clubId: string, priceId: string): Promise<{ url: string }> {
     if (!this.stripe) {

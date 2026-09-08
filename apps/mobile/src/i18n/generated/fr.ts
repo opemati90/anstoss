@@ -320,7 +320,7 @@ export default {
     cadenceYearly: 'Annuel',
     checkoutError: 'Le paiement numérique est désactivé dans cette version store.',
     compliance:
-      'Stripe est utilisé uniquement pour les cotisations réelles du club. Les mises à niveau numériques sont désactivées pour cette soumission store.',
+      'Les cotisations réelles sont payées sur le compte bancaire du club. Stripe est utilisé uniquement pour les abonnements logiciel Anstoss.',
     eyebrow: 'ACCÈS LANCEMENT',
     heroSubtitle:
       'Aucune mise à niveau numérique n’est vendue dans cette version. Les outils club restent disponibles pendant la finalisation d’un billing conforme aux stores.',

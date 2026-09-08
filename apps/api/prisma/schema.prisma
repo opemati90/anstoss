@@ -134,6 +134,7 @@ model Club {
   syncRuns                SyncRun[]
   events                  Event[]
   messages                Message[]
+  chatRetentionSettings   ClubChatRetentionSettings?
   invites                 Invite[]
   stripeAccount           StripeAccount?
   subscriptions           Subscription[]
@@ -911,6 +912,18 @@ model Message {
   @@index([teamId, createdAt])
   @@index([channelId, createdAt])
   @@index([clubId])
+}
+
+model ClubChatRetentionSettings {
+  id                      String   @id @default(cuid())
+  clubId                  String   @unique
+  enabled                 Boolean  @default(false)
+  messageRetentionDays    Int      @default(365)
+  attachmentRetentionDays Int      @default(90)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 }
 
 // Cached translations of Message.content per target language. Keyed by
@@ -1894,6 +1907,7 @@ model DirectMessage {
   sender         User         @relation("DirectMessageSender", fields: [senderId], references: [id])
   content        String
   sourceLanguage String?
+  deletedAt      DateTime?
   createdAt      DateTime     @default(now())
 
   translations DirectMessageTranslation[]

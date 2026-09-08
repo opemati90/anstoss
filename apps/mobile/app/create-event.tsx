@@ -354,7 +354,7 @@ export default function CreateEventScreen() {
                     styles.typeChip,
                     {
                       borderColor: active ? c.primary : c.borderDefault,
-                      backgroundColor: active ? c.primary : c.surfaceSunken,
+                      backgroundColor: active ? c.primary50 : c.surfaceSunken,
                     },
                     pressed && styles.pressed,
                   ]}
@@ -368,12 +368,12 @@ export default function CreateEventScreen() {
                           : 'calendar'
                     }
                     size="sm"
-                    color={active ? c.textInverse : c.textSecondary}
+                    color={active ? c.primary : c.textSecondary}
                   />
                   <Text
                     variant="footnote"
                     weight="semibold"
-                    color={active ? 'inverse' : 'primary'}
+                    color={active ? c.primary : 'primary'}
                     numberOfLines={1}
                   >
                     {t(`event.type.${eventType}`)}
@@ -710,7 +710,12 @@ function PickerSheet({
             <Text variant="headline" color="primary">
               {title}
             </Text>
-            <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              hitSlop={12}
+              style={({ pressed }) => [styles.sheetDoneButton, pressed && styles.pressed]}
+            >
               <Text variant="headline" weight="semibold" color={c.primary}>
                 {doneLabel}
               </Text>
@@ -810,7 +815,7 @@ const styles = StyleSheet.create({
   },
   detailsText: { flex: 1, gap: space['2xs'] },
   detailsBody: { borderTopWidth: hairline, padding: space.md, gap: space.md },
-  pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  pressed: { transform: [{ scale: 0.985 }] },
   footer: {
     borderTopWidth: hairline,
     paddingHorizontal: space.lg,
@@ -850,6 +855,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     borderBottomWidth: hairline,
     marginBottom: space.sm,
+  },
+  sheetDoneButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: space.xs,
   },
   iosPicker: {
     alignSelf: 'stretch',

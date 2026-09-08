@@ -274,7 +274,8 @@ export default function SignIn() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       style={[styles.root, { backgroundColor: colors.background }]}
     >
       <ScrollView
@@ -483,7 +484,7 @@ export default function SignIn() {
                     : firstName.trim().length < 2)) && {
                 opacity: 0.5,
               },
-              pressed && { opacity: 0.85 },
+              pressed && !submitting && styles.ctaPressed,
             ]}
           >
             {submitting ? (
@@ -545,6 +546,10 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
   },
   backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'flex-start',
     marginBottom: space.sm,
     marginLeft: -(space.xs + 2),
@@ -564,7 +569,7 @@ const styles = StyleSheet.create({
   input: {
     height: 56,
     borderRadius: radius.md,
-    borderWidth: 1.5,
+    borderWidth: hairline,
     paddingHorizontal: space.md,
     fontFamily: fonts.body,
     fontSize: fontSize.lg,
@@ -625,7 +630,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.98 }],
   },
   consent: {
     marginTop: space.md,

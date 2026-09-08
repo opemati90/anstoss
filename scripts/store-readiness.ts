@@ -331,6 +331,10 @@ scanForbidden(
       re: /Stripe covers Anstoss|Stripe deckt Anstoss|Stripe couvre Anstoss|Stripe copre Anstoss|Stripe cobre a Anstoss/i,
       label: 'external platform billing explainer',
     },
+    {
+      re: /Stripe.{0,80}(?:used|utilisé|usado|usato|genutzt|kullanılır).{0,80}(?:dues|contributions|cotisations|quote|quotas|Beiträge|Mitgliedsbeiträge|aidat)/i,
+      label: 'Stripe club-dues processing claim',
+    },
   ],
   'Mobile store-copy scan',
 )

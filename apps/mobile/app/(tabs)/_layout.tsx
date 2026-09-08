@@ -135,44 +135,44 @@ export default function TabLayout() {
               ) : null}
             </Pressable>
             <View style={styles.headerMeta}>
-            {availableRoleModes.length > 1 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('more.roleModeTitle', { defaultValue: 'Use Anstoss as' })}
-                onPress={() => setRoleSwitcherVisible(true)}
-                style={({ pressed }) => [
-                  styles.teamButton,
-                  { borderColor: theme.borderDefault },
-                  pressed && styles.clubBadgePressed,
-                ]}
-              >
-                <Text variant="footnote" color="secondary" numberOfLines={1}>
-                  {roleModeLabel(activeRoleMode ?? availableRoleModes[0], t)}
-                </Text>
-                <Icon name="chevron.up.chevron.down" size="sm" color="tertiary" />
-              </Pressable>
-            ) : null}
-            {teamsForActiveClub.length > 1 && activeTeamAccess ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('teamSwitcher.currentTeam', {
-                  defaultValue: 'Current team: {{team}}',
-                  team: activeTeamAccess.team.displayName || activeTeamAccess.team.name,
-                })}
-                accessibilityHint={t('teamSwitcher.title')}
-                onPress={() => setTeamSwitcherVisible(true)}
-                style={({ pressed }) => [
-                  styles.teamButton,
-                  { borderColor: theme.borderDefault },
-                  pressed && styles.clubBadgePressed,
-                ]}
-              >
-                <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.teamName}>
-                  {activeTeamAccess.team.displayName || activeTeamAccess.team.name}
-                </Text>
-                <Icon name="chevron.up.chevron.down" size="sm" color="tertiary" />
-              </Pressable>
-            ) : null}
+              {availableRoleModes.length > 1 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('more.roleModeTitle', { defaultValue: 'Use Anstoss as' })}
+                  onPress={() => setRoleSwitcherVisible(true)}
+                  style={({ pressed }) => [
+                    styles.teamButton,
+                    { borderColor: theme.borderDefault },
+                    pressed && styles.pressedScale,
+                  ]}
+                >
+                  <Text variant="footnote" color="secondary" numberOfLines={1}>
+                    {roleModeLabel(activeRoleMode ?? availableRoleModes[0], t)}
+                  </Text>
+                  <Icon name="chevron.up.chevron.down" size="sm" color="tertiary" />
+                </Pressable>
+              ) : null}
+              {teamsForActiveClub.length > 1 && activeTeamAccess ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('teamSwitcher.currentTeam', {
+                    defaultValue: 'Current team: {{team}}',
+                    team: activeTeamAccess.team.displayName || activeTeamAccess.team.name,
+                  })}
+                  accessibilityHint={t('teamSwitcher.title')}
+                  onPress={() => setTeamSwitcherVisible(true)}
+                  style={({ pressed }) => [
+                    styles.teamButton,
+                    { borderColor: theme.borderDefault },
+                    pressed && styles.pressedScale,
+                  ]}
+                >
+                  <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.teamName}>
+                    {activeTeamAccess.team.displayName || activeTeamAccess.team.name}
+                  </Text>
+                  <Icon name="chevron.up.chevron.down" size="sm" color="tertiary" />
+                </Pressable>
+              ) : null}
             </View>
           </View>
           <Pressable
@@ -182,7 +182,7 @@ export default function TabLayout() {
             style={({ pressed }) => [
               styles.bellButton,
               { backgroundColor: theme.surfaceSunken },
-              pressed && styles.clubBadgePressed,
+              pressed && styles.pressedScale,
             ]}
           >
             <Icon name="bell" size="md" color="primary" />
@@ -194,7 +194,6 @@ export default function TabLayout() {
         detachInactiveScreens={false}
         screenOptions={{
           headerShown: false,
-          animation: 'fade',
           lazy: false,
           freezeOnBlur: false,
           sceneStyle: {
@@ -215,7 +214,7 @@ export default function TabLayout() {
           tabBarLabelStyle: {
             fontFamily: FONT_FAMILY_MEDIUM,
             fontSize: 11,
-            letterSpacing: 0.2,
+            letterSpacing: 0,
           },
           tabBarItemStyle: {
             paddingTop: SPACING_XXS,
@@ -447,7 +446,10 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   clubBadgePressed: {
-    opacity: 0.72,
+    transform: [{ scale: 0.98 }],
+  },
+  pressedScale: {
+    transform: [{ scale: 0.97 }],
   },
   badgeImage: {
     width: SPACING_XXXL,

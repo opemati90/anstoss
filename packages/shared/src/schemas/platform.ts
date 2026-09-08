@@ -160,6 +160,19 @@ export const updateContributionSettingsSchema = z.object({
   bankReference: z.string().trim().max(140).optional().nullable(),
 })
 
+export const chatRetentionSettingsSchema = z.object({
+  clubId: z.string().min(1),
+  enabled: z.boolean(),
+  messageRetentionDays: z.number().int().min(30).max(2555),
+  attachmentRetentionDays: z.number().int().min(7).max(2555),
+})
+
+export const updateChatRetentionSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  messageRetentionDays: z.number().int().min(30).max(2555).optional(),
+  attachmentRetentionDays: z.number().int().min(7).max(2555).optional(),
+})
+
 export const contributionReminderPolicySchema = z.object({
   daysBefore: z.array(z.number().int().min(0).max(60)).max(5),
   daysAfter: z.array(z.number().int().min(0).max(60)).max(5),
@@ -417,6 +430,8 @@ export type ClubSettingsInput = z.infer<typeof clubSettingsSchema>
 export type BillingStatusInput = z.infer<typeof billingStatusSchema>
 export type ContributionSettingsInput = z.infer<typeof contributionSettingsSchema>
 export type UpdateContributionSettingsInput = z.infer<typeof updateContributionSettingsSchema>
+export type ChatRetentionSettingsInput = z.infer<typeof chatRetentionSettingsSchema>
+export type UpdateChatRetentionSettingsInput = z.infer<typeof updateChatRetentionSettingsSchema>
 export type ContributionPlanInput = z.infer<typeof contributionPlanSchema>
 export type CreateContributionPlanInput = z.infer<typeof createContributionPlanSchema>
 export type UpdateContributionPlanInput = z.infer<typeof updateContributionPlanSchema>

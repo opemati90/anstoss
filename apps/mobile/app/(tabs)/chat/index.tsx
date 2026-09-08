@@ -162,9 +162,10 @@ export default function ChatTab() {
                 </View>
                 {canCreateGroup ? (
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       styles.railAddBtn,
                       { borderColor: c.borderDefault, backgroundColor: c.surface },
+                      pressed && styles.pressedScale,
                     ]}
                     onPress={() => setCreateGroupOpen(true)}
                     accessibilityRole="button"
@@ -288,12 +289,15 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   railAddBtn: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressedScale: {
+    transform: [{ scale: 0.97 }],
   },
   emptyContainer: {
     flex: 1,

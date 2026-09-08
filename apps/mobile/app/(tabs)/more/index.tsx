@@ -47,9 +47,7 @@ export default function MoreScreen() {
   const board = streaks?.leaderboard ?? []
   const myRank = user ? board.findIndex((e) => e.userId === user.id) + 1 : 0
   const isOwnerOrAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
-  // Coaches can review join requests (API gate is COACH+), but member
-  // management (invites/roles) stays OWNER/ADMIN-only.
-  const canReviewJoinRequests = isOwnerOrAdmin || activeClub?.role === 'COACH'
+  const canReviewJoinRequests = isOwnerOrAdmin
 
   const handleExportData = async () => {
     const subject = encodeURIComponent('Anstoss · DSGVO data export request')
@@ -407,7 +405,7 @@ export default function MoreScreen() {
             onPress={() => router.push('/rankings')}
             accessibilityRole="button"
             accessibilityLabel={t('rankings.title', { defaultValue: 'Power Rankings' })}
-            style={({ pressed }) => [pressed && { opacity: 0.96 }]}
+            style={({ pressed }) => [pressed && styles.pressedScale]}
           >
             <VerifiedPlayerCard
               name={name}
@@ -435,7 +433,7 @@ export default function MoreScreen() {
               styles.profileCard,
               elevation.card,
               { backgroundColor: c.surface, borderColor: c.borderDefault },
-              pressed && { opacity: 0.96 },
+              pressed && styles.pressedScale,
             ]}
           >
             <Avatar size="lg" src={user?.avatarUrl} fallbackText={name} />
@@ -552,4 +550,7 @@ const styles = StyleSheet.create({
   profileText: { flex: 1, gap: space['2xs'] },
 
   section: { marginTop: space.md },
+  pressedScale: {
+    transform: [{ scale: 0.985 }],
+  },
 })

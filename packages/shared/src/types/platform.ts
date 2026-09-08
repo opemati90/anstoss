@@ -109,6 +109,13 @@ export interface ContributionSettings {
   bankReference: string | null
 }
 
+export interface ChatRetentionSettings {
+  clubId: string
+  enabled: boolean
+  messageRetentionDays: number
+  attachmentRetentionDays: number
+}
+
 /** Bank-transfer payment instructions surfaced to a member. */
 export interface ContributionBankTransfer {
   accountHolder: string

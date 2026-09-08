@@ -321,7 +321,7 @@ export default {
     cadenceYearly: 'Jährlich',
     checkoutError: 'Digitaler Checkout ist in diesem Store-Build deaktiviert.',
     compliance:
-      'Stripe wird nur für reale Vereinsbeiträge und Mitgliedsbeiträge genutzt. Digitale Feature-Upgrades sind für diese Store-Einreichung deaktiviert.',
+      'Reale Vereinsbeiträge werden direkt auf das Vereinskonto bezahlt. Stripe wird nur für Anstoss-Software-Abos genutzt.',
     eyebrow: 'STARTZUGANG',
     heroSubtitle:
       'In diesem App-Build wird kein digitales Upgrade verkauft. Vereinsfunktionen bleiben verfügbar, während wir store-konformes Billing abschließen.',

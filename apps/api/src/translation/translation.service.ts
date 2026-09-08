@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
 import { PrismaService } from '../prisma/prisma.service'
 
 const SUPPORTED = new Set(['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'])
@@ -179,20 +180,43 @@ export class TranslationService {
     target: string,
     content: string,
   ): Promise<void> {
+    const id = randomUUID()
     if (surface === 'channel') {
-      await this.prisma.messageTranslation.upsert({
-        where: { messageId_targetLanguage: { messageId, targetLanguage: target } },
-        create: { messageId, targetLanguage: target, content },
-        update: { content },
+      await this.prisma.$transaction(async (tx) => {
+        await lockChannelMessage(tx, messageId)
+        await tx.$executeRaw`
+          INSERT INTO "MessageTranslation" ("id", "messageId", "targetLanguage", "content")
+          SELECT ${id}, ${messageId}, ${target}, ${content}
+          WHERE EXISTS (
+            SELECT 1 FROM "Message"
+            WHERE "id" = ${messageId} AND "deletedAt" IS NULL
+          )
+          ON CONFLICT ("messageId", "targetLanguage") DO UPDATE
+          SET "content" = EXCLUDED."content"
+          WHERE EXISTS (
+            SELECT 1 FROM "Message"
+            WHERE "id" = ${messageId} AND "deletedAt" IS NULL
+          )
+        `
       })
       return
     }
-    await this.prisma.directMessageTranslation.upsert({
-      where: {
-        directMessageId_targetLanguage: { directMessageId: messageId, targetLanguage: target },
-      },
-      create: { directMessageId: messageId, targetLanguage: target, content },
-      update: { content },
+    await this.prisma.$transaction(async (tx) => {
+      await lockDirectMessage(tx, messageId)
+      await tx.$executeRaw`
+        INSERT INTO "DirectMessageTranslation" ("id", "directMessageId", "targetLanguage", "content")
+        SELECT ${id}, ${messageId}, ${target}, ${content}
+        WHERE EXISTS (
+          SELECT 1 FROM "DirectMessage"
+          WHERE "id" = ${messageId} AND "deletedAt" IS NULL
+        )
+        ON CONFLICT ("directMessageId", "targetLanguage") DO UPDATE
+        SET "content" = EXCLUDED."content"
+        WHERE EXISTS (
+          SELECT 1 FROM "DirectMessage"
+          WHERE "id" = ${messageId} AND "deletedAt" IS NULL
+        )
+      `
     })
   }
 
@@ -202,15 +226,23 @@ export class TranslationService {
     source: string,
   ): Promise<void> {
     if (surface === 'channel') {
-      await this.prisma.message.update({
-        where: { id: messageId },
+      await this.prisma.message.updateMany({
+        where: { id: messageId, deletedAt: null },
         data: { sourceLanguage: source },
       })
       return
     }
-    await this.prisma.directMessage.update({
-      where: { id: messageId },
+    await this.prisma.directMessage.updateMany({
+      where: { id: messageId, deletedAt: null },
       data: { sourceLanguage: source },
     })
   }
+}
+
+async function lockChannelMessage(tx: any, messageId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`chat-message:${messageId}`}))`
+}
+
+async function lockDirectMessage(tx: any, messageId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-message:${messageId}`}))`
 }

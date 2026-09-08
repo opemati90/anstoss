@@ -14,7 +14,8 @@ export function FormScreen({ children, ...screenProps }: FormScreenProps) {
         testID="form-screen-backdrop"
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           style={styles.avoider}
         >
           {children}

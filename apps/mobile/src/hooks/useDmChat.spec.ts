@@ -201,6 +201,45 @@ describe('useDmChat', () => {
     expect(result.current.lastError).toBeNull()
   })
 
+  it('promotes an optimistic DM to the server id when ack succeeds without room echo', async () => {
+    const { result } = renderHook(() =>
+      useDmChat({
+        conversationId: 'conversation-1',
+        token: 'token-1',
+        userId: 'user-1',
+        apiUrl: 'http://api.test',
+      }),
+    )
+
+    socket.emit.mockImplementationOnce((event: string, payload: any, ack?: AckHandler) => {
+      socket.emitted.push({ event, payload })
+      ack?.({ ok: true, id: 'dm-server-1', clientMessageId: payload.clientMessageId })
+      return socket
+    })
+
+    act(() => {
+      socket.connected = true
+    })
+
+    let delivered = false
+    await act(async () => {
+      delivered = await result.current.sendMessage('hello no echo')
+    })
+
+    expect(delivered).toBe(true)
+    expect(result.current.lastError).toBeNull()
+    expect(result.current.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'dm-server-1',
+          senderId: 'user-1',
+          content: 'hello no echo',
+        }),
+      ]),
+    )
+    expect(result.current.messages.some((message) => message.id.startsWith('pending:'))).toBe(false)
+  })
+
   it('sends messages, marks reads, loads older history, and reconnects', async () => {
     const { result } = renderHook(() =>
       useDmChat({

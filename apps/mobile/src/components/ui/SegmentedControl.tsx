@@ -54,8 +54,8 @@ export function SegmentedControl<T extends string = string>({
     Animated.spring(translate, {
       toValue: selectedIndex,
       useNativeDriver: true,
-      speed: 24,
-      bounciness: 4,
+      speed: 30,
+      bounciness: 0,
     }).start()
   }, [selectedIndex, reduceMotion, translate])
 
@@ -134,7 +134,7 @@ export function SegmentedControl<T extends string = string>({
   )
 }
 
-const TRACK_HEIGHT = 38
+const TRACK_HEIGHT = 44
 
 const styles = StyleSheet.create({
   track: {

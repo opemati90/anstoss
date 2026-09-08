@@ -312,7 +312,7 @@ function SquadHealth({ snapshot }: { snapshot: RosterOpsSnapshot }) {
                 style={({ pressed }) => [
                   styles.opChip,
                   { borderColor: c.borderDefault, backgroundColor: c.background },
-                  pressed && { opacity: 0.6 },
+                  pressed && styles.pressedScale,
                 ]}
               >
                 <View style={[styles.opBadge, { backgroundColor: c.primary }]}>
@@ -352,7 +352,7 @@ function PlayerRow({ member }: { member: RosterOpsMemberSummary }) {
         styles.row,
         elevation.card,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.96 },
+        pressed && styles.pressedScale,
       ]}
     >
       <Avatar size="md" src={member.avatarUrl} fallbackText={member.name} />
@@ -437,7 +437,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space['2xs'] + 2,
-    paddingVertical: space['2xs'] + 1,
+    minHeight: 44,
+    paddingVertical: space.xs,
     paddingLeft: space['2xs'] + 1,
     paddingRight: space.sm,
     borderRadius: radius.full,
@@ -492,6 +493,9 @@ const styles = StyleSheet.create({
   emptyWrap: {
     paddingTop: space.xl,
     paddingHorizontal: space.md,
+  },
+  pressedScale: {
+    transform: [{ scale: 0.985 }],
   },
   manageBtn: {
     alignSelf: 'center',

@@ -34,7 +34,11 @@ export class BillingController {
   }
 
   /**
-   * POST /clubs/:clubId/billing/subscribe — create a SEPA/card subscription.
+   * POST /clubs/:clubId/billing/subscribe — create an Anstoss software subscription.
+   *
+   * This is a backend/admin-web lifecycle endpoint. Store-submitted mobile
+   * builds do not expose external digital checkout links, and club member
+   * contributions are paid directly to the club bank account.
    */
   @Post('clubs/:clubId/billing/subscribe')
   @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
@@ -44,10 +48,9 @@ export class BillingController {
     @Param('clubId') clubId: string,
     @Body() body: { priceId: string },
   ) {
-    // Returns a Stripe-hosted Checkout URL — mobile PaywallSheet opens
-    // it via Linking.openURL. The legacy createSubscription path
-    // (default_incomplete + clientSecret) is still on the service for
-    // a future PaymentSheet integration.
+    // Returns a Stripe-hosted Checkout URL for the club's Anstoss software
+    // subscription. This route is intentionally not wired to store-submitted
+    // mobile paywall flows.
     return this.billingService.createCheckoutSession(clubId, body.priceId)
   }
 

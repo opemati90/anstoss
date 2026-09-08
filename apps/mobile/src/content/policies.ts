@@ -63,7 +63,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
             'E-Mail-Adresse für die Anmeldung per Einmalcode.',
             'Name, Geburtsdatum, Nutzer-ID und Rolle für die Vereinszuordnung.',
             'RSVP-Antworten, Chat-Nachrichten, Direktnachrichten, Reaktionen, Aufstellungen, Einladungen, Profilbilder, Vereinswappen, Chat-Bilder und Sprachnachrichten für die Vereinsverwaltung.',
-            'Beitragsstatus, Zahlungsnachweise und Stripe-Referenzen für Vereinsbeiträge.',
+            'Beitragsstatus, Zahlungsnachweise, Vereinskontodaten für Überweisungen und Stripe-Referenzen für Anstoss-Abonnements.',
             'Geräte-Token (Expo) für Push-Benachrichtigungen.',
             'Fehler- und Leistungsdaten für Stabilität und Missbrauchsschutz.',
           ],

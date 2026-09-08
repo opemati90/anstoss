@@ -3,10 +3,12 @@ import { ModerationService } from './moderation.service'
 
 describe('ModerationService direct-message reports', () => {
   function makeService() {
-    const prisma = {
+    const prisma: any = {
       directMessage: { findFirst: jest.fn() },
       directMessageReport: { create: jest.fn().mockResolvedValue({ id: 'report-1' }) },
+      $executeRaw: jest.fn().mockResolvedValue(0),
     }
+    prisma.$transaction = jest.fn((operation: (tx: typeof prisma) => unknown) => operation(prisma))
     return {
       prisma,
       service: new ModerationService(prisma as never, {} as never, {} as never),
@@ -18,6 +20,7 @@ describe('ModerationService direct-message reports', () => {
     prisma.directMessage.findFirst.mockResolvedValue({
       id: 'dm-1',
       senderId: 'other-1',
+      deletedAt: null,
       content: 'Preserved abusive content',
     })
 
@@ -26,8 +29,10 @@ describe('ModerationService direct-message reports', () => {
     ).resolves.toEqual({ ok: true })
     expect(prisma.directMessage.findFirst).toHaveBeenCalledWith({
       where: { id: 'dm-1', conversation: { participants: { some: { userId: 'user-1' } } } },
-      select: { id: true, senderId: true, content: true },
+      select: { id: true, senderId: true, deletedAt: true },
     })
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(String(prisma.$executeRaw.mock.calls[0][1])).toContain('dm-message:dm-1')
     expect(prisma.directMessageReport.create).toHaveBeenCalledWith({
       data: {
         directMessageId: 'dm-1',
@@ -45,7 +50,11 @@ describe('ModerationService direct-message reports', () => {
       service.reportDirectMessage('outsider', 'dm-1', { reason: 'SPAM' }),
     ).rejects.toBeInstanceOf(NotFoundException)
 
-    prisma.directMessage.findFirst.mockResolvedValueOnce({ id: 'dm-1', senderId: 'user-1' })
+    prisma.directMessage.findFirst.mockResolvedValueOnce({
+      id: 'dm-1',
+      senderId: 'user-1',
+      deletedAt: null,
+    })
     await expect(
       service.reportDirectMessage('user-1', 'dm-1', { reason: 'SPAM' }),
     ).rejects.toBeInstanceOf(BadRequestException)
@@ -55,7 +64,7 @@ describe('ModerationService direct-message reports', () => {
 
 describe('ModerationService channel-message reports', () => {
   it('preserves the message and stores immutable evidence for moderator review', async () => {
-    const prisma = {
+    const prisma: any = {
       message: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'message-1',
@@ -70,7 +79,9 @@ describe('ModerationService channel-message reports', () => {
         update: jest.fn(),
       },
       messageReport: { create: jest.fn().mockResolvedValue({ id: 'report-1' }) },
+      $executeRaw: jest.fn().mockResolvedValue(0),
     }
+    prisma.$transaction = jest.fn((operation: (tx: typeof prisma) => unknown) => operation(prisma))
     const teams = { assertReadableAccess: jest.fn() }
     const channels = { listForUser: jest.fn().mockResolvedValue([{ id: 'channel-1' }]) }
     const service = new ModerationService(prisma as never, teams as never, channels as never)
@@ -87,6 +98,8 @@ describe('ModerationService channel-message reports', () => {
         evidenceAttachmentMeta: { type: 'image/png' },
       }),
     })
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(String(prisma.$executeRaw.mock.calls[0][1])).toContain('chat-message:message-1')
     expect(prisma.message.update).not.toHaveBeenCalled()
   })
 })

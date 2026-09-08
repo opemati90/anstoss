@@ -22,7 +22,12 @@ type UseDmChatOptions = {
 }
 
 type DmHistoryResponse = {
+  id?: string
+  clientMessageId?: string | null
+  ok?: boolean
+  error?: string
   data?: {
+    id?: string
     messages?: DmMessage[]
     hasMore?: boolean
   }
@@ -113,6 +118,19 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
     socket.on('dm:message', (msg: DmMessage) => {
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
+        if (msg.clientMessageId && msg.senderId === userId) {
+          const pendingIndex = prev.findIndex(
+            (m) =>
+              m.senderId === userId &&
+              m.clientMessageId === msg.clientMessageId &&
+              m.id.startsWith('pending:'),
+          )
+          if (pendingIndex >= 0) {
+            const next = prev.slice()
+            next[pendingIndex] = msg
+            return next
+          }
+        }
         return [...prev, msg]
       })
       if (msg.senderId === userId && msg.clientMessageId) {
@@ -156,12 +174,28 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
   const [lastError, setLastError] = useState<string | null>(null)
 
   const completePendingOutgoing = useCallback(
-    (key: string, ok: boolean) => {
+    (key: string, ok: boolean, response?: DmHistoryResponse | null) => {
       const pending = pendingOutgoingRef.current.find((item) => item.key === key)
       pendingOutgoingRef.current = pendingOutgoingRef.current.filter((item) => item.key !== key)
       if (ok || pending?.delivered) {
+        const serverId = response?.id ?? response?.data?.id
+        const clientMessageId = response?.clientMessageId ?? pending?.clientMessageId
+        if (serverId && clientMessageId) {
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.clientMessageId === clientMessageId && item.id.startsWith('pending:')
+                ? { ...item, id: serverId }
+                : item,
+            ),
+          )
+        }
         setLastError(null)
         return true
+      }
+      if (pending?.clientMessageId) {
+        setMessages((prev) =>
+          prev.filter((item) => item.clientMessageId !== pending.clientMessageId),
+        )
       }
       setLastError('send_error')
       return false
@@ -179,11 +213,24 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
       return new Promise<boolean>((resolve) => {
         const pendingKey = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
         const clientMessageId = `dm_${pendingKey}`
+        const createdAt = new Date().toISOString()
         pendingOutgoingRef.current.push({
           key: pendingKey,
           clientMessageId,
           delivered: false,
         })
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pending:${clientMessageId}`,
+            conversationId,
+            clientMessageId,
+            senderId: userId,
+            senderName: '',
+            content: content.trim(),
+            createdAt,
+          },
+        ])
         const timeoutId = setTimeout(() => {
           resolve(completePendingOutgoing(pendingKey, false))
         }, 5000)
@@ -191,18 +238,18 @@ export function useDmChat({ conversationId, token, userId, apiUrl }: UseDmChatOp
         socketRef.current!.emit(
           'dm:message',
           { conversationId, content: content.trim(), clientMessageId },
-          (ack: { ok?: boolean; error?: string }) => {
+          (ack: DmHistoryResponse) => {
             clearTimeout(timeoutId)
             if (ack?.ok) {
-              resolve(completePendingOutgoing(pendingKey, true))
+              resolve(completePendingOutgoing(pendingKey, true, ack))
             } else {
-              resolve(completePendingOutgoing(pendingKey, false))
+              resolve(completePendingOutgoing(pendingKey, false, ack))
             }
           },
         )
       })
     },
-    [conversationId, completePendingOutgoing],
+    [conversationId, completePendingOutgoing, userId],
   )
 
   const sendTyping = useCallback(() => {

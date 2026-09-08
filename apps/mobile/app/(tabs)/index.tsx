@@ -85,7 +85,7 @@ function RoleAwareHome() {
                   style={({ pressed }) => [
                     styles.cta,
                     { backgroundColor: c.textPrimary },
-                    pressed && { opacity: 0.85 },
+                    pressed && styles.ctaPressed,
                   ]}
                 >
                   <Text weight="bold" style={[styles.ctaLabel, { color: c.surface }]}>
@@ -128,6 +128,9 @@ const styles = StyleSheet.create({
   ctaLabel: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.98 }],
   },
 })

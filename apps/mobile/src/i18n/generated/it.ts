@@ -321,7 +321,7 @@ export default {
     cadenceYearly: 'Annuale',
     checkoutError: 'Il checkout digitale è disattivato in questa build per gli store.',
     compliance:
-      'Stripe viene usato solo per contributi e quote reali del club. Gli upgrade digitali sono disattivati per questa submission agli store.',
+      'Le quote reali vengono pagate sul conto bancario del club. Stripe viene usato solo per gli abbonamenti software Anstoss.',
     eyebrow: 'ACCESSO LANCIO',
     heroSubtitle:
       'Nessun upgrade digitale viene venduto in questa build. Gli strumenti club restano disponibili mentre completiamo un billing conforme agli store.',

@@ -78,8 +78,11 @@ function getHistoryCacheKey(userId: string, teamId: string, channelId: string | 
 }
 
 type ChatHistoryResponse = {
+  id?: string
+  clientMessageId?: string | null
   event?: string
   data?: {
+    id?: string
     messages?: ChatMessage[]
     hasMore?: boolean
     message?: string
@@ -129,12 +132,28 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
 
   const completePendingOutgoing = useCallback(
-    (key: string, ok: boolean) => {
+    (key: string, ok: boolean, response?: ChatHistoryResponse | null) => {
       const pending = pendingOutgoingRef.current.find((item) => item.key === key)
       pendingOutgoingRef.current = pendingOutgoingRef.current.filter((item) => item.key !== key)
       if (ok || pending?.delivered) {
+        const serverId = response?.id ?? response?.data?.id
+        const clientMessageId = response?.clientMessageId ?? pending?.clientMessageId
+        if (serverId && clientMessageId) {
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.clientMessageId === clientMessageId && item.id.startsWith('pending:')
+                ? { ...item, id: serverId }
+                : item,
+            ),
+          )
+        }
         setLastError(null)
         return true
+      }
+      if (pending?.clientMessageId) {
+        setMessages((prev) =>
+          prev.filter((item) => item.clientMessageId !== pending.clientMessageId),
+        )
       }
       setLastError('send_error')
       return false
@@ -184,7 +203,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         }
       },
     )
-  }, [teamId, channelId])
+  }, [cacheKey, teamId, channelId])
 
   // Connect socket
   useEffect(() => {
@@ -250,7 +269,23 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       // Dedupe by id: the gateway echoes the sender's own message back to the
       // whole room (no sender exclusion), and reconnect can replay; without
       // this guard the same message could render twice.
-      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev
+        if (msg.clientMessageId && msg.senderId === userId) {
+          const pendingIndex = prev.findIndex(
+            (m) =>
+              m.senderId === userId &&
+              m.clientMessageId === msg.clientMessageId &&
+              m.id.startsWith('pending:'),
+          )
+          if (pendingIndex >= 0) {
+            const next = prev.slice()
+            next[pendingIndex] = msg
+            return next
+          }
+        }
+        return [...prev, msg]
+      })
       if (msg.senderId === userId) {
         markPendingDelivered(msg.clientMessageId)
       }
@@ -390,11 +425,39 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       return new Promise((resolve) => {
         const pendingKey = `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
         const clientMessageId = `cm_${pendingKey}`
+        const createdAt = new Date().toISOString()
         pendingOutgoingRef.current.push({
           key: pendingKey,
           clientMessageId,
           delivered: false,
         })
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pending:${clientMessageId}`,
+            teamId,
+            clientMessageId,
+            senderId: userId,
+            senderName: null,
+            senderAvatar: null,
+            content: trimmed,
+            sourceLanguage: null,
+            translation: null,
+            messageType: 'TEXT',
+            attachmentUrl: null,
+            attachmentMeta: null,
+            replyToId: replyToId ?? null,
+            replyTo: null,
+            reactions: [],
+            readByMe: true,
+            readCount: 0,
+            isAnnouncement: false,
+            isPinned: false,
+            editedAt: null,
+            deletedAt: null,
+            createdAt,
+          },
+        ])
         socket.timeout(5000).emit(
           'message',
           {
@@ -408,16 +471,16 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
           (...args: unknown[]) => {
             const { error, response } = normalizeMessageSendAck(args)
             if (error) {
-              resolve(completePendingOutgoing(pendingKey, false))
+              resolve(completePendingOutgoing(pendingKey, false, response))
               return
             }
 
             if (response?.event === 'error') {
-              resolve(completePendingOutgoing(pendingKey, false))
+              resolve(completePendingOutgoing(pendingKey, false, response))
               return
             }
 
-            resolve(completePendingOutgoing(pendingKey, true))
+            resolve(completePendingOutgoing(pendingKey, true, response))
           },
         )
       })

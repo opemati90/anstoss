@@ -469,7 +469,7 @@ export default function EventsScreen() {
                       styles.liveBanner,
                       elevation.card,
                       { backgroundColor: c.primary },
-                      pressed && { opacity: 0.92 },
+                      pressed && styles.pressedScale,
                     ]}
                   >
                     <LiveStatusPill status="live" inverse />
@@ -663,7 +663,7 @@ function ParentNextEventCard({
           borderColor: c.borderDefault,
           backgroundColor: c.surface,
         },
-        pressed && { opacity: 0.94 },
+        pressed && styles.pressedScale,
       ]}
     >
       <View style={styles.heroCardTop}>
@@ -1320,6 +1320,9 @@ const styles = StyleSheet.create({
   },
   liveBannerText: { flex: 1 },
   liveScore: { fontFamily: fonts.data },
+  pressedScale: {
+    transform: [{ scale: 0.985 }],
+  },
 
   // Empty state
   empty: {

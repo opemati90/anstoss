@@ -1,4 +1,3 @@
-import { SPACING_XXS } from '../theme/spacing';
 import React from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
@@ -10,6 +9,7 @@ import {
   SPACING_MD,
   SPACING_SM,
   SPACING_XS,
+  SPACING_XXS,
 } from '../theme/tokens'
 
 type TabScreenHeaderProps = {
@@ -55,7 +55,7 @@ export function TabScreenHeader({
             style={({ pressed }) => [
               styles.back,
               { borderColor: c.borderDefault, backgroundColor: c.surface },
-              pressed && { opacity: 0.6 },
+              pressed && styles.pressedScale,
             ]}
           >
             <Icon name="chevron.left" size="sm" color={c.textPrimary} />
@@ -85,10 +85,11 @@ export function TabScreenHeader({
           accessibilityRole="button"
           accessibilityLabel={actionAccessibilityLabel ?? actionLabel ?? title}
           onPress={onActionPress}
-          style={[
+          style={({ pressed }) => [
             styles.action,
             { borderColor: resolvedActionColor, backgroundColor: c.surface },
             actionLabel == null && styles.iconAction,
+            pressed && styles.pressedScale,
           ]}
         >
           {actionIcon ? (
@@ -125,8 +126,8 @@ const styles = StyleSheet.create({
     gap: SPACING_XS,
   },
   back: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: RADIUS_FULL,
     borderWidth: hairline,
     alignItems: 'center',
@@ -149,5 +150,8 @@ const styles = StyleSheet.create({
   iconAction: {
     width: 44,
     paddingHorizontal: 0,
+  },
+  pressedScale: {
+    transform: [{ scale: 0.97 }],
   },
 })

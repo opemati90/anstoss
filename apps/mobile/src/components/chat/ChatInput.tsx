@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react'
-import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import * as ImagePicker from 'expo-image-picker'
 import { CHAT } from '@anstoss/shared'
@@ -83,7 +83,8 @@ export function ChatInput({
     [onTyping],
   )
 
-  const canSend = text.trim().length > 0 && !disabled && !isSending
+  const hasText = text.trim().length > 0
+  const canSend = hasText && !disabled && !isSending
 
   const handleVoiceRecorded = useCallback(
     async (rec: VoiceRecorderResult) => {
@@ -166,16 +167,25 @@ export function ChatInput({
           editable={!disabled}
           returnKeyType="default"
         />
-        {canSend ? (
+        {hasText ? (
           <Pressable
-            style={[styles.sendButton, { backgroundColor: resolvedPrimary }]}
+            style={({ pressed }) => [
+              styles.sendButton,
+              { backgroundColor: disabled ? c.surfaceSunken : resolvedPrimary },
+              pressed && canSend && styles.sendPressed,
+            ]}
             onPress={handleSend}
             disabled={!canSend}
             accessibilityRole="button"
+            accessibilityState={{ disabled: !canSend, busy: isSending }}
             accessibilityLabel="Send message"
             testID="chat-send-message"
           >
-            <Icon name="paperplane.fill" size="md" color={c.textInverse} />
+            {isSending ? (
+              <ActivityIndicator color={c.textInverse} />
+            ) : (
+              <Icon name="paperplane.fill" size="md" color={c.textInverse} />
+            )}
           </Pressable>
         ) : onSendAttachment ? (
           <VoiceRecorderButton onRecorded={handleVoiceRecorded} disabled={disabled} size={44} />
@@ -212,6 +222,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minHeight: 44,
     fontSize: FONT_SIZE_BODY,
     fontFamily: FONT_FAMILY_REGULAR,
     borderRadius: RADIUS_LG,
@@ -226,6 +237,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendPressed: {
+    transform: [{ scale: 0.96 }],
   },
   iconBtn: {
     width: 44,

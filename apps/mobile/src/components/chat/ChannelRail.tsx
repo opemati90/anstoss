@@ -112,21 +112,21 @@ export function ChannelRail({
             style={({ pressed }) => [
               styles.chip,
               {
-                backgroundColor: active ? c.primary : c.surfaceSunken,
+                backgroundColor: active ? c.primary50 : c.surfaceSunken,
                 borderColor: active ? c.primary : c.borderDefault,
               },
-              pressed && { opacity: 0.7 },
+              pressed && styles.pressed,
             ]}
           >
             <Text
               variant="footnote"
               weight="semibold"
-              style={{ color: active ? c.textInverse : c.textPrimary }}
+              style={{ color: active ? c.primary : c.textPrimary }}
             >
               {labelFor(ch)}
             </Text>
             {active ? (
-              <Icon name="info.circle" size={11} color={c.textInverse} />
+              <Icon name="info.circle" size={11} color={c.primary} />
             ) : ch.unreadCount > 0 ? (
               <View style={[styles.dot, { backgroundColor: c.primary }]} />
             ) : null}
@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
     gap: space.xs + 2,
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: hairline,
   },
@@ -158,5 +159,8 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: radius.full,
+  },
+  pressed: {
+    transform: [{ scale: 0.97 }],
   },
 })

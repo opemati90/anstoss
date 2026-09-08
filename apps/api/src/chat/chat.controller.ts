@@ -12,6 +12,7 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChatService } from './chat.service'
+import { updateChatRetentionSettingsSchema } from '@anstoss/shared'
 
 @Controller()
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -79,6 +80,24 @@ export class ChatController {
     },
   ) {
     return this.chatService.postMedia(user.id, { teamId, ...body })
+  }
+
+  @Get('clubs/:clubId/chat/retention')
+  async getRetentionSettings(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+  ) {
+    return this.chatService.getRetentionSettings(user.id, clubId)
+  }
+
+  @Patch('clubs/:clubId/chat/retention')
+  async updateRetentionSettings(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Body() body: unknown,
+  ) {
+    const data = updateChatRetentionSettingsSchema.parse(body)
+    return this.chatService.updateRetentionSettings(user.id, clubId, data)
   }
 
   @Post('teams/:teamId/messages/poll')

@@ -28,7 +28,7 @@ interface MiddlewareParams {
  * Tenant-scoped models (have clubId column):
  *   TeamGroup, Team, TeamAccess, GuardianRelationship, ParentalConsent,
  *   ExternalTeamLink, ImportedFixture, FixtureOverlay, SyncRun,
- *   Event, Message, Invite, ClubContributionSettings, ContributionPlan,
+ *   Event, Message, ClubChatRetentionSettings, Invite, ClubContributionSettings, ContributionPlan,
  *   ContributionAssignment, ContributionRecord, ContributionReminder
  *
  * Models scoped via relation (don't need direct clubId injection):
@@ -53,6 +53,7 @@ export const TENANT_SCOPED_MODELS = new Set([
   'SyncRun',
   'Event',
   'Message',
+  'ClubChatRetentionSettings',
   'Invite',
   'InviteCampaign',
   'InviteRedemption',

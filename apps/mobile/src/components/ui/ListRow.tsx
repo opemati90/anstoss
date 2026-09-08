@@ -1,10 +1,16 @@
-import { SPACING_XXS } from '../../theme/spacing';
 import React from 'react'
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from './Icon'
 import { Text } from './Text'
-import { SPACING_MD, SPACING_SM, SPACING_XS } from '../../theme/tokens'
+import {
+  hairline,
+  RADIUS_MD,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_XXS,
+} from '../../theme/tokens'
 
 export interface ListRowProps {
   title: string
@@ -52,8 +58,18 @@ export function ListRow({
   destructive,
 }: ListRowProps) {
   const c = useClubColors()
-  const Content = (
-    <View style={[styles.row, compact && styles.rowCompact, style]}>
+  const Content = (pressed = false) => (
+    <View
+      style={[
+        styles.row,
+        {
+          backgroundColor: pressed ? c.surfaceSunken : 'transparent',
+          borderColor: pressed ? c.borderSubtle : 'transparent',
+        },
+        compact && styles.rowCompact,
+        style,
+      ]}
+    >
       {left ? <View style={styles.left}>{left}</View> : null}
       <View style={styles.text}>
         <Text
@@ -81,7 +97,7 @@ export function ListRow({
     </View>
   )
 
-  if (!onPress) return Content
+  if (!onPress) return Content(false)
 
   return (
     <Pressable
@@ -91,9 +107,9 @@ export function ListRow({
       testID={testID}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => ({ opacity: disabled ? 0.5 : pressed ? 0.7 : 1 })}
+      style={{ opacity: disabled ? 0.5 : 1 }}
     >
-      {Content}
+      {({ pressed }) => Content(pressed)}
     </Pressable>
   )
 }
@@ -106,6 +122,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING_MD,
     paddingVertical: SPACING_SM + SPACING_XS,
     gap: SPACING_MD,
+    borderRadius: RADIUS_MD,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   rowCompact: {
     minHeight: 52,

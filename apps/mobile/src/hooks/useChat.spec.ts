@@ -231,6 +231,46 @@ describe('useChat', () => {
     expect(result.current.lastError).toBeNull()
   })
 
+  it('promotes an optimistic message to the server id when send ack succeeds without a room echo', async () => {
+    const { result } = renderHook(() =>
+      useChat({
+        clubId: 'club-1',
+        teamId: 'team-1',
+        token: 'token-1',
+        userId: 'user-1',
+        apiUrl: 'http://api.test',
+      }),
+    )
+
+    act(() => {
+      socket.connected = true
+    })
+
+    socket.timeout.mockReturnValueOnce({
+      emit: (_event: string, payload: any, ack: (...args: unknown[]) => void) => {
+        ack(null, { id: 'server-msg-1', clientMessageId: payload.clientMessageId })
+      },
+    })
+
+    let delivered = false
+    await act(async () => {
+      delivered = await result.current.sendMessage('No echo path', 'club-1')
+    })
+
+    expect(delivered).toBe(true)
+    expect(result.current.lastError).toBeNull()
+    expect(result.current.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'server-msg-1',
+          senderId: 'user-1',
+          content: 'No echo path',
+        }),
+      ]),
+    )
+    expect(result.current.messages.some((message) => message.id.startsWith('pending:'))).toBe(false)
+  })
+
   it('sends, searches, refreshes, and loads older history through the socket', async () => {
     const { result } = renderHook(() =>
       useChat({
@@ -250,6 +290,18 @@ describe('useChat', () => {
     await waitFor(() => expect(result.current.messages[0]?.id).toBe('initial'))
 
     await expect(result.current.sendMessage('  Hi team  ', 'club-1')).resolves.toBe(true)
+    await waitFor(() =>
+      expect(result.current.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: expect.stringMatching(/^pending:cm_/),
+            senderId: 'user-1',
+            content: 'Hi team',
+            clientMessageId: expect.any(String),
+          }),
+        ]),
+      ),
+    )
     expect(socket.timeout).toHaveBeenCalledWith(5000)
     expect(socket.emitted).toEqual(
       expect.arrayContaining([
@@ -328,6 +380,7 @@ describe('useChat', () => {
     })
     expect(blockedSendResult).toBe(false)
     expect(result.current.lastError).toBe('send_error')
+    expect(result.current.messages.some((message) => message.content === 'hello')).toBe(false)
     warnSpy.mockRestore()
   })
 })

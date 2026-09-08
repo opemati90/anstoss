@@ -323,7 +323,7 @@ export default {
     cadenceYearly: 'Anual',
     checkoutError: 'O checkout digital está desativado nesta versão para as lojas.',
     compliance:
-      'O Stripe é usado apenas para contribuições e quotas reais do clube. As atualizações digitais estão desativadas para esta submissão às lojas.',
+      'As quotas reais são pagas diretamente na conta bancária do clube. O Stripe é usado apenas para subscrições de software Anstoss.',
     eyebrow: 'ACESSO DE LANÇAMENTO',
     heroSubtitle:
       'Nenhuma atualização digital é vendida nesta versão. As ferramentas do clube continuam disponíveis enquanto concluímos o billing conforme às lojas.',

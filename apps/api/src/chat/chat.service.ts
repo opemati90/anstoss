@@ -7,7 +7,16 @@ import {
   Optional,
   forwardRef,
 } from '@nestjs/common'
-import type { ChatMessage, MessageType, MessageAttachmentMeta } from '@anstoss/shared'
+import { buildClubPermissionMap, ClubCapability } from '@anstoss/shared'
+import type {
+  ClubOperationalRole,
+  MembershipRole,
+  ChatMessage,
+  ChatRetentionSettings,
+  MessageType,
+  MessageAttachmentMeta,
+  UpdateChatRetentionSettingsInput,
+} from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
@@ -33,6 +42,85 @@ export class ChatService {
     private readonly billingService: BillingService,
     @Optional() private readonly r2?: R2Provider,
   ) {}
+
+  async getRetentionSettings(
+    userId: string,
+    clubId: string,
+  ): Promise<ChatRetentionSettings> {
+    await this.assertRetentionAdminAccess(userId, clubId)
+    return toChatRetentionSettings(await this.ensureRetentionSettings(clubId))
+  }
+
+  async updateRetentionSettings(
+    userId: string,
+    clubId: string,
+    input: UpdateChatRetentionSettingsInput,
+  ): Promise<ChatRetentionSettings> {
+    await this.assertRetentionAdminAccess(userId, clubId)
+    const settings = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.clubChatRetentionSettings.upsert({
+        where: { clubId },
+        create: {
+          clubId,
+          enabled: input.enabled ?? false,
+          messageRetentionDays: input.messageRetentionDays ?? 365,
+          attachmentRetentionDays: input.attachmentRetentionDays ?? 90,
+        },
+        update: {
+          ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+          ...(input.messageRetentionDays === undefined
+            ? {}
+            : { messageRetentionDays: input.messageRetentionDays }),
+          ...(input.attachmentRetentionDays === undefined
+            ? {}
+            : { attachmentRetentionDays: input.attachmentRetentionDays }),
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'admin.setting.updated',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: 'Updated chat retention settings',
+          metadata: {
+            enabled: updated.enabled,
+            messageRetentionDays: updated.messageRetentionDays,
+            attachmentRetentionDays: updated.attachmentRetentionDays,
+          },
+        },
+      })
+      return updated
+    })
+    return toChatRetentionSettings(settings)
+  }
+
+  private async assertRetentionAdminAccess(userId: string, clubId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+    })
+    if (!membership) throw new NotFoundException('Club membership not found')
+    if (membership.role !== 'OWNER' && membership.role !== 'ADMIN') {
+      throw new ForbiddenException('Only club owners and admins can change chat retention.')
+    }
+    const permissions = buildClubPermissionMap({
+      membershipRole: membership.role as MembershipRole,
+      operationalRoles: membership.operationalRoles as ClubOperationalRole[],
+    })
+    if (!permissions[ClubCapability.COMMUNICATIONS]) {
+      throw new ForbiddenException('You do not manage chat for this club.')
+    }
+    return membership
+  }
+
+  private async ensureRetentionSettings(clubId: string) {
+    return this.prisma.clubChatRetentionSettings.upsert({
+      where: { clubId },
+      create: { clubId },
+      update: {},
+    })
+  }
 
   /**
    * Verify a channelId actually belongs to `teamId` (or is a club-level
@@ -397,6 +485,7 @@ export class ChatService {
       },
     })
     if (!poll) throw new NotFoundException('Poll not found')
+    if (poll.message.deletedAt) throw new NotFoundException('Poll not found')
     await this.teamsService.assertReadableAccess(userId, poll.message.teamId)
 
     const tally = new Map<string, number>()
@@ -757,4 +846,18 @@ function previewForMedia(type: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE', caption?: s
   if (type === 'IMAGE') return '📷 Photo'
   if (type === 'VIDEO') return '🎬 Video'
   return '📎 File'
+}
+
+function toChatRetentionSettings(settings: {
+  clubId: string
+  enabled: boolean
+  messageRetentionDays: number
+  attachmentRetentionDays: number
+}): ChatRetentionSettings {
+  return {
+    clubId: settings.clubId,
+    enabled: settings.enabled,
+    messageRetentionDays: settings.messageRetentionDays,
+    attachmentRetentionDays: settings.attachmentRetentionDays,
+  }
 }

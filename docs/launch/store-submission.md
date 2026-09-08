@@ -27,8 +27,8 @@ the legal copy aligned. Run `npm run audit:store` before every store submission.
 
 - 1.2 User-generated content:
   - In-app report and block actions exist on chat messages.
-  - API stores reports, prevents duplicate reports, and auto-hides severe
-    abuse/inappropriate reports.
+  - API stores reports, prevents duplicate reports, and routes reported content
+    to moderation review. A single report does not automatically hide content.
   - Published contact info exists in Legal/Impressum.
 - 2.1 App completeness:
   - No beta/test copy in store metadata.
@@ -44,10 +44,13 @@ the legal copy aligned. Run `npm run audit:store` before every store submission.
     transferred when a user opens an embedded widget. Confirm the club is
     authorized to publish the selected widget under FUSSBALL.DE's widget terms.
 - 3.1 Payments:
-  - Current Stripe flows are for real-world club contributions/dues consumed
-    outside the app.
-  - Any future paid digital premium feature inside the app must use Apple IAP
-    and Google Play Billing unless a documented store exception applies.
+  - Player/member contributions are tracked as real-world club dues paid to the
+    club bank account and reconciled manually by club admins.
+  - Stripe is reserved only for Anstoss software subscriptions in a future or
+    admin-web acquisition lifecycle. This mobile submission must not present
+    external purchase links for digital upgrades.
+  - Any future paid digital premium feature inside the mobile app must use Apple
+    IAP and Google Play Billing unless a documented store exception applies.
 - 4.5.4 Push notifications:
   - Push is optional and not required to use the app.
   - No marketing pushes unless the user explicitly opts in.
@@ -87,7 +90,10 @@ the legal copy aligned. Run `npm run audit:store` before every store submission.
   - `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` must not appear in the
     release manifest; Android uploads should use the system picker grants.
 - Payments:
-  - Stripe contribution payments are real-world club payments.
+  - Player/member contributions are paid to the club bank account and reconciled
+    manually by club admins.
+  - Stripe is used only for Anstoss software subscriptions outside the mobile
+    purchase flow.
   - Do not add in-app purchase links for digital features without store billing.
 - Target audience/content rating:
   - Do not mark as Kids category / Families unless a separate compliance pass is
@@ -103,8 +109,8 @@ match these non-tracking categories:
 - Identifiers: user ID; device/push token where applicable.
 - User content: chat/direct messages, other free-form content, photos/images,
   voice notes.
-- Purchases/financial: contribution status, receipts, Stripe references, club
-  dues records; payment card/bank details are entered in Stripe-hosted flows.
+- Purchases/financial: contribution status, receipts, club dues records, and
+  Stripe subscription references for the club's Anstoss software plan.
 - Usage/diagnostics: product interaction, crash data, performance data.
 - Other data: date of birth, role, membership, team access, RSVP and lineup data.
 
@@ -131,8 +137,10 @@ controls.
 User-generated chat content includes in-app report and block actions. Severe
 abuse/inappropriate reports are hidden while admins review them.
 
-Stripe is used only for real-world club contribution/dues payments consumed
-outside the app. There are no paid digital premium features in this submission.
+Player/member contributions are paid to the club bank account and reconciled
+manually by club admins. Stripe is used only for Anstoss software subscriptions
+outside the mobile purchase flow. There are no paid digital premium features in
+this submission.
 
 Account deletion is available in-app at More -> Data -> Delete account and on
 the web at https://anstoss.io/account-deletion.

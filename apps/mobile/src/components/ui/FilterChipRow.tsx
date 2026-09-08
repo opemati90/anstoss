@@ -1,4 +1,3 @@
-import { SPACING_XXS } from '../../theme/spacing';
 import React from 'react'
 import {
   Pressable,
@@ -15,6 +14,7 @@ import {
   SPACING_SM,
   SPACING_XS,
   SPACING_MD,
+  SPACING_XXS,
 } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Icon, type IconName } from './Icon'
@@ -70,8 +70,8 @@ export function FilterChipRow<T extends string = string>({
     >
       {chips.map((chip) => {
         const isActive = selectedSet.has(chip.key)
-        const bg = isActive ? c.primary : c.surface
-        const fgColor = isActive ? c.textInverse : c.textSecondary
+        const bg = isActive ? c.primary50 : c.surface
+        const fgColor = isActive ? c.primary : c.textSecondary
         const borderColor = isActive ? c.primary : c.borderDefault
         return (
           <Pressable
@@ -86,7 +86,7 @@ export function FilterChipRow<T extends string = string>({
                 backgroundColor: bg,
                 borderColor,
               },
-              pressed && { opacity: 0.75 },
+              pressed && styles.pressed,
             ]}
           >
             {chip.icon ? (
@@ -106,7 +106,7 @@ export function FilterChipRow<T extends string = string>({
                   styles.countPill,
                   {
                     backgroundColor: isActive
-                      ? c.textInverse
+                      ? c.primary
                       : c.textTertiary,
                   },
                 ]}
@@ -114,7 +114,7 @@ export function FilterChipRow<T extends string = string>({
                 <Text
                   variant="caption2"
                   weight="bold"
-                  color={isActive ? c.primary : c.textInverse}
+                  color={c.textInverse}
                   tabular
                 >
                   {chip.count}
@@ -128,7 +128,7 @@ export function FilterChipRow<T extends string = string>({
   )
 }
 
-const CHIP_HEIGHT = 36
+const CHIP_HEIGHT = 44
 
 const styles = StyleSheet.create({
   content: {
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING_XXS,
   },
   chip: {
-    height: CHIP_HEIGHT,
+    minHeight: CHIP_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_XS,
@@ -145,6 +145,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
     borderWidth: hairline,
+  },
+  pressed: {
+    transform: [{ scale: 0.97 }],
   },
   countPill: {
     minWidth: 18,

@@ -12,6 +12,7 @@ import { BillingModule } from '../billing/billing.module'
 import { ModerationModule } from '../moderation/moderation.module'
 import { AssetsModule } from '../assets/assets.module'
 import { AdminModule } from '../admin/admin.module'
+import { ChatRetentionWorker } from './chat-retention.worker'
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { AdminModule } from '../admin/admin.module'
     forwardRef(() => ModerationModule),
   ],
   controllers: [ChatController],
-  providers: [ChatGateway, ChatService],
+  providers: [ChatGateway, ChatService, ChatRetentionWorker],
   exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}

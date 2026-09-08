@@ -454,6 +454,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       },
     })
 
+    // Channel-aware emit. Without a channelId, the message lands in the
+    // legacy team-wide stream and goes to every team socket. With a
+    // channelId, scope to `channel:{channelId}` — sockets only join that room
+    // after `handleJoin` confirms the user can read the channel.
+    const room = channelId ? `channel:${channelId}` : `team:${data.teamId}`
+
     // Detect source language eagerly; after detection broadcast the result so
     // clients can show translated content without waiting for history reload.
     void this.translation
@@ -468,13 +474,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       })
       .catch(() => undefined)
 
-    // Channel-aware emit. Without a channelId, the message lands in the
-    // legacy team-wide stream and goes to every team socket. With a
-    // channelId, scope to `team:${teamId}:channel:${channelId}` — a
-    // socket only joined that room if `handleJoin` confirmed the user
-    // can read the channel, so private channels never leak content even
-    // if a misbehaving client tried to subscribe.
-    const room = channelId ? `channel:${channelId}` : `team:${data.teamId}`
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,

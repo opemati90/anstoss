@@ -70,6 +70,7 @@ export function ChatScreen({
   const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
   const [keyboardInset, setKeyboardInset] = useState(0)
+  const shouldStickToBottomRef = useRef(true)
 
   const {
     messages,
@@ -351,6 +352,7 @@ export function ChatScreen({
     }) => {
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
       const atBottom = contentOffset.y >= contentSize.height - layoutMeasurement.height - 50
+      shouldStickToBottomRef.current = atBottom
       setIsAtBottom(atBottom)
     },
     [setIsAtBottom],
@@ -518,7 +520,7 @@ export function ChatScreen({
           getItemLayout={getItemLayout}
           contentContainerStyle={styles.messageList}
           onScroll={handleScroll}
-          scrollEventThrottle={100}
+          scrollEventThrottle={16}
           removeClippedSubviews
           initialNumToRender={20}
           maxToRenderPerBatch={10}
@@ -526,7 +528,7 @@ export function ChatScreen({
           onEndReached={hasMore && !loadingHistory ? loadMore : undefined}
           onEndReachedThreshold={0.3}
           onContentSizeChange={() => {
-            if (messages.length > 0) {
+            if (messages.length > 0 && shouldStickToBottomRef.current) {
               flatListRef.current?.scrollToEnd({ animated: false })
             }
           }}
@@ -718,6 +720,8 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: SPACING_SM,
+    paddingHorizontal: SPACING_SM,
+    paddingBottom: SPACING_LG,
   },
   errorBanner: {
     marginHorizontal: SPACING_SM,

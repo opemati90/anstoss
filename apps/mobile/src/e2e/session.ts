@@ -4053,9 +4053,9 @@ export function handleE2EApiRequest(
     }
   }
 
-  // Stripe Checkout for a single contribution — POST
+  // Software subscription checkout — POST
   // /clubs/:clubId/contributions/my/:planId/checkout. Returning a null url
-  // is a SUCCESSFUL "club hasn't wired Stripe" response: the screen then
+  // is a SUCCESSFUL "software billing is unavailable" response: the screen then
   // falls back to the soft mark-paid (/pay) path. We deliberately return
   // null here so the E2E flow never opens an external browser (which would
   // break Maestro) and instead completes via the existing /pay mock.
