@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useChat, type ChatMessage } from '../../hooks/useChat'
-import { MessageBubble, MESSAGE_HEIGHT } from './MessageBubble'
+import { MessageBubble } from './MessageBubble'
 import { EditMessageSheet } from './EditMessageSheet'
 import { PollSheet, type PollOption } from './PollSheet'
 import { api } from '../../api/client'
@@ -387,15 +387,6 @@ export function ChatScreen({
     ],
   )
 
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<ChatMessage> | null | undefined, index: number) => ({
-      length: MESSAGE_HEIGHT,
-      offset: MESSAGE_HEIGHT * index,
-      index,
-    }),
-    [],
-  )
-
   const keyExtractor = useCallback((item: ChatMessage) => item.id, [])
 
   const isDisabled = connectionState !== 'connected'
@@ -501,7 +492,6 @@ export function ChatScreen({
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
-          getItemLayout={getItemLayout}
           contentContainerStyle={styles.messageList}
           onScroll={handleScroll}
           scrollEventThrottle={16}
