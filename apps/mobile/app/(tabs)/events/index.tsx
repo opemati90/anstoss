@@ -129,6 +129,7 @@ export default function EventsScreen() {
   const viewKey = isParent
     ? `parent:${activeClub?.club.id ?? 'none'}`
     : `team:${activeClub?.club.id ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`
+  const isClubManager = resolvedRoleMode === 'ADMIN'
   const loadedViewKeyRef = useRef<string | null>(null)
   const currentViewKeyRef = useRef(viewKey)
   currentViewKeyRef.current = viewKey
@@ -137,7 +138,7 @@ export default function EventsScreen() {
     setLoadedViewKey(key)
   }, [])
   const hasCurrentData = loadedViewKey === viewKey
-  const canLoadCurrentView = Boolean(activeClub && (isParent || activeTeamId))
+  const canLoadCurrentView = Boolean(activeClub && (isParent || activeTeamId || isClubManager))
   const currentViewLoading =
     canLoadCurrentView && !error && (loading || !hasCurrentData)
   const visibleEvents = hasCurrentData ? events : []
@@ -192,7 +193,7 @@ export default function EventsScreen() {
       return
     }
 
-    if (!activeTeamId) {
+    if (!activeTeamId && !isClubManager) {
       // Same idea — no team selected means nothing to fetch; surface the
       // empty state immediately rather than spinning forever.
       setError(false)
@@ -208,7 +209,7 @@ export default function EventsScreen() {
     if (shouldBlockView) setLoading(true)
     try {
       const params = new URLSearchParams({
-        teamId: activeTeamId,
+        teamId: activeTeamId ?? '',
         scope,
       })
 
@@ -216,13 +217,23 @@ export default function EventsScreen() {
         params.set('type', filterType)
       }
 
+      // Managers need the club feed, not a potentially stale team selection.
+      // The club endpoint also returns team badges and prevents a 403 when an
+      // admin has not yet selected a team in this session. Rostered members
+      // remain team-scoped to preserve tenant/team visibility.
+      const eventsPath = isClubManager
+        ? `/clubs/${activeClub.club.id}/events?${new URLSearchParams({
+            scope,
+            ...(filterType !== 'ALL' ? { type: filterType } : {}),
+          }).toString()}`
+        : `/clubs/${activeClub.club.id}/events?${params.toString()}`
       const [data, fetchedFixtures] = await Promise.all([
-        api<EventFeedItem[]>(
-          `/clubs/${activeClub.club.id}/events?${params.toString()}`,
-        ),
-        api<ImportedFixture[]>(
-          `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=10`,
-        ).catch(() => [] as ImportedFixture[]),
+        api<EventFeedItem[]>(eventsPath),
+        activeTeamId
+          ? api<ImportedFixture[]>(
+              `/teams/${activeTeamId}/fixtures?scope=upcoming&limit=10`,
+            ).catch(() => [] as ImportedFixture[])
+          : Promise.resolve([] as ImportedFixture[]),
       ])
 
       if (currentViewKeyRef.current !== requestViewKey) return
@@ -247,7 +258,7 @@ export default function EventsScreen() {
         setLoading(false)
       }
     }
-  }, [activeClub, activeTeamId, filterType, isParent, markViewLoaded, scope, viewKey])
+  }, [activeClub, activeTeamId, filterType, isClubManager, isParent, markViewLoaded, scope, viewKey])
 
   useFocusEffect(
     useCallback(() => {

@@ -1,11 +1,10 @@
 import { SPACING_XXS } from '../../theme/spacing'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import {
   ActionSheetIOS,
   Alert,
   FlatList,
-  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -69,7 +68,6 @@ export function ChatScreen({
   const { t } = useTranslation()
   const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
-  const [keyboardInset, setKeyboardInset] = useState(0)
   const shouldStickToBottomRef = useRef(true)
 
   const {
@@ -250,23 +248,6 @@ export function ChatScreen({
       refreshHistory()
     }, [refreshHistory]),
   )
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
-
-    const showSub = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardInset(Math.max(0, event.endCoordinates.height))
-    })
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardInset(0)
-    })
-
-    return () => {
-      showSub.remove()
-      hideSub.remove()
-    }
-  }, [])
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -515,6 +496,8 @@ export function ChatScreen({
         <FlatList
           ref={flatListRef}
           data={messages}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
           getItemLayout={getItemLayout}
@@ -583,7 +566,7 @@ export function ChatScreen({
         </View>
       ) : null}
 
-      <View style={{ paddingBottom: keyboardInset }}>
+      <View style={styles.composerDock}>
         <ChatInput
           onSend={(content: string) => {
             const promise = handleSend(content, replyTarget?.id ?? null)
@@ -646,6 +629,11 @@ export function ChatScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  composerDock: {
+    // Let the tab/root navigator resize naturally for the keyboard. Adding a
+    // second JS-measured inset here double-lifts the composer on Android.
+    flexShrink: 0,
   },
   replyBar: {
     flexDirection: 'row',
