@@ -15,7 +15,14 @@ import { api } from '../../../src/api/client'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
 import { API_URL } from '../../../src/api/client'
-import { elevation, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import {
+  elevation,
+  hairline,
+  radius,
+  space,
+  TAB_BAR_CLEARANCE,
+  TAB_BAR_HEIGHT,
+} from '../../../src/theme/tokens'
 
 type ChatMode = 'team' | 'direct'
 const CHAT_CHANNEL_PREF_PREFIX = 'chat_channel_pref:'
@@ -178,6 +185,9 @@ export default function ChatTab() {
               </View>
             </View>
             <ChatScreen
+              // The keyboard covers the tab bar, so the avoidance padding
+              // must not also reserve room for it.
+              keyboardOffset={TAB_BAR_HEIGHT}
               key={`${activeTeamId}:${resolvedActiveChannel?.id ?? 'team'}`}
               teamId={activeTeamId}
               channelId={resolvedActiveChannel?.id ?? null}

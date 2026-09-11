@@ -283,7 +283,7 @@ export const MessageBubble = memo(function MessageBubble({
             <Pressable
               onPress={() => Linking.openURL(mediaSrc)}
               accessibilityRole="image"
-              accessibilityLabel="Open image"
+              accessibilityLabel={t('a11y.openImage')}
             >
               <Image
                 source={{ uri: mediaSrc }}

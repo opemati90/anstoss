@@ -17,7 +17,6 @@ import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 import { Haptics } from '../../utils/haptics'
 import { NextUpHero, isInCheckInWindow } from './NextUpHero'
 import { LiveMatchCard } from './LiveMatchCard'
-import { ReplyQueue } from './ReplyQueue'
 import { WeekAhead } from './WeekAhead'
 import { SeasonStrip } from './SeasonStrip'
 import { TeamPulse } from './TeamPulse'
@@ -112,18 +111,16 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   )
   const liveOwnsHero = Boolean(heroIsLive && !heroOwesDecision)
 
-  // Everything past the hero splits in two: what still needs an answer (loud,
-  // answerable in place) and what is merely scheduled (quiet, one line). The
-  // hero's own event belongs to neither — it is already the hero, or the live
-  // card took it over.
-  const rest = useMemo(() => data.events.slice(1), [data.events])
-  const replyQueue = useMemo(() => rest.filter((event) => !event.myRsvp), [rest])
+  // Everything past the hero is one list. It used to be two stacked sections
+  // with two headers and two cards for the same subject, which was most of
+  // why this screen felt like a lot. The list sorts unanswered first and
+  // carries the reply control only on those rows.
   const weekAhead = useMemo(
     () =>
-      rest.filter(
-        (event) => Boolean(event.myRsvp) && fixtureFor(event)?.id !== liveFixture?.id,
-      ),
-    [fixtureFor, liveFixture?.id, rest],
+      data.events
+        .slice(1)
+        .filter((event) => fixtureFor(event)?.id !== liveFixture?.id),
+    [data.events, fixtureFor, liveFixture?.id],
   )
 
   const openEvent = useCallback((event: HomeEvent) => {
@@ -243,23 +240,23 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
         />
       ) : null}
 
-      <ReplyQueue
-        events={replyQueue}
+      <WeekAhead
+        events={weekAhead}
         locale={locale}
         pendingIds={pendingIds}
         onRsvp={(eventId, status) => void onRsvp(eventId, status)}
         onOpen={openEventOrMatch}
       />
 
-      <WeekAhead events={weekAhead} locale={locale} onOpen={openEventOrMatch} />
+      <TeamPulse channel={data.teamChannel} announcements={data.announcements} />
 
+      {/* Ambient, not actionable — so it sits last, under the things that
+          actually need the player to do something. */}
       <SeasonStrip
         streaks={data.streaks}
         rank={data.streakRank}
         seasonStats={data.seasonStats}
       />
-
-      <TeamPulse channel={data.teamChannel} announcements={data.announcements} />
 
       {error ? (
         <Text variant="caption1" color="tertiary" style={styles.staleNote}>

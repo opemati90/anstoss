@@ -9,6 +9,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { Icon } from './Icon'
 import { Text } from './Text'
@@ -54,6 +55,7 @@ export function SearchBar({
   testID,
   ...rest
 }: SearchBarProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const hasChips = !!chips && chips.length > 0
 
@@ -111,7 +113,7 @@ export function SearchBar({
         <Pressable
           onPress={onFilterPress}
           accessibilityRole="button"
-          accessibilityLabel="Open filters"
+          accessibilityLabel={t('a11y.openFilters')}
           hitSlop={8}
         >
           <Icon name="line.3.horizontal.decrease" size="md" color={c.textSecondary} />

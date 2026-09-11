@@ -89,7 +89,7 @@ function initials(name: string) {
 export default function VoiceMemosScreen() {
   // Gated out of MVP: recording/playback is still a prototype (no real audio).
   if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
-    return <ComingSoon title="Voice memos" />
+    return <ComingSoon titleKey="voiceMemos.title" />
   }
   return <VoiceMemosScreenInner />
 }

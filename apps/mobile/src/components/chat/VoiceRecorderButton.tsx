@@ -6,6 +6,7 @@ import type {
   PermissionResponse,
   RecordingOptions,
 } from 'expo-audio'
+import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize } from '../../theme/tokens'
@@ -68,6 +69,7 @@ export function VoiceRecorderButton({
   disabled,
   size = 44,
 }: VoiceRecorderButtonProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const Audio = loadAudio()
   const [recording, setRecording] = useState<AudioRecorder | null>(null)
@@ -179,7 +181,7 @@ export function VoiceRecorderButton({
         onPressOut={() => void stop(true)}
         onResponderTerminate={() => void stop(false)}
         accessibilityRole="button"
-        accessibilityLabel="Record voice note"
+        accessibilityLabel={t('a11y.recordVoiceNote')}
         disabled={disabled}
         style={({ pressed }) => [
           styles.btn,

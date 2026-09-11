@@ -1,5 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import {
   hairline,
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export function PinnedBanner({ message, primaryColor, onPress }: Props) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const accentColor = primaryColor || c.primary
 
@@ -30,7 +32,7 @@ export function PinnedBanner({ message, primaryColor, onPress }: Props) {
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Scroll to pinned message"
+      accessibilityLabel={t('a11y.scrollToPinned')}
     >
       <View style={[styles.accent, { backgroundColor: accentColor }]} />
       <Icon name="pin.fill" size="sm" color={accentColor} />

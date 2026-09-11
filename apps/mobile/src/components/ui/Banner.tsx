@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ClubTheme } from '../../theme/club-theme'
 import {
@@ -46,6 +47,7 @@ export function Banner({
   style,
   testID,
 }: BannerProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const palette = resolvePalette(tone, c)
   const resolvedIcon = icon ?? defaultIconFor(tone)
@@ -104,7 +106,7 @@ export function Banner({
           onPress={onDismiss}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss"
+          accessibilityLabel={t('a11y.dismiss')}
           style={({ pressed }) => [styles.dismiss, pressed && { opacity: 0.5 }]}
         >
           <Icon name="xmark" size="sm" color="tertiary" />

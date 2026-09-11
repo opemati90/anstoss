@@ -1,4 +1,18 @@
 export default {
+  // Screen-reader labels. Leaving these in English makes the app
+  // *less* usable for blind users in every other locale.
+  a11y: {
+    attachPhoto: 'Fotoğraf ekle',
+    sendMessage: 'Mesaj gönder',
+    closeReactions: 'Tepkileri kapat',
+    scrollToPinned: 'Sabitlenmiş mesaja git',
+    recordVoiceNote: 'Sesli not kaydet',
+    closeLanguage: 'Dil seçiciyi kapat',
+    openImage: 'Görseli aç',
+    openFilters: 'Filtreleri aç',
+    closeTeamSwitcher: 'Takım seçiciyi kapat',
+    dismiss: 'Kapat',
+  },
   states: {
     common: {
       offline: 'Çevrimdışısınız. Bağlantınızı kontrol edip tekrar deneyin.',
@@ -520,6 +534,7 @@ export default {
     teamChatEmpty: 'Takım arkadaşlarınıza mesaj atın',
     yourWeek: 'Haftanız',
     player: {
+      replyCount: '{{n}} yanıt bekliyor',
       areYouIn: 'Geliyor musun?',
       now: 'Şimdi',
       inMinutes: '{{n}} dk içinde',

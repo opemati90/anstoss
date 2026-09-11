@@ -3,44 +3,80 @@ import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { hexToRgba } from '../../theme/club-theme'
 import { hairline, radius, space } from '../../theme/tokens'
+import { RsvpControl, type RsvpStatus } from './RsvpControl'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
 
 export type WeekAheadProps = {
   events: HomeEvent[]
   locale: string
+  pendingIds: Record<string, boolean>
+  onRsvp: (eventId: string, status: RsvpStatus) => void
   onOpen: (event: HomeEvent) => void
 }
 
 const MAX_ROWS = 5
 
 /**
- * The rest of what is coming, already answered.
+ * One list for the week, not two.
  *
- * Quiet on purpose — one line each, a date chip, and a dot showing the answer
- * you gave. Nothing here needs a decision, so nothing here competes with the
- * hero; it exists so the schedule stays visible without turning home back into
- * a wall of cards.
+ * This used to be two stacked sections — "Needs your reply" and "Your week" —
+ * each with its own header and its own bordered card. Same subject, same rows,
+ * twice the chrome, and it was a large part of why home felt like a lot. Now
+ * it is a single list: anything still unanswered sorts first and carries the
+ * reply control inline, everything else is a quiet one-line row.
  */
-export function WeekAhead({ events, locale, onOpen }: WeekAheadProps) {
+export function WeekAhead({
+  events,
+  locale,
+  pendingIds,
+  onRsvp,
+  onOpen,
+}: WeekAheadProps) {
   const c = useClubColors()
   const { t } = useTranslation()
-  const rows = events.slice(0, MAX_ROWS)
+
+  const ordered = useMemo(
+    () => [
+      ...events.filter((event) => !event.myRsvp),
+      ...events.filter((event) => Boolean(event.myRsvp)),
+    ],
+    [events],
+  )
+
+  const outstanding = events.filter((event) => !event.myRsvp).length
+  const rows = ordered.slice(0, MAX_ROWS)
 
   if (rows.length === 0) return null
 
   return (
     <View style={styles.section}>
-      <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-        {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
-      </Text>
+      <View style={styles.sectionHead}>
+        <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
+          {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
+        </Text>
+        {outstanding > 0 ? (
+          <View style={[styles.count, { backgroundColor: hexToRgba(c.primary, 0.12) }]}>
+            <Text variant="caption2" weight="bold" style={{ color: c.primary }}>
+              {t('home.player.replyCount', {
+                defaultValue: '{{n}} to reply',
+                n: outstanding,
+              })}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
       <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
         {rows.map((event, index) => (
           <WeekRow
             key={event.id}
             event={event}
             locale={locale}
+            pending={Boolean(pendingIds[event.id])}
             showDivider={index > 0}
+            onRsvp={(status) => onRsvp(event.id, status)}
             onPress={() => onOpen(event)}
           />
         ))}
@@ -52,17 +88,22 @@ export function WeekAhead({ events, locale, onOpen }: WeekAheadProps) {
 function WeekRow({
   event,
   locale,
+  pending,
   showDivider,
+  onRsvp,
   onPress,
 }: {
   event: HomeEvent
   locale: string
+  pending: boolean
   showDivider: boolean
+  onRsvp: (status: RsvpStatus) => void
   onPress: () => void
 }) {
   const c = useClubColors()
   const { t } = useTranslation()
   const date = useMemo(() => new Date(event.date), [event.date])
+  const needsReply = !event.myRsvp
 
   const day = useMemo(
     () => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).toUpperCase(),
@@ -78,15 +119,6 @@ function WeekRow({
     [date, locale],
   )
 
-  // One accent, three states: filled = in, outlined = maybe, hollow = out.
-  // Shape carries the meaning so it survives greyscale and colour blindness.
-  const answerStyle =
-    event.myRsvp === 'YES'
-      ? { backgroundColor: c.primary, borderColor: c.primary }
-      : event.myRsvp === 'MAYBE'
-        ? { backgroundColor: 'transparent', borderColor: c.primary }
-        : { backgroundColor: 'transparent', borderColor: c.borderStrong }
-
   const answerLabel = event.myRsvp
     ? t(`event.rsvp${event.myRsvp[0]}${event.myRsvp.slice(1).toLowerCase()}`, {
         defaultValue: event.myRsvp,
@@ -94,45 +126,69 @@ function WeekRow({
     : ''
 
   return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${event.title}, ${day} ${dayNumber} ${time}${answerLabel ? `, ${answerLabel}` : ''}`}
-      haptic="tapLight"
+    <View
       style={[
         styles.row,
+        needsReply && styles.rowAnswerable,
         showDivider && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
       ]}
     >
-      <View style={[styles.dayChip, { backgroundColor: c.surfaceSunken }]}>
-        <Text variant="caption2" weight="medium" color="tertiary">
-          {day}
-        </Text>
-        <Text variant="callout" weight="bold" color="primary" tabular>
-          {dayNumber}
-        </Text>
-      </View>
-      <View style={styles.rowText}>
-        <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-          {event.title}
-        </Text>
-        <Text variant="caption1" color="secondary" numberOfLines={1}>
-          {time}
-          {event.location ? ` · ${event.location}` : ''}
-          {event.team?.name ? ` · ${event.team.name}` : ''}
-          {/* The dot alone reads as an empty checkbox. Naming the answer costs
-              one word and removes the guesswork. */}
-          {answerLabel ? ` · ${answerLabel}` : ''}
-        </Text>
-      </View>
-      <View style={[styles.answerDot, answerStyle]} />
-      <Icon name="chevron.right" size={14} color="tertiary" />
-    </PressableScale>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${event.title}, ${day} ${dayNumber} ${time}${answerLabel ? `, ${answerLabel}` : ''}`}
+        haptic="tapLight"
+        style={styles.rowHead}
+      >
+        <View style={[styles.dayChip, { backgroundColor: c.surfaceSunken }]}>
+          <Text variant="caption2" weight="medium" color="tertiary">
+            {day}
+          </Text>
+          <Text variant="callout" weight="bold" color="primary" tabular>
+            {dayNumber}
+          </Text>
+        </View>
+        <View style={styles.rowText}>
+          <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+            {event.title}
+          </Text>
+          <Text variant="caption1" color="secondary" numberOfLines={1}>
+            {time}
+            {event.location ? ` · ${event.location}` : ''}
+            {answerLabel ? ` · ${answerLabel}` : ''}
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={14} color="tertiary" />
+      </PressableScale>
+
+      {/* Only rows that still owe an answer carry a control. Putting one on
+          every row turned a schedule back into a wall of buttons. */}
+      {needsReply ? (
+        <RsvpControl
+          value={event.myRsvp}
+          onChange={onRsvp}
+          disabled={pending}
+          size="compact"
+        />
+      ) : null}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   section: { gap: space.sm },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  count: {
+    height: 20,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   card: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
@@ -140,12 +196,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     minHeight: 56,
+    justifyContent: 'center',
+  },
+  rowAnswerable: { gap: space.sm, paddingVertical: space.md },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
   },
   dayChip: {
     minWidth: 44,
@@ -156,10 +216,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rowText: { flex: 1, gap: space['2xs'] },
-  answerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radius.full,
-    borderWidth: 1.5,
-  },
 })

@@ -332,12 +332,6 @@ export default function CreateEventScreen() {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.intro}>
-          <Text variant="subheadline" color="secondary">
-            {t('event.createScreenHint')}
-          </Text>
-        </View>
-
         <Card padding="hero" style={styles.primaryCard}>
           <FieldLabel>{t('event.typeLabel')}</FieldLabel>
           <View style={styles.typeRow}>
@@ -512,14 +506,9 @@ export default function CreateEventScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}>
-        <View style={styles.footerSummary}>
-          <Text variant="footnote" color="secondary" numberOfLines={1}>
-            {selectedTeamLabel ?? t('event.currentTeam')}
-          </Text>
-          <Text variant="subheadline" color="primary" weight="semibold" tabular numberOfLines={1}>
-            {dateDisplay}, {timeDisplay}
-          </Text>
-        </View>
+        {/* No summary line here: the team row and the date/time chips are a
+            few points above it in the same sheet. Repeating them cost two
+            lines of a scroll area that was already clipping its last field. */}
         <Button
           label={t('event.createButton')}
           variant="filled"
@@ -731,7 +720,6 @@ function PickerSheet({
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: space.lg, paddingBottom: space.xl, gap: space.lg },
-  intro: { gap: space.xs, paddingHorizontal: space.xs },
   primaryCard: { gap: space.md },
   teamSection: { gap: space.sm },
   teamGrid: {
@@ -823,7 +811,6 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
     gap: space.md,
   },
-  footerSummary: { gap: space['2xs'] },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

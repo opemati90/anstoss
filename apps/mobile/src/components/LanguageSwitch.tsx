@@ -1,5 +1,6 @@
 import { SPACING_XXS } from '../theme/spacing';
 import { Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import {
   BUTTON_HEIGHT_MD,
@@ -29,6 +30,7 @@ const OPTIONS: Array<{ code: AppLanguage; label: string }> = [
 ]
 
 export function LanguageSwitch({ value, onChange }: Props) {
+  const { t } = useTranslation()
   const c = useClubColors()
   const [isOpen, setIsOpen] = useState(false)
   const activeOption = OPTIONS.find((option) => option.code === value) || OPTIONS[0]
@@ -62,7 +64,7 @@ export function LanguageSwitch({ value, onChange }: Props) {
           style={[styles.scrim, { backgroundColor: c.surfaceOverlay }]}
           onPress={() => setIsOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel="Close language selector"
+          accessibilityLabel={t('a11y.closeLanguage')}
         >
           <Pressable
             style={[

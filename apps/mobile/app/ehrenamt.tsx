@@ -86,7 +86,7 @@ function initials(name: string) {
 export default function EhrenamtScreen() {
   // Gated out of MVP: CSV export is a stub (fake success, no real export).
   if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
-    return <ComingSoon title="Ehrenamt" />
+    return <ComingSoon titleKey="ehrenamt.title" />
   }
   return <EhrenamtScreenInner />
 }

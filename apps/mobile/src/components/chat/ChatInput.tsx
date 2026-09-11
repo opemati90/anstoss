@@ -131,7 +131,7 @@ export function ChatInput({
           <Pressable
             onPress={() => void handlePickImage()}
             accessibilityRole="button"
-            accessibilityLabel="Attach photo"
+            accessibilityLabel={t('a11y.attachPhoto')}
             disabled={disabled}
             style={({ pressed }) => [
               styles.iconBtn,
@@ -178,7 +178,7 @@ export function ChatInput({
             disabled={!canSend}
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSend, busy: isSending }}
-            accessibilityLabel="Send message"
+            accessibilityLabel={t('a11y.sendMessage')}
             testID="chat-send-message"
           >
             {isSending ? (
@@ -194,7 +194,7 @@ export function ChatInput({
             style={[styles.sendButton, { backgroundColor: c.surfaceSunken }]}
             disabled
             accessibilityRole="button"
-            accessibilityLabel="Send message"
+            accessibilityLabel={t('a11y.sendMessage')}
             testID="chat-send-message"
           >
             <Icon name="paperplane.fill" size="md" color={c.textTertiary} />

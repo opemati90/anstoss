@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from '../ui'
+import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fontSize, radius, space } from '../../theme/tokens'
 
@@ -13,10 +14,11 @@ export type ReactionTrayProps = {
 }
 
 export function ReactionTray({ visible, onPick, onClose }: ReactionTrayProps) {
+  const { t } = useTranslation()
   const c = useClubColors()
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close reactions" />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('a11y.closeReactions')} />
       <View style={styles.center} pointerEvents="box-none">
         <View
           style={[

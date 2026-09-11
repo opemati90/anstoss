@@ -75,7 +75,7 @@ export function TeamSwitcher({ visible, onClose }: TeamSwitcherProps) {
         style={[styles.backdrop, { backgroundColor: c.surfaceOverlay }]}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="Close team switcher"
+        accessibilityLabel={t('a11y.closeTeamSwitcher')}
       >
         <Animated.View
           style={[styles.sheet, { backgroundColor: c.surface, transform: [{ translateY }] }]}

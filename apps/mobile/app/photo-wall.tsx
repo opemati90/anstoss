@@ -77,7 +77,7 @@ function relativeTime(iso: string, locale: string): string {
 export default function PhotoWallScreen() {
   // Gated out of MVP: photo upload still inserts placeholder images.
   if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
-    return <ComingSoon title="Photo wall" />
+    return <ComingSoon titleKey="photoWall.title" />
   }
   return <PhotoWallScreenInner />
 }

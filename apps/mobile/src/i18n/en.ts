@@ -3,6 +3,20 @@ import { deepMerge } from './deepMerge'
 import generated from './generated/en'
 
 const base = {
+  // Screen-reader labels. Leaving these in English makes the app
+  // *less* usable for blind users in every other locale.
+  a11y: {
+    attachPhoto: 'Attach photo',
+    sendMessage: 'Send message',
+    closeReactions: 'Close reactions',
+    scrollToPinned: 'Scroll to pinned message',
+    recordVoiceNote: 'Record voice note',
+    closeLanguage: 'Close language selector',
+    openImage: 'Open image',
+    openFilters: 'Open filters',
+    closeTeamSwitcher: 'Close team switcher',
+    dismiss: 'Dismiss',
+  },
   states: statesEn,
   parentHandoff: {
     title: 'Set up your child',
@@ -400,6 +414,7 @@ const base = {
     teamChatEmpty: 'Message your teammates',
     yourWeek: 'Your week',
     player: {
+      replyCount: '{{n}} to reply',
       areYouIn: 'Are you in?',
       now: 'Now',
       inMinutes: 'in {{n}} min',

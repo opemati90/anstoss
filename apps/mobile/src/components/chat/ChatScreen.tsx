@@ -5,7 +5,6 @@ import {
   ActionSheetIOS,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,6 +24,7 @@ import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
 import { EmptyState } from '../EmptyState'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { useKeyboardLift } from '../../hooks/useKeyboardLift'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import {
@@ -55,6 +55,13 @@ type Props = {
   userId: string
   apiUrl: string
   primaryColor?: string
+  /**
+   * Height of any chrome sitting below this screen that the keyboard will
+   * cover anyway — the tab bar, in the chat tab. Subtracted from the
+   * keyboard-avoidance padding so the composer lands exactly on top of the
+   * keyboard instead of floating a tab-bar's height above it.
+   */
+  keyboardOffset?: number
 }
 
 export function ChatScreen({
@@ -65,7 +72,9 @@ export function ChatScreen({
   userId,
   apiUrl,
   primaryColor,
+  keyboardOffset = 0,
 }: Props) {
+  const keyboardLift = useKeyboardLift(keyboardOffset)
   const { t } = useTranslation()
   const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
@@ -392,7 +401,14 @@ export function ChatScreen({
   const isDisabled = connectionState !== 'connected'
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
+    // Shrinking this column by the covered height is what carries the
+    // composer above the keyboard; see useKeyboardLift.
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: c.background, paddingBottom: keyboardLift },
+      ]}
+    >
       <View style={styles.topBar}>
         <ConnectionStatus state={connectionState} />
         <Pressable
@@ -558,11 +574,7 @@ export function ChatScreen({
       ) : null}
 
       {Platform.OS === 'ios' ? (
-        <KeyboardAvoidingView
-          behavior="padding"
-          keyboardVerticalOffset={0}
-          style={styles.composerDock}
-        >
+        <View style={styles.composerDock}>
           <ChatInput
             onSend={(content: string) => {
               const promise = handleSend(content, replyTarget?.id ?? null)
@@ -596,7 +608,7 @@ export function ChatScreen({
             primaryColor={primaryColor}
             errorMessage={localizedError}
           />
-        </KeyboardAvoidingView>
+        </View>
       ) : (
         <View style={styles.composerDock}>
         <ChatInput
