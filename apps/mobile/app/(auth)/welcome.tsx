@@ -72,12 +72,15 @@ export default function Welcome() {
     // Mark it seen so subsequent cold launches skip straight to sign-in.
     update({ policyAccepted: true })
     void markWelcomeSeen()
-    router.push('/(auth)/sign-in')
+    router.push({ pathname: '/(auth)/sign-in', params: { intent: 'signup' } })
   }
 
   function handleSecondary() {
+    // Same screen, same email-OTP flow — but a returning member should be
+    // greeted as one. Two buttons that land on an identically-worded screen
+    // read as a broken link.
     void markWelcomeSeen()
-    router.push('/(auth)/sign-in')
+    router.push({ pathname: '/(auth)/sign-in', params: { intent: 'login' } })
   }
 
   return (

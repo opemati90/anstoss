@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
   crestLetter: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   cardCopy: {

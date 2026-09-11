@@ -42,7 +42,7 @@ type StateOption = {
 const STATE_OPTIONS: StateOption[] = [
   {
     state: 'OK',
-    icon: '✅',
+    icon: 'checkmark.circle.fill',
     labelKey: 'pitch.state.ok.label',
     bodyKey: 'pitch.state.ok.body',
     labelDefault: 'Pitch is good',
@@ -50,7 +50,7 @@ const STATE_OPTIONS: StateOption[] = [
   },
   {
     state: 'WET',
-    icon: '💧',
+    icon: 'drop.fill',
     labelKey: 'pitch.state.wet.label',
     bodyKey: 'pitch.state.wet.body',
     labelDefault: 'Pitch is wet',
@@ -58,7 +58,7 @@ const STATE_OPTIONS: StateOption[] = [
   },
   {
     state: 'FROZEN',
-    icon: '❄️',
+    icon: 'snowflake',
     labelKey: 'pitch.state.frozen.label',
     bodyKey: 'pitch.state.frozen.body',
     labelDefault: 'Pitch is frozen',
@@ -66,7 +66,7 @@ const STATE_OPTIONS: StateOption[] = [
   },
   {
     state: 'CANCELLED',
-    icon: '🛑',
+    icon: 'nosign',
     labelKey: 'pitch.state.cancelled.label',
     bodyKey: 'pitch.state.cancelled.body',
     labelDefault: 'Match cancelled',
@@ -266,7 +266,11 @@ export default function PitchStatusScreen() {
             )}
             <View style={styles.statusBody}>
               <View style={styles.stateRow}>
-                <Text style={styles.stateEmoji}>{stateMeta?.icon ?? '⚽'}</Text>
+                <Icon
+                  name={stateMeta?.icon ?? 'figure.soccer'}
+                  size={28}
+                  color={stateColor}
+                />
                 <View style={styles.stateBody}>
                   <View
                     style={[
@@ -430,7 +434,6 @@ const styles = StyleSheet.create({
   statusBody: { padding: space.md, gap: space.sm },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: space.md - space.xs },
   stateBody: { flex: 1, gap: space['2xs'] },
-  stateEmoji: { fontSize: 28 },
   statePill: {
     alignSelf: 'flex-start',
     paddingHorizontal: space.sm + space['2xs'],

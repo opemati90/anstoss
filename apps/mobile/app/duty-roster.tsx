@@ -51,16 +51,17 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/** Semantic icon per duty. Emoji here read as chat, not as an interface. */
 function dutyIcon(kind: DutyKind): string {
   switch (kind) {
     case 'KUCHEN':
-      return '🍰'
+      return 'cake'
     case 'AUFBAU':
-      return '⚽'
+      return 'figure.soccer'
     case 'PLATZWART':
-      return '🌱'
+      return 'leaf'
     case 'SCHIRI':
-      return '🟨'
+      return 'card'
   }
 }
 
@@ -190,7 +191,7 @@ export default function DutyRosterScreen() {
                   ]}
                 >
                   <View style={styles.myDutyHead}>
-                    <Text style={styles.dutyEmoji}>{dutyIcon(duty.kind)}</Text>
+                    <Icon name={dutyIcon(duty.kind)} size={22} color={c.textSecondary} />
                     <View style={{ flex: 1 }}>
                       <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
                         {duty.title}
@@ -242,7 +243,7 @@ export default function DutyRosterScreen() {
                     idx > 0 && { borderTopWidth: hairline, borderTopColor: c.borderDefault },
                   ]}
                 >
-                  <Text style={styles.dutyEmoji}>{dutyIcon(duty.kind)}</Text>
+                  <Icon name={dutyIcon(duty.kind)} size={22} color={c.textSecondary} />
                   <View style={styles.rowCopy}>
                     <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
                       {duty.title}
@@ -394,7 +395,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   myDutyHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm + space['2xs'] },
-  dutyEmoji: { fontSize: 24 },
 
   swapBtn: {
     height: 40,

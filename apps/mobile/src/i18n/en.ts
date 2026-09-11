@@ -126,6 +126,10 @@ const base = {
   },
   auth: {
     signin: {
+      titleLogin: 'Welcome back',
+      titleSignup: 'Create your account',
+      hintLogin: 'Enter your email and we’ll send a 6-digit code. No password to remember.',
+      hintSignup: 'Enter your email and we’ll send a 6-digit code. No password to create.',
       title: 'Welcome',
       titleOtp: 'Enter the code',
       titleName: 'What’s your name?',
@@ -331,6 +335,11 @@ const base = {
     coachStepUnlock: 'Coach tools unlock after the club confirms you.',
   },
   home: {
+    greeting: {
+      morning: 'Good morning, {{name}}',
+      afternoon: 'Hi {{name}}',
+      evening: 'Good evening, {{name}}',
+    },
     pulse: {
       streakWeeks: '{{count}}-week streak',
       inForm: '{{name}} is in form',
@@ -391,7 +400,26 @@ const base = {
     teamChatEmpty: 'Message your teammates',
     yourWeek: 'Your week',
     player: {
-      nextActionEyebrow: 'NEXT ACTION',
+      areYouIn: 'Are you in?',
+      now: 'Now',
+      inMinutes: 'in {{n}} min',
+      inHours: 'in {{n}} h',
+      yesCount: '{{yes}} in',
+      replyQueueTitle: 'Needs your reply',
+      replyQueueMore: '+{{n}} more in Events',
+      seasonTitle: 'Your season',
+      streakWeeks: 'week streak',
+      streakBest: 'best {{n}}',
+      clubRank: '#{{n}} in club',
+      motmWins: 'MOTM',
+      teamForm: 'Recent form',
+      pulseTitle: 'From your team',
+      form: {
+        W: 'W',
+        D: 'D',
+        L: 'L',
+      },
+      nextActionEyebrow: 'DO THIS NEXT',
       liveTitle: 'Match is live',
       liveBody: 'Follow the score, lineup, and match updates.',
       openLive: 'Open live match',
@@ -412,7 +440,7 @@ const base = {
       rsvpSummary: '{{yes}} in · {{maybe}} maybe · {{no}} out',
     },
     freeAgent: {
-      nextActionEyebrow: 'FREE AGENT NEXT ACTION',
+      nextActionEyebrow: 'DO THIS NEXT',
       loadingTitle: 'Checking your player profile',
       loadingBody: 'We are finding your free-agent status before showing the next step.',
       loadingA11y: 'Checking your free agent player profile',
@@ -444,7 +472,7 @@ const base = {
       trialEmptyBody: 'Invites land here when a club views your profile.',
     },
     parent: {
-      nextActionEyebrow: 'FAMILY NEXT ACTION',
+      nextActionEyebrow: 'DO THIS NEXT',
       actionConflictTitle: 'Resolve {{count}} schedule conflicts',
       actionConflictTitle_one: 'Resolve {{count}} schedule conflict',
       actionConflictTitle_other: 'Resolve {{count}} schedule conflicts',
@@ -575,7 +603,7 @@ const base = {
       createEvent: 'Create event',
       invite: 'Invite',
       scouting: 'Scouting',
-      nextActionEyebrow: 'COACH NEXT ACTION',
+      nextActionEyebrow: 'DO THIS NEXT',
       rosterPill: '{{count}} spot open',
       rosterPill_one: '{{count}} spot open',
       rosterPill_other: '{{count}} spots open',
@@ -632,7 +660,7 @@ const base = {
       nothingScheduled: 'Nothing scheduled yet.',
       rosterActive: 'Active',
       rosterTrial: 'Trial',
-      viewMotmArchive: 'MOTM archive →',
+      viewMotmArchive: 'MOTM archive',
       noEvents:
         "No upcoming events yet. Tap 'Create event' to schedule your first training or match.",
     },
@@ -2426,6 +2454,8 @@ const base = {
       'I found {{name}} in Anstoss. Can a coach or club admin activate the club so players can join?',
   },
   findClub: {
+    startTypingTitle: 'Find your club',
+    haveCode: 'I have an invite code',
     directoryRecord: 'Not on Anstoss yet',
     setupMissingClub: 'Set up this club',
     title: 'Find your club',

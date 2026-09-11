@@ -36,3 +36,24 @@ describe('Icon semantic mapping', () => {
     )
   })
 })
+
+describe('Icon map integrity', () => {
+  it('every semantic name resolves to a real Ionicons glyph', () => {
+    // Mapping to a glyph that does not exist renders tofu on device and
+    // nothing in tests — exactly the class of defect a screenshot pass can
+    // miss and a user cannot. Two hand-picked cases above are not a guard;
+    // this is.
+    const glyphMap = jest.requireActual(
+      '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json',
+    ) as Record<string, number>
+    const { ICON_MAP } = jest.requireActual('./Icon') as {
+      ICON_MAP: Record<string, string>
+    }
+
+    const broken = Object.entries(ICON_MAP)
+      .filter(([, glyph]) => !(glyph in glyphMap))
+      .map(([name, glyph]) => `${name} -> ${glyph}`)
+
+    expect(broken).toEqual([])
+  })
+})

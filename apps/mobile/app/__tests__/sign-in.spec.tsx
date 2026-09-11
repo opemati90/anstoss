@@ -41,13 +41,31 @@ jest.mock('../../src/context/ClubThemeContext', () => ({
 
 jest.mock('../../src/components/ui', () => {
   const React = require('react')
-  const { Text } = require('react-native')
+  const { Text, Pressable } = require('react-native')
 
   return {
     Icon: (props: { name?: string }) =>
       React.createElement(Text, { testID: `icon-${props.name ?? 'icon'}` }),
     Text: (props: { children?: React.ReactNode }) =>
       React.createElement(Text, props, props.children),
+    // The primary action is the shared Button now, so the stub has to render
+    // a pressable carrying the label — the tests find the CTA by its text.
+    Button: (props: {
+      label?: string
+      onPress?: () => void
+      disabled?: boolean
+      loading?: boolean
+    }) =>
+      React.createElement(
+        Pressable,
+        {
+          onPress: props.onPress,
+          disabled: props.disabled || props.loading,
+          accessibilityRole: 'button',
+          accessibilityState: { disabled: !!(props.disabled || props.loading) },
+        },
+        React.createElement(Text, null, props.label),
+      ),
   }
 })
 

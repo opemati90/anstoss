@@ -73,13 +73,21 @@ describe('Welcome', () => {
     // so the CTA is always enabled and goes straight to the one auth entry.
     expect(screen.queryByLabelText('Accept Privacy and Terms')).toBeNull()
     fireEvent.press(screen.getByText(/build your profile/i))
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in')
+    // Intent rides along so sign-in can greet a new user and a returning one
+    // differently while running the same email-OTP flow.
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(auth)/sign-in',
+      params: { intent: 'signup' },
+    })
   })
 
   it('routes secondary CTA to the dedicated sign-in screen', () => {
     renderWelcome()
     fireEvent.press(screen.getByText(/log in/i))
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in')
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(auth)/sign-in',
+      params: { intent: 'login' },
+    })
   })
 
   it('opens the language sheet and switches language', () => {

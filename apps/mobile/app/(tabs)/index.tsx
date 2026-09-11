@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { useCallback, useMemo, useState } from 'react'
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
@@ -13,10 +13,13 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
+import { PlayerIdentityBar } from '../../src/components/home/PlayerIdentityBar'
 import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Text } from '../../src/components/ui'
 import { fontSize, fonts, radius, space, TAB_BAR_CLEARANCE } from '../../src/theme/tokens'
+
+type RefreshHandle = { refresh: () => void; refreshing: boolean }
 
 export default function HomeScreen() {
   const flagOn = isFeatureEnabled('anstoss.roleAwareHome')
@@ -43,25 +46,65 @@ function RoleAwareHome() {
     [activeRoleMode, clubRole, registrationRole, teamRole],
   )
 
+  // Pull-to-refresh belongs to the scroll view, but only the role section knows
+  // how to reload itself. The section hands its refresh function up; sections
+  // that don't (yet) participate simply leave the control inert.
+  const [refreshHandle, setRefreshHandle] = useState<RefreshHandle | null>(null)
+  const handleRefreshState = useCallback((handle: RefreshHandle) => {
+    setRefreshHandle(handle)
+  }, [])
+
   const clubId = activeClub?.club.id ?? null
   const roleSection = useMemo(() => {
     if (role === 'ADMIN' && clubId) return <AdminHome clubId={clubId} teamId={activeTeamId} />
     if (role === 'COACH' && clubId) return <CoachHome clubId={clubId} teamId={activeTeamId} />
-    if (role === 'PLAYER' && clubId) return <PlayerHome clubId={clubId} teamId={activeTeamId} />
+    if (role === 'PLAYER' && clubId)
+      return (
+        <PlayerHome
+          clubId={clubId}
+          teamId={activeTeamId}
+          onRefreshStateChange={handleRefreshState}
+        />
+      )
     if (role === 'PARENT') return <ParentHome />
     if (role === 'FREE_AGENT') return <FreeAgentHome />
     return null
-  }, [role, clubId, activeTeamId])
+  }, [role, clubId, activeTeamId, handleRefreshState])
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: c.background }]}
       contentContainerStyle={[styles.content, { paddingBottom: TAB_BAR_CLEARANCE + space.lg }]}
       showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="automatic"
+      refreshControl={
+        refreshHandle ? (
+          <RefreshControl
+            refreshing={refreshHandle.refreshing}
+            onRefresh={refreshHandle.refresh}
+            tintColor={c.textTertiary}
+          />
+        ) : undefined
+      }
     >
       <View style={styles.body}>
         {roleSection ? (
           <>
+            {/* Identity belongs to the screen, not to one role's section.
+                Every role opens this tab and every role should see who they
+                are and which team they are acting in. */}
+            <PlayerIdentityBar
+              name={user?.name ?? ''}
+              avatarUrl={user?.avatarUrl}
+              // Optional-chain through `team` too: a membership row can carry
+              // access without an embedded team object, and stopping the chain
+              // at `activeTeamAccess` crashed the whole home screen into the
+              // error boundary.
+              teamName={
+                activeTeamAccess?.team?.displayName || activeTeamAccess?.team?.name || null
+              }
+              roleLabel={role ? t(`roles.${role}`, { defaultValue: '' }) : null}
+            />
             {roleSection}
             {clubId ? <SponsorStrip clubId={clubId} /> : null}
           </>
@@ -116,7 +159,7 @@ function RoleAwareHome() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.md },
-  body: {},
+  body: { gap: space.lg },
   fallback: { paddingTop: space['2xl'], gap: space.lg },
   cta: {
     height: 52,

@@ -6,6 +6,13 @@ export const statesIt: StatesCopy = {
     unknownError: 'Qualcosa è andato storto.',
     retry: 'Riprova',
   },
+  home: {
+    error: {
+      title: 'Impossibile caricare la tua settimana',
+      body: 'Controlla la connessione e trascina verso il basso per riprovare.',
+    },
+    stale: 'Stai vedendo l\'ultimo aggiornamento — trascina per riprovare.',
+  },
   events: {
     empty: {
       title: 'Nessun evento ancora',

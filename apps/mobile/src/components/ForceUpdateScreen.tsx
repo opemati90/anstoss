@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useClubColors } from '../context/ClubThemeContext'
 import { Button } from './ui/Button'
 import { Text } from './ui/Text'
+import { Icon } from './ui/Icon'
 import { SPACING_MD, SPACING_SM, SPACING_XL } from '../theme/tokens'
 import { useSafeAreaInsetsSafe } from '../utils/useSafeAreaInsetsSafe'
 
@@ -29,7 +30,7 @@ export function ForceUpdateScreen({ onUpdate, message }: ForceUpdateScreenProps)
       ]}
       alwaysBounceVertical={false}
     >
-      <Text style={styles.icon}>🔄</Text>
+      <Icon name="arrow.clockwise" size={40} color="tint" style={styles.icon} />
       <Text variant="title1" color="primary" align="center" style={styles.title}>
         {t('update.required')}
       </Text>
@@ -56,7 +57,6 @@ const styles = StyleSheet.create({
     padding: SPACING_XL,
   },
   icon: {
-    fontSize: 48,
     marginBottom: SPACING_MD,
   },
   title: {

@@ -27,7 +27,9 @@ jest.mock('../../../i18n', () => ({
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
-  useFocusEffect: jest.fn(),
+  // Faithful stand-in: the real useFocusEffect runs its callback on mount.
+  // A bare jest.fn() silently skips every focus-driven fetch.
+  useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
 }))
 
 jest.mock('../../../context/ClubThemeContext', () => {

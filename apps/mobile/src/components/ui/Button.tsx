@@ -133,15 +133,24 @@ export function Button({
     onPress?.()
   }
 
+  // A filled button at 50% opacity over the warm off-white background renders
+  // as a solid mid-grey slab — it reads "broken", not "not yet". A disabled
+  // action should recede into the surface instead: sunken fill, tertiary
+  // label, no border. `loading` is excluded: a button mid-request keeps its
+  // filled identity so the spinner stays legible and the CTA doesn't flinch.
+  const isWaitingOnInput = !!disabled && !loading
+  const mutedFill = effectiveVariant === 'filled' || effectiveVariant === 'destructive'
+
   const containerStyle: ViewStyle = {
     height: HEIGHTS[size],
     paddingHorizontal: H_PADDING[size],
-    backgroundColor: palette.bg,
-    borderColor: palette.border,
+    backgroundColor:
+      isWaitingOnInput && mutedFill ? c.surfaceSunken : palette.bg,
+    borderColor: isWaitingOnInput && !mutedFill ? c.borderSubtle : palette.border,
     borderWidth: palette.borderWidth,
     borderRadius: RADIUS_BUTTON,
     borderCurve: 'continuous',
-    opacity: isDisabled ? 0.5 : 1,
+    opacity: isWaitingOnInput && !mutedFill ? 0.6 : 1,
     alignSelf: fullWidth ? 'stretch' : 'auto',
     ...(effectiveVariant === 'filled' || effectiveVariant === 'destructive'
       ? elevation.card
@@ -149,7 +158,7 @@ export function Button({
   }
 
   const textStyle: TextStyle = {
-    color: palette.fg,
+    color: isWaitingOnInput && mutedFill ? c.textTertiary : palette.fg,
     fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZES[size],
     letterSpacing: 0.2,

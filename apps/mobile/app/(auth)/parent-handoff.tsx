@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     fontFamily: fonts.data,
     fontSize: fontSize['2xl'],
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 4,
     textAlign: 'center',
   },
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   previewMeta: {
     fontFamily: fonts.body,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   teamName: {
     fontFamily: fonts.heading,
     fontSize: fontSize.lg,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   teamMeta: {
     fontFamily: fonts.body,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   slotName: {
     fontFamily: fonts.heading,
     fontSize: fontSize.md,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   slotMeta: {
     fontFamily: fonts.body,

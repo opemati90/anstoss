@@ -6,6 +6,13 @@ export const statesDe: StatesCopy = {
     unknownError: 'Etwas ist schiefgelaufen.',
     retry: 'Erneut versuchen',
   },
+  home: {
+    error: {
+      title: 'Deine Woche konnte nicht geladen werden',
+      body: 'Prüfe deine Verbindung und zieh zum Aktualisieren nach unten.',
+    },
+    stale: 'Zeigt deinen letzten Stand — zum Erneuern nach unten ziehen.',
+  },
   events: {
     empty: {
       title: 'Noch keine Events',

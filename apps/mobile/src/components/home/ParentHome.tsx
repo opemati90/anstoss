@@ -481,7 +481,7 @@ function ParentNextActionPanel({
         </View>
         <Text style={[styles.actionEyebrow, { color: c.textTertiary }]}>
           {t('home.parent.nextActionEyebrow', {
-            defaultValue: 'FAMILY NEXT ACTION',
+            defaultValue: 'DO THIS NEXT',
           })}
         </Text>
       </View>

@@ -65,7 +65,7 @@ export default function TeamMatchesScreen() {
     }
   }
 
-  const teamLabel = activeTeamAccess?.team.displayName || ''
+  const teamLabel = activeTeamAccess?.team?.displayName || ''
 
   const formStreak: FormResult[] = recent
     .filter((f) => f.status === 'finished' && f.resultHome != null && f.resultAway != null)

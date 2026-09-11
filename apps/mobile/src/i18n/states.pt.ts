@@ -6,6 +6,13 @@ export const statesPt: StatesCopy = {
     unknownError: 'Algo correu mal.',
     retry: 'Tentar novamente',
   },
+  home: {
+    error: {
+      title: 'Não foi possível carregar a tua semana',
+      body: 'Verifica a ligação e puxa para baixo para tentar de novo.',
+    },
+    stale: 'A mostrar a última atualização — puxa para baixo para repetir.',
+  },
   events: {
     empty: {
       title: 'Ainda sem eventos',

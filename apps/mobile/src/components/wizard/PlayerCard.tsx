@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 200,
     lineHeight: 240,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -6,
   },
   heroNumberShadow: {
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 200,
     lineHeight: 240,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -6,
     transform: [{ translateY: 4 }, { translateX: 4 }],
   },
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   numberBadgeText: {
     fontFamily: fonts.heading,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -1,
     color: '#FFFFFF',
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 46,
     lineHeight: 48,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -1.6,
   },
   eyebrow: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   stampHexA: {
     fontFamily: fonts.heading,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 
   primaryStat: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 32,
     lineHeight: 34,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -0.8,
   },
   primaryStatSub: {
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: fonts.heading,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -0.6,
     lineHeight: 32,
   },
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   footerHexA: {
     fontFamily: fonts.heading,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
   footerUrl: {

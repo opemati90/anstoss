@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   heroStatNum: {
     fontFamily: fonts.heading,
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.4,
     lineHeight: 24,
   },

@@ -36,7 +36,7 @@ export default function MyTeamScreen() {
   const [error, setError] = useState(false)
 
   const clubId = activeClub?.club.id
-  const teamName = activeTeamAccess?.team.displayName || activeTeamAccess?.team.name || ''
+  const teamName = activeTeamAccess?.team?.displayName || activeTeamAccess?.team?.name || ''
 
   const fetchMembers = useCallback(async () => {
     if (!clubId || !activeTeamId) {

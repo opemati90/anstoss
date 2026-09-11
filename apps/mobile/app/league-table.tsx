@@ -54,7 +54,7 @@ export default function LeagueTableScreen() {
   const [error, setError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const teamLabel = activeTeamAccess?.team.displayName || ''
+  const teamLabel = activeTeamAccess?.team?.displayName || ''
 
   const fetchTable = useCallback(async () => {
     if (!teamId) {

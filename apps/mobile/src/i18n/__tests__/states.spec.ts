@@ -2,7 +2,7 @@ import { statesEn } from '../states'
 import { statesDe } from '../states.de'
 
 describe('states copy library', () => {
-  it('exposes all seven screen namespaces and a common namespace (EN)', () => {
+  it('exposes every screen namespace and a common namespace (EN)', () => {
     expect(Object.keys(statesEn).sort()).toEqual(
       [
         'admin_members',
@@ -11,6 +11,7 @@ describe('states copy library', () => {
         'dm',
         'errors',
         'events',
+        'home',
         'pending_requests',
         'team_matches',
         'transfers',

@@ -187,9 +187,14 @@ export function WizardStep(props: WizardStepProps) {
                   />
                 )
               })}
-              <Text variant="caption2" color="secondary" tabular style={styles.stepCount}>
-                {props.step.current}/{props.step.total}
-              </Text>
+              {/* No numeric counter here: callers already pass a
+                  "Step N of M" stepLabel, and the pills carry the position
+                  visually. Three statements of one fact is noise. */}
+              {props.stepLabel ? null : (
+                <Text variant="caption2" color="secondary" tabular style={styles.stepCount}>
+                  {props.step.current}/{props.step.total}
+                </Text>
+              )}
             </View>
           ) : typeof props.progress === 'number' ? (
             <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
@@ -304,20 +309,20 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontWeight: '700',
     marginBottom: space.sm,
-    opacity: 0.7,
   },
   title: {
     fontFamily: fonts.heading,
     fontSize: fontSize['3xl'],
     lineHeight: fontSize['3xl'] * 1.15,
-    fontWeight: '800',
+    // DM Sans ships 400/500/700. '800' falls back, and Android synthesises a
+    // faux-bold that does not match any other heading in the app.
+    fontWeight: '700',
     letterSpacing: -0.6,
   },
   hint: {
     marginTop: space.sm,
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
-    opacity: 0.7,
     lineHeight: 20,
   },
   content: { marginTop: space.xl, flex: 1 },

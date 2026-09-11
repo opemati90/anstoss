@@ -4,6 +4,13 @@ export const statesEn = {
     unknownError: 'Something went wrong.',
     retry: 'Try again',
   },
+  home: {
+    error: {
+      title: 'Couldn\'t load your week',
+      body: 'Check your connection and pull down to try again.',
+    },
+    stale: 'Showing your last update — pull down to retry.',
+  },
   events: {
     empty: {
       title: 'No events yet',

@@ -26,7 +26,12 @@ jest.mock('../../src/i18n', () => ({
   getAppLocale: () => 'en-GB',
 }))
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() }, useFocusEffect: jest.fn() }))
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+  // Faithful stand-in: the real useFocusEffect runs its callback on mount.
+  // A bare jest.fn() silently skips every focus-driven fetch.
+  useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
+}))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
@@ -139,8 +144,8 @@ describe('PlayerHome', () => {
 
   it('renders the next-event RSVP hero', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-    expect(await findByText('Reply to Monday training')).toBeTruthy()
     expect(await findByText('Monday training')).toBeTruthy()
+    expect(await findByText('Are you in?')).toBeTruthy()
     expect(await findByText('Yes')).toBeTruthy()
     expect(await findByText('Maybe')).toBeTruthy()
     expect(await findByText('No')).toBeTruthy()
@@ -228,7 +233,8 @@ describe('PlayerHome', () => {
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByText('Reply to Pitch arrival')).toBeTruthy()
+    expect(await findByText('Pitch arrival')).toBeTruthy()
+    expect(await findByText('Are you in?')).toBeTruthy()
     expect(queryByText('Open check-in')).toBeNull()
   })
 
@@ -272,7 +278,8 @@ describe('PlayerHome', () => {
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByText('Reply to Live match')).toBeTruthy()
+    expect(await findByText('Live match')).toBeTruthy()
+    expect(await findByText('Are you in?')).toBeTruthy()
     expect(await findByText('1-0')).toBeTruthy()
     expect(queryByText('Open live match')).toBeNull()
   })
@@ -482,12 +489,14 @@ describe('PlayerHome', () => {
       return Promise.resolve(null)
     })
 
-    const { findByLabelText, findByText, queryByText } = render(
+    const { findByLabelText, findByText, queryAllByText } = render(
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByLabelText('Team A vs A United live')).toBeTruthy()
-    expect(queryByText('Team A live event')).toBeNull()
+    expect(await findByLabelText(/Team A vs A United live/)).toBeTruthy()
+    // The live match is represented once: the score card plus the decision
+    // card for it. It must never also appear as a row in the week list.
+    expect(queryAllByText('Team A live event')).toHaveLength(1)
     expect(await findByText('Team B live event')).toBeTruthy()
     expect(await findByText('Team C training')).toBeTruthy()
   })

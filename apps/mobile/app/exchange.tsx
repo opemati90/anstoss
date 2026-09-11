@@ -45,10 +45,10 @@ type Filter = 'ALL' | Category
 
 const FILTERS: Array<{ key: Filter; label: string; icon?: string }> = [
   { key: 'ALL', label: 'All' },
-  { key: 'BOOTS', label: 'Boots', icon: '👟' },
-  { key: 'KIT', label: 'Kit', icon: '👕' },
-  { key: 'GLOVES', label: 'Gloves', icon: '🧤' },
-  { key: 'OTHER', label: 'Other', icon: '🎒' },
+  { key: 'BOOTS', label: 'Boots', icon: 'boots' },
+  { key: 'KIT', label: 'Kit', icon: 'shirt' },
+  { key: 'GLOVES', label: 'Gloves', icon: 'gloves' },
+  { key: 'OTHER', label: 'Other', icon: 'bag' },
 ]
 
 // CONDITION_LABELS are now resolved via t() at render time — see conditionLabel() below.
@@ -351,7 +351,13 @@ export default function ExchangeScreen() {
                       : { borderColor: c.borderStrong, backgroundColor: c.surface },
                   ]}
                 >
-                  {f.icon ? <Text style={styles.filterEmoji}>{f.icon}</Text> : null}
+                  {f.icon ? (
+                    <Icon
+                      name={f.icon}
+                      size={14}
+                      color={active ? c.textInverse : c.textSecondary}
+                    />
+                  ) : null}
                   <Text
                     style={[
                       styles.filterChipText,
@@ -802,7 +808,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: hairline,
   },
-  filterEmoji: { fontSize: 13 },
   filterChipText: {
     fontSize: 12,
     fontFamily: fonts.label,

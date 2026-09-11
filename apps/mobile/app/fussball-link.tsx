@@ -133,7 +133,7 @@ export default function FussballLinkScreen() {
       <Text style={[styles.eyebrow, { color: c.textTertiary }]}>{t('fussball.eyebrow')}</Text>
       <Text style={[styles.subtitle, { color: c.textSecondary }]}>
         {t('fussball.subtitle', {
-          team: activeTeamAccess?.team.displayName || activeClub.club.name,
+          team: activeTeamAccess?.team?.displayName || activeClub.club.name,
         })}
       </Text>
 

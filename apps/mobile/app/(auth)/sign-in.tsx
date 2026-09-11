@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,9 +23,10 @@ import {
 } from '../../src/auth/useOnboardingAuth'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Icon, Text } from '../../src/components/ui'
+import { Button, Icon, Text } from '../../src/components/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
 import { Sentry } from '../../src/utils/sentry'
+import { illustrations } from '../../src/illustrations'
 import { fontSize, fontWeight, fonts, hairline, radius, space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
@@ -50,7 +51,17 @@ export default function SignIn() {
   // Carried through from an invite deep link (/join/<code> -> sign-in) so the
   // user lands back on the invite to redeem it once authenticated. Prefer the
   // route param; fall back to the persisted code after a cold relaunch.
-  const { inviteCode: inviteCodeParam } = useLocalSearchParams<{ inviteCode?: string }>()
+  // `intent` is set by the welcome screen so the same screen can greet a
+  // returning member and a brand-new one correctly. Both paths run the same
+  // email-OTP flow — only the words change.
+  const { inviteCode: inviteCodeParam, intent: intentParam } = useLocalSearchParams<{
+    inviteCode?: string
+    intent?: string
+  }>()
+  const intent =
+    (Array.isArray(intentParam) ? intentParam[0] : intentParam) === 'login'
+      ? 'login'
+      : 'signup'
   const storedInvite = usePendingInvite()
   const inviteCode =
     (Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam) ??
@@ -301,16 +312,24 @@ export default function SignIn() {
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>
           {stage === 'phone'
-            ? t('auth.signin.title', { defaultValue: 'Welcome' })
+            ? intent === 'login'
+              ? t('auth.signin.titleLogin', { defaultValue: 'Welcome back' })
+              : t('auth.signin.titleSignup', { defaultValue: 'Create your account' })
             : stage === 'otp'
               ? t('auth.signin.titleOtp', { defaultValue: 'Enter the code' })
               : t('auth.signin.titleName', { defaultValue: 'What’s your name?' })}
         </Text>
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {stage === 'phone'
-            ? t('auth.signin.hintIdentifier', {
-                defaultValue: 'Enter your email. We’ll send a 6-digit code.',
-              })
+            ? intent === 'login'
+              ? t('auth.signin.hintLogin', {
+                  defaultValue:
+                    'Enter your email and we’ll send a 6-digit code. No password to remember.',
+                })
+              : t('auth.signin.hintSignup', {
+                  defaultValue:
+                    'Enter your email and we’ll send a 6-digit code. No password to create.',
+                })
             : stage === 'otp'
               ? t('auth.signin.hintOtp', {
                   defaultValue: 'Sent to {{identifier}}. Tap to edit.',
@@ -453,74 +472,90 @@ export default function SignIn() {
 
         {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
-        {/* Primary CTA stays in the scroll flow so the keyboard can't overdraw
-            the OTP cells on short phones. */}
-        <View style={styles.ctaWrap}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={
-              stage === 'phone'
-                ? handleSendCode
-                : stage === 'otp'
-                  ? () => handleVerify()
-                  : handleSubmitName
-            }
-            disabled={
-              submitting ||
-              (stage === 'phone'
-                ? !identifierValid
-                : stage === 'otp'
-                  ? code.length < 6
-                  : firstName.trim().length < 2)
-            }
-            style={({ pressed }) => [
-              styles.cta,
-              { backgroundColor: colors.primary },
-              (submitting ||
-                (stage === 'phone'
-                  ? !identifierValid
-                  : stage === 'otp'
-                    ? code.length < 6
-                    : firstName.trim().length < 2)) && {
-                opacity: 0.5,
-              },
-              pressed && !submitting && styles.ctaPressed,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.textInverse} />
-            ) : (
-              <Text style={[styles.ctaLabel, { color: colors.textInverse }]}>
-                {stage === 'phone'
-                  ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
-                  : t('auth.signin.continue', { defaultValue: 'Continue' })}
-              </Text>
-            )}
-          </Pressable>
+        {/* Warmth in the dead space between the field and the pinned action.
+            Hidden past the email step, where the OTP cells and the name field
+            need the room. */}
+        {stage === 'phone' ? (
+          <View style={styles.heroWrap} pointerEvents="none">
+            <Image
+              source={illustrations.onboardingHero}
+              style={styles.hero}
+              resizeMode="contain"
+              accessible={false}
+            />
+          </View>
+        ) : null}
 
-          {stage === 'phone' ? (
-            <Text style={[styles.consent, { color: colors.textTertiary }]}>
-              {t('auth.signin.consentPrefix', {
-                defaultValue: 'By continuing you agree to our ',
-              })}
-              <Text
-                onPress={() => setPolicyKind('terms')}
-                style={[styles.consentLink, { color: colors.textSecondary }]}
-              >
-                {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
-              </Text>
-              {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
-              <Text
-                onPress={() => setPolicyKind('privacy')}
-                style={[styles.consentLink, { color: colors.textSecondary }]}
-              >
-                {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
-              </Text>
-              .
-            </Text>
-          ) : null}
-        </View>
       </ScrollView>
+
+      {/* The action lives in a footer pinned above the keyboard, not in the
+          scroll flow. In the flow it floated in the middle of the screen with
+          a dead gap beneath it, and on a short phone it sat under the
+          keyboard entirely — the two things that made this screen feel
+          unfinished. KeyboardAvoidingView pushes this block, so it never
+          overdraws the OTP cells. */}
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.borderSubtle,
+            paddingBottom: insets.bottom + space.md,
+          },
+        ]}
+      >
+        <Button
+          label={
+            stage === 'phone'
+              ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
+              : t('auth.signin.continue', { defaultValue: 'Continue' })
+          }
+          onPress={
+            stage === 'phone'
+              ? handleSendCode
+              : stage === 'otp'
+                ? () => handleVerify()
+                : handleSubmitName
+          }
+          loading={submitting}
+          disabled={
+            stage === 'phone'
+              ? !identifierValid
+              : stage === 'otp'
+                ? code.length < 6
+                : firstName.trim().length < 2
+          }
+          fullWidth
+          size="lg"
+        />
+
+        {stage === 'phone' ? (
+          <Text variant="caption1" color="tertiary" style={styles.consent}>
+            {t('auth.signin.consentPrefix', {
+              defaultValue: 'By continuing you agree to our ',
+            })}
+            <Text
+              variant="caption1"
+              color="secondary"
+              onPress={() => setPolicyKind('terms')}
+              style={styles.consentLink}
+            >
+              {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
+            </Text>
+            {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
+            <Text
+              variant="caption1"
+              color="secondary"
+              onPress={() => setPolicyKind('privacy')}
+              style={styles.consentLink}
+            >
+              {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
+            </Text>
+            .
+          </Text>
+        ) : null}
+      </View>
+
 
       <PolicyOverlay
         visible={policyKind !== null}
@@ -536,10 +571,25 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: space.lg,
+    paddingBottom: space.xl,
     gap: space.xs + 2,
   },
-  ctaWrap: {
-    marginTop: space.xl,
+  heroWrap: {
+    flex: 1,
+    minHeight: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.lg,
+  },
+  hero: {
+    width: '82%',
+    height: 200,
+    opacity: 0.9,
+  },
+  footer: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    borderTopWidth: hairline,
     gap: space.md,
   },
   identifierWrap: {
@@ -618,22 +668,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSize.sm,
     textAlign: 'center',
-  },
-  cta: {
-    height: 54,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaLabel: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0,
-  },
-  ctaPressed: {
-    transform: [{ scale: 0.98 }],
   },
   consent: {
     marginTop: space.md,

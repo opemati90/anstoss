@@ -17,6 +17,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
+import { hexToRgba } from '../../../src/theme/club-theme'
 import { api, API_URL } from '../../../src/api/client'
 import {
   useEventsSocket,
@@ -36,6 +37,10 @@ import {
 } from '../../../src/components/ui'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { LiveStatusPill } from '../../../src/components/match'
+import {
+  RsvpControl,
+  type RsvpStatus,
+} from '../../../src/components/home/RsvpControl'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
@@ -53,12 +58,19 @@ type FilterType = 'ALL' | 'TRAINING' | 'MATCH' | 'OTHER'
 type EventSection = {
   title: string
   data: EventFeedItem[]
+  /** `reply` is the pinned outstanding-answers group; `day` is the schedule. */
+  kind: 'reply' | 'day'
+  /** Count badge for the reply section header. */
+  count?: number
 }
 
 type ParentEventSection = {
   title: string
   data: CrossTeamEventItem[]
 }
+
+/** Below this many events, filtering costs more screen than it saves. */
+const FILTER_VISIBILITY_THRESHOLD = 6
 
 const TYPE_CHIPS: FilterChip<FilterType>[] = [
   { key: 'TRAINING', label: 'eventFilter.training' },
@@ -354,8 +366,8 @@ export default function EventsScreen() {
   const listEvents =
     scope === 'upcoming' ? visibleEvents.slice(1) : visibleEvents
   const sections = useMemo(
-    () => buildSections(listEvents, locale, t),
-    [listEvents, locale, t],
+    () => buildSections(listEvents, locale, t, scope),
+    [listEvents, locale, scope, t],
   )
 
   const hasListContent = sections.some((section) => section.data.length > 0)
@@ -380,6 +392,9 @@ export default function EventsScreen() {
   }
 
   const selectedFilterKey = filterType === 'ALL' ? null : filterType
+  // Keep the filters visible whenever one is active, so the user can always
+  // clear a filter that is currently hiding rows.
+  const showTypeFilters = filterType !== 'ALL' || events.length > FILTER_VISIBILITY_THRESHOLD
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
@@ -410,14 +425,33 @@ export default function EventsScreen() {
                 item={item}
                 locale={locale}
                 scope={scope}
+                pending={Boolean(pendingEventIds[item.id])}
+                onRsvp={(status) => handleRsvp(item.id, status)}
                 onOpen={() => navigateToEvent(item)}
               />
             )}
             renderSectionHeader={({ section }) => (
               <View style={styles.sectionHeader}>
-                <Text variant="caption1" color="tertiary" weight="semibold" style={styles.sectionHeaderText}>
+                <Text
+                  variant="caption1"
+                  color={section.kind === 'reply' ? 'primary' : 'tertiary'}
+                  weight="semibold"
+                  style={styles.sectionHeaderText}
+                >
                   {section.title}
                 </Text>
+                {section.kind === 'reply' && section.count ? (
+                  <View
+                    style={[
+                      styles.sectionCount,
+                      { backgroundColor: hexToRgba(c.primary, 0.12) },
+                    ]}
+                  >
+                    <Text variant="caption2" weight="bold" tabular style={{ color: c.primary }}>
+                      {section.count}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
             contentContainerStyle={styles.list}
@@ -451,7 +485,10 @@ export default function EventsScreen() {
                       if (next === 'past') setFilterType('ALL')
                     }}
                   />
-                  {scope === 'upcoming' ? (
+                  {/* Type filters earn their row only once the list is long
+                      enough to need them. Below that they were a second bar of
+                      chrome pushing the first real event under the fold. */}
+                  {scope === 'upcoming' && showTypeFilters ? (
                     <View style={styles.chipRow}>
                       <FilterChipRow<FilterType>
                         chips={typeChipOptions}
@@ -511,6 +548,7 @@ export default function EventsScreen() {
                 <View style={styles.empty}>
                   <EmptyState
                     icon="calendar.fill"
+                    illustration="emptyEvents"
                     title={t('states.events.empty.title')}
                     description={t('states.events.empty.body')}
                     actionLabel={
@@ -807,16 +845,6 @@ function NextFixtureCard({
   const c = useClubColors()
   const date = new Date(item.date)
 
-  const rsvpOptions: Array<{
-    status: 'YES' | 'MAYBE' | 'NO'
-    label: string
-    color: string
-  }> = [
-    { status: 'YES', label: t('event.rsvpYes'), color: c.success },
-    { status: 'MAYBE', label: t('event.rsvpMaybe'), color: c.warning },
-    { status: 'NO', label: t('event.rsvpNo'), color: c.error },
-  ]
-
   const responded = item.yesCount + item.maybeCount + item.noCount
 
   return (
@@ -858,15 +886,24 @@ function NextFixtureCard({
       {/* RSVP distribution bar + neutral counts — single status color band */}
       {responded > 0 ? (
         <View style={styles.rsvpBlock}>
-          <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
+          {/* One accent at three densities: this is a proportion of the same
+              squad, not three unrelated alert states. */}
+          <View style={[styles.rsvpBar, { backgroundColor: c.surfaceSunken }]}>
             {item.yesCount > 0 ? (
-              <View style={[styles.rsvpSegment, { flex: item.yesCount, backgroundColor: c.success }]} />
+              <View style={[styles.rsvpSegment, { flex: item.yesCount, backgroundColor: c.primary }]} />
             ) : null}
             {item.maybeCount > 0 ? (
-              <View style={[styles.rsvpSegment, { flex: item.maybeCount, backgroundColor: c.warning }]} />
+              <View
+                style={[
+                  styles.rsvpSegment,
+                  { flex: item.maybeCount, backgroundColor: hexToRgba(c.primary, 0.4) },
+                ]}
+              />
             ) : null}
             {item.noCount > 0 ? (
-              <View style={[styles.rsvpSegment, { flex: item.noCount, backgroundColor: c.error }]} />
+              <View
+                style={[styles.rsvpSegment, { flex: item.noCount, backgroundColor: c.borderStrong }]}
+              />
             ) : null}
           </View>
           <View style={styles.rsvpCounts}>
@@ -879,42 +916,12 @@ function NextFixtureCard({
 
       <View style={[styles.heroDivider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
 
-      {/* RSVP action row — neutral pills with club-primary active state */}
-      <View style={styles.rsvpActionRow}>
-        {rsvpOptions.map((option) => {
-          const isActive = item.myRsvp === option.status
-          return (
-            <Pressable
-              key={option.status}
-              onPress={(e) => {
-                ;(e as unknown as { stopPropagation?: () => void }).stopPropagation?.()
-                onRsvp(item.id, option.status)
-              }}
-              disabled={pending}
-              accessibilityRole="button"
-              accessibilityLabel={option.label}
-              accessibilityHint={t('event.rsvpHint')}
-              accessibilityState={{ selected: isActive, disabled: pending }}
-              style={({ pressed }) => [
-                styles.rsvpPill,
-                isActive
-                  ? { borderColor: option.color, backgroundColor: option.color, ...elevation.card }
-                  : { borderColor: c.borderDefault, backgroundColor: c.surface },
-                pressed && { opacity: 0.9 },
-                pending && { opacity: 0.45 },
-              ]}
-            >
-              <Text
-                variant="footnote"
-                weight={isActive ? 'bold' : 'semibold'}
-                color={isActive ? c.textInverse : option.color}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
+      {/* Availability, answered in place — same control as every event row. */}
+      <RsvpControl
+        value={item.myRsvp as RsvpStatus | null}
+        onChange={(status) => onRsvp(item.id, status)}
+        disabled={pending}
+      />
     </Pressable>
   )
 }
@@ -938,11 +945,15 @@ function EventListItem({
   item,
   locale,
   scope,
+  pending,
+  onRsvp,
   onOpen,
 }: {
   item: EventFeedItem
   locale: string
   scope: EventScope
+  pending: boolean
+  onRsvp: (status: RsvpStatus) => void
   onOpen: () => void
 }) {
   const { t } = useTranslation()
@@ -955,73 +966,89 @@ function EventListItem({
   }).format(date)
   const dayNumber = String(date.getDate()).padStart(2, '0')
 
-  const rsvpColor =
-    item.myRsvp === 'YES'
-      ? c.success
-      : item.myRsvp === 'MAYBE'
-        ? c.warning
-        : item.myRsvp === 'NO'
-          ? c.error
-          : c.borderDefault
+  // Upcoming events are answerable where they are listed. Sending the player
+  // into a detail screen and back for a one-word answer was the single
+  // heaviest interaction in the app; past events have nothing left to decide.
+  const answerable = scope === 'upcoming'
 
   return (
-    <Pressable
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.compactRow,
-        elevation.card,
+        answerable && styles.compactRowAnswerable,
         { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.96 },
       ]}
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel={item.title}
     >
-      <View
-        style={[
-          styles.dayChip,
-          {
-            backgroundColor: c.surfaceSunken ?? c.background,
-            borderColor: c.borderDefault,
-          },
-        ]}
+      <Pressable
+        style={({ pressed }) => [styles.compactRowHead, pressed && { opacity: 0.96 }]}
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${dayName} ${dayNumber} ${time}`}
       >
-        <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
-          {dayName.toUpperCase()}
-        </Text>
-        <Text variant="callout" color="primary" weight="semibold" tabular style={styles.dayChipNum}>
-          {dayNumber}
-        </Text>
-      </View>
+        <View
+          style={[
+            styles.dayChip,
+            {
+              backgroundColor: c.surfaceSunken ?? c.background,
+              borderColor: c.borderDefault,
+            },
+          ]}
+        >
+          <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
+            {dayName.toUpperCase()}
+          </Text>
+          <Text variant="callout" color="primary" weight="semibold" tabular style={styles.dayChipNum}>
+            {dayNumber}
+          </Text>
+        </View>
 
-      <View style={styles.rowBody}>
-        <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text variant="caption2" color="secondary" numberOfLines={1}>
-          {time}
-          {item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}
-        </Text>
-      </View>
+        <View style={styles.rowBody}>
+          <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text variant="caption2" color="secondary" numberOfLines={1}>
+            {time}
+            {item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}
+          </Text>
+        </View>
 
-      {scope === 'upcoming' && item.myRsvp ? (
-        <View style={[styles.rsvpStatusDot, { backgroundColor: rsvpColor }]} />
-      ) : (
         <Icon name="chevron.right" size={14} color="tertiary" />
-      )}
-    </Pressable>
+      </Pressable>
+
+      {answerable ? (
+        <RsvpControl
+          value={item.myRsvp as RsvpStatus | null}
+          onChange={onRsvp}
+          disabled={pending}
+          size="compact"
+        />
+      ) : null}
+    </View>
   )
 }
 
 // --- Utility functions ---
 
+/**
+ * Upcoming events, with everything still awaiting an answer pinned to the top.
+ *
+ * The list used to be pure chronology, which buried the only rows that needed
+ * the player to do something — and marked *answered* rows with a coloured dot
+ * while unanswered ones got a plain chevron, exactly backwards. Outstanding
+ * replies now lead, with a count, and the schedule follows by day.
+ */
 function buildSections(
   events: EventFeedItem[],
   locale: string,
   t: (key: string) => string,
+  scope: EventScope,
 ): EventSection[] {
-  const groups = new Map<string, EventFeedItem[]>()
+  const needsReply = scope === 'upcoming' ? events.filter((event) => !event.myRsvp) : []
+  const needsReplyIds = new Set(needsReply.map((event) => event.id))
+  const scheduled = events.filter((event) => !needsReplyIds.has(event.id))
 
-  events.forEach((event) => {
+  const groups = new Map<string, EventFeedItem[]>()
+  scheduled.forEach((event) => {
     // Guard against a malformed/missing date — new Date(bad).toISOString()
     // throws RangeError, which would crash the whole events tab on render.
     const key = toDateKey(event.date)
@@ -1031,10 +1058,25 @@ function buildSections(
     groups.set(key, current)
   })
 
-  return Array.from(groups.entries()).map(([dateKey, group]) => ({
-    title: formatSectionDate(dateKey, locale, t),
-    data: group,
-  }))
+  const daySections: EventSection[] = Array.from(groups.entries()).map(
+    ([dateKey, group]) => ({
+      title: formatSectionDate(dateKey, locale, t),
+      data: group,
+      kind: 'day' as const,
+    }),
+  )
+
+  if (needsReply.length === 0) return daySections
+
+  return [
+    {
+      title: t('home.player.replyQueueTitle'),
+      data: needsReply,
+      kind: 'reply' as const,
+      count: needsReply.length,
+    },
+    ...daySections,
+  ]
 }
 
 function toDateKey(value: string | null | undefined): string | null {
@@ -1269,9 +1311,20 @@ const styles = StyleSheet.create({
 
   // Section / day eyebrows — quiet uppercase label, generous top space
   sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
     paddingHorizontal: space.md,
     paddingTop: space.lg,
     paddingBottom: space.xs,
+  },
+  sectionCount: {
+    minWidth: 22,
+    height: 20,
+    paddingHorizontal: space.xs + 1,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionHeaderText: {
     fontFamily: fonts.label,
@@ -1282,14 +1335,18 @@ const styles = StyleSheet.create({
 
   // Compact row — replaces wide-time-column row with day-chip pattern
   compactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
     marginHorizontal: space.lg,
     marginBottom: space.xs,
     padding: space.sm + 2,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: hairline,
+  },
+  compactRowAnswerable: { gap: space.sm },
+  compactRowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
   },
   dayChip: {
     width: 44,

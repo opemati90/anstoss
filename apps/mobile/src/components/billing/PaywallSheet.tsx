@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: fontSize['3xl'],
     lineHeight: fontSize['3xl'] * 1.1,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.6,
   },
   heroSubtitle: {

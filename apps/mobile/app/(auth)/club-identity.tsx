@@ -149,13 +149,15 @@ export default function ClubIdentity() {
               <ActivityIndicator color={colors.surface} />
             ) : logoUri ? (
               <Image source={{ uri: logoUri }} style={styles.previewImg} />
-            ) : (
+            ) : initials ? (
               <Text
                 allowFontScaling={false}
                 style={[styles.previewInitials, { color: colors.surface }]}
               >
-                {initials || '⚽'}
+                {initials}
               </Text>
+            ) : (
+              <Icon name="figure.soccer" size={40} color={colors.surface} />
             )}
             <View style={[styles.editBadge, { backgroundColor: colors.textPrimary }]}>
               <Icon name="pencil" size="sm" color={colors.surface} />
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 44,
     lineHeight: 54,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -1,
   },
   editBadge: {

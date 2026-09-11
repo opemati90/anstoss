@@ -351,7 +351,7 @@ export function LegacyHomeScreen() {
           ]
         : []
 
-  const contextTitle = activeTeamAccess?.team.displayName || activeClub?.club.name
+  const contextTitle = activeTeamAccess?.team?.displayName || activeClub?.club.name
 
   return (
     <ScrollView

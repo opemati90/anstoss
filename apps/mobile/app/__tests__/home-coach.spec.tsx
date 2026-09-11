@@ -409,6 +409,9 @@ describe('CoachHome', () => {
     expect(router.push).toHaveBeenCalledWith('/(tabs)/roster')
   })
 
+  // The roster-gap pill no longer renders when the next-action card is
+  // already about the roster (it restated the card verbatim), so the singular
+  // copy is asserted on the card that actually carries it.
   it('uses singular copy for one open roster spot', async () => {
     mockRosterOps = {
       team: { id: 't1', displayName: 'U19', squadTarget: 18 },
@@ -449,7 +452,7 @@ describe('CoachHome', () => {
     const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
 
     expect(await findByText('Fill 1 squad spot')).toBeTruthy()
-    expect(await findByText('1 spot open')).toBeTruthy()
+    expect(await findByText('Fill 1 squad spot')).toBeTruthy()
   })
 
   it('routes no-squad readiness to roster setup instead of lineup', async () => {

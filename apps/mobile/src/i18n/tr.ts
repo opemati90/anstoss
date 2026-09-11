@@ -5,6 +5,13 @@ export default {
       unknownError: 'Bir şeyler ters gitti.',
       retry: 'Tekrar dene',
     },
+    home: {
+      error: {
+        title: 'Haftan yüklenemedi',
+        body: 'Bağlantını kontrol et ve yenilemek için aşağı çek.',
+      },
+      stale: 'Son güncelleme gösteriliyor — yenilemek için aşağı çek.',
+    },
     events: {
       empty: {
         title: 'Henüz etkinlik yok',
@@ -239,6 +246,10 @@ export default {
   },
   auth: {
     signin: {
+      titleLogin: 'Tekrar hoş geldin',
+      titleSignup: 'Hesabını oluştur',
+      hintLogin: 'E-postanı gir, sana 6 haneli bir kod gönderelim. Hatırlanacak şifre yok.',
+      hintSignup: 'E-postanı gir, sana 6 haneli bir kod gönderelim. Oluşturulacak şifre yok.',
       title: 'Hoş geldiniz',
       titleOtp: 'Kodu girin',
       titleName: 'Adınız nedir?',
@@ -444,6 +455,11 @@ export default {
     title: 'Sonraki adım',
   },
   home: {
+    greeting: {
+      morning: 'Günaydın {{name}}',
+      afternoon: 'Merhaba {{name}}',
+      evening: 'İyi akşamlar {{name}}',
+    },
     pulse: {
       streakWeeks: '{{count}} haftalık seri',
       inForm: '{{name}} formda',
@@ -504,7 +520,26 @@ export default {
     teamChatEmpty: 'Takım arkadaşlarınıza mesaj atın',
     yourWeek: 'Haftanız',
     player: {
-      nextActionEyebrow: 'SONRAKİ İŞLEM',
+      areYouIn: 'Geliyor musun?',
+      now: 'Şimdi',
+      inMinutes: '{{n}} dk içinde',
+      inHours: '{{n}} sa içinde',
+      yesCount: '{{yes}} katılıyor',
+      replyQueueTitle: 'Yanıtın bekleniyor',
+      replyQueueMore: 'Etkinlikler’de +{{n}} tane daha',
+      seasonTitle: 'Sezonun',
+      streakWeeks: 'hafta üst üste',
+      streakBest: 'en iyi {{n}}',
+      clubRank: 'kulüpte {{n}}.',
+      motmWins: 'MOTM',
+      teamForm: 'Son form',
+      pulseTitle: 'Takımından',
+      form: {
+        W: 'G',
+        D: 'B',
+        L: 'M',
+      },
+      nextActionEyebrow: 'SIRADAKİ ADIM',
       liveTitle: 'Maç canlı',
       liveBody: 'Skoru, ilk 11’i ve maç güncellemelerini takip edin.',
       openLive: 'Canlı maçı aç',
@@ -525,7 +560,7 @@ export default {
       rsvpSummary: '{{yes}} katılıyor · {{maybe}} belki · {{no}} katılmıyor',
     },
     freeAgent: {
-      nextActionEyebrow: 'SERBEST OYUNCU SONRAKİ İŞLEM',
+      nextActionEyebrow: 'SIRADAKİ ADIM',
       loadingTitle: 'Oyuncu profiliniz kontrol ediliyor',
       loadingBody: 'Sonraki adımı göstermeden önce serbest oyuncu durumunuzu buluyoruz.',
       loadingA11y: 'Serbest oyuncu profiliniz kontrol ediliyor',
@@ -568,7 +603,7 @@ export default {
       shareTitle: 'Oyuncu kartınızı paylaşın',
     },
     parent: {
-      nextActionEyebrow: 'AİLE SONRAKİ İŞLEM',
+      nextActionEyebrow: 'SIRADAKİ ADIM',
       actionConflictTitle: '{{count}} program çakışmasını çözün',
       actionConflictTitle_one: '{{count}} program çakışmasını çözün',
       actionConflictTitle_other: '{{count}} program çakışmasını çözün',
@@ -701,7 +736,7 @@ export default {
       createEvent: 'Etkinlik oluştur',
       invite: 'Davet et',
       scouting: 'Gözlemcilik',
-      nextActionEyebrow: 'ANTRENÖR SONRAKİ İŞLEM',
+      nextActionEyebrow: 'SIRADAKİ ADIM',
       rosterPill: '{{count}} boş kontenjan',
       rosterPill_one: '{{count}} boş kontenjan',
       rosterPill_other: '{{count}} boş kontenjan',
@@ -762,7 +797,7 @@ export default {
       nothingScheduled: 'Henüz bir şey planlanmadı.',
       rosterActive: 'Aktif',
       rosterTrial: 'Deneme',
-      viewMotmArchive: 'MOTM arşivi →',
+      viewMotmArchive: 'MOTM arşivi',
       noEvents:
         "Henüz yaklaşan etkinlik yok. İlk antrenmanınızı veya maçınızı planlamak için 'Etkinlik oluştur'a dokunun.",
     },
@@ -2899,6 +2934,8 @@ export default {
     title: 'Kulübünüzü bulun',
   },
   findClub: {
+    startTypingTitle: 'Kulübünü bul',
+    haveCode: 'Davet kodum var',
     directoryRecord: 'Henüz Anstoss’ta değil',
     setupMissingClub: 'Bu kulübü kur',
     title: 'Kulübünüzü bulun',

@@ -1,6 +1,6 @@
 import { SPACING_XXS } from '../theme/spacing';
 import React from 'react'
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import {
   RADIUS_LG,
@@ -13,9 +13,18 @@ import {
 import { Button } from './ui/Button'
 import { Icon, type IconName } from './ui/Icon'
 import { Text } from './ui/Text'
+import { illustrations, type IllustrationName } from '../illustrations'
 
 export interface EmptyStateProps {
   icon: IconName
+  /**
+   * Optional illustration shown in place of the icon tile. An empty screen is
+   * where a product most needs a bit of warmth — a tinted glyph in a rounded
+   * square says "nothing here", a drawing says "here is what goes here".
+   * Falls back to the icon when omitted, so every existing call site is
+   * unchanged.
+   */
+  illustration?: IllustrationName
   title: string
   description: string
   actionLabel?: string
@@ -28,6 +37,7 @@ export interface EmptyStateProps {
 
 export function EmptyState({
   icon,
+  illustration,
   title,
   description,
   actionLabel,
@@ -46,18 +56,28 @@ export function EmptyState({
       style={[styles.container, compact && styles.containerCompact, style]}
       testID={testID}
     >
-      <View
-        style={[
-          styles.iconTile,
-          {
-            width: iconSize + 16,
-            height: iconSize + 16,
-            backgroundColor: hexWithAlpha(iconColor, 0.1),
-          },
-        ]}
-      >
-        <Icon name={icon} size={iconSize} color={iconColor} />
-      </View>
+      {illustration ? (
+        <Image
+          source={illustrations[illustration]}
+          style={[styles.illustration, compact && styles.illustrationCompact]}
+          resizeMode="contain"
+          accessibilityRole="image"
+          accessibilityLabel={title}
+        />
+      ) : (
+        <View
+          style={[
+            styles.iconTile,
+            {
+              width: iconSize + 16,
+              height: iconSize + 16,
+              backgroundColor: hexWithAlpha(iconColor, 0.1),
+            },
+          ]}
+        >
+          <Icon name={icon} size={iconSize} color={iconColor} />
+        </View>
+      )}
       <Text
         variant={compact ? 'title3' : 'title2'}
         color="primary"
@@ -108,6 +128,15 @@ const styles = StyleSheet.create({
   containerCompact: {
     paddingVertical: SPACING_LG,
     gap: SPACING_XS,
+  },
+  illustration: {
+    width: 200,
+    height: 140,
+    marginBottom: SPACING_SM,
+  },
+  illustrationCompact: {
+    width: 140,
+    height: 98,
   },
   iconTile: {
     borderRadius: RADIUS_LG,

@@ -111,10 +111,21 @@ export default function AccountNextStepScreen() {
             {t('accountNextStep.nextUp').toUpperCase()}
           </Text>
           <View style={styles.stepList}>
+            {/* Numbered, not ticked. These are the steps still ahead of the
+                user; a filled green checkmark says "done" and made the screen
+                claim three things had already happened. Numbers also carry
+                the order, which is the actual information here. */}
             {steps.map((stepKey, index) => (
               <View key={stepKey} style={styles.stepRow}>
-                <View style={[styles.stepIcon, { backgroundColor: c.successBg }]}>
-                  <Icon name="checkmark.circle.fill" size={18} color="success" />
+                <View
+                  style={[
+                    styles.stepIcon,
+                    { backgroundColor: c.primary50, borderColor: c.borderDefault },
+                  ]}
+                >
+                  <Text variant="caption1" weight="bold" tabular style={{ color: c.primary }}>
+                    {index + 1}
+                  </Text>
                 </View>
                 <Text style={[styles.stepText, { color: c.textPrimary }]}>
                   {t(stepKey, { count: index + 1 })}
@@ -154,9 +165,12 @@ export default function AccountNextStepScreen() {
               onPress={() => router.push('/(auth)/parent-handoff')}
             />
           ) : null}
+          {/* Signing out is rare and undoes the account you just made. It
+              had the same width and weight as the action we want people to
+              take; a quiet text link keeps it reachable without competing. */}
           <Button
             label={t('more.signOut')}
-            variant="bordered"
+            variant="plain"
             size="md"
             fullWidth
             onPress={handleSignOut}
@@ -187,7 +201,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize['3xl'],
     fontFamily: fonts.heading,
-    fontWeight: '800',
+    fontWeight: '700',
     lineHeight: fontSize['3xl'] * 1.12,
   },
   body: {
@@ -216,6 +230,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: radius.full,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },

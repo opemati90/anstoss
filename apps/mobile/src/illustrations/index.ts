@@ -5,3 +5,5 @@ export const illustrations = {
   emptyRoster: require('../../assets/illustrations/empty-roster.png'),
   emptyChat: require('../../assets/illustrations/empty-chat.png'),
 } as const
+
+export type IllustrationName = keyof typeof illustrations

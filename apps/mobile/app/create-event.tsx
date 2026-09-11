@@ -186,8 +186,8 @@ export default function CreateEventScreen() {
                 {
                   id: activeTeamId,
                   displayName:
-                    activeTeamAccess?.team.displayName ||
-                    activeTeamAccess?.team.name ||
+                    activeTeamAccess?.team?.displayName ||
+                    activeTeamAccess?.team?.name ||
                     t('event.currentTeam'),
                   groupName: t('event.currentTeam'),
                 },
@@ -209,7 +209,7 @@ export default function CreateEventScreen() {
     return () => {
       cancelled = true
     }
-  }, [activeClub, activeTeamAccess?.team.displayName, activeTeamAccess?.team.name, activeTeamId, t])
+  }, [activeClub, activeTeamAccess?.team?.displayName, activeTeamAccess?.team?.name, activeTeamId, t])
 
   const handleCreate = async () => {
     if (!activeClub || !selectedTeamId) {
@@ -296,7 +296,7 @@ export default function CreateEventScreen() {
 
   const selectedTeamLabel =
     teamOptions.find((team) => team.id === selectedTeamId)?.displayName ??
-    activeTeamAccess?.team.displayName ??
+    activeTeamAccess?.team?.displayName ??
     null
 
   if (!teamsLoading && teamOptions.length === 0) {

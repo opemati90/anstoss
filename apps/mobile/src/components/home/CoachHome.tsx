@@ -292,7 +292,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
               <Icon name={coachAction.icon} size={16} color="tint" />
             </View>
             <Text style={[styles.commandEyebrow, { color: c.textTertiary }]}>
-              {t('home.coach.nextActionEyebrow', { defaultValue: 'COACH NEXT ACTION' })}
+              {t('home.coach.nextActionEyebrow', { defaultValue: 'DO THIS NEXT' })}
             </Text>
           </View>
           <Text
@@ -334,12 +334,19 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         </View>
       ) : null}
 
-      {/* Status pills — collapse to nothing when there's nothing to flag */}
-      {(rosterGap > 0 || (nextMatch && eventPending > 0)) && teamId ? (
+      {/* Status pills — collapse to nothing when there's nothing to flag.
+          The roster condition must match the pill's own condition below, or
+          the row renders empty and leaves its gap behind as dead space. */}
+      {((rosterGap > 0 && coachAction?.target !== 'roster') ||
+        (nextMatch && eventPending > 0)) &&
+      teamId ? (
         <View style={styles.pillRow}>
-          {rosterGap > 0 ? (
+          {/* The roster-gap pill duplicated the next-action card immediately
+              above it ("Fill 10 squad spots") and introduced a warning-orange
+              that exists nowhere else on the screen. Shown only when the card
+              is about something else. */}
+          {rosterGap > 0 && coachAction?.target !== 'roster' ? (
             <StatusPill
-              tone="warning"
               icon="person.2.fill"
               label={t('home.coach.rosterPill', {
                 defaultValue:
@@ -408,19 +415,23 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             <View style={styles.rsvpBlock}>
               <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
                 <View
-                  style={[styles.rsvpSegment, { flex: yesPct, backgroundColor: c.success }]}
+                  style={[styles.rsvpSegment, { flex: yesPct, backgroundColor: c.primary }]}
                 />
                 <View
-                  style={[styles.rsvpSegment, { flex: maybePct, backgroundColor: c.warning }]}
+                  style={[
+                    styles.rsvpSegment,
+                    { flex: maybePct, backgroundColor: withAlpha(c.primary, 0.4) },
+                  ]}
                 />
                 <View
-                  style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.error }]}
+                  style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.borderStrong }]}
                 />
               </View>
               <View style={styles.rsvpCounts}>
-                <RsvpCount color={c.success} count={yes} />
-                <RsvpCount color={c.warning} count={maybe} />
-                <RsvpCount color={c.error} count={no} />
+                {/* The squad split is one proportion, not three alerts. */}
+                <RsvpCount color={c.primary} count={yes} />
+                <RsvpCount color={c.textSecondary} count={maybe} />
+                <RsvpCount color={c.textTertiary} count={no} />
                 {eventPending > 0 ? (
                   <Text variant="caption2" color="tertiary" style={styles.pendingLabel} tabular>
                     {t('home.coach.pendingShort', {
@@ -470,7 +481,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
             <Icon name="star.fill" size={15} color="tint" />
             <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
               {t('home.coach.viewMotmArchive', {
-                defaultValue: 'MOTM archive →',
+                defaultValue: 'MOTM archive',
               })}
             </Text>
             <Icon name="chevron.right" size={13} color="tertiary" />
@@ -700,12 +711,13 @@ function ActionTile({
 }
 
 function StatusPill({
-  tone,
+  tone = 'info',
   icon,
   label,
   onPress,
 }: {
-  tone: 'warning' | 'info'
+  /** `warning` is reserved for states that need attention now. */
+  tone?: 'warning' | 'info'
   icon: string
   label: string
   onPress: () => void

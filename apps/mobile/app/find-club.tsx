@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult } from '@anstoss/shared'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
+import { EmptyState } from '../src/components/EmptyState'
 import { Screen, SearchBar, ListRow, Text, Button } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { hairline, radius, space } from '../src/theme/tokens'
@@ -72,7 +73,24 @@ export default function FindClubScreen() {
 
   const renderEmpty = () => {
     if (isLoading) return null
-    if (!hasSearched) return <EmptyHint text={t('findClub.startTyping')} />
+    if (!hasSearched) {
+      // Plenty of Kreisliga clubs are not in the directory yet. Offering the
+      // invite-code path here stops that from being a dead end.
+      return (
+        <EmptyState
+          icon="search"
+          illustration="emptyRoster"
+          title={t('findClub.startTypingTitle', {
+            defaultValue: 'Find your club',
+          })}
+          description={t('findClub.startTyping')}
+          actionLabel={t('findClub.haveCode', {
+            defaultValue: 'I have an invite code',
+          })}
+          onAction={() => router.push('/join-code')}
+        />
+      )
+    }
     if (error) return <EmptyHint text={error} />
     return (
       <EmptyHint
@@ -101,6 +119,9 @@ export default function FindClubScreen() {
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="search"
+            // The only thing to do on this screen is type. Landing here with
+            // the keyboard down cost a tap and left the screen looking empty.
+            autoFocus
             testID="find-club-search"
           />
         </View>

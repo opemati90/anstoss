@@ -23,7 +23,7 @@ export type IconWeight = 'regular' | 'medium' | 'semibold' | 'bold'
  * SF-Symbol-style name → Ionicons name map. Keep additions here, not at
  * call sites. Suffix a name with ".fill" for the filled variant.
  */
-const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+export const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   // Navigation / structure
   home: 'home-outline',
   'home.fill': 'home',
@@ -146,12 +146,28 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   // Sport / domain
   trophy: 'trophy-outline',
   'trophy.fill': 'trophy',
+  flame: 'flame-outline',
+  'flame.fill': 'flame',
   'figure.soccer': 'football-outline',
   'figure.soccer.fill': 'football',
   'figure.walk': 'walk-outline',
   football: 'football-outline',
   'football.fill': 'football',
   whistle: 'megaphone-outline',
+  // Kit exchange categories — Ionicons has no boot/glove glyph, so these map
+  // to the nearest neutral objects rather than reaching for emoji.
+  boots: 'footsteps-outline',
+  shirt: 'shirt-outline',
+  gloves: 'hand-left-outline',
+  bag: 'bag-handle-outline',
+  // Pitch status
+  'drop.fill': 'water',
+  snowflake: 'snow-outline',
+  'nosign': 'close-circle-outline',
+  // Duty roster
+  cake: 'gift-outline',
+  leaf: 'leaf-outline',
+  card: 'square-outline',
   megaphone: 'megaphone-outline',
   'megaphone.fill': 'megaphone',
 

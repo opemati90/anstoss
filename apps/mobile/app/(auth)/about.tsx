@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   handoffCode: {
     fontFamily: fonts.data,
     fontSize: fontSize['3xl'],
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 6,
   },
   handoffErrorText: {

@@ -131,7 +131,7 @@ export default function RosterScreen() {
         <ScrollView contentContainerStyle={styles.emptyStateContent}>
           <TabScreenHeader
             title={t('roster.screenTitle')}
-            subtitle={activeTeamAccess?.team.displayName || activeClub.club.name}
+            subtitle={activeTeamAccess?.team?.displayName || activeClub.club.name}
             eyebrow={t('roster.workspace.operations')}
             onBack={() =>
               router.canGoBack() ? router.back() : router.replace('/(tabs)/squad')
