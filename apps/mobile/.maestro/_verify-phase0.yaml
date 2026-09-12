@@ -7,7 +7,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=coach"
 - extendedWaitUntil:
-    visible: ".*(NEXT ACTION|Open squad|SQUAD).*"
+    visible: ".*(DO THIS NEXT|Open squad|SQUAD).*"
     timeout: 15000
 - takeScreenshot: "60-home-editorial"
 # Bottom sheet: open the Announce sheet from the home quick action

@@ -6,7 +6,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=player"
 - extendedWaitUntil:
-    visible: ".*(NEXT ACTION|Open live match|Today).*"
+    visible: ".*(DO THIS NEXT|.*vs.*live.*|Today).*"
     timeout: 15000
 - takeScreenshot: "10-player-home-polished"
 # Event detail attendees (coach) — open the match card

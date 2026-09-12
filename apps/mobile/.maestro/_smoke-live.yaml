@@ -16,7 +16,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=player"
 - extendedWaitUntil:
-    visible: ".*(NEXT ACTION|Match is live|Babelsberg|Today).*"
+    visible: ".*(DO THIS NEXT|Match is live|Babelsberg|Today).*"
     timeout: 20000
 - takeScreenshot: "S2-player"
 - runFlow:

@@ -7,7 +7,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=player"
 - extendedWaitUntil:
-    visible: ".*(Open live match|Team chat|Home|Today).*"
+    visible: ".*(.*vs.*live.*|Team chat|Home|Today).*"
     timeout: 15000
 - takeScreenshot: "01-player-home"
 - runFlow:

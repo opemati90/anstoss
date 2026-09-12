@@ -35,6 +35,6 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn: 'OK'
 - extendedWaitUntil:
-    visible: '.*(Open live match|Team chat).*'
+    visible: '.*(.*vs.*live.*|Team chat).*'
     timeout: 15000
 - assertVisible: 'Team chat'

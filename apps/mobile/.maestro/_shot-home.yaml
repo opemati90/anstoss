@@ -6,6 +6,6 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=coach"
 - extendedWaitUntil:
-    visible: ".*(NEXT ACTION|Open squad|SQUAD|Babelsberg).*"
+    visible: ".*(DO THIS NEXT|Open squad|SQUAD|Babelsberg).*"
     timeout: 45000
 - takeScreenshot: "60-home-editorial"

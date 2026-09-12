@@ -44,7 +44,7 @@ appId: com.renuirug.anstoss
 - tapOn: 'return'
 - tapOn: 'Create club'
 - extendedWaitUntil:
-    visible: '.*(Open live match|Manage teams|Administration).*'
+    visible: '.*(.*vs.*live.*|Manage teams|Administration).*'
     timeout: 15000
 - runFlow:
     file: subflows/deeplink.yaml

@@ -5,7 +5,10 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=player"
-- assertVisible: "Open live match"
+# The live card is one accessibility element with its own label, so its inner
+# "Open live match" text is (correctly) not individually queryable. Assert the
+# label a screen reader would actually read.
+- assertVisible: ".*vs.*live.*"
 - assertVisible: "Team chat"
 - runFlow:
     file: subflows/deeplink.yaml

@@ -15,7 +15,7 @@ appId: com.renuirug.anstoss
 - tapOn: "Get started"
 - assertVisible: "Send code"
 - tapOn:
-    text: "Phone number or email"
+    text: "Email address"
 - inputText: "+15555550142"
 - tapOn: "Send code"
 # OTP cells animate in; enter the magic test code.

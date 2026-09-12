@@ -1,7 +1,7 @@
 appId: com.renuirug.anstoss
 ---
 - runFlow: subflows/launch.yaml
-- tapOn: ".*Phone number or email.*"
+- tapOn: ".*Email address.*"
 - inputText: "qa-fa-audit+clerk_test@example.com"
 - tapOn: ".*Send code.*"
 - extendedWaitUntil:

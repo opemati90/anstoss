@@ -1,16 +1,14 @@
 # Cold-launch the dev client and load the JS bundle from Metro (port 8123).
 #
-# The path differs per platform:
-#   - iOS: the openLink loads the bundle directly, but pops a native
-#     "Open in Anstoss?" confirmation that must be tapped.
-#   - Android: after clearState the first openLink can initialise the dev client
-#     and land on an empty server list before discovery finishes. Re-sending the
-#     same explicit URL is deterministic and does not depend on mDNS discovery.
-#     Once loaded, Android auto-shows the dev-client menu sheet, dismissed via
-#     its "Continue" button.
+# iOS 26 does not reliably hand the `exp+anstoss://expo-development-client`
+# deep link straight to the bundle: the launcher opens and stops on its server
+# list. Re-sending the same URL does not shift it either — the list is already
+# showing, so the second link is a no-op. The fix is to do what a human does
+# and TAP the dev-server row, which is why this flow now has an explicit tap
+# branch keyed on the port.
 #
-# Maestro matches the FULL element text as a regex, so substrings are wrapped
-# in .* and every branch is conditional so it is a no-op on the other platform.
+# Every branch is conditional, so each is a no-op when it does not apply.
+# Maestro matches the FULL element text as a regex, hence the .* wrappers.
 appId: com.renuirug.anstoss
 ---
 - launchApp:
@@ -22,21 +20,28 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn: 'Open'
 - extendedWaitUntil:
-    visible: '.*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code).*'
+    visible: '.*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code|Get started).*'
     timeout: 180000
+
+# Stuck on the launcher: tap the running dev server instead of re-sending the
+# link. Both the "Development servers" and "Recently opened" rows carry the
+# URL, so the port match finds whichever is on screen.
 - runFlow:
     when:
       visible: '.*(DEVELOPMENT SERVERS|Development servers).*'
     commands:
-      - openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
+      - tapOn: '.*:8123.*'
       - extendedWaitUntil:
-          visible: '.*(developer menu|Send code).*'
+          visible: '.*(developer menu|Send code|Get started|Log in|Home|Welcome).*'
           timeout: 180000
+
+# First run after clearState shows the dev-client onboarding sheet.
 - runFlow:
     when:
       visible: '.*developer menu.*'
     commands:
       - tapOn: 'Continue'
+
 # Dismissing the onboarding leaves the main dev-menu sheet (Reload / Go home)
 # open over the app. Tap the dimmed scrim above the sheet to close it.
 - runFlow:
@@ -45,9 +50,10 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn:
           point: '50%,10%'
+
 # The bundle is now loaded. Do NOT assert a specific landing screen here — the
-# app may resume a persisted Clerk session (account-next-step / tabs) instead of
-# the signed-out sign-in screen. Each flow deeplinks its own scenario next; this
+# app may resume a persisted session (account-next-step / tabs) instead of the
+# signed-out sign-in screen. Each flow deeplinks its own scenario next; this
 # only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
     visible: '.*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Today|Welcome).*'

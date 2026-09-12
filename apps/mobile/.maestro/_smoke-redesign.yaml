@@ -13,7 +13,7 @@ appId: com.renuirug.anstoss
 # New account / login entry → sign-in (logo removed)
 - tapOn: "Get started"
 - extendedWaitUntil:
-    visible: ".*(Phone number or email|Send code|Welcome).*"
+    visible: ".*(Email address|Send code|Welcome).*"
     timeout: 15000
 - takeScreenshot: "91-signin"
 # Player journey
@@ -22,7 +22,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=player"
 - extendedWaitUntil:
-    visible: ".*(NEXT ACTION|Match is live|Babelsberg|Today).*"
+    visible: ".*(DO THIS NEXT|Match is live|Babelsberg|Today).*"
     timeout: 15000
 - takeScreenshot: "92-player-home"
 # Admin journey

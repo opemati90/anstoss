@@ -14,7 +14,7 @@ appId: com.renuirug.anstoss
 - tapOn: "Get started"
 - assertVisible: "Send code"
 - tapOn:
-    text: "Phone number or email"
+    text: "Email address"
 - inputText: "smoke622+clerk_test@example.com"
 - tapOn: "Send code"
 - extendedWaitUntil:

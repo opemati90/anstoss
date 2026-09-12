@@ -1,8 +1,10 @@
 appId: com.renuirug.anstoss
 ---
 # Signed-out entry: the welcome hero ("Get started" / "Log in") leads into the
-# unified sign-in screen ("Welcome" + phone/email + Send code). Copy updated
-# 2026-06-22 (Get started, Welcome).
+# unified sign-in screen. Both CTAs run the same email-OTP flow, but they now
+# carry an intent so the screen greets a new user and a returning one
+# differently — "Create your account" vs "Welcome back". Two buttons landing on
+# an identically worded screen read as a broken link.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -11,5 +13,7 @@ appId: com.renuirug.anstoss
 - assertVisible: "Get started"
 - assertVisible: "Log in"
 - tapOn: "Get started"
-- assertVisible: "Welcome"
+- assertVisible: "Create your account"
 - assertVisible: "Send code"
+# The "Log in" path is covered by auth-flow; going back from here is not a
+# reliable way to reach it, because welcome marks itself seen on first pass.

@@ -15,7 +15,9 @@ appId: com.renuirug.anstoss
     visible: 'Get started'
     timeout: 10000
 - tapOn: 'Get started'
-- assertVisible: 'Welcome'
+# "Get started" now carries a signup intent, so the screen greets a new user
+# rather than showing the same word to everyone.
+- assertVisible: 'Create your account'
 - assertVisible: 'Email address'
 - assertVisible: 'Send code'
 # Consent line is always present on the identifier stage.

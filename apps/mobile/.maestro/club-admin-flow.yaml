@@ -5,7 +5,13 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=club-admin"
-- assertVisible: "126"
+# Club member count. Home now opens with an identity row (name, team, role),
+# which pushes the club stats a little below the fold on smaller devices, so
+# scroll to the value rather than assuming it is in the first viewport.
+- scrollUntilVisible:
+    element: "126"
+    direction: DOWN
+    timeout: 10000
 - runFlow:
     file: subflows/deeplink.yaml
     env:
