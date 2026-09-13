@@ -1,6 +1,6 @@
 appId: com.renuirug.anstoss
 ---
-# WRITE FLOW J6: Player marks an overdue due as paid.
+# WRITE FLOW J6: Player reports an overdue contribution payment.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -13,15 +13,15 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://my-contributions"
 - extendedWaitUntil:
-    visible: "Mark paid"
+    visible: "Report payment"
     timeout: 15000
 - takeScreenshot: "22-paydues-before"
 - tapOn:
-    text: "Mark paid"
+    text: "Report payment"
     index: 0
 # Native confirm alert
 - tapOn:
-    text: "Mark paid"
+    text: "Report payment"
     index: 0
 - waitForAnimationToEnd:
     timeout: 3000

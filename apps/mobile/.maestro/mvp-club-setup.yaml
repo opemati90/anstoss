@@ -26,13 +26,14 @@ appId: com.renuirug.anstoss
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: 'anstoss://club-setup'
+      URL: 'anstoss://club-setup?clubName=TSV%20Linden%201899&directoryEntryId=dir-e2e-tsv-linden'
 - extendedWaitUntil:
     visible: 'Create your club'
     timeout: 10000
 - tapOn:
     id: 'club-setup-club-name-input'
-- inputText: 'Smoke FC'
+- eraseText
+- inputText: 'TSV Linden 1899'
 - tapOn: 'return'
 - tapOn: 'Next'
 - extendedWaitUntil:

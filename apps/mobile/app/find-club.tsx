@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Image, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, FlatList, Image, Keyboard, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult } from '@anstoss/shared'
@@ -132,12 +132,16 @@ export default function FindClubScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
           ListHeaderComponent={isLoading ? <LoadingRow color={c.textTertiary} /> : null}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <ListRow
               testID={`find-club-row-${item.slug}`}
               title={item.name}
               subtitle={buildSubtitle(item, t)}
-              onPress={() => router.push(`/club/${item.slug}`)}
+              onPress={() => {
+                Keyboard.dismiss()
+                router.push(`/club/${item.slug}`)
+              }}
               showChevron
               left={<BadgeThumb club={item} />}
             />

@@ -26,6 +26,7 @@ appId: com.renuirug.anstoss
 - tapOn:
     id: 'find-club-search'
 - inputText: 'Albatros'
+- tapOn: 'return'
 - extendedWaitUntil:
     visible: 'SV Albatros'
     timeout: 10000
