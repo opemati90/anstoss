@@ -120,17 +120,14 @@ describe('FindClubScreen', () => {
     expect(await findByText('No clubs match')).toBeTruthy()
   })
 
-  it('lets admins continue setup when a searched club is missing', async () => {
+  it('does not send missing directory searches into club setup', async () => {
     mockApi.mockResolvedValueOnce({ results: [], nextCursor: null })
     const { getByPlaceholderText, findByText } = render(<FindClubScreen />)
     fireEvent.changeText(getByPlaceholderText('Club name or city'), 'SV Missing')
 
-    fireEvent.press(await findByText('Set up this club'))
+    fireEvent.press(await findByText('I have an invite code'))
 
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/club-setup',
-      params: { clubName: 'SV Missing' },
-    })
+    expect(mockPush).toHaveBeenCalledWith('/join-code')
   })
 
   it('labels imported directory clubs that are not active yet', async () => {

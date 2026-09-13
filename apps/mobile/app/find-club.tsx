@@ -95,15 +95,10 @@ export default function FindClubScreen() {
     return (
       <EmptyHint
         text={t('findClub.empty')}
-        actionLabel={t('findClub.setupMissingClub', {
-          defaultValue: 'Set up this club',
+        actionLabel={t('findClub.haveCode', {
+          defaultValue: 'I have an invite code',
         })}
-        onAction={() =>
-          router.push({
-            pathname: '/club-setup',
-            params: { clubName: query.trim() },
-          })
-        }
+        onAction={() => router.push('/join-code')}
       />
     )
   }
