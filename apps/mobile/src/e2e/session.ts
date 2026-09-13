@@ -564,6 +564,15 @@ const TEAM_DISPLAY_NAME = 'Senior Team'
 const CLUB_PRIMARY = '#4A4A48'
 
 let currentSession: E2ESessionSnapshot | null = null
+// Pending club claim created by the club-admin onboarding wizard.
+let e2eClaim: {
+  id: string
+  status: 'SUBMITTED' | 'NEEDS_INFO' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'EXPIRED'
+  reviewNote: string | null
+  expiresAt: string
+  escalatesAt: string | null
+  directoryEntry: { name: string; city: string | null; badgeUrl: string | null }
+} | null = null
 const listeners = new Set<(session: E2ESessionSnapshot | null) => void>()
 let e2eInviteCounter = 0
 
@@ -3349,6 +3358,39 @@ export function handleE2EApiRequest(
       return { handled: true, ok: false, status: 404, message: 'Club not found' }
     }
     return { handled: true, ok: true, status: 200, body: clone(club) }
+  }
+
+  // Club-admin onboarding now submits a *claim* on an official directory
+  // entry (verified by Anstoss before any club is created) instead of
+  // creating the club directly. The wizard reads `id` off the response and
+  // lands on claim-pending, which lists the caller's claims. Without these
+  // two routes the response is undefined and "Create club" throws.
+  if (method === 'POST' && pathname === '/club-claims/first') {
+    const body = (options.body || {}) as { directoryEntryId?: string; teamName?: string }
+    const directory = createClubSearchRows().find((row) => row.id === body.directoryEntryId)
+    e2eClaim = {
+      id: 'claim-e2e-1',
+      status: 'SUBMITTED',
+      reviewNote: null,
+      expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      escalatesAt: null,
+      directoryEntry: {
+        name: directory?.name ?? 'TSV Linden 1899',
+        city: directory?.city ?? null,
+        badgeUrl: null,
+      },
+    }
+    return { handled: true, ok: true, status: 201, body: { id: e2eClaim.id } }
+  }
+
+  if (method === 'GET' && pathname === '/club-claims/mine') {
+    return { handled: true, ok: true, status: 200, body: e2eClaim ? [clone(e2eClaim)] : [] }
+  }
+
+  const claimAction = pathname.match(/^\/club-claims\/([^/]+)\/(respond|withdraw)$/)
+  if (method === 'POST' && claimAction && e2eClaim) {
+    if (claimAction[2] === 'withdraw') e2eClaim = { ...e2eClaim, status: 'WITHDRAWN' }
+    return { handled: true, ok: true, status: 200, body: clone(e2eClaim) }
   }
 
   if (method === 'POST' && pathname === '/clubs/setup') {

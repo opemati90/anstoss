@@ -37,21 +37,17 @@ appId: com.renuirug.anstoss
 - tapOn: 'return'
 - tapOn: 'Next'
 - extendedWaitUntil:
-    visible: 'Add your first team'
+    visible: 'Add a team'
     timeout: 10000
 - tapOn:
     id: 'club-setup-team-name-input'
 - inputText: 'First Team'
 - tapOn: 'return'
 - tapOn: 'Create club'
+# The wizard submits a club *claim* now. Nothing is created until Anstoss
+# verifies the claimant, so the landing is the verification screen, not the
+# admin home. There is no club yet, so no admin dashboard to open.
 - extendedWaitUntil:
-    visible: '.*(.*vs.*live.*|Manage teams|Administration).*'
+    visible: 'Club verification in progress'
     timeout: 15000
-- runFlow:
-    file: subflows/deeplink.yaml
-    env:
-      URL: 'anstoss://admin-dashboard'
-- extendedWaitUntil:
-    visible: 'Administration'
-    timeout: 15000
-- assertVisible: 'Manage teams'
+- assertVisible: 'What happens next'

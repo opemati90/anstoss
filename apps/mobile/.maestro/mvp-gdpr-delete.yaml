@@ -13,12 +13,17 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: 'anstoss://more'
+# Scroll to the row we are going to tap, and centre it. Anchoring on
+# "Export my data" stopped as soon as that row peeked out above the tab bar,
+# leaving "Delete account" underneath the bar, where the tap was swallowed and
+# the confirm alert never appeared.
 - scrollUntilVisible:
     element:
-      text: 'Export my data'
+      text: 'Delete account'
     direction: DOWN
+    centerElement: true
     timeout: 15000
-- assertVisible: 'Delete account'
+- assertVisible: 'Export my data'
 - assertVisible: 'Legal'
 - tapOn: 'Delete account'
 - extendedWaitUntil:
