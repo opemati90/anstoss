@@ -947,6 +947,20 @@ const base = {
   },
   event: {
     rescheduledHint: 'Horaire modifié · confirmez votre réponse',
+    repeat: {
+      label: 'Répéter',
+      none: 'Jamais',
+      weekly: 'Chaque semaine',
+      biweekly: 'Toutes les 2 semaines',
+      until: 'Jusqu\'au',
+      untilTitle: 'Vérifiez la date de fin',
+      hint: 'Crée un événement par semaine jusqu\'à la date de fin. Chacun peut être modifié ou annulé séparément.',
+      scopeTitle: 'Appliquer les modifications à',
+      scopeThis: 'Cet événement seulement',
+      scopeFollowing: 'Celui-ci et les suivants',
+      repeatsWeekly: 'Chaque semaine jusqu\'au {{date}}',
+      repeatsBiweekly: 'Toutes les 2 semaines jusqu\'au {{date}}',
+    },
     manage: {
       attendedCount: '{{count}} présents',
       attended: '{{count}} sur {{total}} présents',

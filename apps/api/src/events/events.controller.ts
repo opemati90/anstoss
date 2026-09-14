@@ -17,6 +17,7 @@ import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import {
+  createEventSeriesSchema,
   createEventSchema,
   eventFilterSchema,
   updateEventSchema,
@@ -107,6 +108,30 @@ export class EventsController {
   /**
    * PATCH /clubs/:clubId/events/:eventId — update event (any event manager).
    */
+  /**
+   * POST /clubs/:clubId/events/series — a recurring event. Body is the
+   * create payload plus `repeat: { intervalWeeks, until }`.
+   */
+  @Post('series')
+  @RateLimit('write')
+  async createSeries(
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createEventSeriesSchema.parse(body)
+    return this.eventsService.createSeries({
+      title: data.title,
+      type: data.type,
+      date: new Date(data.date),
+      location: data.location,
+      notes: data.notes,
+      teamId: data.teamId,
+      createdById: user.id,
+      intervalWeeks: data.repeat.intervalWeeks,
+      until: new Date(data.repeat.until),
+    })
+  }
+
   @Patch(':eventId')
   @RateLimit('write')
   async update(
@@ -115,13 +140,18 @@ export class EventsController {
     @Body() body: unknown,
   ) {
     const data = updateEventSchema.parse(body)
-    return this.eventsService.update(eventId, user.id, {
-      title: data.title,
-      type: data.type,
-      date: data.date ? new Date(data.date) : undefined,
-      location: data.location,
-      notes: data.notes,
-    })
+    return this.eventsService.update(
+      eventId,
+      user.id,
+      {
+        title: data.title,
+        type: data.type,
+        date: data.date ? new Date(data.date) : undefined,
+        location: data.location,
+        notes: data.notes,
+      },
+      data.scope ?? 'this',
+    )
   }
 
   /**
@@ -136,7 +166,7 @@ export class EventsController {
     @Body() body: unknown,
   ) {
     const data = cancelEventSchema.parse(body ?? {})
-    return this.eventsService.cancel(eventId, user.id, data.reason)
+    return this.eventsService.cancel(eventId, user.id, data.reason, data.scope ?? 'this')
   }
 
   /**

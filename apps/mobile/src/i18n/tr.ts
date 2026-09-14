@@ -1131,6 +1131,20 @@ export default {
   },
   event: {
     rescheduledHint: 'Saat değişti · yanıtını onayla',
+    repeat: {
+      label: 'Tekrarla',
+      none: 'Hiç',
+      weekly: 'Her hafta',
+      biweekly: '2 haftada bir',
+      until: 'Bitiş',
+      untilTitle: 'Bitiş tarihini kontrol et',
+      hint: 'Bitiş tarihine kadar her hafta bir etkinlik oluşturur. Her biri ayrı düzenlenebilir veya iptal edilebilir.',
+      scopeTitle: 'Değişiklikleri uygula',
+      scopeThis: 'Yalnızca bu etkinlik',
+      scopeFollowing: 'Bu ve sonrakiler',
+      repeatsWeekly: '{{date}} tarihine kadar her hafta',
+      repeatsBiweekly: '{{date}} tarihine kadar 2 haftada bir',
+    },
     manage: {
       attendedCount: '{{count}} katıldı',
       attended: '{{total}} kişiden {{count}} katıldı',

@@ -26,7 +26,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Avatar, BottomSheet, Button, Icon, ListRow, Screen, Text } from '../src/components/ui'
+import { Avatar, BottomSheet, Button, Icon, ListRow, Screen, SegmentedControl, Text } from '../src/components/ui'
 import { FormInput } from '../src/components/FormInput'
 import { RsvpControl } from '../src/components/home/RsvpControl'
 import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
@@ -70,6 +70,8 @@ type EventDetail = {
   noCount?: number
   myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
   myRsvpStale?: boolean
+  seriesId?: string | null
+  series?: { id: string; intervalWeeks: number; until: string } | null
   reminderEnabled?: boolean
   lastRsvpReminderAt?: string | null
   teamMemberCount?: number | null
@@ -97,6 +99,7 @@ export default function EventDetailScreen() {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [cancelScope, setCancelScope] = useState<'this' | 'following'>('this')
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
@@ -538,7 +541,7 @@ export default function EventDetailScreen() {
       const reason = cancelReason.trim()
       await api(`/clubs/${activeClub.club.id}/events/${event.id}`, {
         method: 'DELETE',
-        body: reason ? { reason } : {},
+        body: { ...(reason ? { reason } : {}), ...(event.seriesId ? { scope: cancelScope } : {}) },
       })
       setCancelOpen(false)
       setCancelReason('')
@@ -698,6 +701,21 @@ export default function EventDetailScreen() {
                 <Icon name="mappin.circle.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
                 <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} numberOfLines={2}>
                   {event.location}
+                </Text>
+              </View>
+            ) : null}
+            {event.series ? (
+              <View style={styles.metaRow}>
+                <Icon name="arrow.clockwise" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
+                <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} numberOfLines={1}>
+                  {t(event.series.intervalWeeks === 2 ? 'event.repeat.repeatsBiweekly' : 'event.repeat.repeatsWeekly', {
+                    defaultValue:
+                      event.series.intervalWeeks === 2 ? 'Every 2 weeks until {{date}}' : 'Every week until {{date}}',
+                    date: new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
+                      day: 'numeric',
+                      month: 'short',
+                    }).format(new Date(event.series.until)),
+                  })}
                 </Text>
               </View>
             ) : null}
@@ -897,6 +915,19 @@ export default function EventDetailScreen() {
             <Text variant="footnote" color="secondary">
               {t('event.manage.cancelBody')}
             </Text>
+            {event.seriesId ? (
+              <SegmentedControl<'this' | 'following'>
+                segments={[
+                  { key: 'this', label: t('event.repeat.scopeThis', { defaultValue: 'This event only' }) },
+                  {
+                    key: 'following',
+                    label: t('event.repeat.scopeFollowing', { defaultValue: 'This and following' }),
+                  },
+                ]}
+                value={cancelScope}
+                onChange={setCancelScope}
+              />
+            ) : null}
             <FormInput
               label={t('event.manage.cancelReasonPlaceholder')}
               value={cancelReason}

@@ -14,6 +14,7 @@ import type {
   EventReadinessNudge,
   EventReadinessSignal,
 } from '@anstoss/shared'
+import { MAX_SERIES_OCCURRENCES } from '@anstoss/shared'
 import {
   buildClubPermissionMap,
   ClubCapability,
@@ -203,6 +204,93 @@ export class EventsService {
     })
 
     return event
+  }
+
+  /**
+   * Create a recurring event: the first occurrence plus every later one up to
+   * `until`, each a real Event row that shares a series id. Notifications go
+   * out once, for the series, not once per occurrence.
+   */
+  async createSeries(data: {
+    title: string
+    type: EventTypeValue
+    date: Date
+    location?: string
+    notes?: string
+    teamId: string
+    createdById: string
+    intervalWeeks: 1 | 2
+    until: Date
+  }) {
+    const access = await this.teamsService.assertEventManagementAccess(
+      data.createdById,
+      data.teamId,
+    )
+    const clubId = access.team.clubId
+
+    const dates: Date[] = []
+    const stepMs = data.intervalWeeks * 7 * 24 * 60 * 60 * 1000
+    for (
+      let at = data.date.getTime();
+      at <= data.until.getTime() && dates.length < MAX_SERIES_OCCURRENCES;
+      at += stepMs
+    ) {
+      dates.push(new Date(at))
+    }
+    if (dates.length === 0) {
+      throw new BadRequestException('Repeat end must be on or after the first date')
+    }
+
+    const series = await this.prisma.eventSeries.create({
+      data: {
+        clubId,
+        teamId: data.teamId,
+        createdById: data.createdById,
+        title: data.title,
+        type: data.type,
+        intervalWeeks: data.intervalWeeks,
+        startsAt: data.date,
+        until: data.until,
+        location: data.location ?? null,
+        notes: data.notes ?? null,
+      },
+    })
+
+    const events = await this.prisma.$transaction(
+      dates.map((date) =>
+        this.prisma.event.create({
+          data: {
+            title: data.title,
+            type: data.type,
+            date,
+            location: data.location,
+            notes: data.notes,
+            teamId: data.teamId,
+            createdById: data.createdById,
+            clubId,
+            seriesId: series.id,
+          },
+        }),
+      ),
+    )
+
+    const first = events[0]
+    this.eventsGateway.emitEventUpsert(first.teamId, first.id)
+    void this.notifyEventCreated(first, clubId).catch((err) => {
+      this.pushLogger.warn(
+        `EVENT_CREATED push failed for series ${series.id}: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      )
+    })
+    await this.chatService.postSystemNotice({
+      teamId: first.teamId,
+      clubId,
+      actorId: data.createdById,
+      content: `${first.title}: ${formatEventDate(first.date)} · ×${events.length}`,
+    })
+
+    return { series, events }
   }
 
   private async notifyEventCreated(
@@ -470,6 +558,7 @@ export class EventsService {
       noCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,
       myRsvp: mine?.status ?? null,
       rescheduledAt: event.rescheduledAt?.toISOString() ?? null,
+      seriesId: event.seriesId ?? null,
       myRsvpStale: Boolean(
         mine &&
           event.rescheduledAt &&
@@ -539,6 +628,7 @@ export class EventsService {
         _count: {
           select: { rsvps: true, checkIns: true },
         },
+        series: { select: { id: true, intervalWeeks: true, until: true } },
         rsvps: {
           include: {
             user: {
@@ -844,6 +934,7 @@ export class EventsService {
       location?: string
       notes?: string
     },
+    scope: 'this' | 'following' = 'this',
   ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
@@ -879,6 +970,52 @@ export class EventsService {
         ...(data.notes !== undefined && { notes: data.notes }),
       },
     })
+
+    // "This and following": the same edit lands on every later occurrence
+    // of the series that is still on. A moved date moves them all by the
+    // same amount, so a Tuesday series stays a Tuesday series.
+    let followingCount = 0
+    if (scope === 'following' && event.seriesId) {
+      const shiftMs = dateMoves && data.date ? data.date.getTime() - event.date.getTime() : 0
+      const later = await this.prisma.event.findMany({
+        where: {
+          seriesId: event.seriesId,
+          id: { not: eventId },
+          date: { gt: event.date },
+          cancelledAt: null,
+        },
+        select: { id: true, date: true },
+      })
+      if (later.length > 0) {
+        await this.prisma.$transaction(
+          later.map((row) =>
+            this.prisma.event.update({
+              where: { id: row.id },
+              data: {
+                ...(data.title !== undefined && { title: data.title }),
+                ...(data.type !== undefined && { type: data.type }),
+                ...(data.location !== undefined && { location: data.location }),
+                ...(data.notes !== undefined && { notes: data.notes }),
+                ...(shiftMs !== 0 && {
+                  date: new Date(row.date.getTime() + shiftMs),
+                  rescheduledAt: new Date(),
+                }),
+              },
+            }),
+          ),
+        )
+        followingCount = later.length
+      }
+      await this.prisma.eventSeries.update({
+        where: { id: event.seriesId },
+        data: {
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.type !== undefined && { type: data.type }),
+          ...(data.location !== undefined && { location: data.location }),
+          ...(data.notes !== undefined && { notes: data.notes }),
+        },
+      })
+    }
 
     // Realtime: broadcast the change so subscribed clients refresh the event.
     this.eventsGateway.emitEventUpsert(updated.teamId, updated.id)
@@ -918,14 +1055,21 @@ export class EventsService {
         teamId: updated.teamId,
         clubId,
         actorId: userId,
-        content: `${updated.title}: ${date}${updated.location ? ` · ${updated.location}` : ''}`,
+        content: `${updated.title}: ${date}${updated.location ? ` · ${updated.location}` : ''}${
+          followingCount > 0 ? ` (+${followingCount})` : ''
+        }`,
       })
     }
 
     return updated
   }
 
-  async cancel(eventId: string, userId: string, reason?: string) {
+  async cancel(
+    eventId: string,
+    userId: string,
+    reason?: string,
+    scope: 'this' | 'following' = 'this',
+  ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
@@ -949,6 +1093,26 @@ export class EventsService {
       where: { id: eventId },
       data: { cancelledAt: new Date(), cancelReason: reason?.trim() || null },
     })
+
+    // "This and following" cancels the rest of the series in one go, with one
+    // notification for the lot rather than one per occurrence.
+    let followingCount = 0
+    if (scope === 'following' && event.seriesId) {
+      const result = await this.prisma.event.updateMany({
+        where: {
+          seriesId: event.seriesId,
+          id: { not: eventId },
+          date: { gt: event.date },
+          cancelledAt: null,
+        },
+        data: { cancelledAt: new Date(), cancelReason: reason?.trim() || null },
+      })
+      followingCount = result.count
+      await this.prisma.eventSeries.update({
+        where: { id: event.seriesId },
+        data: { until: event.date },
+      })
+    }
 
     this.eventsGateway.emitEventUpsert(cancelled.teamId, cancelled.id)
 
@@ -980,7 +1144,7 @@ export class EventsService {
       teamId: cancelled.teamId,
       clubId,
       actorId: userId,
-      content: `${cancelled.title} (${date})${
+      content: `${cancelled.title} (${date}${followingCount > 0 ? ` +${followingCount}` : ''})${
         cancelled.cancelReason ? `: ${cancelled.cancelReason}` : ''
       }`,
     })

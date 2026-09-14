@@ -3481,6 +3481,42 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Recurring event: one row per occurrence sharing a series id.
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/events/series`) {
+    const body = (options.body ?? {}) as Partial<EventFeedItem> & {
+      repeat?: { intervalWeeks: number; until: string }
+    }
+    const seriesId = `series-e2e-${Date.now().toString(36)}`
+    const step = (body.repeat?.intervalWeeks ?? 1) * 7 * 24 * 60 * 60 * 1000
+    const first = new Date(body.date ?? nowIso(1, 18, 0)).getTime()
+    const until = new Date(body.repeat?.until ?? body.date ?? nowIso(1, 18, 0)).getTime()
+    const created: EventFeedItem[] = []
+    for (let at = first, n = 0; at <= until && n < 52; at += step, n += 1) {
+      created.push({
+        id: `event-e2e-${seriesId}-${n}`,
+        teamId: body.teamId ?? TEAM_ID,
+        clubId: CLUB_ID,
+        title: body.title?.trim() || 'Training',
+        type: body.type ?? 'TRAINING',
+        date: new Date(at).toISOString(),
+        location: body.location ?? null,
+        notes: body.notes ?? null,
+        createdById: currentSession.user.id,
+        createdAt: new Date().toISOString(),
+        archivedAt: null,
+        seriesId,
+        series: { id: seriesId, intervalWeeks: body.repeat?.intervalWeeks ?? 1, until: new Date(until).toISOString() },
+        responseCount: 0,
+        yesCount: 0,
+        maybeCount: 0,
+        noCount: 0,
+        myRsvp: null,
+      })
+    }
+    currentSession.api.events.unshift(...created)
+    return { handled: true, ok: true, status: 201, body: { seriesId, events: clone(created) } }
+  }
+
   if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/events`) {
     const body = (options.body ?? {}) as Partial<EventFeedItem>
     const created: EventFeedItem = {
@@ -4378,6 +4414,24 @@ export function handleE2EApiRequest(
       location: string | null
       notes: string | null
     }>
+    const scoped = body as typeof body & { scope?: 'this' | 'following' }
+    if (scoped.scope === 'following' && event.seriesId) {
+      const shift =
+        body.date !== undefined ? new Date(body.date).getTime() - new Date(event.date).getTime() : 0
+      currentSession.api.events
+        .filter(
+          (e) => e.seriesId === event.seriesId && e.id !== event.id && new Date(e.date) > new Date(event.date),
+        )
+        .forEach((e) => {
+          if (body.title !== undefined) e.title = body.title
+          if (body.location !== undefined) e.location = body.location
+          if (body.notes !== undefined) e.notes = body.notes
+          if (shift !== 0) {
+            e.date = new Date(new Date(e.date).getTime() + shift).toISOString()
+            ;(e as { rescheduledAt?: string | null }).rescheduledAt = new Date().toISOString()
+          }
+        })
+    }
     if (body.title !== undefined) event.title = body.title
     if (body.type !== undefined) (event as { type: string }).type = body.type
     if (body.date !== undefined && body.date !== event.date) {
@@ -4396,13 +4450,23 @@ export function handleE2EApiRequest(
   if (method === 'DELETE' && eventDetailMatch) {
     const event = currentSession.api.events.find((e) => e.id === eventDetailMatch[1])
     if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
-    const body = (options.body || {}) as { reason?: string }
+    const body = (options.body || {}) as { reason?: string; scope?: 'this' | 'following' }
     const cancelled = event as typeof event & {
       cancelledAt?: string | null
       cancelReason?: string | null
     }
     cancelled.cancelledAt = new Date().toISOString()
     cancelled.cancelReason = body.reason?.trim() || null
+    if (body.scope === 'following' && event.seriesId) {
+      currentSession.api.events
+        .filter(
+          (e) => e.seriesId === event.seriesId && e.id !== event.id && new Date(e.date) > new Date(event.date),
+        )
+        .forEach((e) => {
+          e.cancelledAt = cancelled.cancelledAt
+          e.cancelReason = cancelled.cancelReason
+        })
+    }
     return { handled: true, ok: true, status: 200, body: clone(event) }
   }
 

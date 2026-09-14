@@ -938,6 +938,20 @@ const base = {
   },
   event: {
     rescheduledHint: 'Zeit geändert · Antwort bestätigen',
+    repeat: {
+      label: 'Wiederholen',
+      none: 'Nie',
+      weekly: 'Jede Woche',
+      biweekly: 'Alle 2 Wochen',
+      until: 'Bis',
+      untilTitle: 'Enddatum prüfen',
+      hint: 'Legt bis zum Enddatum pro Woche einen Termin an. Jeder lässt sich einzeln bearbeiten oder absagen.',
+      scopeTitle: 'Änderungen anwenden auf',
+      scopeThis: 'Nur diesen Termin',
+      scopeFollowing: 'Diesen und folgende',
+      repeatsWeekly: 'Jede Woche bis {{date}}',
+      repeatsBiweekly: 'Alle 2 Wochen bis {{date}}',
+    },
     manage: {
       attendedCount: '{{count}} anwesend',
       attended: '{{count}} von {{total}} anwesend',

@@ -48,6 +48,11 @@ describe('EventsService', () => {
       eventReminderPreference: {
         upsert: jest.fn(),
       },
+      eventSeries: {
+        create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'series-1', ...data })),
+        update: jest.fn().mockResolvedValue({ id: 'series-1' }),
+      },
+      $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
       team: {
         findUnique: jest.fn().mockResolvedValue({ name: 'First XI' }),
       },
@@ -96,6 +101,29 @@ describe('EventsService', () => {
   })
 
   describe('create', () => {
+    it('materialises one row per occurrence up to the end date', async () => {
+      let n = 0
+      mockPrisma.event.create.mockImplementation(async ({ data }: any) => ({ id: `evt-${++n}`, ...data }))
+      const first = new Date('2027-03-02T18:30:00.000Z')
+      const until = new Date(first.getTime() + 3 * 7 * 86_400_000)
+
+      const result = await service.createSeries({
+        title: 'Training',
+        type: 'TRAINING',
+        date: first,
+        teamId: 'team-1',
+        createdById: 'user-1',
+        intervalWeeks: 1,
+        until,
+      })
+
+      expect(result.events).toHaveLength(4)
+      expect(result.events.every((e: any) => e.seriesId === 'series-1')).toBe(true)
+      expect(result.events[3].date.getTime()).toBe(until.getTime())
+      // One notice for the series, not one per occurrence.
+      expect(mockChatService.postSystemNotice).toHaveBeenCalledTimes(1)
+    })
+
     it('creates an event with provided data', async () => {
       const data = {
         title: 'Training Session',
@@ -886,6 +914,25 @@ describe('EventsService', () => {
       )
     })
 
+    it('applies "following" edits to later occurrences of the series, shifted by the same delta', async () => {
+      const seriesEvent = { ...baseEvent, seriesId: 'series-1' }
+      mockPrisma.event.findUnique.mockResolvedValue(seriesEvent)
+      const moved = new Date(baseEvent.date.getTime() + 3_600_000)
+      mockPrisma.event.update.mockResolvedValue({ ...seriesEvent, date: moved })
+      const laterDate = new Date(baseEvent.date.getTime() + 7 * 86_400_000)
+      mockPrisma.event.findMany.mockResolvedValue([{ id: 'evt-2', date: laterDate }])
+
+      await service.update('evt-1', 'user-1', { date: moved, location: 'Pitch 3' }, 'following')
+
+      const laterUpdate = mockPrisma.event.update.mock.calls.find(
+        (call: any[]) => call[0].where.id === 'evt-2',
+      )
+      expect(laterUpdate[0].data.location).toBe('Pitch 3')
+      expect(laterUpdate[0].data.date.getTime()).toBe(laterDate.getTime() + 3_600_000)
+      expect(laterUpdate[0].data.rescheduledAt).toBeInstanceOf(Date)
+      expect(mockPrisma.eventSeries.update).toHaveBeenCalled()
+    })
+
     it('stamps rescheduledAt only when the date actually moves', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })
@@ -963,6 +1010,29 @@ describe('EventsService', () => {
   })
 
   describe('cancel', () => {
+    it('cancels the rest of the series with scope "following"', async () => {
+      const seriesEvent = {
+        id: 'evt-1', teamId: 'team-1', clubId: 'club-1', title: 'Training',
+        date: new Date('2027-03-02T18:30:00.000Z'), cancelledAt: null, seriesId: 'series-1',
+      }
+      mockPrisma.event.findUnique.mockResolvedValue(seriesEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...seriesEvent, cancelledAt: new Date(), cancelReason: null })
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 5 })
+
+      await service.cancel('evt-1', 'user-1', undefined, 'following')
+
+      expect(mockPrisma.event.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ seriesId: 'series-1', cancelledAt: null }),
+        }),
+      )
+      expect(mockPrisma.eventSeries.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { until: seriesEvent.date } }),
+      )
+      expect(mockChatService.postSystemNotice).toHaveBeenCalledTimes(1)
+    })
+
+
     const baseEvent = {
       id: 'evt-1',
       teamId: 'team-1',

@@ -1466,3 +1466,52 @@ body.reveal-ready [data-reveal].is-visible {
     width: 100%;
   }
 }
+
+/* Sticky download/contact bar on phones. Hidden on wider screens where the
+   nav CTA is always in view. */
+.mobile-cta {
+  display: none;
+}
+.footer-note {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+@media (max-width: 720px) {
+  .mobile-cta {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 90;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(11, 17, 20, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+  .mobile-cta a {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .mobile-cta__primary {
+    background: #fff;
+    color: #0b1114;
+  }
+  .mobile-cta__secondary {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+  main {
+    padding-bottom: 84px;
+  }
+}

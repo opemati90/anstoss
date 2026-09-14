@@ -1,0 +1,70 @@
+appId: com.renuirug.anstoss
+---
+# Recurring events: a coach creates a weekly training until a date, the
+# schedule fills with one row per week, and cancelling "this and following"
+# from one occurrence strikes out the rest.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://create-event"
+- extendedWaitUntil:
+    visible: "Create event"
+    timeout: 15000
+- tapOn:
+    id: "event-title-input"
+- eraseText: 30
+- inputText: "Weekly session"
+- tapOn: "done"
+- tapOn: "Repeat: Never"
+- assertVisible: "Repeat: Every week"
+- assertVisible: "Until: .*"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-form
+- tapOn:
+    id: "event-create-submit"
+- extendedWaitUntil:
+    visible: "Events"
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- scrollUntilVisible:
+    element:
+      text: "OCTOBER 2026"
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-schedule
+- scrollUntilVisible:
+    element:
+      text: "Weekly session.*"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    text: "Weekly session.*"
+    index: 0
+- extendedWaitUntil:
+    visible: ".*Every week until.*"
+    timeout: 15000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-detail
+- longPressOn:
+    text: "Weekly session"
+    index: 1
+- tapOn: "Cancel event"
+- extendedWaitUntil:
+    visible: "This and following"
+    timeout: 10000
+- tapOn: "This and following"
+- tapOn: "Cancel event"
+- extendedWaitUntil:
+    visible: "Cancelled"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "Upcoming"
+    timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-cancelled

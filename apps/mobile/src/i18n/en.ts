@@ -925,6 +925,20 @@ const base = {
   },
   event: {
     rescheduledHint: 'Time changed · confirm your reply',
+    repeat: {
+      label: 'Repeat',
+      none: 'Never',
+      weekly: 'Every week',
+      biweekly: 'Every 2 weeks',
+      until: 'Until',
+      untilTitle: 'Check the end date',
+      hint: 'Creates one event per week until the end date. Each can be edited or cancelled on its own.',
+      scopeTitle: 'Apply changes to',
+      scopeThis: 'This event only',
+      scopeFollowing: 'This and following',
+      repeatsWeekly: 'Every week until {{date}}',
+      repeatsBiweekly: 'Every 2 weeks until {{date}}',
+    },
     manage: {
       attendedCount: '{{count}} attended',
       attended: '{{count}} of {{total}} attended',

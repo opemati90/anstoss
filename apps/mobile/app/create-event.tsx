@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Pressable, StyleSheet, ScrollView, Alert, Platform, Modal } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
-import { createEventSchema } from '@anstoss/shared'
+import { createEventSchema, createEventSeriesSchema } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
@@ -84,6 +84,18 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
   const [teamSheetOpen, setTeamSheetOpen] = useState(false)
+  // Recurrence: none, weekly or fortnightly, until a date (default 12 weeks).
+  type Repeat = 'none' | 'weekly' | 'biweekly'
+  const [repeat, setRepeat] = useState<Repeat>('none')
+  const [repeatUntil, setRepeatUntil] = useState<Date>(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 12 * 7)
+    d.setHours(23, 59, 0, 0)
+    return d
+  })
+  const [showUntilPicker, setShowUntilPicker] = useState(false)
+  // Editing one occurrence of a series asks which occurrences to change.
+  const [sourceSeriesId, setSourceSeriesId] = useState<string | null>(null)
 
   // Single source of truth for the scheduled date+time. The native picker owns
   // its own scroll/animation, so there is no controlled-wheel feedback loop to
@@ -103,8 +115,10 @@ export default function CreateEventScreen() {
           teamId: string
           location: string | null
           notes: string | null
+          seriesId?: string | null
         }>(`/clubs/${activeClub.club.id}/events/${sourceId}`)
         if (cancelled) return
+        if (editingId) setSourceSeriesId(source.seriesId ?? null)
         setTitle(source.title)
         setTitleTouched(true)
         setType(source.type)
@@ -152,6 +166,12 @@ export default function CreateEventScreen() {
   }, [])
 
   const locale = getAppLocale(getAppLanguage())
+  const untilDisplay = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(repeatUntil)
   const dateDisplay = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -261,6 +281,27 @@ export default function CreateEventScreen() {
     }
   }, [activeClub, activeTeamAccess?.team?.displayName, activeTeamAccess?.team?.name, activeTeamId, t])
 
+  // "This event" or "this and following": an Alert because it is a real
+  // question with two answers, not a form field.
+  const askEditScope = () =>
+    new Promise<'this' | 'following' | null>((resolve) => {
+      Alert.alert(
+        t('event.repeat.scopeTitle', { defaultValue: 'Apply changes to' }),
+        undefined,
+        [
+          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(null) },
+          {
+            text: t('event.repeat.scopeThis', { defaultValue: 'This event only' }),
+            onPress: () => resolve('this'),
+          },
+          {
+            text: t('event.repeat.scopeFollowing', { defaultValue: 'This and following' }),
+            onPress: () => resolve('following'),
+          },
+        ],
+      )
+    })
+
   const handleCreate = async () => {
     if (!activeClub || !selectedTeamId) {
       Alert.alert(t('common.errorTitle'), t('event.noTeamSelected'))
@@ -304,15 +345,42 @@ export default function CreateEventScreen() {
       return
     }
 
+    if (!isEdit && repeat !== 'none') {
+      const series = createEventSeriesSchema.safeParse({
+        ...validation.data,
+        repeat: { intervalWeeks: repeat === 'weekly' ? 1 : 2, until: repeatUntil.toISOString() },
+      })
+      if (!series.success) {
+        Alert.alert(
+          t('event.repeat.untilTitle', { defaultValue: 'Check the end date' }),
+          series.error.issues[0]?.message ?? t('errors.server'),
+        )
+        return
+      }
+    }
+
     setIsLoading(true)
     try {
       if (isEdit && editingId) {
         // PATCH takes everything but the team; moving an event between teams
         // is a different operation and is not offered here.
         const { teamId: _ignored, ...changes } = validation.data
+        const scope = sourceSeriesId ? await askEditScope() : 'this'
+        if (!scope) {
+          setIsLoading(false)
+          return
+        }
         await api(`/clubs/${activeClub.club.id}/events/${editingId}`, {
           method: 'PATCH',
-          body: changes,
+          body: { ...changes, scope },
+        })
+      } else if (repeat !== 'none') {
+        await api(`/clubs/${activeClub.club.id}/events/series`, {
+          method: 'POST',
+          body: {
+            ...validation.data,
+            repeat: { intervalWeeks: repeat === 'weekly' ? 1 : 2, until: repeatUntil.toISOString() },
+          },
         })
       } else {
         await api(`/clubs/${activeClub.club.id}/events`, {
@@ -477,7 +545,57 @@ export default function CreateEventScreen() {
               style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
             />
           ) : null}
+          {!isEdit ? (
+            <ListRow
+              title={t('event.repeat.label', { defaultValue: 'Repeat' })}
+              left={<Icon name="arrow.clockwise" size={18} color="secondary" />}
+              right={
+                <Text variant="body" color="primary" weight="semibold">
+                  {repeat === 'weekly'
+                    ? t('event.repeat.weekly', { defaultValue: 'Every week' })
+                    : repeat === 'biweekly'
+                      ? t('event.repeat.biweekly', { defaultValue: 'Every 2 weeks' })
+                      : t('event.repeat.none', { defaultValue: 'Never' })}
+                </Text>
+              }
+              accessibilityLabel={`${t('event.repeat.label', { defaultValue: 'Repeat' })}: ${
+                repeat === 'weekly'
+                  ? t('event.repeat.weekly', { defaultValue: 'Every week' })
+                  : repeat === 'biweekly'
+                    ? t('event.repeat.biweekly', { defaultValue: 'Every 2 weeks' })
+                    : t('event.repeat.none', { defaultValue: 'Never' })
+              }`}
+              showChevron
+              onPress={() =>
+                setRepeat((prev) => (prev === 'none' ? 'weekly' : prev === 'weekly' ? 'biweekly' : 'none'))
+              }
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+            />
+          ) : null}
+          {!isEdit && repeat !== 'none' ? (
+            <ListRow
+              title={t('event.repeat.until', { defaultValue: 'Until' })}
+              left={<Icon name="calendar" size={18} color="secondary" />}
+              right={
+                <Text variant="body" color="primary" weight="semibold" tabular>
+                  {untilDisplay}
+                </Text>
+              }
+              accessibilityLabel={`${t('event.repeat.until', { defaultValue: 'Until' })}: ${untilDisplay}`}
+              showChevron
+              onPress={() => setShowUntilPicker(true)}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+            />
+          ) : null}
         </View>
+
+        {!isEdit && repeat !== 'none' ? (
+          <Text variant="footnote" color="secondary">
+            {t('event.repeat.hint', {
+              defaultValue: 'Creates one event per week until the end date. Each can be edited or cancelled on its own.',
+            })}
+          </Text>
+        ) : null}
 
         <FormInput
           label={t('event.locationOptional')}
@@ -576,6 +694,46 @@ export default function CreateEventScreen() {
             onChange={(event: DateTimePickerEvent, picked?: Date) => {
               setShowDatePicker(false)
               if (event.type === 'set' && picked) applyDatePart(picked)
+            }}
+          />
+        )
+      )}
+
+      {/* Repeat-until picker — same wheel as the date. */}
+      {Platform.OS === 'ios' ? (
+        <PickerSheet
+          visible={showUntilPicker}
+          onClose={() => setShowUntilPicker(false)}
+          title={t('event.repeat.until', { defaultValue: 'Until' })}
+          doneLabel={t('common.done')}
+          closeLabel={t('common.close')}
+          c={c}
+          insets={insets}
+        >
+          <DateTimePicker
+            value={repeatUntil}
+            mode="date"
+            display="spinner"
+            minimumDate={eventDate}
+            locale={locale}
+            themeVariant={isDark ? 'dark' : 'light'}
+            accentColor={c.primary}
+            textColor={c.textPrimary}
+            onChange={(_event: DateTimePickerEvent, picked?: Date) => {
+              if (picked) setRepeatUntil(picked)
+            }}
+            style={styles.iosPicker}
+          />
+        </PickerSheet>
+      ) : (
+        showUntilPicker && (
+          <DateTimePicker
+            value={repeatUntil}
+            mode="date"
+            minimumDate={eventDate}
+            onChange={(event: DateTimePickerEvent, picked?: Date) => {
+              setShowUntilPicker(false)
+              if (event.type === 'set' && picked) setRepeatUntil(picked)
             }}
           />
         )

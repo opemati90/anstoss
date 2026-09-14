@@ -777,6 +777,8 @@ model Event {
   cancelReason       String?
   // Set when the date moves; replies given before it need confirming.
   rescheduledAt      DateTime?
+  // Set when the event was materialised from a recurring series.
+  seriesId           String?
   archivedAt         DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -788,10 +790,37 @@ model Event {
   rsvps               Rsvp[]
   reminderPreferences EventReminderPreference[]
   checkIns            EventCheckIn[]
+  series              EventSeries?              @relation(fields: [seriesId], references: [id], onDelete: SetNull)
 
   @@index([clubId])
   @@index([teamId])
   @@index([date])
+  @@index([seriesId])
+}
+
+// A recurring event: the rule the occurrences were generated from. Every
+// occurrence is a real Event row, so RSVPs, cancellation, check-in and feeds
+// need nothing new; the series only remembers the rule for "this and
+// following" edits.
+model EventSeries {
+  id            String    @id @default(cuid())
+  clubId        String
+  teamId        String
+  createdById   String
+  title         String
+  type          EventType @default(TRAINING)
+  intervalWeeks Int       @default(1)
+  startsAt      DateTime
+  until         DateTime
+  location      String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  events Event[]
+
+  @@index([teamId])
+  @@index([clubId])
 }
 
 model EventReminderPreference {

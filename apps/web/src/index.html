@@ -15,7 +15,13 @@
       property="og:description"
       content="Spielplan, Aufstellungen, Live-Scores und Team-Chat. White-Label für deinen Verein."
     />
-    <meta property="og:image" content="./welcome-stadium.jpg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://anstoss.io/" />
+    <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://anstoss.io/" />
     <meta name="theme-color" content="#0B1114" />
     <link rel="icon" href="./anstoss-mark.png" type="image/png" />
     <link rel="apple-touch-icon" href="./anstoss-mark.png" />
@@ -336,6 +342,7 @@
           <div class="footer-col">
             <p class="footer-col-head" data-i18n="footer.contact">Kontakt</p>
             <a href="mailto:hallo@anstoss.io">hallo@anstoss.io</a>
+            <p class="footer-note" data-i18n="footer.responseTime">Antwort innerhalb eines Werktags.</p>
             <a href="./account-deletion.html" data-i18n="footer.accountDeletion">Konto löschen</a>
           </div>
         </div>
@@ -343,6 +350,11 @@
           © <span id="year"></span> Anstoss. Eine App für deinen Fußballverein.
         </p>
       </footer>
+      <!-- Sticky contact/download bar, phones only (see .mobile-cta). -->
+      <div class="mobile-cta" aria-label="Quick actions">
+        <a class="mobile-cta__primary" href="#download" data-i18n="nav.cta">App herunterladen</a>
+        <a class="mobile-cta__secondary" href="mailto:hallo@anstoss.io" data-i18n="footer.contact">Kontakt</a>
+      </div>
     </main>
 
     <script src="./i18n.js?v=20260629-cookie"></script>

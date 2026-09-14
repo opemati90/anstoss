@@ -52,6 +52,7 @@ export const TENANT_SCOPED_MODELS = new Set([
   'FixtureOverlay',
   'SyncRun',
   'Event',
+  'EventSeries',
   'Message',
   'ClubChatRetentionSettings',
   'Invite',
