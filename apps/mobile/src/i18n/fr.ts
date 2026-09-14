@@ -596,7 +596,13 @@ const base = {
       subtitle:
         'Tes prochains matchs apparaîtront ici. Demande à ton entraîneur de planifier le premier événement.',
     },
+    week: {
+      new: 'Nouveau',
+      yesOf: '{{yes}} sur {{total}}',
+      yesCount: '{{yes}} oui',
+    },
     coach: {
+      motmShort: 'HDM',
       rosterEyebrow: 'Effectif',
       rosterGapTitle_one: '{{count}} joueur manquant',
       rosterGapTitle_other: '{{count}} joueurs manquants',
@@ -667,6 +673,7 @@ const base = {
         'Aucun événement à venir. Appuie sur « Créer un événement » pour planifier le premier entraînement ou match.',
     },
     parent: {
+      replyFor: 'Réponse pour {{child}}',
       nextActionEyebrow: 'À FAIRE MAINTENANT',
       actionConflictTitle: 'Résoudre {{count}} conflits de planning',
       actionConflictTitle_one: 'Résoudre {{count}} conflit de planning',
@@ -696,6 +703,15 @@ const base = {
       upcoming: 'À venir',
     },
     admin: {
+      club: 'Club',
+      attention: {
+        title: 'À traiter',
+        requestsHint: 'Accepter ou refuser',
+        duesHint: 'Relancer ou enregistrer les paiements',
+        coachHint: 'Confirmer l\'accès à l\'équipe',
+        pause: 'Suspendre les cotisations de {{name}} ?',
+        pauseHint: 'Absent {{weeks}} semaines',
+      },
       actionNeeded: 'Action requise',
       pendingRequestsTitle_one: "{{count}} demande d'adhésion en attente",
       pendingRequestsTitle_other: "{{count}} demandes d'adhésion en attente",

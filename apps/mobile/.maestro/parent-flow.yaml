@@ -9,9 +9,13 @@ appId: com.renuirug.anstoss
 # (iOS) devices before asserting.
 # iOS flattens the Pressable card into one accessibility element with
 # concatenated text, so match the substring rather than the exact node.
+# Home shows one card per child (the next event) with the reply control
+# inline; the rest of the schedule lives on the Schedule tab.
 - extendedWaitUntil:
-    visible: ".*Saturday away match.*"
+    visible: "Open vs. SV Babelsberg 03 for Leo Becker"
     timeout: 15000
+- assertVisible: "Reply for Leo Becker"
+- tapOn: "Yes"
 - assertVisible: "ANNOUNCEMENTS"
 - runFlow:
     file: subflows/deeplink.yaml

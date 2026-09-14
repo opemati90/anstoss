@@ -143,8 +143,9 @@ describe('ParentHome', () => {
 
   it("renders the child's next event", async () => {
     const { findByText } = render(wrap(<ParentHome />))
-    expect(await findByText('FAMILY NEXT ACTION')).toBeTruthy()
-    expect(await findByText('Next for Mia')).toBeTruthy()
+    // The child's card is the hero; the "next action" panel only speaks for
+    // conflicts and empty schedules now.
+    expect(await findByText(/Next for Mia/)).toBeTruthy()
     expect(await findByText(/U12 match/)).toBeTruthy()
     expect(await findByText(/U12 Youth/i)).toBeTruthy()
   })
@@ -225,7 +226,7 @@ describe('ParentHome', () => {
 
     const { findByText, queryByText } = render(wrap(<ParentHome />))
 
-    expect(await findByText('Next for Mia')).toBeTruthy()
+    expect(await findByText(/Next for Mia/)).toBeTruthy()
     expect(queryByText('Resolve 1 schedule conflict')).toBeNull()
   })
 

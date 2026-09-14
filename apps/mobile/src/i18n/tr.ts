@@ -619,6 +619,7 @@ export default {
       shareTitle: 'Oyuncu kartınızı paylaşın',
     },
     parent: {
+      replyFor: '{{child}} için yanıt',
       nextActionEyebrow: 'SIRADAKİ ADIM',
       actionConflictTitle: '{{count}} program çakışmasını çözün',
       actionConflictTitle_one: '{{count}} program çakışmasını çözün',
@@ -747,7 +748,13 @@ export default {
       subtitle:
         'Yaklaşan maçlarınız burada görünecek. Antrenörünüzden ilk etkinliğinizi planlamasını isteyin.',
     },
+    week: {
+      new: 'Yeni',
+      yesOf: '{{total}} kişiden {{yes}}',
+      yesCount: '{{yes}} evet',
+    },
     coach: {
+      motmShort: 'MO',
       rosterEyebrow: 'Kadro',
       createEvent: 'Etkinlik oluştur',
       invite: 'Davet et',
@@ -818,6 +825,15 @@ export default {
         "Henüz yaklaşan etkinlik yok. İlk antrenmanınızı veya maçınızı planlamak için 'Etkinlik oluştur'a dokunun.",
     },
     admin: {
+      club: 'Kulüp',
+      attention: {
+        title: 'İlgini bekliyor',
+        requestsHint: 'Onayla veya reddet',
+        duesHint: 'Hatırlat veya ödemeleri kaydet',
+        coachHint: 'Takım erişimini onayla',
+        pause: '{{name}} için aidat duraklatılsın mı?',
+        pauseHint: '{{weeks}} hafta yok',
+      },
       actionNeeded: 'İşlem gerekiyor',
       pendingRequestsTitle_one: '{{count}} bekleyen katılım isteği',
       pendingRequestsTitle_other: '{{count}} bekleyen katılım isteği',

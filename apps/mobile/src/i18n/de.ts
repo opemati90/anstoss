@@ -593,7 +593,13 @@ const base = {
       subtitle:
         'Deine nächsten Spiele erscheinen hier. Bitte deinen Trainer, das erste Event einzutragen.',
     },
+    week: {
+      new: 'Neu',
+      yesOf: '{{yes}} von {{total}}',
+      yesCount: '{{yes}} Zusagen',
+    },
     coach: {
+      motmShort: 'SdS',
       rosterEyebrow: 'Kader',
       rosterGapTitle_one: '{{count}} weiterer Spieler nötig',
       rosterGapTitle_other: '{{count}} weitere Spieler nötig',
@@ -662,6 +668,7 @@ const base = {
         'Noch keine Termine. Tippe auf „Event erstellen“, um das erste Training oder Spiel anzulegen.',
     },
     parent: {
+      replyFor: 'Antwort für {{child}}',
       nextActionEyebrow: 'JETZT DRAN',
       actionConflictTitle: '{{count}} Terminkonflikte lösen',
       actionConflictTitle_one: '{{count}} Terminkonflikt lösen',
@@ -690,6 +697,15 @@ const base = {
       upcoming: 'Anstehend',
     },
     admin: {
+      club: 'Verein',
+      attention: {
+        title: 'Braucht deine Aufmerksamkeit',
+        requestsHint: 'Annehmen oder ablehnen',
+        duesHint: 'Erinnern oder Zahlungen erfassen',
+        coachHint: 'Teamzugang bestätigen',
+        pause: 'Beiträge für {{name}} pausieren?',
+        pauseHint: '{{weeks}} Wochen Ausfall',
+      },
       actionNeeded: 'Handlungsbedarf',
       pendingRequestsTitle_one: '{{count}} offene Beitrittsanfrage',
       pendingRequestsTitle_other: '{{count}} offene Beitrittsanfragen',

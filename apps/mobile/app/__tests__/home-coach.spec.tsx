@@ -579,8 +579,8 @@ describe('CoachHome', () => {
     const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
 
     expect(await findByText('Review 4 pending replies')).toBeTruthy()
+    // One label for one intent: the pill and the short count were merged.
     expect(await findByText('4 awaiting RSVP')).toBeTruthy()
-    expect(await findByText('4 pending')).toBeTruthy()
   })
 
   it('moves to lineup when the match is ready', async () => {
@@ -638,19 +638,20 @@ describe('CoachHome', () => {
     const { findByLabelText, findByText } = render(
       wrap(<CoachHome clubId="club-1" teamId="team-1" />),
     )
-    const action = await findByLabelText('Create event')
-    const label = await findByText('Create event')
+    const action = await findByLabelText('Announce')
+    const label = await findByText('Announce')
 
     expect(StyleSheet.flatten(action.props.style)).toEqual(
-      expect.objectContaining({ width: '48%', minHeight: 92 }),
+      expect.objectContaining({ flex: 1, minHeight: 60 }),
     )
     expect(label.props.numberOfLines).toBeUndefined()
   })
 
   it('renders roster snapshot counts', async () => {
     const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-    // Active squad count (18) renders in SquadStat — may appear in multiple places (target, active)
-    expect((await findAllByText('18')).length).toBeGreaterThan(0)
+    // Squad size (18) now rides on the week rows as "x of 18"; the squad
+    // card itself moved to the Team tab.
+    expect((await findAllByText(/\b18\b/)).length).toBeGreaterThan(0)
   })
 
   it('shares the readiness briefing for the next match', async () => {

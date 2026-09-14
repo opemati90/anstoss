@@ -15,6 +15,9 @@ import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
+import { TeamPulse } from './TeamPulse'
+import { WeekRows } from './WeekRows'
+import type { HomeAnnouncement, HomeChannel } from '../../hooks/usePlayerHome'
 import {
   buildEventReadinessShareText,
   formatEventReadinessWhen,
@@ -50,6 +53,8 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const [hasUpcomingEvents, setHasUpcomingEvents] = useState(false)
   const [eventsLoaded, setEventsLoaded] = useState(false)
   const [roster, setRoster] = useState<RosterSnapshot | null>(null)
+  const [teamChannel, setTeamChannel] = useState<HomeChannel | null>(null)
+  const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([])
   const [announceVisible, setAnnounceVisible] = useState(false)
   const [nudgingEventId, setNudgingEventId] = useState<string | null>(null)
   const nudgingRef = useRef(false)
@@ -58,7 +63,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     if (!teamId) return
     const base = `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`
     const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const [upcoming, ops, fixtures] = await Promise.all([
+    const [upcoming, ops, fixtures, channels, anns] = await Promise.all([
       api<EventFeedItem[]>(`${base}&limit=10`).catch(() => [] as EventFeedItem[]),
       api<RosterOpsSnapshot>(
         `/clubs/${clubId}/teams/${teamId}/roster-ops`,
@@ -66,7 +71,16 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
       api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=10`).catch(
         () => [] as ImportedFixture[],
       ),
+      api<HomeChannel[]>(`/teams/${teamId}/channels`).catch(() => [] as HomeChannel[]),
+      api<HomeAnnouncement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(
+        () => [] as HomeAnnouncement[],
+      ),
     ])
+    const channelList = Array.isArray(channels) ? channels : []
+    setTeamChannel(
+      channelList.find((ch) => ch.kind === 'TEAM') ?? channelList[0] ?? null,
+    )
+    setAnnouncements(Array.isArray(anns) ? anns : [])
     const upcomingEvents = upcoming ?? []
     const weekEvents = upcomingEvents.filter(
       (e) => new Date(e.date) <= new Date(weekEnd),
@@ -106,7 +120,6 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   const squadSize = (roster?.active ?? 0) + (roster?.trial ?? 0)
   const target = roster?.target ?? 13
   const rosterGap = roster ? Math.max(0, target - squadSize) : 0
-  const squadPct = roster ? Math.min(1, squadSize / Math.max(1, target)) : 0
 
   const yes = nextMatch?.yesCount ?? 0
   const maybe = nextMatch?.maybeCount ?? 0
@@ -272,9 +285,140 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
     nudgeNextMatchReadiness,
   ])
 
+  const actionBusy = coachAction?.target === 'nudge' && nudgingEventId === nextMatch?.id
+  const actionLabel = coachAction
+    ? actionBusy
+      ? t('home.readiness.nudging', { defaultValue: 'Sending...' })
+      : t(coachAction.ctaKey, coachAction.ctaOptions)
+    : ''
+
+  // The action strip lives inside the hero. It used to be a separate
+  // "Do this next" card above a separate match card above a readiness card,
+  // three loud surfaces about one match. Now the match is the hero and the
+  // one thing to do about it is its button.
+  const actionStrip = coachAction ? (
+    <View style={[styles.actionStrip, { borderTopColor: c.borderSubtle ?? c.borderDefault }]}>
+      <View style={styles.actionCopy}>
+        <View style={[styles.actionIconWell, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+          <Icon name={coachAction.icon} size={14} color="tint" />
+        </View>
+        <Text variant="callout" weight="semibold" color="primary" numberOfLines={2} style={styles.actionTitle}>
+          {t(coachAction.titleKey, coachAction.titleOptions)}
+        </Text>
+      </View>
+      <Pressable
+        onPress={handleCoachAction}
+        accessibilityRole="button"
+        accessibilityLabel={t(coachAction.ctaKey, coachAction.ctaOptions)}
+        accessibilityState={{ disabled: actionBusy }}
+        disabled={actionBusy}
+        style={({ pressed }) => [
+          styles.commandButton,
+          { backgroundColor: c.primary },
+          pressed && { opacity: 0.86 },
+          actionBusy && { opacity: 0.65 },
+        ]}
+      >
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.commandButtonText, { color: c.textInverse }]}>
+          {actionLabel}
+        </Text>
+        <Icon name="chevron.right" size={14} color="inverse" />
+      </Pressable>
+    </View>
+  ) : null
+
+  const readinessFlagged = Boolean(
+    nextMatch?.readiness && nextMatch.readiness.status !== 'READY',
+  )
+
   return (
     <View style={styles.root}>
-      {coachAction ? (
+      {/* Hero: the next match, with the one thing to do about it inline. */}
+      {nextMatch ? (
+        <View
+          style={[
+            styles.matchCard,
+            elevation.hero,
+            { backgroundColor: c.surface, borderColor: c.borderDefault },
+          ]}
+        >
+          <Pressable
+            onPress={goToMatch}
+            accessibilityRole="button"
+            accessibilityLabel={nextMatch.title}
+            style={({ pressed }) => [styles.matchBody, pressed && { opacity: 0.96 }]}
+          >
+            <Text style={[styles.matchEyebrow, { color: c.textTertiary }]}>
+              {formatEyebrow(nextMatch.date, i18n.language)}
+            </Text>
+            <Text variant="title2" color="primary" weight="semibold" style={styles.matchTitle}>
+              {nextMatch.title}
+            </Text>
+            {nextMatch.location ? (
+              <View style={styles.metaRow}>
+                <Icon name="mappin.circle" size={14} color="tertiary" />
+                <Text variant="footnote" color="secondary" numberOfLines={1}>
+                  {nextMatch.location}
+                </Text>
+              </View>
+            ) : null}
+
+            {responded + eventPending > 0 ? (
+              <View style={styles.rsvpBlock}>
+                <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
+                  <View
+                    style={[styles.rsvpSegment, { flex: yesPct, backgroundColor: c.primary }]}
+                  />
+                  <View
+                    style={[
+                      styles.rsvpSegment,
+                      { flex: maybePct, backgroundColor: withAlpha(c.primary, 0.4) },
+                    ]}
+                  />
+                  <View
+                    style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.borderStrong }]}
+                  />
+                </View>
+                <View style={styles.rsvpCounts}>
+                  {/* The squad split is one proportion, not three alerts. */}
+                  <RsvpCount color={c.primary} count={yes} />
+                  <RsvpCount color={c.textSecondary} count={maybe} />
+                  <RsvpCount color={c.textTertiary} count={no} />
+                  {eventPending > 0 ? (
+                    <Text variant="caption2" color="tertiary" style={styles.pendingLabel} tabular>
+                      {t('home.coach.pendingPill', {
+                        defaultValue: '{{count}} awaiting RSVP',
+                        count: eventPending,
+                      })}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+          </Pressable>
+
+          {actionStrip}
+
+          {nextMatch.readiness ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('home.readiness.shareBriefing', { defaultValue: 'Share briefing' })}
+              onPress={() => void shareNextMatchReadiness()}
+              style={({ pressed }) => [
+                styles.secondaryRow,
+                { borderTopColor: c.borderSubtle ?? c.borderDefault },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <Icon name="square.and.arrow.up" size={15} color="tint" />
+              <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
+                {t('home.readiness.shareBriefing', { defaultValue: 'Share briefing' })}
+              </Text>
+              <Icon name="chevron.right" size={13} color="tertiary" />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : coachAction ? (
         <View
           style={[
             styles.commandPanel,
@@ -283,98 +427,44 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
           ]}
         >
           <View style={styles.commandHeader}>
-            <View
-              style={[
-                styles.commandIcon,
-                { backgroundColor: withAlpha(c.primary, 0.12) },
-              ]}
-            >
+            <View style={[styles.commandIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
               <Icon name={coachAction.icon} size={16} color="tint" />
             </View>
             <Text style={[styles.commandEyebrow, { color: c.textTertiary }]}>
               {t('home.coach.nextActionEyebrow', { defaultValue: 'DO THIS NEXT' })}
             </Text>
           </View>
-          <Text
-            variant="title3"
-            weight="semibold"
-            color="primary"
-            numberOfLines={2}
-            style={styles.commandTitle}
-          >
+          <Text variant="title3" weight="semibold" color="primary" numberOfLines={2} style={styles.commandTitle}>
             {t(coachAction.titleKey, coachAction.titleOptions)}
+          </Text>
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
+            {t(coachAction.bodyKey, coachAction.bodyOptions)}
           </Text>
           <Pressable
             onPress={handleCoachAction}
             accessibilityRole="button"
             accessibilityLabel={t(coachAction.ctaKey, coachAction.ctaOptions)}
-            accessibilityState={{
-              disabled: coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id,
-            }}
-            disabled={coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id}
             style={({ pressed }) => [
               styles.commandButton,
               { backgroundColor: c.primary },
               pressed && { opacity: 0.86 },
-              coachAction.target === 'nudge' &&
-                nudgingEventId === nextMatch?.id && { opacity: 0.65 },
             ]}
           >
-            <Text
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              style={[styles.commandButtonText, { color: c.textInverse }]}
-            >
-              {coachAction.target === 'nudge' && nudgingEventId === nextMatch?.id
-                ? t('home.readiness.nudging', { defaultValue: 'Sending...' })
-                : t(coachAction.ctaKey, coachAction.ctaOptions)}
+            <Text numberOfLines={1} style={[styles.commandButtonText, { color: c.textInverse }]}>
+              {t(coachAction.ctaKey, coachAction.ctaOptions)}
             </Text>
             <Icon name="chevron.right" size={14} color="inverse" />
           </Pressable>
         </View>
       ) : null}
 
-      {/* Status pills — collapse to nothing when there's nothing to flag.
-          The roster condition must match the pill's own condition below, or
-          the row renders empty and leaves its gap behind as dead space. */}
-      {((rosterGap > 0 && coachAction?.target !== 'roster') ||
-        (nextMatch && eventPending > 0)) &&
-      teamId ? (
-        <View style={styles.pillRow}>
-          {/* The roster-gap pill duplicated the next-action card immediately
-              above it ("Fill 10 squad spots") and introduced a warning-orange
-              that exists nowhere else on the screen. Shown only when the card
-              is about something else. */}
-          {rosterGap > 0 && coachAction?.target !== 'roster' ? (
-            <StatusPill
-              icon="person.2.fill"
-              label={t('home.coach.rosterPill', {
-                defaultValue:
-                  rosterGap === 1 ? '{{count}} spot open' : '{{count}} spots open',
-                count: rosterGap,
-              })}
-              onPress={goToRoster}
-            />
-          ) : null}
-          {nextMatch && eventPending > 0 ? (
-            <StatusPill
-              tone="info"
-              icon="clock"
-              label={t('home.coach.pendingPill', {
-                defaultValue:
-                  eventPending === 1 ? '{{count}} awaiting RSVP' : '{{count}} awaiting RSVP',
-                count: eventPending,
-              })}
-              onPress={goToMatch}
-            />
-          ) : null}
-        </View>
-      ) : null}
-
-      {nextMatch?.readiness ? (
+      {/* Readiness only speaks when it has something to flag; a READY match
+          is already said by the hero. */}
+      {nextMatch?.readiness && readinessFlagged ? (
         <EventReadinessCard
           readiness={nextMatch.readiness}
           eventTitle={nextMatch.title}
+          compact
           onPress={goToMatch}
           onAttendance={goToMatchAttendance}
           onShare={shareNextMatchReadiness}
@@ -383,266 +473,47 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
         />
       ) : null}
 
-      {/* Hero match card — the visual centerpiece for the next fixture */}
-      {nextMatch ? (
-        <Pressable
-          onPress={goToMatch}
-          accessibilityRole="button"
-          accessibilityLabel={nextMatch.title}
-          style={({ pressed }) => [
-            styles.matchCard,
-            elevation.hero,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.96 },
-          ]}
-        >
-          <Text style={[styles.matchEyebrow, { color: c.textTertiary }]}>
-            {formatEyebrow(nextMatch.date, i18n.language)}
-          </Text>
-          <Text variant="title2" color="primary" weight="semibold" style={styles.matchTitle}>
-            {nextMatch.title}
-          </Text>
-          {nextMatch.location ? (
-            <View style={styles.metaRow}>
-              <Icon name="mappin.circle" size={14} color="tertiary" />
-              <Text variant="footnote" color="secondary" numberOfLines={1}>
-                {nextMatch.location}
-              </Text>
-            </View>
-          ) : null}
-
-          {responded + eventPending > 0 ? (
-            <View style={styles.rsvpBlock}>
-              <View style={[styles.rsvpBar, { backgroundColor: c.borderDefault }]}>
-                <View
-                  style={[styles.rsvpSegment, { flex: yesPct, backgroundColor: c.primary }]}
-                />
-                <View
-                  style={[
-                    styles.rsvpSegment,
-                    { flex: maybePct, backgroundColor: withAlpha(c.primary, 0.4) },
-                  ]}
-                />
-                <View
-                  style={[styles.rsvpSegment, { flex: noPct, backgroundColor: c.borderStrong }]}
-                />
-              </View>
-              <View style={styles.rsvpCounts}>
-                {/* The squad split is one proportion, not three alerts. */}
-                <RsvpCount color={c.primary} count={yes} />
-                <RsvpCount color={c.textSecondary} count={maybe} />
-                <RsvpCount color={c.textTertiary} count={no} />
-                {eventPending > 0 ? (
-                  <Text variant="caption2" color="tertiary" style={styles.pendingLabel} tabular>
-                    {t('home.coach.pendingShort', {
-                      defaultValue:
-                        eventPending === 1 ? '{{count}} pending' : '{{count}} pending',
-                      count: eventPending,
-                    })}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          ) : null}
-
-          <View style={[styles.matchDivider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
-
-          {coachAction?.target === 'lineup' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('home.coach.buildLineup', {
-                defaultValue: 'Build lineup',
-              })}
-              onPress={(e) => {
-                ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-                goToLineupBuilder()
-              }}
-              style={({ pressed }) => [styles.secondaryRow, pressed && { opacity: 0.6 }]}
-            >
-              <Icon name="sparkles" size={15} color="tint" />
-              <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
-                {t('home.coach.buildLineup', { defaultValue: 'Build lineup' })}
-              </Text>
-              <Icon name="chevron.right" size={13} color="tertiary" />
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.coach.viewMotmArchive', {
-              defaultValue: 'MOTM archive',
-            })}
-            onPress={(e) => {
-              ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-              router.push('/motm-archive' as never)
-            }}
-            style={({ pressed }) => [styles.secondaryRow, pressed && { opacity: 0.6 }]}
-          >
-            <Icon name="star.fill" size={15} color="tint" />
-            <Text variant="footnote" color="primary" weight="medium" style={styles.secondaryRowText}>
-              {t('home.coach.viewMotmArchive', {
-                defaultValue: 'MOTM archive',
-              })}
-            </Text>
-            <Icon name="chevron.right" size={13} color="tertiary" />
-          </Pressable>
-        </Pressable>
-      ) : null}
-
-      {/* Roster summary — compact KPI strip with progress */}
-      {roster ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={goToRoster}
-          style={({ pressed }) => [
-            styles.squadCard,
-            elevation.card,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.96 },
-          ]}
-        >
-          <View style={styles.squadHeader}>
-            <View style={styles.squadHeaderLeft}>
-              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                {t('home.coach.squadLabel', { defaultValue: 'SQUAD' })}
-              </Text>
-              <Text variant="title2" color="primary" weight="semibold" tabular style={styles.squadCount}>
-                {t('home.coach.squadCount', {
-                  defaultValue: '{{have}} of {{target}}',
-                  have: squadSize,
-                  target,
-                })}
-              </Text>
-            </View>
-            <Icon name="chevron.right" size={16} color="tertiary" />
-          </View>
-          <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${squadPct * 100}%`, backgroundColor: c.primary },
-              ]}
-            />
-          </View>
-          <View style={styles.squadStats}>
-            <SquadStat
-              label={t('home.coach.rosterActive', { defaultValue: 'Active' })}
-              value={roster.active}
-            />
-            <SquadStat
-              label={t('home.coach.rosterTrial', { defaultValue: 'Trial' })}
-              value={roster.trial}
-            />
-            <SquadStat
-              label={t('home.coach.rosterOpen', { defaultValue: 'Open' })}
-              value={rosterGap}
-              dim={rosterGap === 0}
-            />
-          </View>
-        </Pressable>
-      ) : null}
-
-      {/* This week — compact rows, day chip on the right */}
-      <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-        {t('home.coach.thisWeek', { defaultValue: 'This week' }).toUpperCase()}
-      </Text>
-      {thisWeek.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.weekList}>
-          {thisWeek.map((ev) => (
-            <Pressable
-              key={ev.id}
-              onPress={() =>
-                router.push({
-                  pathname: '/event-detail',
-                  params: { eventId: ev.id },
-                } as never)
-              }
-              accessibilityRole="button"
-              accessibilityLabel={ev.title}
-              style={({ pressed }) => [
-                styles.weekRow,
-                elevation.card,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-                pressed && { opacity: 0.96 },
-              ]}
-            >
-              <View
-                style={[
-                  styles.dayChip,
-                  {
-                    backgroundColor: c.surfaceSunken ?? c.background,
-                    borderColor: c.borderDefault,
-                  },
-                ]}
-              >
-                <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
-                  {formatWeekday(ev.date, i18n.language).toUpperCase()}
-                </Text>
-                <Text variant="callout" color="primary" weight="semibold" tabular>
-                  {String(new Date(ev.date).getDate()).padStart(2, '0')}
-                </Text>
-              </View>
-              <View style={styles.weekRowBody}>
-                <Text variant="callout" color="primary" numberOfLines={1}>
-                  {ev.title}
-                </Text>
-                <Text variant="caption2" color="secondary">
-                  {formatTime(ev.date, i18n.language)}
-                  {ev.location ? ` · ${ev.location}` : ''}
-                </Text>
-              </View>
-              <Icon name="chevron.right" size={14} color="tertiary" />
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {/* Quick actions grid */}
-      <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-        {t('home.coach.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
-      </Text>
-      <View style={styles.actionGrid}>
-        <ActionTile
-          icon="plus.circle.fill"
-          label={t('home.coach.createEvent', { defaultValue: 'Create event' })}
-          onPress={goToCreateEvent}
+      {teamId ? (
+        <WeekRows
+          events={thisWeek}
+          locale={i18n.language}
+          squadSize={roster ? roster.active + roster.trial : null}
+          onCreate={goToCreateEvent}
+          emptyLabel={t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })}
         />
-        {/* Only show Announce when a team is selected — posting to
-            /teams//channels would 404 without a valid teamId. */}
-        {teamId ? (
-          <ActionTile
-            icon="megaphone"
-            label={t('home.announce', { defaultValue: 'Announce' })}
-            onPress={() => setAnnounceVisible(true)}
-          />
-        ) : null}
-        <ActionTile
-          icon="person.circle.fill"
+      ) : null}
+
+      <TeamPulse channel={teamChannel} announcements={announcements} />
+
+      {/* One quiet row of tools instead of a grid of tiles. */}
+      <View style={styles.toolRow}>
+        <ToolChip
+          icon="megaphone"
+          label={t('home.announce', { defaultValue: 'Announce' })}
+          disabled={!teamId}
+          onPress={() => setAnnounceVisible(true)}
+        />
+        <ToolChip
+          icon="person.badge.plus"
           label={t('home.coach.invite', { defaultValue: 'Invite' })}
           onPress={() =>
-            router.push({
-              pathname: '/invite',
-              params: { returnTo: '/(tabs)' },
-            } as never)
+            router.push({ pathname: '/invite', params: { returnTo: '/(tabs)' } } as never)
           }
         />
-        <ActionTile
+        <ToolChip
           icon="figure.walk"
           label={t('home.coach.scouting', { defaultValue: 'Scouting' })}
           onPress={() => router.push('/scouting' as never)}
         />
+        <ToolChip
+          icon="star.fill"
+          label={t('home.coach.motmShort', { defaultValue: 'MOTM' })}
+          onPress={() => router.push('/motm-archive' as never)}
+        />
       </View>
 
-      {/* Season stats widget — hidden when teamId is unknown or no results */}
-      {teamId ? (
-        <SeasonStatsCard clubId={clubId} teamId={teamId} />
-      ) : null}
+      {/* Season stats — ambient, so last. */}
+      {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} /> : null}
 
       {/* Cold-start nudge — only shown after events have loaded to avoid false flash */}
       {eventsLoaded && !hasUpcomingEvents && !nextMatch && thisWeek.length === 0 ? (
@@ -674,70 +545,34 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   )
 }
 
-function ActionTile({
+function ToolChip({
   icon,
   label,
   onPress,
+  disabled,
 }: {
   icon: string
   label: string
   onPress: () => void
+  disabled?: boolean
 }) {
   const c = useClubColors()
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
       style={({ pressed }) => [
-        styles.action,
+        styles.tool,
         { backgroundColor: c.surfaceSunken },
-        pressed && { opacity: 0.94 },
+        pressed && { opacity: 0.9 },
+        disabled && { opacity: 0.4 },
       ]}
     >
-      <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
-        <Icon name={icon} size={18} color="tint" />
-      </View>
-      <Text
-        variant="footnote"
-        color="primary"
-        weight="semibold"
-        style={styles.actionLabel}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-function StatusPill({
-  tone = 'info',
-  icon,
-  label,
-  onPress,
-}: {
-  /** `warning` is reserved for states that need attention now. */
-  tone?: 'warning' | 'info'
-  icon: string
-  label: string
-  onPress: () => void
-}) {
-  const c = useClubColors()
-  const bg = tone === 'warning' ? withAlpha(c.warning, 0.12) : withAlpha(c.primary, 0.10)
-  const fg = tone === 'warning' ? c.warning : c.primary
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.pill,
-        { backgroundColor: bg },
-        pressed && { opacity: 0.85 },
-      ]}
-    >
-      <Icon name={icon} size={12} color={fg} />
-      <Text variant="caption1" weight="semibold" style={[styles.pillText, { color: fg }]}>
+      <Icon name={icon} size={16} color="tint" />
+      <Text variant="caption1" color="primary" weight="semibold" style={styles.toolLabel}>
         {label}
       </Text>
     </Pressable>
@@ -749,32 +584,6 @@ function RsvpCount({ color, count }: { color: string; count: number }) {
     <Text variant="caption2" tabular style={[styles.rsvpCount, { color }]}>
       {String(count)}
     </Text>
-  )
-}
-
-function SquadStat({
-  label,
-  value,
-  dim,
-}: {
-  label: string
-  value: number
-  dim?: boolean
-}) {
-  return (
-    <View style={styles.squadStat}>
-      <Text
-        variant="title3"
-        weight="semibold"
-        color={dim ? 'tertiary' : 'primary'}
-        tabular
-      >
-        {String(value)}
-      </Text>
-      <Text variant="caption2" color="secondary">
-        {label}
-      </Text>
-    </View>
   )
 }
 
@@ -796,17 +605,6 @@ function withAlpha(hex: string, alpha: number): string {
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function formatWeekday(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { weekday: 'short' })
 }
 
 function formatEyebrow(iso: string, locale: string): string {
@@ -1081,7 +879,6 @@ const styles = StyleSheet.create({
   },
   commandButton: {
     minHeight: 46,
-    marginTop: space.sm,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     flexDirection: 'row',
@@ -1108,11 +905,40 @@ const styles = StyleSheet.create({
   pillText: { fontFamily: fonts.label, letterSpacing: 0.3 },
 
   matchCard: {
-    padding: space.md,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  matchBody: { padding: space.md, gap: space.sm },
+  actionStrip: {
+    borderTopWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingTop: space.sm + 2,
+    paddingBottom: space.md,
     gap: space.sm,
+  },
+  actionCopy: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  actionIconWell: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionTitle: { flex: 1 },
+  toolRow: { flexDirection: 'row', gap: space.sm },
+  toolLabel: { textAlign: 'center' },
+  tool: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space['2xs'] + 2,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space['2xs'],
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    minHeight: 60,
   },
   matchEyebrow: {
     fontFamily: fonts.data,
@@ -1143,7 +969,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: 40,
+    minHeight: 44,
+    paddingHorizontal: space.md,
+    borderTopWidth: hairline,
   },
   secondaryRowText: { flex: 1 },
 

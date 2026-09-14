@@ -196,11 +196,11 @@ describe('AdminHome', () => {
 
   it('keeps manager actions readable on narrow screens and large text', async () => {
     const { findByLabelText, findByText } = render(wrap(<AdminHome clubId="club-1" />))
-    const action = await findByLabelText('Create event')
-    const label = await findByText('Create event')
+    const action = await findByLabelText('Invite')
+    const label = await findByText('Invite')
 
     expect(StyleSheet.flatten(action.props.style)).toEqual(
-      expect.objectContaining({ width: '48%', minHeight: 92 }),
+      expect.objectContaining({ flex: 1, minHeight: 60 }),
     )
     expect(label.props.numberOfLines).toBeUndefined()
   })
@@ -210,7 +210,7 @@ describe('AdminHome', () => {
 
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
-        '/clubs/club-1/events?teamId=team-1&scope=upcoming&limit=1',
+        '/clubs/club-1/events?teamId=team-1&scope=upcoming&limit=6',
       )
     })
   })
@@ -219,7 +219,7 @@ describe('AdminHome', () => {
     render(wrap(<AdminHome clubId="club-1" />))
 
     await waitFor(() => {
-      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events?scope=upcoming&limit=1')
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events?scope=upcoming&limit=6')
     })
   })
 

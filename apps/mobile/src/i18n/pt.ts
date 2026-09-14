@@ -593,7 +593,13 @@ const base = {
       subtitle:
         'Os teus próximos jogos aparecerão aqui. Pede ao teu treinador para agendar o primeiro evento.',
     },
+    week: {
+      new: 'Novo',
+      yesOf: '{{yes}} de {{total}}',
+      yesCount: '{{yes}} sim',
+    },
     coach: {
+      motmShort: 'MVP',
       rosterEyebrow: 'Plantel',
       rosterGapTitle_one: 'Falta {{count}} jogador',
       rosterGapTitle_other: 'Faltam {{count}} jogadores',
@@ -662,6 +668,7 @@ const base = {
       noEvents: 'Ainda sem eventos. Toca em «Criar evento» para agendar o primeiro treino ou jogo.',
     },
     parent: {
+      replyFor: 'Resposta por {{child}}',
       nextActionEyebrow: 'FAZER A SEGUIR',
       actionConflictTitle: 'Resolver {{count}} conflitos de agenda',
       actionConflictTitle_one: 'Resolver {{count}} conflito de agenda',
@@ -690,6 +697,15 @@ const base = {
       upcoming: 'Próximos',
     },
     admin: {
+      club: 'Clube',
+      attention: {
+        title: 'Precisa da tua atenção',
+        requestsHint: 'Aprovar ou recusar',
+        duesHint: 'Lembrar ou registar pagamentos',
+        coachHint: 'Confirmar acesso à equipa',
+        pause: 'Pausar quotas de {{name}}?',
+        pauseHint: '{{weeks}} semanas fora',
+      },
       actionNeeded: 'Ação necessária',
       pendingRequestsTitle_one: '{{count}} pedido de adesão em aberto',
       pendingRequestsTitle_other: '{{count}} pedidos de adesão em aberto',

@@ -598,7 +598,13 @@ const base = {
       subtitle:
         'Le prossime partite appariranno qui. Chiedi al tuo allenatore di programmare il primo evento.',
     },
+    week: {
+      new: 'Nuovo',
+      yesOf: '{{yes}} su {{total}}',
+      yesCount: '{{yes}} sì',
+    },
     coach: {
+      motmShort: 'MVP',
       rosterEyebrow: 'Rosa',
       rosterGapTitle_one: '{{count}} giocatore in più necessario',
       rosterGapTitle_other: '{{count}} giocatori in più necessari',
@@ -668,6 +674,7 @@ const base = {
         'Nessun evento in programma. Tocca «Crea evento» per pianificare il primo allenamento o partita.',
     },
     parent: {
+      replyFor: 'Risposta per {{child}}',
       nextActionEyebrow: 'DA FARE ORA',
       actionConflictTitle: 'Risolvi {{count}} conflitti di calendario',
       actionConflictTitle_one: 'Risolvi {{count}} conflitto di calendario',
@@ -697,6 +704,15 @@ const base = {
       upcoming: 'Prossimi',
     },
     admin: {
+      club: 'Club',
+      attention: {
+        title: 'Richiede la tua attenzione',
+        requestsHint: 'Approva o rifiuta',
+        duesHint: 'Sollecita o registra i pagamenti',
+        coachHint: 'Conferma l\'accesso alla squadra',
+        pause: 'Sospendere le quote di {{name}}?',
+        pauseHint: 'Fuori {{weeks}} settimane',
+      },
       actionNeeded: 'Azione richiesta',
       pendingRequestsTitle_one: '{{count}} richiesta di accesso in sospeso',
       pendingRequestsTitle_other: '{{count}} richieste di accesso in sospeso',

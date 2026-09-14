@@ -488,6 +488,7 @@ const base = {
       trialEmptyBody: 'Invites land here when a club views your profile.',
     },
     parent: {
+      replyFor: 'Reply for {{child}}',
       nextActionEyebrow: 'DO THIS NEXT',
       actionConflictTitle: 'Resolve {{count}} schedule conflicts',
       actionConflictTitle_one: 'Resolve {{count}} schedule conflict',
@@ -614,7 +615,13 @@ const base = {
       subtitle:
         'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
     },
+    week: {
+      new: 'New',
+      yesOf: '{{yes}} of {{total}}',
+      yesCount: '{{yes}} yes',
+    },
     coach: {
+      motmShort: 'MOTM',
       rosterEyebrow: 'Roster',
       createEvent: 'Create event',
       invite: 'Invite',
@@ -681,6 +688,15 @@ const base = {
         "No upcoming events yet. Tap 'Create event' to schedule your first training or match.",
     },
     admin: {
+      club: 'Club',
+      attention: {
+        title: 'Needs your attention',
+        requestsHint: 'Approve or decline',
+        duesHint: 'Remind or record payments',
+        coachHint: 'Confirm team access',
+        pause: 'Pause dues for {{name}}?',
+        pauseHint: '{{weeks}} weeks out',
+      },
       actionNeeded: 'Action needed',
       pendingRequestsTitle_one: '{{count}} pending join request',
       pendingRequestsTitle_other: '{{count}} pending join requests',

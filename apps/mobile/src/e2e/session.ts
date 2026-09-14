@@ -741,6 +741,9 @@ function createParentEvents(): CrossTeamEventItem[] {
       ...createEvents()[0],
       teamName: 'U15',
       teamDisplayName: 'U15 I',
+      childUserId: 'child-1',
+      childName: 'Leo Becker',
+      childRsvp: null,
     },
     {
       ...createEvents()[1],
@@ -749,6 +752,9 @@ function createParentEvents(): CrossTeamEventItem[] {
       date: nowIso(7, 11, 0),
       teamName: 'U15',
       teamDisplayName: 'U15 I',
+      childUserId: 'child-1',
+      childName: 'Leo Becker',
+      childRsvp: null,
     },
   ]
 }
@@ -4405,6 +4411,19 @@ export function handleE2EApiRequest(
         nextAvailableAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1h cooldown
       },
     }
+  }
+
+  // Parent replies on a child's behalf from home — PUT
+  // /clubs/:clubId/events/:eventId/rsvp-proxy { status, childUserId }.
+  const proxyMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)/rsvp-proxy$`))
+  if (method === 'PUT' && proxyMatch) {
+    const body = (options.body ?? {}) as { status?: string; childUserId?: string }
+    currentSession.api.parentEvents = currentSession.api.parentEvents.map((ev) =>
+      ev.id === proxyMatch[1] && ev.childUserId === body.childUserId
+        ? { ...ev, childRsvp: (body.status as 'YES' | 'MAYBE' | 'NO') ?? ev.childRsvp }
+        : ev,
+    )
+    return { handled: true, ok: true, status: 204 }
   }
 
   // Reminder toggle / RSVP write on event detail — succeed silently.

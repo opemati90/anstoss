@@ -21,6 +21,7 @@ import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { EventReadinessCard } from './EventReadinessCard'
 import { SeasonStatsCard } from './SeasonStatsCard'
+import { WeekRows, type WeekRowEvent } from './WeekRows'
 import {
   buildEventReadinessShareText,
   formatEventReadinessWhen,
@@ -81,6 +82,7 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const [announceVisible, setAnnounceVisible] = useState(false)
   const [pendingCoachCount, setPendingCoachCount] = useState(0)
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
+  const [weekEvents, setWeekEvents] = useState<WeekRowEvent[]>([])
   const [nudgingEventId, setNudgingEventId] = useState<string | null>(null)
   const [activationLinks, setActivationLinks] = useState<ActivationLink[]>([])
   const [activationCampaigns, setActivationCampaigns] = useState<ActivationCampaign[]>([])
@@ -91,9 +93,10 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
   const load = useCallback(async () => {
     setStatsError(false)
     setActivationStatus('loading')
+    // One request feeds both the hero (first event) and the week list.
     const eventPath = teamId
-      ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=1`
-      : `/clubs/${clubId}/events?scope=upcoming&limit=1`
+      ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=6`
+      : `/clubs/${clubId}/events?scope=upcoming&limit=6`
 
     const [s, a, contrib, pauses, rosterOps, events, links, campaigns, roster] = await Promise.all([
       api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
@@ -124,7 +127,15 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     setContributions(contrib)
     setPendingPauses(Array.isArray(pauses) ? pauses : [])
     setPendingCoachCount(rosterOps?.operations?.pendingCoaches?.length ?? 0)
-    setNextEvent(Array.isArray(events.value) && events.value.length > 0 ? events.value[0] : null)
+    const eventList = Array.isArray(events.value) ? events.value : []
+    const firstLive = eventList.find((e) => !(e as WeekRowEvent).cancelledAt) ?? null
+    setNextEvent(firstLive)
+    const weekEnd = Date.now() + 7 * 24 * 60 * 60 * 1000
+    setWeekEvents(
+      eventList
+        .filter((e) => e.id !== firstLive?.id && new Date(e.date).getTime() <= weekEnd)
+        .map((e) => e as WeekRowEvent),
+    )
     setActivationLinks(Array.isArray(links.value) ? links.value : [])
     setActivationCampaigns(Array.isArray(campaigns.value) ? campaigns.value : [])
     setActivationRosterCount(
@@ -301,9 +312,120 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
     )
   }
 
+  // "Needs your attention" is computed, not curated: every row is a count
+  // that is non-zero right now, and each opens the screen that clears it.
+  const setupSteps = teamId
+    ? [
+        activationLinks.some((link) => link.teamId === teamId),
+        activationRosterCount > 0,
+        activationCampaigns.some(
+          (campaign) => campaign.teamId === teamId && campaign.status !== 'REVOKED',
+        ),
+        Boolean(nextEvent?.readiness),
+      ]
+    : []
+  const setupOpen =
+    activationStatus === 'ready' && teamId ? setupSteps.filter((done) => !done).length : 0
+
+  const attention: AttentionItem[] = [
+    pending > 0
+      ? {
+          key: 'requests',
+          icon: 'person.circle',
+          label: t('home.admin.pendingPill', { defaultValue: '{{count}} join request', count: pending }),
+          hint: t('home.admin.attention.requestsHint', { defaultValue: 'Approve or decline' }),
+          count: pending,
+          onPress: () => router.push('/pending-requests' as never),
+        }
+      : null,
+    dues > 0
+      ? {
+          key: 'dues',
+          icon: 'banknote',
+          label: t('home.admin.duesPill', { defaultValue: '{{count}} dues open', count: dues }),
+          hint: t('home.admin.attention.duesHint', { defaultValue: 'Remind or record payments' }),
+          count: dues,
+          onPress: () => router.push('/admin-billing' as never),
+        }
+      : null,
+    coachPending > 0
+      ? {
+          key: 'coaches',
+          icon: 'person.badge.key',
+          label: t('home.admin.coachPendingPill', {
+            defaultValue: '{{count}} coach pending',
+            count: coachPending,
+          }),
+          hint: t('home.admin.attention.coachHint', { defaultValue: 'Confirm team access' }),
+          count: coachPending,
+          onPress: () =>
+            router.push({ pathname: '/(tabs)/roster', params: { tab: 'operations' } } as never),
+        }
+      : null,
+    nextPause
+      ? {
+          key: 'pause',
+          icon: 'pause.fill',
+          label: t('home.admin.attention.pause', {
+            defaultValue: 'Pause dues for {{name}}?',
+            name: nextPause.memberName,
+          }),
+          hint: t('home.admin.attention.pauseHint', {
+            defaultValue: '{{weeks}} weeks out',
+            weeks: nextPause.weeks,
+          }),
+          count: pausesPending.length,
+          onPress: () => approvePause(nextPause),
+        }
+      : null,
+  ].filter((item): item is AttentionItem => item !== null)
+
   return (
     <View style={styles.root}>
-      {/* Next Event hero card */}
+      {/* Hero: what needs the admin, or the next event when nothing does. */}
+      {attention.length > 0 ? (
+        <View
+          style={[styles.attentionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+        >
+          <View style={styles.attentionHead}>
+            <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+              {t('home.admin.attention.title', { defaultValue: 'Needs your attention' }).toUpperCase()}
+            </Text>
+            <View style={[styles.attentionCount, { backgroundColor: c.primary }]}>
+              <Text style={[styles.attentionCountText, { color: c.textInverse }]} tabular>
+                {attention.length}
+              </Text>
+            </View>
+          </View>
+          {attention.map((item, index) => (
+            <Pressable
+              key={item.key}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              onPress={item.onPress}
+              style={({ pressed }) => [
+                styles.attentionRow,
+                index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
+                pressed && { backgroundColor: c.surfaceSunken },
+              ]}
+            >
+              <View style={[styles.attentionIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+                <Icon name={item.icon} size={16} color="tint" />
+              </View>
+              <View style={{ flex: 1, gap: space['2xs'] }}>
+                <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text variant="caption1" color="secondary" numberOfLines={1}>
+                  {item.hint}
+                </Text>
+              </View>
+              <Icon name="chevron.right" size={14} color="tertiary" />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {nextEvent ? <NextEventCard event={nextEvent} onPress={goToNextEvent} t={t} c={c} /> : null}
 
       {nextEvent?.readiness ? (
@@ -319,15 +441,13 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         />
       ) : null}
 
-      {activationStatus === 'ready' && teamId ? (
+      {activationStatus === 'ready' && teamId && setupOpen > 0 ? (
         <ActivationChecklist
           teamConfirmed
-          fixtureSourceReady={activationLinks.some((link) => link.teamId === teamId)}
-          rosterReady={activationRosterCount > 0}
-          invitationsReady={activationCampaigns.some(
-            (campaign) => campaign.teamId === teamId && campaign.status !== 'REVOKED',
-          )}
-          availabilityReady={Boolean(nextEvent?.readiness)}
+          fixtureSourceReady={setupSteps[0]}
+          rosterReady={setupSteps[1]}
+          invitationsReady={setupSteps[2]}
+          availabilityReady={setupSteps[3]}
           t={t}
           c={c}
         />
@@ -350,84 +470,45 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         />
       ) : null}
 
-      {/* Status pills — only flag what needs attention */}
-      {pending > 0 || dues > 0 || coachPending > 0 ? (
-        <View style={styles.pillRow}>
-          {pending > 0 ? (
-            <StatusPill
-              tone="warning"
-              icon="person.circle"
-              label={t('home.admin.pendingPill', {
-                defaultValue: '{{count}} join request',
-                count: pending,
-              })}
-              onPress={() => router.push('/pending-requests' as never)}
-            />
-          ) : null}
-          {dues > 0 ? (
-            <StatusPill
-              tone="info"
-              icon="banknote"
-              label={t('home.admin.duesPill', {
-                defaultValue: '{{count}} dues open',
-                count: dues,
-              })}
-              onPress={() => router.push('/admin-billing' as never)}
-            />
-          ) : null}
-          {coachPending > 0 ? (
-            <StatusPill
-              tone="warning"
-              icon="person.badge.key"
-              label={t('home.admin.coachPendingPill', {
-                defaultValue: '{{count}} coach pending',
-                count: coachPending,
-              })}
-              onPress={() => router.push('/(tabs)/roster' as never)}
-            />
-          ) : null}
-        </View>
-      ) : null}
+      <WeekRows
+        events={weekEvents}
+        locale={i18n.language}
+        onCreate={() => router.push('/create-event' as never)}
+        emptyLabel={t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })}
+      />
 
-      {/* Put frequent creation flows before passive reporting. An admin can
-          act from the first viewport, while metrics remain available below. */}
-      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
-        {t('home.admin.quickActions', { defaultValue: 'Quick actions' }).toUpperCase()}
-      </Text>
-      <View style={styles.actionGrid}>
-        <ActionTile
-          icon="plus.circle.fill"
-          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event' as never)}
+      {/* Club workspace door plus the everyday tools, one quiet row. */}
+      <View style={styles.toolRow}>
+        <ToolChip
+          icon="shield.fill"
+          label={t('home.admin.club', { defaultValue: 'Club' })}
+          onPress={() => router.push('/admin-dashboard' as never)}
         />
-        <ActionTile
+        <ToolChip
           icon="megaphone"
           label={t('home.announce', { defaultValue: 'Announce' })}
           onPress={() => setAnnounceVisible(true)}
         />
-        <ActionTile
-          icon="person.circle.fill"
+        <ToolChip
+          icon="person.badge.plus"
           label={t('home.admin.invite', { defaultValue: 'Invite' })}
           onPress={() =>
-            router.push({
-              pathname: '/invite',
-              params: { returnTo: '/(tabs)' },
-            } as never)
+            router.push({ pathname: '/invite', params: { returnTo: '/(tabs)' } } as never)
           }
         />
-        <ActionTile
-          icon="magnifyingglass"
-          label={t('home.admin.scouting', { defaultValue: 'Scouting' })}
-          onPress={() => router.push('/scouting' as never)}
-        />
-        <ActionTile
-          icon="flame"
-          label={t('home.admin.streaks', { defaultValue: 'Streaks' })}
-          onPress={() => router.push('/streaks' as never)}
+        <ToolChip
+          icon="plus.circle.fill"
+          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
+          onPress={() => router.push('/create-event' as never)}
         />
       </View>
 
-      {/* KPI strip — single dense card with 4 metrics */}
+      {/* Beitrag radar — live %paid / %overdue / %pending + 1-tap remind. */}
+      {contributions && contributions.summary && contributions.summary.assignedMembers > 0 ? (
+        <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
+      ) : null}
+
+      {/* Club-wide numbers last: they describe, they don't ask. */}
       {statsError && !stats ? (
         <View
           style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
@@ -478,47 +559,6 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         </View>
       )}
 
-      {/* Beitrag radar — live %paid / %overdue / %pending + 1-tap remind. */}
-      {contributions && contributions.summary && contributions.summary.assignedMembers > 0 ? (
-        <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
-      ) : null}
-
-      {/* Auto-pause prompt — surfaces after a long-term injury is logged. */}
-      {nextPause ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => approvePause(nextPause)}
-          style={({ pressed }) => [
-            styles.pauseCard,
-            {
-              backgroundColor: withAlpha(c.warning, 0.08),
-              borderColor: withAlpha(c.warning, 0.4),
-            },
-            pressed && { opacity: 0.92 },
-          ]}
-        >
-          <View style={[styles.pauseBubble, { backgroundColor: c.warning }]}>
-            <Icon name="pause.fill" size={14} color="inverse" />
-          </View>
-          <View style={{ flex: 1, gap: space['2xs'] }}>
-            <Text style={[styles.pauseEyebrow, { color: c.warning }]}>
-              {t('home.admin.pauseEyebrow', {
-                defaultValue: 'PAUSE DUES?',
-              })}
-            </Text>
-            <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
-              {t('home.admin.pauseHeadline', {
-                defaultValue: '{{name}} · {{weeks}} weeks out. Tap to pause dues.',
-                name: nextPause.memberName,
-                weeks: nextPause.weeks,
-              })}
-            </Text>
-          </View>
-          <Icon name="chevron.right" size={14} color="tertiary" />
-        </Pressable>
-      ) : null}
-
-      {/* Season stats widget — only when a team is in context */}
       {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} /> : null}
 
       {/* Recent activity — flat list, no big section card */}
@@ -565,6 +605,44 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
         onClose={() => setAnnounceVisible(false)}
       />
     </View>
+  )
+}
+
+type AttentionItem = {
+  key: string
+  icon: IconName
+  label: string
+  hint: string
+  count: number
+  onPress: () => void
+}
+
+function ToolChip({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: IconName
+  label: string
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.tool,
+        { backgroundColor: c.surfaceSunken },
+        pressed && { opacity: 0.9 },
+      ]}
+    >
+      <Icon name={icon} size={16} color="tint" />
+      <Text variant="caption1" color="primary" weight="semibold" style={styles.toolLabel}>
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -691,66 +769,6 @@ function ActivationChecklist({
         ))}
       </View>
     </View>
-  )
-}
-
-function StatusPill({
-  tone,
-  icon,
-  label,
-  onPress,
-}: {
-  tone: 'warning' | 'info'
-  icon: IconName
-  label: string
-  onPress: () => void
-}) {
-  const c = useClubColors()
-  const bg = tone === 'warning' ? withAlpha(c.warning, 0.12) : withAlpha(c.primary, 0.1)
-  const fg = tone === 'warning' ? c.warning : c.primary
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.pill, { backgroundColor: bg }, pressed && { opacity: 0.85 }]}
-    >
-      <Icon name={icon} size={12} color={fg} />
-      <Text variant="caption1" weight="semibold" style={[styles.pillText, { color: fg }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-function ActionTile({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName
-  label: string
-  onPress: () => void
-}) {
-  const c = useClubColors()
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.action,
-        { backgroundColor: c.surfaceSunken },
-        pressed && { opacity: 0.94 },
-      ]}
-    >
-      <View style={[styles.actionIcon, { backgroundColor: c.primary50 }]}>
-        <Icon name={icon} size={18} color="tint" />
-      </View>
-      <Text variant="footnote" color="primary" weight="semibold" style={styles.actionLabel}>
-        {label}
-      </Text>
-    </Pressable>
   )
 }
 
@@ -1071,7 +1089,57 @@ const styles = StyleSheet.create({
     gap: space.xs + 2,
   },
 
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  attentionCard: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  attentionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
+  attentionCount: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space['2xs'] + 2,
+  },
+  attentionCountText: { fontFamily: fonts.data, fontSize: 12, fontWeight: '700' },
+  attentionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    minHeight: 56,
+  },
+  attentionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolRow: { flexDirection: 'row', gap: space.sm },
+  toolLabel: { textAlign: 'center' },
+  tool: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space['2xs'] + 2,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space['2xs'],
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    minHeight: 60,
+  },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

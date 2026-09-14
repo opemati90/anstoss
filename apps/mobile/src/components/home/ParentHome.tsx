@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { RSVP } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { elevation, fonts, hairline, radius, space } from '../../theme/tokens'
+import { Haptics } from '../../utils/haptics'
+import { RsvpControl, type RsvpStatus } from './RsvpControl'
 import {
   type ChildEvent as ConflictEvent,
   type Kid as ConflictKid,
@@ -30,9 +33,12 @@ function withAlpha(hex: string, alpha: number): string {
 
 type ChildEvent = {
   id: string
+  clubId?: string
   title: string
   date: string
   location?: string | null
+  cancelledAt?: string | null
+  cancelReason?: string | null
   teamName: string
   teamDisplayName: string | null
   /** API: CrossTeamEventItem.childUserId — used for conflict
@@ -158,6 +164,7 @@ export function ParentHome() {
   const [upcoming, setUpcoming] = useState<ChildEvent[]>([])
   const [announcements, setAnnouncements] = useState<ChildAnnouncement[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [pendingIds, setPendingIds] = useState<Record<string, boolean>>({})
   const [agenda, setAgenda] = useState<{
     kids: ConflictKid[]
     events: ConflictEvent[]
@@ -177,7 +184,7 @@ export function ParentHome() {
       api<ChildAnnouncement[]>('/me/children-announcements?limit=3').catch(() => []),
     ])
     setEvent(evs?.[0] ?? null)
-    setUpcoming(evs?.slice(1, 5) ?? [])
+    setUpcoming(Array.isArray(evs) ? evs : [])
     setAnnouncements(anns ?? [])
 
     let nextAgenda: { kids: ConflictKid[]; events: ConflictEvent[] } | null = null
@@ -256,9 +263,57 @@ export function ParentHome() {
     void load()
   }, [load])
 
+  // One card per child: the next thing on that child's calendar, answerable
+  // on their behalf right here. Parents used to have to open the event to
+  // reply, and most replies are a one-word "yes".
+  const childCards = useMemo(() => {
+    const byChild = new Map<string, ChildEvent>()
+    for (const ev of upcoming) {
+      if (ev.cancelledAt) continue
+      const key = ev.childUserId ?? `team:${ev.teamName}`
+      if (!byChild.has(key)) byChild.set(key, ev)
+    }
+    return Array.from(byChild.values())
+  }, [upcoming])
+
+  const onChildRsvp = useCallback(
+    async (ev: ChildEvent, status: RsvpStatus) => {
+      if (!ev.childUserId || !ev.clubId || pendingIds[ev.id]) return
+      const previous = ev.childRsvp ?? null
+      const apply = (value: ChildEvent['childRsvp']) =>
+        setUpcoming((list) =>
+          list.map((item) =>
+            item.id === ev.id && item.childUserId === ev.childUserId
+              ? { ...item, childRsvp: value }
+              : item,
+          ),
+        )
+      setPendingIds((prev) => ({ ...prev, [ev.id]: true }))
+      apply(status)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
+        await api(`/clubs/${ev.clubId}/events/${ev.id}/rsvp-proxy`, {
+          method: 'PUT',
+          body: { status, childUserId: ev.childUserId },
+        })
+        Haptics.success()
+      } catch {
+        apply(previous)
+        Haptics.fail()
+      } finally {
+        setPendingIds((prev) => {
+          const next = { ...prev }
+          delete next[ev.id]
+          return next
+        })
+      }
+    },
+    [pendingIds],
+  )
+
   return (
     <View style={styles.root}>
-      {parentAction ? (
+      {parentAction && !parentActionOwnsEvent ? (
         <ParentNextActionPanel
           action={parentAction}
           onPress={handleParentAction}
@@ -311,103 +366,31 @@ export function ParentHome() {
         </Pressable>
       ) : null}
 
-      {/* Hero — next event for child */}
-      {event && !parentActionOwnsEvent ? (
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/event-detail',
-              params: { eventId: event.id },
-            } as never)
-          }
-          accessibilityRole="button"
-          accessibilityLabel={event.title}
-          style={({ pressed }) => [
-            styles.hero,
-            elevation.hero,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-            pressed && { opacity: 0.96 },
-          ]}
-        >
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {[event.teamDisplayName || event.teamName, formatEyebrow(event.date, locale)]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
-          <Text variant="title2" color="primary" weight="semibold" style={styles.heroTitle}>
-            {event.title}
-          </Text>
-          {event.location ? (
-            <View style={styles.metaRow}>
-              <Icon name="mappin.circle" size={14} color="tertiary" />
-              <Text variant="footnote" color="secondary" numberOfLines={1}>
-                {event.location}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
+      {/* One card per child, each with the reply control inline. */}
+      {childCards.length > 0 ? (
+        <View style={styles.list}>
+          {childCards.map((ev) => (
+            <ChildEventCard
+              key={`${ev.childUserId ?? ev.teamName}-${ev.id}`}
+              event={ev}
+              locale={locale}
+              pending={Boolean(pendingIds[ev.id])}
+              onRsvp={(status) => void onChildRsvp(ev, status)}
+              onOpen={() =>
+                router.push({
+                  pathname: '/event-detail',
+                  params: { eventId: ev.id },
+                } as never)
+              }
+            />
+          ))}
+        </View>
       ) : loaded && !event && !parentActionOwnsEmpty ? (
         <EmptyCard
           message={t('home.parent.noEvents', {
             defaultValue: 'No events for your child right now.',
           })}
         />
-      ) : null}
-
-      {/* Upcoming list */}
-      {upcoming.length > 0 ? (
-        <>
-          <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
-            {t('home.parent.upcoming', { defaultValue: 'Upcoming' }).toUpperCase()}
-          </Text>
-          <View style={styles.list}>
-            {upcoming.map((ev) => (
-              <Pressable
-                key={ev.id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/event-detail',
-                    params: { eventId: ev.id },
-                  } as never)
-                }
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.row,
-                  elevation.card,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                  pressed && { opacity: 0.96 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.dayChip,
-                    {
-                      backgroundColor: c.surfaceSunken ?? c.background,
-                      borderColor: c.borderDefault,
-                    },
-                  ]}
-                >
-                  <Text variant="caption2" color="secondary" style={styles.dayChipDow}>
-                    {formatWeekday(ev.date, locale).toUpperCase()}
-                  </Text>
-                  <Text variant="callout" color="primary" weight="semibold" tabular>
-                    {String(new Date(ev.date).getDate()).padStart(2, '0')}
-                  </Text>
-                </View>
-                <View style={styles.rowBody}>
-                  <Text variant="callout" color="primary" numberOfLines={1}>
-                    {ev.title}
-                  </Text>
-                  <Text variant="caption2" color="secondary">
-                    {ev.teamDisplayName || ev.teamName}
-                    {ev.location ? ` · ${ev.location}` : ''}
-                  </Text>
-                </View>
-                <Icon name="chevron.right" size={14} color="tertiary" />
-              </Pressable>
-            ))}
-          </View>
-        </>
       ) : null}
 
       {/* Announcements */}
@@ -435,6 +418,72 @@ export function ParentHome() {
           ))}
         </View>
       )}
+    </View>
+  )
+}
+
+function ChildEventCard({
+  event,
+  locale,
+  pending,
+  onRsvp,
+  onOpen,
+}: {
+  event: ChildEvent
+  locale: string
+  pending: boolean
+  onRsvp: (status: RsvpStatus) => void
+  onOpen: () => void
+}) {
+  const c = useClubColors()
+  const { t } = useTranslation()
+  const team = event.teamDisplayName || event.teamName
+  const child = event.childName || team
+  const canAnswer = Boolean(event.childUserId && event.clubId)
+
+  return (
+    <View
+      style={[
+        styles.childCard,
+        elevation.card,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+    >
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={t('home.parent.actionOpenEventA11y', {
+          defaultValue: 'Open {{title}} for {{child}}',
+          title: event.title,
+          child,
+        })}
+        style={({ pressed }) => [styles.childBody, pressed && { opacity: 0.96 }]}
+      >
+        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          {`${t('home.parent.actionNextTitle', { defaultValue: 'Next for {{child}}', child })} · ${formatEyebrow(event.date, locale)}`}
+        </Text>
+        <Text variant="title3" color="primary" weight="semibold" style={styles.heroTitle}>
+          {event.title}
+        </Text>
+        <View style={styles.metaRow}>
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {[team, event.location].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+      </Pressable>
+      {canAnswer ? (
+        <View style={[styles.childReply, { borderTopColor: c.borderSubtle ?? c.borderDefault }]}>
+          <Text variant="caption1" color="secondary">
+            {t('home.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })}
+          </Text>
+          <RsvpControl
+            value={event.childRsvp ?? null}
+            onChange={onRsvp}
+            disabled={pending}
+            size="compact"
+          />
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -525,10 +574,6 @@ function EmptyCard({ message }: { message: string }) {
       </Text>
     </View>
   )
-}
-
-function formatWeekday(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { weekday: 'short' })
 }
 
 function formatEyebrow(iso: string, locale: string): string {
@@ -656,6 +701,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
+  childCard: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  childBody: { padding: space.md, gap: space.xs },
+  childReply: {
+    borderTopWidth: hairline,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    gap: space.xs,
+  },
   hero: {
     padding: space.md,
     borderRadius: radius.lg,
