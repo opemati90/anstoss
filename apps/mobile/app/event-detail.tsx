@@ -28,6 +28,7 @@ import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Avatar, BottomSheet, Button, Icon, ListRow, Screen, Text } from '../src/components/ui'
 import { FormInput } from '../src/components/FormInput'
+import { RsvpControl } from '../src/components/home/RsvpControl'
 import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
 import { EventListSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
@@ -139,15 +140,6 @@ export default function EventDetailScreen() {
     [event?.rsvps],
   )
 
-  const rsvpOptions: Array<{
-    status: 'YES' | 'MAYBE' | 'NO'
-    labelKey: string
-    color: string
-  }> = [
-    { status: 'YES', labelKey: 'event.rsvpYes', color: c.success },
-    { status: 'MAYBE', labelKey: 'event.rsvpMaybe', color: c.warning },
-    { status: 'NO', labelKey: 'event.rsvpNo', color: c.error },
-  ]
 
   const fetchEvent = useCallback(async () => {
     const requestSeq = fetchEventSeqRef.current + 1
@@ -766,42 +758,15 @@ export default function EventDetailScreen() {
                 {t('event.yourRsvp')}
               </Text>
             </View>
-            <Animated.View style={[styles.rsvpRow, { transform: [{ scale: rsvpScale }] }]}>
-              {rsvpOptions.map((option) => {
-                const isActive = event.myRsvp === option.status
-                // Editorial segmented control: calm bordered surface when
-                // unselected (status colour lives in the label), solid status
-                // fill + inverse label + lift when selected. Reads premium
-                // instead of three flat pastel candy blocks.
-                const fg = isActive ? c.textInverse : option.color
-                return (
-                  <Pressable
-                    key={option.status}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(option.labelKey)}
-                    accessibilityHint={t('event.rsvpHint')}
-                    accessibilityState={{ selected: isActive, disabled: rsvpPending }}
-                    onPress={() => handleRsvp(option.status)}
-                    disabled={rsvpPending}
-                    style={({ pressed }) => [
-                      styles.rsvpButton,
-                      isActive
-                        ? { backgroundColor: option.color, ...elevation.card }
-                        : {
-                            backgroundColor: c.surface,
-                            borderWidth: hairline,
-                            borderColor: c.borderDefault,
-                          },
-                      pressed && { opacity: 0.9 },
-                      rsvpPending && { opacity: 0.6 },
-                    ]}
-                  >
-                    <Text variant="subheadline" weight={isActive ? 'bold' : 'semibold'} color={fg}>
-                      {t(option.labelKey)}
-                    </Text>
-                  </Pressable>
-                )
-              })}
+            {/* Same control as home and the schedule: one accent, the
+                selected answer filled, the others neutral. The scale pulse on
+                commit is kept. */}
+            <Animated.View style={{ transform: [{ scale: rsvpScale }] }}>
+              <RsvpControl
+                value={event.myRsvp ?? null}
+                onChange={(status) => handleRsvp(status)}
+                disabled={rsvpPending}
+              />
             </Animated.View>
           </View>
         ) : null}
@@ -1153,9 +1118,11 @@ function RsvpBreakdown({
     labelKey: string
     color: string
   }> = [
-    { status: 'YES', labelKey: 'event.rsvpYes', color: c.success },
-    { status: 'MAYBE', labelKey: 'event.rsvpMaybe', color: c.warning },
-    { status: 'NO', labelKey: 'event.rsvpNo', color: c.error },
+    // One accent at three densities: this is a split of one squad, not three
+    // alerts, and colour must not be the only carrier of meaning.
+    { status: 'YES', labelKey: 'event.rsvpYes', color: c.primary },
+    { status: 'MAYBE', labelKey: 'event.rsvpMaybe', color: c.textSecondary },
+    { status: 'NO', labelKey: 'event.rsvpNo', color: c.textTertiary },
   ]
 
   const counts = { YES: yesCount, MAYBE: maybeCount, NO: noCount }
