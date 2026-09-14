@@ -14,6 +14,8 @@ export type HomeEvent = {
   maybeCount: number
   noCount: number
   team?: { id: string; name: string } | null
+  cancelledAt?: string | null
+  cancelReason?: string | null
 }
 
 export type HomeAnnouncement = { id: string; title: string; body: string }

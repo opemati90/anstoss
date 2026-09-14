@@ -43,13 +43,46 @@ appId: com.renuirug.anstoss
       - tapOn: 'Continue'
 
 # Dismissing the onboarding leaves the main dev-menu sheet (Reload / Go home)
-# open over the app. Tap the dimmed scrim above the sheet to close it.
+# open over the app. Before closing it, switch off the dev client's floating
+# "Tools" button: it sits exactly where a screen's header action lives
+# (top-right) and swallows taps meant for the app. clearState resets the
+# preference, so this runs on every cold launch.
 - runFlow:
     when:
       visible: 'Go home'
     commands:
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - scrollUntilVisible:
+          element:
+            text: 'Tools button'
+          direction: DOWN
+          timeout: 15000
+          visibilityPercentage: 60
+      # Tapping the row label does not move the switch; tap the switch itself.
+      - tapOn:
+          rightOf:
+            text: 'Tools button'
+      # Close the sheet. It may be at half height (X at ~48%) or expanded
+      # (X at ~11%) depending on how far the inner list scrolled, so try the
+      # scrim above a half sheet first, then each X position, each guarded.
       - tapOn:
           point: '50%,10%'
+      - runFlow:
+          when:
+            visible: 'Go home'
+          commands:
+            - tapOn:
+                point: '90%,48%'
+      - runFlow:
+          when:
+            visible: 'Go home'
+          commands:
+            - tapOn:
+                point: '90%,11%'
+      - extendedWaitUntil:
+          notVisible: 'Go home'
+          timeout: 5000
 
 # The bundle is now loaded. Do NOT assert a specific landing screen here — the
 # app may resume a persisted session (account-next-step / tabs) instead of the

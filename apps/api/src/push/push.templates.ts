@@ -42,6 +42,38 @@ export const PUSH_TEMPLATES = {
     channelId: 'events',
   } satisfies Template<{ teamName: string; eventType: string; eventTitle: string; date: string }>,
 
+  EVENT_UPDATED: {
+    title: (d: { teamName: string }) => `📅 ${d.teamName}`,
+    body: (d: { eventTitle: string; date: string }, l) =>
+      L(
+        {
+          de: `Geändert: ${d.eventTitle} ist jetzt am ${d.date}`,
+          en: `Changed: ${d.eventTitle} is now on ${d.date}`,
+          fr: `Modifié : ${d.eventTitle} est maintenant le ${d.date}`,
+          it: `Modificato: ${d.eventTitle} è ora il ${d.date}`,
+          pt: `Alterado: ${d.eventTitle} é agora em ${d.date}`,
+        },
+        l,
+      ),
+    channelId: 'events',
+  } satisfies Template<{ teamName: string; eventTitle: string; date: string }>,
+
+  EVENT_CANCELLED: {
+    title: (d: { teamName: string }) => `❌ ${d.teamName}`,
+    body: (d: { eventTitle: string; date: string; reason: string }, l) =>
+      L(
+        {
+          de: `Abgesagt: ${d.eventTitle} am ${d.date}${d.reason ? ` – ${d.reason}` : ''}`,
+          en: `Cancelled: ${d.eventTitle} on ${d.date}${d.reason ? ` – ${d.reason}` : ''}`,
+          fr: `Annulé : ${d.eventTitle} le ${d.date}${d.reason ? ` – ${d.reason}` : ''}`,
+          it: `Annullato: ${d.eventTitle} il ${d.date}${d.reason ? ` – ${d.reason}` : ''}`,
+          pt: `Cancelado: ${d.eventTitle} em ${d.date}${d.reason ? ` – ${d.reason}` : ''}`,
+        },
+        l,
+      ),
+    channelId: 'events',
+  } satisfies Template<{ teamName: string; eventTitle: string; date: string; reason: string }>,
+
   EVENT_REMINDER: {
     // `timeUntil` arrives already localized (see formatTimeUntil in the worker).
     title: (d: { eventTitle: string; timeUntil: string }) => `⏰ ${d.eventTitle} · ${d.timeUntil}`,

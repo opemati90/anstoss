@@ -124,7 +124,15 @@ export function NextUpHero({
       </PressableScale>
 
       <View style={[styles.actionZone, { borderTopColor: c.borderSubtle }]}>
-        {inCheckInWindow && event.myRsvp === 'YES' ? (
+        {event.cancelledAt ? (
+          <View style={styles.cancelledRow}>
+            <Icon name="xmark.circle.fill" size={16} color="secondary" />
+            <Text variant="footnote" weight="semibold" color="secondary" numberOfLines={2} style={styles.actionLabel}>
+              {t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}
+              {event.cancelReason ? ` · ${event.cancelReason}` : ''}
+            </Text>
+          </View>
+        ) : inCheckInWindow && event.myRsvp === 'YES' ? (
           <PressableScale
             onPress={onOpen}
             accessibilityRole="button"
@@ -238,6 +246,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
   },
   actionLabel: { flex: 1 },
+  cancelledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.sm,
+  },
   primaryAction: {
     minHeight: 46,
     borderRadius: radius.md,

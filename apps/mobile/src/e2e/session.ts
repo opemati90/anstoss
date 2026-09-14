@@ -4333,6 +4333,10 @@ export function handleE2EApiRequest(
       status: 200,
       body: clone({
         ...event,
+        // The real detail endpoint includes the team; manager gating on the
+        // detail screen keys off `event.team.id`, so without it no coach ever
+        // sees the manage menu in a demo session.
+        team: { id: event.teamId, name: TEAM_DISPLAY_NAME },
         rsvps,
         yesCount: feedEvent.yesCount ?? 0,
         maybeCount: feedEvent.maybeCount ?? 0,
@@ -4340,6 +4344,42 @@ export function handleE2EApiRequest(
         reminderEnabled: false,
       }),
     }
+  }
+
+  // Manager edits — PATCH /clubs/:clubId/events/:eventId. Mutates the same
+  // fixture the feeds read from, so the schedule reflects the change on the
+  // next fetch the way the real backend would.
+  if (method === 'PATCH' && eventDetailMatch) {
+    const event = currentSession.api.events.find((e) => e.id === eventDetailMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    const body = (options.body || {}) as Partial<{
+      title: string
+      type: string
+      date: string
+      location: string | null
+      notes: string | null
+    }>
+    if (body.title !== undefined) event.title = body.title
+    if (body.type !== undefined) (event as { type: string }).type = body.type
+    if (body.date !== undefined) event.date = body.date
+    if (body.location !== undefined) event.location = body.location
+    if (body.notes !== undefined) event.notes = body.notes
+    return { handled: true, ok: true, status: 200, body: clone(event) }
+  }
+
+  // Cancel — DELETE /clubs/:clubId/events/:eventId with an optional reason.
+  // A soft cancel: the event stays in the upcoming feed, struck through.
+  if (method === 'DELETE' && eventDetailMatch) {
+    const event = currentSession.api.events.find((e) => e.id === eventDetailMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    const body = (options.body || {}) as { reason?: string }
+    const cancelled = event as typeof event & {
+      cancelledAt?: string | null
+      cancelReason?: string | null
+    }
+    cancelled.cancelledAt = new Date().toISOString()
+    cancelled.cancelReason = body.reason?.trim() || null
+    return { handled: true, ok: true, status: 200, body: clone(event) }
   }
 
   // RSVP-reminder nudge — POST /clubs/:clubId/events/:eventId/remind-rsvp.

@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   forwardRef,
@@ -32,6 +33,7 @@ const EDIT_WINDOW_MS = 15 * 60 * 1000
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name)
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
@@ -455,6 +457,52 @@ export class ChatService {
       )
       .catch(() => undefined)
     return serialized
+  }
+
+  /**
+   * Post a SYSTEM notice into the team's main channel on behalf of the app.
+   * Used for schedule changes (an event cancelled or moved) so the change is
+   * visible where the squad already looks, not only in a push that can be
+   * dismissed. Never throws into the caller: a chat failure must not fail
+   * the schedule change that triggered it.
+   */
+  async postSystemNotice(input: {
+    teamId: string
+    clubId: string
+    actorId: string
+    content: string
+  }): Promise<void> {
+    try {
+      const channel = await this.prisma.channel.findFirst({
+        where: { teamId: input.teamId, kind: 'TEAM' },
+        select: { id: true },
+      })
+      const message = await this.prisma.message.create({
+        data: {
+          teamId: input.teamId,
+          clubId: input.clubId,
+          channelId: channel?.id ?? null,
+          senderId: input.actorId,
+          content: input.content,
+          messageType: 'SYSTEM',
+          isAnnouncement: false,
+          isPinned: false,
+        },
+      })
+      const serialized = await this.serializeMessage(input.actorId, message.id)
+      this.gateway.emitServerMessage(input.teamId, channel?.id ?? null, {
+        ...(serialized as unknown as Record<string, unknown>),
+        clientMessageId: null,
+        sourceLanguage: null,
+        translation: null,
+      })
+    } catch (error) {
+      this.logger.warn(
+        `system notice failed for team ${input.teamId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
   }
 
   async getPollByMessage(userId: string, messageId: string): ReturnType<ChatService['getPoll']> {

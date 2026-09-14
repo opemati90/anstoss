@@ -774,6 +774,7 @@ model Event {
   notes              String?
   createdById        String
   cancelledAt        DateTime?
+  cancelReason       String?
   archivedAt         DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

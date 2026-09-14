@@ -51,6 +51,8 @@ jest.mock('expo-router', () => ({
   router: {
     back: (...args: unknown[]) => mockRouterBack(...args),
   },
+  // No route params: the screen is in plain create mode, not edit/duplicate.
+  useLocalSearchParams: () => ({}),
 }))
 
 jest.mock('@expo/vector-icons', () => ({

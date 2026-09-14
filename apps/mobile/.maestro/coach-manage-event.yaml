@@ -1,0 +1,54 @@
+appId: com.renuirug.anstoss
+---
+# Slice A: a coach can change the plan from inside the app. Open the next
+# match from the schedule, cancel it with a reason through the header menu,
+# and confirm the cancellation is shown on the detail screen and struck
+# through in the schedule — not vanished.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- extendedWaitUntil:
+    visible: "vs. SV Babelsberg 03"
+    timeout: 15000
+- tapOn: "vs. SV Babelsberg 03"
+- extendedWaitUntil:
+    visible: "Manage event"
+    timeout: 15000
+# Open the manage menu by long-pressing the hero card. The header action is
+# the same menu, but the dev client's tools bubble sits on that corner and
+# swallows taps, so the flow uses the gesture that avoids it.
+# The header title carries the same text and has no gesture; the hero title
+# is the second match on screen.
+- longPressOn:
+    text: "vs. SV Babelsberg 03"
+    index: 1
+- extendedWaitUntil:
+    visible: "Cancel event"
+    timeout: 5000
+- tapOn: "Cancel event"
+# The confirm sheet carries the reason as a real field on both platforms.
+- extendedWaitUntil:
+    visible: "Cancel this event?"
+    timeout: 5000
+- inputText: "Pitch frozen"
+# Maestro's hideKeyboard is unreliable on iOS; the field uses a "done" return
+# key, so press that instead.
+- tapOn: "done"
+- tapOn: "Cancel event"
+- extendedWaitUntil:
+    visible: "Cancelled"
+    timeout: 15000
+- assertVisible: "Pitch frozen"
+# The manage menu is gone once cancelled.
+- assertNotVisible: "Manage event"
+# Maestro's `back` is a no-op on iOS; use the header's back button.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*Cancelled.*Pitch frozen.*"
+    timeout: 15000

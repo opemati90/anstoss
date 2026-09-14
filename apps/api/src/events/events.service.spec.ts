@@ -13,6 +13,7 @@ describe('EventsService', () => {
   let mockTeamsService: any
   let mockPushService: any
   let mockEventsGateway: any
+  let mockChatService: any
 
   beforeEach(() => {
     mockPrisma = {
@@ -79,6 +80,7 @@ describe('EventsService', () => {
       emitRsvpUpdate: jest.fn().mockResolvedValue(undefined),
       emitEventUpsert: jest.fn(),
     }
+    mockChatService = { postSystemNotice: jest.fn().mockResolvedValue(undefined) }
     const mockContributionsService = {
       // Default: no overdue contributions — RSVP YES is allowed.
       getOverdueContributionsForUser: jest.fn().mockResolvedValue([]),
@@ -89,6 +91,7 @@ describe('EventsService', () => {
       mockContributionsService as never,
       mockPushService as never,
       mockEventsGateway as never,
+      mockChatService as never,
     )
   })
 
@@ -172,7 +175,7 @@ describe('EventsService', () => {
   })
 
   describe('listUpcoming', () => {
-    it('returns upcoming non-cancelled events ordered by date', async () => {
+    it('returns upcoming events ordered by date, keeping cancelled ones visible', async () => {
       const eventDate = new Date('2027-01-01')
       mockPrisma.event.findMany.mockResolvedValue([
         {
@@ -202,11 +205,9 @@ describe('EventsService', () => {
       expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
       expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            teamId: 'team-1',
-            cancelledAt: null,
-            archivedAt: null,
-          }),
+          // Cancelled events stay in the upcoming feed until their date passes
+          // so the squad sees the change in the schedule itself.
+          where: expect.not.objectContaining({ cancelledAt: null }),
           orderBy: { date: 'asc' },
         }),
       )
@@ -219,6 +220,18 @@ describe('EventsService', () => {
           maybeCount: 1,
           noCount: 1,
           myRsvp: 'YES',
+        }),
+      )
+    })
+
+    it('drops cancelled events from the past scope', async () => {
+      mockPrisma.event.findMany.mockResolvedValue([])
+
+      await service.listUpcoming('team-1', 'user-1', { scope: 'past' })
+
+      expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ teamId: 'team-1', cancelledAt: null, archivedAt: null }),
         }),
       )
     })
@@ -831,8 +844,14 @@ describe('EventsService', () => {
   describe('update', () => {
     const baseEvent = {
       id: 'evt-1',
+      teamId: 'team-1',
+      clubId: 'club-1',
+      title: 'Training',
+      date: new Date('2027-03-02T18:30:00.000Z'),
+      location: 'Pitch 2',
       createdById: 'user-1',
       cancelledAt: null,
+      cancelReason: null,
     }
 
     it('throws NotFoundException when event does not exist', async () => {
@@ -843,11 +862,52 @@ describe('EventsService', () => {
       )
     })
 
-    it('throws ForbiddenException when user is not the creator', async () => {
+    it('throws ForbiddenException when the user is not an event manager', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockTeamsService.assertEventManagementAccess.mockRejectedValueOnce(
+        new ForbiddenException('nope'),
+      )
 
       await expect(service.update('evt-1', 'other-user', { title: 'New' })).rejects.toThrow(
         ForbiddenException,
+      )
+    })
+
+    it('lets a manager who did not create the event edit it', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })
+
+      await expect(
+        service.update('evt-1', 'other-coach', { title: 'New' }),
+      ).resolves.toMatchObject({ title: 'New' })
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith(
+        'other-coach',
+        baseEvent.teamId,
+      )
+    })
+
+    it('notifies the squad when the date changes, and stays quiet for a title edit', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })
+
+      await service.update('evt-1', 'user-1', { title: 'New' })
+      expect(mockPushService.sendToTeamLocalized).not.toHaveBeenCalled()
+      expect(mockChatService.postSystemNotice).not.toHaveBeenCalled()
+
+      const moved = new Date(baseEvent.date.getTime() + 3_600_000)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, date: moved })
+      await service.update('evt-1', 'user-1', { date: moved })
+
+      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledWith(
+        baseEvent.teamId,
+        'EVENT_UPDATED',
+        expect.objectContaining({ eventTitle: baseEvent.title }),
+        expect.objectContaining({ type: 'event_updated', eventId: 'evt-1' }),
+        'user-1',
+        expect.objectContaining({ category: 'events' }),
+      )
+      expect(mockChatService.postSystemNotice).toHaveBeenCalledWith(
+        expect.objectContaining({ teamId: baseEvent.teamId, actorId: 'user-1' }),
       )
     })
 
@@ -893,8 +953,14 @@ describe('EventsService', () => {
   describe('cancel', () => {
     const baseEvent = {
       id: 'evt-1',
+      teamId: 'team-1',
+      clubId: 'club-1',
+      title: 'Training',
+      date: new Date('2027-03-02T18:30:00.000Z'),
+      location: 'Pitch 2',
       createdById: 'user-1',
       cancelledAt: null,
+      cancelReason: null,
     }
 
     it('throws NotFoundException when event does not exist', async () => {
@@ -903,10 +969,14 @@ describe('EventsService', () => {
       await expect(service.cancel('missing', 'user-1')).rejects.toThrow(NotFoundException)
     })
 
-    it('throws ForbiddenException when user is not the creator', async () => {
+    it('throws ForbiddenException when the user is not an event manager', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockTeamsService.assertEventManagementAccess.mockRejectedValueOnce(
+        new ForbiddenException('nope'),
+      )
 
       await expect(service.cancel('evt-1', 'other-user')).rejects.toThrow(ForbiddenException)
+      expect(mockPrisma.event.update).not.toHaveBeenCalled()
     })
 
     it('throws BadRequestException when event is already cancelled', async () => {
@@ -918,20 +988,59 @@ describe('EventsService', () => {
       await expect(service.cancel('evt-1', 'user-1')).rejects.toThrow(BadRequestException)
     })
 
-    it('soft-deletes by setting cancelledAt', async () => {
+    it('soft-cancels with the reason and tells the squad', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
-      mockPrisma.event.update.mockResolvedValue({
+      const cancelled = {
         ...baseEvent,
         cancelledAt: new Date(),
-      })
+        cancelReason: 'Pitch frozen',
+      }
+      mockPrisma.event.update.mockResolvedValue(cancelled)
 
-      const result = await service.cancel('evt-1', 'user-1')
+      // A second coach, not the creator, cancels: that must be allowed.
+      const result = await service.cancel('evt-1', 'coach-2', '  Pitch frozen  ')
+
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith(
+        'coach-2',
+        'team-1',
+      )
+      expect(mockPrisma.event.update).toHaveBeenCalledWith({
+        where: { id: 'evt-1' },
+        data: { cancelledAt: expect.any(Date), cancelReason: 'Pitch frozen' },
+      })
+      expect(result.cancelledAt).toBeTruthy()
+
+      // Everyone finds out three ways: live refresh, push, and a notice in
+      // the team channel.
+      expect(mockEventsGateway.emitEventUpsert).toHaveBeenCalledWith('team-1', 'evt-1')
+      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledWith(
+        'team-1',
+        'EVENT_CANCELLED',
+        expect.objectContaining({ eventTitle: 'Training', reason: 'Pitch frozen' }),
+        expect.objectContaining({ type: 'event_cancelled', eventId: 'evt-1', clubId: 'club-1' }),
+        'coach-2',
+        expect.objectContaining({ clubId: 'club-1', category: 'events' }),
+      )
+      expect(mockChatService.postSystemNotice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          teamId: 'team-1',
+          clubId: 'club-1',
+          actorId: 'coach-2',
+          content: expect.stringContaining('Pitch frozen'),
+        }),
+      )
+    })
+
+    it('stores no reason when none is given', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, cancelledAt: new Date() })
+
+      await service.cancel('evt-1', 'user-1')
 
       expect(mockPrisma.event.update).toHaveBeenCalledWith({
         where: { id: 'evt-1' },
-        data: { cancelledAt: expect.any(Date) },
+        data: { cancelledAt: expect.any(Date), cancelReason: null },
       })
-      expect(result.cancelledAt).toBeTruthy()
     })
   })
 

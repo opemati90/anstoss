@@ -37,15 +37,15 @@ export function WeekAhead({
   const c = useClubColors()
   const { t } = useTranslation()
 
+  // A cancelled event owes nobody an answer: it neither sorts first nor
+  // counts toward the "to reply" badge.
+  const awaits = (event: HomeEvent) => !event.myRsvp && !event.cancelledAt
   const ordered = useMemo(
-    () => [
-      ...events.filter((event) => !event.myRsvp),
-      ...events.filter((event) => Boolean(event.myRsvp)),
-    ],
+    () => [...events.filter(awaits), ...events.filter((event) => !awaits(event))],
     [events],
   )
 
-  const outstanding = events.filter((event) => !event.myRsvp).length
+  const outstanding = events.filter(awaits).length
   const rows = ordered.slice(0, MAX_ROWS)
 
   if (rows.length === 0) return null
@@ -103,7 +103,8 @@ function WeekRow({
   const c = useClubColors()
   const { t } = useTranslation()
   const date = useMemo(() => new Date(event.date), [event.date])
-  const needsReply = !event.myRsvp
+  const isCancelled = Boolean(event.cancelledAt)
+  const needsReply = !event.myRsvp && !isCancelled
 
   const day = useMemo(
     () => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).toUpperCase(),
@@ -136,7 +137,13 @@ function WeekRow({
       <PressableScale
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${event.title}, ${day} ${dayNumber} ${time}${answerLabel ? `, ${answerLabel}` : ''}`}
+        accessibilityLabel={
+          isCancelled
+            ? `${event.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
+                event.cancelReason ? `, ${event.cancelReason}` : ''
+              }`
+            : `${event.title}, ${day} ${dayNumber} ${time}${answerLabel ? `, ${answerLabel}` : ''}`
+        }
         haptic="tapLight"
         style={styles.rowHead}
       >
@@ -149,13 +156,19 @@ function WeekRow({
           </Text>
         </View>
         <View style={styles.rowText}>
-          <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+          <Text
+            variant="callout"
+            weight="semibold"
+            color={isCancelled ? 'tertiary' : 'primary'}
+            numberOfLines={1}
+            style={isCancelled ? styles.struck : undefined}
+          >
             {event.title}
           </Text>
           <Text variant="caption1" color="secondary" numberOfLines={1}>
-            {time}
-            {event.location ? ` · ${event.location}` : ''}
-            {answerLabel ? ` · ${answerLabel}` : ''}
+            {isCancelled
+              ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${event.cancelReason ? ` · ${event.cancelReason}` : ''}`
+              : `${time}${event.location ? ` · ${event.location}` : ''}${answerLabel ? ` · ${answerLabel}` : ''}`}
           </Text>
         </View>
         <Icon name="chevron.right" size={14} color="tertiary" />
@@ -216,4 +229,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rowText: { flex: 1, gap: space['2xs'] },
+  struck: { textDecorationLine: 'line-through' },
 })

@@ -362,9 +362,15 @@ export default function EventsScreen() {
     setFilterType((current) => (current === key ? 'ALL' : key))
   }
 
-  const nextFixture = scope === 'upcoming' ? visibleEvents[0] ?? null : null
+  // The hero is the next thing to prepare for, so a cancelled event never
+  // takes it: it stays in the list, struck through with its reason, and the
+  // next live plan moves up.
+  const nextFixture =
+    scope === 'upcoming' ? visibleEvents.find((event) => !event.cancelledAt) ?? null : null
   const listEvents =
-    scope === 'upcoming' ? visibleEvents.slice(1) : visibleEvents
+    scope === 'upcoming'
+      ? visibleEvents.filter((event) => event.id !== nextFixture?.id)
+      : visibleEvents
   const sections = useMemo(
     () => buildSections(listEvents, locale, t, scope),
     [listEvents, locale, scope, t],
@@ -917,11 +923,18 @@ function NextFixtureCard({
       <View style={[styles.heroDivider, { backgroundColor: c.borderSubtle ?? c.borderDefault }]} />
 
       {/* Availability, answered in place — same control as every event row. */}
-      <RsvpControl
-        value={item.myRsvp as RsvpStatus | null}
-        onChange={(status) => onRsvp(item.id, status)}
-        disabled={pending}
-      />
+      {item.cancelledAt ? (
+        <Text variant="footnote" weight="semibold" color="secondary">
+          {t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}
+          {item.cancelReason ? ` · ${item.cancelReason}` : ''}
+        </Text>
+      ) : (
+        <RsvpControl
+          value={item.myRsvp as RsvpStatus | null}
+          onChange={(status) => onRsvp(item.id, status)}
+          disabled={pending}
+        />
+      )}
     </Pressable>
   )
 }
@@ -969,7 +982,8 @@ function EventListItem({
   // Upcoming events are answerable where they are listed. Sending the player
   // into a detail screen and back for a one-word answer was the single
   // heaviest interaction in the app; past events have nothing left to decide.
-  const answerable = scope === 'upcoming'
+  const isCancelled = Boolean(item.cancelledAt)
+  const answerable = scope === 'upcoming' && !isCancelled
 
   return (
     <View
@@ -983,7 +997,16 @@ function EventListItem({
         style={({ pressed }) => [styles.compactRowHead, pressed && { opacity: 0.96 }]}
         onPress={onOpen}
         accessibilityRole="button"
-        accessibilityLabel={`${item.title}, ${dayName} ${dayNumber} ${time}`}
+        // The row is one accessibility element, so the cancellation has to be
+        // in its label or a screen reader would announce a cancelled match as
+        // if it were on.
+        accessibilityLabel={
+          isCancelled
+            ? `${item.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
+                item.cancelReason ? `, ${item.cancelReason}` : ''
+              }`
+            : `${item.title}, ${dayName} ${dayNumber} ${time}`
+        }
       >
         <View
           style={[
@@ -1003,12 +1026,19 @@ function EventListItem({
         </View>
 
         <View style={styles.rowBody}>
-          <Text variant="callout" color="primary" weight="semibold" numberOfLines={1}>
+          <Text
+            variant="callout"
+            color={isCancelled ? 'tertiary' : 'primary'}
+            weight="semibold"
+            numberOfLines={1}
+            style={isCancelled ? styles.struck : undefined}
+          >
             {item.title}
           </Text>
           <Text variant="caption2" color="secondary" numberOfLines={1}>
-            {time}
-            {item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}
+            {isCancelled
+              ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${item.cancelReason ? ` · ${item.cancelReason}` : ''}`
+              : `${time}${item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}`}
           </Text>
         </View>
 
@@ -1343,6 +1373,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   compactRowAnswerable: { gap: space.sm },
+  struck: { textDecorationLine: 'line-through' },
   compactRowHead: {
     flexDirection: 'row',
     alignItems: 'center',

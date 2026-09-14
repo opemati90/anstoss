@@ -4,6 +4,7 @@ import { EventsService } from './events.service'
 import { EventsGateway } from './events.gateway'
 import { EventReminderWorker } from './event-reminder.worker'
 import { TeamsModule } from '../teams/teams.module'
+import { ChatModule } from '../chat/chat.module'
 import { PushModule } from '../push/push.module'
 import { ContributionsModule } from '../contributions/contributions.module'
 
@@ -11,7 +12,7 @@ import { ContributionsModule } from '../contributions/contributions.module'
   // ContributionsModule is imported so EventsService can enforce the
   // pay-to-play rule on RSVP — players with overdue dues get a 403
   // when they try to commit YES to the next match.
-  imports: [TeamsModule, PushModule, ContributionsModule],
+  imports: [TeamsModule, PushModule, ContributionsModule, ChatModule],
   controllers: [EventsController],
   providers: [EventsService, EventsGateway, EventReminderWorker],
   exports: [EventsService],

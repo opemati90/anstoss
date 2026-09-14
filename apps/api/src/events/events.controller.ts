@@ -20,6 +20,7 @@ import {
   createEventSchema,
   eventFilterSchema,
   updateEventSchema,
+  cancelEventSchema,
   updateRsvpSchema,
   proxyRsvpSchema,
   toggleEventReminderSchema,
@@ -104,7 +105,7 @@ export class EventsController {
   }
 
   /**
-   * PATCH /clubs/:clubId/events/:eventId — update event (creator only).
+   * PATCH /clubs/:clubId/events/:eventId — update event (any event manager).
    */
   @Patch(':eventId')
   @RateLimit('write')
@@ -124,15 +125,18 @@ export class EventsController {
   }
 
   /**
-   * DELETE /clubs/:clubId/events/:eventId — cancel event (creator only).
+   * DELETE /clubs/:clubId/events/:eventId — cancel event (any event manager).
+   * Accepts an optional `{ reason }` body that is shown to the squad.
    */
   @Delete(':eventId')
   @RateLimit('write')
   async cancel(
     @CurrentUser() user: { id: string },
     @Param('eventId') eventId: string,
+    @Body() body: unknown,
   ) {
-    return this.eventsService.cancel(eventId, user.id)
+    const data = cancelEventSchema.parse(body ?? {})
+    return this.eventsService.cancel(eventId, user.id, data.reason)
   }
 
   /**

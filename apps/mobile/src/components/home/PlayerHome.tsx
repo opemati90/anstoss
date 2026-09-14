@@ -119,7 +119,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
     () =>
       data.events
         .slice(1)
-        .filter((event) => fixtureFor(event)?.id !== liveFixture?.id),
+        .filter((event) => !liveFixture || fixtureFor(event)?.id !== liveFixture.id),
     [data.events, fixtureFor, liveFixture?.id],
   )
 

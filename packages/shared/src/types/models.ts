@@ -123,6 +123,10 @@ export interface Event {
   createdById: string
   createdAt: string
   archivedAt?: string | null
+  /** Set when a manager cancelled the event. Cancelled events stay in upcoming
+   * feeds until their date passes so the squad can see the change. */
+  cancelledAt?: string | null
+  cancelReason?: string | null
 }
 
 export interface EventFeedItem extends Event {

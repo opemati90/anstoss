@@ -26,7 +26,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Avatar, Icon, Screen, Text } from '../src/components/ui'
+import { Avatar, BottomSheet, Button, Icon, ListRow, Screen, Text } from '../src/components/ui'
+import { FormInput } from '../src/components/FormInput'
 import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
 import { EventListSkeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
@@ -60,6 +61,7 @@ type EventDetail = {
   location: string | null
   notes: string | null
   cancelledAt: string | null
+  cancelReason?: string | null
   rsvps: RsvpUser[]
   team?: { id: string; name: string }
   yesCount?: number
@@ -87,6 +89,10 @@ export default function EventDetailScreen() {
   }>()
   const eventId = firstRouteParam(eventIdParam)
   const { activeClub, teamMembers } = useAuth()
+  const [manageOpen, setManageOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
 
@@ -511,6 +517,32 @@ export default function EventDetailScreen() {
   const eventStartMs = date.getTime()
   const isBeforeEventStart = Number.isFinite(eventStartMs) && nowMs < eventStartMs
   const isCancelled = event.cancelledAt != null
+
+  // Manager menu: edit, duplicate, cancel. One sheet reached from the header
+  // action or a long-press on the hero. It is the app's own sheet rather than
+  // the native action sheet so it looks the same on Android, can carry the
+  // cancellation reason as a real field there too, and is visible to the E2E
+  // driver.
+  const openManageMenu = () => setManageOpen(true)
+
+  const confirmCancel = async () => {
+    if (!activeClub || cancelling) return
+    setCancelling(true)
+    try {
+      const reason = cancelReason.trim()
+      await api(`/clubs/${activeClub.club.id}/events/${event.id}`, {
+        method: 'DELETE',
+        body: reason ? { reason } : {},
+      })
+      setCancelOpen(false)
+      setCancelReason('')
+      void fetchEvent()
+    } catch {
+      Alert.alert(t('common.error'), t('event.manage.cancelFailed'))
+    } finally {
+      setCancelling(false)
+    }
+  }
   const isAttendanceOpen = !isFutureEvent
   const formattedDate = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
@@ -575,13 +607,42 @@ export default function EventDetailScreen() {
 
   return (
     <Screen
-      header={<ModalHeader mode="back" title={event.title} />}
+      header={
+        <ModalHeader
+          mode="back"
+          title={event.title}
+          rightAction={
+            canManage && !isCancelled ? (
+              <Pressable
+                onPress={openManageMenu}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.manage.manage')}
+                hitSlop={12}
+                style={styles.manageButton}
+              >
+                <Icon name="ellipsis.circle" size="md" color="primary" />
+              </Pressable>
+            ) : undefined
+          }
+        />
+      }
       scroll
       padded={false}
     >
       <View style={styles.content}>
-        {/* Hero card: date + time + location */}
-        <View
+        {/* Hero card: date + time + location. Managers can long-press it for
+            the same edit / duplicate / cancel menu as the header action: a
+            context menu on the thing you want to change is the native
+            gesture. */}
+        <Pressable
+          onLongPress={canManage && !isCancelled ? openManageMenu : undefined}
+          delayLongPress={350}
+          accessibilityRole={canManage && !isCancelled ? 'button' : undefined}
+          // The Pressable collapses its children into one element for
+          // assistive tech, so give it the title as its label and the menu
+          // as its hint. VoiceOver then reads "vs. X, button, Manage event".
+          accessibilityLabel={canManage && !isCancelled ? event.title : undefined}
+          accessibilityHint={canManage && !isCancelled ? t('event.manage.manage') : undefined}
           style={[
             styles.heroCard,
             {
@@ -664,7 +725,7 @@ export default function EventDetailScreen() {
               />
             </View>
           ) : null}
-        </View>
+        </Pressable>
 
         <EventNextActionPanel
           action={nextAction}
@@ -745,6 +806,22 @@ export default function EventDetailScreen() {
           </View>
         ) : null}
 
+        {isCancelled ? (
+          <View style={[styles.cancelledBanner, { backgroundColor: c.surfaceSunken, borderColor: c.borderDefault }]}>
+            <Icon name="xmark.circle.fill" size="md" color="secondary" />
+            <View style={styles.cancelledText}>
+              <Text variant="callout" weight="semibold" color="primary">
+                {t('event.manage.cancelledBanner')}
+              </Text>
+              {event.cancelReason ? (
+                <Text variant="footnote" color="secondary">
+                  {event.cancelReason}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
         {/* RSVP Breakdown */}
         <RsvpBreakdown
           rsvps={event.rsvps || []}
@@ -795,6 +872,78 @@ export default function EventDetailScreen() {
             rsvps={attendanceRsvps}
           />
         ) : null}
+
+        <BottomSheet visible={manageOpen} onClose={() => setManageOpen(false)}>
+          <View style={styles.sheetBody}>
+            <Text variant="title3" weight="semibold" color="primary" numberOfLines={2}>
+              {event.title}
+            </Text>
+            <ListRow
+              title={t('event.manage.edit')}
+              onPress={() => {
+                setManageOpen(false)
+                router.push({ pathname: '/create-event', params: { eventId: event.id } })
+              }}
+              showChevron
+            />
+            <ListRow
+              title={t('event.manage.duplicate')}
+              onPress={() => {
+                setManageOpen(false)
+                router.push({ pathname: '/create-event', params: { duplicateFrom: event.id } })
+              }}
+              showChevron
+            />
+            <ListRow
+              title={t('event.manage.cancelEvent')}
+              destructive
+              onPress={() => {
+                setManageOpen(false)
+                setCancelOpen(true)
+              }}
+            />
+          </View>
+        </BottomSheet>
+
+        <BottomSheet
+          visible={cancelOpen}
+          onClose={() => {
+            if (!cancelling) setCancelOpen(false)
+          }}
+        >
+          <View style={styles.sheetBody}>
+            <Text variant="title3" weight="semibold" color="primary">
+              {t('event.manage.cancelTitle')}
+            </Text>
+            <Text variant="footnote" color="secondary">
+              {t('event.manage.cancelBody')}
+            </Text>
+            <FormInput
+              label={t('event.manage.cancelReasonPlaceholder')}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              maxLength={200}
+              autoFocus
+              returnKeyType="done"
+            />
+            <Button
+              label={t('event.manage.cancelConfirm')}
+              variant="destructive"
+              size="lg"
+              fullWidth
+              loading={cancelling}
+              onPress={() => void confirmCancel()}
+            />
+            <Button
+              label={t('common.back')}
+              variant="plain"
+              size="md"
+              fullWidth
+              disabled={cancelling}
+              onPress={() => setCancelOpen(false)}
+            />
+          </View>
+        </BottomSheet>
 
         <UnavailableReasonSheet
           visible={reasonSheetVisible}
@@ -1127,6 +1276,23 @@ function hexWithAlpha(hex: string, alpha: number): string {
 }
 
 const styles = StyleSheet.create({
+  manageButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+  },
+  cancelledText: { flex: 1, gap: space['2xs'] },
+  sheetBody: { gap: space.md, paddingBottom: space.lg },
   centered: {
     flex: 1,
     justifyContent: 'center',

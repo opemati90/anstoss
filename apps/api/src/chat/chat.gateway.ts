@@ -62,6 +62,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
    * join that room. Without channelId the message belongs to the legacy
    * team-wide stream and is sent to the `team:{teamId}` room as before.
    */
+  /**
+   * Deliver a server-originated message (a SYSTEM notice) to the clients
+   * already reading the channel, using the same `message` event and payload
+   * shape a user-sent message uses so the client renders it identically.
+   */
+  emitServerMessage(
+    teamId: string,
+    channelId: string | null,
+    payload: Record<string, unknown>,
+  ) {
+    const room = channelId ? `channel:${channelId}` : `team:${teamId}`
+    this.server.to(room).emit('message', payload)
+  }
+
   broadcastChatEvent(
     teamId: string,
     payload: {

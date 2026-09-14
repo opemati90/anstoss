@@ -26,6 +26,7 @@ import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ContributionsService } from '../contributions/contributions.service'
 import { PushService } from '../push/push.service'
+import { ChatService } from '../chat/chat.service'
 import { EventsGateway } from './events.gateway'
 
 const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
@@ -132,6 +133,16 @@ type EventReadinessRecord = {
  */
 const EVENT_ARCHIVE_RETENTION_DAYS = 3
 
+/** Short German-locale date for push bodies, e.g. "Sa., 14.09.". */
+function formatEventDate(date: Date): string {
+  return new Intl.DateTimeFormat('de-DE', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'Europe/Berlin',
+  }).format(date)
+}
+
 @Injectable()
 export class EventsService {
   private readonly pushLogger = new Logger(EventsService.name)
@@ -142,6 +153,7 @@ export class EventsService {
     private readonly contributionsService: ContributionsService,
     private readonly pushService: PushService,
     private readonly eventsGateway: EventsGateway,
+    private readonly chatService: ChatService,
   ) {}
 
   async create(data: {
@@ -262,7 +274,11 @@ export class EventsService {
     const where: Prisma.EventWhereInput = {
       teamId,
       date: dateFilter,
-      cancelledAt: null,
+      // Cancelled events stay visible in the upcoming feed until their date
+      // passes so the squad sees the change where they look for the
+      // schedule; they drop out of the past feed, which is attendance
+      // history.
+      ...(scope === 'past' ? { cancelledAt: null } : {}),
       archivedAt: null,
     }
 
@@ -352,7 +368,7 @@ export class EventsService {
       clubId,
       teamId: { in: userTeamIds },
       date: dateFilter,
-      cancelledAt: null,
+      // Upcoming-only feed: cancelled events stay until their date passes.
       archivedAt: null,
     }
 
@@ -398,7 +414,7 @@ export class EventsService {
     const where: Prisma.EventWhereInput = {
       clubId,
       date: dateFilter,
-      cancelledAt: null,
+      // Upcoming-only feed: cancelled events stay until their date passes.
       archivedAt: null,
     }
 
@@ -439,6 +455,8 @@ export class EventsService {
       createdById: event.createdById,
       createdAt: event.createdAt.toISOString(),
       archivedAt: event.archivedAt?.toISOString() ?? null,
+      cancelledAt: event.cancelledAt?.toISOString() ?? null,
+      cancelReason: event.cancelReason ?? null,
       responseCount: event._count.rsvps,
       yesCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length,
       maybeCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
@@ -823,9 +841,10 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
-    if (event.createdById !== userId) {
-      throw new ForbiddenException('Only the event creator can update this event')
-    }
+    // Any event manager (OWNER/ADMIN/COACH on this team) may edit, not only
+    // the creator. A club has more than one coach, and the person who made
+    // the entry is not always the one who has to move it.
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
 
     if (event.cancelledAt) {
       throw new BadRequestException('Cannot update a cancelled event')
@@ -847,10 +866,49 @@ export class EventsService {
     // Realtime: broadcast the change so subscribed clients refresh the event.
     this.eventsGateway.emitEventUpsert(updated.teamId, updated.id)
 
+    // A change of when or where is a change the squad has to act on. Title
+    // and notes edits are cosmetic and stay quiet.
+    const dateChanged =
+      data.date !== undefined && data.date.getTime() !== event.date.getTime()
+    const locationChanged =
+      data.location !== undefined && (data.location ?? null) !== (event.location ?? null)
+    if (dateChanged || locationChanged) {
+      const clubId = updated.clubId
+      const teamName = await this.teamNameFor(updated.teamId)
+      const date = formatEventDate(updated.date)
+      this.pushService
+        .sendToTeamLocalized(
+          updated.teamId,
+          'EVENT_UPDATED',
+          { teamName, eventTitle: updated.title, date },
+          {
+            type: 'event_updated',
+            eventId: updated.id,
+            clubId,
+            url: `anstoss:///event-detail?eventId=${updated.id}`,
+          },
+          userId,
+          { clubId, category: 'events' },
+        )
+        .catch((error: unknown) => {
+          this.pushLogger.warn(
+            `EVENT_UPDATED push failed for event ${updated.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          )
+        })
+      await this.chatService.postSystemNotice({
+        teamId: updated.teamId,
+        clubId,
+        actorId: userId,
+        content: `${updated.title}: ${date}${updated.location ? ` · ${updated.location}` : ''}`,
+      })
+    }
+
     return updated
   }
 
-  async cancel(eventId: string, userId: string) {
+  async cancel(eventId: string, userId: string, reason?: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
@@ -859,9 +917,7 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
-    if (event.createdById !== userId) {
-      throw new ForbiddenException('Only the event creator can cancel this event')
-    }
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
 
     if (event.cancelledAt) {
       throw new BadRequestException('Event is already cancelled')
@@ -869,11 +925,58 @@ export class EventsService {
 
     await this.archiveExpiredEvents(event.teamId)
 
-    // Soft-delete: mark as cancelled rather than hard delete
-    return this.prisma.event.update({
+    // Soft-delete: mark as cancelled rather than hard delete. The row stays
+    // in upcoming feeds until its date passes so the squad sees the change
+    // in the schedule, not only in a push they may have swiped away.
+    const cancelled = await this.prisma.event.update({
       where: { id: eventId },
-      data: { cancelledAt: new Date() },
+      data: { cancelledAt: new Date(), cancelReason: reason?.trim() || null },
     })
+
+    this.eventsGateway.emitEventUpsert(cancelled.teamId, cancelled.id)
+
+    const clubId = cancelled.clubId
+    const teamName = await this.teamNameFor(cancelled.teamId)
+    const date = formatEventDate(cancelled.date)
+    this.pushService
+      .sendToTeamLocalized(
+        cancelled.teamId,
+        'EVENT_CANCELLED',
+        { teamName, eventTitle: cancelled.title, date, reason: cancelled.cancelReason ?? '' },
+        {
+          type: 'event_cancelled',
+          eventId: cancelled.id,
+          clubId,
+          url: `anstoss:///event-detail?eventId=${cancelled.id}`,
+        },
+        userId,
+        { clubId, category: 'events' },
+      )
+      .catch((error: unknown) => {
+        this.pushLogger.warn(
+          `EVENT_CANCELLED push failed for event ${cancelled.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      })
+    await this.chatService.postSystemNotice({
+      teamId: cancelled.teamId,
+      clubId,
+      actorId: userId,
+      content: `${cancelled.title} (${date})${
+        cancelled.cancelReason ? `: ${cancelled.cancelReason}` : ''
+      }`,
+    })
+
+    return cancelled
+  }
+
+  private async teamNameFor(teamId: string): Promise<string> {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      select: { name: true },
+    })
+    return team?.name ?? ''
   }
 
   async remindRsvp(

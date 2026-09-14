@@ -16,6 +16,13 @@ export const createEventSchema = z.object({
 
 export type CreateEventInput = z.infer<typeof createEventSchema>
 
+/** Body of DELETE /events/:id — a soft cancel with an optional one-line reason. */
+export const cancelEventSchema = z.object({
+  reason: z.string().trim().max(200).optional(),
+})
+
+export type CancelEventInput = z.infer<typeof cancelEventSchema>
+
 export const updateEventSchema = z.object({
   title: z.string().min(2, 'Title must be at least 2 characters').max(100).optional(),
   type: eventTypeSchema.optional(),

@@ -169,6 +169,52 @@ describe('PlayerHome', () => {
     expect(await findByText(/See you tomorrow/)).toBeTruthy()
   })
 
+  it('renders a cancelled event struck through, with the reason and no reply control', async () => {
+    mockApi.mockImplementation((path: string) => {
+      if (path.includes('/events?') && path.includes('scope=upcoming')) {
+        return Promise.resolve([
+          {
+            id: 'e-live',
+            type: 'TRAINING',
+            title: 'Monday training',
+            date: new Date(Date.now() + 86400000).toISOString(),
+            myRsvp: 'YES',
+            yesCount: 8,
+            maybeCount: 0,
+            noCount: 0,
+          },
+          {
+            id: 'e-cancelled',
+            type: 'TRAINING',
+            title: 'Wednesday training',
+            date: new Date(Date.now() + 3 * 86400000).toISOString(),
+            myRsvp: null,
+            yesCount: 0,
+            maybeCount: 0,
+            noCount: 0,
+            cancelledAt: new Date().toISOString(),
+            cancelReason: 'Pitch frozen',
+          },
+        ])
+      }
+      if (path.includes('/fixtures')) return Promise.resolve([])
+      if (path.includes('/channels')) return Promise.resolve([])
+      if (path.includes('/announcements')) return Promise.resolve([])
+      return Promise.resolve(null)
+    })
+    const { findByText, queryByText, queryAllByText } = render(
+      wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
+    )
+
+    expect(await findByText('Wednesday training')).toBeTruthy()
+    expect(await findByText(/Cancelled · Pitch frozen/)).toBeTruthy()
+    // A cancelled event owes nobody an answer: no reply badge, and the only
+    // reply control on screen is the hero's (Monday, already answered, which
+    // keeps its control so the answer can be changed).
+    expect(queryByText(/to reply/)).toBeNull()
+    expect(queryAllByText('Maybe')).toHaveLength(1)
+  })
+
   it('renders announcement titles', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await findByText('Club BBQ')).toBeTruthy()

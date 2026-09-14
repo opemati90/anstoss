@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Pressable, StyleSheet, ScrollView, Alert, Platform, Modal } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { createEventSchema } from '@anstoss/shared'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors, useIsDark } from '../src/context/ClubThemeContext'
@@ -64,6 +64,16 @@ export default function CreateEventScreen() {
   const isDark = useIsDark()
   const insets = useSafeAreaInsetsSafe()
   const [isLoading, setIsLoading] = useState(false)
+  // `eventId` opens the same form in edit mode (PATCH); `duplicateFrom`
+  // pre-fills it from another event so a coach can post "same as last week"
+  // without retyping the title, place and notes.
+  const params = useLocalSearchParams<{ eventId?: string; duplicateFrom?: string }>()
+  const editingId = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId
+  const duplicateFrom = Array.isArray(params.duplicateFrom)
+    ? params.duplicateFrom[0]
+    : params.duplicateFrom
+  const isEdit = Boolean(editingId)
+  const [prefillLoading, setPrefillLoading] = useState(Boolean(editingId || duplicateFrom))
   const [teamsLoading, setTeamsLoading] = useState(false)
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(activeTeamId)
@@ -79,6 +89,46 @@ export default function CreateEventScreen() {
   // its own scroll/animation, so there is no controlled-wheel feedback loop to
   // freeze the JS thread (the failure mode of the old hand-rolled ScrollPicker).
   const [eventDate, setEventDate] = useState<Date>(() => getInitialEventDateTime())
+
+  useEffect(() => {
+    const sourceId = editingId || duplicateFrom
+    if (!sourceId || !activeClub) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const source = await api<{
+          title: string
+          type: (typeof EVENT_TYPES)[number]
+          date: string
+          teamId: string
+          location: string | null
+          notes: string | null
+        }>(`/clubs/${activeClub.club.id}/events/${sourceId}`)
+        if (cancelled) return
+        setTitle(source.title)
+        setTitleTouched(true)
+        setType(source.type)
+        setLocation(source.location ?? '')
+        setNotes(source.notes ?? '')
+        setSelectedTeamId(source.teamId)
+        // Editing keeps the real date. A duplicate of something in the past
+        // rolls forward a week at a time until it lands in the future, which
+        // is what "same as last Tuesday" means.
+        const next = new Date(source.date)
+        if (duplicateFrom) {
+          while (next.getTime() < Date.now()) next.setDate(next.getDate() + 7)
+        }
+        setEventDate(next)
+      } catch {
+        Alert.alert(t('common.error'), t('event.manage.updateFailed'))
+      } finally {
+        if (!cancelled) setPrefillLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [editingId, duplicateFrom, activeClub?.club.id])
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
   const minimumDate = useMemo(() => startOfToday(), [])
@@ -256,10 +306,20 @@ export default function CreateEventScreen() {
 
     setIsLoading(true)
     try {
-      await api(`/clubs/${activeClub.club.id}/events`, {
-        method: 'POST',
-        body: validation.data,
-      })
+      if (isEdit && editingId) {
+        // PATCH takes everything but the team; moving an event between teams
+        // is a different operation and is not offered here.
+        const { teamId: _ignored, ...changes } = validation.data
+        await api(`/clubs/${activeClub.club.id}/events/${editingId}`, {
+          method: 'PATCH',
+          body: changes,
+        })
+      } else {
+        await api(`/clubs/${activeClub.club.id}/events`, {
+          method: 'POST',
+          body: validation.data,
+        })
+      }
       if (selectedTeamId !== activeTeamId) {
         setActiveTeam(selectedTeamId)
       }
@@ -279,10 +339,16 @@ export default function CreateEventScreen() {
     }
   }
 
+  const screenTitle = isEdit
+    ? t('event.manage.editTitle')
+    : duplicateFrom
+      ? t('event.manage.duplicateTitle')
+      : t('event.newScreenTitle')
+
   if (!canCreate) {
     return (
       <Screen
-        header={<ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />}
+        header={<ModalHeader title={screenTitle} onClose={() => router.back()} />}
         padded={false}
       >
         <EmptyState
@@ -302,7 +368,7 @@ export default function CreateEventScreen() {
   if (!teamsLoading && teamOptions.length === 0) {
     return (
       <Screen
-        header={<ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />}
+        header={<ModalHeader title={screenTitle} onClose={() => router.back()} />}
         padded={false}
       >
         <EmptyState
@@ -316,7 +382,7 @@ export default function CreateEventScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={t('event.newScreenTitle')} onClose={() => router.back()} />}
+      header={<ModalHeader title={screenTitle} onClose={() => router.back()} />}
       padded={false}
     >
       {/* No KeyboardAvoidingView: on an iOS form sheet a JS KAV fights the native
@@ -510,11 +576,11 @@ export default function CreateEventScreen() {
             few points above it in the same sheet. Repeating them cost two
             lines of a scroll area that was already clipping its last field. */}
         <Button
-          label={t('event.createButton')}
+          label={isEdit ? t('event.manage.saveChanges') : t('event.createButton')}
           variant="filled"
           size="lg"
           loading={isLoading}
-          disabled={isLoading || !selectedTeamId || !title.trim()}
+          disabled={isLoading || prefillLoading || !selectedTeamId || !title.trim()}
           onPress={handleCreate}
           testID="event-create-submit"
         />
