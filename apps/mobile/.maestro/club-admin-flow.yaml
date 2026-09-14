@@ -29,4 +29,11 @@ appId: com.renuirug.anstoss
 - extendedWaitUntil:
     visible: "Administration"
     timeout: 15000
-- assertVisible: "Manage teams"
+# The workspace carries counts on its rows: pending join requests, teams
+# without a head coach, overdue dues. Labels collapse to "title, n".
+- assertVisible: "Join requests, 2"
+- assertVisible: "Manage teams, 1 without a head coach"
+- scrollUntilVisible:
+    element: "Club finance, 4"
+    direction: DOWN
+    timeout: 10000

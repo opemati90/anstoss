@@ -2564,6 +2564,8 @@ export default {
     nextEvent: 'Sonraki etkinlik',
   },
   adminDashboard: {
+    noHeadCoach: '{{count}} baş antrenörsüz',
+    duesSummary: '{{paid}} ödendi · {{pending}} bekliyor · {{overdue}} gecikmiş',
     title: 'Yönetim',
     clubOverview: 'Kulüp genel görünümü',
     members: 'Üyeler',

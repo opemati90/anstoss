@@ -2154,6 +2154,8 @@ const base = {
     nextEvent: 'Next event',
   },
   adminDashboard: {
+    noHeadCoach: '{{count}} without a head coach',
+    duesSummary: '{{paid}} paid · {{pending}} pending · {{overdue}} overdue',
     title: 'Administration',
     clubOverview: 'Club overview',
     members: 'Members',

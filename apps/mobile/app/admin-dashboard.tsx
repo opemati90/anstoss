@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ClubAggregateStats, TrialInvite } from '@anstoss/shared'
+import type { ClubAggregateStats, ContributionOverview, TrialInvite } from '@anstoss/shared'
 import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -19,6 +19,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import {
   Avatar,
+  Badge,
   ListRow,
   Screen,
   SectionGroup,
@@ -27,15 +28,20 @@ import {
   Text,
 } from '../src/components/ui'
 import { space } from '../src/theme/tokens'
+
+type TeamGroupRow = {
+  teams?: Array<{ coachAssignments?: { headCoach?: unknown | null } | null }>
+}
 import { formatGermanShortDate } from '../src/utils/germanDate'
 
 /**
- * Administration screen — iOS Settings doctrine.
+ * The club workspace — iOS Settings doctrine, with the numbers on the door.
  *
- * Background uses `surfaceSunken` so each grouped section card pops as a
- * white inset list. No dashboard hero, no quick-action chips. The leading
- * slot of every row is a tinted rounded-square (SettingsIcon), the row
- * title is body-weight, optional count + chevron sit on the trailing edge.
+ * Three sections (people, structure, money). Every row that can have
+ * something waiting carries its count, so the screen answers "what needs
+ * me" before anything is tapped: pending join requests, teams without a
+ * head coach, overdue dues. The counts come from the same endpoints the
+ * target screens read, so they never disagree with what opens.
  */
 export default function AdminDashboardScreen() {
   const { t } = useTranslation()
@@ -44,6 +50,9 @@ export default function AdminDashboardScreen() {
   const entitlements = useEntitlements()
   const [stats, setStats] = useState<ClubAggregateStats | null>(null)
   const [trialInvites, setTrialInvites] = useState<TrialInvite[]>([])
+  const [pendingRequests, setPendingRequests] = useState(0)
+  const [teamsWithoutCoach, setTeamsWithoutCoach] = useState(0)
+  const [dues, setDues] = useState<ContributionOverview['summary'] | null>(null)
   const [, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,8 +81,27 @@ export default function AdminDashboardScreen() {
       const data = await api<ClubAggregateStats>(`/clubs/${clubId}/stats`)
       setStats(data)
       const invites = await api<TrialInvite[]>(`/clubs/${clubId}/trial-invites`)
-      setTrialInvites(invites || [])
+      setTrialInvites(Array.isArray(invites) ? invites : [])
       setError(null)
+      // Counts are garnish: each degrades to nothing on its own.
+      const [requests, groups, contributions] = await Promise.all([
+        api<unknown[]>(`/clubs/${clubId}/join-requests`).catch(() => []),
+        api<TeamGroupRow[]>(`/clubs/${clubId}/team-groups`).catch(() => []),
+        api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
+      ])
+      setPendingRequests(Array.isArray(requests) ? requests.length : 0)
+      setTeamsWithoutCoach(
+        Array.isArray(groups)
+          ? groups
+              .flatMap((group) => (Array.isArray(group?.teams) ? group.teams : []))
+              .filter((team) => !team?.coachAssignments?.headCoach).length
+          : 0,
+      )
+      setDues(
+        contributions && typeof contributions === 'object' && contributions.summary
+          ? contributions.summary
+          : null,
+      )
     } catch {
       setError(t('errors.loadFailed'))
     } finally {
@@ -189,6 +217,20 @@ export default function AdminDashboardScreen() {
         />
         <ListRow
           left={
+            <SettingsIcon name="envelope.fill" tint={SettingsIconTint.gray} />
+          }
+          title={t('pendingRequests.title')}
+          accessibilityLabel={
+            pendingRequests > 0
+              ? `${t('pendingRequests.title')}, ${pendingRequests}`
+              : t('pendingRequests.title')
+          }
+          right={pendingRequests > 0 ? <CountBadge value={pendingRequests} /> : undefined}
+          showChevron
+          onPress={() => router.push('/pending-requests')}
+        />
+        <ListRow
+          left={
             <SettingsIcon name="lock.shield.fill" tint={SettingsIconTint.gray} />
           }
           title={t('more.manageStaff')}
@@ -201,39 +243,6 @@ export default function AdminDashboardScreen() {
           showChevron
           onPress={() => router.push('/team-families')}
         />
-        <ListRow
-          left={
-            <SettingsIcon name="envelope.fill" tint={SettingsIconTint.gray} />
-          }
-          title={t('pendingRequests.title')}
-          showChevron
-          onPress={() => router.push('/pending-requests')}
-        />
-      </SectionGroup>
-
-      <SectionGroup
-        header={t('adminDashboard.teamsEvents')}
-        style={styles.section}
-      >
-        <ListRow
-          left={<SettingsIcon name="person.3" tint={SettingsIconTint.gray} />}
-          title={t('more.manageTeams')}
-          right={stats ? <RowValue value={stats.teamCount} /> : undefined}
-          showChevron
-          onPress={() => router.push('/team-management')}
-        />
-        <ListRow
-          left={<SettingsIcon name="chart.bar.fill" tint={SettingsIconTint.gray} />}
-          title={t('clubStats.title')}
-          showChevron
-          onPress={() => router.push('/club-stats')}
-        />
-      </SectionGroup>
-
-      <SectionGroup
-        header={t('adminDashboard.growth', { defaultValue: 'Growth' })}
-        style={styles.section}
-      >
         <ListRow
           left={
             <SettingsIcon
@@ -256,6 +265,53 @@ export default function AdminDashboardScreen() {
           showChevron
           onPress={shareJoinLink}
         />
+      </SectionGroup>
+
+      <SectionGroup
+        header={t('adminDashboard.teamsEvents')}
+        style={styles.section}
+      >
+        <ListRow
+          left={<SettingsIcon name="person.3" tint={SettingsIconTint.gray} />}
+          title={t('more.manageTeams')}
+          subtitle={
+            teamsWithoutCoach > 0
+              ? t('adminDashboard.noHeadCoach', {
+                  defaultValue: '{{count}} without a head coach',
+                  count: teamsWithoutCoach,
+                })
+              : undefined
+          }
+          accessibilityLabel={
+            teamsWithoutCoach > 0
+              ? `${t('more.manageTeams')}, ${t('adminDashboard.noHeadCoach', {
+                  defaultValue: '{{count}} without a head coach',
+                  count: teamsWithoutCoach,
+                })}`
+              : t('more.manageTeams')
+          }
+          right={
+            teamsWithoutCoach > 0 ? (
+              <CountBadge value={teamsWithoutCoach} />
+            ) : stats ? (
+              <RowValue value={stats.teamCount} />
+            ) : undefined
+          }
+          showChevron
+          onPress={() => router.push('/team-management')}
+        />
+        <ListRow
+          left={<SettingsIcon name="chart.bar.fill" tint={SettingsIconTint.gray} />}
+          title={t('clubStats.title')}
+          showChevron
+          onPress={() => router.push('/club-stats')}
+        />
+        <ListRow
+          left={<SettingsIcon name="link" tint={SettingsIconTint.gray} />}
+          title={t('more.fussballLink', { defaultValue: 'Official team link' })}
+          showChevron
+          onPress={() => router.push('/fussball-link')}
+        />
         <ListRow
           left={
             <SettingsIcon name="figure.soccer.fill" tint={SettingsIconTint.gray} />
@@ -277,6 +333,33 @@ export default function AdminDashboardScreen() {
         style={styles.section}
       >
         <ListRow
+          left={
+            <SettingsIcon name="creditcard.fill" tint={SettingsIconTint.gray} />
+          }
+          title={t('adminBilling.title')}
+          subtitle={
+            dues && dues.assignedMembers > 0
+              ? t('adminDashboard.duesSummary', {
+                  defaultValue: '{{paid}} paid · {{pending}} pending · {{overdue}} overdue',
+                  paid: dues.paidMembers,
+                  pending: Math.max(
+                    0,
+                    dues.assignedMembers - dues.paidMembers - dues.overdueMembers,
+                  ),
+                  overdue: dues.overdueMembers,
+                })
+              : undefined
+          }
+          accessibilityLabel={
+            dues && dues.overdueMembers > 0
+              ? `${t('adminBilling.title')}, ${dues.overdueMembers}`
+              : t('adminBilling.title')
+          }
+          right={dues && dues.overdueMembers > 0 ? <CountBadge value={dues.overdueMembers} /> : undefined}
+          showChevron
+          onPress={() => router.push('/admin-billing')}
+        />
+        <ListRow
           left={<SettingsIcon name="photo.fill" tint={SettingsIconTint.gray} />}
           title={t('adminDashboard.manageSponsors')}
           showChevron
@@ -287,14 +370,6 @@ export default function AdminDashboardScreen() {
             }
             router.push('/admin-sponsors')
           }}
-        />
-        <ListRow
-          left={
-            <SettingsIcon name="creditcard.fill" tint={SettingsIconTint.gray} />
-          }
-          title={t('adminBilling.title')}
-          showChevron
-          onPress={() => router.push('/admin-billing')}
         />
       </SectionGroup>
 
@@ -326,6 +401,11 @@ export default function AdminDashboardScreen() {
       />
     </Screen>
   )
+}
+
+/** A count that asks for something: pending, missing, overdue. */
+function CountBadge({ value }: { value: number }) {
+  return <Badge label={String(value)} variant="club" />
 }
 
 /** Right-aligned count in iOS Settings tone. */

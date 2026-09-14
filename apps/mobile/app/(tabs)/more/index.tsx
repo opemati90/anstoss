@@ -47,7 +47,6 @@ export default function MoreScreen() {
   const board = streaks?.leaderboard ?? []
   const myRank = user ? board.findIndex((e) => e.userId === user.id) + 1 : 0
   const isOwnerOrAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
-  const canReviewJoinRequests = isOwnerOrAdmin
 
   const handleExportData = async () => {
     const subject = encodeURIComponent('Anstoss · DSGVO data export request')
@@ -343,35 +342,8 @@ export default function MoreScreen() {
   // section's quiet footer instead of a standalone (formerly colored) row.
   const appVersionFooter = `${t('more.about')} · v${Constants.expoConfig?.version || '1.0.0'}`
 
-  const admin: Row[] = [
-    ...(canReviewJoinRequests
-      ? [
-          {
-            key: 'join-requests',
-            label: t('more.joinRequests', { defaultValue: 'Join requests' }),
-            sub: t('more.joinRequestsSub', {
-              defaultValue: 'Review and approve club applicants',
-            }) as string,
-            icon: 'person.badge.plus',
-            onPress: () => router.push('/pending-requests'),
-          },
-        ]
-      : []),
-    ...(isOwnerOrAdmin
-      ? [
-          {
-            key: 'members',
-            label: t('more.adminMembers', { defaultValue: 'Manage members' }),
-            sub: t('more.adminMembersSub', {
-              defaultValue: 'Invites, roles, and club membership',
-            }) as string,
-            icon: 'person.2.fill',
-            onPress: () => router.push('/admin-members'),
-          },
-        ]
-      : []),
-  ]
-
+  // Club administration moved to its own workspace, reached from Home.
+  // The You tab is personal: account, club membership, app, data.
   const data: Row[] = [
     {
       key: 'export',
@@ -476,12 +448,6 @@ export default function MoreScreen() {
           </SectionGroup>
         ) : null}
         {club.length > 0 ? <Section title={t('more.sectionClub') as string} rows={club} /> : null}
-        {admin.length > 0 ? (
-          <Section
-            title={t('more.sectionAdmin', { defaultValue: 'Club admin' }) as string}
-            rows={admin}
-          />
-        ) : null}
         <Section title={t('more.sectionApp') as string} rows={app} footer={appVersionFooter} />
         <Section title={t('more.sectionData') as string} rows={data} />
       </ScrollView>

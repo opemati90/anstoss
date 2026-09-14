@@ -2200,6 +2200,8 @@ const base = {
     nextEvent: 'Prossimo evento',
   },
   adminDashboard: {
+    noHeadCoach: '{{count}} senza allenatore capo',
+    duesSummary: '{{paid}} pagati · {{pending}} in attesa · {{overdue}} in ritardo',
     title: 'Amministrazione',
     clubOverview: 'Panoramica club',
     members: 'Membri',
