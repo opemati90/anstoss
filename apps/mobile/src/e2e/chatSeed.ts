@@ -20,10 +20,28 @@ export function buildE2EChatMessages(
   // Only the General/Team channel carries seeded history. Announcements
   // ('announcements') and Coaches ('coaches') fall back to the empty state.
   const GENERAL = new Set(['team', 'default', 'general'])
-  if (channelId && !GENERAL.has(channelId)) return []
-
   const now = Date.now()
   const min = 60_000
+
+  // The announcements channel carries the same notice the team-channel
+  // banner previews, so tapping the banner lands on something.
+  if (channelId === 'announcements') {
+    return [
+      {
+        id: 'e2e-announcement-1',
+        teamId,
+        senderId: 'user-coach-1',
+        senderName: 'Markus Hoffmann',
+        senderAvatar: null,
+        content: 'Kit wash rota starts this week\n\nCheck the Team tab for who is up first.',
+        messageType: 'TEXT',
+        isAnnouncement: true,
+        createdAt: new Date(now - 30 * min).toISOString(),
+        readByMe: true,
+      },
+    ]
+  }
+  if (channelId && !GENERAL.has(channelId)) return []
   const msg = (
     offsetMin: number,
     senderId: string,
@@ -60,6 +78,16 @@ export function buildE2EChatMessages(
     ),
     msg(120, 'user-player-1', 'Julian Becker', "I'll grab them on the way.", {
       reactions: [{ emoji: '👍', count: 3, userIds: ['user-coach-1', 'user-player-2', 'user-player-3'] }],
+    }),
+    // A shared event renders as a card with the reply control inline.
+    msg(90, 'user-coach-1', 'Markus Hoffmann', 'vs. SV Babelsberg 03', {
+      messageType: 'RSVP_POLL',
+      attachmentMeta: {
+        eventId: 'event-match-next',
+        eventDate: new Date(now + 3 * 24 * 60 * min).toISOString(),
+        eventType: 'MATCH',
+        location: 'Karl-Liebknecht-Stadion',
+      } as unknown as ChatMessage['attachmentMeta'],
     }),
     msg(
       60,

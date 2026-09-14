@@ -22,6 +22,9 @@ import { ChatInput } from './ChatInput'
 import { ConnectionStatus } from './ConnectionStatus'
 import { PinnedBanner } from './PinnedBanner'
 import { TypingIndicator } from './TypingIndicator'
+import { ComposeSheet } from './ComposeSheet'
+import { AnnounceSheet } from '../home/AnnounceSheet'
+import { router } from 'expo-router'
 import { EmptyState } from '../EmptyState'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useKeyboardLift } from '../../hooks/useKeyboardLift'
@@ -62,7 +65,15 @@ type Props = {
    * keyboard instead of floating a tab-bar's height above it.
    */
   keyboardOffset?: number
+  /** Managers get the compose menu on the composer. */
+  canCompose?: boolean
+  /** Kind of the channel in view; the team channel surfaces announcements. */
+  channelKind?: string | null
+  /** Called when the reader taps the latest-announcement banner. */
+  onOpenAnnouncements?: () => void
 }
+
+type AnnouncementPreview = { id: string; title: string; body: string }
 
 export function ChatScreen({
   teamId,
@@ -73,9 +84,12 @@ export function ChatScreen({
   apiUrl,
   primaryColor,
   keyboardOffset = 0,
+  canCompose = false,
+  channelKind = null,
+  onOpenAnnouncements,
 }: Props) {
   const keyboardLift = useKeyboardLift(keyboardOffset)
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const c = useClubColors()
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
   const shouldStickToBottomRef = useRef(true)
@@ -103,9 +117,29 @@ export function ChatScreen({
     fetchPoll,
     votePollOption,
     sendMediaMessage,
+    appendMessage,
   } = useChat({ clubId, teamId, channelId, token, userId, apiUrl })
 
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [announceOpen, setAnnounceOpen] = useState(false)
+
+  // "What did the coach say" lives in the team channel too: the latest
+  // announcement rides at the top, one tap from the conversation, instead
+  // of only in a separate channel people forget to open.
+  const [latestAnnouncement, setLatestAnnouncement] = useState<AnnouncementPreview | null>(null)
+  const loadLatestAnnouncement = useCallback(async () => {
+    if (channelKind !== 'TEAM') {
+      setLatestAnnouncement(null)
+      return
+    }
+    try {
+      const list = await api<AnnouncementPreview[]>(`/clubs/${clubId}/announcements?limit=1`)
+      setLatestAnnouncement(Array.isArray(list) && list[0] ? list[0] : null)
+    } catch {
+      setLatestAnnouncement(null)
+    }
+  }, [channelKind, clubId])
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
 
   // Apple Guideline 1.2 — report + block surface for UGC chat. Reasons
@@ -256,7 +290,8 @@ export function ChatScreen({
   useFocusEffect(
     useCallback(() => {
       refreshHistory()
-    }, [refreshHistory]),
+      void loadLatestAnnouncement()
+    }, [refreshHistory, loadLatestAnnouncement]),
   )
 
   const [searchOpen, setSearchOpen] = useState(false)
@@ -365,6 +400,7 @@ export function ChatScreen({
           showSender={showSender}
           primaryColor={primaryColor}
           myUserId={userId}
+          clubId={clubId}
           onReact={reactToMessage}
           onUnreact={unreactToMessage}
           onReply={setReplyTarget}
@@ -490,6 +526,27 @@ export function ChatScreen({
           primaryColor={primaryColor}
           onPress={scrollToBottom}
         />
+      ) : latestAnnouncement ? (
+        <Pressable
+          onPress={onOpenAnnouncements}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('chat.latestAnnouncement', { defaultValue: 'Latest announcement' })}, ${latestAnnouncement.title}`}
+          style={[styles.announcementBar, { backgroundColor: c.surface, borderBottomColor: c.borderSubtle }]}
+        >
+          <View style={[styles.announcementAccent, { backgroundColor: primaryColor ?? c.primary }]} />
+          <Icon name="megaphone" size="sm" color={primaryColor ?? c.primary} />
+          <View style={styles.announcementBody}>
+            <Text variant="caption1" color="primary" weight="medium" numberOfLines={1}>
+              {latestAnnouncement.title}
+            </Text>
+            {latestAnnouncement.body ? (
+              <Text variant="caption1" color="secondary" numberOfLines={1}>
+                {latestAnnouncement.body}
+              </Text>
+            ) : null}
+          </View>
+          <Icon name="chevron.right" size={14} color="tertiary" />
+        </Pressable>
       ) : null}
 
       {messages.length === 0 ? (
@@ -604,6 +661,7 @@ export function ChatScreen({
               return ok
             }}
             onTyping={sendTyping}
+            onCompose={canCompose ? () => setComposeOpen(true) : undefined}
             disabled={isDisabled}
             primaryColor={primaryColor}
             errorMessage={localizedError}
@@ -640,12 +698,44 @@ export function ChatScreen({
             return ok
           }}
           onTyping={sendTyping}
+          onCompose={canCompose ? () => setComposeOpen(true) : undefined}
           disabled={isDisabled}
           primaryColor={primaryColor}
           errorMessage={localizedError}
           />
         </View>
       )}
+
+      {canCompose ? (
+        <>
+          <ComposeSheet
+            visible={composeOpen}
+            clubId={clubId}
+            teamId={teamId}
+            channelId={channelId ?? null}
+            locale={i18n.language}
+            onClose={() => setComposeOpen(false)}
+            onPosted={appendMessage}
+            onAction={(action) => {
+              setComposeOpen(false)
+              if (action === 'announcement') {
+                setAnnounceOpen(true)
+              } else {
+                router.push({ pathname: '/lineup-builder', params: { teamId } } as never)
+              }
+            }}
+          />
+          <AnnounceSheet
+            clubId={clubId}
+            teamId={teamId}
+            visible={announceOpen}
+            onClose={() => {
+              setAnnounceOpen(false)
+              void loadLatestAnnouncement()
+            }}
+          />
+        </>
+      ) : null}
 
       <EditMessageSheet
         visible={!!editTarget}
@@ -703,6 +793,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  announcementBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_SM,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderBottomWidth: hairline,
+  },
+  announcementAccent: {
+    width: 3,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+  },
+  announcementBody: { flex: 1, marginLeft: SPACING_XS },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

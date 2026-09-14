@@ -46,6 +46,22 @@ export default function ChatTab() {
     activeClub?.role === 'ADMIN' ||
     activeClub?.role === 'COACH'
 
+  // The latest-announcement banner in the team channel opens the
+  // announcements channel itself, so "read the rest" is one tap.
+  const openAnnouncementsChannel = async () => {
+    if (!activeTeamId || !activeClub) return
+    try {
+      const channels = await api<Channel[]>(`/teams/${activeTeamId}/channels`)
+      const target = (channels ?? []).find((ch) => ch.kind === 'ANNOUNCEMENTS')
+      if (!target) return
+      setActiveChannel(target)
+      setActiveChannelTeamId(activeTeamId)
+      setActiveChannelClubId(activeClub.club.id)
+    } catch {
+      // stay where we are
+    }
+  }
+
   const resolvedActiveChannel =
     activeChannel &&
     activeTeamId &&
@@ -196,6 +212,9 @@ export default function ChatTab() {
               token={token}
               apiUrl={API_URL}
               primaryColor={c.primary}
+              canCompose={canCreateGroup}
+              channelKind={resolvedActiveChannel?.kind ?? null}
+              onOpenAnnouncements={() => void openAnnouncementsChannel()}
             />
           </View>
         ) : (

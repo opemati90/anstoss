@@ -306,7 +306,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       (payload: { kind: string; message?: ChatMessage; messageId?: string }) => {
         if (!payload?.message) return
         const next = payload.message
-        if (payload.kind === 'media') {
+        // REST-posted messages (media, polls, event cards, lineups) arrive
+        // here rather than on 'message'; they are new rows, not patches.
+        if (
+          payload.kind === 'media' ||
+          payload.kind === 'poll' ||
+          payload.kind === 'rsvp-poll' ||
+          payload.kind === 'lineup'
+        ) {
           setMessages((prev) => (prev.some((m) => m.id === next.id) ? prev : [...prev, next]))
           if (!isAtBottomRef.current && next.senderId !== userId) {
             setUnreadCount((c) => c + 1)
@@ -657,6 +664,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     [apiUrl, teamId, token, channelId],
   )
 
+  /** Append a message this client created through REST (dedupes by id). */
+  const appendMessage = useCallback((created: ChatMessage) => {
+    setMessages((prev) => (prev.some((m) => m.id === created.id) ? prev : [...prev, created]))
+  }, [])
+
   const fetchPollForMessage = useCallback(
     async (
       messageId: string,
@@ -768,5 +780,6 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     fetchPoll,
     votePollOption,
     sendMediaMessage,
+    appendMessage,
   }
 }

@@ -36,6 +36,7 @@ import { ReplyQuote } from './ReplyQuote'
 import { ReactionRow } from './ReactionRow'
 import { MessageMenu } from './MessageMenu'
 import { VoiceMessagePlayer } from './VoiceMessagePlayer'
+import { EventCardMessage } from './EventCardMessage'
 
 /** WhatsApp double-tap quick-react emoji. */
 const QUICK_REACT_DEFAULT = '❤️'
@@ -53,6 +54,8 @@ type Props = {
   canModerate?: boolean
   primaryColor?: string
   myUserId?: string
+  /** Needed by event cards to read and write the reader's RSVP. */
+  clubId?: string
   onReact?: (messageId: string, emoji: string) => void
   onUnreact?: (messageId: string, emoji: string) => void
   onReply?: (message: ChatMessage) => void
@@ -90,6 +93,7 @@ export const MessageBubble = memo(function MessageBubble({
   canModerate,
   primaryColor,
   myUserId,
+  clubId,
   onReact,
   onUnreact,
   onReply,
@@ -167,10 +171,7 @@ export const MessageBubble = memo(function MessageBubble({
       return
     }
     lastTapRef.current = now
-    if (
-      (messageType === 'POLL' || messageType === 'RSVP_POLL') &&
-      onOpenPoll
-    ) {
+    if (messageType === 'POLL' && onOpenPoll) {
       onOpenPoll(message)
     }
   }
@@ -190,6 +191,21 @@ export const MessageBubble = memo(function MessageBubble({
             {message.content}
           </Text>
         </View>
+      </View>
+    )
+  }
+
+  // A shared event is a card, not a bubble: it reads the same from either
+  // side and carries the reader's own availability control.
+  if (messageType === 'RSVP_POLL' && clubId && !isDeleted) {
+    return (
+      <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
+        <EventCardMessage
+          message={message}
+          clubId={clubId}
+          locale={i18n.language}
+          primaryColor={resolvedPrimary}
+        />
       </View>
     )
   }

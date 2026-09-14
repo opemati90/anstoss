@@ -36,6 +36,8 @@ export type ChatAttachment =
 type Props = {
   onSend: (content: string) => Promise<boolean>
   onSendAttachment?: (attachment: ChatAttachment) => Promise<boolean>
+  /** Managers get a compose menu (announcement, poll, event, lineup). */
+  onCompose?: () => void
   onTyping: () => void
   disabled?: boolean
   primaryColor?: string
@@ -45,6 +47,7 @@ type Props = {
 export function ChatInput({
   onSend,
   onSendAttachment,
+  onCompose,
   onTyping,
   disabled,
   primaryColor,
@@ -127,6 +130,21 @@ export function ChatInput({
         </Text>
       ) : null}
       <View style={[styles.container, { backgroundColor: c.surface }]}>
+        {onCompose ? (
+          <Pressable
+            onPress={onCompose}
+            accessibilityRole="button"
+            accessibilityLabel={t('chat.compose.open', { defaultValue: 'Compose' })}
+            disabled={disabled}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { backgroundColor: pressed ? c.surfaceSunken : 'transparent' },
+            ]}
+            hitSlop={4}
+          >
+            <Icon name="plus.circle" size="md" color={c.textSecondary} />
+          </Pressable>
+        ) : null}
         {onSendAttachment ? (
           <Pressable
             onPress={() => void handlePickImage()}

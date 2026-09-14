@@ -371,6 +371,8 @@ export class ChatService {
     })
     if (!event) throw new NotFoundException('Event not found')
 
+    // The card carries enough to render without a second request: the
+    // client only fetches the event for the reader's own answer.
     const message = await this.prisma.message.create({
       data: {
         teamId: input.teamId,
@@ -379,10 +381,21 @@ export class ChatService {
         senderId: userId,
         content: event.title,
         messageType: 'RSVP_POLL',
-        attachmentMeta: { eventId: input.eventId } as any,
+        attachmentMeta: {
+          eventId: input.eventId,
+          eventDate: event.date.toISOString(),
+          eventType: event.type,
+          location: event.location ?? null,
+        } as any,
       },
     })
-    return this.serializeMessage(userId, message.id)
+    const serialized = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(
+      input.teamId,
+      { kind: 'rsvp-poll', message: serialized, messageId: message.id },
+      input.channelId ?? null,
+    )
+    return serialized
   }
 
   async postLineup(

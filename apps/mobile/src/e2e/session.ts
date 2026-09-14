@@ -4413,6 +4413,69 @@ export function handleE2EApiRequest(
     }
   }
 
+  // Latest announcements — the team-channel banner and home pulse read this.
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/announcements`) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: [
+        {
+          id: 'e2e-announcement-1',
+          title: 'Kit wash rota starts this week',
+          body: 'Check the Team tab for who is up first.',
+        },
+      ],
+    }
+  }
+
+  // Manager compose actions from the chat composer. Both return a message
+  // shaped like the gateway's, which the client appends locally.
+  const composeMatch = pathname.match(/^\/teams\/([^/]+)\/messages\/(rsvp-poll|poll)$/)
+  if (method === 'POST' && composeMatch) {
+    const body = (options.body ?? {}) as {
+      eventId?: string
+      question?: string
+      options?: string[]
+      channelId?: string
+    }
+    const kind = composeMatch[2]
+    const event =
+      kind === 'rsvp-poll'
+        ? currentSession.api.events.find((ev) => ev.id === body.eventId) ?? null
+        : null
+    if (kind === 'rsvp-poll' && !event) {
+      return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 201,
+      body: {
+        id: `e2e-compose-${Date.now().toString(36)}`,
+        teamId: composeMatch[1],
+        channelId: body.channelId ?? null,
+        senderId: currentSession.user.id,
+        senderName: currentSession.user.name,
+        senderAvatar: null,
+        content: kind === 'rsvp-poll' ? event?.title ?? '' : body.question ?? '',
+        messageType: kind === 'rsvp-poll' ? 'RSVP_POLL' : 'POLL',
+        attachmentMeta:
+          kind === 'rsvp-poll' && event
+            ? {
+                eventId: event.id,
+                eventDate: event.date,
+                eventType: event.type,
+                location: event.location ?? null,
+              }
+            : null,
+        createdAt: new Date().toISOString(),
+        readByMe: true,
+        reactions: [],
+      },
+    }
+  }
+
   // Parent replies on a child's behalf from home — PUT
   // /clubs/:clubId/events/:eventId/rsvp-proxy { status, childUserId }.
   const proxyMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)/rsvp-proxy$`))
