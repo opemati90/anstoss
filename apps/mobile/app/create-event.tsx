@@ -11,7 +11,7 @@ import { ApiError, api } from '../src/api/client'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { EmptyState } from '../src/components/EmptyState'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Screen, Button, Card, Text, Icon } from '../src/components/ui'
+import { Screen, BottomSheet, Button, ListRow, SegmentedControl, Text, Icon } from '../src/components/ui'
 import { FormInput } from '../src/components/FormInput'
 import { elevation, hairline, radius, space } from '../src/theme/tokens'
 
@@ -83,7 +83,7 @@ export default function CreateEventScreen() {
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>('TRAINING')
   const [location, setLocation] = useState('')
   const [notes, setNotes] = useState('')
-  const [detailsExpanded, setDetailsExpanded] = useState(false)
+  const [teamSheetOpen, setTeamSheetOpen] = useState(false)
 
   // Single source of truth for the scheduled date+time. The native picker owns
   // its own scroll/animation, so there is no controlled-wheel feedback loop to
@@ -398,177 +398,104 @@ export default function CreateEventScreen() {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-        <Card padding="hero" style={styles.primaryCard}>
-          <FieldLabel>{t('event.typeLabel')}</FieldLabel>
-          <View style={styles.typeRow}>
-            {EVENT_TYPES.map((eventType) => {
-              const active = type === eventType
-              return (
-                <Pressable
-                  key={eventType}
-                  onPress={() => handleTypeChange(eventType)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(`event.type.${eventType}`)}
-                  accessibilityState={{ selected: active }}
-                  style={({ pressed }) => [
-                    styles.typeChip,
-                    {
-                      borderColor: active ? c.primary : c.borderDefault,
-                      backgroundColor: active ? c.primary50 : c.surfaceSunken,
-                    },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Icon
-                    name={
-                      eventType === 'TRAINING'
-                        ? 'figure.soccer'
-                        : eventType === 'MATCH'
-                          ? 'trophy'
-                          : 'calendar'
-                    }
-                    size="sm"
-                    color={active ? c.primary : c.textSecondary}
-                  />
-                  <Text
-                    variant="footnote"
-                    weight="semibold"
-                    color={active ? c.primary : 'primary'}
-                    numberOfLines={1}
-                  >
-                    {t(`event.type.${eventType}`)}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
+        {/* One flat form: what, when, where. The type is a segmented control,
+            the title is the only free field above the fold, and date, time
+            and team are rows with their value on the right. Location and
+            notes sit underneath in plain sight; folding them behind a toggle
+            saved nothing and hid the two fields most events need. */}
+        <SegmentedControl<(typeof EVENT_TYPES)[number]>
+          segments={EVENT_TYPES.map((eventType) => ({
+            key: eventType,
+            label: t(`event.type.${eventType}`),
+          }))}
+          value={type}
+          onChange={handleTypeChange}
+        />
 
-          <FormInput
-            label={t('event.title')}
-            value={title}
-            onChangeText={(value) => {
-              setTitle(value)
-              setTitleTouched(true)
-            }}
-            placeholder={t(`event.placeholders.${type}`)}
-            testID="event-title-input"
-            maxLength={100}
+        <FormInput
+          label={t('event.title')}
+          value={title}
+          onChangeText={(value) => {
+            setTitle(value)
+            setTitleTouched(true)
+          }}
+          placeholder={t(`event.placeholders.${type}`)}
+          testID="event-title-input"
+          maxLength={100}
+        />
+
+        <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <ListRow
+            title={t('event.date')}
+            left={<Icon name="calendar" size={18} color="secondary" />}
+            right={
+              <Text variant="body" color="primary" weight="semibold" tabular>
+                {dateDisplay}
+              </Text>
+            }
+            accessibilityLabel={`${t('event.date')}: ${dateDisplay}`}
+            showChevron
+            onPress={() => setShowDatePicker(true)}
           />
-
-          <View style={styles.inlineRow}>
-            <DateTimeTile
-              icon="calendar.fill"
-              label={t('event.date')}
-              value={dateDisplay}
-              onPress={() => setShowDatePicker(true)}
-            />
-            <DateTimeTile
-              icon="clock.fill"
-              label={t('event.time')}
-              value={timeDisplay}
-              compact
-              onPress={() => setShowTimePicker(true)}
-            />
-          </View>
-        </Card>
-
-        {showTeamPicker ? (
-          <View style={styles.teamSection}>
-            <FieldLabel>{t('event.teamLabel')}</FieldLabel>
-            <View style={styles.teamGrid}>
-              {teamOptions.map((team) => {
-                const active = selectedTeamId === team.id
-                return (
-                  <Pressable
-                    key={team.id}
-                    testID={`event-team-${team.id}`}
-                    onPress={() => setSelectedTeamId(team.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    style={({ pressed }) => [
-                      styles.teamChip,
-                      {
-                        borderColor: active ? c.primary : c.borderDefault,
-                        backgroundColor: active ? c.primary50 : c.surface,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text
-                      variant="subheadline"
-                      weight="semibold"
-                      color={active ? c.primary : 'primary'}
-                      numberOfLines={1}
-                      style={styles.teamChipLabel}
-                    >
-                      {team.displayName}
-                    </Text>
-                    {active ? <Icon name="checkmark.circle.fill" size="sm" color="tint" /> : null}
-                  </Pressable>
-                )
-              })}
-            </View>
-          </View>
-        ) : selectedTeamLabel ? (
-          <View
-            style={[
-              styles.teamBanner,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            <Icon name="person.2.fill" size="sm" color="tint" />
-            <Text variant="subheadline" color="secondary" numberOfLines={1}>
-              {selectedTeamLabel}
-            </Text>
-          </View>
-        ) : null}
-
-        <Card padding="none" style={styles.detailsCard}>
-          <Pressable
-            onPress={() => setDetailsExpanded((value) => !value)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: detailsExpanded }}
-            style={({ pressed }) => [styles.detailsToggle, pressed && styles.pressed]}
-          >
-            <View style={[styles.detailsIcon, { backgroundColor: c.primary50 }]}>
-              <Icon name="slider.horizontal.3" size="sm" color="tint" />
-            </View>
-            <View style={styles.detailsText}>
-              <Text variant="body" color="primary" weight="semibold">
-                {t('event.locationOptional')}, {t('event.notesOptional')}
+          <ListRow
+            title={t('event.time')}
+            left={<Icon name="clock" size={18} color="secondary" />}
+            right={
+              <Text variant="body" color="primary" weight="semibold" tabular>
+                {timeDisplay}
               </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={1}>
-                {location || notes || t('event.teamLockedHint')}
-              </Text>
-            </View>
-            <Icon
-              name={detailsExpanded ? 'chevron.up' : 'chevron.down'}
-              size="sm"
-              color="tertiary"
+            }
+            accessibilityLabel={`${t('event.time')}: ${timeDisplay}`}
+            showChevron
+            onPress={() => setShowTimePicker(true)}
+            style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+          />
+          {showTeamPicker ? (
+            <ListRow
+              title={t('event.teamLabel')}
+              left={<Icon name="person.2" size={18} color="secondary" />}
+              right={
+                <Text variant="body" color="primary" weight="semibold" numberOfLines={1}>
+                  {selectedTeamLabel ?? ''}
+                </Text>
+              }
+              accessibilityLabel={`${t('event.teamLabel')}: ${selectedTeamLabel ?? ''}`}
+              showChevron
+              onPress={() => setTeamSheetOpen(true)}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
             />
-          </Pressable>
-          {detailsExpanded ? (
-            <View style={[styles.detailsBody, { borderTopColor: c.borderSubtle }]}>
-              <FormInput
-                label={t('event.locationOptional')}
-                value={location}
-                onChangeText={setLocation}
-                placeholder={t('event.placeholders.location')}
-                maxLength={200}
-              />
-              <FormInput
-                label={t('event.notesOptional')}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder={t('event.placeholders.notes')}
-                style={styles.textArea}
-                multiline
-                numberOfLines={3}
-                maxLength={1000}
-              />
-            </View>
+          ) : selectedTeamLabel ? (
+            <ListRow
+              title={t('event.teamLabel')}
+              left={<Icon name="person.2" size={18} color="secondary" />}
+              right={
+                <Text variant="body" color="secondary" numberOfLines={1}>
+                  {selectedTeamLabel}
+                </Text>
+              }
+              accessibilityLabel={`${t('event.teamLabel')}: ${selectedTeamLabel}`}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+            />
           ) : null}
-        </Card>
+        </View>
+
+        <FormInput
+          label={t('event.locationOptional')}
+          value={location}
+          onChangeText={setLocation}
+          placeholder={t('event.placeholders.location')}
+          maxLength={200}
+        />
+        <FormInput
+          label={t('event.notesOptional')}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t('event.placeholders.notes')}
+          style={styles.textArea}
+          multiline
+          numberOfLines={3}
+          maxLength={1000}
+        />
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}>
@@ -585,6 +512,34 @@ export default function CreateEventScreen() {
           testID="event-create-submit"
         />
       </View>
+
+      <BottomSheet visible={teamSheetOpen} onClose={() => setTeamSheetOpen(false)} heightPct="auto">
+        <View style={styles.sheetBody}>
+          <Text variant="headline" weight="semibold" color="primary">
+            {t('event.teamLabel')}
+          </Text>
+          <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+            {teamOptions.map((team, index) => (
+              <ListRow
+                key={team.id}
+                testID={`event-team-${team.id}`}
+                title={team.displayName}
+                selected={selectedTeamId === team.id}
+                right={
+                  selectedTeamId === team.id ? (
+                    <Icon name="checkmark.circle.fill" size={20} color="tint" />
+                  ) : undefined
+                }
+                onPress={() => {
+                  setSelectedTeamId(team.id)
+                  setTeamSheetOpen(false)
+                }}
+                style={index > 0 ? { borderTopWidth: hairline, borderTopColor: c.borderSubtle } : undefined}
+              />
+            ))}
+          </View>
+        </View>
+      </BottomSheet>
 
       {/* Date picker — native wheel (iOS in a bottom sheet, Android system dialog) */}
       {Platform.OS === 'ios' ? (
@@ -669,53 +624,6 @@ export default function CreateEventScreen() {
   )
 }
 
-function DateTimeTile({
-  icon,
-  label,
-  value,
-  compact,
-  onPress,
-}: {
-  icon: 'calendar.fill' | 'clock.fill'
-  label: string
-  value: string
-  compact?: boolean
-  onPress: () => void
-}) {
-  const c = useClubColors()
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.dateTimeTile,
-        compact ? styles.dateTimeTileCompact : styles.dateTimeTileWide,
-        { backgroundColor: c.surfaceSunken },
-        pressed && styles.pressed,
-      ]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
-    >
-      <Icon name={icon} size="sm" color="tint" />
-      <View style={styles.dateTimeText}>
-        <Text variant="caption2" color="secondary">
-          {label}
-        </Text>
-        <Text variant="subheadline" color="primary" weight="semibold" tabular numberOfLines={1}>
-          {value}
-        </Text>
-      </View>
-    </Pressable>
-  )
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Text variant="caption2" color="tertiary" tracking="wide">
-      {typeof children === 'string' ? children.toUpperCase() : children}
-    </Text>
-  )
-}
-
 type PickerSheetProps = {
   visible: boolean
   onClose: () => void
@@ -784,91 +692,20 @@ function PickerSheet({
 }
 
 const styles = StyleSheet.create({
+  group: {
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+    overflow: 'hidden',
+  },
+  sheetBody: { gap: space.md, paddingHorizontal: space.md, paddingBottom: space.lg },
   scroll: { flex: 1 },
   content: { padding: space.lg, paddingBottom: space.xl, gap: space.lg },
-  primaryCard: { gap: space.md },
-  teamSection: { gap: space.sm },
-  teamGrid: {
-    gap: space.sm,
-  },
-  teamChip: {
-    height: 44,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  teamChipLabel: {
-    flex: 1,
-  },
-  teamBanner: {
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  typeChip: {
-    flex: 1,
-    minHeight: 64,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.sm,
-    gap: space.xs,
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-  dateTimeTile: {
-    minHeight: 70,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    paddingHorizontal: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  dateTimeTileWide: { flex: 1.65 },
-  dateTimeTileCompact: { flex: 1 },
-  dateTimeText: { flex: 1, gap: space['2xs'] },
   textArea: {
     minHeight: 72,
     paddingTop: space.md,
     textAlignVertical: 'top',
   },
-  detailsCard: { overflow: 'hidden' },
-  detailsToggle: {
-    minHeight: 72,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-  },
-  detailsIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailsText: { flex: 1, gap: space['2xs'] },
-  detailsBody: { borderTopWidth: hairline, padding: space.md, gap: space.md },
   pressed: { transform: [{ scale: 0.985 }] },
   footer: {
     borderTopWidth: hairline,
