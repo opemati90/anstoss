@@ -458,6 +458,7 @@ export class EventsService {
       cancelledAt: event.cancelledAt?.toISOString() ?? null,
       cancelReason: event.cancelReason ?? null,
       responseCount: event._count.rsvps,
+      checkInCount: event._count.checkIns ?? 0,
       yesCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length,
       maybeCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
       noCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,

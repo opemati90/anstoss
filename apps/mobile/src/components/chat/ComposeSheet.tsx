@@ -313,7 +313,7 @@ export function ComposeSheet({
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.md },
+  body: { gap: space.md, paddingHorizontal: space.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   backBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1 },

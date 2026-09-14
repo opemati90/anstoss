@@ -83,10 +83,12 @@ type LinkedFixtureState = {
 
 export default function EventDetailScreen() {
   const { t } = useTranslation()
-  const { eventId: eventIdParam, attendance } = useLocalSearchParams<{
+  const { eventId: eventIdParam, attendance, cancel } = useLocalSearchParams<{
     eventId?: string | string[]
     teamId?: string
     attendance?: string | string[]
+    /** `1` opens the cancel sheet on arrival (schedule long-press). */
+    cancel?: string | string[]
   }>()
   const eventId = firstRouteParam(eventIdParam)
   const { activeClub, teamMembers } = useAuth()
@@ -350,6 +352,17 @@ export default function EventDetailScreen() {
     attendanceDeepLinkHandledRef.current = null
     setAttendanceSheetVisible(false)
   }, [eventId])
+
+  // Schedule long-press → "Cancel event" lands here with the sheet open,
+  // so the reason box is one tap from the row, not three.
+  const cancelDeepLinkHandledRef = useRef<string | null>(null)
+  useEffect(() => {
+    const wantsCancel = firstRouteParam(cancel) === '1'
+    if (!wantsCancel || !eventId || cancelDeepLinkHandledRef.current === eventId) return
+    if (!event || event.id !== eventId || event.cancelledAt || !canManage) return
+    cancelDeepLinkHandledRef.current = eventId
+    setCancelOpen(true)
+  }, [cancel, canManage, event, eventId])
 
   // Check-in window: 2h before → 3h after event start
   const isInCheckInWindow = event

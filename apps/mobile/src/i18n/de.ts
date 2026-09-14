@@ -938,6 +938,9 @@ const base = {
   },
   event: {
     manage: {
+      attended: '{{count}} von {{total}} anwesend',
+      noCheckIns: 'Keine Check-ins erfasst',
+      rowActions: 'Terminaktionen',
       manage: 'Termin verwalten',
       edit: 'Bearbeiten',
       duplicate: 'Duplizieren',

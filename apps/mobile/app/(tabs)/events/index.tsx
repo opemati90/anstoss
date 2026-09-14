@@ -29,9 +29,11 @@ import { LoadingBoundary } from '../../../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../../../src/components/ErrorBoundary'
 import {
   Banner,
+  BottomSheet,
   FilterChipRow,
   type FilterChip,
   Icon,
+  ListRow,
   SegmentedControl,
   Text,
 } from '../../../src/components/ui'
@@ -58,8 +60,8 @@ type FilterType = 'ALL' | 'TRAINING' | 'MATCH' | 'OTHER'
 type EventSection = {
   title: string
   data: EventFeedItem[]
-  /** `reply` is the pinned outstanding-answers group; `day` is the schedule. */
-  kind: 'reply' | 'day'
+  /** `reply` is the pinned outstanding-answers group; `month` is the schedule. */
+  kind: 'reply' | 'month'
   /** Count badge for the reply section header. */
   count?: number
 }
@@ -126,6 +128,8 @@ export default function EventsScreen() {
   const [pendingEventIds, setPendingEventIds] = useState<Record<string, boolean>>({})
   const [filterType, setFilterType] = useState<FilterType>('ALL')
   const [scope, setScope] = useState<EventScope>('upcoming')
+  // Long-press on a row opens the same three actions the detail screen has.
+  const [manageTarget, setManageTarget] = useState<EventFeedItem | null>(null)
 
   const locale = getAppLocale(getAppLanguage())
   const resolvedRoleMode = activeRoleMode ?? (
@@ -426,18 +430,30 @@ export default function EventsScreen() {
             sections={sections}
             key={`${activeTeamId}:${scope}`}
             keyExtractor={(event) => event.id}
-            renderItem={({ item }) => (
+            renderItem={({ item, index, section }) => (
               <EventListItem
                 item={item}
                 locale={locale}
                 scope={scope}
                 pending={Boolean(pendingEventIds[item.id])}
+                dayLabel={
+                  section.kind === 'month' && !sameDay(section.data[index - 1]?.date, item.date)
+                    ? formatSectionDate(item.date, locale, t)
+                    : null
+                }
+                showAttendance={scope === 'past' && canCreate}
                 onRsvp={(status) => handleRsvp(item.id, status)}
                 onOpen={() => navigateToEvent(item)}
+                onLongPress={canCreate && !item.cancelledAt ? () => setManageTarget(item) : undefined}
               />
             )}
             renderSectionHeader={({ section }) => (
-              <View style={styles.sectionHeader}>
+              <View
+                style={[
+                  styles.sectionHeader,
+                  section.kind === 'month' && [styles.monthHeader, { backgroundColor: c.background }],
+                ]}
+              >
                 <Text
                   variant="caption1"
                   color={section.kind === 'reply' ? 'primary' : 'tertiary'}
@@ -461,7 +477,9 @@ export default function EventsScreen() {
               </View>
             )}
             contentContainerStyle={styles.list}
-            stickySectionHeadersEnabled={false}
+            // Month headers stay put while the month scrolls under them; the
+            // pinned reply group is small enough to scroll away.
+            stickySectionHeadersEnabled
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
@@ -569,6 +587,46 @@ export default function EventsScreen() {
             }
           />
         </LoadingBoundary>
+        <BottomSheet visible={Boolean(manageTarget)} onClose={() => setManageTarget(null)} heightPct="auto">
+          <View style={styles.sheetBody}>
+            <Text variant="headline" weight="semibold" color="primary" numberOfLines={1}>
+              {manageTarget?.title ?? ''}
+            </Text>
+            <ListRow
+              title={t('event.manage.edit', { defaultValue: 'Edit' })}
+              left={<Icon name="pencil" size={18} color="secondary" />}
+              showChevron
+              onPress={() => {
+                const target = manageTarget
+                setManageTarget(null)
+                if (target) router.push({ pathname: '/create-event', params: { eventId: target.id } })
+              }}
+            />
+            <ListRow
+              title={t('event.manage.duplicate', { defaultValue: 'Duplicate' })}
+              left={<Icon name="doc.on.doc" size={18} color="secondary" />}
+              showChevron
+              onPress={() => {
+                const target = manageTarget
+                setManageTarget(null)
+                if (target)
+                  router.push({ pathname: '/create-event', params: { duplicateFrom: target.id } })
+              }}
+            />
+            <ListRow
+              title={t('event.manage.cancelEvent', { defaultValue: 'Cancel event' })}
+              left={<Icon name="xmark.circle" size={18} color={c.error} />}
+              showChevron
+              onPress={() => {
+                const target = manageTarget
+                setManageTarget(null)
+                if (target)
+                  router.push({ pathname: '/event-detail', params: { eventId: target.id, cancel: '1' } })
+              }}
+            />
+          </View>
+        </BottomSheet>
+
       </ErrorBoundary>
       {error && !loading ? (
         <View style={styles.bannerWrap}>
@@ -959,18 +1017,36 @@ function EventListItem({
   locale,
   scope,
   pending,
+  dayLabel,
+  showAttendance,
   onRsvp,
   onOpen,
+  onLongPress,
 }: {
   item: EventFeedItem
   locale: string
   scope: EventScope
   pending: boolean
+  /** Rendered above the row when it starts a new day in the month. */
+  dayLabel?: string | null
+  /** Managers see the attendance outcome on past rows. */
+  showAttendance?: boolean
   onRsvp: (status: RsvpStatus) => void
   onOpen: () => void
+  onLongPress?: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const checkIns = item.checkInCount ?? 0
+  const attendanceLabel = showAttendance
+    ? checkIns > 0
+      ? t('event.manage.attended', {
+          defaultValue: '{{count}} of {{total}} attended',
+          count: checkIns,
+          total: Math.max(item.yesCount ?? 0, checkIns),
+        })
+      : t('event.manage.noCheckIns', { defaultValue: 'No check-ins recorded' })
+    : null
   const date = new Date(item.date)
   const dayName = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)
   const time = new Intl.DateTimeFormat(locale, {
@@ -986,6 +1062,12 @@ function EventListItem({
   const answerable = scope === 'upcoming' && !isCancelled
 
   return (
+    <>
+    {dayLabel ? (
+      <Text variant="caption1" color="tertiary" weight="semibold" style={styles.dayLabel}>
+        {dayLabel}
+      </Text>
+    ) : null}
     <View
       style={[
         styles.compactRow,
@@ -996,6 +1078,8 @@ function EventListItem({
       <Pressable
         style={({ pressed }) => [styles.compactRowHead, pressed && { opacity: 0.96 }]}
         onPress={onOpen}
+        onLongPress={onLongPress}
+        delayLongPress={300}
         accessibilityRole="button"
         // The row is one accessibility element, so the cancellation has to be
         // in its label or a screen reader would announce a cancelled match as
@@ -1005,7 +1089,10 @@ function EventListItem({
             ? `${item.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
                 item.cancelReason ? `, ${item.cancelReason}` : ''
               }`
-            : `${item.title}, ${dayName} ${dayNumber} ${time}`
+            : `${item.title}, ${dayName} ${dayNumber} ${time}${attendanceLabel ? `, ${attendanceLabel}` : ''}`
+        }
+        accessibilityHint={
+          onLongPress ? t('event.manage.rowActions', { defaultValue: 'Event actions' }) : undefined
         }
       >
         <View
@@ -1042,6 +1129,11 @@ function EventListItem({
           </Text>
         </View>
 
+        {attendanceLabel && !isCancelled ? (
+          <Text variant="caption1" weight="semibold" color={checkIns > 0 ? 'primary' : 'tertiary'} tabular>
+            {attendanceLabel}
+          </Text>
+        ) : null}
         <Icon name="chevron.right" size={14} color="tertiary" />
       </Pressable>
 
@@ -1054,6 +1146,7 @@ function EventListItem({
         />
       ) : null}
     </View>
+    </>
   )
 }
 
@@ -1077,24 +1170,26 @@ function buildSections(
   const needsReplyIds = new Set(needsReply.map((event) => event.id))
   const scheduled = events.filter((event) => !needsReplyIds.has(event.id))
 
+  // Month buckets, chronological inside; the day label rides on the first
+  // row of each day so the month header can stay sticky without a second
+  // sticky tier fighting it.
   const groups = new Map<string, EventFeedItem[]>()
   scheduled.forEach((event) => {
-    // Guard against a malformed/missing date — new Date(bad).toISOString()
-    // throws RangeError, which would crash the whole events tab on render.
     const key = toDateKey(event.date)
     if (!key) return
-    const current = groups.get(key) || []
+    const monthKey = key.slice(0, 7)
+    const current = groups.get(monthKey) || []
     current.push(event)
-    groups.set(key, current)
+    groups.set(monthKey, current)
   })
 
-  const daySections: EventSection[] = Array.from(groups.entries()).map(
-    ([dateKey, group]) => ({
-      title: formatSectionDate(dateKey, locale, t),
-      data: group,
-      kind: 'day' as const,
-    }),
-  )
+  const daySections: EventSection[] = Array.from(groups.entries()).map(([monthKey, group]) => ({
+    title: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+      new Date(`${monthKey}-01T12:00:00`),
+    ),
+    data: group,
+    kind: 'month' as const,
+  }))
 
   if (needsReply.length === 0) return daySections
 
@@ -1107,6 +1202,12 @@ function buildSections(
     },
     ...daySections,
   ]
+}
+
+function sameDay(a: string | null | undefined, b: string | null | undefined): boolean {
+  const ka = toDateKey(a)
+  const kb = toDateKey(b)
+  return Boolean(ka && kb && ka === kb)
 }
 
 function toDateKey(value: string | null | undefined): string | null {
@@ -1348,6 +1449,16 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.xs,
   },
+  monthHeader: {
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
+  dayLabel: {
+    marginHorizontal: space.lg,
+    marginTop: space.sm,
+    marginBottom: space.xs,
+  },
+  sheetBody: { gap: space.xs, paddingHorizontal: space.md, paddingBottom: space.lg },
   sectionCount: {
     minWidth: 22,
     height: 20,

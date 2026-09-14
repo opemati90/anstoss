@@ -1131,6 +1131,9 @@ export default {
   },
   event: {
     manage: {
+      attended: '{{total}} kişiden {{count}} katıldı',
+      noCheckIns: 'Giriş kaydı yok',
+      rowActions: 'Etkinlik işlemleri',
       manage: 'Etkinliği yönet',
       edit: 'Düzenle',
       duplicate: 'Kopyala',

@@ -1,0 +1,36 @@
+appId: com.renuirug.anstoss
+---
+# Slice F: month headers on the schedule, manager actions on long-press,
+# and the attendance outcome on past rows.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://events"
+- extendedWaitUntil:
+    visible: "Tuesday session.*"
+    timeout: 15000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/schedule-coach
+- longPressOn:
+    text: "Tuesday session.*"
+- extendedWaitUntil:
+    visible: "Duplicate"
+    timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/schedule-actions
+- tapOn: "Duplicate"
+- extendedWaitUntil:
+    visible: "Duplicate event"
+    timeout: 10000
+- tapOn: "Close"
+- extendedWaitUntil:
+    visible: "Past"
+    timeout: 10000
+- tapOn: "Past"
+- extendedWaitUntil:
+    visible: ".*attended.*"
+    timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/schedule-past

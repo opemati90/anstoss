@@ -134,6 +134,8 @@ export interface EventFeedItem extends Event {
   yesCount: number
   maybeCount: number
   noCount: number
+  /** Members who checked in on the day; the attendance outcome for past rows. */
+  checkInCount?: number
   myRsvp: RsvpStatus | null
   readiness?: EventReadiness | null
   /** Present when fetched with mine=1 and no teamId — multi-team home view */
