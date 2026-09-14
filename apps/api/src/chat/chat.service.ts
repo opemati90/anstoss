@@ -306,6 +306,20 @@ export class ChatService {
     return serialized
   }
 
+  private isTeamManager(access: {
+    membership?: { role?: string | null } | null
+    activeTeamAccess: Array<{ role?: string | null }>
+  }): boolean {
+    return (
+      access.membership?.role === 'OWNER' ||
+      access.membership?.role === 'ADMIN' ||
+      access.membership?.role === 'COACH' ||
+      access.activeTeamAccess.some(
+        (e) => e.role === 'HEAD_COACH' || e.role === 'ASSISTANT_COACH',
+      )
+    )
+  }
+
   async postPoll(
     userId: string,
     input: {
@@ -354,7 +368,13 @@ export class ChatService {
         }),
       ),
     )
-    return this.serializeMessage(userId, message.id)
+    const serialized = await this.serializeMessage(userId, message.id)
+    this.gateway.broadcastChatEvent(
+      input.teamId,
+      { kind: 'poll', message: serialized, messageId: message.id },
+      input.channelId ?? null,
+    )
+    return serialized
   }
 
   async postRsvpPoll(
@@ -365,6 +385,11 @@ export class ChatService {
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
+    }
+    // Sharing an event into chat is a manager action, like posting a lineup;
+    // the composer hides it from players and the API must agree.
+    if (!this.isTeamManager(access)) {
+      throw new ForbiddenException('Only coaches and admins can share events')
     }
     const event = await this.prisma.event.findFirst({
       where: { id: input.eventId, teamId: input.teamId },
@@ -413,13 +438,7 @@ export class ChatService {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
-    const isCoach =
-      access.membership?.role === 'OWNER' ||
-      access.membership?.role === 'ADMIN' ||
-      access.membership?.role === 'COACH' ||
-      access.activeTeamAccess.some(
-        (e: any) => e.role === 'HEAD_COACH' || e.role === 'ASSISTANT_COACH',
-      )
+    const isCoach = this.isTeamManager(access)
     if (!isCoach) {
       throw new ForbiddenException('Only coaches can post lineups')
     }

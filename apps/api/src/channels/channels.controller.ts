@@ -1,4 +1,5 @@
 import {
+  Query,
   Body,
   Controller,
   Delete,
@@ -24,6 +25,25 @@ export class ChannelsController {
     @Param('teamId') teamId: string,
   ) {
     return this.channelsService.listForUser(user.id, teamId)
+  }
+
+  /**
+   * GET /clubs/:clubId/announcements?limit=3 — the latest announcements the
+   * caller can read across the club's announcement channels. Home and the
+   * team-channel banner read this; the first paragraph is the title.
+   */
+  @Get('clubs/:clubId/announcements')
+  async listAnnouncements(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsed = Number.parseInt(limit ?? '', 10)
+    return this.channelsService.listAnnouncements(
+      user.id,
+      clubId,
+      Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 20) : 3,
+    )
   }
 
   @Get('clubs/:clubId/channels')

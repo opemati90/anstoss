@@ -29,7 +29,7 @@ const CHAT_CHANNEL_PREF_PREFIX = 'chat_channel_pref:'
 
 export default function ChatTab() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamId, token } = useAuth()
+  const { user, activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
   const c = useClubColors()
   const [chatMode, setChatMode] = useState<ChatMode>('team')
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
@@ -45,6 +45,12 @@ export default function ChatTab() {
     activeClub?.role === 'OWNER' ||
     activeClub?.role === 'ADMIN' ||
     activeClub?.role === 'COACH'
+  // The API lets team-role coaches post lineups and event cards too; the
+  // composer has to agree with it, not with the club role alone.
+  const canCompose =
+    canCreateGroup ||
+    activeTeamAccess?.role === 'HEAD_COACH' ||
+    activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   // The latest-announcement banner in the team channel opens the
   // announcements channel itself, so "read the rest" is one tap.
@@ -212,7 +218,7 @@ export default function ChatTab() {
               token={token}
               apiUrl={API_URL}
               primaryColor={c.primary}
-              canCompose={canCreateGroup}
+              canCompose={canCompose}
               channelKind={resolvedActiveChannel?.kind ?? null}
               onOpenAnnouncements={() => void openAnnouncementsChannel()}
             />

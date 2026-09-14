@@ -1038,13 +1038,18 @@ function EventListItem({
   const { t } = useTranslation()
   const c = useClubColors()
   const checkIns = item.checkInCount ?? 0
+  // Denominator is the squad, not the yes-count: "9 of 11 attended" must
+  // mean nine of the team turned up, not nine of those who said yes.
+  const squad = item.squadSize ?? 0
   const attendanceLabel = showAttendance
     ? checkIns > 0
-      ? t('event.manage.attended', {
-          defaultValue: '{{count}} of {{total}} attended',
-          count: checkIns,
-          total: Math.max(item.yesCount ?? 0, checkIns),
-        })
+      ? squad > 0
+        ? t('event.manage.attended', {
+            defaultValue: '{{count}} of {{total}} attended',
+            count: checkIns,
+            total: Math.max(squad, checkIns),
+          })
+        : t('event.manage.attendedCount', { defaultValue: '{{count}} attended', count: checkIns })
       : t('event.manage.noCheckIns', { defaultValue: 'No check-ins recorded' })
     : null
   const date = new Date(item.date)

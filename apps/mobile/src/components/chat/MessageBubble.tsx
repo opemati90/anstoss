@@ -199,14 +199,28 @@ export const MessageBubble = memo(function MessageBubble({
   // side and carries the reader's own availability control.
   if (messageType === 'RSVP_POLL' && clubId && !isDeleted) {
     return (
-      <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
-        <EventCardMessage
-          message={message}
-          clubId={clubId}
-          locale={i18n.language}
-          primaryColor={resolvedPrimary}
+      <>
+        <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
+          <EventCardMessage
+            message={message}
+            clubId={clubId}
+            locale={i18n.language}
+            primaryColor={resolvedPrimary}
+            onLongPress={() => setMenuOpen(true)}
+          />
+        </View>
+        <MessageMenu
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onReactEmoji={handleReactPick}
+          myReactions={myReactions}
+          onReply={() => onReply?.(message)}
+          onCopy={handleCopy}
+          onDelete={(isOwn || viewerCanModerate) && onDelete ? () => onDelete(message) : undefined}
+          onReport={!isOwn && onReport ? () => onReport(message) : undefined}
+          onBlock={!isOwn && onBlock ? () => onBlock(message) : undefined}
         />
-      </View>
+      </>
     )
   }
 

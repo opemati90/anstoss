@@ -34,6 +34,8 @@ type Props = {
   clubId: string
   locale: string
   primaryColor?: string
+  /** Long-press opens the message menu (reply, delete, report). */
+  onLongPress?: () => void
 }
 
 /**
@@ -44,14 +46,27 @@ type Props = {
  * when, where, and the reader's own availability control. Answering here
  * writes the same RSVP the schedule and home use.
  */
-export function EventCardMessage({ message, clubId, locale, primaryColor }: Props) {
+export function EventCardMessage({ message, clubId, locale, primaryColor, onLongPress }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
   const accent = primaryColor ?? c.primary
   const meta = (message.attachmentMeta ?? {}) as EventMeta
   const eventId = meta.eventId ?? null
 
-  const [detail, setDetail] = useState<EventDetail | null>(null)
+  // Seeded from the message so the control works before (or without) the
+  // detail fetch; the fetch only fills in the reader's own answer.
+  const [detail, setDetail] = useState<EventDetail | null>(() =>
+    eventId
+      ? {
+          id: eventId,
+          title: message.content,
+          date: meta.eventDate ?? new Date(message.createdAt).toISOString(),
+          location: meta.location ?? null,
+          cancelledAt: null,
+          myRsvp: null,
+        }
+      : null,
+  )
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
@@ -59,7 +74,9 @@ export function EventCardMessage({ message, clubId, locale, primaryColor }: Prop
     let cancelled = false
     api<EventDetail>(`/clubs/${clubId}/events/${eventId}`)
       .then((data) => {
-        if (!cancelled && data && typeof data === 'object') setDetail(data)
+        if (!cancelled && data && typeof data === 'object') {
+          setDetail((prev) => ({ ...(prev ?? ({} as EventDetail)), ...data }))
+        }
       })
       .catch(() => {
         // The card still renders from its own metadata.
@@ -122,6 +139,8 @@ export function EventCardMessage({ message, clubId, locale, primaryColor }: Prop
         onPress={() =>
           eventId ? router.push({ pathname: '/event-detail', params: { eventId } }) : undefined
         }
+        onLongPress={onLongPress}
+        delayLongPress={250}
         accessibilityRole="button"
         accessibilityLabel={`${typeLabel}, ${message.content}${when ? `, ${when}` : ''}`}
         style={({ pressed }) => [styles.body, pressed && { opacity: 0.9 }]}

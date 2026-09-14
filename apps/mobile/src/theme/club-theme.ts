@@ -40,8 +40,14 @@ export function buildClubTheme(
   const base = isDark ? darkTheme : lightTheme
 
   // Hydrate the primary slot from the club if one is active; otherwise use
-  // the base theme's fallback (Renuir indigo).
-  const primary = club?.primary ?? base.primary
+  // the base theme's fallback (Renuir indigo). In dark mode a dark club
+  // colour (navy, bottle green, charcoal) vanishes against the surface, so
+  // it is lifted until it can carry a filled button and a selected state.
+  const primary = club?.primary
+    ? isDark
+      ? ensureDarkModeContrast(club.primary)
+      : club.primary
+    : base.primary
   const primaryPressed = club?.primary
     ? darkenHex(club.primary, 0.15)
     : base.primaryPressed
@@ -69,6 +75,34 @@ export function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+/** Relative luminance (sRGB), 0 = black, 1 = white. */
+function luminance(hex: string): number {
+  const channel = (i: number) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5)
+}
+
+/** Mix a hex colour toward white by `amount` (0-1). */
+function lightenHex(hex: string, amount: number): string {
+  const mix = (i: number) =>
+    Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * amount)
+  return `#${[1, 3, 5].map((i) => mix(i).toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * Lift a club colour until it reads on a dark surface. 0.3 luminance is
+ * roughly where a filled button with dark text stops looking like a
+ * disabled one; iterate rather than jump so hue survives.
+ */
+export function ensureDarkModeContrast(hex: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
+  let out = hex
+  for (let i = 0; i < 6 && luminance(out) < 0.3; i += 1) out = lightenHex(out, 0.22)
+  return out
 }
 
 /**

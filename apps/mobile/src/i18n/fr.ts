@@ -947,6 +947,7 @@ const base = {
   },
   event: {
     manage: {
+      attendedCount: '{{count}} présents',
       attended: '{{count}} sur {{total}} présents',
       noCheckIns: 'Aucune présence enregistrée',
       rowActions: 'Actions sur l’événement',

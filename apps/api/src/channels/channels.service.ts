@@ -169,6 +169,47 @@ export class ChannelsService {
       }))
   }
 
+  async listAnnouncements(
+    userId: string,
+    clubId: string,
+    limit: number,
+  ): Promise<Array<{ id: string; title: string; body: string; createdAt: string }>> {
+    const [membership, teamAccess] = await Promise.all([
+      this.prisma.membership.findFirst({ where: { userId, clubId }, select: { role: true } }),
+      this.prisma.teamAccess.findMany({
+        where: { userId, clubId, ...activeTeamAccessWhere() },
+        select: { teamId: true },
+      }),
+    ])
+    if (!membership) throw new ForbiddenException('Not a club member')
+    const teamIds = teamAccess.map((row) => row.teamId)
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        clubId,
+        deletedAt: null,
+        messageType: 'TEXT',
+        channel: {
+          kind: 'ANNOUNCEMENTS',
+          OR: [{ teamId: null }, ...(teamIds.length ? [{ teamId: { in: teamIds } }] : [])],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: { id: true, content: true, createdAt: true },
+    })
+
+    return messages.map((m) => {
+      const [title, ...rest] = m.content.split(/\n\n+/)
+      return {
+        id: m.id,
+        title: title.trim(),
+        body: rest.join('\n\n').trim(),
+        createdAt: m.createdAt.toISOString(),
+      }
+    })
+  }
+
   async listForUser(userId: string, teamId: string): Promise<SharedChannel[]> {
     const access = await this.teamsService.assertReadableAccess(userId, teamId)
     await this.ensureTeamChannels(access.team.clubId, teamId)
