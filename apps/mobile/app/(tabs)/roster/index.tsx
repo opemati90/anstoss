@@ -133,9 +133,10 @@ export default function RosterScreen() {
             title={t('roster.screenTitle')}
             subtitle={activeTeamAccess?.team?.displayName || activeClub.club.name}
             eyebrow={t('roster.workspace.operations')}
-            onBack={() =>
-              router.canGoBack() ? router.back() : router.replace('/(tabs)/squad')
-            }
+            // The roster is the Team tab's detail, so back always lands on
+            // Team. `router.back()` here walks tab history instead and can
+            // drop the coach on Home.
+            onBack={() => router.replace('/(tabs)/squad')}
             backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
           />
           <EmptyState
@@ -750,9 +751,10 @@ export default function RosterScreen() {
         <View style={styles.header}>
           <TabScreenHeader
             title={t('roster.screenTitle')}
-            onBack={() =>
-              router.canGoBack() ? router.back() : router.replace('/(tabs)/squad')
-            }
+            // The roster is the Team tab's detail, so back always lands on
+            // Team. `router.back()` here walks tab history instead and can
+            // drop the coach on Home.
+            onBack={() => router.replace('/(tabs)/squad')}
             backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
             subtitle={
               snapshot?.team.displayName

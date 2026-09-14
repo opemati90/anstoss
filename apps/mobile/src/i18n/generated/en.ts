@@ -458,6 +458,28 @@ export default {
     lastClub: 'Last club: {{club}}',
   },
   squad: {
+    ops: {
+      title: 'Operations',
+      roster: 'Squad management',
+      rosterHint: 'Positions, numbers, activation',
+      requests: 'Trials and requests',
+      requestsHint: 'New players, trials, pending coaches',
+      medic: 'Medic',
+      medicHint: 'Injuries and return dates',
+      kit: 'Kit and duties',
+      kitHint: 'Who washes, who brings what',
+      carpool: 'Carpool',
+      carpoolHint: 'Rides to the next away game',
+      myDuties: 'My duties',
+      myDutiesHint: 'Kit, wash, and match-day jobs',
+    },
+    people: {
+      title: 'People',
+      availabilityFor: 'Availability for {{title}}',
+      noReply: 'No reply',
+      message: 'Message',
+      you: 'You',
+    },
     empty: {
       title: 'Build your squad',
       body: 'Invite players or let them claim an open roster slot.',

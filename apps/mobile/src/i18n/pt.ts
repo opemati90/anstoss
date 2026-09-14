@@ -103,6 +103,7 @@ const base = {
     acceptA11y: 'Aceitar convite para teste de {{club}}',
   },
   tabs: {
+    team: 'Equipa',
     home: 'Início',
     events: 'Eventos',
     schedule: 'Agenda',

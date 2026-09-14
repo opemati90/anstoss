@@ -69,6 +69,7 @@ const base = {
     },
   },
   tabs: {
+    team: 'Team',
     home: 'Home',
     events: 'Events',
     schedule: 'Schedule',
@@ -1080,7 +1081,7 @@ const base = {
     noResponses: 'No responses yet.',
   },
   roster: {
-    screenTitle: 'Squad',
+    screenTitle: 'Roster',
     emptyTitle: 'No members yet',
     emptyBody: 'Share the club invite to add players and staff.',
     unknownMember: 'Unknown',

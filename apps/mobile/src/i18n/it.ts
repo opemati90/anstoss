@@ -104,6 +104,7 @@ const base = {
     acceptA11y: 'Accetta l’invito al provino da {{club}}',
   },
   tabs: {
+    team: 'Squadra',
     home: 'Home',
     events: 'Eventi',
     schedule: 'Agenda',

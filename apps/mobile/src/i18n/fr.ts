@@ -72,6 +72,7 @@ const base = {
     },
   },
   tabs: {
+    team: 'Équipe',
     home: 'Accueil',
     events: 'Événements',
     schedule: 'Planning',

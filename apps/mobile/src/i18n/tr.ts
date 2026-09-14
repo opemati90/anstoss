@@ -187,6 +187,7 @@ export default {
     sending: 'Gönderiliyor…',
   },
   tabs: {
+    team: 'Takım',
     home: 'Ana sayfa',
     events: 'Etkinlikler',
     schedule: 'Program',
@@ -3565,6 +3566,28 @@ export default {
     yearlyHint: 'Bu sürümde dijital abonelik satın alımı yok.',
   },
   squad: {
+    ops: {
+      title: 'Organizasyon',
+      roster: 'Kadro yönetimi',
+      rosterHint: 'Mevkiler, numaralar, aktivasyon',
+      requests: 'Denemeler ve talepler',
+      requestsHint: 'Yeni oyuncular, denemeler, bekleyen antrenörler',
+      medic: 'Sağlık',
+      medicHint: 'Sakatlıklar ve dönüş tarihleri',
+      kit: 'Malzeme ve görevler',
+      kitHint: 'Kim yıkar, kim ne getirir',
+      carpool: 'Araç paylaşımı',
+      carpoolHint: 'Bir sonraki deplasman için yolculuklar',
+      myDuties: 'Görevlerim',
+      myDutiesHint: 'Malzeme, yıkama ve maç günü işleri',
+    },
+    people: {
+      title: 'Kişiler',
+      availabilityFor: '{{title}} için müsaitlik',
+      noReply: 'Yanıt yok',
+      message: 'Mesaj',
+      you: 'Sen',
+    },
     empty: {
       title: 'Kadronu oluştur',
       body: 'Oyuncuları davet et veya boş bir kadro yerini almalarına izin ver.',

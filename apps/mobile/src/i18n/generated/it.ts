@@ -466,6 +466,28 @@ export default {
     lastClub: 'Ultimo club: {{club}}',
   },
   squad: {
+    ops: {
+      title: 'Organizzazione',
+      roster: 'Gestione rosa',
+      rosterHint: 'Ruoli, numeri, attivazione',
+      requests: 'Prove e richieste',
+      requestsHint: 'Nuovi giocatori, prove, allenatori in attesa',
+      medic: 'Medico',
+      medicHint: 'Infortuni e date di rientro',
+      kit: 'Materiale e compiti',
+      kitHint: 'Chi lava, chi porta cosa',
+      carpool: 'Passaggi in auto',
+      carpoolHint: 'Passaggi per la prossima trasferta',
+      myDuties: 'I miei compiti',
+      myDutiesHint: 'Materiale, lavaggio e compiti del giorno partita',
+    },
+    people: {
+      title: 'Persone',
+      availabilityFor: 'Disponibilità per {{title}}',
+      noReply: 'Nessuna risposta',
+      message: 'Messaggio',
+      you: 'Tu',
+    },
     empty: {
       title: 'Crea la tua rosa',
       body: 'Invita giocatori o lascia che occupino un posto libero in rosa.',

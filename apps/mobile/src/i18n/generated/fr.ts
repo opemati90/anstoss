@@ -466,6 +466,28 @@ export default {
     lastClub: 'Dernier club : {{club}}',
   },
   squad: {
+    ops: {
+      title: 'Organisation',
+      roster: "Gestion de l'effectif",
+      rosterHint: 'Postes, numéros, activation',
+      requests: 'Essais et demandes',
+      requestsHint: 'Nouveaux joueurs, essais, coachs en attente',
+      medic: 'Médical',
+      medicHint: 'Blessures et dates de retour',
+      kit: 'Matériel et tâches',
+      kitHint: 'Qui lave, qui apporte quoi',
+      carpool: 'Covoiturage',
+      carpoolHint: 'Trajets pour le prochain match à l’extérieur',
+      myDuties: 'Mes tâches',
+      myDutiesHint: 'Matériel, lessive et tâches de match',
+    },
+    people: {
+      title: 'Personnes',
+      availabilityFor: 'Disponibilité pour {{title}}',
+      noReply: 'Sans réponse',
+      message: 'Message',
+      you: 'Vous',
+    },
     empty: {
       title: 'Construis ton effectif',
       body: 'Invite des joueurs ou laisse-les prendre une place disponible.',

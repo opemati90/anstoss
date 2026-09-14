@@ -1,0 +1,58 @@
+appId: com.renuirug.anstoss
+---
+# Slice B: the Team tab is one surface. A coach sees health, operations rows
+# with counts, and the people list with availability, and reaches an
+# operations screen in one tap. A player sees people and their own duties.
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://squad"
+- extendedWaitUntil:
+    visible: "OPERATIONS"
+    timeout: 15000
+- assertVisible: "SQUAD HEALTH"
+- assertVisible: "Trials and requests.*"
+- assertVisible: "Medic.*"
+- assertVisible: "Kit and duties.*"
+- assertVisible: "PEOPLE"
+- assertNotVisible: "Manage roster"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach
+- scrollUntilVisible:
+    element:
+      text: "Julian Becker.*"
+    direction: DOWN
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach-people
+- scrollUntilVisible:
+    element:
+      text: "Medic.*"
+    direction: UP
+- tapOn:
+    text: "Medic.*"
+- extendedWaitUntil:
+    visible: "Back"
+    timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach-medic
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "OPERATIONS"
+    timeout: 10000
+# Player view
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://squad"
+- extendedWaitUntil:
+    visible: "My duties.*"
+    timeout: 15000
+- assertVisible: "PEOPLE"
+- assertNotVisible: "SQUAD HEALTH"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-player

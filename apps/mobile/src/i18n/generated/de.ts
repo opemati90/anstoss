@@ -466,6 +466,28 @@ export default {
     lastClub: 'Letzter Verein: {{club}}',
   },
   squad: {
+    ops: {
+      title: 'Organisation',
+      roster: 'Kaderverwaltung',
+      rosterHint: 'Positionen, Nummern, Aktivierung',
+      requests: 'Probetraining und Anfragen',
+      requestsHint: 'Neue Spieler, Probetraining, offene Trainer',
+      medic: 'Medizin',
+      medicHint: 'Verletzungen und Rückkehrdaten',
+      kit: 'Material und Aufgaben',
+      kitHint: 'Wer wäscht, wer bringt was mit',
+      carpool: 'Fahrgemeinschaft',
+      carpoolHint: 'Mitfahrten zum nächsten Auswärtsspiel',
+      myDuties: 'Meine Aufgaben',
+      myDutiesHint: 'Material, Wäsche und Spieltagsaufgaben',
+    },
+    people: {
+      title: 'Personen',
+      availabilityFor: 'Verfügbarkeit für {{title}}',
+      noReply: 'Keine Antwort',
+      message: 'Nachricht',
+      you: 'Du',
+    },
     empty: {
       title: 'Stell deinen Kader zusammen',
       body: 'Lade Spieler ein oder lass sie einen freien Kaderplatz übernehmen.',

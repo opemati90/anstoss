@@ -8,7 +8,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=club-admin"
 - extendedWaitUntil:
-    visible: ".*(Administration|Home|Today|Squad|Manage).*"
+    visible: ".*(Administration|Home|Today|Squad|Team|Manage).*"
     timeout: 15000
 - takeScreenshot: "01-admin-home"
 - runFlow:

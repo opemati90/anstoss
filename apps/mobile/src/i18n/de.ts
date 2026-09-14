@@ -101,6 +101,7 @@ const base = {
     acceptA11y: 'Probetraining-Einladung von {{club}} annehmen',
   },
   tabs: {
+    team: 'Team',
     home: 'Start',
     events: 'Termine',
     schedule: 'Spielplan',

@@ -318,7 +318,7 @@ export default function TabLayout() {
           name="squad/index"
           options={{
             href: isFreeAgent ? null : '/(tabs)/squad',
-            title: t('tabs.squad', { defaultValue: 'Squad' }),
+            title: t('tabs.team', { defaultValue: 'Team' }),
             tabBarIcon: ({ color, focused }) => (
               <Icon
                 name={focused ? 'person.2.fill' : 'person.2'}
@@ -326,7 +326,7 @@ export default function TabLayout() {
                 color={tabIconColor(color)}
               />
             ),
-            tabBarAccessibilityLabel: t('tabs.squad', { defaultValue: 'Squad' }),
+            tabBarAccessibilityLabel: t('tabs.team', { defaultValue: 'Team' }),
           }}
         />
         <Tabs.Screen

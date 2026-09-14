@@ -89,7 +89,7 @@ appId: com.renuirug.anstoss
 # signed-out sign-in screen. Each flow deeplinks its own scenario next; this
 # only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
-    visible: '.*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Today|Welcome).*'
+    visible: '.*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Team|Today|Welcome).*'
     timeout: 180000
 - waitForAnimationToEnd:
     timeout: 4000

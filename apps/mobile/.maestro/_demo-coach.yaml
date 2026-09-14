@@ -7,7 +7,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=coach"
 - extendedWaitUntil:
-    visible: ".*(Open squad|Home|Today|Squad|Lineup).*"
+    visible: ".*(Open squad|Home|Today|Squad|Team|Lineup).*"
     timeout: 15000
 - takeScreenshot: "01-coach-home"
 - runFlow:
@@ -15,7 +15,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://roster?tab=operations"
 - extendedWaitUntil:
-    visible: ".*(Trials|Squad|Roster).*"
+    visible: ".*(Trials|Squad|Team|Roster).*"
     timeout: 15000
 - takeScreenshot: "02-coach-roster"
 - runFlow:

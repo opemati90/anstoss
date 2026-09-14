@@ -2470,11 +2470,16 @@ function synthesizeRsvps(
   const push = (status: 'YES' | 'MAYBE' | 'NO', count: number) => {
     for (let n = 0; n < count; n += 1) {
       const name = RSVP_NAME_POOL[i % RSVP_NAME_POOL.length]
+      // The first entries reuse roster ids so the Team tab can line up each
+      // player's answer with the seeded squad; the rest are filler.
+      const rosterMember = currentSession?.api.rosterOps?.squad[i]
       out.push({
         id: `rsvp-${eventId}-${i}`,
         status,
         updatedAt: new Date().toISOString(),
-        user: { id: `user-rsvp-${i}`, name, avatarUrl: null },
+        user: rosterMember
+          ? { id: rosterMember.userId, name: rosterMember.name, avatarUrl: null }
+          : { id: `user-rsvp-${i}`, name, avatarUrl: null },
       })
       i += 1
     }
@@ -2823,7 +2828,8 @@ function buildPlayerSession(): E2ESessionSnapshot {
       guardianEmail: null,
     },
     needsOnboarding: false,
-    api: createApiState(),
+    // Players see the same roster their coach does; the Team tab lists it.
+    api: createApiState({ rosterOps: createRosterOps() }),
   }
 }
 
