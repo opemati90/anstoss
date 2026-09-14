@@ -938,6 +938,7 @@ const base = {
     tableEmptyBody: 'A classificação aparece quando houver dados para os jogos geridos pelo clube.',
   },
   event: {
+    rescheduledHint: 'Horário alterado · confirma a tua resposta',
     manage: {
       attendedCount: '{{count}} presentes',
       attended: '{{count}} de {{total}} presentes',

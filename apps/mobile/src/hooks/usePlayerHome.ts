@@ -10,6 +10,8 @@ export type HomeEvent = {
   date: string
   location?: string | null
   myRsvp: 'YES' | 'MAYBE' | 'NO' | null
+  /** Answered before the date moved; asked again until re-confirmed. */
+  myRsvpStale?: boolean
   yesCount: number
   maybeCount: number
   noCount: number
@@ -197,7 +199,7 @@ export function usePlayerHome(
       setData((prev) => ({
         ...prev,
         events: prev.events.map((event) =>
-          event.id === eventId ? { ...event, myRsvp: status } : event,
+          event.id === eventId ? { ...event, myRsvp: status, myRsvpStale: false } : event,
         ),
       }))
     },

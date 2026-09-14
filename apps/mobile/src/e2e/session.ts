@@ -694,6 +694,9 @@ function createEvents(): EventFeedItem[] {
       maybeCount: 2,
       noCount: 2,
       myRsvp: 'MAYBE',
+      // Answered before the coach moved it: home and schedule ask again.
+      rescheduledAt: nowIso(0, 9, 0),
+      myRsvpStale: true,
     },
     // ─── Past (within the 3-day window) ──────────────────────
     {
@@ -4377,7 +4380,12 @@ export function handleE2EApiRequest(
     }>
     if (body.title !== undefined) event.title = body.title
     if (body.type !== undefined) (event as { type: string }).type = body.type
-    if (body.date !== undefined) event.date = body.date
+    if (body.date !== undefined && body.date !== event.date) {
+      event.date = body.date
+      const moved = event as typeof event & { rescheduledAt?: string | null; myRsvpStale?: boolean }
+      moved.rescheduledAt = new Date().toISOString()
+      moved.myRsvpStale = Boolean(event.myRsvp)
+    }
     if (body.location !== undefined) event.location = body.location
     if (body.notes !== undefined) event.notes = body.notes
     return { handled: true, ok: true, status: 200, body: clone(event) }

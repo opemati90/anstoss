@@ -68,8 +68,10 @@ export function NextUpHero({
   )
   const countdown = formatCountdown(date.getTime() - nowMs, t)
 
-  const needsReply = !event.myRsvp
-  const statusLabel = event.myRsvp
+  const needsReply = !event.myRsvp || Boolean(event.myRsvpStale)
+  const statusLabel = event.myRsvpStale
+    ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
+    : event.myRsvp
     ? t(`home.player.status.${event.myRsvp.toLowerCase()}`, {
         defaultValue:
           event.myRsvp === 'YES'

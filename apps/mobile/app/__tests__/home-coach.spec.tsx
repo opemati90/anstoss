@@ -406,7 +406,7 @@ describe('CoachHome', () => {
     expect(await findByText('Fill 6 squad spots')).toBeTruthy()
     fireEvent.press(await findByText('Open squad'))
 
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/roster')
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/(tabs)/roster', params: { returnTo: '/(tabs)' } })
   })
 
   // The roster-gap pill no longer renders when the next-action card is
@@ -496,7 +496,7 @@ describe('CoachHome', () => {
     expect(queryByText('Build lineup')).toBeNull()
     fireEvent.press(await findByText('Open squad'))
 
-    expect(router.push).toHaveBeenCalledWith('/(tabs)/roster')
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/(tabs)/roster', params: { returnTo: '/(tabs)' } })
   })
 
   it('routes at-risk readiness to event review instead of lineup', async () => {

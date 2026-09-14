@@ -937,6 +937,7 @@ const base = {
       'Ligatabellen erscheinen hier, sobald Tabellendaten für die im Verein gepflegten Spiele verfügbar sind.',
   },
   event: {
+    rescheduledHint: 'Zeit geändert · Antwort bestätigen',
     manage: {
       attendedCount: '{{count}} anwesend',
       attended: '{{count}} von {{total}} anwesend',

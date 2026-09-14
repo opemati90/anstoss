@@ -57,7 +57,11 @@ export default function RosterScreen() {
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
-  const params = useLocalSearchParams<{ tab?: string | string[] }>()
+  const params = useLocalSearchParams<{ tab?: string | string[]; returnTo?: string | string[] }>()
+  // The roster is the Team tab's detail, so back lands on Team unless the
+  // opener (home) said where it came from.
+  const returnToParam = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo
+  const returnTo = returnToParam === '/(tabs)' ? '/(tabs)' : '/(tabs)/squad'
   const tabParam = Array.isArray(params.tab) ? params.tab[0] : params.tab
   const requestedTab = WORKSPACE_TABS.includes(tabParam as WorkspaceTab)
     ? (tabParam as WorkspaceTab)
@@ -133,10 +137,7 @@ export default function RosterScreen() {
             title={t('roster.screenTitle')}
             subtitle={activeTeamAccess?.team?.displayName || activeClub.club.name}
             eyebrow={t('roster.workspace.operations')}
-            // The roster is the Team tab's detail, so back always lands on
-            // Team. `router.back()` here walks tab history instead and can
-            // drop the coach on Home.
-            onBack={() => router.replace('/(tabs)/squad')}
+            onBack={() => router.replace(returnTo as never)}
             backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
           />
           <EmptyState
@@ -751,10 +752,7 @@ export default function RosterScreen() {
         <View style={styles.header}>
           <TabScreenHeader
             title={t('roster.screenTitle')}
-            // The roster is the Team tab's detail, so back always lands on
-            // Team. `router.back()` here walks tab history instead and can
-            // drop the coach on Home.
-            onBack={() => router.replace('/(tabs)/squad')}
+            onBack={() => router.replace(returnTo as never)}
             backAccessibilityLabel={t('common.back', { defaultValue: 'Back' })}
             subtitle={
               snapshot?.team.displayName

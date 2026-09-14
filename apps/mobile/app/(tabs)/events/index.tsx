@@ -328,7 +328,7 @@ export default function EventsScreen() {
     setEvents((current) =>
       current.map((event) =>
         event.id === eventId
-          ? { ...event, myRsvp: status as EventFeedItem['myRsvp'] }
+          ? { ...event, myRsvp: status as EventFeedItem['myRsvp'], myRsvpStale: false }
           : event,
       ),
     )
@@ -1094,7 +1094,11 @@ function EventListItem({
             ? `${item.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
                 item.cancelReason ? `, ${item.cancelReason}` : ''
               }`
-            : `${item.title}, ${dayName} ${dayNumber} ${time}${attendanceLabel ? `, ${attendanceLabel}` : ''}`
+            : `${item.title}, ${dayName} ${dayNumber} ${time}${attendanceLabel ? `, ${attendanceLabel}` : ''}${
+                item.myRsvpStale && answerable
+                  ? `, ${t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })}`
+                  : ''
+              }`
         }
         accessibilityHint={
           onLongPress ? t('event.manage.rowActions', { defaultValue: 'Event actions' }) : undefined
@@ -1130,7 +1134,9 @@ function EventListItem({
           <Text variant="caption2" color="secondary" numberOfLines={1}>
             {isCancelled
               ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${item.cancelReason ? ` · ${item.cancelReason}` : ''}`
-              : `${time}${item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}`}
+              : item.myRsvpStale && answerable
+                ? `${time} · ${t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })}`
+                : `${time}${item.location ? ` · ${item.location}` : ` · ${t(`event.type.${item.type}`)}`}`}
           </Text>
         </View>
 
@@ -1171,7 +1177,10 @@ function buildSections(
   t: (key: string) => string,
   scope: EventScope,
 ): EventSection[] {
-  const needsReply = scope === 'upcoming' ? events.filter((event) => !event.myRsvp) : []
+  const needsReply =
+    scope === 'upcoming'
+      ? events.filter((event) => (!event.myRsvp || event.myRsvpStale) && !event.cancelledAt)
+      : []
   const needsReplyIds = new Set(needsReply.map((event) => event.id))
   const scheduled = events.filter((event) => !needsReplyIds.has(event.id))
 

@@ -775,6 +775,8 @@ model Event {
   createdById        String
   cancelledAt        DateTime?
   cancelReason       String?
+  // Set when the date moves; replies given before it need confirming.
+  rescheduledAt      DateTime?
   archivedAt         DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

@@ -924,6 +924,7 @@ const base = {
     tableEmptyBody: 'League standings appear here when table data is available for club-maintained fixtures.',
   },
   event: {
+    rescheduledHint: 'Time changed · confirm your reply',
     manage: {
       attendedCount: '{{count}} attended',
       attended: '{{count}} of {{total}} attended',

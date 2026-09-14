@@ -107,7 +107,8 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   // card, so replying never requires chasing the match screen first.
   const heroIsLive = heroFixture?.status === 'live'
   const heroOwesDecision = Boolean(
-    heroEvent && (!heroEvent.myRsvp || isInCheckInWindow(heroEvent.date, nowMs)),
+    heroEvent &&
+      (!heroEvent.myRsvp || heroEvent.myRsvpStale || isInCheckInWindow(heroEvent.date, nowMs)),
   )
   const liveOwnsHero = Boolean(heroIsLive && !heroOwesDecision)
 

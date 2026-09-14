@@ -1130,6 +1130,7 @@ export default {
     statsEmpty: 'İstatistikler maç başladıktan sonra mevcut olacak.',
   },
   event: {
+    rescheduledHint: 'Saat değişti · yanıtını onayla',
     manage: {
       attendedCount: '{{count}} katıldı',
       attended: '{{total}} kişiden {{count}} katıldı',

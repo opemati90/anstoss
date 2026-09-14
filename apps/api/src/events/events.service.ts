@@ -51,6 +51,7 @@ const upcomingEventInclude = {
       userId: true,
       status: true,
       reason: true,
+      updatedAt: true,
     },
   },
   team: {
@@ -80,6 +81,7 @@ const upcomingEventIncludeWithTeam = {
       userId: true,
       status: true,
       reason: true,
+      updatedAt: true,
     },
   },
   team: {
@@ -443,6 +445,9 @@ export class EventsService {
     userId: string,
     includeReadiness = false,
   ): EventFeedItem {
+    const mine = event.rsvps.find(
+      (rsvp: (typeof event.rsvps)[number]) => rsvp.userId === userId,
+    )
     const item: EventFeedItem = {
       id: event.id,
       teamId: event.teamId,
@@ -463,9 +468,14 @@ export class EventsService {
       yesCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length,
       maybeCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
       noCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,
-      myRsvp:
-        event.rsvps.find((rsvp: (typeof event.rsvps)[number]) => rsvp.userId === userId)?.status ??
-        null,
+      myRsvp: mine?.status ?? null,
+      rescheduledAt: event.rescheduledAt?.toISOString() ?? null,
+      myRsvpStale: Boolean(
+        mine &&
+          event.rescheduledAt &&
+          mine.updatedAt &&
+          new Date(mine.updatedAt).getTime() < event.rescheduledAt.getTime(),
+      ),
     }
 
     if (includeReadiness) {
@@ -854,12 +864,17 @@ export class EventsService {
 
     await this.archiveExpiredEvents(event.teamId)
 
+    const dateMoves =
+      data.date !== undefined && data.date.getTime() !== event.date.getTime()
     const updated = await this.prisma.event.update({
       where: { id: eventId },
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.type !== undefined && { type: data.type }),
         ...(data.date !== undefined && { date: data.date }),
+        // A moved date re-opens the question: answers given before it are
+        // kept but flagged, so nobody is counted in for a time they never saw.
+        ...(dateMoves && { rescheduledAt: new Date() }),
         ...(data.location !== undefined && { location: data.location }),
         ...(data.notes !== undefined && { notes: data.notes }),
       },

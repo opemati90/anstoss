@@ -886,6 +886,18 @@ describe('EventsService', () => {
       )
     })
 
+    it('stamps rescheduledAt only when the date actually moves', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })
+      await service.update('evt-1', 'user-1', { title: 'New', date: baseEvent.date })
+      expect(mockPrisma.event.update.mock.calls[0][0].data).not.toHaveProperty('rescheduledAt')
+
+      const moved = new Date(baseEvent.date.getTime() + 3_600_000)
+      mockPrisma.event.update.mockResolvedValue({ ...baseEvent, date: moved })
+      await service.update('evt-1', 'user-1', { date: moved })
+      expect(mockPrisma.event.update.mock.calls[1][0].data.rescheduledAt).toBeInstanceOf(Date)
+    })
+
     it('notifies the squad when the date changes, and stays quiet for a title edit', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })

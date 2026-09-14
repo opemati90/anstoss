@@ -127,6 +127,8 @@ export interface Event {
    * feeds until their date passes so the squad can see the change. */
   cancelledAt?: string | null
   cancelReason?: string | null
+  /** When the date last moved. Replies older than this are asked for again. */
+  rescheduledAt?: string | null
 }
 
 export interface EventFeedItem extends Event {
@@ -139,6 +141,8 @@ export interface EventFeedItem extends Event {
   /** Active players on the team at read time; the denominator for outcomes. */
   squadSize?: number
   myRsvp: RsvpStatus | null
+  /** The reader answered before the date moved; treat as needing a reply. */
+  myRsvpStale?: boolean
   readiness?: EventReadiness | null
   /** Present when fetched with mine=1 and no teamId — multi-team home view */
   team?: { id: string; name: string } | null

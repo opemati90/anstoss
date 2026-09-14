@@ -69,6 +69,7 @@ type EventDetail = {
   maybeCount?: number
   noCount?: number
   myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
+  myRsvpStale?: boolean
   reminderEnabled?: boolean
   lastRsvpReminderAt?: string | null
   teamMemberCount?: number | null
@@ -267,7 +268,7 @@ export default function EventDetailScreen() {
       ]).start()
 
       setEvent((prev) =>
-        prev ? { ...prev, myRsvp: status as EventDetail['myRsvp'] } : prev,
+        prev ? { ...prev, myRsvp: status as EventDetail['myRsvp'], myRsvpStale: false } : prev,
       )
 
       if (status === 'NO') {

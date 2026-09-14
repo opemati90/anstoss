@@ -162,7 +162,7 @@ export function CoachHome({ clubId, teamId }: CoachHomeProps) {
   }, [])
 
   const goToRoster = useCallback(() => {
-    router.push('/(tabs)/roster' as never)
+    router.push({ pathname: '/(tabs)/roster', params: { returnTo: '/(tabs)' } } as never)
   }, [])
 
   const goToLineupBuilder = useCallback(() => {

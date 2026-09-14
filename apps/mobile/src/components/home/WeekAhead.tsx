@@ -39,7 +39,8 @@ export function WeekAhead({
 
   // A cancelled event owes nobody an answer: it neither sorts first nor
   // counts toward the "to reply" badge.
-  const awaits = (event: HomeEvent) => !event.myRsvp && !event.cancelledAt
+  const awaits = (event: HomeEvent) =>
+    (!event.myRsvp || Boolean(event.myRsvpStale)) && !event.cancelledAt
   const ordered = useMemo(
     () => [...events.filter(awaits), ...events.filter((event) => !awaits(event))],
     [events],
@@ -104,7 +105,7 @@ function WeekRow({
   const { t } = useTranslation()
   const date = useMemo(() => new Date(event.date), [event.date])
   const isCancelled = Boolean(event.cancelledAt)
-  const needsReply = !event.myRsvp && !isCancelled
+  const needsReply = (!event.myRsvp || Boolean(event.myRsvpStale)) && !isCancelled
 
   const day = useMemo(
     () => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).toUpperCase(),
@@ -142,7 +143,13 @@ function WeekRow({
             ? `${event.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
                 event.cancelReason ? `, ${event.cancelReason}` : ''
               }`
-            : `${event.title}, ${day} ${dayNumber} ${time}${answerLabel ? `, ${answerLabel}` : ''}`
+            : `${event.title}, ${day} ${dayNumber} ${time}${
+                event.myRsvpStale
+                  ? `, ${t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })}`
+                  : answerLabel
+                    ? `, ${answerLabel}`
+                    : ''
+              }`
         }
         haptic="tapLight"
         style={styles.rowHead}
@@ -168,7 +175,9 @@ function WeekRow({
           <Text variant="caption1" color="secondary" numberOfLines={1}>
             {isCancelled
               ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${event.cancelReason ? ` · ${event.cancelReason}` : ''}`
-              : `${time}${event.location ? ` · ${event.location}` : ''}${answerLabel ? ` · ${answerLabel}` : ''}`}
+              : event.myRsvpStale
+                ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
+                : `${time}${event.location ? ` · ${event.location}` : ''}${answerLabel ? ` · ${answerLabel}` : ''}`}
           </Text>
         </View>
         <Icon name="chevron.right" size={14} color="tertiary" />

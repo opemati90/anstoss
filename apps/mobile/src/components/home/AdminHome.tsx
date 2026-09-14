@@ -359,7 +359,10 @@ export function AdminHome({ clubId, teamId }: AdminHomeProps) {
           hint: t('home.admin.attention.coachHint', { defaultValue: 'Confirm team access' }),
           count: coachPending,
           onPress: () =>
-            router.push({ pathname: '/(tabs)/roster', params: { tab: 'operations' } } as never),
+            router.push({
+              pathname: '/(tabs)/roster',
+              params: { tab: 'operations', returnTo: '/(tabs)' },
+            } as never),
         }
       : null,
     nextPause
