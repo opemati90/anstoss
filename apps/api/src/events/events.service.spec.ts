@@ -52,7 +52,9 @@ describe('EventsService', () => {
         create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'series-1', ...data })),
         update: jest.fn().mockResolvedValue({ id: 'series-1' }),
       },
-      $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+      $transaction: jest.fn(async (ops: Promise<unknown>[] | ((tx: any) => Promise<unknown>)) =>
+        Array.isArray(ops) ? Promise.all(ops) : ops(mockPrisma),
+      ),
       team: {
         findUnique: jest.fn().mockResolvedValue({ name: 'First XI' }),
       },
@@ -122,6 +124,105 @@ describe('EventsService', () => {
       expect(result.events[3].date.getTime()).toBe(until.getTime())
       // One notice for the series, not one per occurrence.
       expect(mockChatService.postSystemNotice).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps the Berlin wall-clock time stable across daylight-saving changes', async () => {
+      let n = 0
+      mockPrisma.event.create.mockImplementation(async ({ data }: any) => ({
+        id: `dst-${++n}`,
+        ...data,
+      }))
+      // 18:30 Europe/Berlin before DST starts in 2027 is 17:30Z.
+      const first = new Date('2027-03-23T17:30:00.000Z')
+      const until = new Date('2027-04-06T16:30:00.000Z')
+
+      const result = await service.createSeries({
+        title: 'Training',
+        type: 'TRAINING',
+        date: first,
+        teamId: 'team-1',
+        createdById: 'user-1',
+        intervalWeeks: 1,
+        until,
+      })
+
+      expect(result.events.map((event: any) => event.date.toISOString())).toEqual([
+        '2027-03-23T17:30:00.000Z',
+        // After DST starts, 18:30 Europe/Berlin is 16:30Z.
+        '2027-03-30T16:30:00.000Z',
+        '2027-04-06T16:30:00.000Z',
+      ])
+    })
+
+    it('rejects a route club that does not own the selected team', async () => {
+      await expect(
+        service.create({
+          title: 'Training',
+          type: 'TRAINING',
+          date: new Date('2027-03-02T18:30:00.000Z'),
+          teamId: 'team-1',
+          createdById: 'user-1',
+          clubId: 'other-club',
+        }),
+      ).rejects.toThrow(BadRequestException)
+
+      expect(mockPrisma.event.create).not.toHaveBeenCalled()
+    })
+
+    it('rejects a recurring event route club that does not own the selected team', async () => {
+      await expect(
+        service.createSeries({
+          title: 'Training',
+          type: 'TRAINING',
+          date: new Date('2027-03-02T18:30:00.000Z'),
+          teamId: 'team-1',
+          createdById: 'user-1',
+          clubId: 'other-club',
+          intervalWeeks: 1,
+          until: new Date('2027-03-16T18:30:00.000Z'),
+        }),
+      ).rejects.toThrow(BadRequestException)
+
+      expect(mockPrisma.eventSeries.create).not.toHaveBeenCalled()
+      expect(mockPrisma.event.create).not.toHaveBeenCalled()
+    })
+
+    it('rejects recurring event ranges that would exceed the 52 occurrence cap', async () => {
+      const first = new Date('2027-01-05T17:30:00.000Z')
+      const fiftyThird = new Date('2028-01-04T17:30:00.000Z')
+
+      await expect(
+        service.createSeries({
+          title: 'Training',
+          type: 'TRAINING',
+          date: first,
+          teamId: 'team-1',
+          createdById: 'user-1',
+          intervalWeeks: 1,
+          until: fiftyThird,
+        }),
+      ).rejects.toThrow(BadRequestException)
+    })
+
+    it('does not report series creation as failed when the chat notice fails after commit', async () => {
+      let n = 0
+      mockPrisma.event.create.mockImplementation(async ({ data }: any) => ({
+        id: `evt-${++n}`,
+        ...data,
+      }))
+      mockChatService.postSystemNotice.mockRejectedValueOnce(new Error('chat down'))
+
+      await expect(
+        service.createSeries({
+          title: 'Training',
+          type: 'TRAINING',
+          date: new Date('2027-03-02T18:30:00.000Z'),
+          teamId: 'team-1',
+          createdById: 'user-1',
+          intervalWeeks: 1,
+          until: new Date('2027-03-09T18:30:00.000Z'),
+        }),
+      ).resolves.toMatchObject({ events: expect.any(Array) })
     })
 
     it('creates an event with provided data', async () => {
@@ -890,6 +991,17 @@ describe('EventsService', () => {
       )
     })
 
+    it('does not mutate an event through the wrong route club', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+
+      await expect(
+        service.update('evt-1', 'user-1', { title: 'New' }, 'this', 'other-club'),
+      ).rejects.toThrow(NotFoundException)
+
+      expect(mockTeamsService.assertEventManagementAccess).not.toHaveBeenCalled()
+      expect(mockPrisma.event.update).not.toHaveBeenCalled()
+    })
+
     it('throws ForbiddenException when the user is not an event manager', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
       mockTeamsService.assertEventManagementAccess.mockRejectedValueOnce(
@@ -1030,6 +1142,25 @@ describe('EventsService', () => {
         expect.objectContaining({ data: { until: seriesEvent.date } }),
       )
       expect(mockChatService.postSystemNotice).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not cancel an event through the wrong route club', async () => {
+      const event = {
+        id: 'evt-1',
+        teamId: 'team-1',
+        clubId: 'club-1',
+        title: 'Training',
+        date: new Date('2027-03-02T18:30:00.000Z'),
+        cancelledAt: null,
+      }
+      mockPrisma.event.findUnique.mockResolvedValue(event)
+
+      await expect(
+        service.cancel('evt-1', 'user-1', undefined, 'this', 'other-club'),
+      ).rejects.toThrow(NotFoundException)
+
+      expect(mockTeamsService.assertEventManagementAccess).not.toHaveBeenCalled()
+      expect(mockPrisma.event.update).not.toHaveBeenCalled()
     })
 
 

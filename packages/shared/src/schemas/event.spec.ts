@@ -1,4 +1,4 @@
-import { createEventSchema, updateEventSchema } from './event'
+import { createEventSchema, createEventSeriesSchema, updateEventSchema } from './event'
 
 describe('createEventSchema', () => {
   const futureDate = new Date(Date.now() + 86400000).toISOString()
@@ -75,6 +75,44 @@ describe('createEventSchema', () => {
       notes: 'Bring Schienbeinschoner',
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('createEventSeriesSchema', () => {
+  const firstDate = new Date(Date.now() + 7 * 86400000)
+
+  function payload(until: Date, intervalWeeks: 1 | 2 = 1) {
+    return {
+      title: 'Training',
+      type: 'TRAINING',
+      date: firstDate.toISOString(),
+      teamId: 'team-123',
+      repeat: {
+        intervalWeeks,
+        until: until.toISOString(),
+      },
+    }
+  }
+
+  it('accepts up to 52 weekly occurrences', () => {
+    const until = new Date(firstDate)
+    until.setDate(until.getDate() + 51 * 7)
+
+    expect(createEventSeriesSchema.safeParse(payload(until)).success).toBe(true)
+  })
+
+  it('rejects a 53rd weekly occurrence instead of silently truncating it', () => {
+    const until = new Date(firstDate)
+    until.setDate(until.getDate() + 52 * 7)
+
+    expect(createEventSeriesSchema.safeParse(payload(until)).success).toBe(false)
+  })
+
+  it('rejects biweekly ranges longer than one year', () => {
+    const until = new Date(firstDate)
+    until.setDate(until.getDate() + 54 * 7)
+
+    expect(createEventSeriesSchema.safeParse(payload(until, 2)).success).toBe(false)
   })
 })
 

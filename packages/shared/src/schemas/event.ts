@@ -27,6 +27,7 @@ export const cancelEventSchema = z.object({
 })
 
 export const MAX_SERIES_OCCURRENCES = 52
+const MAX_SERIES_DURATION_MS = 366 * 24 * 60 * 60 * 1000
 
 /** A recurring event: the first occurrence plus the rule. */
 export const createEventSeriesSchema = createEventSchema.extend({
@@ -39,10 +40,19 @@ export const createEventSeriesSchema = createEventSchema.extend({
   (data) => {
     const first = new Date(data.date).getTime()
     const until = new Date(data.repeat.until).getTime()
-    const weeks = (until - first) / (7 * 24 * 60 * 60 * 1000)
-    return until >= first && weeks / data.repeat.intervalWeeks <= MAX_SERIES_OCCURRENCES
+    const spanMs = until - first
+    const intervalMs = data.repeat.intervalWeeks * 7 * 24 * 60 * 60 * 1000
+    const occurrenceCount = Math.floor(spanMs / intervalMs) + 1
+    return (
+      until >= first &&
+      spanMs <= MAX_SERIES_DURATION_MS &&
+      occurrenceCount <= MAX_SERIES_OCCURRENCES
+    )
   },
-  { message: 'Repeat end must be after the first date and within a year', path: ['repeat', 'until'] },
+  {
+    message: 'Repeat end must be after the first date, within a year, and no more than 52 events',
+    path: ['repeat', 'until'],
+  },
 )
 export type CreateEventSeriesInput = z.infer<typeof createEventSeriesSchema>
 

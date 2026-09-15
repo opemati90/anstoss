@@ -31,6 +31,8 @@ import { ChatService } from '../chat/chat.service'
 import { EventsGateway } from './events.gateway'
 
 const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
+const SERIES_TIME_ZONE = 'Europe/Berlin'
+const MAX_SERIES_DURATION_MS = 366 * 24 * 60 * 60 * 1000
 
 type EventTypeValue = EventFeedItem['type']
 type RsvpStatusValue = NonNullable<EventFeedItem['myRsvp']>
@@ -146,6 +148,111 @@ function formatEventDate(date: Date): string {
   }).format(date)
 }
 
+function getZonedParts(date: Date, timeZone = SERIES_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value)
+
+  return {
+    year: value('year'),
+    month: value('month'),
+    day: value('day'),
+    hour: value('hour'),
+    minute: value('minute'),
+    second: value('second'),
+  }
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone = SERIES_TIME_ZONE) {
+  const parts = getZonedParts(date, timeZone)
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+  return asUtc - date.getTime()
+}
+
+function zonedWallTimeToUtc(
+  parts: ReturnType<typeof getZonedParts>,
+  timeZone = SERIES_TIME_ZONE,
+) {
+  const wallAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+  let utc = wallAsUtc - getTimeZoneOffsetMs(new Date(wallAsUtc), timeZone)
+  const correctedOffset = getTimeZoneOffsetMs(new Date(utc), timeZone)
+  utc = wallAsUtc - correctedOffset
+  return new Date(utc)
+}
+
+function addWeeksPreservingWallTime(
+  start: Date,
+  weeksFromStart: number,
+  timeZone = SERIES_TIME_ZONE,
+) {
+  const startParts = getZonedParts(start, timeZone)
+  const targetWall = new Date(
+    Date.UTC(
+      startParts.year,
+      startParts.month - 1,
+      startParts.day + weeksFromStart * 7,
+      startParts.hour,
+      startParts.minute,
+      startParts.second,
+    ),
+  )
+  return zonedWallTimeToUtc(getZonedParts(targetWall, 'UTC'), timeZone)
+}
+
+function buildSeriesDates(first: Date, until: Date, intervalWeeks: 1 | 2) {
+  if (until.getTime() < first.getTime()) {
+    throw new BadRequestException('Repeat end must be on or after the first date')
+  }
+  if (until.getTime() - first.getTime() > MAX_SERIES_DURATION_MS) {
+    throw new BadRequestException('Repeat end must be within a year')
+  }
+
+  const dates: Date[] = []
+  for (let index = 0; ; index += 1) {
+    const date = addWeeksPreservingWallTime(first, index * intervalWeeks)
+    if (date.getTime() > until.getTime()) break
+    if (dates.length >= MAX_SERIES_OCCURRENCES) {
+      throw new BadRequestException('Recurring events are limited to 52 occurrences')
+    }
+    dates.push(date)
+  }
+
+  if (dates.length === 0) {
+    throw new BadRequestException('Repeat end must be on or after the first date')
+  }
+
+  return dates
+}
+
+function assertRouteClubMatchesTeam(routeClubId: string | undefined, teamClubId: string) {
+  if (routeClubId && routeClubId !== teamClubId) {
+    throw new BadRequestException('Team does not belong to this club')
+  }
+}
+
 @Injectable()
 export class EventsService {
   private readonly pushLogger = new Logger(EventsService.name)
@@ -167,6 +274,7 @@ export class EventsService {
     notes?: string
     teamId: string
     createdById: string
+    clubId?: string
   }) {
     const access = await this.teamsService.assertEventManagementAccess(
       data.createdById,
@@ -174,6 +282,7 @@ export class EventsService {
     )
 
     const clubId = access.team.clubId
+    assertRouteClubMatchesTeam(data.clubId, clubId)
 
     const event = await this.prisma.event.create({
       data: {
@@ -219,6 +328,7 @@ export class EventsService {
     notes?: string
     teamId: string
     createdById: string
+    clubId?: string
     intervalWeeks: 1 | 2
     until: Date
   }) {
@@ -227,38 +337,29 @@ export class EventsService {
       data.teamId,
     )
     const clubId = access.team.clubId
+    assertRouteClubMatchesTeam(data.clubId, clubId)
 
-    const dates: Date[] = []
-    const stepMs = data.intervalWeeks * 7 * 24 * 60 * 60 * 1000
-    for (
-      let at = data.date.getTime();
-      at <= data.until.getTime() && dates.length < MAX_SERIES_OCCURRENCES;
-      at += stepMs
-    ) {
-      dates.push(new Date(at))
-    }
-    if (dates.length === 0) {
-      throw new BadRequestException('Repeat end must be on or after the first date')
-    }
+    const dates = buildSeriesDates(data.date, data.until, data.intervalWeeks)
 
-    const series = await this.prisma.eventSeries.create({
-      data: {
-        clubId,
-        teamId: data.teamId,
-        createdById: data.createdById,
-        title: data.title,
-        type: data.type,
-        intervalWeeks: data.intervalWeeks,
-        startsAt: data.date,
-        until: data.until,
-        location: data.location ?? null,
-        notes: data.notes ?? null,
-      },
-    })
+    const { series, events } = await this.prisma.$transaction(async (tx) => {
+      const series = await tx.eventSeries.create({
+        data: {
+          clubId,
+          teamId: data.teamId,
+          createdById: data.createdById,
+          title: data.title,
+          type: data.type,
+          intervalWeeks: data.intervalWeeks,
+          startsAt: data.date,
+          until: data.until,
+          location: data.location ?? null,
+          notes: data.notes ?? null,
+        },
+      })
 
-    const events = await this.prisma.$transaction(
-      dates.map((date) =>
-        this.prisma.event.create({
+      const events = await Promise.all(
+        dates.map((date) =>
+          tx.event.create({
           data: {
             title: data.title,
             type: data.type,
@@ -270,9 +371,12 @@ export class EventsService {
             clubId,
             seriesId: series.id,
           },
-        }),
-      ),
-    )
+          }),
+        ),
+      )
+
+      return { series, events }
+    })
 
     const first = events[0]
     this.eventsGateway.emitEventUpsert(first.teamId, first.id)
@@ -283,11 +387,17 @@ export class EventsService {
         }`,
       )
     })
-    await this.chatService.postSystemNotice({
+    void this.chatService.postSystemNotice({
       teamId: first.teamId,
       clubId,
       actorId: data.createdById,
       content: `${first.title}: ${formatEventDate(first.date)} · ×${events.length}`,
+    }).catch((err) => {
+      this.pushLogger.warn(
+        `EVENT_CREATED chat notice failed for series ${series.id}: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      )
     })
 
     return { series, events }
@@ -935,12 +1045,16 @@ export class EventsService {
       notes?: string
     },
     scope: 'this' | 'following' = 'this',
+    expectedClubId?: string,
   ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
 
     if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+    if (expectedClubId && event.clubId !== expectedClubId) {
       throw new NotFoundException('Event not found')
     }
 
@@ -957,65 +1071,65 @@ export class EventsService {
 
     const dateMoves =
       data.date !== undefined && data.date.getTime() !== event.date.getTime()
-    const updated = await this.prisma.event.update({
-      where: { id: eventId },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.type !== undefined && { type: data.type }),
-        ...(data.date !== undefined && { date: data.date }),
-        // A moved date re-opens the question: answers given before it are
-        // kept but flagged, so nobody is counted in for a time they never saw.
-        ...(dateMoves && { rescheduledAt: new Date() }),
-        ...(data.location !== undefined && { location: data.location }),
-        ...(data.notes !== undefined && { notes: data.notes }),
-      },
-    })
-
-    // "This and following": the same edit lands on every later occurrence
-    // of the series that is still on. A moved date moves them all by the
-    // same amount, so a Tuesday series stays a Tuesday series.
-    let followingCount = 0
-    if (scope === 'following' && event.seriesId) {
-      const shiftMs = dateMoves && data.date ? data.date.getTime() - event.date.getTime() : 0
-      const later = await this.prisma.event.findMany({
-        where: {
-          seriesId: event.seriesId,
-          id: { not: eventId },
-          date: { gt: event.date },
-          cancelledAt: null,
-        },
-        select: { id: true, date: true },
-      })
-      if (later.length > 0) {
-        await this.prisma.$transaction(
-          later.map((row) =>
-            this.prisma.event.update({
-              where: { id: row.id },
-              data: {
-                ...(data.title !== undefined && { title: data.title }),
-                ...(data.type !== undefined && { type: data.type }),
-                ...(data.location !== undefined && { location: data.location }),
-                ...(data.notes !== undefined && { notes: data.notes }),
-                ...(shiftMs !== 0 && {
-                  date: new Date(row.date.getTime() + shiftMs),
-                  rescheduledAt: new Date(),
-                }),
-              },
-            }),
-          ),
-        )
-        followingCount = later.length
-      }
-      await this.prisma.eventSeries.update({
-        where: { id: event.seriesId },
+    const { updated, followingCount } = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.event.update({
+        where: { id: eventId },
         data: {
           ...(data.title !== undefined && { title: data.title }),
           ...(data.type !== undefined && { type: data.type }),
+          ...(data.date !== undefined && { date: data.date }),
+          // A moved date re-opens the question: answers given before it are
+          // kept but flagged, so nobody is counted in for a time they never saw.
+          ...(dateMoves && { rescheduledAt: new Date() }),
           ...(data.location !== undefined && { location: data.location }),
           ...(data.notes !== undefined && { notes: data.notes }),
         },
       })
-    }
+
+      // "This and following": the same edit lands on every later occurrence
+      // of the series that is still on. A moved date moves them all by the
+      // same amount, so a Tuesday series stays a Tuesday series.
+      let followingCount = 0
+      if (scope === 'following' && event.seriesId) {
+        const shiftMs = dateMoves && data.date ? data.date.getTime() - event.date.getTime() : 0
+        const later = await tx.event.findMany({
+          where: {
+            seriesId: event.seriesId,
+            id: { not: eventId },
+            date: { gt: event.date },
+            cancelledAt: null,
+          },
+          select: { id: true, date: true },
+        })
+        for (const row of later) {
+          await tx.event.update({
+            where: { id: row.id },
+            data: {
+              ...(data.title !== undefined && { title: data.title }),
+              ...(data.type !== undefined && { type: data.type }),
+              ...(data.location !== undefined && { location: data.location }),
+              ...(data.notes !== undefined && { notes: data.notes }),
+              ...(shiftMs !== 0 && {
+                date: new Date(row.date.getTime() + shiftMs),
+                rescheduledAt: new Date(),
+              }),
+            },
+          })
+        }
+        followingCount = later.length
+        await tx.eventSeries.update({
+          where: { id: event.seriesId },
+          data: {
+            ...(data.title !== undefined && { title: data.title }),
+            ...(data.type !== undefined && { type: data.type }),
+            ...(data.location !== undefined && { location: data.location }),
+            ...(data.notes !== undefined && { notes: data.notes }),
+          },
+        })
+      }
+
+      return { updated, followingCount }
+    })
 
     // Realtime: broadcast the change so subscribed clients refresh the event.
     this.eventsGateway.emitEventUpsert(updated.teamId, updated.id)
@@ -1051,13 +1165,19 @@ export class EventsService {
             }`,
           )
         })
-      await this.chatService.postSystemNotice({
+      void this.chatService.postSystemNotice({
         teamId: updated.teamId,
         clubId,
         actorId: userId,
         content: `${updated.title}: ${date}${updated.location ? ` · ${updated.location}` : ''}${
           followingCount > 0 ? ` (+${followingCount})` : ''
         }`,
+      }).catch((error: unknown) => {
+        this.pushLogger.warn(
+          `EVENT_UPDATED chat notice failed for event ${updated.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
       })
     }
 
@@ -1069,12 +1189,16 @@ export class EventsService {
     userId: string,
     reason?: string,
     scope: 'this' | 'following' = 'this',
+    expectedClubId?: string,
   ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
 
     if (!event) {
+      throw new NotFoundException('Event not found')
+    }
+    if (expectedClubId && event.clubId !== expectedClubId) {
       throw new NotFoundException('Event not found')
     }
 
@@ -1086,33 +1210,39 @@ export class EventsService {
 
     await this.archiveExpiredEvents(event.teamId)
 
-    // Soft-delete: mark as cancelled rather than hard delete. The row stays
-    // in upcoming feeds until its date passes so the squad sees the change
-    // in the schedule, not only in a push they may have swiped away.
-    const cancelled = await this.prisma.event.update({
-      where: { id: eventId },
-      data: { cancelledAt: new Date(), cancelReason: reason?.trim() || null },
-    })
+    const cancelReason = reason?.trim() || null
+    const cancelledAt = new Date()
+    const { cancelled, followingCount } = await this.prisma.$transaction(async (tx) => {
+      // Soft-delete: mark as cancelled rather than hard delete. The row stays
+      // in upcoming feeds until its date passes so the squad sees the change
+      // in the schedule, not only in a push they may have swiped away.
+      const cancelled = await tx.event.update({
+        where: { id: eventId },
+        data: { cancelledAt, cancelReason },
+      })
 
-    // "This and following" cancels the rest of the series in one go, with one
-    // notification for the lot rather than one per occurrence.
-    let followingCount = 0
-    if (scope === 'following' && event.seriesId) {
-      const result = await this.prisma.event.updateMany({
-        where: {
-          seriesId: event.seriesId,
-          id: { not: eventId },
-          date: { gt: event.date },
-          cancelledAt: null,
-        },
-        data: { cancelledAt: new Date(), cancelReason: reason?.trim() || null },
-      })
-      followingCount = result.count
-      await this.prisma.eventSeries.update({
-        where: { id: event.seriesId },
-        data: { until: event.date },
-      })
-    }
+      // "This and following" cancels the rest of the series in one go, with one
+      // notification for the lot rather than one per occurrence.
+      let followingCount = 0
+      if (scope === 'following' && event.seriesId) {
+        const result = await tx.event.updateMany({
+          where: {
+            seriesId: event.seriesId,
+            id: { not: eventId },
+            date: { gt: event.date },
+            cancelledAt: null,
+          },
+          data: { cancelledAt, cancelReason },
+        })
+        followingCount = result.count
+        await tx.eventSeries.update({
+          where: { id: event.seriesId },
+          data: { until: event.date },
+        })
+      }
+
+      return { cancelled, followingCount }
+    })
 
     this.eventsGateway.emitEventUpsert(cancelled.teamId, cancelled.id)
 
@@ -1140,13 +1270,19 @@ export class EventsService {
           }`,
         )
       })
-    await this.chatService.postSystemNotice({
+    void this.chatService.postSystemNotice({
       teamId: cancelled.teamId,
       clubId,
       actorId: userId,
       content: `${cancelled.title} (${date}${followingCount > 0 ? ` +${followingCount}` : ''})${
         cancelled.cancelReason ? `: ${cancelled.cancelReason}` : ''
       }`,
+    }).catch((error: unknown) => {
+      this.pushLogger.warn(
+        `EVENT_CANCELLED chat notice failed for event ${cancelled.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
     })
 
     return cancelled

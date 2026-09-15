@@ -39,6 +39,7 @@ export class EventsController {
   @RateLimit('write')
   async create(
     @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
     @Body() body: unknown,
   ) {
     const data = createEventSchema.parse(body)
@@ -51,6 +52,7 @@ export class EventsController {
       notes: data.notes,
       teamId: data.teamId,
       createdById: user.id,
+      clubId,
     })
   }
 
@@ -116,6 +118,7 @@ export class EventsController {
   @RateLimit('write')
   async createSeries(
     @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
     @Body() body: unknown,
   ) {
     const data = createEventSeriesSchema.parse(body)
@@ -127,6 +130,7 @@ export class EventsController {
       notes: data.notes,
       teamId: data.teamId,
       createdById: user.id,
+      clubId,
       intervalWeeks: data.repeat.intervalWeeks,
       until: new Date(data.repeat.until),
     })
@@ -136,6 +140,7 @@ export class EventsController {
   @RateLimit('write')
   async update(
     @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
@@ -151,6 +156,7 @@ export class EventsController {
         notes: data.notes,
       },
       data.scope ?? 'this',
+      clubId,
     )
   }
 
@@ -162,11 +168,12 @@ export class EventsController {
   @RateLimit('write')
   async cancel(
     @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
     const data = cancelEventSchema.parse(body ?? {})
-    return this.eventsService.cancel(eventId, user.id, data.reason, data.scope ?? 'this')
+    return this.eventsService.cancel(eventId, user.id, data.reason, data.scope ?? 'this', clubId)
   }
 
   /**
