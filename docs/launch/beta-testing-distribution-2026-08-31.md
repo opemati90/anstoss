@@ -1,16 +1,17 @@
 # Beta testing distribution (current release)
 
-Last verified: 2026-08-31 18:32 UTC
+Last verified: 2026-09-15 21:28 UTC
 
 This is the exact flow to get users on both App Store and Google Play right now.
 
 ## iOS (TestFlight)
 
 1. Open TestFlight in App Store Connect for App ID `6761143230`
-2. Use one of these active submissions for build `1.0.0 (69)`:
-   - `22ae3ab9-fe16-455e-bba5-2d78d8903085`
-   - `f4fc0963-1a33-46db-907c-8d945f433f34`
-   - `9dd0ff9c-9d2c-42ba-a442-23a2366cc9f2`
+2. Use the current submitted build `1.0.0 (80)`:
+   - Build ID: `6791b5fb-ef33-4bd7-bfe9-d673dd2bf9d1`
+   - Commit: `1378ccf4ecf2c2d8495621ea6ff8db5ee99cfdc2`
+   - Submission ID: `022bf1b6-9796-4363-bc92-3900f0d21f5b`
+   - Submission status at verification: `FINISHED`
 3. Add/verify the users in the internal testing group (this is why users currently cannot see/download).
 4. Ask users to install TestFlight, accept invite email, and install the app.
 5. After install, verify:
@@ -20,8 +21,9 @@ This is the exact flow to get users on both App Store and Google Play right now.
    - Chat send/receive
    - Contributions + account deletion path
 
-If iOS install is still blocked, open the latest submission in ASC and confirm the
-build has left `in queue` and is in `internal: in beta testing`.
+If iOS install is still blocked, open the latest submission in ASC and confirm
+Apple has completed its post-upload processing and the build is available to the
+internal testing group.
 
 ## Android (fastest for external users)
 
@@ -42,10 +44,12 @@ Steps:
 
 ### B) Google Play internal testing (production artifact)
 
-1. Upload this AAB in Play Console:
-   - AAB: `https://expo.dev/artifacts/eas/cBf6cjq0rN3tWdJihhTjVZEqcCncMA6QpkH9mBQjxZk.aab`
-   - Build ID: `b8e8c0ff-d30e-4675-9702-f1efb0c5da7f`
-   - Version code: `10`
+1. Upload the latest production AAB in Play Console. Current status:
+   - Build ID: `186421d4-98a0-42cd-b855-d6043382bd0f`
+   - Version code: `17`
+   - Commit: `1378ccf4ecf2c2d8495621ea6ff8db5ee99cfdc2`
+   - Status at verification: `IN_QUEUE` on EAS; do not upload an older AAB unless
+     this build fails and a replacement is produced.
 2. In Play Console, create a Play internal testing track and add tester group.
 3. Open the generated opt-in URL and send it to testers.
 4. If you only need quick testing, continue with direct APK while Google Play review is pending.
