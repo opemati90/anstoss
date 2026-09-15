@@ -1,6 +1,6 @@
 # Beta testing distribution (current release)
 
-Last verified: 2026-09-15 21:28 UTC
+Last verified: 2026-09-15 22:00 UTC
 
 This is the exact flow to get users on both App Store and Google Play right now.
 
@@ -29,7 +29,8 @@ internal testing group.
 
 ### A) Direct APK download from EAS (preview build)
 
-Use this only for testing before Google Play rollout:
+Use this only for quick ad-hoc testing before Google Play rollout. It is not the
+current Play production artifact:
 
 - APK: `https://expo.dev/artifacts/eas/45zFNTKDAuwIlbbdyEFarjCG1iaCk2GL-QldvMbP-C0.apk`
 - Build: `6c876ee7-f67a-481b-99fb-65148bc28563`
@@ -44,12 +45,12 @@ Steps:
 
 ### B) Google Play internal testing (production artifact)
 
-1. Upload the latest production AAB in Play Console. Current status:
+1. Upload the latest production AAB in Play Console:
+   - AAB: `https://expo.dev/artifacts/eas/iua2LOxIz4E7VSRFLjchNwukIZKu-EEuw4hbOWY8JdM.aab`
    - Build ID: `186421d4-98a0-42cd-b855-d6043382bd0f`
    - Version code: `17`
    - Commit: `1378ccf4ecf2c2d8495621ea6ff8db5ee99cfdc2`
-   - Status at verification: `IN_QUEUE` on EAS; do not upload an older AAB unless
-     this build fails and a replacement is produced.
+   - Status at verification: `FINISHED` on EAS
 2. In Play Console, create a Play internal testing track and add tester group.
 3. Open the generated opt-in URL and send it to testers.
 4. If you only need quick testing, continue with direct APK while Google Play review is pending.

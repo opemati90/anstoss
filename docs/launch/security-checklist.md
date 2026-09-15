@@ -53,9 +53,12 @@ This maps the common "vibe-coder launch" checklist to Anstoss as of the current
 - Review Prisma tenant fail-open read warnings in logs after staging traffic.
   Those reads rely on service-level authorization and should be promoted to
   fail-closed route by route where feasible.
-- Triage `npm audit --omit=dev` before launch. Current remediation requires
-  planned major upgrades across Nest/Express and Expo/React Native dependency
-  trees, not a blind `npm audit fix --force`.
+- Production dependency audit is clean as of 2026-09-15:
+  `npm audit --omit=dev` reports `0` vulnerabilities. The lockfile keeps
+  launch-safe transitive overrides for Nest uploads (`multer@2.4.0`), Expo
+  plist/XML handling (`@xmldom/xmldom@0.9.12`) and Expo Router's query parser
+  leaf dependency (`decode-uri-component@0.5.0`) instead of using a blind
+  major-version `npm audit fix --force`.
 - Run App Store privacy labels and Google Play Data Safety review against the
   current privacy manifest and policy copy before submission.
 - Create the packaged internal admin static service (`apps/admin/railway.toml`),

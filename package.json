@@ -15,7 +15,7 @@
     "android": "npm run android --workspace @anstoss/mobile",
     "ios": "npm run ios --workspace @anstoss/mobile",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "postinstall": "npx patch-package && (cd packages/shared && npx tsc || true)",
+    "postinstall": "npx patch-package && npx prisma generate --schema apps/api/prisma/schema.prisma && (cd packages/shared && npx tsc || true)",
     "audit:coverage": "tsx scripts/audit-coverage.ts",
     "audit:store": "tsx scripts/store-readiness.ts",
     "codemod:colors": "jscodeshift -t scripts/codemods/no-raw-colors-codemod.ts --extensions=tsx --parser=tsx 'apps/mobile/app/**/*.tsx' 'apps/mobile/src/components/**/*.tsx'",
@@ -39,7 +39,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native-safe-area-context": "5.7.0",
-    "react-server-dom-webpack": "19.2.7",
+    "react-server-dom-webpack": "19.2.8",
     "react-test-renderer": "19.2.3",
     "tsx": "^4.21.0",
     "turbo": "^2.3.0"
@@ -64,19 +64,20 @@
     "metro": "0.84.5",
     "metro-config": "0.84.5",
     "metro-transform-worker": "0.84.5",
-    "@nestjs/platform-express@11.1.27": {
-      "multer": "npm:multer@2.2.0"
+    "@nestjs/platform-express": {
+      "multer": "2.4.0"
     },
     "@nestjs/swagger": {
       "js-yaml": "5.2.3"
     },
-    "@xmldom/xmldom": "0.8.13",
+    "@xmldom/xmldom": "0.9.12",
+    "decode-uri-component": "0.5.0",
     "expo-application": "~57.0.3",
     "expo-auth-session": "~57.0.12",
     "expo-crypto": "~57.0.3",
     "expo-web-browser": "~57.0.3",
     "file-type": "21.3.4",
-    "multer": "npm:multer@2.2.0",
+    "multer": "2.4.0",
     "postcss": "8.5.26",
     "qs": "6.16.0",
     "tar": "7.5.17",
