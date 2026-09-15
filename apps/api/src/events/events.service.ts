@@ -222,6 +222,29 @@ function addWeeksPreservingWallTime(
   return zonedWallTimeToUtc(getZonedParts(targetWall, 'UTC'), timeZone)
 }
 
+function getWallTimeMs(date: Date, timeZone = SERIES_TIME_ZONE) {
+  const parts = getZonedParts(date, timeZone)
+  return Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+}
+
+function shiftByZonedWallDelta(
+  date: Date,
+  from: Date,
+  to: Date,
+  timeZone = SERIES_TIME_ZONE,
+) {
+  const deltaMs = getWallTimeMs(to, timeZone) - getWallTimeMs(from, timeZone)
+  const shiftedWall = new Date(getWallTimeMs(date, timeZone) + deltaMs)
+  return zonedWallTimeToUtc(getZonedParts(shiftedWall, 'UTC'), timeZone)
+}
+
 function buildSeriesDates(first: Date, until: Date, intervalWeeks: 1 | 2) {
   if (until.getTime() < first.getTime()) {
     throw new BadRequestException('Repeat end must be on or after the first date')
@@ -1091,7 +1114,21 @@ export class EventsService {
       // same amount, so a Tuesday series stays a Tuesday series.
       let followingCount = 0
       if (scope === 'following' && event.seriesId) {
-        const shiftMs = dateMoves && data.date ? data.date.getTime() - event.date.getTime() : 0
+        const series = dateMoves
+          ? await tx.eventSeries.findUnique({
+              where: { id: event.seriesId },
+              select: { startsAt: true, until: true },
+            })
+          : null
+        const earlierCount = dateMoves
+          ? await tx.event.count({
+              where: {
+                seriesId: event.seriesId,
+                id: { not: eventId },
+                date: { lt: event.date },
+              },
+            })
+          : 1
         const later = await tx.event.findMany({
           where: {
             seriesId: event.seriesId,
@@ -1109,8 +1146,8 @@ export class EventsService {
               ...(data.type !== undefined && { type: data.type }),
               ...(data.location !== undefined && { location: data.location }),
               ...(data.notes !== undefined && { notes: data.notes }),
-              ...(shiftMs !== 0 && {
-                date: new Date(row.date.getTime() + shiftMs),
+              ...(dateMoves && data.date && {
+                date: shiftByZonedWallDelta(row.date, event.date, data.date),
                 rescheduledAt: new Date(),
               }),
             },
@@ -1124,6 +1161,12 @@ export class EventsService {
             ...(data.type !== undefined && { type: data.type }),
             ...(data.location !== undefined && { location: data.location }),
             ...(data.notes !== undefined && { notes: data.notes }),
+            ...(dateMoves &&
+              data.date &&
+              series && {
+                ...(earlierCount === 0 && { startsAt: data.date }),
+                until: shiftByZonedWallDelta(series.until, event.date, data.date),
+              }),
           },
         })
       }

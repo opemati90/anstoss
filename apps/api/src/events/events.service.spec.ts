@@ -24,6 +24,7 @@ describe('EventsService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
+        count: jest.fn().mockResolvedValue(1),
       },
       membership: {
         findUnique: jest.fn().mockResolvedValue({
@@ -51,6 +52,10 @@ describe('EventsService', () => {
       eventSeries: {
         create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'series-1', ...data })),
         update: jest.fn().mockResolvedValue({ id: 'series-1' }),
+        findUnique: jest.fn().mockResolvedValue({
+          startsAt: new Date('2027-03-02T18:30:00.000Z'),
+          until: new Date('2027-04-13T16:30:00.000Z'),
+        }),
       },
       $transaction: jest.fn(async (ops: Promise<unknown>[] | ((tx: any) => Promise<unknown>)) =>
         Array.isArray(ops) ? Promise.all(ops) : ops(mockPrisma),
@@ -1043,6 +1048,98 @@ describe('EventsService', () => {
       expect(laterUpdate[0].data.date.getTime()).toBe(laterDate.getTime() + 3_600_000)
       expect(laterUpdate[0].data.rescheduledAt).toBeInstanceOf(Date)
       expect(mockPrisma.eventSeries.update).toHaveBeenCalled()
+    })
+
+    it('keeps following occurrence edits on the same Berlin wall-clock time across DST', async () => {
+      const seriesEvent = {
+        ...baseEvent,
+        seriesId: 'series-1',
+        // 2027-03-23 18:30 Europe/Berlin, before spring DST.
+        date: new Date('2027-03-23T17:30:00.000Z'),
+      }
+      const moved = new Date('2027-03-30T16:30:00.000Z') // 18:30 after DST starts.
+      const laterDate = new Date('2027-04-06T16:30:00.000Z') // 18:30 Berlin.
+      mockPrisma.event.findUnique.mockResolvedValue(seriesEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...seriesEvent, date: moved })
+      mockPrisma.event.findMany.mockResolvedValue([{ id: 'evt-2', date: laterDate }])
+      mockPrisma.eventSeries.findUnique.mockResolvedValue({
+        startsAt: new Date('2027-03-23T17:30:00.000Z'),
+        until: new Date('2027-04-20T16:30:00.000Z'),
+      })
+
+      await service.update('evt-1', 'user-1', { date: moved }, 'following')
+
+      const laterUpdate = mockPrisma.event.update.mock.calls.find(
+        (call: any[]) => call[0].where.id === 'evt-2',
+      )
+      expect(laterUpdate[0].data.date.toISOString()).toBe('2027-04-13T16:30:00.000Z')
+      expect(mockPrisma.eventSeries.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            until: new Date('2027-04-27T16:30:00.000Z'),
+          }),
+        }),
+      )
+    })
+
+    it('updates series startsAt when the first occurrence moves with following scope', async () => {
+      const seriesEvent = {
+        ...baseEvent,
+        seriesId: 'series-1',
+        date: new Date('2027-03-23T17:30:00.000Z'),
+      }
+      const moved = new Date('2027-03-30T16:30:00.000Z')
+      mockPrisma.event.findUnique.mockResolvedValue(seriesEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...seriesEvent, date: moved })
+      mockPrisma.event.findMany.mockResolvedValue([])
+      mockPrisma.event.count.mockResolvedValueOnce(0)
+      mockPrisma.eventSeries.findUnique.mockResolvedValue({
+        startsAt: seriesEvent.date,
+        until: new Date('2027-04-20T16:30:00.000Z'),
+      })
+
+      await service.update('evt-1', 'user-1', { date: moved }, 'following')
+
+      expect(mockPrisma.eventSeries.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            startsAt: moved,
+            until: new Date('2027-04-27T16:30:00.000Z'),
+          }),
+        }),
+      )
+    })
+
+    it('keeps following occurrence edits on the same Berlin wall-clock time across fall DST', async () => {
+      const seriesEvent = {
+        ...baseEvent,
+        seriesId: 'series-1',
+        // 2027-10-26 18:30 Europe/Berlin, before fall DST ends.
+        date: new Date('2027-10-26T16:30:00.000Z'),
+      }
+      const moved = new Date('2027-11-02T17:30:00.000Z') // 18:30 after DST ends.
+      const laterDate = new Date('2027-11-09T17:30:00.000Z') // 18:30 Berlin.
+      mockPrisma.event.findUnique.mockResolvedValue(seriesEvent)
+      mockPrisma.event.update.mockResolvedValue({ ...seriesEvent, date: moved })
+      mockPrisma.event.findMany.mockResolvedValue([{ id: 'evt-2', date: laterDate }])
+      mockPrisma.eventSeries.findUnique.mockResolvedValue({
+        startsAt: new Date('2027-10-26T16:30:00.000Z'),
+        until: new Date('2027-11-23T17:30:00.000Z'),
+      })
+
+      await service.update('evt-1', 'user-1', { date: moved }, 'following')
+
+      const laterUpdate = mockPrisma.event.update.mock.calls.find(
+        (call: any[]) => call[0].where.id === 'evt-2',
+      )
+      expect(laterUpdate[0].data.date.toISOString()).toBe('2027-11-16T17:30:00.000Z')
+      expect(mockPrisma.eventSeries.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            until: new Date('2027-11-30T17:30:00.000Z'),
+          }),
+        }),
+      )
     })
 
     it('stamps rescheduledAt only when the date actually moves', async () => {
