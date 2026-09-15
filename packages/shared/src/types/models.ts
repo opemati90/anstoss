@@ -129,6 +129,24 @@ export interface Event {
   cancelReason?: string | null
   /** When the date last moved. Replies older than this are asked for again. */
   rescheduledAt?: string | null
+  /** Present when the event is one occurrence of a recurring series. */
+  seriesId?: string | null
+  /** The rule behind seriesId, when the response carries it. */
+  series?: { id: string; intervalWeeks: number; until: string } | null
+}
+
+export interface EventSeries {
+  id: string
+  clubId: string
+  teamId: string
+  title: string
+  type: 'TRAINING' | 'MATCH' | 'OTHER'
+  intervalWeeks: number
+  startsAt: string
+  until: string
+  location: string | null
+  notes: string | null
+  createdAt: string
 }
 
 export interface EventFeedItem extends Event {

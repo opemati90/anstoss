@@ -16,10 +16,35 @@ export const createEventSchema = z.object({
 
 export type CreateEventInput = z.infer<typeof createEventSchema>
 
+/** Which occurrences an edit or cancel applies to, for series events. */
+export const eventEditScopeSchema = z.enum(['this', 'following'])
+export type EventEditScope = z.infer<typeof eventEditScopeSchema>
+
 /** Body of DELETE /events/:id — a soft cancel with an optional one-line reason. */
 export const cancelEventSchema = z.object({
   reason: z.string().trim().max(200).optional(),
+  scope: eventEditScopeSchema.optional(),
 })
+
+export const MAX_SERIES_OCCURRENCES = 52
+
+/** A recurring event: the first occurrence plus the rule. */
+export const createEventSeriesSchema = createEventSchema.extend({
+  repeat: z
+    .object({
+      intervalWeeks: z.union([z.literal(1), z.literal(2)]),
+      until: z.string().refine((val) => !isNaN(new Date(val).getTime()), 'Invalid until date'),
+    }),
+}).refine(
+  (data) => {
+    const first = new Date(data.date).getTime()
+    const until = new Date(data.repeat.until).getTime()
+    const weeks = (until - first) / (7 * 24 * 60 * 60 * 1000)
+    return until >= first && weeks / data.repeat.intervalWeeks <= MAX_SERIES_OCCURRENCES
+  },
+  { message: 'Repeat end must be after the first date and within a year', path: ['repeat', 'until'] },
+)
+export type CreateEventSeriesInput = z.infer<typeof createEventSeriesSchema>
 
 export type CancelEventInput = z.infer<typeof cancelEventSchema>
 
@@ -32,6 +57,8 @@ export const updateEventSchema = z.object({
   }, 'Event date must be in the future').optional(),
   location: z.string().max(200).optional(),
   notes: z.string().max(1000).optional(),
+  /** Series events: apply to this occurrence or to this and all following. */
+  scope: z.enum(['this', 'following']).optional(),
 })
 
 export type UpdateEventInput = z.infer<typeof updateEventSchema>

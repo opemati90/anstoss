@@ -28,6 +28,10 @@ const mockT = (key: string) => {
     'event.title': 'Title',
     'event.date': 'Date',
     'event.time': 'Time',
+    'event.repeat.label': 'Repeat',
+    'event.repeat.none': 'Never',
+    'event.repeat.weekly': 'Every week',
+    'event.repeat.biweekly': 'Every 2 weeks',
     'event.locationOptional': 'Location',
     'event.notesOptional': 'Notes',
     'event.placeholders.TRAINING': 'Training session',
@@ -153,9 +157,13 @@ describe('CreateEventScreen', () => {
     const screen = render(<CreateEventScreen />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('event-team-team-2')).toBeTruthy()
+      expect(screen.getByLabelText('Team: U15')).toBeTruthy()
     })
 
+    fireEvent.press(screen.getByLabelText('Team: U15'))
+    await waitFor(() => {
+      expect(screen.getByTestId('event-team-team-2')).toBeTruthy()
+    })
     fireEvent.press(screen.getByTestId('event-team-team-2'))
     fireEvent.changeText(
       screen.getByPlaceholderText('Training session'),
