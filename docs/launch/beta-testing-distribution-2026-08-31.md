@@ -1,16 +1,16 @@
 # Beta testing distribution (current release)
 
-Last verified: 2026-09-15 22:00 UTC
+Last verified: 2026-09-16 10:37 UTC
 
 This is the exact flow to get users on both App Store and Google Play right now.
 
 ## iOS (TestFlight)
 
 1. Open TestFlight in App Store Connect for App ID `6761143230`
-2. Use the current submitted build `1.0.0 (80)`:
-   - Build ID: `6791b5fb-ef33-4bd7-bfe9-d673dd2bf9d1`
-   - Commit: `1378ccf4ecf2c2d8495621ea6ff8db5ee99cfdc2`
-   - Submission ID: `022bf1b6-9796-4363-bc92-3900f0d21f5b`
+2. Use the current submitted build `1.0.0 (82)`:
+   - Build ID: `175fc0f2-68c2-4b56-ab3f-ef0ba217b0c9`
+   - Commit: `ee8809c38c44d0d3a36cebb04d1e5bd9f427bd52`
+   - Submission ID: `277ceefe-87f5-48c5-9f70-c04aac3035be`
    - Submission status at verification: `FINISHED`
 3. Add/verify the users in the internal testing group (this is why users currently cannot see/download).
 4. Ask users to install TestFlight, accept invite email, and install the app.
@@ -46,10 +46,10 @@ Steps:
 ### B) Google Play internal testing (production artifact)
 
 1. Upload the latest production AAB in Play Console:
-   - AAB: `https://expo.dev/artifacts/eas/iua2LOxIz4E7VSRFLjchNwukIZKu-EEuw4hbOWY8JdM.aab`
-   - Build ID: `186421d4-98a0-42cd-b855-d6043382bd0f`
-   - Version code: `17`
-   - Commit: `1378ccf4ecf2c2d8495621ea6ff8db5ee99cfdc2`
+   - AAB: `https://expo.dev/artifacts/eas/5pLn9n4iUw1TInoijBc4Pn_ZhK0d7fWfNjpysj5UifA.aab`
+   - Build ID: `c81a7bca-600c-4469-965e-74f084b33319`
+   - Version code: `19`
+   - Commit: `ee8809c38c44d0d3a36cebb04d1e5bd9f427bd52`
    - Status at verification: `FINISHED` on EAS
 2. In Play Console, create a Play internal testing track and add tester group.
 3. Open the generated opt-in URL and send it to testers.
