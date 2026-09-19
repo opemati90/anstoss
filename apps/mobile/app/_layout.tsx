@@ -178,6 +178,7 @@ export default function RootLayout() {
               <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="admin-chat-retention" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen
                 name="admin-contribution-plan"
                 options={{ presentation: 'fullScreenModal' }}

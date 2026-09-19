@@ -373,6 +373,21 @@ export default function AdminDashboardScreen() {
         />
       </SectionGroup>
 
+      <SectionGroup
+        header={t('adminDashboard.governance', { defaultValue: 'Governance' })}
+        style={styles.section}
+      >
+        <ListRow
+          left={<SettingsIcon name="checkmark.shield" tint={SettingsIconTint.gray} />}
+          title={t('chatRetention.title', { defaultValue: 'Chat retention' })}
+          subtitle={t('chatRetention.dashboardSubtitle', {
+            defaultValue: 'Set cleanup windows for messages and attachments.',
+          })}
+          showChevron
+          onPress={() => router.push('/admin-chat-retention')}
+        />
+      </SectionGroup>
+
       {validInvites.length > 0 ? (
         <SectionGroup
           header={t('adminDashboard.trialInvites')}

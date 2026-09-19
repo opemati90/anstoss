@@ -125,6 +125,7 @@ describe('AdminDashboardScreen', () => {
       expect(getByText('adminMembers.title')).toBeTruthy()
       expect(getByText('adminBilling.title')).toBeTruthy()
       expect(getByText('clubStats.title')).toBeTruthy()
+      expect(getByText('chatRetention.title')).toBeTruthy()
     })
   })
 
@@ -148,13 +149,16 @@ describe('AdminDashboardScreen', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('more.manageStaff')).toBeTruthy()
       expect(screen.getByLabelText('adminBilling.title')).toBeTruthy()
+      expect(screen.getByLabelText('chatRetention.title')).toBeTruthy()
     })
 
     fireEvent.press(screen.getByLabelText('more.manageStaff'))
     fireEvent.press(screen.getByLabelText('adminBilling.title'))
+    fireEvent.press(screen.getByLabelText('chatRetention.title'))
 
     expect(mockRouterPush).toHaveBeenCalledWith('/club-staff')
     expect(mockRouterPush).toHaveBeenCalledWith('/admin-billing')
+    expect(mockRouterPush).toHaveBeenCalledWith('/admin-chat-retention')
   })
 
   it('keeps non-admin roles out of administration', () => {
