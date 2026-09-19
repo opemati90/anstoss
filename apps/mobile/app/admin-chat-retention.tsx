@@ -295,7 +295,7 @@ function OptionRail({
             key={value}
             label={`${value}d`}
             variant={active ? 'filled' : 'bordered'}
-            size="sm"
+            size="md"
             disabled={disabled || active}
             accessibilityLabel={`${accessibilityPrefix}: ${value} days`}
             accessibilityState={{ selected: active, disabled: disabled || active }}
