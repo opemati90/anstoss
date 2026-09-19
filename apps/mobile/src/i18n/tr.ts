@@ -2630,6 +2630,7 @@ export default {
     shareJoinLinkSubtitle: 'Seçmeler için QR kod olarak paylaşın veya yazdırın',
     shareJoinMessage: 'Anstoss’ta {{clubName}} kulübüne katıl: {{url}}',
     manageSponsors: 'Sponsorları yönet',
+    governance: 'Yönetim',
   },
   sponsors: {
     title: 'Sponsorlar',

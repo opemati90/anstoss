@@ -2266,6 +2266,7 @@ const base = {
     shareJoinLinkSubtitle: 'Condividi o stampa come codice QR per i provini',
     shareJoinMessage: 'Unisciti a {{clubName}} su Anstoss: {{url}}',
     manageSponsors: 'Gestisci sponsor',
+    governance: 'Governance',
   },
   sponsors: {
     title: 'Sponsor',

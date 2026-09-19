@@ -2275,6 +2275,7 @@ const base = {
     shareJoinLinkSubtitle: 'Als QR-Code drucken oder digital teilen',
     shareJoinMessage: 'Tritt {{clubName}} auf Anstoss bei: {{url}}',
     manageSponsors: 'Sponsoren verwalten',
+    governance: 'Verwaltung & Richtlinien',
   },
   sponsors: {
     title: 'Sponsoren',
