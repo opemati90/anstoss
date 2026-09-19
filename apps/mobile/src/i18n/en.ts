@@ -40,6 +40,7 @@ const base = {
   common: {
     save: 'Save',
     cancel: 'Cancel',
+    continue: 'Continue',
     close: 'Close',
     delete: 'Delete',
     edit: 'Edit',
@@ -2221,6 +2222,16 @@ const base = {
     shareJoinMessage: 'Join {{clubName}} on Anstoss: {{url}}',
     manageSponsors: 'Manage sponsors',
     governance: 'Governance',
+  },
+  chatRetention: {
+    title: 'Chat retention', dashboardSubtitle: 'Set cleanup windows for messages and attachments.',
+    guardrailTitle: 'Reports and legal holds are protected', guardrailBody: 'Unresolved reports are never removed automatically.',
+    policySection: 'Club policy', policyFooter: 'Choose a policy approved by your club.',
+    enableTitle: 'Enable retention lifecycle', enabledBody: 'Automatic cleanup is active.', disabledBody: 'Nothing is deleted automatically while this is off.',
+    windowsSection: 'Retention windows', windowsFooter: 'Attachments can expire sooner than messages.',
+    messageWindowTitle: 'Messages', attachmentWindowTitle: 'Attachments', messageWindowValue: '{{days}} days', attachmentWindowValue: '{{days}} days',
+    loadError: 'Could not load chat retention settings.', saveError: 'Could not save chat retention settings. Try again.',
+    confirmTitle: 'Confirm automatic deletion', confirmBody: 'Older messages or attachments may be permanently deleted on the next cleanup. Continue?',
   },
   sponsors: {
     title: 'Sponsors',

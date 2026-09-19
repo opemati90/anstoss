@@ -42,6 +42,7 @@ const base = {
   common: {
     save: 'Enregistrer',
     cancel: 'Annuler',
+    continue: 'Continuer',
     close: 'Fermer',
     delete: 'Supprimer',
     edit: 'Modifier',
@@ -2273,6 +2274,9 @@ const base = {
     shareJoinMessage: 'Rejoins {{clubName}} sur Anstoss : {{url}}',
     manageSponsors: 'Gérer les sponsors',
     governance: 'Gouvernance',
+  },
+  chatRetention: {
+    title: 'Conservation du chat', dashboardSubtitle: 'Définir les délais de nettoyage des messages et pièces jointes.', guardrailTitle: 'Les signalements restent protégés', guardrailBody: 'Les signalements non résolus ne sont jamais supprimés automatiquement.', policySection: 'Politique du club', policyFooter: 'Choisissez une politique approuvée par le club.', enableTitle: 'Activer la conservation', enabledBody: 'Le nettoyage automatique est actif.', disabledBody: 'Rien n’est supprimé automatiquement.', windowsSection: 'Délais de conservation', windowsFooter: 'Les pièces jointes peuvent expirer avant les messages.', messageWindowTitle: 'Messages', attachmentWindowTitle: 'Pièces jointes', messageWindowValue: '{{days}} jours', attachmentWindowValue: '{{days}} jours', loadError: 'Impossible de charger les réglages.', saveError: 'Impossible d’enregistrer les réglages.', confirmTitle: 'Confirmer la suppression automatique', confirmBody: 'Des messages ou pièces jointes anciens peuvent être supprimés définitivement. Continuer ?',
   },
   sponsors: {
     title: 'Sponsors',

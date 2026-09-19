@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, RefreshControl, StyleSheet, Switch, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChatRetentionSettings } from '@anstoss/shared'
@@ -28,6 +28,16 @@ export default function AdminChatRetentionScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const clubIdRef = useRef(clubId)
+  const requestRef = useRef(0)
+
+  useEffect(() => {
+    clubIdRef.current = clubId
+    requestRef.current += 1
+    setSettings(null)
+    setError(null)
+    setLoading(canManageRetention && Boolean(clubId))
+  }, [canManageRetention, clubId])
 
   const load = useCallback(async () => {
     if (!canManageRetention) {
@@ -38,11 +48,15 @@ export default function AdminChatRetentionScreen() {
       setLoading(false)
       return
     }
+    const requestId = ++requestRef.current
+    const requestClubId = clubId
     try {
       const data = await api<ChatRetentionSettings>(`/clubs/${clubId}/chat/retention`)
+      if (requestId !== requestRef.current || clubIdRef.current !== requestClubId) return
       setSettings(data)
       setError(null)
     } catch {
+      if (requestId !== requestRef.current || clubIdRef.current !== requestClubId) return
       setError(
         t('chatRetention.loadError', {
           defaultValue: 'Could not load chat retention settings.',
@@ -68,6 +82,29 @@ export default function AdminChatRetentionScreen() {
 
   const updateSettings = async (next: Partial<ChatRetentionSettings>) => {
     if (!clubId || !settings) return
+    const current = settings
+    const shortening =
+      (next.messageRetentionDays !== undefined &&
+        next.messageRetentionDays < current.messageRetentionDays) ||
+      (next.attachmentRetentionDays !== undefined &&
+        next.attachmentRetentionDays < current.attachmentRetentionDays)
+    if ((next.enabled === true && !current.enabled) || (current.enabled && shortening)) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          t('chatRetention.confirmTitle', { defaultValue: 'Confirm automatic deletion' }),
+          t('chatRetention.confirmBody', {
+            defaultValue: 'Older messages or attachments may be permanently deleted on the next cleanup. Continue?',
+          }),
+          [
+            { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('common.continue', { defaultValue: 'Continue' }), style: 'destructive', onPress: () => resolve(true) },
+          ],
+        )
+      })
+      if (!confirmed) return
+    }
+    const mutationClubId = clubId
+    const requestId = ++requestRef.current
     const optimistic = { ...settings, ...next }
     setSettings(optimistic)
     setSaving(true)
@@ -76,10 +113,11 @@ export default function AdminChatRetentionScreen() {
         method: 'PATCH',
         body: next,
       })
+      if (requestId !== requestRef.current || clubIdRef.current !== mutationClubId) return
       setSettings(updated)
       setError(null)
     } catch {
-      setSettings(settings)
+      if (requestId === requestRef.current && clubIdRef.current === mutationClubId) setSettings(current)
       Alert.alert(
         t('common.errorTitle', { defaultValue: 'Something went wrong' }),
         t('chatRetention.saveError', {
@@ -260,6 +298,7 @@ function OptionRail({
             size="sm"
             disabled={disabled || active}
             accessibilityLabel={`${accessibilityPrefix}: ${value} days`}
+            accessibilityState={{ selected: active, disabled: disabled || active }}
             onPress={() => onSelect(value)}
             style={{
               ...styles.optionButton,
@@ -294,6 +333,7 @@ const styles = StyleSheet.create({
   },
   optionButton: {
     minWidth: 74,
+    minHeight: 44,
   },
   loading: {
     textAlign: 'center',

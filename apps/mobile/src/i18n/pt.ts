@@ -40,6 +40,7 @@ const base = {
   common: {
     save: 'Guardar',
     cancel: 'Cancelar',
+    continue: 'Continuar',
     close: 'Fechar',
     delete: 'Eliminar',
     edit: 'Editar',
@@ -2256,6 +2257,9 @@ const base = {
     shareJoinMessage: 'Junta-te ao {{clubName}} no Anstoss: {{url}}',
     manageSponsors: 'Gerir patrocinadores',
     governance: 'Governança',
+  },
+  chatRetention: {
+    title: 'Retenção do chat', dashboardSubtitle: 'Defina janelas de limpeza para mensagens e anexos.', guardrailTitle: 'Denúncias protegidas', guardrailBody: 'Denúncias não resolvidas nunca são removidas automaticamente.', policySection: 'Política do clube', policyFooter: 'Escolha uma política aprovada pelo clube.', enableTitle: 'Ativar retenção', enabledBody: 'A limpeza automática está ativa.', disabledBody: 'Nada é eliminado automaticamente.', windowsSection: 'Janelas de retenção', windowsFooter: 'Anexos podem expirar antes das mensagens.', messageWindowTitle: 'Mensagens', attachmentWindowTitle: 'Anexos', messageWindowValue: '{{days}} dias', attachmentWindowValue: '{{days}} dias', loadError: 'Não foi possível carregar as definições.', saveError: 'Não foi possível guardar as definições.', confirmTitle: 'Confirmar eliminação automática', confirmBody: 'Mensagens ou anexos antigos podem ser eliminados permanentemente. Continuar?',
   },
   sponsors: {
     title: 'Patrocinadores',

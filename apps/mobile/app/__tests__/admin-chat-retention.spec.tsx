@@ -1,5 +1,5 @@
 import React from 'react'
-import { Switch } from 'react-native'
+import { Alert, Switch } from 'react-native'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import AdminChatRetentionScreen from '../admin-chat-retention'
 import { api } from '../../src/api/client'
@@ -67,6 +67,13 @@ describe('AdminChatRetentionScreen', () => {
       messageRetentionDays: 365,
       attachmentRetentionDays: 90,
     })
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      buttons?.find((button) => button.style === 'destructive')?.onPress?.()
+    })
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
   })
 
   it('loads chat retention settings for club admins', async () => {

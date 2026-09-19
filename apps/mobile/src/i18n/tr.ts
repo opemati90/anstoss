@@ -147,6 +147,7 @@ export default {
   common: {
     save: 'Kaydet',
     cancel: 'İptal',
+    continue: 'Devam',
     close: 'Kapat',
     delete: 'Sil',
     edit: 'Düzenle',
@@ -2631,6 +2632,9 @@ export default {
     shareJoinMessage: 'Anstoss’ta {{clubName}} kulübüne katıl: {{url}}',
     manageSponsors: 'Sponsorları yönet',
     governance: 'Yönetim',
+  },
+  chatRetention: {
+    title: 'Sohbet saklama', dashboardSubtitle: 'Mesaj ve ekler için temizleme sürelerini ayarlayın.', guardrailTitle: 'Raporlar korunur', guardrailBody: 'Çözülmemiş raporlar otomatik olarak silinmez.', policySection: 'Kulüp politikası', policyFooter: 'Kulübünüzün onayladığı politikayı seçin.', enableTitle: 'Saklama döngüsünü etkinleştir', enabledBody: 'Otomatik temizlik etkin.', disabledBody: 'Kapalıyken hiçbir şey otomatik silinmez.', windowsSection: 'Saklama süreleri', windowsFooter: 'Ekler mesajlardan önce sona erebilir.', messageWindowTitle: 'Mesajlar', attachmentWindowTitle: 'Ekler', messageWindowValue: '{{days}} gün', attachmentWindowValue: '{{days}} gün', loadError: 'Saklama ayarları yüklenemedi.', saveError: 'Saklama ayarları kaydedilemedi.', confirmTitle: 'Otomatik silmeyi onayla', confirmBody: 'Eski mesajlar veya ekler kalıcı olarak silinebilir. Devam edilsin mi?',
   },
   sponsors: {
     title: 'Sponsorlar',

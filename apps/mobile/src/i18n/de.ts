@@ -40,6 +40,7 @@ const base = {
   common: {
     save: 'Speichern',
     cancel: 'Abbrechen',
+    continue: 'Fortfahren',
     close: 'Schließen',
     delete: 'Löschen',
     edit: 'Bearbeiten',
@@ -2276,6 +2277,9 @@ const base = {
     shareJoinMessage: 'Tritt {{clubName}} auf Anstoss bei: {{url}}',
     manageSponsors: 'Sponsoren verwalten',
     governance: 'Verwaltung & Richtlinien',
+  },
+  chatRetention: {
+    title: 'Chat-Aufbewahrung', dashboardSubtitle: 'Löschfristen für Nachrichten und Anhänge festlegen.', guardrailTitle: 'Meldungen und Beweissicherungen bleiben geschützt', guardrailBody: 'Offene Meldungen werden nie automatisch gelöscht.', policySection: 'Vereinsrichtlinie', policyFooter: 'Wähle eine vom Verein freigegebene Richtlinie.', enableTitle: 'Aufbewahrungszyklus aktivieren', enabledBody: 'Automatische Bereinigung ist aktiv.', disabledBody: 'Solange deaktiviert, wird nichts automatisch gelöscht.', windowsSection: 'Aufbewahrungsfristen', windowsFooter: 'Anhänge können früher ablaufen als Nachrichten.', messageWindowTitle: 'Nachrichten', attachmentWindowTitle: 'Anhänge', messageWindowValue: '{{days}} Tage', attachmentWindowValue: '{{days}} Tage', loadError: 'Chat-Aufbewahrung konnte nicht geladen werden.', saveError: 'Chat-Aufbewahrung konnte nicht gespeichert werden.', confirmTitle: 'Automatisches Löschen bestätigen', confirmBody: 'Ältere Nachrichten oder Anhänge können bei der nächsten Bereinigung endgültig gelöscht werden. Fortfahren?',
   },
   sponsors: {
     title: 'Sponsoren',

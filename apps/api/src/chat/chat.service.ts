@@ -58,8 +58,9 @@ export class ChatService {
     clubId: string,
     input: UpdateChatRetentionSettingsInput,
   ): Promise<ChatRetentionSettings> {
-    await this.assertRetentionAdminAccess(userId, clubId)
     const settings = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      await this.assertRetentionAdminAccess(userId, clubId, tx)
       const updated = await tx.clubChatRetentionSettings.upsert({
         where: { clubId },
         create: {
@@ -98,8 +99,8 @@ export class ChatService {
     return toChatRetentionSettings(settings)
   }
 
-  private async assertRetentionAdminAccess(userId: string, clubId: string) {
-    const membership = await this.prisma.membership.findUnique({
+  private async assertRetentionAdminAccess(userId: string, clubId: string, db: any = this.prisma) {
+    const membership = await db.membership.findUnique({
       where: { userId_clubId: { userId, clubId } },
     })
     if (!membership) throw new NotFoundException('Club membership not found')

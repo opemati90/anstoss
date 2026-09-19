@@ -28,6 +28,7 @@ function makeService(role: 'OWNER' | 'ADMIN' | 'COACH' | null) {
       ),
     },
     auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
+    $executeRaw: jest.fn().mockResolvedValue(0),
   }
   prisma.$transaction = jest.fn((operation: (tx: typeof prisma) => unknown) => operation(prisma))
 

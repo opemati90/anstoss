@@ -41,6 +41,7 @@ const base = {
   common: {
     save: 'Salva',
     cancel: 'Annulla',
+    continue: 'Continua',
     close: 'Chiudi',
     delete: 'Elimina',
     edit: 'Modifica',
@@ -2267,6 +2268,9 @@ const base = {
     shareJoinMessage: 'Unisciti a {{clubName}} su Anstoss: {{url}}',
     manageSponsors: 'Gestisci sponsor',
     governance: 'Governance',
+  },
+  chatRetention: {
+    title: 'Conservazione chat', dashboardSubtitle: 'Imposta le finestre di pulizia per messaggi e allegati.', guardrailTitle: 'Segnalazioni protette', guardrailBody: 'Le segnalazioni irrisolte non vengono mai rimosse automaticamente.', policySection: 'Politica del club', policyFooter: 'Scegli una politica approvata dal club.', enableTitle: 'Attiva conservazione', enabledBody: 'La pulizia automatica è attiva.', disabledBody: 'Nessun contenuto viene eliminato automaticamente.', windowsSection: 'Finestre di conservazione', windowsFooter: 'Gli allegati possono scadere prima dei messaggi.', messageWindowTitle: 'Messaggi', attachmentWindowTitle: 'Allegati', messageWindowValue: '{{days}} giorni', attachmentWindowValue: '{{days}} giorni', loadError: 'Impossibile caricare le impostazioni.', saveError: 'Impossibile salvare le impostazioni.', confirmTitle: 'Conferma eliminazione automatica', confirmBody: 'Messaggi o allegati meno recenti potrebbero essere eliminati definitivamente. Continuare?',
   },
   sponsors: {
     title: 'Sponsor',
