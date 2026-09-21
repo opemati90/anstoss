@@ -738,6 +738,24 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     [apiUrl, token],
   )
 
+  const pinMessage = useCallback(
+    async (message: ChatMessage): Promise<void> => {
+      if (!token || !teamId) return
+      const action = message.isPinned ? 'unpin' : 'pin'
+      const response = await fetch(
+        `${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/${message.id}/${action}`,
+        { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!response.ok) throw new Error(`Could not ${action} message`)
+      const updated = (await response.json()) as ChatMessage
+      setPinnedMessage(message.isPinned ? null : ({ ...updated, isPinned: true } as PinnedMessage))
+      setMessages((current) =>
+        current.map((item) => ({ ...item, isPinned: item.id === (message.isPinned ? null : message.id) })),
+      )
+    },
+    [apiUrl, clubId, teamId, token],
+  )
+
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
@@ -779,6 +797,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     fetchPollForMessage,
     fetchPoll,
     votePollOption,
+    pinMessage,
     sendMediaMessage,
     appendMessage,
   }

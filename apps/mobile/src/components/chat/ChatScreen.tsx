@@ -116,6 +116,7 @@ export function ChatScreen({
     fetchPollForMessage,
     fetchPoll,
     votePollOption,
+    pinMessage,
     sendMediaMessage,
     appendMessage,
   } = useChat({ clubId, teamId, channelId, token, userId, apiUrl })
@@ -407,6 +408,11 @@ export function ChatScreen({
           onEdit={(msg) => setEditTarget(msg)}
           onDelete={(msg) => {
             void deleteMessage(msg.id)
+          }}
+          onPin={(msg) => {
+            void pinMessage(msg).catch(() =>
+              Alert.alert(t('common.error'), t('errors.server')),
+            )
           }}
           onReport={(msg) => {
             void handleReport(msg)

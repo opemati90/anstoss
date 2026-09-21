@@ -64,6 +64,7 @@ type Props = {
   onReport?: (message: ChatMessage) => void
   onBlock?: (message: ChatMessage) => void
   onOpenPoll?: (message: ChatMessage) => void
+  onPin?: (message: ChatMessage) => void
 }
 
 function formatTimestamp(iso: string, t: TFunction, language: string): string {
@@ -102,6 +103,7 @@ export const MessageBubble = memo(function MessageBubble({
   onReport,
   onBlock,
   onOpenPoll,
+  onPin,
 }: Props) {
   const { t, i18n } = useTranslation()
   const c = useClubColors()
@@ -217,6 +219,8 @@ export const MessageBubble = memo(function MessageBubble({
           onReply={() => onReply?.(message)}
           onCopy={handleCopy}
           onDelete={(isOwn || viewerCanModerate) && onDelete ? () => onDelete(message) : undefined}
+          onPin={viewerCanModerate && onPin ? () => onPin(message) : undefined}
+          isPinned={message.isPinned}
           onReport={!isOwn && onReport ? () => onReport(message) : undefined}
           onBlock={!isOwn && onBlock ? () => onBlock(message) : undefined}
         />
@@ -495,6 +499,8 @@ export const MessageBubble = memo(function MessageBubble({
             ? () => onDelete(message)
             : undefined
         }
+        onPin={viewerCanModerate && onPin ? () => onPin(message) : undefined}
+        isPinned={message.isPinned}
         onReport={!isOwn && !isDeleted && onReport ? () => onReport(message) : undefined}
         onBlock={!isOwn && !isDeleted && onBlock ? () => onBlock(message) : undefined}
       />
