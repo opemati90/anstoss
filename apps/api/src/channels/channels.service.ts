@@ -75,20 +75,48 @@ export class ChannelsService {
 
   async ensureClubChannels(clubId: string): Promise<void> {
     for (const seed of CLUB_CHANNEL_SEEDS) {
-      await this.prisma.channel.upsert({
-        where: {
-          clubId_teamId_slug: { clubId, teamId: null as any, slug: seed.slug },
-        },
-        create: {
-          clubId,
-          teamId: null,
-          slug: seed.slug,
-          kind: seed.kind,
-          name: seed.name,
-          visibility: seed.visibility,
-        },
-        update: {},
+      // Prisma cannot address a nullable field in a composite upsert key.
+      // Club channels intentionally have teamId = null, so resolve by a
+      // nullable-safe lookup and update/create by the concrete row id.
+      const existing = await this.prisma.channel.findFirst({
+        where: { clubId, teamId: null, slug: seed.slug },
+        select: { id: true },
       })
+      if (existing) {
+        await this.prisma.channel.update({
+          where: { id: existing.id },
+          data: { kind: seed.kind, visibility: seed.visibility },
+        })
+        continue
+      }
+
+      try {
+        await this.prisma.channel.create({
+          data: {
+            clubId,
+            teamId: null,
+            slug: seed.slug,
+            kind: seed.kind,
+            name: seed.name,
+            visibility: seed.visibility,
+          },
+        })
+      } catch (error) {
+        // Two first-access requests can race. If the other request created
+        // the row, converge by updating that row; surface all other errors.
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+          throw error
+        }
+        const raced = await this.prisma.channel.findFirst({
+          where: { clubId, teamId: null, slug: seed.slug },
+          select: { id: true },
+        })
+        if (!raced) throw error
+        await this.prisma.channel.update({
+          where: { id: raced.id },
+          data: { kind: seed.kind, visibility: seed.visibility },
+        })
+      }
     }
   }
 
