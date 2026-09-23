@@ -35,6 +35,8 @@ export function ChannelRail({
   const { t } = useTranslation()
   const [channels, setChannels] = useState<Channel[]>([])
   const scrollRef = useRef<ScrollView>(null)
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
 
   function labelFor(ch: Channel): string {
     switch (ch.kind) {
@@ -71,7 +73,7 @@ export function ChannelRail({
           const preferred = preferredChannelId
             ? sorted.find((channel) => channel.id === preferredChannelId)
             : null
-          onSelect(preferred ?? sorted[0])
+          onSelectRef.current(preferred ?? sorted[0])
         }
       })
       .catch(() => {
@@ -80,7 +82,11 @@ export function ChannelRail({
     return () => {
       cancelled = true
     }
-  }, [autoSelectEnabled, teamId, onSelect, preferredChannelId, selectedChannelId])
+  // Callback identity is intentionally not a fetch dependency. Parents often
+  // close over selected-channel UI state; including that function here turns a
+  // harmless render into another network request and can exhaust the API read
+  // limiter. The ref above keeps the latest callback without refetching.
+  }, [autoSelectEnabled, teamId, preferredChannelId, selectedChannelId])
 
   if (channels.length === 0) return null
 

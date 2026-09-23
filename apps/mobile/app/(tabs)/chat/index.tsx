@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, View, StyleSheet, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
@@ -76,6 +76,21 @@ export default function ChatTab() {
     (activeChannel.teamId === null || activeChannel.teamId === activeTeamId)
       ? activeChannel
       : null
+
+  // Keep the rail's fetch effect stable. An inline callback here used to be
+  // recreated on every ChatTab render; ChannelRail treats callback identity as
+  // part of its fetch dependencies, so selecting a channel could trigger an
+  // unbounded request loop and exhaust the API read limiter for the whole app.
+  const handleChannelSelect = useCallback((ch: Channel) => {
+    if (!activeTeamId || !activeClub) return
+    if (resolvedActiveChannel?.id === ch.id) {
+      setChannelInfoOpen(true)
+      return
+    }
+    setActiveChannel(ch)
+    setActiveChannelTeamId(activeTeamId)
+    setActiveChannelClubId(activeClub.club.id)
+  }, [activeClub?.club.id, activeTeamId, resolvedActiveChannel?.id])
 
   useEffect(() => {
     if (!activeTeamId) {
@@ -178,15 +193,7 @@ export default function ChatTab() {
                     selectedChannelId={resolvedActiveChannel?.id ?? null}
                     preferredChannelId={preferredChannelId}
                     autoSelectEnabled={channelPreferenceHydrated}
-                    onSelect={(ch) => {
-                      if (resolvedActiveChannel?.id === ch.id) {
-                        setChannelInfoOpen(true)
-                      } else {
-                        setActiveChannel(ch)
-                        setActiveChannelTeamId(activeTeamId)
-                        setActiveChannelClubId(activeClub.club.id)
-                      }
-                    }}
+                    onSelect={handleChannelSelect}
                   />
                 </View>
                 {canCreateGroup ? (
