@@ -28,7 +28,7 @@ describe('ChannelRail', () => {
     ])
   })
 
-  it('does not refetch when only the selection callback identity changes', async () => {
+  it('does not refetch when selection UI state or callback identity changes', async () => {
     const firstSelect = jest.fn()
     let tree: { update: (element: React.ReactElement) => void }
 
@@ -49,7 +49,7 @@ describe('ChannelRail', () => {
       tree!.update(
         <ChannelRail
           teamId="team-1"
-          selectedChannelId={null}
+          selectedChannelId="channel-1"
           onSelect={jest.fn()}
         />,
       )

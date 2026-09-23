@@ -82,11 +82,11 @@ export function ChannelRail({
     return () => {
       cancelled = true
     }
-  // Callback identity is intentionally not a fetch dependency. Parents often
-  // close over selected-channel UI state; including that function here turns a
-  // harmless render into another network request and can exhaust the API read
-  // limiter. The ref above keeps the latest callback without refetching.
-  }, [autoSelectEnabled, teamId, preferredChannelId, selectedChannelId])
+  // Callback and selection identity are intentionally not fetch dependencies.
+  // Parents update selected-channel UI state frequently; treating that state as
+  // a data invalidation signal creates needless requests and can exhaust the
+  // API read limiter. The ref above keeps the latest callback without a fetch.
+  }, [autoSelectEnabled, teamId, preferredChannelId])
 
   if (channels.length === 0) return null
 
