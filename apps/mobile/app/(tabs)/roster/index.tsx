@@ -55,6 +55,7 @@ const INJURY_STATUS_OPTIONS: InjuryAvailabilityStatus[] = ['OUT', 'DOUBTFUL', 'D
 export default function RosterScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const activeClubId = activeClub?.club.id ?? null
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
   const params = useLocalSearchParams<{ tab?: string | string[]; returnTo?: string | string[] }>()
@@ -91,13 +92,18 @@ export default function RosterScreen() {
     activeTeamAccess?.role === 'ASSISTANT_COACH'
 
   const fetchRosterOps = useCallback(async () => {
-    if (!activeClub || !activeTeamId) {
+    if (!activeClubId || !activeTeamId) {
+      // Auth context can hydrate in two steps. Do not leave a stale skeleton
+      // visible while the screen has no valid request scope yet; the focus
+      // effect will run again when the club/team IDs become available.
+      setLoading(false)
+      setError(false)
       return
     }
 
     try {
       const data = await api<RosterOpsSnapshot>(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster-ops`,
+        `/clubs/${activeClubId}/teams/${activeTeamId}/roster-ops`,
       )
       setError(false)
       setSnapshot(data)
@@ -106,7 +112,7 @@ export default function RosterScreen() {
     } finally {
       setLoading(false)
     }
-  }, [activeClub, activeTeamId])
+  }, [activeClubId, activeTeamId])
 
   useFocusEffect(
     useCallback(() => {

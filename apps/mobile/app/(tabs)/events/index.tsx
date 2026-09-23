@@ -132,6 +132,7 @@ export default function EventsScreen() {
   const [manageTarget, setManageTarget] = useState<EventFeedItem | null>(null)
 
   const locale = getAppLocale(getAppLanguage())
+  const activeClubId = activeClub?.club.id ?? null
   const resolvedRoleMode = activeRoleMode ?? (
     activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
       ? 'ADMIN'
@@ -143,8 +144,8 @@ export default function EventsScreen() {
   )
   const isParent = resolvedRoleMode === 'PARENT'
   const viewKey = isParent
-    ? `parent:${activeClub?.club.id ?? 'none'}`
-    : `team:${activeClub?.club.id ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`
+    ? `parent:${activeClubId ?? 'none'}`
+    : `team:${activeClubId ?? 'none'}:${activeTeamId ?? 'none'}:${scope}:${filterType}`
   const isClubManager = resolvedRoleMode === 'ADMIN'
   const loadedViewKeyRef = useRef<string | null>(null)
   const currentViewKeyRef = useRef(viewKey)
@@ -170,7 +171,7 @@ export default function EventsScreen() {
     const requestViewKey = viewKey
     const shouldBlockView = loadedViewKeyRef.current !== requestViewKey
 
-    if (!activeClub) {
+    if (!activeClubId) {
       // Without club context the list will only ever be empty — drop out of
       // the loading skeleton so the empty state renders instead.
       setError(false)
@@ -238,11 +239,11 @@ export default function EventsScreen() {
       // admin has not yet selected a team in this session. Rostered members
       // remain team-scoped to preserve tenant/team visibility.
       const eventsPath = isClubManager
-        ? `/clubs/${activeClub.club.id}/events?${new URLSearchParams({
+        ? `/clubs/${activeClubId}/events?${new URLSearchParams({
             scope,
             ...(filterType !== 'ALL' ? { type: filterType } : {}),
           }).toString()}`
-        : `/clubs/${activeClub.club.id}/events?${params.toString()}`
+        : `/clubs/${activeClubId}/events?${params.toString()}`
       const [data, fetchedFixtures] = await Promise.all([
         api<EventFeedItem[]>(eventsPath),
         activeTeamId
@@ -274,7 +275,7 @@ export default function EventsScreen() {
         setLoading(false)
       }
     }
-  }, [activeClub, activeTeamId, filterType, isClubManager, isParent, markViewLoaded, scope, viewKey])
+  }, [activeClubId, activeTeamId, filterType, isClubManager, isParent, markViewLoaded, scope, viewKey])
 
   useFocusEffect(
     useCallback(() => {
