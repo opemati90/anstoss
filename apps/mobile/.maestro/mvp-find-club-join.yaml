@@ -1,6 +1,9 @@
 appId: com.renuirug.anstoss
 ---
-# MVP FLOW P1: New player finds an active club, requests access, and lands in pending approval.
+# MVP FLOW P1: a new player finds an active club, picks "Player" right on the
+# club row and lands on "Request sent" (screen 4 of 4 + waiting screen).
+# Onboarding review fix (H4): no separate role screen; the send tap is on
+# Verein finden.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -10,40 +13,42 @@ appId: com.renuirug.anstoss
     timeout: 3000
 - runFlow:
     when:
-      notVisible: 'Join your club'
+      notVisible: 'Find your club'
     commands:
       - runFlow:
           file: subflows/deeplink.yaml
           env:
             URL: 'anstoss://e2e?scenario=signup-player'
 - extendedWaitUntil:
-    visible: 'Join your club'
-    timeout: 15000
-- tapOn: 'Find your club'
-- extendedWaitUntil:
     visible: 'Find your club'
-    timeout: 10000
+    timeout: 15000
 - tapOn:
     id: 'find-club-search'
 - inputText: 'Albatros'
-# No keyboard-key tap here: the field uses returnKeyType="search", so there
-# is no key labelled "return", and the result row is tappable with the
-# keyboard up.
 - extendedWaitUntil:
     visible: 'SV Albatros'
     timeout: 10000
 - tapOn:
     id: 'find-club-row-sv-albatros'
 - extendedWaitUntil:
-    visible: 'Request to join'
+    visible: 'How are you involved?'
     timeout: 10000
+- assertVisible: 'Find your club'
 - tapOn:
-    id: 'club-preview-request-to-join'
+    id: 'club-role-player'
+# The date of birth was given on "What's your name?", never here.
+- assertNotVisible:
+    id: 'dob-day'
+- assertVisible: '.*The coach usually confirms you within a day.*'
+- tapOn:
+    id: 'club-send-request'
 - extendedWaitUntil:
-    visible: 'Your request is with the club'
+    visible: 'Request sent'
     timeout: 10000
-- assertVisible: 'Ping the club admin'
-- tapOn: 'Check again'
+- assertVisible: 'Send a reminder'
+- assertVisible: 'Withdraw request'
+- tapOn:
+    id: 'pending-check'
 - extendedWaitUntil:
-    visible: 'Still waiting on the club.*'
+    visible: 'Not confirmed yet.*'
     timeout: 10000

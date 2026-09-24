@@ -7,16 +7,19 @@ appId: com.renuirug.anstoss
       URL: "anstoss://e2e?scenario=parent"
 # Scenario data loads async; wait for the home to finish rendering on slower
 # (iOS) devices before asserting.
-# iOS flattens the Pressable card into one accessibility element with
-# concatenated text, so match the substring rather than the exact node.
-# Home shows one card per child (the next event) with the reply control
-# inline; the rest of the schedule lives on the Schedule tab.
+# Home shows one card per child ("Leo · U15", "Mia · U11") with the next
+# event and the reply pills inline; the rest of the schedule lives on the
+# Schedule tab. The parent's own jobs (Kuchen-Dienst) sit below the cards.
 - extendedWaitUntil:
-    visible: "Open vs. SV Babelsberg 03 for Leo Becker"
+    visible: "Leo · U15"
     timeout: 15000
-- assertVisible: "Reply for Leo Becker"
-- tapOn: "Yes"
-- assertVisible: "ANNOUNCEMENTS"
+- assertVisible: "Mia · U11"
+- assertVisible: "Reply for Leo"
+- tapOn:
+    id: "parent-rsvp-child-1-YES"
+- scrollUntilVisible:
+    element: "My jobs"
+    direction: DOWN
 - runFlow:
     file: subflows/deeplink.yaml
     env:

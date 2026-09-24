@@ -1,19 +1,25 @@
 appId: com.renuirug.anstoss
 ---
-# Signed-out entry: the welcome hero ("Get started" / "Log in") leads into the
-# unified sign-in screen. Both CTAs run the same email-OTP flow, but they now
-# carry an intent so the screen greets a new user and a returning one
-# differently — "Create your account" vs "Welcome back". Two buttons landing on
-# an identically worded screen read as a broken link.
+# Signed-out entry: welcome and the email field are one screen. New and
+# returning users type their email, tap Continue and land on the code cells.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=signed-out"
-- assertVisible: "Get started"
-- assertVisible: "Log in"
-- tapOn: "Get started"
-- assertVisible: "Create your account"
-- assertVisible: "Send code"
-# The "Log in" path is covered by auth-flow; going back from here is not a
-# reliable way to reach it, because welcome marks itself seen on first pass.
+- extendedWaitUntil:
+    visible: "Welcome to Anstoss"
+    timeout: 10000
+- assertVisible: "Email address"
+- assertVisible: ".*No club yet\\? Get found as a player.*"
+# H5: a parent with a setup code for their child starts here too.
+- assertVisible: ".*Got a setup code for your child\\?.*"
+- tapOn:
+    id: "welcome-email"
+- inputText: "signup-flow@example.com"
+- tapOn:
+    id: "welcome-continue"
+- extendedWaitUntil:
+    visible: "Enter the code"
+    timeout: 15000
+- assertVisible: ".*Resend code|New code in.*"

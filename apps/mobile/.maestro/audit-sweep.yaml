@@ -1,0 +1,293 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player'
+- extendedWaitUntil:
+    visible: '.*'
+    timeout: 15000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: player__home
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://events'
+- waitForAnimationToEnd
+- takeScreenshot: player__events
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://chat'
+- waitForAnimationToEnd
+- takeScreenshot: player__chat
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://squad'
+- waitForAnimationToEnd
+- takeScreenshot: player__squad
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- waitForAnimationToEnd
+- takeScreenshot: player__more
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://squad'
+- waitForAnimationToEnd
+- takeScreenshot: player__my-team
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://my-contributions'
+- waitForAnimationToEnd
+- takeScreenshot: player__my-contributions
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://league-table'
+- waitForAnimationToEnd
+- takeScreenshot: player__league-table
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://team-spiele'
+- waitForAnimationToEnd
+- takeScreenshot: player__team-matches
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://carpool'
+- waitForAnimationToEnd
+- takeScreenshot: player__carpool
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://me'
+- waitForAnimationToEnd
+- takeScreenshot: player__me
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=coach'
+- extendedWaitUntil:
+    visible: '.*'
+    timeout: 15000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: coach__home
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://events'
+- waitForAnimationToEnd
+- takeScreenshot: coach__events
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://create-event'
+- waitForAnimationToEnd
+- takeScreenshot: coach__create-event
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://squad'
+- waitForAnimationToEnd
+- takeScreenshot: coach__squad
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://roster'
+- waitForAnimationToEnd
+- takeScreenshot: coach__roster
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://chat'
+- waitForAnimationToEnd
+- takeScreenshot: coach__chat
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://lineup-builder'
+- waitForAnimationToEnd
+- takeScreenshot: coach__lineup-builder
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://team-management'
+- waitForAnimationToEnd
+- takeScreenshot: coach__team-management
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://wechselboerse'
+- waitForAnimationToEnd
+- takeScreenshot: coach__wechselboerse
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://aufgaben'
+- waitForAnimationToEnd
+- takeScreenshot: coach__duty-roster
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://club-stats'
+- waitForAnimationToEnd
+- takeScreenshot: coach__club-stats
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- waitForAnimationToEnd
+- takeScreenshot: coach__more
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=club-admin'
+- extendedWaitUntil:
+    visible: '.*'
+    timeout: 15000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__home
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://admin-dashboard'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__admin-dashboard
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://admin-members'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__admin-members
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://admin-billing'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__admin-billing
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://team-management'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__team-management
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://ownership-transfers'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__ownership-transfers
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://pending-requests'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__pending-requests
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://club-staff'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__club-staff
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://admin-sponsors'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__admin-sponsors
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- waitForAnimationToEnd
+- takeScreenshot: club-admin__more
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=parent'
+- extendedWaitUntil:
+    visible: '.*'
+    timeout: 15000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: parent__home
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://parent-schedule'
+- waitForAnimationToEnd
+- takeScreenshot: parent__parent-schedule
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://events'
+- waitForAnimationToEnd
+- takeScreenshot: parent__events
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://chat'
+- waitForAnimationToEnd
+- takeScreenshot: parent__chat
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://team-families'
+- waitForAnimationToEnd
+- takeScreenshot: parent__team-families
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- waitForAnimationToEnd
+- takeScreenshot: parent__more
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=free-agent'
+- extendedWaitUntil:
+    visible: '.*'
+    timeout: 15000
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__home
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://profile'
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__profile
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://invites'
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__invites
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://chat'
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__chat
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://trial/trial-my-teltow'
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__trial-offer
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://more'
+- waitForAnimationToEnd
+- takeScreenshot: free-agent__more

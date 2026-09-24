@@ -5,35 +5,35 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=club-admin"
-# Club member count. Home now opens with an identity row (name, team, role),
-# which pushes the club stats a little below the fold on smaller devices, so
-# scroll to the value rather than assuming it is in the first viewport.
-- scrollUntilVisible:
-    element: "126"
-    direction: DOWN
-    timeout: 10000
+# Admin home is the to-do inbox: 10 open tasks + 2 chat reports in the
+# club-admin world (2 applications, 4 overdue fees, 1 team without a coach,
+# 2 background checks, treasurer vacant).
+- extendedWaitUntil:
+    visible: ".*open tasks"
+    timeout: 15000
+- assertVisible: "126 members · 8 teams"
+- assertVisible: "Erik Brandt"
+# The old /admin-dashboard deep link now lands on the Club (Verein) tab.
 - runFlow:
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://admin-dashboard"
-# The admin-dashboard deeplink can be dropped if it fires mid-transition;
-# re-fire it once if the Administration screen didn't open.
 - runFlow:
     when:
-      notVisible: ".*Administration.*"
+      notVisible: "Member list"
     commands:
-      - runFlow:
-          file: subflows/deeplink.yaml
-          env:
-            URL: "anstoss://admin-dashboard"
+      - tapOn: "Club"
 - extendedWaitUntil:
-    visible: "Administration"
+    visible: "Member list"
     timeout: 15000
-# The workspace carries counts on its rows: pending join requests, teams
-# without a head coach, overdue dues. Labels collapse to "title, n".
-- assertVisible: "Join requests, 2"
-- assertVisible: "Manage teams, 1 without a head coach"
+- assertVisible: "Club chair"
+- assertVisible: "Membership applications, 2"
+- assertVisible: "126"
 - scrollUntilVisible:
-    element: "Club finance, 4"
+    element: "Officers & roles"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Chat history.*"
     direction: DOWN
     timeout: 10000

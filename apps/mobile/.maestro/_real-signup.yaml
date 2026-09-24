@@ -10,21 +10,20 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=signed-out"
 - extendedWaitUntil:
-    visible: "Get started"
+    visible: "Welcome to Anstoss"
     timeout: 10000
-- tapOn: "Get started"
-- assertVisible: "Send code"
 - tapOn:
-    text: "Email address"
+    id: "welcome-email"
 - inputText: "+15555550142"
-- tapOn: "Send code"
+- tapOn:
+    id: "welcome-continue"
 # OTP cells animate in; enter the magic test code.
 - extendedWaitUntil:
     visible: ".*Enter the code.*"
     timeout: 12000
 - inputText: "424242"
-# New number -> sign-up -> lands on the "About you" profile step (name + DOB).
+# New address -> "What’s your name?" (then Verein finden).
 # Returning number -> routes into the app. Accept either as proof auth worked.
 - extendedWaitUntil:
-    visible: ".*(About you|First name|Open Anstoss|Find your club|Next step).*"
+    visible: ".*(What’s your name|Find your club|Request sent|Home).*"
     timeout: 20000

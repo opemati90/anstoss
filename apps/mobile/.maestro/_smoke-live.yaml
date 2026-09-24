@@ -8,7 +8,7 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=signed-out"
 - extendedWaitUntil:
-    visible: ".*(FOOTBALL|Get started|Log in).*"
+    visible: ".*(Welcome to Anstoss|Email address).*"
     timeout: 20000
 - takeScreenshot: "S1-welcome"
 - runFlow:

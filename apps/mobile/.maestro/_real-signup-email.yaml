@@ -9,18 +9,17 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=signed-out"
 - extendedWaitUntil:
-    visible: "Get started"
+    visible: "Welcome to Anstoss"
     timeout: 10000
-- tapOn: "Get started"
-- assertVisible: "Send code"
 - tapOn:
-    text: "Email address"
+    id: "welcome-email"
 - inputText: "smoke622+clerk_test@example.com"
-- tapOn: "Send code"
+- tapOn:
+    id: "welcome-continue"
 - extendedWaitUntil:
     visible: ".*Enter the code.*"
     timeout: 12000
 - inputText: "424242"
 - extendedWaitUntil:
-    visible: ".*(About you|First name|Open Anstoss|Find your club|Next step|couldn).*"
+    visible: ".*(What’s your name|Find your club|Request sent|Home|couldn).*"
     timeout: 20000

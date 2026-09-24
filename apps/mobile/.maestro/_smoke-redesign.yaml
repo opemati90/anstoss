@@ -7,13 +7,17 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://e2e?scenario=signed-out"
 - extendedWaitUntil:
-    visible: ".*(FOOTBALL|Get started|Welcome|Log in).*"
+    visible: ".*(Welcome to Anstoss|Email address).*"
     timeout: 25000
 - takeScreenshot: "90-welcome"
-# New account / login entry → sign-in (logo removed)
-- tapOn: "Get started"
+# Welcome and the email field are one screen now; "Continue" sends the code.
+- tapOn:
+    id: "welcome-email"
+- inputText: "smoke-redesign@example.com"
+- tapOn:
+    id: "welcome-continue"
 - extendedWaitUntil:
-    visible: ".*(Email address|Send code|Welcome).*"
+    visible: ".*Enter the code.*"
     timeout: 15000
 - takeScreenshot: "91-signin"
 # Player journey

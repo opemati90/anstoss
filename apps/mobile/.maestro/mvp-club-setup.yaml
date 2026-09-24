@@ -1,9 +1,9 @@
 appId: com.renuirug.anstoss
 ---
-# MVP FLOW A1: New club admin creates a club/team and can open club-scoped admin tools.
-# This assumes the dev client bundle is already loaded by the surrounding smoke suite.
-# The cold-launch path is covered by the player flows; starting hot avoids an iOS
-# dev-launcher stall seen when the app resumes from the welcome hero.
+# MVP FLOW A1: a new club admin sets up a club (one form: club, team, team
+# page, optional colour) and lands on home, which shows "Your club is being
+# checked" with what happens next and what to prepare (H6).
+# Onboarding review fix (H4): a directory result opens the form directly.
 - launchApp:
     clearState: false
 - runFlow:
@@ -14,40 +14,37 @@ appId: com.renuirug.anstoss
     timeout: 3000
 - runFlow:
     when:
-      notVisible: 'Finish setting up your club'
+      notVisible: 'Find your club'
     commands:
       - runFlow:
           file: subflows/deeplink.yaml
           env:
             URL: 'anstoss://e2e?scenario=signup-club-admin'
 - extendedWaitUntil:
-    visible: 'Finish setting up your club'
+    visible: 'Find your club'
     timeout: 15000
-- runFlow:
-    file: subflows/deeplink.yaml
-    env:
-      URL: 'anstoss://club-setup?clubName=TSV%20Linden%201899&directoryEntryId=dir-e2e-tsv-linden'
+- tapOn:
+    id: 'find-club-search'
+- inputText: 'Linden'
 - extendedWaitUntil:
-    visible: 'Create your club'
+    visible: 'TSV Linden 1899'
     timeout: 10000
 - tapOn:
-    id: 'club-setup-club-name-input'
-- eraseText
-- inputText: 'TSV Linden 1899'
-- tapOn: 'return'
-- tapOn: 'Next'
+    id: 'find-club-row-tsv-linden-1899'
 - extendedWaitUntil:
-    visible: 'Add a team'
+    visible: 'Set up your club'
     timeout: 10000
 - tapOn:
     id: 'club-setup-team-name-input'
 - inputText: 'First Team'
-- tapOn: 'return'
-- tapOn: 'Create club'
-# The wizard submits a club *claim* now. Nothing is created until Anstoss
-# verifies the claimant, so the landing is the verification screen, not the
-# admin home. There is no club yet, so no admin dashboard to open.
+- tapOn:
+    id: 'club-setup-link-input'
+- inputText: 'https://www.fussball.de/mannschaft/tsv-linden-1899/-/team-id/011MIFE2E'
+- tapOn:
+    id: 'club-setup-submit'
 - extendedWaitUntil:
-    visible: 'Club verification in progress'
+    visible: 'Your club is being checked'
     timeout: 15000
-- assertVisible: 'What happens next'
+- assertVisible: 'What you can prepare now'
+- assertVisible:
+    id: 'home-verification-details'

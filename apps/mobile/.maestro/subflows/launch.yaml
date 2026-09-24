@@ -20,7 +20,7 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn: 'Open'
 - extendedWaitUntil:
-    visible: '.*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code|Get started).*'
+    visible: '.*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code|Welcome to Anstoss).*'
     timeout: 180000
 
 # Stuck on the launcher: tap the running dev server instead of re-sending the
@@ -32,7 +32,7 @@ appId: com.renuirug.anstoss
     commands:
       - tapOn: '.*:8123.*'
       - extendedWaitUntil:
-          visible: '.*(developer menu|Send code|Get started|Log in|Home|Welcome).*'
+          visible: '.*(developer menu|Send code|Welcome to Anstoss|Home|Welcome).*'
           timeout: 180000
 
 # First run after clearState shows the dev-client onboarding sheet.
@@ -89,7 +89,7 @@ appId: com.renuirug.anstoss
 # signed-out sign-in screen. Each flow deeplinks its own scenario next; this
 # only confirms the app rendered SOMETHING and lets animations settle.
 - extendedWaitUntil:
-    visible: '.*(Send code|Get started|Log in|Next step|Find your club|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Team|Today|Welcome).*'
+    visible: '.*(Send code|Welcome to Anstoss|What’s your name|Find your club|Request sent|coach invite|Set up your child|Your request is with the club|Awaiting approval|Home|Events|Squad|Team|Today|Welcome).*'
     timeout: 180000
 - waitForAnimationToEnd:
     timeout: 4000

@@ -1,8 +1,9 @@
 appId: com.renuirug.anstoss
 ---
-# Slice B: the Team tab is one surface. A coach sees health, operations rows
-# with counts, and the people list with availability, and reaches an
-# operations screen in one tap. A player sees people and their own duties.
+# Kader revamp: the Team tab is the squad. A coach sees one squad number,
+# the availability summary, the open-requests banner, players grouped by
+# line with their status, and exactly three team tools. A player sees their
+# own row pinned on top with "Change status".
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -13,34 +14,46 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://squad"
 - extendedWaitUntil:
-    visible: "OPERATIONS"
+    visible: "Squad"
     timeout: 15000
-- assertVisible: "SQUAD HEALTH"
-- assertVisible: "Trials and requests.*"
-- assertVisible: "Medic.*"
-- assertVisible: "Kit and duties.*"
-- assertVisible: "PEOPLE"
-- assertNotVisible: "Manage roster"
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach
-- scrollUntilVisible:
-    element:
-      text: "Julian Becker.*"
-    direction: DOWN
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach-people
-- scrollUntilVisible:
-    element:
-      text: "Medic.*"
-    direction: UP
+- assertVisible: ".*· 18 players"
+- assertVisible: "15 fit"
+- assertVisible: "1 suspended"
+- assertVisible: "2 away"
+- assertVisible:
+    id: "kader-requests-banner"
+- assertVisible: "Defence"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/kader-coach
+# Filter to the suspended player and back.
 - tapOn:
-    text: "Medic.*"
+    id: "kader-summary-SUSPENDED"
+- assertVisible: "Niklas Wagner"
+- assertNotVisible: "Tim Weber"
+- tapOn:
+    id: "kader-summary-SUSPENDED"
+# Coach taps a player: the edit sheet, not a DM.
+- tapOn:
+    id: "kader-row-user-player-2"
 - extendedWaitUntil:
-    visible: "Back"
+    visible: "Edit player"
     timeout: 10000
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-coach-medic
-- tapOn: "Back"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/kader-edit
+- tapOn: "Cancel"
+# Team tools.
+- scrollUntilVisible:
+    element:
+      id: "kader-tool-duties"
+    direction: DOWN
+- assertVisible:
+    id: "kader-tool-matches"
+- assertVisible:
+    id: "kader-tool-stats"
+- tapOn:
+    id: "kader-tool-duties"
 - extendedWaitUntil:
-    visible: "OPERATIONS"
+    visible: "Assign the next round"
     timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/kader-duties
 # Player view
 - runFlow:
     file: subflows/deeplink.yaml
@@ -51,8 +64,9 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://squad"
 - extendedWaitUntil:
-    visible: "My duties.*"
+    visible:
+      id: "kader-self-status"
     timeout: 15000
-- assertVisible: "PEOPLE"
-- assertNotVisible: "SQUAD HEALTH"
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/team-player
+- assertNotVisible:
+    id: "kader-requests-banner"
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/kader-player

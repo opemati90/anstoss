@@ -1,6 +1,8 @@
 appId: com.renuirug.anstoss
 ---
-# MVP FLOW P2: Signed-in player opens a club invite, redeems it, and gets member access.
+# MVP FLOW P2: a signed-in player opens a club invite. Name and DOB are on
+# file, so "Join SV Albatros" asks nothing; joining is still one deliberate
+# tap on "Join" (onboarding review fix H2: never automatic).
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -10,31 +12,24 @@ appId: com.renuirug.anstoss
     timeout: 3000
 - runFlow:
     when:
-      notVisible: 'Join your club'
+      notVisible: 'Find your club'
     commands:
       - runFlow:
           file: subflows/deeplink.yaml
           env:
             URL: 'anstoss://e2e?scenario=signup-player'
 - extendedWaitUntil:
-    visible: 'Join your club'
+    visible: 'Find your club'
     timeout: 15000
 - runFlow:
     file: subflows/deeplink.yaml
     env:
       URL: 'anstoss://join/sv-albatros/E2EINV01'
 - extendedWaitUntil:
-    visible: 'Confirm access in Anstoss'
+    visible: 'Join SV Albatros'
     timeout: 15000
-- assertVisible: 'SV Albatros'
-- assertVisible: 'Senior Team'
-- tapOn: 'Activate access'
-- runFlow:
-    when:
-      visible: 'Access is ready'
-    commands:
-      - tapOn: 'OK'
+- tapOn:
+    id: 'join-confirm'
 - extendedWaitUntil:
-    visible: '.*(.*vs.*live.*|Team chat).*'
+    visible: '.*(Welcome to SV Albatros|Team chat).*'
     timeout: 15000
-- assertVisible: 'Team chat'

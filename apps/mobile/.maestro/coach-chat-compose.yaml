@@ -1,8 +1,8 @@
 appId: com.renuirug.anstoss
 ---
-# Slice E: the team channel carries the latest announcement, a shared event
-# renders as a card with the reply control, and a manager can put an event
-# into the chat from the composer.
+# Chat revamp: the inbox lists every conversation; opening the team chat
+# shows event, poll and lineup cards; a coach's + menu shares an event;
+# the new-chat modal offers "New group" and disables under-16 contacts.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -13,30 +13,27 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://chat"
 - extendedWaitUntil:
-    visible: "Latest announcement, Kit wash rota starts this week"
+    visible:
+      id: "inbox-row-e2e-ch-team"
     timeout: 15000
-- scrollUntilVisible:
-    element: "Match, vs. SV Babelsberg 03.*"
-    direction: DOWN
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-inbox-coach
+- tapOn:
+    id: "inbox-row-e2e-ch-team"
+- extendedWaitUntil:
+    visible:
+      id: "chat-thread"
     timeout: 15000
-- assertVisible: "Yes"
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-coach
-- tapOn: "Compose"
-- extendedWaitUntil:
-    visible: "Add to the chat"
-    timeout: 10000
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-compose
-- tapOn: "Share event"
-- extendedWaitUntil:
-    visible: "Which event?"
-    timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-thread-coach
+- tapOn: "Compose|Verfassen"
+- tapOn: "Share event|Termin teilen"
 - tapOn: "Tuesday session.*"
-- scrollUntilVisible:
-    element: "Training, Tuesday session.*"
-    direction: DOWN
-    timeout: 15000
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-shared
-- tapOn: "Latest announcement, Kit wash rota starts this week"
+- back
+- tapOn:
+    id: "chat-compose"
 - extendedWaitUntil:
-    visible: ".*Kit wash rota starts this week.*Check the Team tab.*"
+    visible:
+      id: "chat-new-group"
     timeout: 10000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/chat-new
+- assertVisible:
+    id: "chat-contact-user-youth-1"

@@ -1,9 +1,12 @@
 appId: com.renuirug.anstoss
 ---
 - runFlow: subflows/launch.yaml
-- tapOn: ".*Email address.*"
+# Welcome → "No club yet? Get found as a player" (free-agent path, 4 screens).
+- tapOn:
+    id: "welcome-email"
 - inputText: "qa-fa-audit+clerk_test@example.com"
-- tapOn: ".*Send code.*"
+- tapOn:
+    id: "welcome-free-agent"
 - extendedWaitUntil:
     visible: ".*Enter the code.*"
     timeout: 25000
@@ -11,18 +14,25 @@ appId: com.renuirug.anstoss
     point: "50%,42%"
 - inputText: "424242"
 - extendedWaitUntil:
-    visible: ".*About you.*"
+    visible: ".*What’s your name.*"
     timeout: 25000
 - tapOn:
-    point: "50%,37%"
-- inputText: "Yemi"
-- tapOn: "Continue"
+    id: "name-input"
+- inputText: "Yemi Ajimati"
+# Onboarding review fix (B1/B3): the date of birth sits on the name screen.
+- tapOn:
+    id: "dob-day"
+- inputText: "04"
+- tapOn:
+    id: "dob-month"
+- inputText: "03"
+- tapOn:
+    id: "dob-year"
+- inputText: "1996"
+- tapOn:
+    id: "name-continue"
+# Name + DOB → straight to the free-agent profile (no role screen, no Verein finden).
 - extendedWaitUntil:
-    visible: ".*brings you here.*"
-    timeout: 15000
-- takeScreenshot: "/tmp/audit-role"
-- tapOn: ".*Looking for a club.*"
-- extendedWaitUntil:
-    visible: ".*(player profile|Listed for clubs|marketplace|Save|Position|All set|Welcome)*.*"
+    visible: ".*(Position|player profile|Postleitzahl|postcode|Save).*"
     timeout: 25000
 - takeScreenshot: "/tmp/audit-fa-landing"

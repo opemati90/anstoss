@@ -20,11 +20,11 @@ appId: com.renuirug.anstoss
 - tapOn:
     text: "vs. SV Babelsberg 03"
 - extendedWaitUntil:
-    visible: ".*(Attendees|Your RSVP).*"
+    visible: ".*(Replies|Zusagen).*"
     timeout: 15000
 - scrollUntilVisible:
     element:
-      text: ".*(Felix Braun|Jonas Schäfer|Maybe).*"
+      text: ".*(No reply yet|Noch offen|Maybe|Vielleicht).*"
     direction: DOWN
     timeout: 8000
 - takeScreenshot: "11-event-attendees-polished"

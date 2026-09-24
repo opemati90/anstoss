@@ -1,8 +1,9 @@
 appId: com.renuirug.anstoss
 ---
-# Recurring events: a coach creates a weekly training until a date, the
-# schedule fills with one row per week, and cancelling "this and following"
-# from one occurrence strikes out the rest.
+# Recurring events (events revamp): a coach opens "New event", which starts as
+# a weekly training until the end of the season, names it, saves the series,
+# finds it in the schedule, and cancels "this and all following" from the
+# event screen's header menu.
 - runFlow: subflows/launch.yaml
 - runFlow:
     file: subflows/deeplink.yaml
@@ -13,37 +14,29 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://create-event"
 - extendedWaitUntil:
-    visible: "Create event"
+    visible: "New event"
     timeout: 15000
+- assertVisible: "Repeat: Weekly"
 - tapOn:
     id: "event-title-input"
-- eraseText: 30
 - inputText: "Weekly session"
 - tapOn: "done"
-- tapOn: "Repeat: Never"
-- assertVisible: "Repeat: Every week"
-- assertVisible: "Until: .*"
 - takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-form
 - tapOn:
     id: "event-create-submit"
-- extendedWaitUntil:
-    visible: "Events"
-    timeout: 15000
 - runFlow:
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://events"
-- scrollUntilVisible:
-    element:
-      text: "OCTOBER 2026"
-    direction: DOWN
-    timeout: 20000
-- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-schedule
+- extendedWaitUntil:
+    visible: "Upcoming"
+    timeout: 15000
 - scrollUntilVisible:
     element:
       text: "Weekly session.*"
-    direction: UP
+    direction: DOWN
     timeout: 20000
+- takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-schedule
 - tapOn:
     text: "Weekly session.*"
     index: 0
@@ -51,15 +44,16 @@ appId: com.renuirug.anstoss
     visible: ".*Every week until.*"
     timeout: 15000
 - takeScreenshot: /tmp/claude-501/-Users-yemi/20fbad7e-c058-4f1c-9bff-49c32cad7bb0/scratchpad/recurring-detail
-- longPressOn:
-    text: "Weekly session"
-    index: 1
-- tapOn: "Cancel event"
+- tapOn:
+    id: "event-manage-menu"
+- tapOn:
+    id: "event-menu-cancel"
 - extendedWaitUntil:
-    visible: "This and following"
+    visible: "This and all following"
     timeout: 10000
-- tapOn: "This and following"
-- tapOn: "Cancel event"
+- tapOn: "This and all following"
+- tapOn:
+    id: "event-cancel-confirm"
 - extendedWaitUntil:
     visible: "Cancelled"
     timeout: 10000

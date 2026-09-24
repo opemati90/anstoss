@@ -5,5 +5,11 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: "anstoss://e2e?scenario=free-agent"
-- assertVisible: "Your player profile"
-- assertVisible: "Listed for clubs"
+- extendedWaitUntil:
+    visible: ".*(Gesuche|Player searches|Searches near you).*"
+    timeout: 15000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://invites"
+- assertVisible: ".*(Probetrainings|Trials).*"

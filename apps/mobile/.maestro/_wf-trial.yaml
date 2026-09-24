@@ -13,11 +13,11 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://invites"
 - extendedWaitUntil:
-    visible: ".*(Accept|SV Albatros|trial).*"
+    visible: ".*(Zusagen|Accept|SV Albatros).*"
     timeout: 15000
 - takeScreenshot: "24-trial-before"
-- tapOn: "Accept trial invite from SV Albatros"
+- tapOn: ".*(Probetraining bei SV Albatros zusagen|Accept the trial at SV Albatros).*"
 - extendedWaitUntil:
-    visible: ".*(accepted|Trial accepted).*"
+    visible: ".*(Zugesagt|You’re in).*"
     timeout: 10000
 - takeScreenshot: "25-trial-after"

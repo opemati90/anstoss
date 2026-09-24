@@ -31,5 +31,5 @@ appId: com.renuirug.anstoss
     timeout: 10000
 - tapOn: 'Delete permanently'
 - extendedWaitUntil:
-    visible: 'Get started'
+    visible: 'Welcome to Anstoss'
     timeout: 15000

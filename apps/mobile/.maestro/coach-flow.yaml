@@ -5,23 +5,26 @@ appId: com.renuirug.anstoss
     file: subflows/deeplink.yaml
     env:
       URL: 'anstoss://e2e?scenario=coach'
-- assertVisible: 'Open squad'
+# Coach home leads with the next match card (readiness split + reminder).
+- extendedWaitUntil:
+    visible: 'Next match'
+    timeout: 15000
+# Kader revamp: the roster workspace is gone; the Kader tab carries the
+# squad, the open requests and the team tools (see coach-team-tab.yaml).
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: 'anstoss://roster?tab=operations'
-- assertVisible: 'Trials'
-- assertVisible: 'Jonas Wagner'
+      URL: 'anstoss://squad'
+- extendedWaitUntil:
+    visible:
+      id: 'kader-requests-banner'
+    timeout: 15000
 - runFlow:
     file: subflows/deeplink.yaml
     env:
-      URL: 'anstoss://roster?tab=medic'
-- assertVisible: 'Active injuries'
-- runFlow:
-    file: subflows/deeplink.yaml
-    env:
-      URL: 'anstoss://roster?tab=kit'
-- assertVisible: 'Pending cleanup'
+      URL: 'anstoss://aufgaben'
+- assertVisible: 'Duties'
+- assertVisible: 'Assign the next round'
 - runFlow:
     file: subflows/deeplink.yaml
     env:

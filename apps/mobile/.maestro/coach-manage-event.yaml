@@ -14,9 +14,9 @@ appId: com.renuirug.anstoss
     env:
       URL: "anstoss://events"
 - extendedWaitUntil:
-    visible: "vs. SV Babelsberg 03"
+    visible: "Home vs SV Babelsberg 03"
     timeout: 15000
-- tapOn: "vs. SV Babelsberg 03"
+- tapOn: "Home vs SV Babelsberg 03"
 - extendedWaitUntil:
     visible: "Manage event"
     timeout: 15000
@@ -26,7 +26,7 @@ appId: com.renuirug.anstoss
 # The header title carries the same text and has no gesture; the hero title
 # is the second match on screen.
 - longPressOn:
-    text: "vs. SV Babelsberg 03"
+    text: "Home vs SV Babelsberg 03"
     index: 1
 - extendedWaitUntil:
     visible: "Cancel event"
