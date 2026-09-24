@@ -20,6 +20,7 @@ import {
   TeamRole,
 } from '@anstoss/shared'
 import { tenantContext } from '../prisma/tenant.context'
+import { deleteMemberComplianceData } from '../admin-inbox/compliance-retention'
 
 @Injectable()
 export class ClubsService {
@@ -356,9 +357,10 @@ export class ClubsService {
     await tx.channelMember.deleteMany({
       where: { userId, channel: { is: { clubId } } },
     })
-    await tx.conversationParticipant.deleteMany({
-      where: { userId, conversation: { is: { clubId } } },
-    })
+    // Chat revamp (M1): ConversationParticipant rows are kept. The removed
+    // user is locked out by the club-membership check on every DM path, while
+    // the peer keeps the read-only history ("hat den Verein verlassen");
+    // deleting the row broke the peer's conversation (it needs 2 participants).
     await tx.teamAccess.deleteMany({ where: { userId, clubId } })
     await tx.teamMember.deleteMany({
       where: { userId, team: { is: { clubId } } },
@@ -413,6 +415,9 @@ export class ClubsService {
       where: { clubId, memberUserId: userId },
     })
     await tx.joinRequest.deleteMany({ where: { userId, clubId } })
+    // club-admin review fixes (H3): Führungszeugnis & member documents are
+    // erased with the membership (§72a(5) SGB VIII, DSGVO Art. 5(1)(e)).
+    await deleteMemberComplianceData(tx as any, clubId, userId)
     await tx.membership.deleteMany({ where: { userId, clubId } })
   }
 

@@ -1,4 +1,5 @@
 import {
+  resolveOwnSide,
   buildExternalMatchId,
   calculateFormStreak,
   collectFixtureChanges,
@@ -127,5 +128,39 @@ describe('fussball utils', () => {
         [],
       ),
     ).toEqual(['kickoff', 'pitchAddress', 'status', 'result'])
+  })
+})
+
+// Kader fix H3: own side from the team link, never a 6-character prefix.
+describe('resolveOwnSide', () => {
+  it('matches the linked team exactly, home or away', () => {
+    expect(resolveOwnSide('SV Albatros', 'SV Albatros', 'SV Babelsberg 03')).toEqual({
+      isHome: true,
+      ownTeamName: 'SV Albatros',
+    })
+    expect(resolveOwnSide('SV Albatros', 'SV Babelsberg 03', 'SV Albatros')).toEqual({
+      isHome: false,
+      ownTeamName: 'SV Albatros',
+    })
+  })
+
+  it('does not confuse two clubs that share the first six characters', () => {
+    // The old client check took "sv bab" and called both sides "own".
+    expect(resolveOwnSide('SV Babelsberg 03', 'SV Babelsberg II', 'SV Babelsberg 03')).toEqual({
+      isHome: false,
+      ownTeamName: 'SV Babelsberg 03',
+    })
+    expect(resolveOwnSide('SV Babelsberg 03', 'SV Babelsberg II', 'FC Stahl')).toEqual({
+      isHome: null,
+      ownTeamName: null,
+    })
+  })
+
+  it('accepts the whole label inside exactly one side (fussball.de suffixes)', () => {
+    expect(resolveOwnSide('SV Albatros', 'SV Albatros 2', 'TSV Rot-Weiß')).toEqual({
+      isHome: true,
+      ownTeamName: 'SV Albatros 2',
+    })
+    expect(resolveOwnSide('', 'A', 'B')).toEqual({ isHome: null, ownTeamName: null })
   })
 })

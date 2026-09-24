@@ -287,6 +287,25 @@ describe('updateTeamMemberSchema', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('accepts an absence with an ISO end date', () => {
+    expect(
+      updateTeamMemberSchema.safeParse({
+        absence: 'AWAY',
+        absenceUntil: '2026-10-12T21:59:00.000Z',
+      }).success,
+    ).toBe(true)
+    expect(updateTeamMemberSchema.safeParse({ absence: 'NONE', absenceUntil: null }).success).toBe(
+      true,
+    )
+  })
+
+  it('rejects an unknown absence or a non-ISO end date', () => {
+    expect(updateTeamMemberSchema.safeParse({ absence: 'INJURED' }).success).toBe(false)
+    expect(
+      updateTeamMemberSchema.safeParse({ absence: 'AWAY', absenceUntil: '12.10.2026' }).success,
+    ).toBe(false)
+  })
 })
 
 describe('clubSearchQuerySchema', () => {

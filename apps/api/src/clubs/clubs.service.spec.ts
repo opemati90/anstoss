@@ -807,6 +807,9 @@ describe('ClubsService.leaveClub', () => {
       contributionAssignment: { updateMany: jest.fn().mockResolvedValue({}) },
       contributionReminder: { deleteMany: jest.fn().mockResolvedValue({}) },
       joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
+      // club-admin review fixes (H3): certificates go with the membership
+      complianceRecord: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      complianceReminder: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       membership: {
         findUnique: jest
           .fn()
@@ -857,9 +860,9 @@ describe('ClubsService.leaveClub', () => {
     expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u-1', channel: { is: { clubId: 'club-1' } } },
     })
-    expect(tx.conversationParticipant.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'u-1', conversation: { is: { clubId: 'club-1' } } },
-    })
+    // Chat revamp (M1): DM participant rows are kept so the peer's history
+    // survives; membership checks lock the removed user out.
+    expect(tx.conversationParticipant.deleteMany).not.toHaveBeenCalled()
     expect(tx.teamAccess.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u-1', clubId: 'club-1' },
     })
@@ -891,6 +894,16 @@ describe('ClubsService.leaveClub', () => {
     expect(tx.membership.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u-1', clubId: 'club-1' },
     })
+    // H3: Führungszeugnis & member documents are erased in the same transaction.
+    expect(tx.complianceRecord.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', memberUserId: 'u-1' },
+    })
+    expect(tx.complianceReminder.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', memberUserId: 'u-1' },
+    })
+    expect(tx.complianceRecord.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.membership.deleteMany.mock.invocationCallOrder[0],
+    )
   })
 })
 
@@ -922,6 +935,9 @@ describe('ClubsService.removeMemberFromClub', () => {
       contributionAssignment: { updateMany: jest.fn().mockResolvedValue({}) },
       contributionReminder: { deleteMany: jest.fn().mockResolvedValue({}) },
       joinRequest: { deleteMany: jest.fn().mockResolvedValue({}) },
+      // club-admin review fixes (H3): certificates go with the membership
+      complianceRecord: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      complianceReminder: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       membership: {
         findUnique: jest
           .fn()
@@ -969,11 +985,14 @@ describe('ClubsService.removeMemberFromClub', () => {
     expect(tx.channelMember.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'p-1', channel: { is: { clubId: 'club-1' } } },
     })
-    expect(tx.conversationParticipant.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'p-1', conversation: { is: { clubId: 'club-1' } } },
-    })
+    // Chat revamp (M1): DM participant rows are kept so the peer's history
+    // survives; membership checks lock the removed user out.
+    expect(tx.conversationParticipant.deleteMany).not.toHaveBeenCalled()
     expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'p-1', event: { is: { clubId: 'club-1' } } },
+    })
+    expect(tx.complianceRecord.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', memberUserId: 'p-1' },
     })
   })
 })

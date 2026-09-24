@@ -9,7 +9,7 @@ import {
 
 describe('resolveEmailLocale', () => {
   it('passes through supported locales', () => {
-    for (const l of ['de', 'en', 'fr', 'it', 'pt'] as const) {
+    for (const l of ['de', 'en', 'fr', 'it', 'pt', 'tr'] as const) {
       expect(resolveEmailLocale(l)).toBe(l)
     }
   })
@@ -17,6 +17,8 @@ describe('resolveEmailLocale', () => {
   it('strips region subtags', () => {
     expect(resolveEmailLocale('de-DE')).toBe('de')
     expect(resolveEmailLocale('pt-BR')).toBe('pt')
+    expect(resolveEmailLocale('tr-TR')).toBe('tr')
+    expect(resolveEmailLocale('tr_TR')).toBe('tr')
   })
 
   it('falls back to German for unknown / empty languages', () => {
@@ -65,7 +67,7 @@ describe('buildInviteEmail', () => {
       role: 'COACH',
     })
     expect(out.subject).toContain('Invitation à rejoindre')
-    expect(out.html).toContain('Vous êtes invité')
+    expect(out.html).toContain('Tu es invité')
     // COACH does not get the under-16 note.
     expect(out.text).not.toMatch(/16 ans/)
   })
@@ -133,7 +135,7 @@ describe('buildContributionReminderEmail', () => {
 
   it('localizes status for outstanding (Italian)', () => {
     const out = buildContributionReminderEmail({ ...base, locale: 'it', status: 'OUTSTANDING' })
-    expect(out.html).toContain('Contributo da pagare')
+    expect(out.html).toContain('Quota da pagare')
     expect(out.html).toContain('Da pagare')
     expect(out.text).toContain('Ciao Anna')
   })
@@ -214,5 +216,31 @@ describe('buildParentHandoffEmail', () => {
     const out = buildParentHandoffEmail({ locale: 'en', childFirstName: '   ', code: 'XYZ99' })
     expect(out.subject).toContain('Your child')
     expect(out.text).toContain('Your child')
+  })
+})
+
+describe('Turkish emails', () => {
+  it('renders the contribution reminder in Turkish with a tr-TR amount', () => {
+    const out = buildContributionReminderEmail({
+      locale: 'tr',
+      clubName: 'SV Albatros',
+      primaryColor: null,
+      badgeUrl: null,
+      memberName: 'Emre',
+      planName: 'Yıllık aidat',
+      amountCents: 12000,
+      currency: 'EUR',
+      dueDate: new Date('2026-07-01T10:00:00Z'),
+      status: 'OVERDUE',
+    })
+    expect(out.html).toContain('Aidat ödemesi gecikti')
+    expect(out.text).toContain('Merhaba Emre')
+    expect(out.html).toMatch(/120,00/)
+  })
+
+  it('falls back to a localized child name in the Turkish handoff', () => {
+    const out = buildParentHandoffEmail({ locale: 'tr', childFirstName: ' ', code: 'AB12' })
+    expect(out.subject).toContain('Çocuğun')
+    expect(out.text).toContain('AB12')
   })
 })

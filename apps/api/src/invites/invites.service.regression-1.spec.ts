@@ -163,6 +163,8 @@ describe('InvitesService parental quota enforcement', () => {
     const quota = jest.fn().mockRejectedValue(new ConflictException('plan limit'))
     const prisma = {
       invite: { findUnique: jest.fn().mockResolvedValue(invite) },
+      // onboarding review fix (B2): the approving guardian is an adult.
+      user: { findUnique: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1985-05-01') }) },
       $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
     }
     const service = new InvitesService(
@@ -187,5 +189,92 @@ describe('InvitesService parental quota enforcement', () => {
     ).rejects.toBeInstanceOf(ConflictException)
     expect(quota).toHaveBeenCalledWith('club-1', 'child-1', tx)
     expect(tx.teamMember.upsert).not.toHaveBeenCalled()
+  })
+})
+
+// onboarding review fix (B2): a 17-year-old cannot approve for a child.
+describe('InvitesService parent approval guardian age', () => {
+  it('rejects a guardian account without an 18+ DOB before touching access', async () => {
+    const invite = {
+      id: 'invite-2',
+      recipientEmail: 'teen@example.com',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      club: { id: 'club-1' },
+      team: { id: 'team-1' },
+      parentalConsent: { id: 'consent-2', playerUserId: 'child-2' },
+    }
+    const seventeen = new Date()
+    seventeen.setFullYear(seventeen.getFullYear() - 17)
+    const prisma = {
+      invite: { findUnique: jest.fn().mockResolvedValue(invite) },
+      user: { findUnique: jest.fn().mockResolvedValue({ dateOfBirth: seventeen }) },
+      $transaction: jest.fn(),
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never, {} as never)
+    await expect(
+      (
+        service as unknown as {
+          redeemParentApproval: (id: string, user: { id: string; email: string; name: string }) => Promise<unknown>
+        }
+      ).redeemParentApproval('invite-2', { id: 'teen', email: 'teen@example.com', name: 'Teen' }),
+    ).rejects.toMatchObject({ response: { code: 'GUARDIAN_UNDER_18' } })
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+})
+
+// onboarding review fix (B2/M3): age rules at redemption.
+describe('InvitesService.redeem age rules', () => {
+  function setup(dob: Date | null, role: string) {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'u-1',
+          email: 'tim@example.de',
+          name: 'Tim',
+          dateOfBirth: dob,
+          preferredLanguage: 'de',
+        }),
+      },
+      $transaction: jest.fn(),
+    }
+    const service = new InvitesService(prisma as never, {} as never, {} as never, {} as never)
+    ;(service as unknown as { validate: jest.Mock }).validate = jest.fn().mockResolvedValue({
+      id: 'inv-1',
+      clubId: 'club-1',
+      teamId: 'team-1',
+      role,
+      kind: 'MEMBER_INVITE',
+      recipientEmail: null,
+    })
+    return { service, prisma }
+  }
+  const yearsAgo = (n: number) => {
+    const d = new Date()
+    d.setFullYear(d.getFullYear() - n)
+    d.setDate(d.getDate() - 5)
+    return d
+  }
+
+  it('refuses a parent invite for an account under 18', async () => {
+    const { service, prisma } = setup(yearsAgo(17), 'PARENT')
+    await expect(service.redeem('E2EINV01', 'u-1')).rejects.toMatchObject({
+      response: { code: 'GUARDIAN_UNDER_18' },
+    })
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('refuses a parent invite for a legacy account without a DOB', async () => {
+    const { service } = setup(null, 'PARENT')
+    await expect(service.redeem('E2EINV01', 'u-1')).rejects.toMatchObject({
+      response: { code: 'GUARDIAN_UNDER_18' },
+    })
+  })
+
+  it('refuses any invite for an under-13 account', async () => {
+    const { service } = setup(yearsAgo(11), 'PLAYER')
+    await expect(service.redeem('E2EINV01', 'u-1')).rejects.toMatchObject({
+      response: { code: 'UNDER_13' },
+    })
   })
 })

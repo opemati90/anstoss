@@ -29,4 +29,6 @@ export interface StreaksLeaderboardEntry {
 export interface StreaksResponse {
   me: StreaksMe
   leaderboard: StreaksLeaderboardEntry[]
+  /** Set when the numbers are scoped to one team (?teamId=); absent = whole club. */
+  teamId?: string | null
 }

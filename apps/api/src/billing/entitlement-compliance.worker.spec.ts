@@ -20,7 +20,9 @@ describe('EntitlementComplianceWorker', () => {
     const prisma = {
       club: { findMany: jest.fn().mockResolvedValue([{ id: 'club-1', name: 'FC Test' }]) },
       membership: {
-        findFirst: jest.fn().mockResolvedValue({ user: { email: 'owner@example.com' } }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ user: { email: 'owner@example.com', preferredLanguage: 'en' } }),
       },
       clubPlanCompliance: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     }

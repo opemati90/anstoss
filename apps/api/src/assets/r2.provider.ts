@@ -4,7 +4,9 @@ import {
   HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3'
+import { randomUUID } from 'crypto'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Injectable, Logger } from '@nestjs/common'
 
@@ -97,6 +99,43 @@ export class R2Provider {
         ),
       ),
     )
+  }
+
+  /**
+   * Safeguarding: move a removed chat attachment out of its public path.
+   * The object is copied to `quarantine/<uuid>/<name>` (in
+   * R2_QUARANTINE_BUCKET when set, else the same bucket under an unguessable
+   * prefix that must not be publicly routed) and the original is deleted.
+   * Returns the quarantine key for moderator evidence, or null when R2 is
+   * not configured.
+   */
+  async quarantineObject(objectKey: string): Promise<{ bucket: string; key: string } | null> {
+    if (!this.client) return null
+    const bucket = process.env.R2_QUARANTINE_BUCKET || this.bucket
+    const name = objectKey.split('/').pop() || 'object'
+    const key = `quarantine/${randomUUID()}/${name}`
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        CopySource: `${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`,
+      }),
+    )
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }))
+    return { bucket, key }
+  }
+
+  /** Short-lived signed GET for an object in a given bucket (quarantine). */
+  async presignGetIn(bucket: string, objectKey: string, expiresIn = 300): Promise<string> {
+    if (!this.client) throw new Error('R2 not configured')
+    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: bucket, Key: objectKey }), {
+      expiresIn,
+    })
+  }
+
+  async deleteObjectIn(bucket: string, objectKey: string): Promise<void> {
+    if (!this.client) return
+    await this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
   }
 
   /**

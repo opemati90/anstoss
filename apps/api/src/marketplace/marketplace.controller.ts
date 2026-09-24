@@ -10,22 +10,27 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import {
-  MembershipRole,
+  clubTrialActionSchema,
   createFreeAgentMediaSchema,
+  createPlayerSearchSchema,
   createTrialInviteSchema,
+  createTrialRequestSchema,
   freeAgentListQuerySchema,
   freeAgentProfileWriteSchema,
+  playerSearchListQuerySchema,
   presignFreeAgentMediaSchema,
   respondToTrialInviteSchema,
+  updatePlayerSearchSchema,
   updateRegistrationRoleSchema,
 } from '@anstoss/shared'
 import { BadRequestException } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
-import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { R2Provider } from '../assets/r2.provider'
 import { MarketplaceService } from './marketplace.service'
+import { PlayerSearchService } from './player-search.service'
+import { AllowWithoutConsent } from '../auth/age-gate.guard'
 
 const MEDIA_ALLOWED_CONTENT_TYPES: Record<'PHOTO' | 'VIDEO', Set<string>> = {
   PHOTO: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
@@ -37,6 +42,7 @@ export class MarketplaceController {
   constructor(
     private readonly marketplaceService: MarketplaceService,
     private readonly r2: R2Provider,
+    private readonly playerSearches: PlayerSearchService,
   ) {}
 
   @UseGuards(ClerkAuthGuard)
@@ -83,6 +89,8 @@ export class MarketplaceController {
     @Body() body: unknown,
   ) {
     const data = presignFreeAgentMediaSchema.parse(body)
+    // H2: no photos/videos for under-18s (and no role/age bypass via presign).
+    await this.marketplaceService.assertMayAddMedia(user.id)
     const allowed = MEDIA_ALLOWED_CONTENT_TYPES[data.type]
     if (!allowed.has(data.contentType)) {
       throw new BadRequestException('Unsupported content type')
@@ -147,6 +155,7 @@ export class MarketplaceController {
   }
 
   @UseGuards(ClerkAuthGuard)
+  @AllowWithoutConsent()
   @Patch('me/registration-role')
   @RateLimit('write')
   async updateRegistrationRole(
@@ -160,21 +169,28 @@ export class MarketplaceController {
     )
   }
 
+  @UseGuards(ClerkAuthGuard)
   @Get('free-agents')
   @RateLimit('read')
-  async listFreeAgents(@Query() query: Record<string, unknown>) {
+  async listFreeAgents(
+    @CurrentUser() user: { id: string },
+    @Query() query: Record<string, unknown>,
+  ) {
     const parsed = freeAgentListQuerySchema.parse(query)
-    return this.marketplaceService.listFreeAgents(parsed)
+    return this.marketplaceService.listFreeAgents(parsed, user.id)
   }
 
+  @UseGuards(ClerkAuthGuard)
   @Get('free-agents/:id')
   @RateLimit('read')
-  async getFreeAgentProfile(@Param('id') id: string) {
-    return this.marketplaceService.getPublicFreeAgentProfile(id)
+  async getFreeAgentProfile(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    return this.marketplaceService.getPublicFreeAgentProfile(id, user.id)
   }
 
-  @UseGuards(ClerkAuthGuard, RolesGuard)
-  @RequireRole(MembershipRole.ADMIN)
+  // ── Probetraining (club side). Coaches of the team or club admins; the
+  // service resolves the per-team scope (see trial-scope.ts).
+
+  @UseGuards(ClerkAuthGuard)
   @Post('clubs/:clubId/trial-invites')
   @RateLimit('write')
   async createTrialInvite(
@@ -186,17 +202,99 @@ export class MarketplaceController {
     return this.marketplaceService.createTrialInvite(clubId, user.id, data)
   }
 
-  @UseGuards(ClerkAuthGuard, RolesGuard)
-  @RequireRole(MembershipRole.ADMIN)
+  @UseGuards(ClerkAuthGuard)
   @Get('clubs/:clubId/trial-invites')
-  async listClubTrialInvites(@Param('clubId') clubId: string) {
-    return this.marketplaceService.listClubTrialInvites(clubId)
+  async listClubTrialInvites(
+    @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.marketplaceService.listClubTrialInvites(clubId, user.id)
   }
+
+  @UseGuards(ClerkAuthGuard)
+  @Patch('clubs/:clubId/trial-invites/:id')
+  @RateLimit('write')
+  async applyClubTrialAction(
+    @Param('clubId') clubId: string,
+    @Param('id') inviteId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = clubTrialActionSchema.parse(body)
+    return this.marketplaceService.applyClubTrialAction(clubId, inviteId, user.id, data)
+  }
+
+  // ── Gesuche
+
+  @UseGuards(ClerkAuthGuard)
+  @Get('clubs/:clubId/player-searches')
+  async listClubPlayerSearches(
+    @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.playerSearches.listForClub(clubId, user.id)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Post('clubs/:clubId/player-searches')
+  @RateLimit('write')
+  async createPlayerSearch(
+    @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createPlayerSearchSchema.parse(body)
+    return this.playerSearches.create(clubId, user.id, data)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Patch('clubs/:clubId/player-searches/:id')
+  @RateLimit('write')
+  async updatePlayerSearch(
+    @Param('clubId') clubId: string,
+    @Param('id') searchId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = updatePlayerSearchSchema.parse(body)
+    return this.playerSearches.update(clubId, searchId, user.id, data)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Get('player-searches')
+  @RateLimit('read')
+  async listOpenPlayerSearches(
+    @CurrentUser() user: { id: string },
+    @Query() query: Record<string, unknown>,
+  ) {
+    const parsed = playerSearchListQuerySchema.parse(query)
+    return this.playerSearches.listOpen(parsed, user.id)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Post('player-searches/:id/trial-requests')
+  @RateLimit('write')
+  async createTrialRequest(
+    @Param('id') searchId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const data = createTrialRequestSchema.parse(body ?? {})
+    return this.marketplaceService.createTrialRequest(searchId, user.id, data)
+  }
+
+  // ── Probetraining (player side)
 
   @UseGuards(ClerkAuthGuard)
   @Get('me/trial-invites')
   async listMyTrialInvites(@CurrentUser() user: { id: string }) {
     return this.marketplaceService.listMyTrialInvites(user.id)
+  }
+
+  @UseGuards(ClerkAuthGuard)
+  @Get('trial-invites/:id')
+  async getTrialInvite(@Param('id') inviteId: string, @CurrentUser() user: { id: string }) {
+    return this.marketplaceService.getTrialInvite(inviteId, user.id)
   }
 
   @UseGuards(ClerkAuthGuard)
@@ -208,10 +306,6 @@ export class MarketplaceController {
     @Body() body: unknown,
   ) {
     const data = respondToTrialInviteSchema.parse(body)
-    return this.marketplaceService.respondToTrialInvite(
-      inviteId,
-      user.id,
-      data.status,
-    )
+    return this.marketplaceService.respondToTrialInvite(inviteId, user.id, data.status)
   }
 }

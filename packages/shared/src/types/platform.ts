@@ -50,6 +50,16 @@ export type AuditEventType =
   | 'join_request.rejected'
   | 'join_request.withdrawn'
   | 'join_request.reminder_sent'
+  // Wechselbörse: Freigabe / Passantrag / Spielberechtigt ab tracking
+  | 'join_request.wechsel_updated'
+  // club-admin revamp: compliance records
+  | 'compliance.recorded'
+  | 'compliance.reminder_sent'
+  // club-admin review fixes: audited member export (H1/H2)
+  | 'members.exported'
+  // privacy: guardian consent withdrawal + club-level UGC moderation
+  | 'consent.withdrawn'
+  | 'moderation.report_resolved'
   | 'admin.broadcast.sent'
   | 'admin.broadcast.failed'
   | 'admin.feature_flag.updated'

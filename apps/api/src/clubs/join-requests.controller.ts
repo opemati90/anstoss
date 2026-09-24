@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -11,11 +12,16 @@ import {
 import { JoinRequestsService } from './join-requests.service'
 import { ClubsService } from './clubs.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { AgeGateGuard } from '../auth/age-gate.guard'
+import { AgeGateGuard, AllowWithoutConsent } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
-import { createJoinRequestSchema, reviewJoinRequestSchema, MembershipRole } from '@anstoss/shared'
+import {
+  createJoinRequestSchema,
+  reviewJoinRequestSchema,
+  updateJoinRequestWechselSchema,
+  MembershipRole,
+} from '@anstoss/shared'
 
 @Controller('clubs')
 export class JoinRequestsController {
@@ -28,6 +34,7 @@ export class JoinRequestsController {
    * GET /clubs/lookup?slug=fc-example — public club lookup by slug.
    * Returns minimal public info. Rate-limited.
    */
+  @AllowWithoutConsent()
   @Get('lookup')
   @UseGuards(ClerkAuthGuard)
   @RateLimit('read')
@@ -110,6 +117,23 @@ export class JoinRequestsController {
   ) {
     const input = reviewJoinRequestSchema.parse(body)
     return this.joinRequests.reject(clubId, requestId, user.id, input)
+  }
+
+  /**
+   * PATCH /clubs/:clubId/join-requests/:id/wechsel — Freigabe, Passantrag,
+   * Spielberechtigt ab (coach of the team or admin; checked in the service).
+   */
+  @Patch(':clubId/join-requests/:id/wechsel')
+  @UseGuards(ClerkAuthGuard, AgeGateGuard)
+  @RateLimit('write')
+  async updateWechsel(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('id') requestId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateJoinRequestWechselSchema.parse(body)
+    return this.joinRequests.updateWechsel(clubId, requestId, user.id, input)
   }
 
   @Post(':clubId/join-requests/:id/remind')

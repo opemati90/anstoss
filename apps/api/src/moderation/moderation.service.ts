@@ -2,14 +2,31 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
+import {
+  MembershipRole,
+  PLATFORM_ONLY_REPORT_REASONS,
+  REPORT_REASONS as REASON_LIST,
+} from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { PushService } from '../push/push.service'
 import { TeamsService } from '../teams/teams.service'
 import { ChannelsService } from '../channels/channels.service'
+import {
+  ESCALATION,
+  PlatformSafetyAlerter,
+  isClubStaff,
+  type EscalationReason,
+} from './moderation-safety'
 
-const REPORT_REASONS = new Set(['SPAM', 'ABUSE', 'INAPPROPRIATE', 'OTHER'])
+const REPORT_REASONS = new Set<string>(REASON_LIST)
+const REASON_ERROR = `Reason must be one of: ${REASON_LIST.join(', ')}`
 const MAX_REASON_LEN = 1000
+/** L2: one push per club per window; later reports in the window are batched. */
+export const REPORT_PUSH_DEBOUNCE_MS = 10 * 60 * 1000
 
 /**
  * UGC moderation surface required by Apple Guideline 1.2:
@@ -22,11 +39,119 @@ const MAX_REASON_LEN = 1000
  */
 @Injectable()
 export class ModerationService {
+  private readonly logger = new Logger(ModerationService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
     private readonly channelsService: ChannelsService,
+    @Optional() private readonly push?: PushService,
+    @Optional() private readonly alerter?: PlatformSafetyAlerter,
   ) {}
+
+  /** L2 debounce state per club (per API instance). */
+  private readonly pushWindows = new Map<string, { pending: number; timer: NodeJS.Timeout | null }>()
+
+  /**
+   * M6: SAFEGUARDING reports and reports about club staff go straight to the
+   * platform queue; club admins are neither notified nor able to act.
+   */
+  private async escalationFor(
+    reasonKey: string,
+    senderId: string | null,
+    clubId: string | null,
+  ): Promise<EscalationReason | null> {
+    if ((PLATFORM_ONLY_REPORT_REASONS as readonly string[]).includes(reasonKey)) {
+      return ESCALATION.SAFEGUARDING
+    }
+    if (clubId && (await isClubStaff(this.prisma, senderId, clubId))) {
+      return ESCALATION.STAFF_SENDER
+    }
+    return null
+  }
+
+  private afterReport(
+    reportId: string | null,
+    clubId: string | null,
+    escalation: EscalationReason | null,
+    exclude: Array<string | null>,
+  ) {
+    if (escalation) {
+      if (reportId && this.alerter) {
+        void this.alerter
+          .alert({ reason: escalation, reportIds: [reportId], clubId })
+          .catch((err: unknown) =>
+            this.logger.error(`platform alert failed for ${reportId}: ${(err as Error).message}`),
+          )
+      }
+      return
+    }
+    if (clubId) this.notifyClubModerators(clubId, exclude)
+  }
+
+  /**
+   * UGC moderation: tell the club's OWNER/ADMINs a new report is waiting
+   * (24h response target, docs/compliance/UGC_MODERATION.md). Best effort:
+   * the report row is the durable record and the queue lists it regardless.
+   */
+  private notifyClubModerators(clubId: string, excludeUserIds: Array<string | null>) {
+    if (!this.push) return
+    const window = this.pushWindows.get(clubId)
+    if (window) {
+      // Inside the window: count it; one summary push goes out when it closes.
+      window.pending += 1
+      return
+    }
+    const state = { pending: 0, timer: null as NodeJS.Timeout | null }
+    state.timer = setTimeout(() => {
+      this.pushWindows.delete(clubId)
+      if (state.pending > 0) this.sendModeratorPush(clubId, excludeUserIds, state.pending)
+    }, REPORT_PUSH_DEBOUNCE_MS)
+    state.timer.unref?.()
+    this.pushWindows.set(clubId, state)
+    this.sendModeratorPush(clubId, excludeUserIds, 1)
+  }
+
+  private sendModeratorPush(clubId: string, excludeUserIds: Array<string | null>, count: number) {
+    if (!this.push) return
+    const push = this.push
+    void (async () => {
+      const [club, admins] = await Promise.all([
+        this.prisma.club.findUnique({ where: { id: clubId }, select: { name: true } }),
+        this.prisma.membership.findMany({
+          where: {
+            clubId,
+            role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
+            user: { deletedAt: null },
+          },
+          select: { userId: true },
+        }),
+      ])
+      const exclude = new Set(excludeUserIds.filter(Boolean))
+      for (const { userId } of admins) {
+        if (exclude.has(userId)) continue
+        if (count > 1) {
+          await push.sendToUserLocalized(
+            userId,
+            'MODERATION_REPORTS_BATCH',
+            { clubName: club?.name ?? '', count },
+            { type: 'moderation_report', clubId },
+            { clubId },
+          )
+        } else {
+          await push.sendToUserLocalized(
+            userId,
+            'MODERATION_REPORT_CREATED',
+            { clubName: club?.name ?? '' },
+            { type: 'moderation_report', clubId },
+            { clubId },
+          )
+        }
+      }
+    })().catch((err: unknown) => {
+      this.logger.warn(`moderation notify failed for club ${clubId}: ${(err as Error).message}`)
+    })
+  }
 
   async reportMessage(
     userId: string,
@@ -35,7 +160,7 @@ export class ModerationService {
   ): Promise<{ ok: true; hidden: boolean }> {
     const reasonKey = (input.reason || '').toUpperCase().trim()
     if (!REPORT_REASONS.has(reasonKey)) {
-      throw new BadRequestException('Reason must be one of: SPAM, ABUSE, INAPPROPRIATE, OTHER')
+      throw new BadRequestException(REASON_ERROR)
     }
     const details = (input.details ?? '').trim().slice(0, MAX_REASON_LEN)
 
@@ -43,6 +168,7 @@ export class ModerationService {
       where: { id: messageId },
       select: {
         id: true,
+        clubId: true,
         teamId: true,
         channelId: true,
         senderId: true,
@@ -57,17 +183,27 @@ export class ModerationService {
       throw new BadRequestException('Cannot report your own message')
     }
 
-    // Channel-aware authz: a parent who knows a Coaches messageId
-    // shouldn't be able to file reports against it.
-    await this.teamsService.assertReadableAccess(userId, readableMessage.teamId)
+    // H6: authorise with the channel's own access check (club channels,
+    // custom groups and visibility rules), not the message's anchor team.
+    // Messages without a channel (legacy team chat) use team read access.
     if (readableMessage.channelId) {
-      const visible = await this.channelsService.listForUser(userId, readableMessage.teamId)
-      if (!visible.some((c) => c.id === readableMessage.channelId)) {
+      const access = await this.channelsService
+        .assertReadableChannel(userId, readableMessage.channelId)
+        .catch(() => null)
+      if (!access || access.channel.clubId !== readableMessage.clubId) {
         throw new ForbiddenException('Forbidden for this channel')
       }
+    } else {
+      await this.teamsService.assertReadableAccess(userId, readableMessage.teamId)
     }
 
     const reason = details ? `${reasonKey}: ${details}` : reasonKey
+    const escalation = await this.escalationFor(
+      reasonKey,
+      readableMessage.senderId,
+      readableMessage.clubId,
+    )
+    let reportId: string | null = null
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -87,7 +223,7 @@ export class ModerationService {
         if (message.deletedAt) throw new BadRequestException('Message already removed')
         if (message.senderId === userId) throw new BadRequestException('Cannot report your own message')
 
-        await tx.messageReport.create({
+        const created = await tx.messageReport.create({
           data: {
             messageId,
             reporterUserId: userId,
@@ -95,8 +231,11 @@ export class ModerationService {
             evidenceContent: message.content,
             evidenceAttachmentUrl: message.attachmentUrl,
             evidenceAttachmentMeta: message.attachmentMeta ?? undefined,
+            ...(escalation ? { escalatedAt: new Date(), escalationReason: escalation } : {}),
           },
+          select: { id: true },
         })
+        reportId = created.id
       })
     } catch (err: unknown) {
       // Unique violation = same user already reported this message.
@@ -113,6 +252,8 @@ export class ModerationService {
       throw err
     }
 
+    this.afterReport(reportId, readableMessage.clubId, escalation, [userId, readableMessage.senderId])
+
     // A report is evidence, not a deletion authority. One member must
     // never be able to censor a team announcement by choosing a severe
     // reason. Platform moderators explicitly remove or restore content
@@ -127,14 +268,19 @@ export class ModerationService {
   ): Promise<{ ok: true }> {
     const reasonKey = (input.reason || '').toUpperCase().trim()
     if (!REPORT_REASONS.has(reasonKey)) {
-      throw new BadRequestException('Reason must be one of: SPAM, ABUSE, INAPPROPRIATE, OTHER')
+      throw new BadRequestException(REASON_ERROR)
     }
     const readableMessage = await this.prisma.directMessage.findFirst({
       where: {
         id: messageId,
         conversation: { participants: { some: { userId } } },
       },
-      select: { id: true, senderId: true, deletedAt: true },
+      select: {
+        id: true,
+        senderId: true,
+        deletedAt: true,
+        conversation: { select: { clubId: true } },
+      },
     })
     if (!readableMessage) throw new NotFoundException('Direct message not found')
     if (readableMessage.deletedAt) throw new BadRequestException('Direct message already removed')
@@ -143,6 +289,9 @@ export class ModerationService {
     }
     const details = (input.details ?? '').trim().slice(0, MAX_REASON_LEN)
     const reason = details ? `${reasonKey}: ${details}` : reasonKey
+    const dmClubId = readableMessage.conversation?.clubId ?? null
+    const escalation = await this.escalationFor(reasonKey, readableMessage.senderId, dmClubId)
+    let reportId: string | null = null
     try {
       await this.prisma.$transaction(async (tx) => {
         await lockDirectMessage(tx, messageId)
@@ -151,7 +300,15 @@ export class ModerationService {
             id: messageId,
             conversation: { participants: { some: { userId } } },
           },
-          select: { id: true, senderId: true, deletedAt: true, content: true },
+          // Chat revamp: DMs carry attachments; the report snapshots them.
+          select: {
+            id: true,
+            senderId: true,
+            deletedAt: true,
+            content: true,
+            attachmentUrl: true,
+            attachmentMeta: true,
+          },
         })
         if (!message) throw new NotFoundException('Direct message not found')
         if (message.deletedAt) throw new BadRequestException('Direct message already removed')
@@ -159,14 +316,19 @@ export class ModerationService {
           throw new BadRequestException('Cannot report your own message')
         }
 
-        await tx.directMessageReport.create({
+        const created = await tx.directMessageReport.create({
           data: {
             directMessageId: messageId,
             reporterUserId: userId,
             reason,
             evidenceContent: message.content,
+            evidenceAttachmentUrl: message.attachmentUrl,
+            evidenceAttachmentMeta: message.attachmentMeta ?? undefined,
+            ...(escalation ? { escalatedAt: new Date(), escalationReason: escalation } : {}),
           },
+          select: { id: true },
         })
+        reportId = created.id
       })
     } catch (err: unknown) {
       if (
@@ -178,6 +340,7 @@ export class ModerationService {
         return { ok: true }
       throw err
     }
+    this.afterReport(reportId, dmClubId, escalation, [userId, readableMessage.senderId])
     return { ok: true }
   }
 

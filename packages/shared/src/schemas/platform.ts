@@ -88,6 +88,9 @@ export const auditEventTypeSchema = z.enum([
   'admin.feature_flag.removed',
   'admin.setting.updated',
   'admin.moderation_report.resolved',
+  // privacy: guardian consent withdrawal + club-level UGC moderation
+  'consent.withdrawn',
+  'moderation.report_resolved',
 ])
 
 export const assetKindSchema = z.enum([
@@ -340,6 +343,23 @@ export const parentalConsentSchema = z.object({
   guardianUserId: z.string().min(1).nullable().optional(),
   status: parentalConsentStatusSchema,
 })
+
+// ─── Privacy: consent withdrawal + club moderation ─────────────
+// Guardian withdraws a previously approved parental consent (GDPR Art. 7(3)).
+// `note` is required server-side when a club admin acts on a guardian's
+// written request; optional for the guardian themself.
+export const withdrawConsentSchema = z.object({
+  note: z.string().trim().min(1).max(1000).optional(),
+})
+
+// Club admin resolves a UGC report: dismiss keeps the message, remove hides it.
+export const resolveModerationReportSchema = z.object({
+  action: z.enum(['dismiss', 'remove']),
+  resolution: z.string().trim().max(1000).optional(),
+})
+
+export type WithdrawConsentInput = z.infer<typeof withdrawConsentSchema>
+export type ResolveModerationReportInput = z.infer<typeof resolveModerationReportSchema>
 
 export const supportActionSchema = z.object({
   action: supportActionTypeSchema,

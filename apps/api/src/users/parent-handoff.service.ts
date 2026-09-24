@@ -1,14 +1,53 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { AGE_GATE, getAge, type RedeemParentHandoffInput } from '@anstoss/shared'
+import { getAge, type RedeemParentHandoffInput } from '@anstoss/shared'
+import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { ManagedSubProfilesService } from './managed-sub-profiles.service'
 import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
+
+/**
+ * Onboarding review fix (B2): guardian actions need an adult on the guardian
+ * account: a date of birth on file showing 18+. The legacy "16+" declaration
+ * (adultConfirmedAt) does not count.
+ */
+export const GUARDIAN_MIN_AGE = 18
+
+type TeamPreviewRow = {
+  id: string
+  name: string
+  displayName: string | null
+  clubId: string
+  club: { id: string; name: string; badgeUrl: string | null; primaryColor: string | null }
+  rosterSlots: Array<{ id: string; fullName: string; position: string | null; jerseyNumber: number | null }>
+}
+
+const TEAM_PREVIEW_SELECT = {
+  id: true,
+  name: true,
+  displayName: true,
+  clubId: true,
+  club: { select: { id: true, name: true, badgeUrl: true, primaryColor: true } },
+  rosterSlots: {
+    where: { claimedByUserId: null },
+    select: { id: true, fullName: true, position: true, jerseyNumber: true },
+    orderBy: [{ fullName: 'asc' as const }],
+  },
+} satisfies Prisma.TeamSelect
+
+function toTeamPreview(team: TeamPreviewRow) {
+  return {
+    team: { id: team.id, clubId: team.clubId, name: team.name, displayName: team.displayName },
+    club: team.club,
+    rosterSlots: team.rosterSlots,
+  }
+}
 
 /**
  * Guardian-side of the under-16 handoff. A child who hit the age gate at
@@ -28,9 +67,17 @@ export class ParentHandoffService {
   async getByCode(parentUserId: string, code: string) {
     const handoff = await this.getPendingHandoff(code)
     await this.assertGuardianEmail(parentUserId, handoff.guardianEmail)
+    const team = handoff.teamId
+      ? ((await this.prisma.team.findUnique({
+          where: { id: handoff.teamId },
+          select: TEAM_PREVIEW_SELECT,
+        })) as TeamPreviewRow | null)
+      : null
     return {
       childFirstName: handoff.childFirstName,
       childDateOfBirth: handoff.childDateOfBirth.toISOString(),
+      // H5: set when the child followed an invite; the team code is optional.
+      team: team ? toTeamPreview(team) : null,
     }
   }
 
@@ -46,47 +93,15 @@ export class ParentHandoffService {
     if (joinCode.length !== JOIN_CODE_LENGTH) {
       throw new NotFoundException('Team not found for this code')
     }
-    const team = await this.prisma.team.findUnique({
+    const team = (await this.prisma.team.findUnique({
       where: { joinCode },
-      select: {
-        id: true,
-        name: true,
-        displayName: true,
-        clubId: true,
-        club: {
-          select: {
-            id: true,
-            name: true,
-            badgeUrl: true,
-            primaryColor: true,
-          },
-        },
-        rosterSlots: {
-          where: { claimedByUserId: null },
-          select: {
-            id: true,
-            fullName: true,
-            position: true,
-            jerseyNumber: true,
-          },
-          orderBy: [{ fullName: 'asc' }],
-        },
-      },
-    })
+      select: TEAM_PREVIEW_SELECT,
+    })) as TeamPreviewRow | null
     if (!team) {
       throw new NotFoundException('Team not found for this code')
     }
 
-    return {
-      team: {
-        id: team.id,
-        clubId: team.clubId,
-        name: team.name,
-        displayName: team.displayName,
-      },
-      club: team.club,
-      rosterSlots: team.rosterSlots,
-    }
+    return toTeamPreview(team)
   }
 
   /**
@@ -97,17 +112,7 @@ export class ParentHandoffService {
    * back so they can retry.
    */
   async redeem(parentUserId: string, input: RedeemParentHandoffInput) {
-    const joinCode = input.teamJoinCode.trim().toUpperCase()
-    if (joinCode.length !== JOIN_CODE_LENGTH) {
-      throw new NotFoundException('Team not found for this code')
-    }
-    const team = await this.prisma.team.findUnique({
-      where: { joinCode },
-      select: { id: true, clubId: true },
-    })
-    if (!team) {
-      throw new NotFoundException('Team not found for this code')
-    }
+    const team = await this.resolveRedeemTeam(input)
 
     return tenantContext.run({ clubId: team.clubId, userId: parentUserId }, () =>
       this.prisma.$transaction(async (tx) => {
@@ -154,6 +159,40 @@ export class ParentHandoffService {
     )
   }
 
+  /** Team from the typed team code, else the team the handoff remembers. */
+  private async resolveRedeemTeam(input: RedeemParentHandoffInput) {
+    const rawJoinCode = input.teamJoinCode?.trim().toUpperCase()
+    if (rawJoinCode) {
+      if (rawJoinCode.length !== JOIN_CODE_LENGTH) {
+        throw new NotFoundException('Team not found for this code')
+      }
+      const team = await this.prisma.team.findUnique({
+        where: { joinCode: rawJoinCode },
+        select: { id: true, clubId: true },
+      })
+      if (!team) throw new NotFoundException('Team not found for this code')
+      return team
+    }
+    const handoff = await this.prisma.parentHandoff.findUnique({
+      where: { code: input.code.trim().toUpperCase() },
+      select: { teamId: true },
+    })
+    if (!handoff) throw new NotFoundException('Invalid setup code')
+    const team = handoff.teamId
+      ? await this.prisma.team.findUnique({
+          where: { id: handoff.teamId },
+          select: { id: true, clubId: true },
+        })
+      : null
+    if (!team) {
+      throw new BadRequestException({
+        message: 'A team code is required for this setup code',
+        code: 'TEAM_CODE_REQUIRED',
+      })
+    }
+    return team
+  }
+
   private async getPendingHandoff(code: string) {
     const handoff = await this.prisma.parentHandoff.findUnique({
       where: { code: code.trim().toUpperCase() },
@@ -189,8 +228,11 @@ export class ParentHandoffService {
     if (normalizeEmail(user?.email) !== normalizeEmail(guardianEmail)) {
       throw new ForbiddenException('This setup code belongs to a different guardian email')
     }
-    if (!user?.dateOfBirth || getAge(user.dateOfBirth) < AGE_GATE.MIN_AGE) {
-      throw new ForbiddenException('A parent or guardian must be at least 16')
+    if (!user?.dateOfBirth || getAge(user.dateOfBirth) < GUARDIAN_MIN_AGE) {
+      throw new ForbiddenException({
+        message: 'A parent or guardian must be at least 18',
+        code: 'GUARDIAN_UNDER_18',
+      })
     }
   }
 }

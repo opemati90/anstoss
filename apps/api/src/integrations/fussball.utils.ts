@@ -304,6 +304,38 @@ export function inferLinkedTeamPerspective(
   }
 }
 
+/**
+ * Kader fix H3: which side of a fixture is the linked team, from the team
+ * link's label. An exact (normalised) name match wins; otherwise the whole
+ * label must be contained in exactly one side. Never a prefix guess: two
+ * clubs sharing a first word ("SV Babelsberg 03" vs "SV Babelsberg II")
+ * resolve to null instead of the wrong side.
+ */
+export function resolveOwnSide(
+  linkedLabel: string | null | undefined,
+  homeTeam: string,
+  awayTeam: string,
+): { isHome: boolean | null; ownTeamName: string | null } {
+  const label = normalizeTeamName(linkedLabel ?? '')
+  if (!label) return { isHome: null, ownTeamName: null }
+  const home = normalizeTeamName(homeTeam)
+  const away = normalizeTeamName(awayTeam)
+  const homeExact = label === home
+  const awayExact = label === away
+  if (homeExact !== awayExact) {
+    return homeExact
+      ? { isHome: true, ownTeamName: homeTeam }
+      : { isHome: false, ownTeamName: awayTeam }
+  }
+  if (homeExact && awayExact) return { isHome: null, ownTeamName: null }
+  const inHome = home.includes(label)
+  const inAway = away.includes(label)
+  if (inHome !== inAway) {
+    return inHome ? { isHome: true, ownTeamName: homeTeam } : { isHome: false, ownTeamName: awayTeam }
+  }
+  return { isHome: null, ownTeamName: null }
+}
+
 export function buildExternalMatchId(input: {
   externalTeamId: string
   competition: string

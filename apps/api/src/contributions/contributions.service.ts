@@ -40,6 +40,8 @@ import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import {
   buildContributionReminderEmail,
   buildPaymentReceiptEmail,
+  formatAmount as formatAmountFor,
+  formatShortDate,
   resolveEmailLocale,
 } from '../email/email-content'
 
@@ -1014,6 +1016,160 @@ export class ContributionsService {
     }
   }
 
+  // ── Read-only views (club-admin inbox + member sheet) ────────────────────
+  // getOverview() materializes the current period's records (one upsert per
+  // assignment) and the settings row. The admin inbox and member sheet load
+  // on every focus, so they use these read-only variants instead: existing
+  // records are read, missing current-period records are derived in memory
+  // exactly as ensureCurrentRecords would create them, and nothing is written.
+
+  /** Overdue members for the admin inbox. No writes. */
+  async getOverdueSummary(
+    clubId: string,
+    userId: string,
+  ): Promise<{
+    members: Array<{
+      memberUserId: string
+      name: string
+      outstanding: number
+      currency: string
+      dueDate: string
+    }>
+    currency: string
+  }> {
+    await this.assertBillingAccess(clubId, userId)
+    const [settings, assignments] = await Promise.all([
+      this.prisma.clubContributionSettings.findUnique({
+        where: { clubId },
+        select: { defaultCurrency: true },
+      }),
+      this.listActiveAssignments(clubId),
+    ])
+    const current = await this.readCurrentRecords(assignments)
+    const byMember = new Map<
+      string,
+      { memberUserId: string; name: string; outstanding: number; currency: string; dueDate: string }
+    >()
+    for (const item of current) {
+      if (deriveContributionStatus(item.record, item.assignment.plan) !== 'OVERDUE') continue
+      const outstanding = Math.max(0, item.record.amount - (item.record.paidAmount ?? 0))
+      const dueDate = item.record.dueDate.toISOString()
+      const existing = byMember.get(item.assignment.memberUserId)
+      if (existing) {
+        existing.outstanding += outstanding
+        if (dueDate < existing.dueDate) existing.dueDate = dueDate
+        continue
+      }
+      byMember.set(item.assignment.memberUserId, {
+        memberUserId: item.assignment.memberUserId,
+        name: item.assignment.member?.name ?? '',
+        outstanding,
+        currency: item.record.currency,
+        dueDate,
+      })
+    }
+    const members = [...byMember.values()].sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    return {
+      members,
+      currency: members[0]?.currency ?? settings?.defaultCurrency ?? 'eur',
+    }
+  }
+
+  /** The member sheet's Beitrag row for one member. No writes. */
+  async getMemberContributionStatus(
+    clubId: string,
+    userId: string,
+    memberUserId: string,
+  ): Promise<{
+    status: NonNullable<ContributionOverview['members'][number]['status']>
+    amount: number
+    currency: string
+    dueDate: string
+    planName: string
+  } | null> {
+    await this.assertBillingAccess(clubId, userId)
+    const assignments = await this.listActiveAssignments(clubId, { memberUserIds: [memberUserId] })
+    if (assignments.length === 0) return null
+    const current = await this.readCurrentRecords(assignments)
+    // Most urgent first: overdue, then the earliest due date.
+    const ranked = current
+      .map((item) => ({ item, status: deriveContributionStatus(item.record, item.assignment.plan) }))
+      .sort(
+        (a, b) =>
+          getContributionStatusSortOrder(String(a.status)) -
+            getContributionStatusSortOrder(String(b.status)) ||
+          a.item.record.dueDate.getTime() - b.item.record.dueDate.getTime(),
+      )
+    const top = ranked[0]
+    if (!top || !top.status) return null
+    return {
+      status: top.status,
+      amount: top.item.record.amount,
+      currency: top.item.record.currency,
+      dueDate: top.item.record.dueDate.toISOString(),
+      planName: top.item.assignment.plan.name,
+    }
+  }
+
+  /**
+   * Read-only twin of ensureCurrentRecords: one findMany for the existing
+   * current-period records; a missing record is synthesized (PENDING, the
+   * same snapshot values the upsert would write) but never persisted.
+   */
+  private async readCurrentRecords(assignments: AssignmentRow[]): Promise<EnsuredRecord[]> {
+    if (assignments.length === 0) return []
+    const now = new Date()
+    const periods = assignments.map((assignment) => ({
+      assignment,
+      period: resolveContributionPeriod(
+        assignment.plan.cadence,
+        {
+          dueDay: assignment.plan.dueDay,
+          dueMonth: assignment.plan.dueMonth,
+          assignmentStart: assignment.startDate,
+        },
+        now,
+      ),
+    }))
+    const existing = (await this.prisma.contributionRecord.findMany({
+      where: {
+        OR: periods.map(({ assignment, period }) => ({
+          assignmentId: assignment.id,
+          periodStart: period.periodStart,
+        })),
+      },
+    })) as EnsuredRecord['record'][]
+    const byKey = new Map(
+      existing.map((record) => [`${record.assignmentId}:${record.periodStart.getTime()}`, record]),
+    )
+    return periods.map(({ assignment, period }) => {
+      const record =
+        byKey.get(`${assignment.id}:${period.periodStart.getTime()}`) ??
+        ({
+          id: `pending:${assignment.id}`,
+          clubId: assignment.clubId,
+          planId: assignment.planId,
+          assignmentId: assignment.id,
+          memberUserId: assignment.memberUserId,
+          periodStart: period.periodStart,
+          periodEnd: period.periodEnd,
+          dueDate: period.dueDate,
+          amount: assignment.amountOverride ?? assignment.plan.amount,
+          currency: assignment.plan.currency,
+          status: ContributionRecordStatus.PENDING,
+          paidAmount: null,
+          manualPaidAmount: 0,
+          paidAt: null,
+          note: null,
+          lastReminderKey: null,
+          lastReminderSentAt: null,
+          createdAt: now,
+          updatedAt: now,
+        } satisfies EnsuredRecord['record'])
+      return { assignment, record }
+    })
+  }
+
   private async assertBillingAccess(clubId: string, userId: string) {
     const membership = await this.prisma.membership.findUnique({
       where: {
@@ -1319,8 +1475,6 @@ export class ContributionsService {
       return { sent: false }
     }
 
-    const amountLabel = formatAmount(item.record.amount, item.record.currency)
-    const dueDateLabel = formatGermanDate(item.record.dueDate)
 
     const memberIsMinor = isUnder16(item.assignment.member.dateOfBirth)
     const recipients = memberIsMinor
@@ -1347,6 +1501,9 @@ export class ContributionsService {
     const deliveries = await Promise.all(
       recipients.map(async (recipient: any) => {
         const locale = resolveEmailLocale(recipient.preferredLanguage)
+        // Amount + due date in the recipient's locale (was hardcoded de-DE).
+        const amountLabel = formatAmountFor(item.record.amount, item.record.currency, locale)
+        const dueDateLabel = formatShortDate(item.record.dueDate, locale)
         const email = buildContributionReminderEmail({
           locale,
           clubName: input.clubName,
@@ -1460,8 +1617,14 @@ export class ContributionsService {
         where: { id: input.clubId },
         select: { name: true, primaryColor: true, badgeUrl: true },
       })
-      const clubName = club?.name ?? 'Your club'
-      const amountLabel = formatAmount(input.amount, input.currency)
+      const clubName = club?.name ?? 'Anstoss'
+      const member = await this.prisma.user.findUnique({
+        where: { id: input.memberUserId },
+        select: { name: true, email: true, preferredLanguage: true },
+      })
+      const memberLocale = resolveEmailLocale(member?.preferredLanguage)
+      // Amount in the member's locale (was hardcoded de-DE).
+      const amountLabel = formatAmountFor(input.amount, input.currency, memberLocale)
       await this.pushService.sendToUserLocalized(
         input.memberUserId,
         'CONTRIBUTION_PAID',
@@ -1483,13 +1646,9 @@ export class ContributionsService {
 
       // Receipt email — branded + localized to the member's language. The
       // member keeps it as proof of payment; best-effort, mirrors the reminder.
-      const member = await this.prisma.user.findUnique({
-        where: { id: input.memberUserId },
-        select: { name: true, email: true, preferredLanguage: true },
-      })
       if (member?.email) {
         const receipt = buildPaymentReceiptEmail({
-          locale: resolveEmailLocale(member.preferredLanguage),
+          locale: memberLocale,
           clubName,
           primaryColor: club?.primaryColor,
           badgeUrl: club?.badgeUrl,
@@ -1770,21 +1929,6 @@ function getContributionStatusSortOrder(status: string) {
     default:
       return 99
   }
-}
-
-function formatAmount(amount: number, currency: string) {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100)
-}
-
-function formatGermanDate(value: Date) {
-  return new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(value)
 }
 
 function formatDateKey(value: Date) {

@@ -8,6 +8,7 @@ import { InvitesController } from '../src/invites/invites.controller'
 import { InvitesService } from '../src/invites/invites.service'
 import { UsersController } from '../src/users/users.controller'
 import { UsersService } from '../src/users/users.service'
+import { MemberExportService } from '../src/users/member-export'
 import { R2Provider } from '../src/assets/r2.provider'
 import { ClerkAuthGuard } from '../src/auth/clerk.guard'
 import { AgeGateGuard } from '../src/auth/age-gate.guard'
@@ -109,6 +110,7 @@ describe('Critical Flow (e2e)', () => {
         { provide: EventsService, useValue: eventsService },
         { provide: InvitesService, useValue: invitesService },
         { provide: UsersService, useValue: usersService },
+        { provide: MemberExportService, useValue: { exportMembers: jest.fn() } },
         { provide: R2Provider, useValue: { enabled: false, presignPut: jest.fn() } },
         { provide: PrismaService, useValue: {} },
       ],

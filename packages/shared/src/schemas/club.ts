@@ -152,7 +152,7 @@ export const teamMemberOperationalStatusSchema = z.enum(['ACTIVE', 'NEW_PLAYER',
 
 export const injuryAvailabilityStatusSchema = z.enum(['OUT', 'DOUBTFUL', 'DAY_TO_DAY'])
 
-export const teamDutyKindSchema = z.enum(['JERSEY_CLEANUP', 'BIB_CLEANUP'])
+export const teamDutyKindSchema = z.enum(['JERSEY_CLEANUP', 'BIB_CLEANUP', 'LOCKER_ROOM'])
 
 export const teamDutyStatusSchema = z.enum(['PENDING', 'COMPLETED', 'SKIPPED'])
 
@@ -162,10 +162,16 @@ export const createPlayerLoanSchema = z.object({
   loanEndDate: z.string().optional(),
 })
 
+// Kader revamp: holiday / suspension. Players may set AWAY or NONE on
+// themselves; SUSPENDED and everything else is coach-only (server-enforced).
+export const teamMemberAbsenceSchema = z.enum(['NONE', 'SUSPENDED', 'AWAY'])
+
 export const updateTeamMemberSchema = z.object({
   position: z.string().max(30).nullable().optional(),
   jerseyNumber: z.number().int().min(0).max(999).nullable().optional(),
   operationalStatus: teamMemberOperationalStatusSchema.nullable().optional(),
+  absence: teamMemberAbsenceSchema.optional(),
+  absenceUntil: z.string().datetime({ offset: true }).nullable().optional(),
 })
 
 export const createInjuryReportSchema = z.object({
@@ -390,11 +396,44 @@ export type ResolveClubDisputeInput = z.infer<typeof resolveClubDisputeSchema>
 export type CreateInviteCampaignInput = z.infer<typeof createInviteCampaignSchema>
 export type OffboardClubMemberInput = z.infer<typeof offboardClubMemberSchema>
 
+const joinRequestDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid date')
+
+/**
+ * Join request. With `trialInviteId` it is the Aufnahmeantrag after a
+ * Probetraining offer: address, SEPA consent (the Kassenwart sends the
+ * mandate itself; no IBAN is stored here), the previous club for the
+ * Freigabe. Nationality is optional (only needed for an international
+ * transfer). For a player under 18 the membership + SEPA consent comes from
+ * a guardian through the parental-consent flow: the child names the
+ * guardian's email (`guardianEmail`); ticking a box themselves does not count.
+ */
 export const createJoinRequestSchema = z.object({
   teamId: z.string().optional(),
   role: z.enum(['PLAYER', 'PARENT']).default('PLAYER'),
   message: z.string().max(500).optional(),
+  trialInviteId: z.string().min(1).optional(),
+  street: z.string().trim().min(3).max(120).optional(),
+  postalCode: z.string().trim().regex(/^\d{5}$/, 'Postal code must have 5 digits').optional(),
+  city: z.string().trim().min(2).max(80).optional(),
+  phone: z.string().trim().min(5).max(40).optional(),
+  nationality: z.string().trim().min(2).max(60).optional(),
+  previousClubName: z.string().trim().min(2).max(120).nullable().optional(),
+  lastMatchDate: joinRequestDateSchema.nullable().optional(),
+  sepaConsent: z.boolean().optional(),
+  parentalConsent: z.boolean().optional(),
+  guardianEmail: z.string().trim().toLowerCase().email().max(254).optional(),
 })
+
+export const updateJoinRequestWechselSchema = z
+  .object({
+    releaseStatus: z.enum(['PENDING', 'GRANTED', 'REFUSED', 'NOT_NEEDED']).optional(),
+    passApplicationAt: joinRequestDateSchema.nullable().optional(),
+    eligibleFrom: joinRequestDateSchema.nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, 'Nothing to update')
 
 export const reviewJoinRequestSchema = z.object({
   revision: z.number().int().positive(),
@@ -403,6 +442,7 @@ export const reviewJoinRequestSchema = z.object({
 
 export type CreateJoinRequestInput = z.infer<typeof createJoinRequestSchema>
 export type ReviewJoinRequestInput = z.infer<typeof reviewJoinRequestSchema>
+export type UpdateJoinRequestWechselInput = z.infer<typeof updateJoinRequestWechselSchema>
 
 export const clubSearchQuerySchema = z.object({
   q: z.string().trim().min(2, 'Search query must be at least 2 characters').max(80),

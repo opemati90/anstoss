@@ -3,14 +3,16 @@ import {
   Get,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { MessagesService } from './messages.service'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 
 @Controller('clubs/:clubId/teams/:teamId/messages')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
@@ -39,13 +41,14 @@ export class MessagesController {
   }
 
   /**
-   * Get the currently pinned message for a team.
+   * Get the currently pinned message for a team (optionally one channel).
    */
   @Get('pinned')
   async getPinnedMessage(
     @CurrentUser() user: { id: string },
     @Param('teamId') teamId: string,
+    @Query('channelId') channelId?: string,
   ) {
-    return this.messagesService.getPinnedMessage(teamId, user.id)
+    return this.messagesService.getPinnedMessage(teamId, user.id, channelId || undefined)
   }
 }

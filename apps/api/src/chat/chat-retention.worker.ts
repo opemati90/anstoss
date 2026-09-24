@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { R2Provider } from '../assets/r2.provider'
@@ -276,6 +277,55 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
       })
     }
 
+    // Chat revamp: DM attachments (photo/video/PDF/voice) follow the same
+    // attachment + message windows as channel media; the R2 object is
+    // deleted with the reference. Unresolved reports keep the evidence.
+    for (;;) {
+      const dmAttachmentWhere = {
+        attachmentUrl: { not: null },
+        reports: { none: { resolvedAt: null } },
+        conversation: { clubId: settings.clubId },
+        OR: [
+          { createdAt: { lte: attachmentCutoff } },
+          { createdAt: { lte: messageCutoff }, deletedAt: null },
+        ],
+      }
+      const candidates = await this.prisma.directMessage.findMany({
+        where: dmAttachmentWhere,
+        select: { id: true, attachmentUrl: true },
+        take: RETENTION_BATCH_SIZE,
+      })
+      if (!candidates || candidates.length === 0) break
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        await lockDirectMessages(tx, candidates.map((m) => m.id))
+        const locked = await tx.directMessage.findMany({
+          where: { id: { in: candidates.map((m) => m.id) }, ...dmAttachmentWhere },
+          select: { id: true, attachmentUrl: true },
+        })
+        const objectKeys = locked
+          .map((m) => (m.attachmentUrl ? this.r2.objectKeyFromUrl(m.attachmentUrl) : null))
+          .filter((key): key is string => !!key)
+        if (objectKeys.length > 0) {
+          if (!this.r2.enabled) {
+            throw new Error('R2 is not configured; DM attachment retention cannot safely delete objects')
+          }
+          await this.r2.deleteObjects(objectKeys)
+        }
+        return tx.directMessage.updateMany({
+          where: {
+            id: { in: locked.map((m) => m.id) },
+            attachmentUrl: { not: null },
+            reports: { none: { resolvedAt: null } },
+            conversation: { clubId: settings.clubId },
+          },
+          data: { attachmentUrl: null, attachmentMeta: Prisma.DbNull },
+        })
+      })
+      attachmentsPurged += result.count
+      if (result.count === 0) break
+    }
+
     let directMessagesDeleted = 0
     for (;;) {
       const candidates = await this.prisma.directMessage.findMany({
@@ -301,7 +351,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
             reports: { none: { resolvedAt: null } },
             conversation: { clubId: settings.clubId },
           },
-          data: { content: '', deletedAt: now },
+          data: { content: '', attachmentUrl: null, attachmentMeta: Prisma.DbNull, deletedAt: now },
         })
         await tx.directMessageTranslation.deleteMany({
           where: {

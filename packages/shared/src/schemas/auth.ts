@@ -133,6 +133,9 @@ export const updateProfileSchema = z
     preferredLanguage: z.string().trim().min(2).max(16).optional(),
     // Constrained to the enum — the client can no longer send a raw string.
     registrationRole: z.nativeEnum(RegistrationRole).optional(),
+    // onboarding revamp: "I am at least 16" self-declaration for coaches,
+    // parents and club admins (players give a DOB instead).
+    confirmAdult: z.literal(true).optional(),
   })
   .strict()
 
@@ -164,6 +167,9 @@ export const parentHandoffSchema = z.object({
   // and the self-created account is removed.
   childDateOfBirth: z.string().datetime(),
   guardianEmail: z.string().trim().email(),
+  // onboarding review fix (H5/M3): the invite the child followed, so the
+  // guardian only has to pick the child's spot in that team.
+  inviteCode: z.string().trim().min(4).max(64).optional(),
 })
 
 export type ParentHandoffInput = z.infer<typeof parentHandoffSchema>
@@ -176,8 +182,19 @@ export type ParentHandoffInput = z.infer<typeof parentHandoffSchema>
  */
 export const redeemParentHandoffSchema = z.object({
   code: z.string().trim().min(1).max(64),
-  teamJoinCode: z.string().trim().min(1).max(32),
+  // onboarding review fix (H5): optional when the handoff already knows the
+  // team (the child followed an invite).
+  teamJoinCode: z.string().trim().min(1).max(32).optional(),
   rosterSlotId: z.string().min(1),
 })
 
 export type RedeemParentHandoffInput = z.infer<typeof redeemParentHandoffSchema>
+
+// ── home revamp: GET /me/children-overview query (parent home) ──
+export const childrenOverviewQuerySchema = z.object({
+  clubId: z.string().trim().min(1).max(64),
+  limit: z.coerce.number().int().min(1).max(10).optional(),
+})
+
+export type ChildrenOverviewQuery = z.infer<typeof childrenOverviewQuerySchema>
+// ── end home revamp ──

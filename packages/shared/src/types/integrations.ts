@@ -87,6 +87,13 @@ export interface ImportedFixture {
   updatedAt: string
   overlay: FixtureOverlay | null
   eventId: string | null
+  /**
+   * Kader fix H3: which side is our team, resolved on the server from the
+   * fixture's team link (exact name match). null when it cannot be told.
+   * Only the team fixtures list sends these.
+   */
+  isHome?: boolean | null
+  ownTeamName?: string | null
 }
 
 export interface FixtureOverlay {

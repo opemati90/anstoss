@@ -23,10 +23,23 @@ import {
   TeamAccessStatus,
   TeamRole,
   getAge,
+  matchesSearchText,
   rsvpStatusSchema,
 } from '@anstoss/shared'
-import type { CompleteOnboardingInput, CrossTeamEventItem } from '@anstoss/shared'
+import type {
+  CompleteOnboardingInput,
+  CrossTeamEventItem,
+  MemberListFilter,
+  MemberListQuery,
+} from '@anstoss/shared'
 import type { ParentHandoffInput } from '@anstoss/shared'
+// home revamp: parent home overview
+import type {
+  ChildOverviewAnnouncement,
+  ChildOverviewChild,
+  ChildOverviewDuty,
+  ChildrenOverview,
+} from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ClubsService } from '../clubs/clubs.service'
@@ -39,9 +52,24 @@ import {
   hashAuthSubject,
   lockAuthSubject,
 } from '../auth/auth-identity-tombstone'
+import {
+  isUnderageEmailBlocked,
+  normalizeTombstoneEmail,
+  tombstoneUnderageEmail,
+} from '../auth/underage-email-tombstone'
 import { R2Provider } from '../assets/r2.provider'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { tenantContext } from '../prisma/tenant.context'
+// club-admin review fixes (H3): Führungszeugnis retention on offboarding.
+import { deleteStaffCertificate } from '../admin-inbox/compliance-retention'
+// Privacy: guardian deletion withdraws the consents they gave.
+import {
+  CONSENT_WITHDRAWAL_REASON,
+  CONSENT_WITHDRAWN_EVENT,
+  withdrawApprovedConsentTx,
+  type ConsentWithdrawalEffect,
+  type ConsentWithdrawnEventPayload,
+} from '../consent/consent-withdrawal'
 
 const RsvpStatus = rsvpStatusSchema.enum
 
@@ -99,16 +127,41 @@ export class UsersService {
     if (Number.isNaN(dob.getTime()) || getAge(dob) >= AGE_GATE.MIN_AGE) {
       throw new BadRequestException('Parent handoff is only available for under-16 sign-ups')
     }
+    // Onboarding review fix (B1/M3): under 13 is blocked on every path; the
+    // handoff is the 13-15 route.
+    if (getAge(dob) < AGE_GATE.MIN_DIRECT_ACCOUNT_AGE) {
+      throw new ForbiddenException({
+        message: 'Children under 13 are set up by a parent or guardian',
+        code: 'UNDER_13',
+      })
+    }
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { clerkId: true, preferredLanguage: true },
+      select: { clerkId: true, preferredLanguage: true, email: true },
     })
     if (!user) {
       throw new NotFoundException('User not found')
     }
 
-    const guardianEmail = input.guardianEmail.toLowerCase()
+    const guardianEmail = input.guardianEmail.trim().toLowerCase()
+
+    // Onboarding review fix (B2): the guardian is a third party. Not the
+    // child's own address, and not an address whose under-16 account was
+    // removed recently (the same child coming back as their own "parent").
+    if (
+      guardianEmail === normalizeTombstoneEmail(user.email) ||
+      (await isUnderageEmailBlocked(this.prisma, guardianEmail))
+    ) {
+      throw new BadRequestException({
+        message: "The guardian email cannot be the child's own email",
+        code: 'GUARDIAN_IS_CHILD',
+      })
+    }
+
+    // Invite path: remember the team so the guardian only picks the child's
+    // spot (the team code becomes optional when redeeming).
+    const teamId = input.inviteCode ? await this.resolveInviteTeamId(input.inviteCode) : null
 
     // Opportunistic retention purge + per-guardian spam cap. Because the gate
     // above trusts a client-submitted DOB and each call deletes the caller's
@@ -154,9 +207,13 @@ export class UsersService {
           childDateOfBirth: dob,
           guardianEmail,
           sourceUserId: userId,
+          teamId,
           expiresAt: new Date(Date.now() + PARENT_HANDOFF_TTL_MS),
         },
       })
+
+      // B1: the child's address can't self-register again for 30 days.
+      await tombstoneUnderageEmail(tx, user.email, userId, 'underage_parent_handoff')
 
       // Remove the child's account BEFORE emailing: account removal is the
       // security-critical step (an under-16 must not retain a login). If it threw
@@ -182,6 +239,21 @@ export class UsersService {
     // account is already removed, so showing the code here is safe (redemption
     // needs a separate parent account).
     return { sent, code: sent ? null : code }
+  }
+
+  /** Team of an invite or invite link, or null when the code is unusable. */
+  private async resolveInviteTeamId(code: string): Promise<string | null> {
+    try {
+      const invite = await this.invitesService.validate(code)
+      return invite.teamId ?? null
+    } catch {
+      try {
+        const campaign = await this.invitesService.validateCampaign(code)
+        return campaign.team?.id ?? null
+      } catch {
+        return null
+      }
+    }
   }
 
   /** Allocate a collision-free, human-typeable handoff code. */
@@ -326,16 +398,37 @@ export class UsersService {
 
     const age = user.dateOfBirth ? getAge(user.dateOfBirth) : null
     const latestConsent = user.parentalConsentsAsPlayer[0]
+    // Privacy: mirrors AgeGateService with no club context. Any APPROVED
+    // consent clears the account; each club is still gated on its own.
+    const hasApprovedConsent = user.parentalConsentsAsPlayer.some(
+      (c: { status: string }) => c.status === ParentalConsentStatus.APPROVED,
+    )
 
+    // onboarding revamp: a coach/parent/admin who declared they are 16+
+    // (adultConfirmedAt) and has no DOB on file is cleared like an adult.
     const ageGate =
-      age === null
+      age === null && user.adultConfirmedAt
+        ? {
+            isUnder16: false,
+            status: 'CLEARED' as const,
+            guardianEmail: null,
+            message: null,
+          }
+        : age === null
         ? {
             isUnder16: false,
             status: 'DOB_REQUIRED' as const,
             guardianEmail: null,
             message: null,
           }
-        : age >= AGE_GATE.MIN_AGE || latestConsent?.status === ParentalConsentStatus.APPROVED
+        : age < AGE_GATE.MIN_DIRECT_ACCOUNT_AGE
+          ? {
+              isUnder16: true,
+              status: 'BLOCKED' as const,
+              guardianEmail: null,
+              message: 'Children under 13 must use a guardian-managed account.',
+            }
+        : age >= AGE_GATE.MIN_AGE || hasApprovedConsent
           ? {
               isUnder16: age < AGE_GATE.MIN_AGE,
               status: 'CLEARED' as const,
@@ -350,7 +443,9 @@ export class UsersService {
                 message:
                   latestConsent.status === ParentalConsentStatus.REJECTED
                     ? 'Parental approval was declined.'
-                    : 'Parental approval is still pending.',
+                    : latestConsent.status === ParentalConsentStatus.WITHDRAWN
+                      ? 'Parental approval was withdrawn.'
+                      : 'Parental approval is still pending.',
               }
             : {
                 isUnder16: true,
@@ -421,11 +516,18 @@ export class UsersService {
       dateOfBirth?: string
       preferredLanguage?: string
       registrationRole?: RegistrationRole
+      confirmAdult?: true
     },
   ) {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { dateOfBirth: true, registrationRole: true },
+      select: {
+        dateOfBirth: true,
+        registrationRole: true,
+        adultConfirmedAt: true,
+        email: true,
+        clerkId: true,
+      },
     })
 
     if (!currentUser) {
@@ -440,31 +542,21 @@ export class UsersService {
       registrationRole?: RegistrationRole
     } = {}
 
-    if (data.registrationRole !== undefined) {
-      // First-write-only: the role is fixed on the User row once it leaves
-      // the JIT default (PLAYER). Wizard sets it once during onboarding;
-      // later PATCHes can resend the same value (idempotent) but cannot
-      // change to a different role. Role swaps must go through admin tooling.
-      if (
-        currentUser.registrationRole &&
-        currentUser.registrationRole !== RegistrationRole.PLAYER &&
-        currentUser.registrationRole !== data.registrationRole
-      ) {
-        throw new BadRequestException('registrationRole is read-only after onboarding')
-      }
-      if (data.registrationRole === RegistrationRole.CLUB_ADMIN) {
-        const existingMembership = await this.prisma.membership.findFirst({
-          where: { userId },
-          select: { id: true },
-        })
-        if (existingMembership) {
-          throw new BadRequestException(
-            'Cannot change registration role to CLUB_ADMIN after joining a club',
-          )
-        }
-      }
-      updateData.registrationRole = data.registrationRole
+    // Onboarding review fix (B1): every self-registering user gives a date of
+    // birth. The "I am at least 16" declaration can no longer be made; an
+    // existing declaration (legacy accounts) is left as it is and a repeat of
+    // it is a no-op.
+    if (data.confirmAdult === true && !currentUser.adultConfirmedAt) {
+      throw new BadRequestException({
+        message: 'A date of birth is required',
+        code: 'DOB_REQUIRED',
+      })
     }
+
+    const knownDob =
+      currentUser.dateOfBirth && !isPlaceholderDate(currentUser.dateOfBirth)
+        ? currentUser.dateOfBirth
+        : null
 
     if (data.name !== undefined) {
       updateData.name = data.name
@@ -478,7 +570,7 @@ export class UsersService {
     if (data.preferredLanguage !== undefined) {
       // Two-letter ISO-639-1 normalization; only persist if supported.
       const head = data.preferredLanguage.split(/[-_]/)[0]?.toLowerCase()
-      const supported = ['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar']
+      const supported = ['de', 'en', 'fr', 'pt', 'it', 'tr']
       if (head && supported.includes(head)) {
         updateData.preferredLanguage = head
       }
@@ -491,19 +583,116 @@ export class UsersService {
       }
 
       if (
-        currentUser.dateOfBirth &&
-        !isPlaceholderDate(currentUser.dateOfBirth) &&
-        currentUser.dateOfBirth.toISOString().slice(0, 10) !== parsedDate.toISOString().slice(0, 10)
+        knownDob &&
+        knownDob.toISOString().slice(0, 10) !== parsedDate.toISOString().slice(0, 10)
       ) {
         throw new BadRequestException('Date of birth is read-only after registration')
+      }
+
+      if (!knownDob) {
+        await this.assertSelfRegistrationAge(userId, currentUser, parsedDate)
       }
 
       updateData.dateOfBirth = parsedDate
     }
 
+    if (
+      data.registrationRole !== undefined &&
+      data.registrationRole !== currentUser.registrationRole
+    ) {
+      // Onboarding review fix (H3): the role is no longer write-once. It can
+      // change while the account has no club membership and no pending club
+      // claim (someone who tapped "Verein anlegen" and gave up can still join
+      // as a player). The JIT default (PLAYER) can always be left.
+      const leavingDefault =
+        !currentUser.registrationRole ||
+        currentUser.registrationRole === RegistrationRole.PLAYER
+      const [membership, pendingClaim] = await Promise.all([
+        this.prisma.membership.findFirst({ where: { userId }, select: { id: true } }),
+        this.prisma.clubClaim.findFirst({
+          where: {
+            claimantUserId: userId,
+            status: { in: [ClubClaimStatus.SUBMITTED, ClubClaimStatus.NEEDS_INFO] },
+            expiresAt: { gt: new Date() },
+          },
+          select: { id: true },
+        }),
+      ])
+      if (!leavingDefault && (membership || pendingClaim)) {
+        throw new BadRequestException({
+          message: 'registrationRole is read-only while you belong to a club or a claim is pending',
+          code: 'ROLE_LOCKED',
+        })
+      }
+      if (data.registrationRole === RegistrationRole.CLUB_ADMIN && membership) {
+        throw new BadRequestException(
+          'Cannot change registration role to CLUB_ADMIN after joining a club',
+        )
+      }
+    }
+
+    if (data.registrationRole !== undefined) {
+      // Onboarding review fix (B3): "Spieler ohne Verein" needs a real DOB and
+      // must be 16+ (the Wechselbörse is not for children).
+      if (data.registrationRole === RegistrationRole.FREE_AGENT) {
+        const dob = updateData.dateOfBirth ?? knownDob
+        if (!dob) {
+          throw new BadRequestException({
+            message: 'A date of birth is required to be listed as a free agent',
+            code: 'DOB_REQUIRED',
+          })
+        }
+        if (getAge(dob) < AGE_GATE.MIN_AGE) {
+          throw new ForbiddenException({
+            message: 'Free agents must be at least 16',
+            code: 'FREE_AGENT_UNDER_16',
+          })
+        }
+      }
+      updateData.registrationRole = data.registrationRole
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
       data: updateData,
+    })
+  }
+
+  /**
+   * Onboarding review fix (B1/M3): the age rules for a self-registering
+   * account (no club membership yet), identical on every path:
+   *  - under 13: no own account. The account is removed, the address is
+   *    blocked for 30 days, and the app explains that a parent sets it up.
+   *  - 13-15: the parent handoff (POST /me/parent-handoff) is the only way
+   *    in, so the DOB is not stored on a self-registered account.
+   * Members (legacy accounts giving a DOB late) keep the consent flow.
+   */
+  private async assertSelfRegistrationAge(
+    userId: string,
+    currentUser: { email: string | null; clerkId: string | null },
+    dob: Date,
+  ) {
+    const age = getAge(dob)
+    if (age >= AGE_GATE.MIN_AGE) return
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId },
+      select: { id: true },
+    })
+    if (membership) return
+    if (age < AGE_GATE.MIN_DIRECT_ACCOUNT_AGE) {
+      await this.prisma.$transaction(async (tx) => {
+        await tombstoneUnderageEmail(tx, currentUser.email, userId, 'underage_blocked')
+        await this.removeUnderageAccountInTransaction(tx, userId, currentUser.clerkId)
+      })
+      await this.deleteUnderageClerkIdentity(currentUser.clerkId)
+      throw new ForbiddenException({
+        message: 'Children under 13 are set up by a parent or guardian',
+        code: 'UNDER_13',
+      })
+    }
+    throw new ForbiddenException({
+      message: 'Under-16 sign-ups are set up by a parent or guardian',
+      code: 'UNDER_16_HANDOFF',
     })
   }
 
@@ -778,6 +967,102 @@ export class UsersService {
       }
       return { ...withPerms }
     })
+  }
+
+  /**
+   * club-admin revamp: paginated member list with aktiv/passiv/jugend
+   * filters. Rows keep the exact shape of `listClubMembers` plus
+   * `isActive`, `isYouth` and `teamNames`. `total` is the filtered count;
+   * `counts.all` equals the membership count used by /stats and the inbox.
+   */
+  async listClubMembersPage(clubId: string, userId: string, query: MemberListQuery) {
+    const rows = (await this.listClubMembers(clubId, userId)) as any[]
+    const now = new Date()
+    const userIds = rows.map((row) => row.userId)
+    const [access, users] = await Promise.all([
+      this.prisma.teamAccess.findMany({
+        where: { clubId, userId: { in: userIds }, ...activeTeamAccessWhere(now) },
+        select: {
+          userId: true,
+          role: true,
+          team: { select: { name: true, displayName: true, group: { select: { type: true } } } },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, dateOfBirth: true },
+      }),
+    ])
+    const dobByUser = new Map(users.map((u: any) => [u.id, u.dateOfBirth as Date | null]))
+    const accessByUser = new Map<string, any[]>()
+    for (const entry of access as any[]) {
+      const list = accessByUser.get(entry.userId) ?? []
+      list.push(entry)
+      accessByUser.set(entry.userId, list)
+    }
+
+    const activeTeamRoles: string[] = [TeamRole.PLAYER, TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
+    const youthGroupTypes = ['YOUTH', 'MINI']
+    const staffRoles: string[] = [MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.COACH]
+
+    const enriched = rows.map((row) => {
+      const entries = accessByUser.get(row.userId) ?? []
+      const dob = dobByUser.get(row.userId)
+      const under18 = dob ? getAge(dob) < 18 : false
+      const isYouth =
+        under18 ||
+        entries.some(
+          (entry) =>
+            entry.role === TeamRole.PLAYER && youthGroupTypes.includes(entry.team?.group?.type),
+        )
+      const isActive =
+        staffRoles.includes(row.role) || entries.some((entry) => activeTeamRoles.includes(entry.role))
+      const teamNames = [
+        ...new Set(
+          entries
+            .filter((entry) => entry.role !== TeamRole.PARENT)
+            .map((entry) => entry.team?.displayName || entry.team?.name)
+            .filter(Boolean) as string[],
+        ),
+      ]
+      return { ...row, isActive, isYouth, teamNames }
+    })
+
+    const matchesFilter = (row: { isActive: boolean; isYouth: boolean }, filter: MemberListFilter) =>
+      filter === 'all'
+        ? true
+        : filter === 'active'
+          ? row.isActive
+          : filter === 'passive'
+            ? !row.isActive
+            : row.isYouth
+
+    const counts: Record<MemberListFilter, number> = {
+      all: enriched.length,
+      active: enriched.filter((row) => row.isActive).length,
+      passive: enriched.filter((row) => !row.isActive).length,
+      youth: enriched.filter((row) => row.isYouth).length,
+    }
+
+    // club-admin review fixes (L2): accent-insensitive (José, Müller/Mueller)
+    // and by email. listClubMembers already nulls emails for non-admins, so
+    // only admins can find a member by address.
+    const needle = query.q?.trim() ?? ''
+    const filtered = enriched.filter(
+      (row) =>
+        matchesFilter(row, query.filter) &&
+        (!needle ||
+          matchesSearchText(row.user?.name, needle) ||
+          matchesSearchText(row.user?.email, needle)),
+    )
+
+    return {
+      items: filtered.slice(query.offset, query.offset + query.limit),
+      total: filtered.length,
+      offset: query.offset,
+      limit: query.limit,
+      counts,
+    }
   }
 
   async searchClubMemberDirectory(
@@ -1219,6 +1504,10 @@ export class UsersService {
           status: TeamAccessStatus.REVOKED,
         },
       })
+
+      // club-admin review fixes (H3): the staff activity ends here, so the
+      // Führungszeugnis goes with it (§72a(5) SGB VIII).
+      await deleteStaffCertificate(tx, clubId, memberUserId)
 
       if (!options.preservePlayerAccess) {
         await tx.teamAccess.updateMany({
@@ -1827,6 +2116,8 @@ export class UsersService {
       freeAgentProfileId: user.freeAgentProfile?.id ?? null,
     })
 
+    // Privacy: consents withdrawn because this user was a child's guardian.
+    const withdrawnConsentEffects: ConsentWithdrawalEffect[] = []
     await this.prisma.$transaction(async (tx: any) => {
       // Account lifecycle lock shared with club setup and ownership acceptance.
       // It prevents a club OWNER membership from being created after the
@@ -1838,14 +2129,28 @@ export class UsersService {
       // Membership/invite approvals share the lifecycle lock above. Refresh
       // the access-derived club set after acquiring it so a transaction that
       // completed during deletion preflight cannot leave tenant-scoped rows.
-      const [freshMemberships, freshTeamAccess] = await Promise.all([
+      // Privacy (M5): consents are re-read under the lock too. A consent that
+      // names this user as guardian (by id or email) in a club found after the
+      // preflight must still be withdrawn below.
+      const [freshMemberships, freshTeamAccess, freshConsents] = await Promise.all([
         tx.membership.findMany({ where: { userId }, select: { clubId: true } }),
         tx.teamAccess.findMany({ where: { userId }, select: { clubId: true } }),
+        tx.parentalConsent.findMany({
+          where: {
+            OR: [
+              { playerUserId: userId },
+              { guardianUserId: userId },
+              ...emailCandidates.map((email) => ({ guardianEmail: email })),
+            ],
+          },
+          select: { clubId: true },
+        }),
       ])
       const deletionClubIds = uniqueValues([
         ...accountDeletionClubIds,
         ...freshMemberships.map((row: { clubId: string }) => row.clubId),
         ...freshTeamAccess.map((row: { clubId: string }) => row.clubId),
+        ...freshConsents.map((row: { clubId: string }) => row.clubId),
       ])
       for (const clubId of [...deletionClubIds].sort()) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
@@ -1957,8 +2262,46 @@ export class UsersService {
 
       for (const clubId of deletionClubIds) {
         await tenantContext.run({ clubId, userId }, async () => {
+          // Privacy (guardian deletion): a deleted guardian can no longer hold
+          // a consent. Withdraw every APPROVED consent this user gave and, where
+          // no other guardian's approval covers the child on that team, revoke
+          // the child's dependent team access in this same transaction.
+          const guardianConsents = await tx.parentalConsent.findMany({
+            where: {
+              clubId,
+              status: ParentalConsentStatus.APPROVED,
+              OR: [
+                { guardianUserId: userId },
+                ...(emailCandidates.length > 0
+                  ? [{ guardianEmail: { in: emailCandidates }, guardianUserId: null }]
+                  : []),
+              ],
+            },
+            select: { id: true, playerUserId: true },
+          })
+          for (const guardianConsent of guardianConsents) {
+            if (guardianConsent.playerUserId === userId) continue
+            const effect = await withdrawApprovedConsentTx(tx, {
+              consentId: guardianConsent.id,
+              clubId,
+              actorUserId: null,
+              reason: CONSENT_WITHDRAWAL_REASON.GUARDIAN_ACCOUNT_DELETED,
+            })
+            if (effect) withdrawnConsentEffects.push(effect)
+          }
+
           await tx.teamAccess.deleteMany({ where: { userId } })
           await tx.eventCheckIn.deleteMany({ where: { userId } })
+          // Soft-deleting User does not run the schema's FK cascades. Remove
+          // location-bearing carpool offers/seats and sensitive compliance
+          // documents explicitly before the account is anonymized.
+          await tx.carpoolSeat.deleteMany({ where: { clubId, userId } })
+          await tx.carpoolRide.deleteMany({ where: { clubId, driverUserId: userId } })
+          await tx.complianceRecord.deleteMany({ where: { clubId, memberUserId: userId } })
+          await tx.complianceRecord.updateMany({
+            where: { clubId, createdById: userId },
+            data: { createdById: null },
+          })
           await tx.message.updateMany({
             where: { senderId: userId },
             data: {
@@ -2000,6 +2343,22 @@ export class UsersService {
           await tx.contributionReminder.deleteMany({ where: { memberUserId: userId } })
 
           if (emailCandidates.length > 0) {
+            // Privacy (H4): a request still PENDING with the deleted guardian
+            // can never be decided. Close it as withdrawn so the club sees it
+            // and a request to another guardian re-admits the child.
+            await tx.parentalConsent.updateMany({
+              where: {
+                guardianEmail: { in: emailCandidates },
+                status: ParentalConsentStatus.PENDING,
+                playerUserId: { not: userId },
+              },
+              data: {
+                status: ParentalConsentStatus.WITHDRAWN,
+                withdrawnAt: deletedAt,
+                withdrawnByUserId: null,
+                withdrawalReason: CONSENT_WITHDRAWAL_REASON.GUARDIAN_ACCOUNT_DELETED,
+              },
+            })
             await tx.parentalConsent.updateMany({
               where: { guardianEmail: { in: emailCandidates } },
               data: {
@@ -2107,6 +2466,25 @@ export class UsersService {
 
     await this.deleteR2ObjectsForAccountDeletion(mediaObjectKeys)
 
+    // Privacy: after commit, notify club admins and drop revoked sockets.
+    if (withdrawnConsentEffects.length > 0 && this.eventEmitter) {
+      const payload: ConsentWithdrawnEventPayload = {
+        effects: withdrawnConsentEffects,
+        actorUserId: null,
+      }
+      this.eventEmitter.emit(CONSENT_WITHDRAWN_EVENT, payload)
+      for (const effect of withdrawnConsentEffects) {
+        if (effect.accessRevoked) {
+          this.eventEmitter.emit('realtime.access.changed', { userId: effect.playerUserId })
+        }
+        for (const parentUserId of effect.disconnectedParentUserIds) {
+          if (parentUserId !== userId) {
+            this.eventEmitter.emit('realtime.access.changed', { userId: parentUserId })
+          }
+        }
+      }
+    }
+
     return { success: true }
   }
 
@@ -2134,6 +2512,9 @@ export class UsersService {
       notificationPreferences,
       rsvps,
       eventReminderPreferences,
+      complianceRecords,
+      carpoolRides,
+      carpoolSeats,
     ] = await Promise.all([
       this.prisma.membership.findMany({
         where: { userId },
@@ -2227,6 +2608,18 @@ export class UsersService {
         where: { userId },
         select: { event: { select: { clubId: true } } },
       }),
+      this.prisma.complianceRecord.findMany({
+        where: { OR: [{ memberUserId: userId }, { createdById: userId }] },
+        select: { clubId: true },
+      }),
+      this.prisma.carpoolRide.findMany({
+        where: { driverUserId: userId },
+        select: { clubId: true },
+      }),
+      this.prisma.carpoolSeat.findMany({
+        where: { userId },
+        select: { clubId: true },
+      }),
     ])
 
     return uniqueValues([
@@ -2248,6 +2641,9 @@ export class UsersService {
       ...notificationPreferences.map((row: any) => row.clubId),
       ...rsvps.map((row: any) => row.event?.clubId),
       ...eventReminderPreferences.map((row: any) => row.event?.clubId),
+      ...complianceRecords.map((row: any) => row.clubId),
+      ...carpoolRides.map((row: any) => row.clubId),
+      ...carpoolSeats.map((row: any) => row.clubId),
     ])
   }
 
@@ -2258,7 +2654,7 @@ export class UsersService {
   }) {
     if (!this.r2) return []
 
-    const [messages, freeAgentMedia] = await Promise.all([
+    const [messages, freeAgentMedia, complianceDocuments] = await Promise.all([
       this.prisma.message.findMany({
         where: {
           senderId: input.userId,
@@ -2272,12 +2668,17 @@ export class UsersService {
             select: { url: true, thumbnailUrl: true },
           })
         : Promise.resolve([]),
+      this.prisma.complianceRecord.findMany({
+        where: { memberUserId: input.userId, documentUrl: { not: null } },
+        select: { documentUrl: true },
+      }),
     ])
 
     const urls = [
       input.avatarUrl,
       ...messages.map((message: any) => message.attachmentUrl),
       ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]),
+      ...complianceDocuments.map((record: any) => record.documentUrl),
     ].filter((url): url is string => typeof url === 'string' && url.length > 0)
 
     return uniqueValues(
@@ -2351,7 +2752,9 @@ export class UsersService {
 
     // Build team name lookup and team→child mapping
     const teamNameMap = new Map<string, { name: string; displayName: string }>()
-    const teamToChildMap = new Map<string, string>() // teamId → childUserId
+    // teamId → every guarded child on that team (two siblings on one team
+    // each get their own row, so a parent can answer for each of them).
+    const teamToChildMap = new Map<string, string[]>()
     for (const ta of teamAccessRecords) {
       if (!teamNameMap.has(ta.teamId)) {
         teamNameMap.set(ta.teamId, {
@@ -2361,7 +2764,9 @@ export class UsersService {
             : ta.team.name,
         })
       }
-      teamToChildMap.set(ta.teamId, ta.userId)
+      const kids = teamToChildMap.get(ta.teamId) ?? []
+      if (!kids.includes(ta.userId)) kids.push(ta.userId)
+      teamToChildMap.set(ta.teamId, kids)
     }
 
     // Build child name lookup
@@ -2386,19 +2791,19 @@ export class UsersService {
       include: {
         _count: { select: { rsvps: true } },
         rsvps: {
-          select: { userId: true, status: true },
+          select: { userId: true, status: true, nominated: true },
         },
       },
       orderBy: { date: 'asc' },
     })
 
-    return events.map((event: any) => {
+    return events.flatMap((event: any) => {
       const teamInfo = teamNameMap.get(event.teamId)
-      const childUserId = teamToChildMap.get(event.teamId) ?? undefined
-      const childName = childUserId ? childNameMap.get(childUserId) : undefined
-      const childRsvp = childUserId
-        ? (event.rsvps.find((rsvp: any) => rsvp.userId === childUserId)?.status ?? null)
-        : null
+      const kids = teamToChildMap.get(event.teamId) ?? []
+      return kids.map((childUserId) => {
+      const childName = childNameMap.get(childUserId)
+      const childReply = event.rsvps.find((rsvp: any) => rsvp.userId === childUserId)
+      const childRsvp = childReply?.status ?? null
       return {
         id: event.id,
         teamId: event.teamId,
@@ -2420,9 +2825,202 @@ export class UsersService {
         childUserId,
         childName: childName || undefined,
         childRsvp,
+        cancelledAt: null,
+        meetingAt: event.meetingAt?.toISOString() ?? null,
+        meetingPoint: event.meetingPoint ?? null,
+        opponent: event.opponent ?? null,
+        homeAway: event.homeAway ?? null,
+        fixtureId: event.fixtureId ?? null,
+        carpoolEnabled: event.carpoolEnabled ?? false,
+        durationMin: event.durationMin ?? null,
+        squadPublishedAt: event.squadPublishedAt?.toISOString() ?? null,
+        myNominated: Boolean(childReply?.nominated),
       }
+      })
     })
   }
+
+  // ── home revamp: parent home overview ──
+  /**
+   * GET /me/children-overview?clubId= — everything the parent home shows
+   * besides the events feed, for one club:
+   *  - children: every guardian-linked child with all their active teams in
+   *    the club (children without upcoming events included), plus
+   *    unregistered children whose guardian row names a team in this club;
+   *  - duties: pending TeamDutyAssignment rows for those children on those
+   *    teams, and the parent's own pending duties in the club;
+   *  - announcements: latest posts in the children's team ANNOUNCEMENTS
+   *    channels and the club-level ones, filtered with the same visibility
+   *    rules ChannelsService.userMayRead applies to a parent.
+   * Tenancy: the caller must be a member of the club; every query is keyed
+   * by that clubId, and team reach comes only from guardian links.
+   */
+  async getChildrenOverview(
+    userId: string,
+    clubId: string,
+    limit = 3,
+  ): Promise<ChildrenOverview> {
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, clubId },
+      select: { role: true },
+    })
+    if (!membership) throw new ForbiddenException('Not a club member')
+
+    const relationships = await this.prisma.guardianRelationship.findMany({
+      where: { parentUserId: userId },
+      select: {
+        clubId: true,
+        teamId: true,
+        playerUserId: true,
+        childName: true,
+        player: { select: { name: true } },
+        team: { select: { id: true, name: true, displayName: true, clubId: true } },
+      },
+    })
+
+    const childIds = uniqueValues(relationships.map((r: any) => r.playerUserId as string | null))
+    const childAccess = childIds.length
+      ? await this.prisma.teamAccess.findMany({
+          where: { userId: { in: childIds }, clubId, ...activeTeamAccessWhere() },
+          select: {
+            userId: true,
+            teamId: true,
+            team: { select: { id: true, name: true, displayName: true } },
+          },
+        })
+      : []
+
+    const teamsByChild = new Map<string, Map<string, { id: string; name: string; displayName: string }>>()
+    const teamNames = new Map<string, string>()
+    for (const row of childAccess as any[]) {
+      const teams = teamsByChild.get(row.userId) ?? new Map()
+      teams.set(row.teamId, {
+        id: row.team.id,
+        name: row.team.name,
+        displayName: row.team.displayName || row.team.name,
+      })
+      teamsByChild.set(row.userId, teams)
+      teamNames.set(row.teamId, row.team.displayName || row.team.name)
+    }
+
+    const children: ChildOverviewChild[] = []
+    const seenChildren = new Set<string>()
+    for (const rel of relationships as any[]) {
+      const name = (rel.childName || rel.player?.name || '').trim()
+      if (rel.playerUserId) {
+        if (seenChildren.has(rel.playerUserId)) continue
+        const teams = teamsByChild.get(rel.playerUserId)
+        // A registered child only counts in this club while on one of its teams.
+        if (!teams || teams.size === 0) continue
+        seenChildren.add(rel.playerUserId)
+        children.push({ userId: rel.playerUserId, name, teams: Array.from(teams.values()) })
+      } else if (rel.clubId === clubId && rel.team && rel.team.clubId === clubId) {
+        children.push({
+          userId: null,
+          name,
+          teams: [
+            {
+              id: rel.team.id,
+              name: rel.team.name,
+              displayName: rel.team.displayName || rel.team.name,
+            },
+          ],
+        })
+      }
+    }
+
+    const childTeamIds = uniqueValues((childAccess as any[]).map((row) => row.teamId as string))
+    const childPairs = (childAccess as any[]).map((row) => ({
+      assignedUserId: row.userId as string,
+      teamId: row.teamId as string,
+    }))
+
+    const dutyRows = await this.prisma.teamDutyAssignment.findMany({
+      where: {
+        clubId,
+        status: 'PENDING',
+        OR: [{ assignedUserId: userId }, ...childPairs],
+      },
+      include: {
+        team: { select: { name: true, displayName: true } },
+        assignedUser: { select: { id: true, name: true, avatarUrl: true } },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+      take: 20,
+    })
+
+    const duties: ChildOverviewDuty[] = (dutyRows as any[]).map((duty) => ({
+      id: duty.id,
+      clubId: duty.clubId,
+      teamId: duty.teamId,
+      assignedUserId: duty.assignedUserId,
+      createdById: duty.createdById,
+      kind: duty.kind,
+      status: duty.status,
+      dueDate: duty.dueDate?.toISOString() ?? null,
+      notes: duty.notes ?? null,
+      completedAt: duty.completedAt?.toISOString() ?? null,
+      createdAt: duty.createdAt.toISOString(),
+      updatedAt: duty.updatedAt.toISOString(),
+      assignedUser: duty.assignedUser ?? undefined,
+      teamName: duty.team?.displayName || duty.team?.name || '',
+      childUserId: duty.assignedUserId === userId ? null : duty.assignedUserId,
+    }))
+
+    // Visibility as ChannelsService.userMayRead decides it for this caller:
+    // the parent reads MEMBERS and PARENTS_ONLY channels of a guarded team;
+    // COACHES_ONLY / ADMINS_ONLY only through their own club role.
+    const role = membership.role
+    const isAdmin = role === 'OWNER' || role === 'ADMIN'
+    const isCoach = isAdmin || role === 'COACH'
+    const readable: Array<'MEMBERS' | 'PARENTS_ONLY' | 'COACHES_ONLY' | 'ADMINS_ONLY'> = [
+      'MEMBERS',
+      'PARENTS_ONLY',
+      ...(isCoach ? (['COACHES_ONLY'] as const) : []),
+      ...(isAdmin ? (['ADMINS_ONLY'] as const) : []),
+    ]
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        clubId,
+        deletedAt: null,
+        messageType: 'TEXT',
+        channel: {
+          clubId,
+          kind: 'ANNOUNCEMENTS',
+          visibility: { in: readable },
+          OR: [
+            { teamId: null },
+            ...(childTeamIds.length ? [{ teamId: { in: childTeamIds } }] : []),
+          ],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        channel: { select: { teamId: true } },
+      },
+    })
+
+    const announcements: ChildOverviewAnnouncement[] = (messages as any[]).map((m) => {
+      const [title, ...rest] = String(m.content).split(/\n\n+/)
+      const teamId = (m.channel?.teamId as string | null) ?? null
+      return {
+        id: m.id,
+        title: (title ?? '').trim(),
+        body: rest.join('\n\n').trim(),
+        createdAt: m.createdAt.toISOString(),
+        teamId,
+        teamName: teamId ? (teamNames.get(teamId) ?? null) : null,
+      }
+    })
+
+    return { children, duties, announcements }
+  }
+  // ── end home revamp ──
 }
 
 // Translates the onboarding `freeAgent` payload into the canonical

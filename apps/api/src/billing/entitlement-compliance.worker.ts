@@ -2,6 +2,46 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service'
 import { sendEmail } from '../email/mailer'
 import { ClubEntitlementsService } from './club-entitlements.service'
+import { INTL_LOCALE_TAG, resolveLocale, type Locale } from '../i18n/translations'
+
+type OverQuotaCopy = {
+  subject: (club: string) => string
+  body: (p: { club: string; teams: number; players: number; ends: string }) => string
+}
+
+/** Over-quota notice to the club owner, in the owner's language. */
+const OVER_QUOTA: Record<Locale, OverQuotaCopy> = {
+  de: {
+    subject: (club) => `${club}: Handlungsbedarf beim Anstoss-Tarif`,
+    body: ({ club, teams, players, ends }) =>
+      `${club} liegt über dem Limit deines Anstoss-Tarifs: ${teams} ${teams === 1 ? 'Mannschaft' : 'Mannschaften'} und ${players} ${players === 1 ? 'Spielerplatz' : 'Spielerplätze'} zu viel. Alle Daten bleiben erhalten. Archiviere überzählige Mannschaften oder Plätze oder wechsle den Tarif bis zum ${ends}. Solange der Verein über dem Limit liegt, sind neue Freischaltungen gesperrt.`,
+  },
+  en: {
+    subject: (club) => `${club}: action needed for Anstoss plan limits`,
+    body: ({ club, teams, players, ends }) =>
+      `${club} is above its current Anstoss plan limit by ${teams} ${teams === 1 ? 'team' : 'teams'} and ${players} player ${players === 1 ? 'seat' : 'seats'}. Existing data stays available. Archive excess teams or seats, or change plan, by ${ends}. New activations are blocked while the club is over quota.`,
+  },
+  fr: {
+    subject: (club) => `${club} : action requise sur les limites de ton offre Anstoss`,
+    body: ({ club, teams, players, ends }) =>
+      `${club} dépasse la limite de ton offre Anstoss de ${teams} ${teams === 1 ? 'équipe' : 'équipes'} et ${players} ${players === 1 ? 'place joueur' : 'places joueurs'}. Toutes les données restent disponibles. Archive les équipes ou places en trop, ou change d’offre, d’ici le ${ends}. Tant que le club dépasse la limite, les nouvelles activations sont bloquées.`,
+  },
+  it: {
+    subject: (club) => `${club}: intervento necessario sui limiti del piano Anstoss`,
+    body: ({ club, teams, players, ends }) =>
+      `${club} supera il limite del tuo piano Anstoss di ${teams} ${teams === 1 ? 'squadra' : 'squadre'} e ${players} ${players === 1 ? 'posto giocatore' : 'posti giocatore'}. Tutti i dati restano disponibili. Archivia le squadre o i posti in eccesso, oppure cambia piano, entro il ${ends}. Finché il club supera il limite, le nuove attivazioni sono bloccate.`,
+  },
+  pt: {
+    subject: (club) => `${club}: é preciso agir sobre os limites do plano Anstoss`,
+    body: ({ club, teams, players, ends }) =>
+      `O ${club} ultrapassa o limite do teu plano Anstoss em ${teams} ${teams === 1 ? 'equipa' : 'equipas'} e ${players} ${players === 1 ? 'lugar de jogador' : 'lugares de jogador'}. Todos os dados continuam disponíveis. Arquiva as equipas ou lugares a mais, ou muda de plano, até ${ends}. Enquanto o clube estiver acima do limite, as novas ativações ficam bloqueadas.`,
+  },
+  tr: {
+    subject: (club) => `${club}: Anstoss paket sınırı için işlem gerekiyor`,
+    body: ({ club, teams, players, ends }) =>
+      `${club} kulübü Anstoss paket sınırını aşıyor: ${teams} takım ve ${players} oyuncu kontenjanı fazla. Tüm veriler korunuyor. Fazla takımları veya kontenjanları arşivle ya da paketini değiştir. Son tarih: ${ends}. Kulüp sınırın üzerinde kaldığı sürece yeni etkinleştirmeler engelli.`,
+  },
+}
 
 const SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000
 
@@ -36,16 +76,25 @@ export class EntitlementComplianceWorker implements OnModuleInit, OnModuleDestro
         if (!compliance || compliance.status !== 'OVER_QUOTA' || compliance.notifiedAt) continue
         const owner = await this.prisma.membership.findFirst({
           where: { clubId: club.id, role: 'OWNER' },
-          include: { user: { select: { email: true } } },
+          include: { user: { select: { email: true, preferredLanguage: true } } },
         })
         if (!owner?.user.email) continue
-        const ends = new Intl.DateTimeFormat('de-DE', { dateStyle: 'long' }).format(
-          compliance.remediationEndsAt,
-        )
-        const message = `${club.name} is above its current Anstoss plan limit by ${compliance.excessTeams} team(s) and ${compliance.excessPlayers} player seat(s). Existing data stays available. Archive excess teams or seats, or change plan, by ${ends}. New activations are blocked while the club is over quota.`
+        // Owner's language + locale date (was English prose with a de-DE date).
+        const locale = resolveLocale(owner.user.preferredLanguage)
+        const ends = new Intl.DateTimeFormat(INTL_LOCALE_TAG[locale], {
+          dateStyle: 'long',
+          timeZone: 'Europe/Berlin',
+        }).format(compliance.remediationEndsAt)
+        const copy = OVER_QUOTA[locale]
+        const message = copy.body({
+          club: club.name,
+          teams: compliance.excessTeams,
+          players: compliance.excessPlayers,
+          ends,
+        })
         const sent = await sendEmail({
           to: owner.user.email,
-          subject: `${club.name}: action needed for Anstoss plan limits`,
+          subject: copy.subject(club.name),
           text: message,
           html: `<p>${escapeHtml(message)}</p>`,
         })

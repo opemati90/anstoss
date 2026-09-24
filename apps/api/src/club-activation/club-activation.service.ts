@@ -64,8 +64,19 @@ export class ClubActivationService {
       select: { registrationRole: true },
     })
     if (!user) throw new NotFoundException('User not found')
-    if (user.registrationRole !== RegistrationRole.CLUB_ADMIN) {
-      throw new ForbiddenException('Only registered club administrators can claim a club')
+    // Onboarding review fix (H3): the app no longer writes CLUB_ADMIN before
+    // the claim (a failed or abandoned claim used to lock the account into
+    // that role). A fresh account without a club may claim; the role is set
+    // in the same transaction as the claim, so it only sticks on success.
+    const becomesClubAdmin = user.registrationRole !== RegistrationRole.CLUB_ADMIN
+    if (becomesClubAdmin) {
+      const membership = await this.prisma.membership.findFirst({
+        where: { userId },
+        select: { id: true },
+      })
+      if (membership) {
+        throw new ForbiddenException('Only registered club administrators can claim a club')
+      }
     }
     const directoryEntry = await this.resolveDirectoryEntry(input)
     if (directoryEntry.activeClubId) {
@@ -127,6 +138,12 @@ export class ClubActivationService {
         },
       })
       if (raced) return raced
+      if (becomesClubAdmin) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { registrationRole: RegistrationRole.CLUB_ADMIN },
+        })
+      }
       const claim = await tx.clubClaim.create({
         data: {
           directoryEntryId: directoryEntry.id,

@@ -4,6 +4,9 @@ import { PUSH } from '@anstoss/shared'
 import { resolveLocale, type Locale } from '../i18n/translations'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { formatPush, type NotificationType, type TemplateData } from './push.templates'
+// Privacy/safeguarding: recipients who fail the age gate for the push's club
+// (e.g. consent withdrawn) are skipped.
+import { AgeGateService } from '../auth/age-gate.service'
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
@@ -47,6 +50,7 @@ export class PushService {
     @Optional()
     @Inject('NotificationsService')
     private readonly notificationsService?: NotificationChecker,
+    @Optional() private readonly ageGate?: AgeGateService,
   ) {}
 
   /**
@@ -123,6 +127,13 @@ export class PushService {
           .filter((id: string) => id !== excludeUserId),
       ),
     )
+
+    // Privacy: a child whose consent for this team/club was withdrawn gets
+    // no further pushes from it.
+    if (this.ageGate && userIds.length > 0) {
+      const clubId = options?.clubId ?? teamMembers[0]?.clubId ?? null
+      userIds = await this.ageGate.filterAllowedUserIds(userIds, { clubId, teamId })
+    }
 
     // Filter out muted users if notification preferences are available
     if (this.notificationsService && options?.clubId && options?.category) {
@@ -241,6 +252,18 @@ export class PushService {
     data?: Record<string, string>,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    // Privacy: skip users who fail the age gate for this club (or, with no
+    // club context, who have no consented club at all).
+    if (this.ageGate) {
+      const allowed = await this.ageGate.isAllowed(userId, {
+        clubId: options?.clubId ?? data?.clubId ?? null,
+        teamId: data?.teamId ?? null,
+      })
+      if (!allowed) {
+        this.logger.debug(`Skipping push to ${userId} — age gate`)
+        return
+      }
+    }
     // Skip if user is in quiet hours
     if (this.notificationsService && options?.clubId) {
       const inQuiet = await this.notificationsService.isInQuietHours(userId, options.clubId)

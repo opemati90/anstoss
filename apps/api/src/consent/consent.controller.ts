@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
-import { MembershipRole, parentalConsentSchema } from '@anstoss/shared'
+import { MembershipRole, parentalConsentSchema, withdrawConsentSchema } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
-import { AgeGateGuard } from '../auth/age-gate.guard'
+import { AgeGateGuard, AllowWithoutConsent } from '../auth/age-gate.guard'
 import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
@@ -12,6 +12,7 @@ export class ConsentController {
   constructor(private readonly consentService: ConsentService) {}
 
   /** Get pending consent requests for the current user (as guardian). */
+  @AllowWithoutConsent()
   @Get('consent/pending')
   @UseGuards(ClerkAuthGuard)
   async getPendingConsents(
@@ -21,6 +22,7 @@ export class ConsentController {
   }
 
   /** Approve a consent request. */
+  @AllowWithoutConsent()
   @Post('consent/:consentId/approve')
   @UseGuards(ClerkAuthGuard)
   @RateLimit('write')
@@ -31,7 +33,39 @@ export class ConsentController {
     return this.consentService.approveConsent(consentId, user.id)
   }
 
+  /**
+   * Privacy: every consent the caller gave or was asked for (guardian view),
+   * so they can review and withdraw it.
+   */
+  @AllowWithoutConsent()
+  @Get('consent/mine')
+  @UseGuards(ClerkAuthGuard)
+  async listMyConsents(
+    @CurrentUser() user: { id: string; email?: string | null },
+  ) {
+    return this.consentService.listForGuardian(user)
+  }
+
+  /**
+   * Privacy: withdraw an approved consent (GDPR Art. 7(3)). The guardian of
+   * the consent, or a club OWNER/ADMIN acting on the guardian's written
+   * request (body.note required). Revokes the dependent team access.
+   */
+  @AllowWithoutConsent()
+  @Post('consent/:consentId/withdraw')
+  @UseGuards(ClerkAuthGuard)
+  @RateLimit('write')
+  async withdrawConsent(
+    @Param('consentId') consentId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: unknown,
+  ) {
+    const input = withdrawConsentSchema.parse(body ?? {})
+    return this.consentService.withdrawConsent(consentId, user.id, input)
+  }
+
   /** Reject a consent request. */
+  @AllowWithoutConsent()
   @Post('consent/:consentId/reject')
   @UseGuards(ClerkAuthGuard)
   @RateLimit('write')
@@ -49,6 +83,7 @@ export class ConsentController {
   @RateLimit('write')
   async createConsentRequest(
     @Param('clubId') clubId: string,
+    @CurrentUser() user: { id: string },
     @Body() body: unknown,
   ) {
     const input = parentalConsentSchema.parse(body)
@@ -57,6 +92,8 @@ export class ConsentController {
       teamId: input.teamId,
       playerUserId: input.playerUserId,
       guardianEmail: input.guardianEmail,
+      // M3: the requester can never be the consenting guardian.
+      requestedByUserId: user.id,
     })
   }
 
@@ -64,7 +101,11 @@ export class ConsentController {
   @Get('clubs/:clubId/consent/inspect/:userId')
   @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)
   @RequireRole(MembershipRole.ADMIN)
-  async inspectConsentStatus(@Param('userId') userId: string) {
-    return this.consentService.inspectConsentStatus(userId)
+  async inspectConsentStatus(
+    @Param('clubId') clubId: string,
+    @Param('userId') userId: string,
+  ) {
+    // Tenant-scoped: an admin may only inspect members of their own club.
+    return this.consentService.inspectConsentStatus(clubId, userId)
   }
 }

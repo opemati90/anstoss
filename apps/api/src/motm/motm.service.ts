@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { TeamsService } from '../teams/teams.service'
@@ -32,6 +32,8 @@ export interface MotmArchive {
     motmUserId: string | null
     motmName: string | null
   }>
+  /** Set when scoped to one team (?teamId=); absent = whole club. */
+  teamId?: string
 }
 
 /**
@@ -220,6 +222,7 @@ export class MotmService {
     userId: string,
     clubId: string,
     seasonInput?: string,
+    teamId?: string,
   ): Promise<MotmArchive> {
     // Membership check — EntitlementGuard already verified the club is
     // on a plan that includes 'motm_archive', but we still gate read
@@ -232,6 +235,13 @@ export class MotmService {
       throw new ForbiddenException('Not a member of this club')
     }
 
+    // Kader Statistik: optional team scope; the team must be in this club.
+    if (teamId) {
+      const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId }, select: { id: true } })
+      if (!team) throw new NotFoundException('Team not found')
+    }
+    const scope = teamId ? { teamId } : {}
+
     const season = (seasonInput ?? '').trim() || currentSeason()
     const { start, end } = seasonRange(season)
 
@@ -239,6 +249,7 @@ export class MotmService {
     const fixtures = await this.prisma.importedFixture.findMany({
       where: {
         clubId,
+        ...(teamId ? { teamId } : {}),
         status: 'FINISHED',
         kickoffAt: { gte: start, lt: end },
       },
@@ -253,7 +264,7 @@ export class MotmService {
     })
 
     if (fixtures.length === 0) {
-      return { season, topByPlayer: [], byMatch: [] }
+      return { season, topByPlayer: [], byMatch: [], ...scope }
     }
 
     // 2. Locate every MOTM poll for those fixtures in a single round trip.
@@ -363,7 +374,7 @@ export class MotmService {
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 
-    return { season, topByPlayer, byMatch }
+    return { season, topByPlayer, byMatch, ...scope }
   }
 
   private async ensureMotmPoll(

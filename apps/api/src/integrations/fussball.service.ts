@@ -34,7 +34,9 @@ import {
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
-import { type Locale } from '../i18n/translations'
+import { INTL_LOCALE_TAG, type Locale } from '../i18n/translations'
+import { formatPush } from '../push/push.templates'
+import { eventTitleFor, formatEventDateFor, resolveEventLocale } from '../events/event-copy'
 import { TeamsService } from '../teams/teams.service'
 import { LiveGateway } from '../live/live.gateway'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
@@ -56,6 +58,7 @@ import {
   confidenceFromSources,
   extractFussballTeamId,
   inferLinkedTeamPerspective,
+  resolveOwnSide,
   mapTableRows,
   normalizeImportedFixtureStatus,
   normalizeTeamName,
@@ -698,6 +701,8 @@ export class FussballService {
       where,
       include: {
         overlay: true,
+        // Kader fix H3: own side comes from the fixture's own team link.
+        teamLink: { select: { label: true } },
       },
       orderBy: {
         kickoffAt: query.scope === 'recent' ? 'desc' : 'asc',
@@ -713,26 +718,40 @@ export class FussballService {
       ? await this.prisma.event.findMany({
           where: {
             teamId,
-            externalMatchKey: { in: eventKeys },
+            OR: [
+              { fixtureId: { in: fixtures.map((fixture: any) => fixture.id) } },
+              { externalMatchKey: { in: eventKeys } },
+            ],
           },
           select: {
             id: true,
             externalMatchKey: true,
+            fixtureId: true,
           },
         })
       : []
 
+    // Event.fixtureId is the real link; the external key is the fallback for
+    // events imported before the column existed.
+    const eventIdByFixture = new Map(
+      events
+        .filter((event: any) => event.fixtureId)
+        .map((event: any) => [event.fixtureId as string, event.id as string]),
+    )
     const eventIdByKey = new Map(
       events.map((event: any) => [event.externalMatchKey || '', event.id]),
     )
 
-    return fixtures.map((fixture: any) =>
-      serializeFixture(
+    return fixtures.map((fixture: any) => ({
+      ...serializeFixture(
         fixture,
-        (eventIdByKey.get(buildEventKey(fixture.provider, fixture.externalMatchId)) as string) ||
+        eventIdByFixture.get(fixture.id) ||
+          (eventIdByKey.get(buildEventKey(fixture.provider, fixture.externalMatchId)) as string) ||
           null,
       ),
-    )
+      // Kader fix H3: exact own-side resolution for Spiele & Tabelle.
+      ...resolveOwnSide(fixture.teamLink?.label, fixture.homeTeam, fixture.awayTeam),
+    }))
   }
 
   async getFixtureLineup(userId: string, fixtureId: string): Promise<FixtureLineup> {
@@ -947,6 +966,26 @@ export class FussballService {
       })
     }
 
+    // L9: one source of truth. The match event's Aufstellung (what the event
+    // screen, the Kader tab and the lineup builder read) is written from this
+    // save too; the overlay above mirrors it for the match screen. Players
+    // the event lineup already knew keep their userId / slot.
+    const linkedEvent = await this.prisma.event.findFirst({
+      where: {
+        OR: [
+          { fixtureId: fixture.id },
+          { externalMatchKey: buildEventKey(fixture.provider, fixture.externalMatchId) },
+        ],
+      },
+      select: { id: true, lineup: true },
+    })
+    if (linkedEvent) {
+      await this.prisma.event.update({
+        where: { id: linkedEvent.id },
+        data: { lineup: toJsonValue(toEventLineup(input, linkedEvent.lineup)) },
+      })
+    }
+
     // Re-read so the response is normalized + placed on the correct side.
     return this.getFixtureLineup(userId, fixtureId)
   }
@@ -1084,7 +1123,14 @@ export class FussballService {
           },
         })
 
-    await this.syncEventForFixture(fixture, overlay, 'overlay-update')
+    // The coach just set these on the fixture: they win over the event's
+    // current value (H2); untouched fields follow the usual keep-coach rule.
+    await this.syncEventForFixture(fixture, overlay, 'overlay-update', undefined, {
+      ...(input.arrivalTime !== undefined && {
+        meetingAt: input.arrivalTime ? new Date(input.arrivalTime) : null,
+      }),
+      ...(input.meetingPoint !== undefined && { meetingPoint: input.meetingPoint ?? null }),
+    })
 
     return serializeFixture(fixture, await this.findLinkedEventId(fixture), overlay)
   }
@@ -1509,11 +1555,26 @@ export class FussballService {
     }
   }
 
+  /**
+   * Mirror an imported fixture into its MATCH event.
+   *
+   * H2: fussball.de is the source of kickoff, opponent and home/away; the
+   * coach owns the logistics. Location, notes, Treffpunkt time and place are
+   * written on create, and later only while the event still holds what the
+   * previous sync wrote (Event.importedFields) or nothing at all. Anything
+   * the coach typed in the app stays. `coachSet` carries values the coach
+   * just changed on the fixture overlay, which win outright.
+   *
+   * A new kickoff is a reschedule like a manual one: rescheduledAt (older
+   * replies read as stale), the Treffpunkt moves with it, and the team gets
+   * EVENT_UPDATED.
+   */
   private async syncEventForFixture(
     fixture: FixtureLike,
     overlay: OverlayLike | null,
     reason: string,
     explicitLinkedLabel?: string,
+    coachSet?: { meetingAt?: Date | null; meetingPoint?: string | null },
   ) {
     const externalMatchKey = buildEventKey(fixture.provider, fixture.externalMatchId)
     const link =
@@ -1527,10 +1588,14 @@ export class FussballService {
     const linkedLabel = explicitLinkedLabel || link?.label || fixture.homeTeam
     const perspective = inferLinkedTeamPerspective(linkedLabel, fixture.homeTeam, fixture.awayTeam)
     const opponent = perspective.opponent
-    const title =
-      perspective.isHome === false ? `Auswaerts bei ${opponent}` : `Spiel gegen ${opponent}`
-    const location = [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ') || null
-    const notes = buildEventNotes(fixture, overlay, reason)
+    const homeAway =
+      perspective.isHome === true ? 'HOME' : perspective.isHome === false ? 'AWAY' : null
+    const imported: ImportedEventFields = {
+      location: [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(' · ') || null,
+      notes: buildEventNotes(fixture, overlay, reason),
+      meetingAt: overlay?.arrivalTime ? overlay.arrivalTime.toISOString() : null,
+      meetingPoint: overlay?.meetingPoint ?? null,
+    }
     const createdById = await this.resolveEventCreator(fixture.clubId)
 
     if (!createdById) {
@@ -1538,20 +1603,81 @@ export class FussballService {
     }
 
     const existingEvent = await this.prisma.event.findFirst({
-      where: { externalMatchKey },
-      select: { id: true },
+      where: { OR: [{ externalMatchKey }, { fixtureId: fixture.id }] },
+      select: {
+        id: true,
+        teamId: true,
+        clubId: true,
+        date: true,
+        title: true,
+        autoTitle: true,
+        location: true,
+        notes: true,
+        meetingAt: true,
+        meetingPoint: true,
+        importedFields: true,
+        cancelledAt: true,
+      },
     })
 
     if (existingEvent) {
-      await this.prisma.event.update({
+      const previous = readImportedFields(existingEvent.importedFields)
+      // Keep the coach's value; refresh ours (or fill an empty field).
+      const pick = <K extends keyof ImportedEventFields>(key: K, current: string | null) => {
+        if (current === null || current === undefined) return imported[key]
+        if (previous && previous[key] === current) return imported[key]
+        return current
+      }
+      const location = pick('location', existingEvent.location)
+      const notes = pick('notes', existingEvent.notes)
+      const meetingPoint =
+        coachSet?.meetingPoint !== undefined
+          ? coachSet.meetingPoint
+          : pick('meetingPoint', existingEvent.meetingPoint)
+      const currentMeeting = existingEvent.meetingAt ? existingEvent.meetingAt.toISOString() : null
+      let meetingAt: Date | null
+      if (coachSet?.meetingAt !== undefined) {
+        meetingAt = coachSet.meetingAt
+      } else {
+        const chosen = pick('meetingAt', currentMeeting)
+        meetingAt = chosen ? new Date(chosen) : null
+      }
+
+      const dateMoves = existingEvent.date.getTime() !== fixture.kickoffAt.getTime()
+      // The Treffpunkt travels with a moved kickoff unless a new one arrived.
+      if (
+        dateMoves &&
+        meetingAt &&
+        existingEvent.meetingAt &&
+        meetingAt.getTime() === existingEvent.meetingAt.getTime()
+      ) {
+        meetingAt = new Date(
+          meetingAt.getTime() + (fixture.kickoffAt.getTime() - existingEvent.date.getTime()),
+        )
+      }
+
+      // carpoolEnabled is the coach's call once the event exists.
+      const updated = await this.prisma.event.update({
         where: { id: existingEvent.id },
         data: {
-          title,
+          // A derived title follows the opponent; a typed one stays.
+          ...(existingEvent.autoTitle && { title: opponent }),
           date: fixture.kickoffAt,
+          ...(dateMoves && { rescheduledAt: new Date() }),
           location,
           notes,
+          opponent,
+          homeAway,
+          fixtureId: fixture.id,
+          meetingAt,
+          meetingPoint,
+          importedFields: toJsonValue(imported),
         },
       })
+
+      if (dateMoves && !existingEvent.cancelledAt && fixture.kickoffAt.getTime() > Date.now()) {
+        void this.notifyKickoffMoved(updated).catch(() => undefined)
+      }
       return
     }
 
@@ -1560,14 +1686,65 @@ export class FussballService {
         clubId: fixture.clubId,
         teamId: fixture.teamId,
         externalMatchKey,
-        title,
+        // M6: the opponent, not "vs. X" / "@ X"; apps render the title in
+        // the reader's language.
+        title: opponent,
+        autoTitle: true,
         type: 'MATCH',
         date: fixture.kickoffAt,
-        location,
-        notes,
+        location: imported.location,
+        notes: imported.notes,
         createdById,
+        opponent,
+        homeAway,
+        fixtureId: fixture.id,
+        meetingAt: overlay?.arrivalTime ?? null,
+        meetingPoint: overlay?.meetingPoint ?? null,
+        importedFields: toJsonValue(imported),
+        carpoolEnabled: homeAway === 'AWAY',
       },
     })
+  }
+
+  /** EVENT_UPDATED for a kickoff fussball.de moved, per reader language. */
+  private async notifyKickoffMoved(event: {
+    id: string
+    teamId: string
+    clubId: string
+    date: Date
+    title: string
+    type: string
+    opponent: string | null
+    homeAway: string | null
+    autoTitle: boolean
+  }) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: event.teamId },
+      select: { name: true },
+    })
+    await this.pushService.sendToTeamRendered(
+      event.teamId,
+      (locale) => {
+        const eventLocale = resolveEventLocale(locale)
+        return formatPush(
+          'EVENT_UPDATED',
+          {
+            teamName: team?.name ?? '',
+            eventTitle: eventTitleFor(event, eventLocale),
+            date: formatEventDateFor(event.date, eventLocale),
+          },
+          locale,
+        )
+      },
+      {
+        type: 'event_updated',
+        eventId: event.id,
+        clubId: event.clubId,
+        url: `anstoss:///event-detail?eventId=${event.id}`,
+      },
+      undefined,
+      { clubId: event.clubId, category: 'events' },
+    )
   }
 
   private async resolveEventCreator(clubId: string) {
@@ -1689,12 +1866,27 @@ function buildEventNotes(
   return lines.join('\n')
 }
 
-const FIXTURE_NOTIF_TAG: Record<Locale, string> = {
-  de: 'de-DE',
-  en: 'en-GB',
-  fr: 'fr-FR',
-  it: 'it-IT',
-  pt: 'pt-PT',
+/** Kickoff "Sa., 04.10., 15:00" in the reader's locale, German local time, 24h. */
+function formatFixtureKickoff(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(INTL_LOCALE_TAG[locale], {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: 'Europe/Berlin',
+  }).format(date)
+}
+
+/** Localized fixture status for the "status changed" push (never the raw enum). */
+const FIXTURE_STATUS_LABEL: Record<Locale, Record<ImportedFixtureStatus, string>> = {
+  de: { scheduled: 'angesetzt', live: 'läuft', finished: 'beendet', postponed: 'verlegt', cancelled: 'abgesagt', unknown: 'offen' },
+  en: { scheduled: 'scheduled', live: 'live', finished: 'finished', postponed: 'postponed', cancelled: 'cancelled', unknown: 'to be confirmed' },
+  fr: { scheduled: 'programmé', live: 'en cours', finished: 'terminé', postponed: 'reporté', cancelled: 'annulé', unknown: 'à confirmer' },
+  it: { scheduled: 'in programma', live: 'in corso', finished: 'terminata', postponed: 'rinviata', cancelled: 'annullata', unknown: 'da confermare' },
+  pt: { scheduled: 'agendado', live: 'a decorrer', finished: 'terminado', postponed: 'adiado', cancelled: 'cancelado', unknown: 'por confirmar' },
+  tr: { scheduled: 'planlandı', live: 'oynanıyor', finished: 'bitti', postponed: 'ertelendi', cancelled: 'iptal edildi', unknown: 'belli değil' },
 }
 
 function buildFixtureNotification(
@@ -1717,21 +1909,23 @@ function buildFixtureNotification(
   const pick = <T>(table: Record<Locale, T>): T => table[locale]
 
   if (changes.includes('kickoff')) {
-    const when = fixture.kickoffAt.toLocaleString(FIXTURE_NOTIF_TAG[locale])
+    const when = formatFixtureKickoff(fixture.kickoffAt, locale)
     return {
       title: pick({
-        de: 'Anstoß aktualisiert',
-        en: 'Kickoff updated',
+        de: 'Anstoß verlegt',
+        en: 'Kickoff time changed',
         fr: 'Coup d’envoi modifié',
-        it: 'Calcio d’inizio aggiornato',
-        pt: 'Pontapé de saída atualizado',
+        it: 'Orario del calcio d’inizio cambiato',
+        pt: 'Hora do pontapé de saída alterada',
+        tr: 'Başlama saati değişti',
       }),
       body: pick({
-        de: `Spiel gegen ${opponent} beginnt jetzt um ${when}.`,
-        en: `Match vs ${opponent} now starts at ${when}.`,
-        fr: `Le match contre ${opponent} commence maintenant à ${when}.`,
-        it: `La partita contro ${opponent} inizia ora alle ${when}.`,
-        pt: `O jogo contra ${opponent} começa agora às ${when}.`,
+        de: `Spiel gegen ${opponent}: neuer Anstoß ${when}.`,
+        en: `Match vs ${opponent}: new kickoff ${when}.`,
+        fr: `Match contre ${opponent} : nouveau coup d’envoi ${when}.`,
+        it: `Partita contro ${opponent}: nuovo calcio d’inizio ${when}.`,
+        pt: `Jogo contra ${opponent}: novo pontapé de saída ${when}.`,
+        tr: `Rakip: ${opponent} · yeni başlama saati ${when}.`,
       }),
     }
   }
@@ -1740,38 +1934,42 @@ function buildFixtureNotification(
     const venue = [fixture.venueName, fixture.pitchAddress].filter(Boolean).join(', ')
     return {
       title: pick({
-        de: 'Spielort aktualisiert',
-        en: 'Venue updated',
-        fr: 'Lieu modifié',
-        it: 'Sede aggiornata',
-        pt: 'Local atualizado',
+        de: 'Spielort geändert',
+        en: 'Venue changed',
+        fr: 'Lieu du match modifié',
+        it: 'Campo di gioco cambiato',
+        pt: 'Local do jogo alterado',
+        tr: 'Maç yeri değişti',
       }),
       body: pick({
-        de: `Spielort gegen ${opponent} geändert: ${venue}.`,
-        en: `Venue for ${opponent} changed to ${venue}.`,
-        fr: `Le lieu pour ${opponent} a changé : ${venue}.`,
-        it: `La sede per ${opponent} è cambiata: ${venue}.`,
-        pt: `O local para ${opponent} mudou: ${venue}.`,
+        de: `Spiel gegen ${opponent}, neuer Spielort: ${venue}.`,
+        en: `Match vs ${opponent}, new venue: ${venue}.`,
+        fr: `Match contre ${opponent}, nouveau lieu : ${venue}.`,
+        it: `Partita contro ${opponent}, nuovo campo: ${venue}.`,
+        pt: `Jogo contra ${opponent}, novo local: ${venue}.`,
+        tr: `Rakip: ${opponent} · yeni maç yeri: ${venue}.`,
       }),
     }
   }
 
   if (changes.includes('status')) {
-    const status = toSharedFixtureStatus(fixture.status)
+    const status = FIXTURE_STATUS_LABEL[locale][toSharedFixtureStatus(fixture.status)]
     return {
       title: pick({
-        de: 'Spielstatus aktualisiert',
-        en: 'Match status updated',
-        fr: 'Statut du match mis à jour',
-        it: 'Stato partita aggiornato',
-        pt: 'Estado do jogo atualizado',
+        de: 'Spielstatus geändert',
+        en: 'Match status changed',
+        fr: 'Statut du match modifié',
+        it: 'Stato della partita cambiato',
+        pt: 'Estado do jogo alterado',
+        tr: 'Maç durumu değişti',
       }),
       body: pick({
-        de: `${fixture.homeTeam} gegen ${fixture.awayTeam} ist jetzt ${status}.`,
-        en: `${fixture.homeTeam} vs ${fixture.awayTeam} is now ${status}.`,
-        fr: `${fixture.homeTeam} contre ${fixture.awayTeam} est maintenant ${status}.`,
-        it: `${fixture.homeTeam} contro ${fixture.awayTeam} è ora ${status}.`,
-        pt: `${fixture.homeTeam} contra ${fixture.awayTeam} está agora ${status}.`,
+        de: `${fixture.homeTeam} gegen ${fixture.awayTeam}: ${status}.`,
+        en: `${fixture.homeTeam} vs ${fixture.awayTeam}: ${status}.`,
+        fr: `${fixture.homeTeam} contre ${fixture.awayTeam} : ${status}.`,
+        it: `${fixture.homeTeam} contro ${fixture.awayTeam}: ${status}.`,
+        pt: `${fixture.homeTeam} contra ${fixture.awayTeam}: ${status}.`,
+        tr: `${fixture.homeTeam} – ${fixture.awayTeam}: ${status}.`,
       }),
     }
   }
@@ -1780,10 +1978,11 @@ function buildFixtureNotification(
     return {
       title: pick({
         de: 'Endergebnis',
-        en: 'Result finalised',
-        fr: 'Résultat final',
+        en: 'Final score',
+        fr: 'Score final',
         it: 'Risultato finale',
         pt: 'Resultado final',
+        tr: 'Maç sonucu',
       }),
       body: `${fixture.homeTeam} ${fixture.resultHome}:${fixture.resultAway} ${fixture.awayTeam}`,
     }
@@ -2448,4 +2647,72 @@ function officialTeamPageBrand(url: string) {
   if (hostname === 'dfb.de' || hostname.endsWith('.dfb.de')) return 'DFB.DE'
   if (hostname === 'fupa.net' || hostname.endsWith('.fupa.net')) return 'FUPA'
   return 'FUSSBALL.DE'
+}
+
+/**
+ * What the last sync wrote into the event (Event.importedFields). A field
+ * that still equals it was never touched by the coach and may be refreshed.
+ */
+type ImportedEventFields = {
+  location: string | null
+  notes: string | null
+  meetingAt: string | null
+  meetingPoint: string | null
+}
+
+function readImportedFields(raw: unknown): ImportedEventFields | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const value = raw as Record<string, unknown>
+  const text = (v: unknown) => (typeof v === 'string' ? v : null)
+  const meeting = text(value.meetingAt)
+  return {
+    location: text(value.location),
+    notes: text(value.notes),
+    // Normalise so a SQL-written "…00.000Z" compares equal to toISOString().
+    meetingAt: meeting && !Number.isNaN(Date.parse(meeting)) ? new Date(meeting).toISOString() : null,
+    meetingPoint: text(value.meetingPoint),
+  }
+}
+
+/**
+ * Fixture lineup payload → Event.lineup shape. Matches players by name to the
+ * event's previous lineup so userId / slotId survive a save from the match
+ * screen.
+ */
+function toEventLineup(
+  input: { formation: string; starters: unknown[]; bench?: unknown[] | null },
+  previous: unknown,
+) {
+  const known = new Map<string, { userId: string | null; slotId: string | null }>()
+  if (previous && typeof previous === 'object' && !Array.isArray(previous)) {
+    const prev = previous as Record<string, unknown>
+    for (const list of [prev.starters, prev.bench]) {
+      if (!Array.isArray(list)) continue
+      for (const entry of list) {
+        const row = (entry ?? {}) as Record<string, unknown>
+        if (typeof row.name !== 'string') continue
+        known.set(row.name.trim().toLowerCase(), {
+          userId: typeof row.userId === 'string' ? row.userId : null,
+          slotId: typeof row.slotId === 'string' ? row.slotId : null,
+        })
+      }
+    }
+  }
+  const toPlayer = (entry: unknown) => {
+    const row = (entry ?? {}) as Record<string, unknown>
+    const name = typeof row.name === 'string' ? row.name.trim() : ''
+    const match = known.get(name.toLowerCase())
+    return {
+      userId: typeof row.userId === 'string' ? row.userId : (match?.userId ?? null),
+      number: typeof row.number === 'number' ? row.number : null,
+      name,
+      position: typeof row.position === 'string' ? row.position : null,
+      slotId: typeof row.slotId === 'string' ? row.slotId : (match?.slotId ?? null),
+    }
+  }
+  return {
+    formation: input.formation,
+    starters: input.starters.map(toPlayer).filter((p) => p.name),
+    bench: (input.bench ?? []).map(toPlayer).filter((p) => p.name),
+  }
 }

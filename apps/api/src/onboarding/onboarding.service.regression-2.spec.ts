@@ -12,6 +12,9 @@ describe('OnboardingService secure team-code join', () => {
       team: {
         findUnique: jest.fn().mockResolvedValue({ id: 'team-1', clubId: 'club-1' }),
       },
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ dateOfBirth: new Date('2000-04-02') }),
+      },
       $transaction: jest.fn(),
       membership: { create: jest.fn() },
       teamAccess: { create: jest.fn() },
@@ -32,6 +35,21 @@ describe('OnboardingService secure team-code join', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled()
     expect(prisma.membership.create).not.toHaveBeenCalled()
     expect(prisma.teamAccess.create).not.toHaveBeenCalled()
+  })
+
+  // Onboarding revamp: adults may skip the DOB (16+ declaration), players may not.
+  it('refuses a player team-code join without a date of birth', async () => {
+    const prisma = {
+      team: { findUnique: jest.fn().mockResolvedValue({ id: 'team-1', clubId: 'club-1' }) },
+      user: { findUnique: jest.fn().mockResolvedValue({ dateOfBirth: null }) },
+    }
+    const joinRequests = { create: jest.fn() }
+    const service = new OnboardingService(prisma as never, {} as never, joinRequests as never)
+
+    await expect(
+      service.joinTeamByCode('user-1', { joinCode: 'AB23XC45ZK', role: 'PLAYER' }),
+    ).rejects.toThrow('date of birth')
+    expect(joinRequests.create).not.toHaveBeenCalled()
   })
 
   it('turns a coach code into an inert staff claim without membership or team access', async () => {
@@ -68,6 +86,30 @@ describe('OnboardingService secure team-code join', () => {
     expect(prisma.membership.create).not.toHaveBeenCalled()
     expect(prisma.teamAccess.create).not.toHaveBeenCalled()
     expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  // onboarding review fix (M4): the coach picks Cheftrainer or Co-Trainer.
+  it('passes a chosen head-coach role through to the staff request', async () => {
+    const prisma = {
+      team: { findUnique: jest.fn().mockResolvedValue({ id: 'team-1', clubId: 'club-1' }) },
+    }
+    const staffClaims = { submitStaffRequest: jest.fn().mockResolvedValue({ id: 'claim-1' }) }
+    const service = new OnboardingService(
+      prisma as never,
+      {} as never,
+      { create: jest.fn() } as never,
+      staffClaims as never,
+    )
+    await service.joinTeamByCode('coach-1', {
+      joinCode: 'AB23XC45ZK',
+      role: 'COACH',
+      teamRole: 'HEAD_COACH',
+    })
+    expect(staffClaims.submitStaffRequest).toHaveBeenCalledWith(
+      'coach-1',
+      'club-1',
+      expect.objectContaining({ teamRoles: ['HEAD_COACH'] }),
+    )
   })
 
   it.each([MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.COACH])(

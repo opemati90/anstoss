@@ -24,6 +24,10 @@ describe('I18nService', () => {
       expect(I18nService.parseLocale('en;q=0.5, de;q=0.9')).toBe('de')
     })
 
+    it('recognises Turkish', () => {
+      expect(I18nService.parseLocale('tr-TR,tr;q=0.9')).toBe('tr')
+    })
+
     it('falls back to en for unsupported locale', () => {
       expect(I18nService.parseLocale('ja')).toBe('en')
     })
@@ -31,12 +35,17 @@ describe('I18nService', () => {
 
   describe('t', () => {
     it('returns English translation by default', () => {
-      expect(service.t('error.not_found')).toBe('Resource not found')
+      expect(service.t('error.not_found')).toBe('Not found')
     })
 
     it('returns German in de context', () => {
       const result = I18nService.runWithLocale('de', () => service.t('error.not_found'))
-      expect(result).toBe('Ressource nicht gefunden')
+      expect(result).toBe('Nicht gefunden')
+    })
+
+    it('returns Turkish in tr context', () => {
+      const result = I18nService.runWithLocale('tr', () => service.t('member.already_joined'))
+      expect(result).toBe('Bu kulübün zaten üyesisin')
     })
 
     it('returns key as fallback for unknown key', () => {

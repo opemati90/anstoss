@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common'
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common'
 import { MembershipRole } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RolesGuard, RequireRole } from '../auth/roles.guard'
@@ -24,7 +24,10 @@ export class StreaksController {
   async getStreaks(
     @CurrentUser() user: { id: string },
     @Param('clubId') clubId: string,
+    // Kader Statistik: optional team scope (events, fixtures and members of
+    // one team of this club). Absent = the whole club, as before.
+    @Query('teamId') teamId?: string,
   ) {
-    return this.streaksService.getStreaks(clubId, user.id)
+    return this.streaksService.getStreaks(clubId, user.id, teamId || undefined)
   }
 }

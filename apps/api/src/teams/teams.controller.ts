@@ -13,12 +13,13 @@ import {
   updateTeamMemberSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
+import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { TeamsService } from './teams.service'
 
 @Controller('clubs/:clubId')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(ClerkAuthGuard, AgeGateGuard)
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 

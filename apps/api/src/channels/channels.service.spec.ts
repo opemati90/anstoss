@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
-import { ChannelsService } from './channels.service'
+import { ChannelsService, isMuteActive } from './channels.service'
 
 function makeService(
   overrides: {
@@ -21,6 +21,7 @@ function makeService(
   ]
 
   const prisma = {
+    user: { findUnique: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
     team: { findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }) },
     channel: {
       findFirst: jest.fn().mockResolvedValue(overrides.channel ?? null),
@@ -145,65 +146,7 @@ describe('ChannelsService.listMembers', () => {
   })
 })
 
-describe('ChannelsService.addMember', () => {
-  it('lets a manager add a member to a CUSTOM channel', async () => {
-    const { service, prisma } = makeService({ channel: CUSTOM })
-    await expect(service.addMember('coach', 'team-1', 'ch-1', 'u-1')).resolves.toEqual({
-      added: true,
-    })
-    expect(prisma.channelMember.upsert).toHaveBeenCalled()
-  })
-
-  it('forbids a non-manager from adding a member', async () => {
-    const { service } = makeService({
-      channel: CUSTOM,
-      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [] },
-    })
-    await expect(service.addMember('player', 'team-1', 'ch-1', 'u-1')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    )
-  })
-
-  it('rejects adding to a default (auto-managed) channel', async () => {
-    const { service } = makeService({ channel: TEAM })
-    await expect(service.addMember('coach', 'team-1', 'ch-team', 'u-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    )
-  })
-})
-
-describe('ChannelsService.removeMember', () => {
-  it('allows self-leave without manager rights', async () => {
-    const { service, prisma } = makeService({
-      channel: CUSTOM,
-      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [] },
-    })
-    await expect(service.removeMember('u-1', 'team-1', 'ch-1', 'u-1')).resolves.toEqual({
-      removed: true,
-    })
-    expect(prisma.channelMember.deleteMany).toHaveBeenCalled()
-  })
-
-  it('forbids a non-manager from removing someone else', async () => {
-    const { service } = makeService({
-      channel: CUSTOM,
-      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [] },
-    })
-    await expect(service.removeMember('u-1', 'team-1', 'ch-1', 'u-2')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    )
-  })
-
-  it('lets a manager remove another member', async () => {
-    const { service, prisma } = makeService({ channel: CUSTOM })
-    await expect(service.removeMember('coach', 'team-1', 'ch-1', 'u-2')).resolves.toEqual({
-      removed: true,
-    })
-    expect(prisma.channelMember.deleteMany).toHaveBeenCalledWith({
-      where: { channelId: 'ch-1', userId: 'u-2' },
-    })
-  })
-})
+// Legacy addMember/removeMember were removed (H2); see channels.review-fixes.spec.ts.
 
 describe('ChannelsService CUSTOM access control', () => {
   it('does NOT allow a non-member to write to a CUSTOM channel', async () => {
@@ -282,37 +225,162 @@ describe('ChannelsService CUSTOM access control', () => {
   })
 })
 
-describe('ChannelsService.createCustomChannel', () => {
-  it('auto-adds the creator as a ChannelMember', async () => {
-    const prisma = {
-      membership: {
-        findFirst: jest.fn().mockResolvedValue({ role: 'COACH' }),
-      },
-      team: { findUnique: jest.fn() },
-      channel: {
-        create: jest.fn().mockResolvedValue({
-          id: 'ch-new',
-          clubId: 'club-1',
-          teamId: null,
-          slug: 'group-x',
-          kind: 'CUSTOM',
-          name: 'X',
-          description: null,
-          visibility: 'MEMBERS',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      },
-      channelMember: { create: jest.fn().mockResolvedValue(undefined) },
-      $transaction: jest.fn(),
-    }
-    // createCustomChannel wraps the channel + member writes in a transaction;
-    // run the callback against the same mock so the create assertions hold.
-    prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma))
-    const service = new ChannelsService(prisma as never, {} as never, { emit: jest.fn() } as never)
-    await service.createCustomChannel('creator', { clubId: 'club-1', name: 'X' })
-    expect(prisma.channelMember.create).toHaveBeenCalledWith({
-      data: { channelId: 'ch-new', userId: 'creator' },
+// createCustomChannel is covered with where-matching data in channels.review-fixes.spec.ts (B1).
+
+describe('ChannelsService Eltern (PARENTS_ONLY) access', () => {
+  const PARENTS = {
+    id: 'ch-parents',
+    kind: 'PARENTS',
+    visibility: 'PARENTS_ONLY',
+    clubId: 'club-1',
+    teamId: 'team-1',
+  }
+
+  it('lets parents and the team coaches write, but not players', async () => {
+    const parent = makeService({
+      channel: PARENTS,
+      access: { membership: { role: 'PARENT' }, activeTeamAccess: [{ role: 'PARENT' }] },
     })
+    await expect(parent.service.assertWritable('parent', 'ch-parents')).resolves.toBeUndefined()
+
+    const coach = makeService({
+      channel: PARENTS,
+      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [{ role: 'HEAD_COACH' }] },
+    })
+    await expect(coach.service.assertWritable('coach', 'ch-parents')).resolves.toBeUndefined()
+
+    const player = makeService({
+      channel: PARENTS,
+      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [{ role: 'PLAYER' }] },
+    })
+    await expect(player.service.assertWritable('player', 'ch-parents')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
+  })
+
+  it('fans Eltern messages out to parents and coaches only', async () => {
+    const { service } = makeService({
+      channel: PARENTS,
+      roster: [
+        { userId: 'parent-1', role: 'PARENT' },
+        { userId: 'coach-1', role: 'HEAD_COACH' },
+        { userId: 'player-1', role: 'PLAYER' },
+      ],
+    })
+    const readers = await service.listChannelReaderIds('team-1', 'ch-parents')
+    expect(readers.sort()).toEqual(['coach-1', 'parent-1'])
   })
 })
+
+describe('ChannelsService mute', () => {
+  it('a mute row on a default channel never grants access', async () => {
+    const COACHES = { ...TEAM, id: 'ch-coaches', kind: 'COACHES', visibility: 'COACHES_ONLY' }
+    const { service } = makeService({
+      channel: COACHES,
+      callerMember: { id: 'mute-row' },
+      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [{ role: 'PLAYER' }] },
+    })
+    const result = await service.getChannelAccess('player', 'ch-coaches')
+    expect(result.canRead).toBe(false)
+    expect(result.canWrite).toBe(false)
+  })
+
+  it('upserts a preference row for default channels', async () => {
+    const { service, prisma } = makeService({ channel: TEAM })
+    ;(prisma.channelMember as any).update = jest.fn()
+    await expect(
+      service.setChannelMute('u-1', 'club-1', 'ch-team', { muted: true, mutedUntil: null }),
+    ).resolves.toEqual({ muted: true, mutedUntil: null })
+    expect(prisma.channelMember.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { channelId_userId: { channelId: 'ch-team', userId: 'u-1' } },
+        create: { channelId: 'ch-team', userId: 'u-1', muted: true, mutedUntil: null },
+      }),
+    )
+  })
+
+  it('only updates (never creates) the membership row of a CUSTOM group', async () => {
+    const { service, prisma } = makeService({ channel: CUSTOM, callerMember: { id: 'cm-1' } })
+    const update = jest.fn().mockResolvedValue(undefined)
+    ;(prisma.channelMember as any).update = update
+    await service.setChannelMute('u-1', 'club-1', 'ch-1', {
+      muted: true,
+      mutedUntil: '2026-10-01T10:00:00.000Z',
+    })
+    expect(update).toHaveBeenCalled()
+    expect(prisma.channelMember.upsert).not.toHaveBeenCalled()
+  })
+
+  it('refuses to mute a channel the caller cannot read (no group join via mute)', async () => {
+    const { service } = makeService({ channel: CUSTOM, callerMember: null })
+    await expect(
+      service.setChannelMute('outsider', 'club-1', 'ch-1', { muted: true }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
+  it('drops readers with an active mute from push fan-out', async () => {
+    const { service, prisma } = makeService({
+      channel: CUSTOM,
+      channelMembers: [{ userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-4' }],
+    })
+    prisma.channelMember.findMany.mockImplementation((query: any) => {
+      if (query?.where?.muted) {
+        return Promise.resolve([
+          { userId: 'u-3', muted: true, mutedUntil: null },
+          // expired mute — buzzes again
+          { userId: 'u-4', muted: true, mutedUntil: new Date('2000-01-01') },
+        ])
+      }
+      return Promise.resolve([{ userId: 'u-2' }, { userId: 'u-3' }, { userId: 'u-4' }])
+    })
+    const readers = await service.listChannelReaderIds('team-1', 'ch-1', { excludeMuted: true })
+    expect(readers.sort()).toEqual(['u-2', 'u-4'])
+  })
+
+  it('isMuteActive honours mutedUntil', () => {
+    const now = new Date('2026-09-23T12:00:00Z')
+    expect(isMuteActive({ muted: true, mutedUntil: null }, now)).toBe(true)
+    expect(isMuteActive({ muted: true, mutedUntil: new Date('2026-09-24T00:00:00Z') }, now)).toBe(
+      true,
+    )
+    expect(isMuteActive({ muted: true, mutedUntil: new Date('2026-09-22T00:00:00Z') }, now)).toBe(
+      false,
+    )
+    expect(isMuteActive({ muted: false, mutedUntil: null }, now)).toBe(false)
+  })
+})
+
+describe('ChannelsService channel-scoped membership', () => {
+  it('refuses to leave or remove members of a default channel', async () => {
+    const { service } = makeService({ channel: TEAM })
+    await expect(
+      service.removeChannelMember('u-1', 'club-1', 'ch-team', 'u-1'),
+    ).rejects.toBeInstanceOf(BadRequestException)
+  })
+
+  it('lets a member leave a CUSTOM group', async () => {
+    const { service, prisma } = makeService({
+      channel: CUSTOM,
+      callerMember: { id: 'cm-1' },
+      access: { membership: { role: 'PLAYER' }, activeTeamAccess: [{ role: 'PLAYER' }] },
+    })
+    await expect(service.removeChannelMember('u-1', 'club-1', 'ch-1', 'u-1')).resolves.toEqual({
+      removed: true,
+    })
+    expect(prisma.channelMember.deleteMany).toHaveBeenCalledWith({
+      where: { channelId: 'ch-1', userId: 'u-1' },
+    })
+  })
+
+  it('404s a channel addressed through another club', async () => {
+    const { service } = makeService({ channel: TEAM })
+    await expect(service.getChannelAccess('u-1', 'ch-team')).resolves.toMatchObject({
+      canRead: true,
+    })
+    await expect(
+      service.setChannelMute('u-1', 'club-OTHER', 'ch-team', { muted: true }),
+    ).rejects.toThrow('Channel not found')
+  })
+})
+
+// ensureTeamChannels (youth-only Eltern, cached, no-op writes): channels.review-fixes.spec.ts (H4).

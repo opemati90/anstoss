@@ -85,3 +85,48 @@ describe('StreaksService.getStreaks', () => {
     expect(prisma.poll.findMany).not.toHaveBeenCalled()
   })
 })
+
+// Kader Statistik: team-scoped numbers.
+describe('StreaksService.getStreaks with a team scope', () => {
+  function createScoped() {
+    const prisma = {
+      team: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
+      event: { findMany: jest.fn<Promise<unknown>, unknown[]>().mockResolvedValue([]) },
+      membership: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
+      teamAccess: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
+      importedFixture: { findMany: jest.fn<Promise<unknown>, unknown[]>().mockResolvedValue([]) },
+      poll: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
+    }
+    return { prisma, service: new StreaksService(prisma as never) }
+  }
+
+  it('reads events, fixtures and members of that team only', async () => {
+    const { prisma, service } = createScoped()
+    prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
+    prisma.teamAccess.findMany.mockResolvedValue([
+      { userId: 'u-1', user: { id: 'u-1', name: 'Tim Weber', avatarUrl: null } },
+      // A playing coach has two access rows: listed once.
+      { userId: 'u-1', user: { id: 'u-1', name: 'Tim Weber', avatarUrl: null } },
+      { userId: 'u-2', user: { id: 'u-2', name: 'Lukas Hoffmann', avatarUrl: null } },
+    ])
+
+    const res = await service.getStreaks('club-1', 'u-1', 'team-1')
+
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ clubId: 'club-1', teamId: 'team-1' }) }),
+    )
+    expect(prisma.importedFixture.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ teamId: 'team-1' }) }),
+    )
+    expect(prisma.membership.findMany).not.toHaveBeenCalled()
+    expect(res.leaderboard.map((row) => row.userId)).toEqual(['u-1', 'u-2'])
+    expect(res.teamId).toBe('team-1')
+  })
+
+  it('404s for a team of another club', async () => {
+    const { prisma, service } = createScoped()
+    prisma.team.findFirst.mockResolvedValue(null)
+    await expect(service.getStreaks('club-1', 'u-1', 'foreign-team')).rejects.toThrow('Team not found')
+    expect(prisma.event.findMany).not.toHaveBeenCalled()
+  })
+})

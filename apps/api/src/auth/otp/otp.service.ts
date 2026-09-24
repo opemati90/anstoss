@@ -10,6 +10,9 @@
  */
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -20,6 +23,23 @@ import { sendEmail } from '../../email/mailer'
 import { buildOtpCodeEmail } from '../../email/email-content'
 import { resolveLocale } from '../../i18n/translations'
 import { signSessionToken } from './jwt.util'
+import { isUnderageEmailBlocked } from '../underage-email-tombstone'
+
+/**
+ * Onboarding review fix (M1): lockouts are 429s with a stable code so the app
+ * can tell "wrong code" from "this code is burned, ask for a new one" and
+ * from "too many tries this hour, wait N minutes" (with the real wait time).
+ */
+export const OTP_CODE_LOCKED = 'OTP_CODE_LOCKED'
+export const OTP_HOURLY_CAP = 'OTP_HOURLY_CAP'
+export const UNDERAGE_EMAIL_BLOCKED = 'UNDERAGE_EMAIL_BLOCKED'
+
+function tooManyAttempts(message: string, code: string, retryAfterSeconds?: number) {
+  return new HttpException(
+    { message, code, ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}) },
+    HttpStatus.TOO_MANY_REQUESTS,
+  )
+}
 
 export const OTP_CODE_LENGTH = 6
 export const OTP_TTL_MINUTES = 10
@@ -157,8 +177,17 @@ export class OtpService {
       _sum: { attempts: true },
     })
     if ((failureAgg._sum.attempts ?? 0) >= OTP_MAX_VERIFY_FAILURES_PER_HOUR) {
-      throw new UnauthorizedException(
+      // The window frees up when the oldest failing code leaves the hour.
+      const oldestFailing = await this.prisma.otpCode.findFirst({
+        where: { email, createdAt: { gte: oneHourAgo }, attempts: { gt: 0 } },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      })
+      const freesAt = (oldestFailing?.createdAt ?? now).getTime() + 60 * 60 * 1000
+      throw tooManyAttempts(
         'Too many attempts. Please try again later.',
+        OTP_HOURLY_CAP,
+        Math.max(60, Math.ceil((freesAt - now.getTime()) / 1000)),
       )
     }
 
@@ -185,7 +214,7 @@ export class OtpService {
         where: { id: record.id },
         data: { consumedAt: now },
       })
-      throw new UnauthorizedException('Too many attempts. Request a new code.')
+      throw tooManyAttempts('Too many attempts. Request a new code.', OTP_CODE_LOCKED)
     }
 
     const expectedHash = this.hashCode(email, code)
@@ -205,6 +234,9 @@ export class OtpService {
           consumedAt: attempts >= OTP_MAX_ATTEMPTS ? now : null,
         },
       })
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        throw tooManyAttempts('Too many attempts. Request a new code.', OTP_CODE_LOCKED)
+      }
       throw new UnauthorizedException('Invalid or expired code')
     }
 
@@ -273,6 +305,16 @@ export class OtpService {
     })
     if (existing) {
       return existing
+    }
+
+    // Onboarding review fix (B1): an address whose under-16 self-registration
+    // was removed (parent handoff / under 13) can't open a new account for 30
+    // days, so a child can't simply sign up again with another birth date.
+    if (await isUnderageEmailBlocked(this.prisma, email)) {
+      throw new ForbiddenException({
+        message: 'This email was handed to a parent or guardian. Ask them to add you.',
+        code: UNDERAGE_EMAIL_BLOCKED,
+      })
     }
 
     try {

@@ -59,6 +59,8 @@ export const TENANT_SCOPED_MODELS = new Set([
   'InviteCampaign',
   'InviteRedemption',
   'TrialInvite',
+  // Wechselbörse: a club's Gesuch.
+  'PlayerSearch',
   'InjuryReport',
   'TeamDutyAssignment',
   'ClubContributionSettings',
@@ -70,6 +72,13 @@ export const TENANT_SCOPED_MODELS = new Set([
   'BankTransaction',
   'ContributionMatch',
   'EventCheckIn',
+  // Events revamp: Fahrgemeinschaft
+  'CarpoolRide',
+  'CarpoolSeat',
+  // club-admin revamp: Führungszeugnis & member documents
+  'ComplianceRecord',
+  // club-admin review fixes: 24h compliance reminder cooldown
+  'ComplianceReminder',
 ])
 
 /**

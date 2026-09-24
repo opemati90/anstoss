@@ -89,10 +89,27 @@ export class AppExceptionFilter implements ExceptionFilter {
         `[HTTP_${status}] ${method} ${path} userId=${userId} requestId=${requestId}: ${JSON.stringify(message)}`,
       )
 
+      // onboarding review fixes (M1/M9): an HttpException thrown with an
+      // object body may carry a stable machine code (and a wait time) so
+      // clients map errors by code instead of English message substrings.
+      const body =
+        typeof exceptionResponse === 'object' && exceptionResponse !== null
+          ? (exceptionResponse as Record<string, unknown>)
+          : null
+      const customCode =
+        body && typeof body.code === 'string' && /^[A-Z0-9_]{2,64}$/.test(body.code)
+          ? body.code
+          : null
+      const retryAfterSeconds =
+        body && typeof body.retryAfterSeconds === 'number' && body.retryAfterSeconds >= 0
+          ? Math.ceil(body.retryAfterSeconds)
+          : null
+
       response.status(status).json({
         error: {
-          code: `HTTP_${status}`,
+          code: customCode ?? `HTTP_${status}`,
           message,
+          ...(retryAfterSeconds !== null ? { retryAfterSeconds } : {}),
         },
         requestId,
       })

@@ -1,262 +1,408 @@
-import { ForbiddenException } from '@nestjs/common'
+/**
+ * DmService against an in-memory Prisma that evaluates where clauses (L9):
+ * guardian links only count for the right adult, child AND club; a stale
+ * participant row never reopens a club the caller left; DM attachments are
+ * only reachable by the two current participants.
+ */
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { DmService } from './dm.service'
+import { CHAT_FAKE_SCHEMA, FakePrisma, yearsAgo } from '../test-utils/fake-prisma'
 
-const adultDob = new Date('1990-01-01T00:00:00.000Z')
-const minorDob = new Date('2014-01-01T00:00:00.000Z')
+const CLUB = 'club-1'
+const OTHER_CLUB = 'club-2'
 
-function makePrisma() {
-  const prisma = {
-    $executeRaw: jest.fn().mockResolvedValue(1),
-    membership: { findFirst: jest.fn().mockResolvedValue({ id: 'membership' }) },
-    user: { findMany: jest.fn() },
-    userBlock: { findFirst: jest.fn().mockResolvedValue(null) },
-    guardianRelationship: { findFirst: jest.fn().mockResolvedValue(null) },
-    parentalConsent: { findFirst: jest.fn().mockResolvedValue(null) },
-    conversation: {
-      findFirst: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockResolvedValue({ id: 'conversation', participants: [] }),
-      update: jest.fn(),
-    },
-    conversationParticipant: { findFirst: jest.fn() },
-    directMessage: { create: jest.fn() },
-  } as any
-  prisma.$transaction = jest.fn(async (callback: (tx: typeof prisma) => unknown) => callback(prisma))
-  return prisma
+type Seed = Record<string, Array<Record<string, unknown>>>
+
+function user(id: string, dob: Date | null, extra: Record<string, unknown> = {}) {
+  return { id, name: id, avatarUrl: null, dateOfBirth: dob, managedById: null, deletedAt: null, preferredLanguage: 'de', ...extra }
 }
 
-function makeService(prisma: ReturnType<typeof makePrisma>) {
-  return new DmService(prisma, {
+function baseSeed(): Seed {
+  return {
+    user: [
+      user('coach', yearsAgo(40), { name: 'Tim Weber' }),
+      user('player', yearsAgo(24), { name: 'Lukas Hoffmann' }),
+      user('mum', yearsAgo(41), { name: 'Anna Hoffmann' }),
+      user('kid', yearsAgo(12), { name: 'Ben Hoffmann' }),
+      user('kid2', yearsAgo(13), { name: 'Mia Schulz' }),
+      user('nodob', null),
+      user('outsider', yearsAgo(30)),
+    ],
+    membership: ['coach', 'player', 'mum', 'kid', 'kid2', 'nodob'].map((userId, i) => ({
+      id: `m${i}`,
+      userId,
+      clubId: CLUB,
+      role: userId === 'coach' ? 'COACH' : userId === 'mum' ? 'PARENT' : 'PLAYER',
+    })),
+    teamAccess: [
+      { id: 'ta1', userId: 'coach', clubId: CLUB, teamId: 'team-1', role: 'HEAD_COACH', status: 'ACTIVE', loanEndDate: null },
+      { id: 'ta2', userId: 'player', clubId: CLUB, teamId: 'team-1', role: 'PLAYER', status: 'ACTIVE', loanEndDate: null },
+    ],
+    team: [{ id: 'team-1', clubId: CLUB, displayName: 'Herren I', name: 'Herren I' }],
+    guardianRelationship: [],
+    parentalConsent: [],
+    userBlock: [],
+    conversation: [],
+    conversationParticipant: [],
+    directMessage: [],
+    directMessageReaction: [],
+    directMessageReport: [],
+    event: [],
+  }
+}
+
+function conversation(seed: Seed, id: string, a: string, b: string, clubId = CLUB) {
+  seed.conversation.push({ id, clubId, createdAt: new Date(), updatedAt: new Date() })
+  seed.conversationParticipant.push(
+    { id: `${id}-${a}`, conversationId: id, userId: a, lastReadAt: new Date(0), muted: false, mutedUntil: null },
+    { id: `${id}-${b}`, conversationId: id, userId: b, lastReadAt: new Date('2026-09-20T10:00:00Z'), muted: false, mutedUntil: null },
+  )
+}
+
+function build(mutate?: (seed: Seed) => void, opts: { r2?: Record<string, unknown> | null } = {}) {
+  const seed = baseSeed()
+  mutate?.(seed)
+  const prisma = new FakePrisma(CHAT_FAKE_SCHEMA, seed)
+  const translation = {
     detectAndPersistSource: jest.fn().mockResolvedValue(undefined),
-  } as any)
+    resolveTargetLanguage: jest.fn().mockReturnValue('de'),
+    translateForReader: jest.fn().mockResolvedValue(null),
+  }
+  const r2 =
+    opts.r2 === null
+      ? undefined
+      : {
+          enabled: true,
+          objectKeyFromUrl: jest.fn((url: string) =>
+            url.startsWith('https://cdn.example/') ? url.slice('https://cdn.example/'.length) : null,
+          ),
+          assertStoredObject: jest.fn().mockResolvedValue(undefined),
+          presignPut: jest.fn().mockResolvedValue({ uploadUrl: 'https://put', publicUrl: 'https://cdn.example/x' }),
+          presignGet: jest.fn().mockResolvedValue('https://signed.example/get'),
+          deleteObjects: jest.fn().mockResolvedValue(undefined),
+          ...(opts.r2 ?? {}),
+        }
+  const events = { emit: jest.fn() }
+  const service = new DmService(prisma as never, translation as never, r2 as never, events as never)
+  return { prisma, service, r2, events }
 }
 
-function users(firstDob: Date, secondDob: Date, managedById: string | null = null) {
-  return [
-    { id: 'user-1', dateOfBirth: firstDob, managedById },
-    { id: 'user-2', dateOfBirth: secondDob, managedById: null },
-  ]
-}
-
-describe('DmService private-message safeguarding', () => {
+describe('DmService private-message safeguarding (where-matching)', () => {
   it('blocks an unrelated adult and minor from creating a conversation', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue(users(minorDob, adultDob))
-    const service = makeService(prisma)
-
-    await expect(service.findOrCreateConversation('user-1', 'club-1', 'user-2')).rejects.toThrow(
+    const { service, prisma } = build()
+    await expect(service.findOrCreateConversation('coach', CLUB, 'kid')).rejects.toThrow(
       'Direct messages between minors and adults are limited to linked guardians',
     )
-    expect(prisma.conversation.create).not.toHaveBeenCalled()
+    expect(prisma.rows('conversation')).toHaveLength(0)
   })
 
-  it('fails closed when either participant has no verified date of birth', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue([
-      { id: 'user-1', dateOfBirth: null, managedById: null },
-      { id: 'user-2', dateOfBirth: adultDob, managedById: null },
-    ])
-    const service = makeService(prisma)
-
-    await expect(service.findOrCreateConversation('user-1', 'club-1', 'user-2')).rejects.toThrow(
+  it('fails closed without a verified date of birth', async () => {
+    const { service } = build()
+    await expect(service.findOrCreateConversation('nodob', CLUB, 'player')).rejects.toThrow(
       'Age verification is required before private messaging',
     )
-    expect(prisma.conversation.create).not.toHaveBeenCalled()
   })
 
-  it('allows two minors and two adults to create conversations', async () => {
-    const prisma = makePrisma()
-    const service = makeService(prisma)
-
-    prisma.user.findMany.mockResolvedValueOnce(users(minorDob, minorDob))
-    await service.findOrCreateConversation('user-1', 'club-1', 'user-2')
-
-    prisma.user.findMany.mockResolvedValueOnce(users(adultDob, adultDob))
-    await service.findOrCreateConversation('user-1', 'club-1', 'user-2')
-
-    expect(prisma.conversation.create).toHaveBeenCalledTimes(2)
+  it('keeps under-16s group-only: minor↔minor is rejected', async () => {
+    const { service } = build()
+    await expect(service.findOrCreateConversation('kid', CLUB, 'kid2')).rejects.toThrow(
+      'Under-16s can only message their guardians privately',
+    )
   })
 
-  it('treats the sixteenth birthday as the exact safeguarding boundary', async () => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-08-26T12:00:00.000Z'))
-    try {
-      const prisma = makePrisma()
-      const service = makeService(prisma)
+  it('allows two adults and reuses only a conversation of the same club', async () => {
+    const { service, prisma } = build((s) => conversation(s, 'foreign', 'coach', 'player', OTHER_CLUB))
+    const created = await service.findOrCreateConversation('coach', CLUB, 'player')
+    expect(created.id).not.toBe('foreign')
+    expect(prisma.rows('conversation').find((c) => c.id === created.id)).toMatchObject({ clubId: CLUB })
+  })
 
-      prisma.user.findMany.mockResolvedValueOnce(users(new Date('2010-08-26'), adultDob))
-      await expect(
-        service.findOrCreateConversation('user-1', 'club-1', 'user-2'),
-      ).resolves.toMatchObject({ id: 'conversation' })
-
-      prisma.user.findMany.mockResolvedValueOnce(users(new Date('2010-08-27'), adultDob))
-      await expect(service.findOrCreateConversation('user-1', 'club-1', 'user-2')).rejects.toThrow(
-        'Direct messages between minors and adults are limited to linked guardians',
+  it('accepts a guardian link only for this adult, this child and this club', async () => {
+    // Links that must NOT count: another club, another child, another adult.
+    const { service } = build((s) => {
+      s.guardianRelationship.push(
+        { id: 'g-other-club', clubId: OTHER_CLUB, teamId: null, parentUserId: 'mum', playerUserId: 'kid' },
+        { id: 'g-other-child', clubId: CLUB, teamId: null, parentUserId: 'mum', playerUserId: 'kid2' },
+        { id: 'g-other-adult', clubId: CLUB, teamId: null, parentUserId: 'coach', playerUserId: 'kid2' },
       )
-    } finally {
-      jest.useRealTimers()
-    }
+    })
+    await expect(service.findOrCreateConversation('mum', CLUB, 'kid')).rejects.toThrow(
+      'limited to linked guardians',
+    )
+
+    const linked = build((s) => {
+      s.guardianRelationship.push({ id: 'g', clubId: CLUB, teamId: null, parentUserId: 'mum', playerUserId: 'kid' })
+    })
+    await expect(linked.service.findOrCreateConversation('kid', CLUB, 'mum')).resolves.toMatchObject({
+      id: expect.any(String),
+    })
+  })
+
+  it('accepts only an APPROVED parental consent of this club', async () => {
+    const pending = build((s) => {
+      s.parentalConsent.push({ id: 'pc', clubId: CLUB, teamId: 'team-1', playerUserId: 'kid', guardianUserId: 'mum', status: 'PENDING' })
+    })
+    await expect(pending.service.findOrCreateConversation('mum', CLUB, 'kid')).rejects.toThrow(ForbiddenException)
+
+    const approved = build((s) => {
+      s.parentalConsent.push({ id: 'pc', clubId: CLUB, teamId: 'team-1', playerUserId: 'kid', guardianUserId: 'mum', status: 'APPROVED' })
+    })
+    await expect(approved.service.findOrCreateConversation('mum', CLUB, 'kid')).resolves.toBeDefined()
   })
 
   it('allows the adult who manages a minor sub-profile', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue(users(minorDob, adultDob, 'user-2'))
-    const service = makeService(prisma)
+    const { service } = build((s) => {
+      ;(s.user.find((u) => u.id === 'kid') as Record<string, unknown>).managedById = 'mum'
+    })
+    await expect(service.findOrCreateConversation('mum', CLUB, 'kid')).resolves.toBeDefined()
+  })
 
+  it('treats the sixteenth birthday as the exact boundary', async () => {
+    const turnsSixteenToday = new Date()
+    turnsSixteenToday.setUTCFullYear(turnsSixteenToday.getUTCFullYear() - 16)
+    const tomorrow = new Date(turnsSixteenToday)
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+
+    const today = build((s) => s.user.push(user('teen', turnsSixteenToday)) && s.membership.push({ id: 'mt', userId: 'teen', clubId: CLUB, role: 'PLAYER' }))
+    await expect(today.service.findOrCreateConversation('coach', CLUB, 'teen')).resolves.toBeDefined()
+
+    const notYet = build((s) => s.user.push(user('teen', tomorrow)) && s.membership.push({ id: 'mt', userId: 'teen', clubId: CLUB, role: 'PLAYER' }))
+    await expect(notYet.service.findOrCreateConversation('coach', CLUB, 'teen')).rejects.toThrow(ForbiddenException)
+  })
+
+  it('rechecks safeguarding on every send, and blocks a blocked pair', async () => {
+    const { service, prisma } = build((s) => {
+      conversation(s, 'c1', 'coach', 'kid')
+      s.userBlock.push({ id: 'b', blockerUserId: 'player', blockedUserId: 'coach' })
+      conversation(s, 'c2', 'coach', 'player')
+    })
+    await expect(service.saveMessage('coach', 'c1', 'hallo')).rejects.toThrow(ForbiddenException)
+    await expect(service.saveMessage('coach', 'c2', 'hallo')).rejects.toThrow('Cannot send messages to this user')
+    expect(prisma.rows('directMessage')).toHaveLength(0)
+  })
+
+  it('rejects malformed conversations instead of picking an arbitrary peer', async () => {
+    const { service } = build((s) => {
+      s.conversation.push({ id: 'c3', clubId: CLUB })
+      s.conversationParticipant.push(
+        { id: 'p1', conversationId: 'c3', userId: 'coach', lastReadAt: new Date() },
+        { id: 'p2', conversationId: 'c3', userId: 'player', lastReadAt: new Date() },
+        { id: 'p3', conversationId: 'c3', userId: 'mum', lastReadAt: new Date() },
+      )
+    })
+    await expect(service.getMessages('coach', 'c3')).rejects.toThrow('Not a participant')
+  })
+})
+
+describe('M1: a member removed from the club', () => {
+  function removed() {
+    return build((s) => {
+      conversation(s, 'c1', 'coach', 'player')
+      s.directMessage.push({ id: 'dm1', conversationId: 'c1', senderId: 'player', content: 'Bis Samstag', messageType: 'TEXT', attachmentUrl: null, attachmentMeta: null, replyToId: null, sourceLanguage: null, deletedAt: null, createdAt: new Date('2026-09-01') })
+      // player left the club: membership gone, participant row kept.
+      s.membership = s.membership.filter((m) => m.userId !== 'player')
+    })
+  }
+
+  it('can no longer read, mark read or send', async () => {
+    const { service } = removed()
+    await expect(service.getMessages('player', 'c1')).rejects.toThrow('Not a member of this club')
+    await expect(service.markAsRead('player', 'c1')).rejects.toThrow(ForbiddenException)
+    await expect(service.saveMessage('player', 'c1', 'hi')).rejects.toThrow(ForbiddenException)
+  })
+
+  it('leaves the peer a read-only history that says they left', async () => {
+    const { service } = removed()
+    const page = await service.getMessages('coach', 'c1')
+    expect(page.messages.map((m) => m.content)).toEqual(['Bis Samstag'])
+    await expect(service.saveMessage('coach', 'c1', 'hi')).rejects.toThrow(ForbiddenException)
+    await expect(service.getConversationDetail('coach', CLUB, 'c1')).resolves.toMatchObject({
+      canMessage: false,
+      peerLeftClub: true,
+    })
+  })
+})
+
+describe('DM attachments', () => {
+  const url = (cid: string, kind = 'image', club = CLUB) => `https://cdn.example/dm/${club}/${cid}/${kind}/1-coach-aufstellung.jpg`
+
+  function withConversation(mutate?: (s: Seed) => void, opts?: { r2?: Record<string, unknown> | null }) {
+    return build((s) => {
+      conversation(s, 'c1', 'coach', 'player')
+      conversation(s, 'c-other', 'coach', 'mum')
+      mutate?.(s)
+    }, opts)
+  }
+
+  it('presigns only for participants, with the conversation-scoped key', async () => {
+    const { service, r2 } = withConversation()
     await expect(
-      service.findOrCreateConversation('user-1', 'club-1', 'user-2'),
-    ).resolves.toMatchObject({ id: 'conversation' })
-  })
-
-  it('allows a managed minor when the adult initiates the conversation', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue([
-      { id: 'user-1', dateOfBirth: adultDob, managedById: null },
-      { id: 'user-2', dateOfBirth: minorDob, managedById: 'user-1' },
-    ])
-    const service = makeService(prisma)
-
+      service.presignMedia('outsider', CLUB, 'c1', { kind: 'image', contentType: 'image/jpeg', sizeBytes: 1000 }),
+    ).rejects.toThrow(ForbiddenException)
+    const ok = await service.presignMedia('coach', CLUB, 'c1', {
+      kind: 'image',
+      contentType: 'image/jpeg',
+      sizeBytes: 1000,
+      filename: 'Aufstellung Samstag.jpg',
+    })
+    expect(ok.objectKey).toMatch(/^dm\/club-1\/c1\/image\/\d+-coach-Aufstellung-Samstag\.jpg$/)
+    expect(r2!.presignPut).toHaveBeenCalledWith(ok.objectKey, 'image/jpeg', 1000)
     await expect(
-      service.findOrCreateConversation('user-1', 'club-1', 'user-2'),
-    ).resolves.toMatchObject({ id: 'conversation' })
-  })
-
-  it('allows a club-scoped linked guardian and does not accept another club link', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue(users(minorDob, adultDob))
-    prisma.guardianRelationship.findFirst.mockResolvedValue({ id: 'guardian-link' })
-    const service = makeService(prisma)
-
-    await service.findOrCreateConversation('user-1', 'club-1', 'user-2')
-
-    expect(prisma.guardianRelationship.findFirst).toHaveBeenCalledWith({
-      where: {
-        clubId: 'club-1',
-        parentUserId: 'user-2',
-        playerUserId: 'user-1',
-      },
-      select: { id: true },
-    })
-  })
-
-  it('allows an approved parental-consent guardian', async () => {
-    const prisma = makePrisma()
-    prisma.user.findMany.mockResolvedValue(users(minorDob, adultDob))
-    prisma.parentalConsent.findFirst.mockResolvedValue({ id: 'consent' })
-    const service = makeService(prisma)
-
+      service.presignMedia('coach', CLUB, 'c1', { kind: 'image', contentType: 'application/pdf', sizeBytes: 1000 }),
+    ).rejects.toThrow(BadRequestException)
     await expect(
-      service.findOrCreateConversation('user-1', 'club-1', 'user-2'),
-    ).resolves.toMatchObject({ id: 'conversation' })
-    expect(prisma.parentalConsent.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ clubId: 'club-1', status: 'APPROVED' }),
-      }),
-    )
+      service.presignMedia('coach', CLUB, 'c1', { kind: 'image', contentType: 'image/jpeg', sizeBytes: 11 * 1024 * 1024 }),
+    ).rejects.toThrow('File exceeds the allowed size')
   })
 
-  it('rechecks safeguarding before sending into an existing conversation', async () => {
-    const prisma = makePrisma()
-    prisma.conversationParticipant.findFirst.mockResolvedValue({
-      conversation: {
-        clubId: 'club-1',
-        participants: [{ userId: 'user-1' }, { userId: 'user-2' }],
-      },
-    })
-    prisma.user.findMany.mockResolvedValue(users(minorDob, adultDob))
-    const service = makeService(prisma)
+  it('sends a validated photo and rejects an upload of another conversation', async () => {
+    const { service, prisma, r2, events } = withConversation()
+    await expect(
+      service.sendMessage('coach', CLUB, 'c1', { messageType: 'IMAGE', attachmentUrl: url('c-other') }),
+    ).rejects.toThrow('Attachment does not belong to this conversation upload')
+    expect(prisma.rows('directMessage')).toHaveLength(0)
 
-    await expect(service.saveMessage('user-1', 'conversation-1', 'hello')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    )
-    expect(prisma.directMessage.create).not.toHaveBeenCalled()
+    const item = await service.sendMessage('coach', CLUB, 'c1', {
+      messageType: 'IMAGE',
+      attachmentUrl: url('c1'),
+      attachmentMeta: { width: 1200, height: 900 },
+      clientMessageId: 'tmp-1',
+    })
+    expect(r2!.assertStoredObject).toHaveBeenCalledWith('dm/club-1/c1/image/1-coach-aufstellung.jpg', expect.objectContaining({ maxBytes: 10 * 1024 * 1024 }))
+    expect(item).toMatchObject({ messageType: 'IMAGE', attachmentMeta: { width: 1200, height: 900 } })
+    expect(events.emit).toHaveBeenCalledWith('dm.message.created', { message: item, clientMessageId: 'tmp-1' })
   })
 
-  it('does not let a retained conversation bypass current club membership', async () => {
-    const prisma = makePrisma()
-    prisma.conversationParticipant.findFirst.mockResolvedValue({
-      conversation: {
-        clubId: 'club-1',
-        participants: [{ userId: 'user-1' }, { userId: 'user-2' }],
-      },
+  it('refuses a stored object that fails inspection', async () => {
+    const { service } = withConversation(undefined, {
+      r2: { assertStoredObject: jest.fn().mockRejectedValue(new Error('too large')) },
     })
-    prisma.membership.findFirst
-      .mockResolvedValueOnce({ id: 'sender-membership' })
-      .mockResolvedValueOnce(null)
-    const service = makeService(prisma)
-
-    await expect(service.assertCanMessageConversation('user-1', 'conversation-1')).rejects.toThrow(
-      'Not a member of this club',
-    )
-    expect(prisma.user.findMany).not.toHaveBeenCalled()
-    expect(prisma.membership.findFirst).toHaveBeenNthCalledWith(2, {
-      where: { userId: 'user-2', clubId: 'club-1' },
-    })
+    await expect(
+      service.sendMessage('coach', CLUB, 'c1', { messageType: 'VIDEO', attachmentUrl: url('c1', 'video') }),
+    ).rejects.toThrow('Attachment upload is invalid or incomplete')
   })
 
-  it('allows an approved guardian to send in either direction', async () => {
-    const prisma = makePrisma()
-    prisma.conversationParticipant.findFirst.mockResolvedValue({
-      conversation: {
-        clubId: 'club-1',
-        participants: [{ userId: 'user-1' }, { userId: 'user-2' }],
-      },
-    })
-    prisma.user.findMany.mockResolvedValue([
-      { id: 'user-1', dateOfBirth: adultDob, managedById: null },
-      { id: 'user-2', dateOfBirth: minorDob, managedById: 'user-1' },
-    ])
-    prisma.directMessage.create.mockResolvedValue({
-      id: 'message-1',
-      content: 'hello',
-      sender: { id: 'user-1', name: 'Parent', avatarUrl: null },
-    })
-    const service = makeService(prisma)
-
-    await expect(service.saveMessage('user-1', 'conversation-1', 'hello')).resolves.toMatchObject({
-      id: 'message-1',
-    })
-    expect(prisma.directMessage.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          conversationId: 'conversation-1',
-          senderId: 'user-1',
-          content: 'hello',
-        },
-      }),
-    )
-  })
-
-  it('rechecks access after revocation serialization before inserting a message', async () => {
-    const prisma = makePrisma()
-    prisma.conversationParticipant.findFirst
-      .mockResolvedValueOnce({
-        conversation: {
-          clubId: 'club-1',
-          participants: [{ userId: 'user-1' }, { userId: 'user-2' }],
-        },
+  describe('signed media URL', () => {
+    function withPhoto(mutate?: (s: Seed) => void) {
+      return withConversation((s) => {
+        s.directMessage.push({ id: 'photo', conversationId: 'c1', senderId: 'coach', content: '', messageType: 'IMAGE', attachmentUrl: url('c1'), attachmentMeta: null, replyToId: null, sourceLanguage: null, deletedAt: null, createdAt: new Date() })
+        mutate?.(s)
       })
-      .mockResolvedValueOnce(null)
-    const service = makeService(prisma)
+    }
 
-    await expect(service.saveMessage('user-1', 'conversation-1', 'too late')).rejects.toThrow(
-      'Not a participant in this conversation',
-    )
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(4)
-    expect(prisma.directMessage.create).not.toHaveBeenCalled()
+    it('signs for a current participant', async () => {
+      const { service, r2 } = withPhoto()
+      await expect(service.getMediaUrl('player', CLUB, 'c1', 'photo')).resolves.toEqual({ url: 'https://signed.example/get' })
+      expect(r2!.presignGet).toHaveBeenCalledWith('dm/club-1/c1/image/1-coach-aufstellung.jpg', 3600)
+    })
+
+    it('403s a non-participant (even a club member)', async () => {
+      const { service, r2 } = withPhoto()
+      await expect(service.getMediaUrl('mum', CLUB, 'c1', 'photo')).rejects.toThrow(ForbiddenException)
+      expect(r2!.presignGet).not.toHaveBeenCalled()
+    })
+
+    it('403s a participant who was removed from the club', async () => {
+      const { service, r2 } = withPhoto((s) => {
+        s.membership = s.membership.filter((m) => m.userId !== 'player')
+      })
+      await expect(service.getMediaUrl('player', CLUB, 'c1', 'photo')).rejects.toThrow(ForbiddenException)
+      expect(r2!.presignGet).not.toHaveBeenCalled()
+    })
+
+    it('404s a message of another conversation and 403s a club mismatch', async () => {
+      const { service } = withPhoto()
+      await expect(service.getMediaUrl('coach', CLUB, 'c-other', 'photo')).rejects.toThrow(NotFoundException)
+      await expect(service.getMediaUrl('coach', OTHER_CLUB, 'c1', 'photo')).rejects.toThrow(ForbiddenException)
+    })
   })
 
-  it('rejects malformed conversations instead of selecting an arbitrary peer', async () => {
-    const prisma = makePrisma()
-    prisma.conversationParticipant.findFirst.mockResolvedValue({
-      conversation: {
-        clubId: 'club-1',
-        participants: [{ userId: 'user-1' }, { userId: 'user-2' }, { userId: 'user-3' }],
-      },
-    })
-    const service = makeService(prisma)
+  describe('lineup cards', () => {
+    function withEvent() {
+      return withConversation((s) => {
+        s.event.push({
+          id: 'ev-1',
+          clubId: CLUB,
+          teamId: 'team-1',
+          title: 'Heimspiel gegen SV Babelsberg 03',
+          date: new Date(Date.now() + 3 * 24 * 3600 * 1000),
+          opponent: 'SV Babelsberg 03',
+          cancelledAt: null,
+          archivedAt: null,
+          lineup: {
+            formation: '4-4-2',
+            starters: [
+              { name: 'Jonas Keller', position: 'TW' },
+              { name: 'Lukas Hoffmann', position: 'ST' },
+            ],
+            bench: [],
+          },
+        })
+      })
+    }
 
-    await expect(service.assertCanMessageConversation('user-1', 'conversation-1')).rejects.toThrow(
-      'Not a participant in this conversation',
-    )
-    expect(prisma.user.findMany).not.toHaveBeenCalled()
+    it('lets the team’s coach share an event lineup as a snapshot', async () => {
+      const { service } = withEvent()
+      const options = await service.listLineupOptions('coach', CLUB, 'c1')
+      expect(options).toEqual([expect.objectContaining({ eventId: 'ev-1', formation: '4-4-2', starterCount: 2 })])
+      const item = await service.sendMessage('coach', CLUB, 'c1', {
+        messageType: 'LINEUP',
+        lineup: { source: 'EVENT', eventId: 'ev-1' },
+      })
+      expect(item.attachmentMeta).toMatchObject({
+        lineupSource: 'EVENT',
+        eventId: 'ev-1',
+        opponent: 'SV Babelsberg 03',
+        formation: '4-4-2',
+        slots: [
+          { position: 'TW', playerName: 'Jonas Keller' },
+          { position: 'ST', playerName: 'Lukas Hoffmann' },
+        ],
+      })
+    })
+
+    it('does not let a player share an event lineup, but they can share a formation card', async () => {
+      const { service } = withEvent()
+      expect(await service.listLineupOptions('player', CLUB, 'c1')).toEqual([])
+      await expect(
+        service.sendMessage('player', CLUB, 'c1', { messageType: 'LINEUP', lineup: { source: 'EVENT', eventId: 'ev-1' } }),
+      ).rejects.toThrow(ForbiddenException)
+      const card = await service.sendMessage('player', CLUB, 'c1', {
+        messageType: 'LINEUP',
+        lineup: { source: 'FORMATION', formation: '4-3-3', slots: [{ position: 'ST', playerName: 'Lukas' }] },
+      })
+      expect(card.attachmentMeta).toMatchObject({ lineupSource: 'FORMATION', formation: '4-3-3' })
+    })
+  })
+
+  it('L5: a reply must quote a message of the same conversation', async () => {
+    const { service } = withConversation((s) => {
+      s.directMessage.push({ id: 'elsewhere', conversationId: 'c-other', senderId: 'mum', content: 'x', messageType: 'TEXT', attachmentUrl: null, attachmentMeta: null, replyToId: null, sourceLanguage: null, deletedAt: null, createdAt: new Date() })
+      s.directMessage.push({ id: 'here', conversationId: 'c1', senderId: 'player', content: 'Wann Treffpunkt?', messageType: 'TEXT', attachmentUrl: null, attachmentMeta: null, replyToId: null, sourceLanguage: null, deletedAt: null, createdAt: new Date() })
+    })
+    await expect(
+      service.saveMessage('coach', 'c1', { messageType: 'TEXT', content: 'ok', replyToId: 'elsewhere' }),
+    ).rejects.toThrow('Invalid reply target')
+    const reply = await service.saveMessage('coach', 'c1', { messageType: 'TEXT', content: '17:30', replyToId: 'here' })
+    expect(reply.replyTo).toMatchObject({ id: 'here', contentPreview: 'Wann Treffpunkt?' })
+  })
+
+  it('reactions use the chat set and only the sender deletes', async () => {
+    const { service } = withConversation((s) => {
+      s.directMessage.push({ id: 'm1', conversationId: 'c1', senderId: 'player', content: 'Top', messageType: 'TEXT', attachmentUrl: null, attachmentMeta: null, replyToId: null, sourceLanguage: null, deletedAt: null, createdAt: new Date() })
+    })
+    await expect(service.setReaction('coach', CLUB, 'c1', 'm1', '💩', true)).rejects.toThrow(BadRequestException)
+    const reacted = await service.setReaction('coach', CLUB, 'c1', 'm1', '⚽', true)
+    expect(reacted.reactions).toEqual([{ emoji: '⚽', userIds: ['coach'], count: 1 }])
+    await expect(service.setReaction('mum', CLUB, 'c1', 'm1', '👍', true)).rejects.toThrow(ForbiddenException)
+    await expect(service.deleteMessage('coach', CLUB, 'c1', 'm1')).rejects.toThrow(ForbiddenException)
+    const deleted = await service.deleteMessage('player', CLUB, 'c1', 'm1')
+    expect(deleted).toMatchObject({ content: '', deletedAt: expect.any(String) })
+  })
+
+  it('returns the peer read watermark for ✓✓', async () => {
+    const { service } = withConversation()
+    const page = await service.getMessages('coach', 'c1')
+    expect(page.peerLastReadAt).toBe('2026-09-20T10:00:00.000Z')
   })
 })

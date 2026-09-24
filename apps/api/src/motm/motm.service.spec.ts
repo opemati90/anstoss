@@ -6,7 +6,10 @@ function createService() {
     membership: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
     importedFixture: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
     poll: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
-    team: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
+    team: {
+      findMany: jest.fn<Promise<unknown>, unknown[]>(),
+      findFirst: jest.fn<Promise<unknown>, unknown[]>(),
+    },
   }
   const teamsService = {} as never
   const billingService = {} as never
@@ -237,5 +240,30 @@ describe('MotmService.vote integrity', () => {
     expect(prisma.pollVote.create).toHaveBeenCalledWith({
       data: { pollId: 'poll-1', optionId: 'poll-1:u-2', userId: 'u-1' },
     })
+  })
+})
+
+// Kader Statistik: team-scoped MOTM archive.
+describe('MotmService.getArchive with a team scope', () => {
+  it('filters fixtures to the team and echoes the scope', async () => {
+    const { service, prisma } = createService()
+    prisma.membership.findFirst.mockResolvedValue({ id: 'm-1' })
+    prisma.team.findFirst.mockResolvedValue({ id: 'team-1' })
+    prisma.importedFixture.findMany.mockResolvedValue([])
+
+    const result = await service.getArchive('user-me', 'club-1', '2025-26', 'team-1')
+
+    expect(prisma.importedFixture.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ clubId: 'club-1', teamId: 'team-1' }) }),
+    )
+    expect(result.teamId).toBe('team-1')
+  })
+
+  it('404s for a team outside the club', async () => {
+    const { service, prisma } = createService()
+    prisma.membership.findFirst.mockResolvedValue({ id: 'm-1' })
+    prisma.team.findFirst.mockResolvedValue(null)
+    await expect(service.getArchive('user-me', 'club-1', '2025-26', 'other')).rejects.toThrow('Team not found')
+    expect(prisma.importedFixture.findMany).not.toHaveBeenCalled()
   })
 })

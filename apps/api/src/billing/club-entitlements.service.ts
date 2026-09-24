@@ -1,5 +1,12 @@
 import { ConflictException, Injectable } from '@nestjs/common'
-import { EntitlementStatus, PlanTier, Prisma, TeamAccessStatus, TeamRole } from '@prisma/client'
+import {
+  EntitlementStatus,
+  PlanTier,
+  Prisma,
+  TeamAccessPhase,
+  TeamAccessStatus,
+  TeamRole,
+} from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import type { CreateEntitlementGrantInput, PublishPlanDefinitionInput } from '@anstoss/shared'
@@ -69,6 +76,8 @@ export class ClubEntitlementsService {
           clubId,
           role: TeamRole.PLAYER,
           status: TeamAccessStatus.ACTIVE,
+          // Wechselbörse review B1: a Probetraining (TRIAL) is not a seat.
+          phase: TeamAccessPhase.FULL,
           ...activeTeamAccessWhere(),
         },
         distinct: ['userId'],
@@ -102,6 +111,9 @@ export class ClubEntitlementsService {
         userId,
         role: TeamRole.PLAYER,
         status: TeamAccessStatus.ACTIVE,
+        // B1: only a FULL seat already held skips the check; TRIAL access
+        // (Probetraining) must not let a player join past the plan limit.
+        phase: TeamAccessPhase.FULL,
         ...activeTeamAccessWhere(),
       },
       select: { id: true },

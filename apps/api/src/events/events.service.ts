@@ -6,15 +6,22 @@ import {
   BadRequestException,
   HttpException,
 } from '@nestjs/common'
-import { TeamAccessStatus, TeamRole, type Prisma } from '@prisma/client'
+import { Prisma, TeamRole } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type {
+  EventDetail,
   EventFeedItem,
+  EventLineup,
+  EventSquad,
   EventReadiness,
   EventReadinessNudge,
   EventReadinessSignal,
 } from '@anstoss/shared'
-import { MAX_SERIES_OCCURRENCES } from '@anstoss/shared'
+import {
+  MAX_SERIES_OCCURRENCES,
+  MAX_SERIES_WEEKDAYS,
+  type SaveEventLineupInput,
+} from '@anstoss/shared'
 import {
   buildClubPermissionMap,
   ClubCapability,
@@ -25,10 +32,21 @@ import {
 const RsvpStatus = rsvpStatusSchema.enum
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { countSquadExclusionsByTeam, loanedOutByTeam, SQUAD_ACCESS_COUNT_WHERE } from '../teams/squad-count'
 import { ContributionsService } from '../contributions/contributions.service'
 import { PushService } from '../push/push.service'
+import { formatPush } from '../push/push.templates'
 import { ChatService } from '../chat/chat.service'
 import { EventsGateway } from './events.gateway'
+import {
+  eventTitleFor,
+  formatEventDateFor,
+  resolveEventLocale,
+  resolveStoredTitle,
+  rsvpReminderCopy,
+  squadNominatedCopy,
+  type EventLocale,
+} from './event-copy'
 
 const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
 const SERIES_TIME_ZONE = 'Europe/Berlin'
@@ -54,6 +72,7 @@ const upcomingEventInclude = {
       userId: true,
       status: true,
       reason: true,
+      nominated: true,
       updatedAt: true,
     },
   },
@@ -63,12 +82,9 @@ const upcomingEventInclude = {
       name: true,
       _count: {
         select: {
-          access: {
-            where: {
-              status: TeamAccessStatus.ACTIVE,
-              role: TeamRole.PLAYER,
-            },
-          },
+          // Kader revamp: same squad rule as roster-ops squadCount; the
+          // inactive / ended-loan rows are subtracted by withSquadCounts.
+          access: { where: SQUAD_ACCESS_COUNT_WHERE },
         },
       },
     },
@@ -84,6 +100,7 @@ const upcomingEventIncludeWithTeam = {
       userId: true,
       status: true,
       reason: true,
+      nominated: true,
       updatedAt: true,
     },
   },
@@ -93,12 +110,9 @@ const upcomingEventIncludeWithTeam = {
       name: true,
       _count: {
         select: {
-          access: {
-            where: {
-              status: TeamAccessStatus.ACTIVE,
-              role: TeamRole.PLAYER,
-            },
-          },
+          // Kader revamp: same squad rule as roster-ops squadCount; the
+          // inactive / ended-loan rows are subtracted by withSquadCounts.
+          access: { where: SQUAD_ACCESS_COUNT_WHERE },
         },
       },
     },
@@ -138,14 +152,33 @@ type EventReadinessRecord = {
  */
 const EVENT_ARCHIVE_RETENTION_DAYS = 3
 
-/** Short German-locale date for push bodies, e.g. "Sa., 14.09.". */
+/**
+ * Team chat system notices are one post for everyone, in the club's language
+ * (German). Pushes are rendered per recipient instead (see event-copy.ts).
+ */
+const CHAT_NOTICE_LOCALE: EventLocale = 'de'
+
+/** Short German date for the team chat notice, e.g. "Sa., 14.09.". */
 function formatEventDate(date: Date): string {
-  return new Intl.DateTimeFormat('de-DE', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Europe/Berlin',
-  }).format(date)
+  return formatEventDateFor(date, CHAT_NOTICE_LOCALE)
+}
+
+/** Interactive transactions that write a whole series get more than Prisma's 5 s default. */
+const SERIES_TRANSACTION_OPTIONS = { timeout: 20_000, maxWait: 10_000 }
+
+/** Title + autoTitle to store, or a 400 when a title is required and missing. */
+function storedTitleOrThrow(input: { type: string; title?: string | null; opponent?: string | null }) {
+  const resolved = resolveStoredTitle(input)
+  if (!resolved) throw new BadRequestException('Title must be at least 2 characters')
+  return resolved
+}
+
+type TitledEventRecord = {
+  title: string
+  type: string
+  opponent?: string | null
+  homeAway?: string | null
+  autoTitle?: boolean | null
 }
 
 function getZonedParts(date: Date, timeZone = SERIES_TIME_ZONE) {
@@ -245,7 +278,21 @@ function shiftByZonedWallDelta(
   return zonedWallTimeToUtc(getZonedParts(shiftedWall, 'UTC'), timeZone)
 }
 
-function buildSeriesDates(first: Date, until: Date, intervalWeeks: 1 | 2) {
+/**
+ * Occurrence dates of a series, at the first date's Berlin wall time.
+ *
+ * `weekdays` (0 = Sunday … 6 = Saturday) turns a single-day rule into a
+ * several-days-a-week one (Di + Do): every `intervalWeeks`-th Monday-based
+ * week from the first date's week contributes one occurrence per weekday,
+ * keeping those on or after the first date and on or before `until`. An
+ * empty list is the original behaviour: the first date's weekday only.
+ */
+function buildSeriesDates(
+  first: Date,
+  until: Date,
+  intervalWeeks: 1 | 2,
+  weekdays: number[] = [],
+) {
   if (until.getTime() < first.getTime()) {
     throw new BadRequestException('Repeat end must be on or after the first date')
   }
@@ -253,14 +300,52 @@ function buildSeriesDates(first: Date, until: Date, intervalWeeks: 1 | 2) {
     throw new BadRequestException('Repeat end must be within a year')
   }
 
+  const days = normalizeWeekdays(weekdays)
+  if (days.length > MAX_SERIES_WEEKDAYS) {
+    throw new BadRequestException(`A series has at most ${MAX_SERIES_WEEKDAYS} training days a week`)
+  }
+  const maxOccurrences = MAX_SERIES_OCCURRENCES * Math.max(1, days.length)
   const dates: Date[] = []
-  for (let index = 0; ; index += 1) {
-    const date = addWeeksPreservingWallTime(first, index * intervalWeeks)
-    if (date.getTime() > until.getTime()) break
-    if (dates.length >= MAX_SERIES_OCCURRENCES) {
-      throw new BadRequestException('Recurring events are limited to 52 occurrences')
+
+  if (days.length === 0) {
+    for (let index = 0; ; index += 1) {
+      const date = addWeeksPreservingWallTime(first, index * intervalWeeks)
+      if (date.getTime() > until.getTime()) break
+      if (dates.length >= maxOccurrences) {
+        throw new BadRequestException(
+          `Recurring events are limited to ${MAX_SERIES_OCCURRENCES} occurrences`,
+        )
+      }
+      dates.push(date)
     }
-    dates.push(date)
+  } else {
+    const start = getZonedParts(first)
+    const firstDow = new Date(Date.UTC(start.year, start.month - 1, start.day)).getUTCDay()
+    const mondayDay = start.day - ((firstDow + 6) % 7)
+    for (let week = 0; ; week += intervalWeeks) {
+      // Monday 00:00 of this week (as UTC wall, minus a safety margin for the
+      // Berlin offset) already past the end: nothing later can fit.
+      const weekStartWall = Date.UTC(start.year, start.month - 1, mondayDay + week * 7)
+      if (weekStartWall - 3 * 60 * 60 * 1000 > until.getTime()) break
+      for (const day of days) {
+        const wall = new Date(
+          Date.UTC(
+            start.year,
+            start.month - 1,
+            mondayDay + week * 7 + ((day + 6) % 7),
+            start.hour,
+            start.minute,
+            start.second,
+          ),
+        )
+        const date = zonedWallTimeToUtc(getZonedParts(wall, 'UTC'))
+        if (date.getTime() < first.getTime() || date.getTime() > until.getTime()) continue
+        if (dates.length >= maxOccurrences) {
+          throw new BadRequestException(`Recurring events are limited to ${MAX_SERIES_OCCURRENCES} weeks`)
+        }
+        dates.push(date)
+      }
+    }
   }
 
   if (dates.length === 0) {
@@ -268,6 +353,87 @@ function buildSeriesDates(first: Date, until: Date, intervalWeeks: 1 | 2) {
   }
 
   return dates
+}
+
+/** Dedupe and order weekdays Monday-first (German week). */
+function normalizeWeekdays(weekdays: number[] | undefined | null): number[] {
+  return Array.from(
+    new Set((weekdays ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)),
+  ).sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
+}
+
+/** Day of the week (0 = Sunday) of a date in Europe/Berlin. */
+function berlinWeekday(date: Date): number {
+  const parts = getZonedParts(date)
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay()
+}
+
+type HomeAwayValue = 'HOME' | 'AWAY'
+
+/** Matchday logistics accepted on create / series / update. `null` clears. */
+type EventLogisticsInput = {
+  meetingAt?: Date | null
+  meetingPoint?: string | null
+  opponent?: string | null
+  homeAway?: HomeAwayValue | null
+  carpoolEnabled?: boolean
+  durationMin?: number | null
+}
+
+function normalizeLineupPlayer(player: SaveEventLineupInput['starters'][number]) {
+  return {
+    userId: player.userId ?? null,
+    number: player.number ?? null,
+    name: player.name,
+    position: player.position ?? null,
+    slotId: player.slotId ?? null,
+  }
+}
+
+/** Serialize a Prisma date (or a string already) to ISO; null when absent. */
+function toIso(value: Date | string | null | undefined): string | null {
+  if (!value) return null
+  return value instanceof Date ? value.toISOString() : value
+}
+
+function trimOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+/** Prisma data for the logistics fields that were actually sent (meetingAt aside). */
+function logisticsData(data: EventLogisticsInput) {
+  return {
+    ...(data.meetingPoint !== undefined && { meetingPoint: trimOrNull(data.meetingPoint) }),
+    ...(data.opponent !== undefined && { opponent: trimOrNull(data.opponent) }),
+    ...(data.homeAway !== undefined && { homeAway: data.homeAway }),
+    ...(data.carpoolEnabled !== undefined && { carpoolEnabled: data.carpoolEnabled }),
+    ...(data.durationMin !== undefined && { durationMin: data.durationMin }),
+  }
+}
+
+/** Parse stored Event.lineup / overlay lineup JSON into the shared shape. */
+function readLineup(raw: unknown, fallbackFormation?: string | null): EventLineup | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const value = raw as Record<string, unknown>
+  const formation =
+    (typeof value.formation === 'string' ? value.formation : fallbackFormation) ?? null
+  if (!formation || !Array.isArray(value.starters)) return null
+  const toPlayer = (p: unknown) => {
+    const row = (p ?? {}) as Record<string, unknown>
+    return {
+      userId: typeof row.userId === 'string' ? row.userId : null,
+      number: typeof row.number === 'number' ? row.number : null,
+      name: typeof row.name === 'string' ? row.name : '',
+      position: typeof row.position === 'string' ? row.position : null,
+      slotId: typeof row.slotId === 'string' ? row.slotId : null,
+    }
+  }
+  return {
+    formation,
+    starters: value.starters.map(toPlayer).filter((p) => p.name),
+    bench: Array.isArray(value.bench) ? value.bench.map(toPlayer).filter((p) => p.name) : [],
+  }
 }
 
 function assertRouteClubMatchesTeam(routeClubId: string | undefined, teamClubId: string) {
@@ -290,7 +456,7 @@ export class EventsService {
   ) {}
 
   async create(data: {
-    title: string
+    title?: string | null
     type: EventTypeValue
     date: Date
     location?: string
@@ -298,7 +464,7 @@ export class EventsService {
     teamId: string
     createdById: string
     clubId?: string
-  }) {
+  } & EventLogisticsInput) {
     const access = await this.teamsService.assertEventManagementAccess(
       data.createdById,
       data.teamId,
@@ -306,10 +472,12 @@ export class EventsService {
 
     const clubId = access.team.clubId
     assertRouteClubMatchesTeam(data.clubId, clubId)
+    const stored = storedTitleOrThrow(data)
 
     const event = await this.prisma.event.create({
       data: {
-        title: data.title,
+        title: stored.title,
+        autoTitle: stored.autoTitle,
         type: data.type,
         date: data.date,
         location: data.location,
@@ -317,6 +485,8 @@ export class EventsService {
         teamId: data.teamId,
         createdById: data.createdById,
         clubId,
+        ...logisticsData(data),
+        ...(data.meetingAt !== undefined && { meetingAt: data.meetingAt }),
       },
     })
 
@@ -344,7 +514,7 @@ export class EventsService {
    * out once, for the series, not once per occurrence.
    */
   async createSeries(data: {
-    title: string
+    title?: string | null
     type: EventTypeValue
     date: Date
     location?: string
@@ -354,7 +524,9 @@ export class EventsService {
     clubId?: string
     intervalWeeks: 1 | 2
     until: Date
-  }) {
+    /** 0 = Sunday … 6 = Saturday; empty = weekday of `date`. */
+    weekdays?: number[]
+  } & EventLogisticsInput) {
     const access = await this.teamsService.assertEventManagementAccess(
       data.createdById,
       data.teamId,
@@ -362,17 +534,31 @@ export class EventsService {
     const clubId = access.team.clubId
     assertRouteClubMatchesTeam(data.clubId, clubId)
 
-    const dates = buildSeriesDates(data.date, data.until, data.intervalWeeks)
+    const weekdays = normalizeWeekdays(data.weekdays)
+    const dates = buildSeriesDates(data.date, data.until, data.intervalWeeks, weekdays)
+    // Treffpunkt is stored as an offset so every occurrence meets the same
+    // number of minutes before its own start.
+    const meetingOffsetMin = data.meetingAt
+      ? Math.max(0, Math.round((data.date.getTime() - data.meetingAt.getTime()) / 60000))
+      : null
+    const logistics = logisticsData(data)
+    const stored = storedTitleOrThrow(data)
 
+    // One createMany for every occurrence (up to 53 × 4 rows) and an explicit
+    // timeout: a season of Di + Do used to be ~80 sequential inserts inside
+    // Prisma's 5 s interactive-transaction default.
     const { series, events } = await this.prisma.$transaction(async (tx) => {
       const series = await tx.eventSeries.create({
         data: {
           clubId,
           teamId: data.teamId,
           createdById: data.createdById,
-          title: data.title,
+          title: stored.title,
           type: data.type,
           intervalWeeks: data.intervalWeeks,
+          weekdays,
+          meetingOffsetMin,
+          durationMin: data.durationMin ?? null,
           startsAt: data.date,
           until: data.until,
           location: data.location ?? null,
@@ -380,26 +566,31 @@ export class EventsService {
         },
       })
 
-      const events = await Promise.all(
-        dates.map((date) =>
-          tx.event.create({
-          data: {
-            title: data.title,
-            type: data.type,
-            date,
-            location: data.location,
-            notes: data.notes,
-            teamId: data.teamId,
-            createdById: data.createdById,
-            clubId,
-            seriesId: series.id,
-          },
+      await tx.event.createMany({
+        data: dates.map((date) => ({
+          title: stored.title,
+          autoTitle: stored.autoTitle,
+          type: data.type,
+          date,
+          location: data.location,
+          notes: data.notes,
+          teamId: data.teamId,
+          createdById: data.createdById,
+          clubId,
+          seriesId: series.id,
+          ...logistics,
+          ...(meetingOffsetMin !== null && {
+            meetingAt: new Date(date.getTime() - meetingOffsetMin * 60000),
           }),
-        ),
-      )
+        })),
+      })
+      const events = await tx.event.findMany({
+        where: { seriesId: series.id, clubId },
+        orderBy: { date: 'asc' },
+      })
 
       return { series, events }
-    })
+    }, SERIES_TRANSACTION_OPTIONS)
 
     const first = events[0]
     this.eventsGateway.emitEventUpsert(first.teamId, first.id)
@@ -414,7 +605,7 @@ export class EventsService {
       teamId: first.teamId,
       clubId,
       actorId: data.createdById,
-      content: `${first.title}: ${formatEventDate(first.date)} · ×${events.length}`,
+      content: `${eventTitleFor(first, CHAT_NOTICE_LOCALE)}: ${formatEventDate(first.date)} · ×${events.length}`,
     }).catch((err) => {
       this.pushLogger.warn(
         `EVENT_CREATED chat notice failed for series ${series.id}: ${
@@ -427,9 +618,8 @@ export class EventsService {
   }
 
   private async notifyEventCreated(
-    event: {
+    event: TitledEventRecord & {
       id: string
-      title: string
       type: EventTypeValue
       date: Date
       teamId: string
@@ -441,31 +631,54 @@ export class EventsService {
       where: { id: event.teamId },
       select: { name: true },
     })
-    const teamName = team?.name ?? ''
-    const date = new Intl.DateTimeFormat('de-DE', {
-      weekday: 'short',
-      day: '2-digit',
-      month: '2-digit',
-      timeZone: 'Europe/Berlin',
-    }).format(new Date(event.date))
+    await this.sendTeamEventPush('EVENT_CREATED', event, {
+      teamName: team?.name ?? '',
+      clubId,
+      excludeUserId: event.createdById,
+      pushType: 'event_created',
+    })
+  }
 
-    await this.pushService.sendToTeamLocalized(
+  /**
+   * EVENT_CREATED / EVENT_UPDATED / EVENT_CANCELLED to the team. Rendered per
+   * reader language, so a derived title ("Heimspiel gegen X") and the date
+   * read naturally in each language.
+   */
+  private sendTeamEventPush(
+    type: 'EVENT_CREATED' | 'EVENT_UPDATED' | 'EVENT_CANCELLED',
+    event: TitledEventRecord & {
+      id: string
+      teamId: string
+      date: Date
+      cancelReason?: string | null
+    },
+    ctx: { teamName: string; clubId: string; excludeUserId?: string; pushType: string },
+  ) {
+    return this.pushService.sendToTeamRendered(
       event.teamId,
-      'EVENT_CREATED',
-      {
-        teamName,
-        eventType: event.type.toLowerCase(),
-        eventTitle: event.title,
-        date,
+      (locale) => {
+        const eventLocale = resolveEventLocale(locale)
+        const base = {
+          teamName: ctx.teamName,
+          eventTitle: eventTitleFor(event, eventLocale),
+          date: formatEventDateFor(event.date, eventLocale),
+        }
+        if (type === 'EVENT_CREATED') {
+          return formatPush(type, { ...base, eventType: event.type.toLowerCase() }, locale)
+        }
+        if (type === 'EVENT_CANCELLED') {
+          return formatPush(type, { ...base, reason: event.cancelReason ?? '' }, locale)
+        }
+        return formatPush(type, base, locale)
       },
       {
-        type: 'event_created',
+        type: ctx.pushType,
         eventId: event.id,
-        clubId,
+        clubId: ctx.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
       },
-      event.createdById,
-      { clubId, category: 'events' },
+      ctx.excludeUserId,
+      { clubId: ctx.clubId, category: 'events' },
     )
   }
 
@@ -478,7 +691,8 @@ export class EventsService {
     userId: string,
     filters?: UpcomingEventFilters,
   ): Promise<EventFeedItem[]> {
-    await this.teamsService.assertReadableAccess(userId, teamId)
+    // H1: a Probetraining player only sees their trial sessions.
+    const readable = await this.teamsService.assertReadableAccess(userId, teamId, { trialFeed: true })
     await this.archiveExpiredEvents(teamId)
     const includeReadiness = await this.canViewReadiness(userId, teamId)
 
@@ -503,6 +717,7 @@ export class EventsService {
       // history.
       ...(scope === 'past' ? { cancelledAt: null } : {}),
       archivedAt: null,
+      ...(readable.trialEventIds ? { id: { in: readable.trialEventIds } } : {}),
     }
 
     if (filters?.type) {
@@ -539,15 +754,18 @@ export class EventsService {
       }
     }
 
-    const events = await this.prisma.event.findMany({
-      where,
-      include: upcomingEventInclude,
-      orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
-      ...(filters?.limit ? { take: filters.limit } : {}),
-    })
+    const events = await this.withSquadCounts(
+      await this.prisma.event.findMany({
+        where,
+        include: upcomingEventInclude,
+        orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
+        ...(filters?.limit ? { take: filters.limit } : {}),
+      }),
+    )
+    const squad = await this.loadSquadResponders(events)
 
     return events.map((event: UpcomingEventRecord) =>
-      this.mapEventRecord(event, userId, includeReadiness),
+      this.mapEventRecord(event, userId, includeReadiness, squad),
     )
   }
 
@@ -565,9 +783,33 @@ export class EventsService {
     // Collect all team IDs the user is actively rostered on for this club
     const userTeamRows = await this.prisma.teamAccess.findMany({
       where: { userId, clubId, ...activeTeamAccessWhere() },
-      select: { teamId: true },
+      select: { teamId: true, phase: true },
     })
-    const userTeamIds = userTeamRows.map((r: { teamId: string }) => r.teamId)
+    // H1 (Wechselbörse review): on a team the caller only holds TRIAL access
+    // to, the feed is limited to the trial sessions the read check allows.
+    const fullTeamIds = new Set(
+      userTeamRows.filter((r: { phase: string }) => r.phase !== 'TRIAL').map((r) => r.teamId),
+    )
+    const trialEventIds: string[] = []
+    const trialTeamIds: string[] = []
+    const readableTeamIds: string[] = []
+    for (const teamId of new Set(userTeamRows.map((r: { teamId: string }) => r.teamId))) {
+      if (fullTeamIds.has(teamId)) {
+        readableTeamIds.push(teamId)
+        continue
+      }
+      const readable = await this.teamsService
+        .assertReadableAccess(userId, teamId, { trialFeed: true })
+        .catch(() => null)
+      if (!readable) continue
+      if (readable.trialEventIds) {
+        trialEventIds.push(...readable.trialEventIds)
+        trialTeamIds.push(teamId)
+      } else {
+        readableTeamIds.push(teamId)
+      }
+    }
+    const userTeamIds = [...readableTeamIds, ...trialTeamIds]
 
     if (userTeamIds.length === 0) {
       return []
@@ -590,6 +832,9 @@ export class EventsService {
     const where: Prisma.EventWhereInput = {
       clubId,
       teamId: { in: userTeamIds },
+      ...(trialTeamIds.length > 0
+        ? { OR: [{ teamId: { in: readableTeamIds } }, { id: { in: trialEventIds } }] }
+        : {}),
       date: dateFilter,
       // Upcoming-only feed: cancelled events stay until their date passes.
       archivedAt: null,
@@ -600,17 +845,20 @@ export class EventsService {
     }
 
     const limit = filters?.limit ?? 4
-    const events = await this.prisma.event.findMany({
-      where,
-      include: upcomingEventIncludeWithTeam,
-      orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
-      take: limit,
-    })
+    const events = await this.withSquadCounts(
+      await this.prisma.event.findMany({
+        where,
+        include: upcomingEventIncludeWithTeam,
+        orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
+        take: limit,
+      }),
+    )
 
     const readinessTeamIds = await this.getReadinessTeamIds(userId, userTeamIds)
+    const squad = await this.loadSquadResponders(events)
 
     return events.map((event: UpcomingEventRecordWithTeam) => ({
-      ...this.mapEventRecord(event, userId, readinessTeamIds.has(event.teamId)),
+      ...this.mapEventRecord(event, userId, readinessTeamIds.has(event.teamId), squad),
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
     }))
   }
@@ -645,30 +893,110 @@ export class EventsService {
       where.type = filters.type
     }
 
-    const events = await this.prisma.event.findMany({
-      where,
-      include: upcomingEventIncludeWithTeam,
-      orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
-      take: filters?.limit ?? 4,
-    })
+    const events = await this.withSquadCounts(
+      await this.prisma.event.findMany({
+        where,
+        include: upcomingEventIncludeWithTeam,
+        orderBy: { date: scope === 'past' ? 'desc' : 'asc' },
+        take: filters?.limit ?? 4,
+      }),
+    )
+
+    const squad = await this.loadSquadResponders(events)
 
     return events.map((event: UpcomingEventRecordWithTeam) => ({
-      ...this.mapEventRecord(event, userId, true),
+      ...this.mapEventRecord(event, userId, true, squad),
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
     }))
   }
 
   /**
-   * Shared mapper from Prisma event record → EventFeedItem shape.
+   * Kader revamp: `team._count.access` counts SQUAD_ACCESS_COUNT_WHERE rows;
+   * subtract players who are INACTIVE in that team or whose loan has ended so
+   * squadSize matches roster-ops squadCount. Batched across teams.
+   */
+  private async withSquadCounts<
+    T extends { teamId: string; team?: { _count?: { access?: number | null } } | null },
+  >(events: T[]): Promise<T[]> {
+    if (events.length === 0) return events
+    const exclusions = await countSquadExclusionsByTeam(
+      this.prisma,
+      events.map((event) => event.teamId),
+    )
+    if (exclusions.size === 0) return events
+    for (const event of events) {
+      const counted = event.team?._count?.access
+      const excluded = exclusions.get(event.teamId) ?? 0
+      if (event.team?._count && typeof counted === 'number' && excluded > 0) {
+        event.team._count.access = Math.max(0, counted - excluded)
+      }
+    }
+    return events
+  }
+
+  /**
+   * Which of the people who replied are squad members (role PLAYER, phase
+   * FULL, active, loan running, not INACTIVE): the same rule as squadSize.
+   * Coaches, trialists and inactive players may answer, but their answers do
+   * not count towards Zusagen / Offen, so "Erinnerung an N" matches the list
+   * of who is still open. Two batched queries for the whole feed.
+   */
+  private async loadSquadResponders(
+    events: Array<{ teamId: string; rsvps: Array<{ userId: string }> }>,
+  ): Promise<Map<string, Set<string>>> {
+    const squad = new Map<string, Set<string>>()
+    const teamIds = Array.from(new Set(events.map((event) => event.teamId)))
+    const userIds = Array.from(
+      new Set(events.flatMap((event) => event.rsvps.map((rsvp) => rsvp.userId))),
+    )
+    if (teamIds.length === 0 || userIds.length === 0) return squad
+    // Kader fix L5 (team agent): players loaned out of a team do not count
+    // for it while the loan runs, as in squadSize.
+    const [access, inactive, loanedOut] = await Promise.all([
+      this.prisma.teamAccess.findMany({
+        where: {
+          teamId: { in: teamIds },
+          userId: { in: userIds },
+          ...SQUAD_ACCESS_COUNT_WHERE,
+          ...activeTeamAccessWhere(),
+        },
+        select: { teamId: true, userId: true },
+      }),
+      this.prisma.teamMember.findMany({
+        where: { teamId: { in: teamIds }, userId: { in: userIds }, operationalStatus: 'INACTIVE' },
+        select: { teamId: true, userId: true },
+      }),
+      loanedOutByTeam(this.prisma, teamIds),
+    ])
+    const inactiveKeys = new Set(
+      (inactive ?? []).map((row: { teamId: string; userId: string }) => `${row.teamId}:${row.userId}`),
+    )
+    for (const row of (access ?? []) as Array<{ teamId: string; userId: string }>) {
+      if (inactiveKeys.has(`${row.teamId}:${row.userId}`)) continue
+      if (loanedOut.get(row.teamId)?.has(row.userId)) continue
+      const set = squad.get(row.teamId) ?? new Set<string>()
+      set.add(row.userId)
+      squad.set(row.teamId, set)
+    }
+    return squad
+  }
+
+  /**
+   * Shared mapper from Prisma event record → EventFeedItem shape. Counts use
+   * only squad members' replies (see loadSquadResponders).
    */
   private mapEventRecord(
     event: UpcomingEventRecord | UpcomingEventRecordWithTeam,
     userId: string,
-    includeReadiness = false,
+    includeReadiness: boolean,
+    squad: Map<string, Set<string>>,
   ): EventFeedItem {
     const mine = event.rsvps.find(
       (rsvp: (typeof event.rsvps)[number]) => rsvp.userId === userId,
     )
+    const squadIds = squad.get(event.teamId)
+    const squadRsvps = event.rsvps.filter((rsvp) => squadIds?.has(rsvp.userId) ?? false)
+    const published = Boolean(event.squadPublishedAt)
     const item: EventFeedItem = {
       id: event.id,
       teamId: event.teamId,
@@ -683,15 +1011,26 @@ export class EventsService {
       archivedAt: event.archivedAt?.toISOString() ?? null,
       cancelledAt: event.cancelledAt?.toISOString() ?? null,
       cancelReason: event.cancelReason ?? null,
-      responseCount: event._count.rsvps,
+      autoTitle: event.autoTitle ?? false,
+      responseCount: squadRsvps.length,
       checkInCount: event._count.checkIns ?? 0,
       squadSize: event.team?._count?.access ?? 0,
-      yesCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length,
-      maybeCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
-      noCount: event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,
+      yesCount: squadRsvps.filter((rsvp) => rsvp.status === RsvpStatus.YES).length,
+      maybeCount: squadRsvps.filter((rsvp) => rsvp.status === RsvpStatus.MAYBE).length,
+      noCount: squadRsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length,
       myRsvp: mine?.status ?? null,
       rescheduledAt: event.rescheduledAt?.toISOString() ?? null,
       seriesId: event.seriesId ?? null,
+      meetingAt: event.meetingAt?.toISOString() ?? null,
+      meetingPoint: event.meetingPoint ?? null,
+      opponent: event.opponent ?? null,
+      homeAway: event.homeAway ?? null,
+      fixtureId: event.fixtureId ?? null,
+      squadPublishedAt: event.squadPublishedAt?.toISOString() ?? null,
+      carpoolEnabled: event.carpoolEnabled ?? false,
+      durationMin: event.durationMin ?? null,
+      // The Kader is the coach's draft until it is published.
+      myNominated: Boolean(mine?.nominated && (published || includeReadiness)),
       myRsvpStale: Boolean(
         mine &&
           event.rescheduledAt &&
@@ -701,7 +1040,11 @@ export class EventsService {
     }
 
     if (includeReadiness) {
-      item.readiness = buildEventReadiness(event)
+      item.readiness = buildEventReadiness({
+        ...event,
+        rsvps: squadRsvps,
+        _count: { ...event._count, rsvps: squadRsvps.length },
+      })
     }
 
     return item
@@ -754,18 +1097,18 @@ export class EventsService {
     return membership
   }
 
-  async findById(clubId: string, id: string, userId: string) {
+  async findById(clubId: string, id: string, userId: string): Promise<EventDetail> {
     const event = await this.prisma.event.findFirst({
       where: { id, clubId },
       include: {
         _count: {
-          select: { rsvps: true, checkIns: true },
+          select: { rsvps: true, checkIns: true, carpoolRides: true },
         },
-        series: { select: { id: true, intervalWeeks: true, until: true } },
+        series: { select: { id: true, intervalWeeks: true, until: true, weekdays: true } },
         rsvps: {
           include: {
             user: {
-              select: { id: true, name: true },
+              select: { id: true, name: true, avatarUrl: true },
             },
           },
         },
@@ -775,15 +1118,13 @@ export class EventsService {
             name: true,
             _count: {
               select: {
-                access: {
-                  where: {
-                    status: TeamAccessStatus.ACTIVE,
-                    role: TeamRole.PLAYER,
-                  },
-                },
+                access: { where: SQUAD_ACCESS_COUNT_WHERE },
               },
             },
           },
+        },
+        fixture: {
+          select: { overlay: { select: { lineup: true, lineupFormation: true } } },
         },
         reminderPreferences: {
           where: { userId },
@@ -800,32 +1141,206 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
-    await this.teamsService.assertReadableAccess(userId, event.teamId)
+    await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
+    await this.withSquadCounts([event])
     const includeReadiness = await this.canViewReadiness(userId, event.teamId)
 
-    const myRsvp = event.rsvps.find((rsvp) => rsvp.userId === userId)?.status ?? null
+    const [members, children, playerAccess] = await Promise.all([
+      this.loadTeamPlayers(event.teamId),
+      this.loadGuardedChildren(userId, event.teamId),
+      // Any player row counts for answering (trialists too), not only the
+      // squad: a Spielertrainer or a trialist answers for themselves.
+      this.prisma.teamAccess.findFirst({
+        where: { userId, teamId: event.teamId, role: TeamRole.PLAYER, ...activeTeamAccessWhere() },
+        select: { id: true },
+      }),
+    ])
+    const childIds = new Set(children.map((child) => child.userId))
+    const memberIds = new Set(members.map((member) => member.userId))
+    const squadRsvps = event.rsvps.filter((rsvp) => memberIds.has(rsvp.userId))
+    // The Kader is the coach's draft until it is published; nobody who said
+    // Absage or left the team is in it (H1).
+    const showSquad = includeReadiness || Boolean(event.squadPublishedAt)
+    const isNominated = (rsvp: { userId: string; status: string; nominated: boolean }) =>
+      showSquad && rsvp.nominated && rsvp.status !== RsvpStatus.NO && memberIds.has(rsvp.userId)
+
+    const mine = event.rsvps.find((rsvp) => rsvp.userId === userId)
+    const myRsvp = mine?.status ?? null
 
     const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
     const teamMemberCount = includeReadiness ? (event.team?._count?.access ?? null) : undefined
-    const rsvps = event.rsvps.map((rsvp) =>
-      includeReadiness || rsvp.userId === userId
-        ? rsvp
-        : { ...rsvp, reason: undefined },
-    )
+    // Why someone can't come is private: managers, the player and their
+    // guardians see it; teammates only see the answer.
+    const rsvps = event.rsvps.map((rsvp) => {
+      const canSeeReason = includeReadiness || rsvp.userId === userId || childIds.has(rsvp.userId)
+      return {
+        id: rsvp.id,
+        userId: rsvp.userId,
+        status: rsvp.status,
+        reason: canSeeReason ? rsvp.reason : undefined,
+        note: canSeeReason ? rsvp.note : undefined,
+        nominated: isNominated(rsvp),
+        updatedAt: toIso(rsvp.updatedAt),
+        user: rsvp.user,
+      }
+    })
+
+    const childRows = children.map((child) => {
+      const reply = event.rsvps.find((rsvp) => rsvp.userId === child.userId)
+      return {
+        userId: child.userId,
+        name: child.name,
+        teamName: event.team?.name ?? null,
+        rsvp: reply?.status ?? null,
+        reason: reply?.reason ?? null,
+        note: reply?.note ?? null,
+        nominated: reply ? isNominated(reply) : false,
+      }
+    })
+
+    const lineup = showSquad
+      ? (readLineup(event.lineup) ??
+        (event.fixture?.overlay
+          ? readLineup(event.fixture.overlay.lineup, event.fixture.overlay.lineupFormation)
+          : null))
+      : null
+
+    const {
+      _count,
+      checkIns: _checkIns,
+      reminderPreferences,
+      fixture: _fixture,
+      lineup: _rawLineup,
+      importedFields: _importedFields,
+      ...base
+    } = event
 
     return {
-      ...event,
+      ...(base as unknown as Omit<EventDetail, 'date'>),
+      date: toIso(event.date),
+      createdAt: toIso(event.createdAt),
+      meetingAt: toIso(event.meetingAt),
+      squadPublishedAt: toIso(event.squadPublishedAt),
+      cancelledAt: toIso(event.cancelledAt),
+      rescheduledAt: toIso(event.rescheduledAt),
+      archivedAt: toIso(event.archivedAt),
+      series: event.series
+        ? {
+            id: event.series.id,
+            intervalWeeks: event.series.intervalWeeks,
+            until: toIso(event.series.until),
+            weekdays: event.series.weekdays ?? [],
+          }
+        : null,
       rsvps,
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
       myRsvp,
+      myRsvpReason: mine?.reason ?? null,
+      myRsvpNote: mine?.note ?? null,
+      myNominated: mine ? isNominated(mine) : false,
+      myRsvpStale: Boolean(
+        mine &&
+          event.rescheduledAt &&
+          mine.updatedAt &&
+          new Date(mine.updatedAt).getTime() < new Date(event.rescheduledAt).getTime(),
+      ),
       myCheckInAt,
-      checkIns: undefined,
-      _count: undefined,
-      reminderEnabled: (event.reminderPreferences?.length ?? 0) > 0,
-      reminderPreferences: undefined,
+      reminderEnabled: (reminderPreferences?.length ?? 0) > 0,
+      lastRsvpReminderAt: toIso(event.lastRsvpReminderAt),
       teamMemberCount,
-      readiness: includeReadiness ? buildEventReadiness(event) : undefined,
+      readiness: includeReadiness
+        ? buildEventReadiness({
+            ...event,
+            rsvps: squadRsvps,
+            _count: { ...event._count, rsvps: squadRsvps.length },
+          })
+        : undefined,
+      members,
+      children: childRows,
+      viewer: {
+        canManage: includeReadiness,
+        isPlayer: Boolean(playerAccess) || memberIds.has(userId),
+        isGuardian: children.length > 0,
+      },
+      lineup,
+      carpoolRideCount: _count?.carpoolRides ?? 0,
+    } as EventDetail
+  }
+
+  /**
+   * The team's squad (same rule as squadSize: role PLAYER, phase FULL, active,
+   * loan running, not INACTIVE), with jersey number and position when known.
+   * These are the people Offen / Zusagen / the Kader are counted against.
+   */
+  private async loadTeamPlayers(teamId: string) {
+    // Kader fix L5 (team agent): skip players loaned out of this team.
+    const [access, profiles, loanedOut] = await Promise.all([
+      this.prisma.teamAccess.findMany({
+        where: { teamId, ...SQUAD_ACCESS_COUNT_WHERE, ...activeTeamAccessWhere() },
+        select: {
+          userId: true,
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.teamMember.findMany({
+        where: { teamId },
+        select: { userId: true, jerseyNumber: true, position: true, operationalStatus: true },
+      }),
+      loanedOutByTeam(this.prisma, [teamId]).then((byTeam) => byTeam.get(teamId)),
+    ])
+    const profileByUser = new Map(
+      (profiles ?? []).map(
+        (profile: {
+          userId: string
+          jerseyNumber: number | null
+          position: string | null
+          operationalStatus?: string | null
+        }) => [profile.userId, profile],
+      ),
+    )
+    const seen = new Set<string>()
+    const members: Array<{
+      userId: string
+      name: string
+      avatarUrl: string | null
+      jerseyNumber: number | null
+      position: string | null
+    }> = []
+    for (const row of access ?? []) {
+      if (!row?.user || seen.has(row.userId)) continue
+      seen.add(row.userId)
+      const profile = profileByUser.get(row.userId)
+      if (profile?.operationalStatus === 'INACTIVE') continue
+      if (loanedOut?.has(row.userId)) continue
+      members.push({
+        userId: row.userId,
+        name: row.user.name ?? '',
+        avatarUrl: row.user.avatarUrl ?? null,
+        jerseyNumber: profile?.jerseyNumber ?? null,
+        position: profile?.position ?? null,
+      })
     }
+    return members.sort((a, b) => a.name.localeCompare(b.name, 'de'))
+  }
+
+  /** Children the user guards who are active on the team. */
+  private async loadGuardedChildren(userId: string, teamId: string) {
+    const rows = await this.prisma.guardianRelationship.findMany({
+      where: {
+        parentUserId: userId,
+        playerUserId: { not: null },
+        player: { teamAccess: { some: { teamId, ...activeTeamAccessWhere() } } },
+      },
+      select: { playerUserId: true, childName: true, player: { select: { name: true } } },
+    })
+    const seen = new Set<string>()
+    const children: Array<{ userId: string; name: string }> = []
+    for (const row of rows ?? []) {
+      if (!row.playerUserId || seen.has(row.playerUserId)) continue
+      seen.add(row.playerUserId)
+      children.push({ userId: row.playerUserId, name: row.player?.name || row.childName || '' })
+    }
+    return children
   }
 
   async upsertRsvp(
@@ -833,7 +1348,14 @@ export class EventsService {
     userId: string,
     status: RsvpStatusValue,
     reason?: string,
+    note?: string,
+    childUserId?: string,
   ): Promise<{ eventId: string; userId: string; status: string }> {
+    // A parent naming the child goes straight through the guardian check.
+    if (childUserId && childUserId !== userId) {
+      return this.upsertRsvpProxy(eventId, userId, childUserId, status, reason, note)
+    }
+
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     })
@@ -842,26 +1364,22 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
-    await this.teamsService.assertReadableAccess(userId, event.teamId)
+    await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
 
     if (event.cancelledAt) {
       throw new BadRequestException('Cannot RSVP to a cancelled event')
     }
 
-    // Parent auto-proxy: if the caller is a parent (not a player on
-    // this team) and has a guardian relationship to a child who IS on
-    // the team, RSVP on behalf of the child instead of for themselves.
-    // Avoids the parent flow needing to thread childUserId through the
-    // mobile call stack; the API resolves the right person to RSVP for.
-    // Multi-child households on the same team get the first match —
-    // they need to use rsvp-proxy directly with childUserId for fine
-    // control.
+    // Parent auto-proxy: a caller who is not on this team but guards a
+    // child who is answers for that child. With two or more children on the
+    // same team the answer would be ambiguous, so the client must name the
+    // child (childUserId) instead of the first match silently winning.
     const callerOnTeam = await this.prisma.teamAccess.findFirst({
       where: { userId, teamId: event.teamId, ...activeTeamAccessWhere() },
       select: { id: true },
     })
     if (!callerOnTeam) {
-      const guardianMatch = await this.prisma.guardianRelationship.findFirst({
+      const guardianMatches = await this.prisma.guardianRelationship.findMany({
         where: {
           parentUserId: userId,
           playerUserId: { not: null },
@@ -871,8 +1389,18 @@ export class EventsService {
         },
         select: { playerUserId: true },
       })
-      if (guardianMatch?.playerUserId) {
-        return this.upsertRsvpProxy(eventId, userId, guardianMatch.playerUserId, status, reason)
+      const childIds = Array.from(
+        new Set(
+          (guardianMatches ?? [])
+            .map((match: { playerUserId: string | null }) => match.playerUserId)
+            .filter((id: string | null): id is string => Boolean(id)),
+        ),
+      )
+      if (childIds.length > 1) {
+        throw new BadRequestException('childUserId is required')
+      }
+      if (childIds.length === 1) {
+        return this.upsertRsvpProxy(eventId, userId, childIds[0], status, reason, note)
       }
     }
 
@@ -895,16 +1423,33 @@ export class EventsService {
       }
     }
 
+    const storedReason = status === 'NO' ? (reason ?? null) : null
+    const storedNote = note?.trim() ? note.trim().slice(0, 200) : null
+    // H1: an Absage takes the player out of the Kader. The coach keeps a
+    // marker (squadDroppedAt) so the Kader tab can say who dropped out,
+    // instead of a published Kader that still counts them in.
+    if (status === RsvpStatus.NO) {
+      await this.prisma.rsvp.updateMany({
+        where: { eventId, userId, nominated: true },
+        data: { nominated: false, squadDroppedAt: new Date() },
+      })
+    }
     const rsvp = await this.prisma.rsvp.upsert({
       where: {
         eventId_userId: { eventId, userId },
       },
-      update: { status, reason: status === 'NO' ? (reason ?? null) : null },
+      update: {
+        status,
+        reason: storedReason,
+        note: storedNote,
+        ...(status !== RsvpStatus.NO && { squadDroppedAt: null }),
+      },
       create: {
         eventId,
         userId,
         status,
-        reason: status === 'NO' ? (reason ?? null) : null,
+        reason: storedReason,
+        note: storedNote,
       },
     })
 
@@ -980,7 +1525,7 @@ export class EventsService {
       throw new NotFoundException('Event not found')
     }
 
-    await this.teamsService.assertReadableAccess(userId, event.teamId)
+    await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
 
     const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
     if (event.date <= oneHourFromNow) {
@@ -1013,6 +1558,7 @@ export class EventsService {
     childUserId: string,
     status: RsvpStatusValue,
     reason?: string,
+    note?: string,
   ): Promise<{ eventId: string; userId: string; status: string }> {
     const relationship = await this.prisma.guardianRelationship.findFirst({
       where: {
@@ -1024,7 +1570,7 @@ export class EventsService {
       throw new ForbiddenException('No guardian relationship with this player')
     }
 
-    return this.upsertRsvp(eventId, childUserId, status, reason)
+    return this.upsertRsvp(eventId, childUserId, status, reason, note)
   }
 
   async getRsvpSummary(eventId: string, userId: string) {
@@ -1061,12 +1607,14 @@ export class EventsService {
     eventId: string,
     userId: string,
     data: {
-      title?: string
+      /** `null` goes back to the derived title (Training / "Heimspiel gegen X"). */
+      title?: string | null
       type?: EventTypeValue
       date?: Date
-      location?: string
-      notes?: string
-    },
+      /** `null` (or an empty string) clears the place / notes. */
+      location?: string | null
+      notes?: string | null
+    } & EventLogisticsInput,
     scope: 'this' | 'following' = 'this',
     expectedClubId?: string,
   ) {
@@ -1090,36 +1638,96 @@ export class EventsService {
       throw new BadRequestException('Cannot update a cancelled event')
     }
 
-    await this.archiveExpiredEvents(event.teamId)
-
     const dateMoves =
       data.date !== undefined && data.date.getTime() !== event.date.getTime()
+    const newDate = data.date ?? event.date
+    // A past event stays editable (notes, place, the real kickoff), but an
+    // upcoming one is never moved into the past by a slip of the picker.
+    if (dateMoves && newDate.getTime() < Date.now() && event.date.getTime() >= Date.now()) {
+      throw new BadRequestException('Event date must be in the future')
+    }
+    // L8: the Treffpunkt is before the start, checked against the start the
+    // event will have after this edit (the stored one when the date stays).
+    if (data.meetingAt && data.meetingAt.getTime() > newDate.getTime()) {
+      throw new BadRequestException('Meeting time must be before the start')
+    }
+
+    await this.archiveExpiredEvents(event.teamId)
+
+    // Treffpunkt travels with the start: an explicit meetingAt sets the offset
+    // (null clears it); a moved date keeps the existing offset.
+    const meetingOffsetMs: number | null | undefined =
+      data.meetingAt !== undefined
+        ? data.meetingAt
+          ? Math.max(0, newDate.getTime() - data.meetingAt.getTime())
+          : null
+        : undefined
+    const meetingFor = (
+      rowOldDate: Date,
+      rowNewDate: Date,
+      rowMeetingAt: Date | null | undefined,
+    ): { meetingAt?: Date | null } => {
+      if (meetingOffsetMs !== undefined) {
+        return {
+          meetingAt: meetingOffsetMs === null ? null : new Date(rowNewDate.getTime() - meetingOffsetMs),
+        }
+      }
+      if (rowMeetingAt && rowOldDate.getTime() !== rowNewDate.getTime()) {
+        return {
+          meetingAt: new Date(rowNewDate.getTime() - (rowOldDate.getTime() - rowMeetingAt.getTime())),
+        }
+      }
+      return {}
+    }
+
+    // Titles: a derived title follows type and opponent; a typed one stays.
+    const titleTouched =
+      data.title !== undefined || data.type !== undefined || data.opponent !== undefined
+    const titleData = titleTouched
+      ? storedTitleOrThrow({
+          type: data.type ?? event.type,
+          title: data.title !== undefined ? data.title : event.autoTitle ? null : event.title,
+          opponent: data.opponent !== undefined ? data.opponent : event.opponent,
+        })
+      : null
+
+    const logistics = logisticsData(data)
+    const sharedData = {
+      ...(titleData && { title: titleData.title, autoTitle: titleData.autoTitle }),
+      ...(data.type !== undefined && { type: data.type }),
+      ...(data.location !== undefined && { location: trimOrNull(data.location) }),
+      ...(data.notes !== undefined && { notes: trimOrNull(data.notes) }),
+      ...logistics,
+    }
+
     const { updated, followingCount } = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.event.update({
         where: { id: eventId },
         data: {
-          ...(data.title !== undefined && { title: data.title }),
-          ...(data.type !== undefined && { type: data.type }),
+          ...sharedData,
           ...(data.date !== undefined && { date: data.date }),
           // A moved date re-opens the question: answers given before it are
           // kept but flagged, so nobody is counted in for a time they never saw.
           ...(dateMoves && { rescheduledAt: new Date() }),
-          ...(data.location !== undefined && { location: data.location }),
-          ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.meetingAt !== undefined
+            ? { meetingAt: data.meetingAt }
+            : meetingFor(event.date, newDate, event.meetingAt)),
         },
       })
 
       // "This and following": the same edit lands on every later occurrence
-      // of the series that is still on. A moved date moves them all by the
-      // same amount, so a Tuesday series stays a Tuesday series.
+      // that is still on. A new time applies to the whole series; a new
+      // weekday only to the occurrences on the old weekday (moving Tuesday to
+      // Wednesday leaves Thursday alone), and the series rule learns it.
       let followingCount = 0
       if (scope === 'following' && event.seriesId) {
-        const series = dateMoves
-          ? await tx.eventSeries.findUnique({
-              where: { id: event.seriesId },
-              select: { startsAt: true, until: true },
-            })
-          : null
+        const series = await tx.eventSeries.findUnique({
+          where: { id: event.seriesId },
+          select: { startsAt: true, until: true, weekdays: true },
+        })
+        const oldWeekday = berlinWeekday(event.date)
+        const newWeekday = berlinWeekday(newDate)
+        const weekdayMoves = dateMoves && oldWeekday !== newWeekday
         const earlierCount = dateMoves
           ? await tx.event.count({
               where: {
@@ -1136,85 +1744,104 @@ export class EventsService {
             date: { gt: event.date },
             cancelledAt: null,
           },
-          select: { id: true, date: true },
+          select: { id: true, date: true, meetingAt: true },
         })
-        for (const row of later) {
-          await tx.event.update({
-            where: { id: row.id },
-            data: {
-              ...(data.title !== undefined && { title: data.title }),
-              ...(data.type !== undefined && { type: data.type }),
-              ...(data.location !== undefined && { location: data.location }),
-              ...(data.notes !== undefined && { notes: data.notes }),
-              ...(dateMoves && data.date && {
-                date: shiftByZonedWallDelta(row.date, event.date, data.date),
-                rescheduledAt: new Date(),
-              }),
-            },
-          })
+
+        let lastDate = newDate
+        if (!dateMoves && meetingOffsetMs === undefined) {
+          // Nothing per-row (no new dates, no new meeting offsets): one write.
+          if (later.length > 0 && Object.keys(sharedData).length > 0) {
+            await tx.event.updateMany({
+              where: { id: { in: later.map((row) => row.id) } },
+              data: sharedData,
+            })
+          }
+        } else {
+          for (const row of later) {
+            const shifts =
+              dateMoves && (!weekdayMoves || berlinWeekday(row.date) === oldWeekday)
+            const rowNewDate = shifts ? shiftByZonedWallDelta(row.date, event.date, newDate) : row.date
+            if (rowNewDate.getTime() > lastDate.getTime()) lastDate = rowNewDate
+            await tx.event.update({
+              where: { id: row.id },
+              data: {
+                ...sharedData,
+                ...meetingFor(row.date, rowNewDate, row.meetingAt),
+                ...(shifts && { date: rowNewDate, rescheduledAt: new Date() }),
+              },
+            })
+          }
         }
         followingCount = later.length
+
+        const weekdays = series?.weekdays ?? []
+        const nextWeekdays =
+          weekdayMoves && weekdays.length > 0
+            ? normalizeWeekdays(weekdays.map((day) => (day === oldWeekday ? newWeekday : day)))
+            : null
         await tx.eventSeries.update({
           where: { id: event.seriesId },
           data: {
-            ...(data.title !== undefined && { title: data.title }),
+            ...(titleData && { title: titleData.title }),
             ...(data.type !== undefined && { type: data.type }),
-            ...(data.location !== undefined && { location: data.location }),
-            ...(data.notes !== undefined && { notes: data.notes }),
+            ...(data.location !== undefined && { location: trimOrNull(data.location) }),
+            ...(data.notes !== undefined && { notes: trimOrNull(data.notes) }),
+            ...(data.durationMin !== undefined && { durationMin: data.durationMin }),
+            ...(meetingOffsetMs !== undefined && {
+              meetingOffsetMin: meetingOffsetMs === null ? null : Math.round(meetingOffsetMs / 60000),
+            }),
+            ...(nextWeekdays && { weekdays: nextWeekdays }),
             ...(dateMoves &&
               data.date &&
               series && {
                 ...(earlierCount === 0 && { startsAt: data.date }),
-                until: shiftByZonedWallDelta(series.until, event.date, data.date),
+                until: weekdayMoves
+                  ? new Date(Math.max(series.until.getTime(), lastDate.getTime()))
+                  : shiftByZonedWallDelta(series.until, event.date, data.date),
               }),
           },
         })
       }
 
       return { updated, followingCount }
-    })
+    }, SERIES_TRANSACTION_OPTIONS)
 
     // Realtime: broadcast the change so subscribed clients refresh the event.
     this.eventsGateway.emitEventUpsert(updated.teamId, updated.id)
 
     // A change of when or where is a change the squad has to act on. Title
     // and notes edits are cosmetic and stay quiet.
-    const dateChanged =
-      data.date !== undefined && data.date.getTime() !== event.date.getTime()
     const locationChanged =
-      data.location !== undefined && (data.location ?? null) !== (event.location ?? null)
-    if (dateChanged || locationChanged) {
+      data.location !== undefined && trimOrNull(data.location) !== (event.location ?? null)
+    // A new Treffpunkt time or place is just as actionable as a new kickoff.
+    const meetingChanged =
+      (data.meetingAt !== undefined &&
+        (data.meetingAt?.getTime() ?? null) !== (event.meetingAt?.getTime() ?? null)) ||
+      (data.meetingPoint !== undefined &&
+        trimOrNull(data.meetingPoint) !== (event.meetingPoint ?? null))
+    if (dateMoves || locationChanged || meetingChanged) {
       const clubId = updated.clubId
       const teamName = await this.teamNameFor(updated.teamId)
       const date = formatEventDate(updated.date)
-      this.pushService
-        .sendToTeamLocalized(
-          updated.teamId,
-          'EVENT_UPDATED',
-          { teamName, eventTitle: updated.title, date },
-          {
-            type: 'event_updated',
-            eventId: updated.id,
-            clubId,
-            url: `anstoss:///event-detail?eventId=${updated.id}`,
-          },
-          userId,
-          { clubId, category: 'events' },
+      this.sendTeamEventPush('EVENT_UPDATED', updated, {
+        teamName,
+        clubId,
+        excludeUserId: userId,
+        pushType: 'event_updated',
+      }).catch((error: unknown) => {
+        this.pushLogger.warn(
+          `EVENT_UPDATED push failed for event ${updated.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         )
-        .catch((error: unknown) => {
-          this.pushLogger.warn(
-            `EVENT_UPDATED push failed for event ${updated.id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          )
-        })
+      })
       void this.chatService.postSystemNotice({
         teamId: updated.teamId,
         clubId,
         actorId: userId,
-        content: `${updated.title}: ${date}${updated.location ? ` · ${updated.location}` : ''}${
-          followingCount > 0 ? ` (+${followingCount})` : ''
-        }`,
+        content: `${eventTitleFor(updated, CHAT_NOTICE_LOCALE)}: ${date}${
+          updated.location ? ` · ${updated.location}` : ''
+        }${followingCount > 0 ? ` (+${followingCount})` : ''}`,
       }).catch((error: unknown) => {
         this.pushLogger.warn(
           `EVENT_UPDATED chat notice failed for event ${updated.id}: ${
@@ -1292,21 +1919,12 @@ export class EventsService {
     const clubId = cancelled.clubId
     const teamName = await this.teamNameFor(cancelled.teamId)
     const date = formatEventDate(cancelled.date)
-    this.pushService
-      .sendToTeamLocalized(
-        cancelled.teamId,
-        'EVENT_CANCELLED',
-        { teamName, eventTitle: cancelled.title, date, reason: cancelled.cancelReason ?? '' },
-        {
-          type: 'event_cancelled',
-          eventId: cancelled.id,
-          clubId,
-          url: `anstoss:///event-detail?eventId=${cancelled.id}`,
-        },
-        userId,
-        { clubId, category: 'events' },
-      )
-      .catch((error: unknown) => {
+    this.sendTeamEventPush('EVENT_CANCELLED', cancelled, {
+      teamName,
+      clubId,
+      excludeUserId: userId,
+      pushType: 'event_cancelled',
+    }).catch((error: unknown) => {
         this.pushLogger.warn(
           `EVENT_CANCELLED push failed for event ${cancelled.id}: ${
             error instanceof Error ? error.message : String(error)
@@ -1317,7 +1935,7 @@ export class EventsService {
       teamId: cancelled.teamId,
       clubId,
       actorId: userId,
-      content: `${cancelled.title} (${date}${followingCount > 0 ? ` +${followingCount}` : ''})${
+      content: `${eventTitleFor(cancelled, CHAT_NOTICE_LOCALE)} (${date}${followingCount > 0 ? ` +${followingCount}` : ''})${
         cancelled.cancelReason ? `: ${cancelled.cancelReason}` : ''
       }`,
     }).catch((error: unknown) => {
@@ -1329,6 +1947,296 @@ export class EventsService {
     })
 
     return cancelled
+  }
+
+  // ─── Kader ───────────────────────────────────────────────────────────────
+
+  private async findEventInClub(clubId: string, eventId: string) {
+    const event = await this.prisma.event.findFirst({ where: { id: eventId, clubId } })
+    if (!event) throw new NotFoundException('Event not found')
+    return event
+  }
+
+  private async buildSquad(event: {
+    id: string
+    teamId: string
+    squadPublishedAt: Date | null
+  }): Promise<EventSquad> {
+    const [members, rsvps] = await Promise.all([
+      this.loadTeamPlayers(event.teamId),
+      this.prisma.rsvp.findMany({
+        where: { eventId: event.id },
+        select: {
+          userId: true,
+          status: true,
+          reason: true,
+          nominated: true,
+          squadDroppedAt: true,
+          user: { select: { name: true } },
+        },
+      }),
+    ])
+    type SquadReply = {
+      userId: string
+      status: RsvpStatusValue
+      reason: string | null
+      nominated: boolean
+      squadDroppedAt?: Date | null
+      user?: { name: string | null } | null
+    }
+    const replies = (rsvps ?? []) as SquadReply[]
+    const replyByUser = new Map(replies.map((rsvp) => [rsvp.userId, rsvp]))
+    const memberIds = new Set(members.map((member) => member.userId))
+    // Only players who said yes or maybe can be put in the Kader: nominating
+    // someone who never answered would count them in for a date they never saw.
+    const candidates = members
+      .map((member) => {
+        const reply = replyByUser.get(member.userId)
+        return { ...member, rsvp: reply?.status ?? null, reason: reply?.reason ?? null }
+      })
+      .filter((member) => member.rsvp === RsvpStatus.YES || member.rsvp === RsvpStatus.MAYBE)
+    const candidateIds = new Set(candidates.map((candidate) => candidate.userId))
+    const nameOf = (reply: SquadReply) =>
+      members.find((member) => member.userId === reply.userId)?.name ?? reply.user?.name ?? ''
+    // H1: someone who was nominated and then said Absage or left the team is
+    // no longer in nominatedUserIds (a Kader the coach can always save) and is
+    // named here instead, so the coach knows who to replace.
+    const dropouts = replies
+      .filter((reply) => reply.squadDroppedAt || (reply.nominated && !candidateIds.has(reply.userId)))
+      .filter((reply) => !candidateIds.has(reply.userId))
+      .map((reply) => ({
+        userId: reply.userId,
+        name: nameOf(reply),
+        cause: memberIds.has(reply.userId) ? ('declined' as const) : ('left' as const),
+        reason: memberIds.has(reply.userId) ? reply.reason : null,
+        at: reply.squadDroppedAt ? reply.squadDroppedAt.toISOString() : null,
+      }))
+    return {
+      eventId: event.id,
+      publishedAt: event.squadPublishedAt?.toISOString() ?? null,
+      nominatedUserIds: replies
+        .filter((reply) => reply.nominated && candidateIds.has(reply.userId))
+        .map((reply) => reply.userId),
+      candidates,
+      dropouts,
+    }
+  }
+
+  async getSquad(clubId: string, eventId: string, userId: string): Promise<EventSquad> {
+    const event = await this.findEventInClub(clubId, eventId)
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
+    return this.buildSquad(event)
+  }
+
+  /**
+   * Set the Kader. `publish` stamps squadPublishedAt and tells the players
+   * who are newly in it (and their guardians); re-publishing after a change
+   * only pings the ones who were added. Ids that stopped being candidates
+   * while the coach had the screen open (an Absage, a player who left) are
+   * dropped rather than failing the whole save.
+   */
+  async updateSquad(
+    clubId: string,
+    eventId: string,
+    userId: string,
+    input: { userIds: string[]; publish?: boolean },
+  ): Promise<EventSquad> {
+    const event = await this.findEventInClub(clubId, eventId)
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
+    if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
+
+    const current = await this.buildSquad(event)
+    const candidateIds = new Set(current.candidates.map((candidate) => candidate.userId))
+    const userIds = Array.from(new Set(input.userIds)).filter((id) => candidateIds.has(id))
+
+    const wasNominated = new Set(current.nominatedUserIds)
+    const firstPublish = !event.squadPublishedAt
+    const publishedAt = input.publish ? new Date() : event.squadPublishedAt
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.rsvp.updateMany({
+        where: { eventId, userId: { in: userIds } },
+        data: { nominated: true, squadDroppedAt: null },
+      })
+      await tx.rsvp.updateMany({
+        where: { eventId, userId: { notIn: userIds }, nominated: true },
+        data: { nominated: false },
+      })
+      // Saving the Kader is the coach's answer to the drop-out notice.
+      await tx.rsvp.updateMany({
+        where: { eventId, squadDroppedAt: { not: null } },
+        data: { squadDroppedAt: null },
+      })
+      if (input.publish) {
+        await tx.event.update({
+          where: { id: eventId },
+          data: { squadPublishedAt: publishedAt },
+        })
+      }
+    })
+
+    this.eventsGateway.emitEventUpsert(event.teamId, event.id)
+
+    if (input.publish) {
+      const recipients = firstPublish ? userIds : userIds.filter((id) => !wasNominated.has(id))
+      if (recipients.length > 0) {
+        void this.notifySquadNominated(event, recipients).catch((err) => {
+          this.pushLogger.warn(
+            `SQUAD_NOMINATED push failed for event ${event.id}: ${
+              err instanceof Error ? err.message : 'unknown error'
+            }`,
+          )
+        })
+      }
+    }
+
+    return this.buildSquad({ ...event, squadPublishedAt: publishedAt ?? null })
+  }
+
+  /** preferredLanguage → event locale for each user (German when unset). */
+  private async loadEventLocales(userIds: string[]): Promise<Map<string, EventLocale>> {
+    const unique = Array.from(new Set(userIds))
+    if (unique.length === 0) return new Map()
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, preferredLanguage: true },
+    })
+    return new Map(
+      (users ?? []).map((user: { id: string; preferredLanguage: string | null }) => [
+        user.id,
+        resolveEventLocale(user.preferredLanguage),
+      ]),
+    )
+  }
+
+  /**
+   * SQUAD_NOMINATED: the player reads "Du bist im Kader …"; each guardian
+   * reads "Mia ist im Kader …". Title and date in the recipient's language.
+   */
+  private async notifySquadNominated(
+    event: TitledEventRecord & { id: string; date: Date; clubId: string },
+    playerIds: string[],
+  ) {
+    const guardians = (await this.prisma.guardianRelationship.findMany({
+      where: { playerUserId: { in: playerIds } },
+      select: {
+        parentUserId: true,
+        playerUserId: true,
+        childName: true,
+        player: { select: { name: true } },
+      },
+    })) as Array<{
+      parentUserId: string
+      playerUserId: string | null
+      childName: string | null
+      player?: { name: string | null } | null
+    }>
+    const locales = await this.loadEventLocales([
+      ...playerIds,
+      ...(guardians ?? []).map((row) => row.parentUserId),
+    ])
+    const payload = {
+      type: 'event_squad',
+      eventId: event.id,
+      clubId: event.clubId,
+      url: `anstoss:///event-detail?eventId=${event.id}`,
+    }
+    const send = (recipient: string, childName: string | null) => {
+      const locale = locales.get(recipient) ?? 'de'
+      const copy = squadNominatedCopy(locale, {
+        eventTitle: eventTitleFor(event, locale),
+        date: formatEventDateFor(event.date, locale),
+        childName,
+      })
+      return this.pushService.sendToUser(recipient, copy.title, copy.body, payload, {
+        clubId: event.clubId,
+        category: 'events',
+      })
+    }
+    const sent = new Set<string>()
+    const jobs: Array<Promise<unknown>> = []
+    for (const playerId of playerIds) {
+      sent.add(playerId)
+      jobs.push(send(playerId, null))
+    }
+    for (const row of guardians ?? []) {
+      const key = `${row.parentUserId}:${row.playerUserId}`
+      // A parent who is also the nominated player already got their own push.
+      if (sent.has(key) || row.parentUserId === row.playerUserId) continue
+      sent.add(key)
+      const childName = firstName(row.player?.name || row.childName || '')
+      jobs.push(send(row.parentUserId, childName || null))
+    }
+    await Promise.all(jobs)
+  }
+
+  // ─── Aufstellung ─────────────────────────────────────────────────────────
+
+  async getLineup(clubId: string, eventId: string, userId: string): Promise<EventLineup | null> {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, clubId },
+      include: { fixture: { select: { overlay: { select: { lineup: true, lineupFormation: true } } } } },
+    })
+    if (!event) throw new NotFoundException('Event not found')
+    await this.teamsService.assertReadableAccess(userId, event.teamId)
+    // L2: the Aufstellung is the coach's draft until the Kader is published.
+    if (!event.squadPublishedAt && !(await this.canViewReadiness(userId, event.teamId))) {
+      return null
+    }
+    return (
+      readLineup(event.lineup) ??
+      (event.fixture?.overlay
+        ? readLineup(event.fixture.overlay.lineup, event.fixture.overlay.lineupFormation)
+        : null)
+    )
+  }
+
+  /**
+   * Save the Aufstellung on the event, so manual matches can have one too.
+   * A match linked to a fussball.de fixture also mirrors it into the fixture
+   * overlay, which the match screen's lineup tab reads.
+   */
+  async saveLineup(
+    clubId: string,
+    eventId: string,
+    userId: string,
+    input: SaveEventLineupInput,
+  ): Promise<EventLineup> {
+    const event = await this.findEventInClub(clubId, eventId)
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
+
+    const lineup: EventLineup = {
+      formation: input.formation,
+      starters: input.starters.map(normalizeLineupPlayer),
+      bench: (input.bench ?? []).map(normalizeLineupPlayer),
+    }
+
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { lineup: lineup as unknown as Prisma.InputJsonValue },
+    })
+
+    if (event.fixtureId) {
+      const fixtureLineup = {
+        formation: lineup.formation,
+        starters: lineup.starters.map(({ number, name, position }) => ({ number, name, position })),
+        bench: lineup.bench.map(({ number, name, position }) => ({ number, name, position })),
+      } as unknown as Prisma.InputJsonValue
+      await this.prisma.fixtureOverlay.upsert({
+        where: { fixtureId: event.fixtureId },
+        update: { lineupFormation: lineup.formation, lineup: fixtureLineup },
+        create: {
+          clubId: event.clubId,
+          fixtureId: event.fixtureId,
+          lineupFormation: lineup.formation,
+          lineup: fixtureLineup,
+          fieldLocks: [],
+        },
+      })
+    }
+
+    this.eventsGateway.emitEventUpsert(event.teamId, event.id)
+    return lineup
   }
 
   private async teamNameFor(teamId: string): Promise<string> {
@@ -1350,9 +2258,11 @@ export class EventsService {
         team: {
           include: {
             access: {
+              // The squad (same rule as the Offen count), so the number the
+              // coach saw is the number of people who get the reminder.
               where: {
+                ...SQUAD_ACCESS_COUNT_WHERE,
                 ...activeTeamAccessWhere(),
-                role: TeamRole.PLAYER,
               },
               include: { user: true },
             },
@@ -1373,8 +2283,14 @@ export class EventsService {
       select: { userId: true },
     })
     const respondedUserIds = new Set(existingRsvps.map((r: { userId: string }) => r.userId))
+    const inactive = await this.prisma.teamMember.findMany({
+      where: { teamId: event.teamId, operationalStatus: 'INACTIVE' },
+      select: { userId: true },
+    })
+    const inactiveIds = new Set((inactive ?? []).map((row: { userId: string }) => row.userId))
     const nonResponders = event.team.access
       .filter((a: { role?: string }) => !a.role || a.role === TeamRole.PLAYER)
+      .filter((a: { user: { id: string } }) => !inactiveIds.has(a.user.id))
       .map((a: { user: { id: string } }) => a.user)
       .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
 
@@ -1420,18 +2336,8 @@ export class EventsService {
       )
     }
 
-    // Bug 4 fix: use de-DE locale and Berlin timezone so weekday/time are correct for German clubs
-    const day = new Intl.DateTimeFormat('de-DE', {
-      weekday: 'long',
-      timeZone: 'Europe/Berlin',
-    }).format(new Date(event.date))
-    const time = new Intl.DateTimeFormat('de-DE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Berlin',
-    }).format(new Date(event.date))
-    const title = event.title
-    const body = `${day}, ${time} at ${event.location ?? 'TBD'} — have you replied yet?`
+    // Each player reads the reminder in their own language.
+    const locales = await this.loadEventLocales(uniqueNonResponders.map((u: { id: string }) => u.id))
     const data = {
       type: 'event_rsvp_reminder',
       eventId,
@@ -1441,8 +2347,13 @@ export class EventsService {
 
     const deliveryResults = await Promise.all(
       uniqueNonResponders.map(async (user: { id: string }) => {
+        const copy = rsvpReminderCopy(locales.get(user.id) ?? 'de', {
+          event,
+          date: new Date(event.date),
+          location: event.location,
+        })
         try {
-          await this.pushService.sendToUser(user.id, title, body, data, { clubId })
+          await this.pushService.sendToUser(user.id, copy.title, copy.body, data, { clubId })
           return true
         } catch {
           return false
@@ -1475,7 +2386,7 @@ export class EventsService {
     if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
 
     // Must be a member of the event's team (players, coaches, guardians)
-    await this.teamsService.assertReadableAccess(userId, event.teamId)
+    await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
 
     // Time window: 2 hours before start → 3 hours after start
     const eventTime = new Date(event.date).getTime()
@@ -1656,8 +2567,9 @@ function buildEventReadiness(event: EventReadinessRecord): EventReadiness {
     }
   }
 
-  const responseRate = responseCount / squadSize
-  const confirmedRate = yesCount / squadSize
+  // RSVPs can include coaches or guests outside the squad count; cap at 100%.
+  const responseRate = Math.min(1, responseCount / squadSize)
+  const confirmedRate = Math.min(1, yesCount / squadSize)
   const targetConfirmed = getTargetConfirmedCount(event.type, squadSize)
   let score = 100
 
@@ -2147,7 +3059,7 @@ function getSignalRank(key: EventReadinessSignal['key']): number {
 
 function isInjuryReason(reason: string | null): boolean {
   if (!reason) return false
-  return ['injury', 'injured', 'INJURY', 'INJURED'].includes(reason)
+  return ['injury', 'injured', 'sick', 'INJURY', 'INJURED'].includes(reason)
 }
 
 function isSuspensionReason(reason: string | null): boolean {
@@ -2182,4 +3094,8 @@ function parseDateBoundary(value: string, boundary: 'start' | 'end') {
   }
 
   return date
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? ''
 }

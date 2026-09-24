@@ -38,6 +38,10 @@ model User {
   platformRole       PlatformRole     @default(NONE)
   dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
   preferredLanguage  String? // ISO-639-1, e.g. "de" — drives chat translation target
+  // onboarding revamp: adult self-declaration (16+) for coaches, parents and
+  // club admins, who are no longer asked for a date of birth. Players still
+  // give their DOB (under-16 gate). Ignored whenever a real DOB is on file.
+  adultConfirmedAt   DateTime?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   deletedAt          DateTime?
@@ -59,6 +63,7 @@ model User {
   joinRequests                   JoinRequest[]
   freeAgentProfile               FreeAgentProfile?
   sentTrialInvites               TrialInvite[]             @relation("TrialInviteSender")
+  playerSearchesCreated          PlayerSearch[]            @relation("PlayerSearchCreator")
   injuriesAsPlayer               InjuryReport[]            @relation("InjuryPlayer")
   injuriesAsReporter             InjuryReport[]            @relation("InjuryReporter")
   dutyAssignments                TeamDutyAssignment[]      @relation("DutyAssignee")
@@ -75,12 +80,16 @@ model User {
   messageReadReceipts            MessageReadReceipt[]
   messageReports                 MessageReport[]           @relation("MessageReportReporter")
   directMessageReports           DirectMessageReport[]     @relation("DirectMessageReportReporter")
+  directMessageReactions         DirectMessageReaction[]   @relation("DirectMessageReactionUser") // chat revamp
   blocksMade                     UserBlock[]               @relation("UserBlockBlocker")
   blocksReceived                 UserBlock[]               @relation("UserBlockBlocked")
   pollVotes                      PollVote[]
   claimedRosterSlot              RosterSlot?
   createdBroadcasts              Broadcast[]               @relation("BroadcastCreator")
   eventCheckIns                  EventCheckIn[]
+  // Events revamp: Fahrgemeinschaft
+  carpoolRidesDriven             CarpoolRide[]
+  carpoolSeats                   CarpoolSeat[]
   parentHandoffsCreated          ParentHandoff[]           @relation("ParentHandoffSource")
   parentHandoffsRedeemed         ParentHandoff[]           @relation("ParentHandoffRedeemer")
   channelMemberships             ChannelMember[]
@@ -91,6 +100,10 @@ model User {
   inviteCampaignsCreated         InviteCampaign[]          @relation("InviteCampaignCreator")
   inviteCampaignRedemptions      InviteRedemption[]
   platformAdminAccount           PlatformAdminAccount?
+  // club-admin revamp: compliance records (Führungszeugnis & member documents)
+  complianceRecords              ComplianceRecord[]        @relation("ComplianceRecordMember")
+  complianceRecordsCreated       ComplianceRecord[]        @relation("ComplianceRecordCreator")
+  complianceReminders            ComplianceReminder[]      @relation("ComplianceReminderMember")
 
   @@index([clerkId])
   @@index([email])
@@ -148,6 +161,7 @@ model Club {
   auditLogs               AuditLog[]
   joinRequests            JoinRequest[]
   trialInvites            TrialInvite[]
+  playerSearches          PlayerSearch[]
   injuryReports           InjuryReport[]
   dutyAssignments         TeamDutyAssignment[]
   conversations           Conversation[]
@@ -155,6 +169,9 @@ model Club {
   sponsors                Sponsor[]
   featureFlagOverrides    FeatureFlagOverride[]
   eventCheckIns           EventCheckIn[]
+  // Events revamp: Fahrgemeinschaft
+  carpoolRides            CarpoolRide[]
+  carpoolSeats            CarpoolSeat[]
   directoryEntry          ClubDirectoryEntry?
   claims                  ClubClaim[]
   disputes                ClubDispute[]
@@ -166,6 +183,9 @@ model Club {
   bankImportBatches       BankImportBatch[]
   bankTransactions        BankTransaction[]
   contributionMatches     ContributionMatch[]
+  // club-admin revamp: compliance records
+  complianceRecords       ComplianceRecord[]
+  complianceReminders     ComplianceReminder[]
 
   @@index([slug])
   @@index([city])
@@ -370,6 +390,13 @@ enum TeamMemberOperationalStatus {
   INACTIVE
 }
 
+// Kader revamp: availability that is neither injury nor inactivity.
+enum TeamMemberAbsence {
+  NONE
+  SUSPENDED
+  AWAY
+}
+
 enum InviteKind {
   MEMBER_INVITE
   PARENT_APPROVAL
@@ -393,6 +420,9 @@ enum ParentalConsentStatus {
   PENDING
   APPROVED
   REJECTED
+  // Privacy: guardian (or admin on the guardian's written request) withdrew a
+  // previously approved consent, GDPR Art. 7(3).
+  WITHDRAWN
 }
 
 enum ExternalDataProvider {
@@ -602,6 +632,7 @@ model Team {
   events            Event[]
   messages          Message[]
   trialInvites      TrialInvite[]
+  playerSearches    PlayerSearch[]
   injuryReports     InjuryReport[]
   dutyAssignments   TeamDutyAssignment[]
   rosterSlots       RosterSlot[]
@@ -621,6 +652,9 @@ model TeamMember {
   position          String?
   jerseyNumber      Int?
   operationalStatus TeamMemberOperationalStatus @default(ACTIVE)
+  // Kader revamp: holiday / suspension, independent of injury and activity.
+  absence           TeamMemberAbsence           @default(NONE)
+  absenceUntil      DateTime?
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -680,17 +714,23 @@ model GuardianRelationship {
 }
 
 model ParentalConsent {
-  id             String                @id @default(cuid())
-  clubId         String
-  teamId         String
-  playerUserId   String
-  guardianEmail  String
-  guardianUserId String?
-  status         ParentalConsentStatus @default(REQUIRED)
-  requestedAt    DateTime              @default(now())
-  approvedAt     DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id                String                @id @default(cuid())
+  clubId            String
+  teamId            String
+  playerUserId      String
+  guardianEmail     String
+  guardianUserId    String?
+  status            ParentalConsentStatus @default(REQUIRED)
+  requestedAt       DateTime              @default(now())
+  approvedAt        DateTime?
+  // Privacy: consent withdrawal (GDPR Art. 7(3)). withdrawnByUserId is a plain
+  // id (no FK) so the record survives the actor's account deletion.
+  withdrawnAt       DateTime?
+  withdrawnByUserId String?
+  withdrawalReason  String? // 'guardian_request' | 'admin_on_guardian_request' | 'guardian_account_deleted'
+  withdrawalNote    String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
   club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -722,6 +762,10 @@ model ParentHandoff {
   childDateOfBirth DateTime
   guardianEmail    String
   sourceUserId     String?
+  // onboarding review fix (H5): team of the invite the child followed, so
+  // the guardian's team code is optional. Plain id, no relation (the handoff
+  // is not tenant-scoped; a deleted team just falls back to the team code).
+  teamId           String?
   status           ParentHandoffStatus @default(PENDING)
   expiresAt        DateTime
   redeemedByUserId String?
@@ -751,9 +795,16 @@ enum InjuryAvailabilityStatus {
   DAY_TO_DAY
 }
 
+enum HomeAway {
+  HOME
+  AWAY
+}
+
 enum TeamDutyKind {
   JERSEY_CLEANUP
   BIB_CLEANUP
+  // Kader revamp (Aufgaben): Kabinendienst after training / match.
+  LOCKER_ROOM
 }
 
 enum TeamDutyStatus {
@@ -783,6 +834,22 @@ model Event {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   lastRsvpReminderAt DateTime?
+  // Events revamp (2026-09): matchday logistics live on the event itself.
+  meetingAt          DateTime?
+  meetingPoint       String?
+  opponent           String?
+  homeAway           HomeAway?
+  fixtureId          String?   @unique
+  squadPublishedAt   DateTime?
+  carpoolEnabled     Boolean   @default(false)
+  durationMin        Int?
+  lineup             Json?
+  // Events review fixes (2026-09-24): `title` of a derived title is only a
+  // language-neutral fallback (opponent / "Training"); apps render it in the
+  // reader's language. `importedFields` is the snapshot of what the last
+  // fussball.de sync wrote, so a coach's own edits survive the next sync.
+  autoTitle          Boolean   @default(false)
+  importedFields     Json?
 
   club                Club                      @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team                Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -791,6 +858,8 @@ model Event {
   reminderPreferences EventReminderPreference[]
   checkIns            EventCheckIn[]
   series              EventSeries?              @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  fixture             ImportedFixture?          @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  carpoolRides        CarpoolRide[]
 
   @@index([clubId])
   @@index([teamId])
@@ -803,23 +872,66 @@ model Event {
 // need nothing new; the series only remembers the rule for "this and
 // following" edits.
 model EventSeries {
-  id            String    @id @default(cuid())
-  clubId        String
-  teamId        String
-  createdById   String
-  title         String
-  type          EventType @default(TRAINING)
-  intervalWeeks Int       @default(1)
-  startsAt      DateTime
-  until         DateTime
-  location      String?
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  clubId           String
+  teamId           String
+  createdById      String
+  title            String
+  type             EventType @default(TRAINING)
+  intervalWeeks    Int       @default(1)
+  // 0 = Sunday … 6 = Saturday (Europe/Berlin). Empty = weekday of startsAt.
+  weekdays         Int[]     @default([])
+  meetingOffsetMin Int?
+  durationMin      Int?
+  startsAt         DateTime
+  until            DateTime
+  location         String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   events Event[]
 
   @@index([teamId])
+  @@index([clubId])
+}
+
+// Fahrgemeinschaft: a driver offers seats to an event; riders take them.
+model CarpoolRide {
+  id           String    @id @default(cuid())
+  clubId       String
+  eventId      String
+  driverUserId String
+  seats        Int
+  departFrom   String?
+  departAt     DateTime?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  club       Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  event      Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  driver     User          @relation(fields: [driverUserId], references: [id], onDelete: Cascade)
+  seatsTaken CarpoolSeat[]
+
+  @@unique([eventId, driverUserId])
+  @@index([clubId])
+  @@index([eventId])
+}
+
+model CarpoolSeat {
+  id        String   @id @default(cuid())
+  clubId    String
+  rideId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  club Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  ride CarpoolRide @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([rideId, userId])
+  @@index([userId])
   @@index([clubId])
 }
 
@@ -895,12 +1007,18 @@ enum RsvpStatus {
 }
 
 model Rsvp {
-  id        String     @id @default(cuid())
-  eventId   String
-  userId    String
-  status    RsvpStatus
-  reason    String? // INJURED | SUSPENDED | AWAY | OTHER | null
-  updatedAt DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  eventId        String
+  userId         String
+  status         RsvpStatus
+  reason         String? // injured | sick | work | vacation | personal | suspended | other | null
+  note           String?    @db.VarChar(200)
+  // In the coach's Kader for this event.
+  nominated      Boolean    @default(false)
+  // Was in the Kader, then answered Absage (or left the team). The coach sees
+  // it until the Kader is saved again.
+  squadDroppedAt DateTime?
+  updatedAt      DateTime   @updatedAt
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1018,17 +1136,23 @@ model MessageReadReceipt {
 // existing audit log; severe reports trigger a soft-delete on the
 // message until reviewed.
 model MessageReport {
-  id             String    @id @default(cuid())
-  messageId      String
-  reporterUserId String
-  reason         String // free-text + canonical reasons (SPAM/ABUSE/INAPPROPRIATE/OTHER)
+  id                     String    @id @default(cuid())
+  messageId              String
+  reporterUserId         String
+  reason                 String // free-text + canonical reasons (SPAM/ABUSE/INAPPROPRIATE/OTHER)
   evidenceContent        String?
   evidenceAttachmentUrl  String?
   evidenceAttachmentMeta Json?
-  resolvedAt     DateTime?
-  resolvedById   String?
-  resolution     String? // free-text resolution note from admin
-  createdAt      DateTime  @default(now())
+  resolvedAt             DateTime?
+  resolvedById           String?
+  resolution             String? // free-text resolution note from admin
+  createdAt              DateTime  @default(now())
+  // Safeguarding review (2026-09-24): escalation to the platform queue,
+  // overdue alerting and evidence retention. See docs/compliance/UGC_MODERATION.md.
+  escalatedAt            DateTime?
+  escalationReason       String? // 'staff_sender' | 'safeguarding' | 'overdue'
+  overdueAlertedAt       DateTime?
+  evidencePurgedAt       DateTime?
 
   message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   reporter User    @relation("MessageReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
@@ -1037,6 +1161,7 @@ model MessageReport {
   @@index([messageId])
   @@index([reporterUserId])
   @@index([resolvedAt])
+  @@index([resolvedAt, createdAt])
 }
 
 // Per-user block. Blocking is uni-directional: blocker no longer sees
@@ -1080,12 +1205,16 @@ model Channel {
 }
 
 model ChannelMember {
-  id        String   @id @default(cuid())
-  channelId String
-  userId    String
-  createdAt DateTime @default(now())
-  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  channelId  String
+  userId     String
+  // Chat revamp: per-user mute. For non-CUSTOM channels this row only carries
+  // the mute preference; it never grants access (access is role-derived).
+  muted      Boolean   @default(false)
+  mutedUntil DateTime?
+  createdAt  DateTime  @default(now())
+  channel    Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId])
@@ -1287,6 +1416,7 @@ model ImportedFixture {
   team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamLink ExternalTeamLink @relation(fields: [teamLinkId], references: [id], onDelete: Cascade)
   overlay  FixtureOverlay?
+  event    Event?
 
   @@unique([teamLinkId, externalMatchId])
   @@index([clubId, teamId, kickoffAt])
@@ -1389,6 +1519,12 @@ model FreeAgentProfile {
   bio              String?
   isOnTransferList Boolean             @default(false)
   visibility       FreeAgentVisibility @default(PRIVATE)
+  // Wechselbörse search fields (2026-09)
+  postalCode       String?             @db.VarChar(5)
+  searchRadiusKm   Int?
+  highestLeague    String?             @db.VarChar(32)
+  currentClubName  String?             @db.VarChar(100)
+  availableFrom    DateTime?           @db.Date
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -1400,6 +1536,7 @@ model FreeAgentProfile {
   @@index([isOnTransferList, visibility])
   @@index([city])
   @@index([position])
+  @@index([postalCode])
 }
 
 enum FreeAgentMediaType {
@@ -1442,19 +1579,33 @@ model TrialInvite {
   clubId             String
   freeAgentProfileId String
   teamId             String
-  sentByUserId       String
+  // Wechselbörse review L6: nullable so the thread survives staff deletion.
+  sentByUserId       String?
   message            String?
   expiresAt          DateTime
   status             TrialInviteStatus @default(PENDING)
   respondedAt        DateTime?
+  // Wechselbörse pipeline (2026-09)
+  initiatedBy        TrialInitiator    @default(CLUB)
+  playerSearchId     String?
+  sessionEventIds    String[]          @default([])
+  feedback           String?           @db.VarChar(1000)
+  rating             Int?
+  attended           Boolean?
+  decisionMessage    String?           @db.VarChar(500)
+  decidedAt          DateTime?
+  decidedByUserId    String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
   club             Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   freeAgentProfile FreeAgentProfile @relation(fields: [freeAgentProfileId], references: [id], onDelete: Cascade)
   team             Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  sender           User             @relation("TrialInviteSender", fields: [sentByUserId], references: [id], onDelete: Cascade)
+  sender           User?            @relation("TrialInviteSender", fields: [sentByUserId], references: [id], onDelete: SetNull)
+  playerSearch     PlayerSearch?    @relation(fields: [playerSearchId], references: [id], onDelete: SetNull)
+  joinRequest      JoinRequest?
 
+  @@index([playerSearchId])
   @@index([clubId, status])
   @@index([freeAgentProfileId, status])
   @@index([teamId, status])
@@ -1474,18 +1625,18 @@ model StripeAccount {
 }
 
 model Subscription {
-  id                   String   @id @default(cuid())
-  clubId               String
-  stripeSubscriptionId String   @unique
-  status               String
-  plan                 String
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean  @default(false)
+  id                     String   @id @default(cuid())
+  clubId                 String
+  stripeSubscriptionId   String   @unique
+  status                 String
+  plan                   String
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean  @default(false)
   lastStripeEventCreated Int?
   lastStripeEventId      String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
@@ -1659,7 +1810,7 @@ model BankImportBatch {
   // The uploaded bytes are parsed in memory and are never persisted. These
   // fields document/enforce the 24-hour ceiling if raw-object storage is ever
   // enabled; normalized transactions and confirmed matches remain auditable.
-  rawExpiresAt DateTime @map("expiresAt")
+  rawExpiresAt DateTime         @map("expiresAt")
   rawObjectKey String?
   rawPurgedAt  DateTime?
   createdAt    DateTime         @default(now())
@@ -1696,20 +1847,20 @@ model BankTransaction {
 }
 
 model ContributionMatch {
-  id            String                  @id @default(cuid())
-  clubId        String
-  transactionId String
-  recordId      String
-  amount        Int
-  confidence    Int
-  status        ContributionMatchStatus @default(SUGGESTED)
-  confirmedById String?
-  confirmedAt   DateTime?
-  reversedById  String?
-  reversedAt    DateTime?
+  id             String                  @id @default(cuid())
+  clubId         String
+  transactionId  String
+  recordId       String
+  amount         Int
+  confidence     Int
+  status         ContributionMatchStatus @default(SUGGESTED)
+  confirmedById  String?
+  confirmedAt    DateTime?
+  reversedById   String?
+  reversedAt     DateTime?
   reversalReason String?
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   club        Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
   transaction BankTransaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -1881,6 +2032,55 @@ enum TrialInviteStatus {
   DECLINED
   EXPIRED
   REVOKED
+  REQUESTED
+  OFFERED
+  JOINED
+  REJECTED
+  WITHDRAWN
+}
+
+// ─── Wechselbörse (2026-09) ─────────────────────────────
+
+enum TrialInitiator {
+  CLUB
+  PLAYER
+}
+
+enum PlayerSearchStatus {
+  OPEN
+  FILLED
+  CLOSED
+}
+
+enum WechselReleaseStatus {
+  PENDING
+  GRANTED
+  REFUSED
+  NOT_NEEDED
+}
+
+// A club's "Gesuch", e.g. "Herren II sucht Torwart".
+model PlayerSearch {
+  id              String             @id @default(cuid())
+  clubId          String
+  teamId          String
+  positions       PlayerPosition[]
+  note            String?            @db.VarChar(500)
+  status          PlayerSearchStatus @default(OPEN)
+  // Wechselbörse review L6: nullable so the Gesuch survives staff deletion.
+  createdByUserId String?
+  expiresAt       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  club         Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("PlayerSearchCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  trialInvites TrialInvite[]
+
+  @@index([clubId, status])
+  @@index([status, expiresAt])
+  @@index([teamId])
 }
 
 model JoinRequest {
@@ -1896,8 +2096,25 @@ model JoinRequest {
   revision   Int               @default(1)
   createdAt  DateTime          @default(now())
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
+  // Aufnahmeantrag + Vereinswechsel tracking (2026-09). DFBnet stays the
+  // system of record; these fields only mirror what the Passwart did there.
+  trialInviteId     String?               @unique
+  street            String?               @db.VarChar(120)
+  postalCode        String?               @db.VarChar(5)
+  city              String?               @db.VarChar(80)
+  phone             String?               @db.VarChar(40)
+  nationality       String?               @db.VarChar(60)
+  previousClubName  String?               @db.VarChar(120)
+  lastMatchDate     DateTime?             @db.Date
+  sepaConsentAt     DateTime?
+  parentalConsentAt DateTime?
+  releaseStatus     WechselReleaseStatus?
+  passApplicationAt DateTime?             @db.Date
+  eligibleFrom      DateTime?             @db.Date
+
+  club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+  trialInvite TrialInvite? @relation(fields: [trialInviteId], references: [id], onDelete: SetNull)
 
   @@unique([clubId, userId])
   @@index([clubId, status])
@@ -1925,6 +2142,9 @@ model ConversationParticipant {
   userId         String
   user           User         @relation(fields: [userId], references: [id])
   lastReadAt     DateTime     @default(now())
+  // Chat revamp: per-user DM mute
+  muted          Boolean      @default(false)
+  mutedUntil     DateTime?
   createdAt      DateTime     @default(now())
 
   @@unique([conversationId, userId])
@@ -1939,25 +2159,58 @@ model DirectMessage {
   sender         User         @relation("DirectMessageSender", fields: [senderId], references: [id])
   content        String
   sourceLanguage String?
+  // Chat revamp: DM attachments + replies (migration 20260924170000_dm_attachments)
+  messageType    MessageType  @default(TEXT)
+  attachmentUrl  String?
+  attachmentMeta Json?
+  replyToId      String?
   deletedAt      DateTime?
   createdAt      DateTime     @default(now())
 
+  replyTo      DirectMessage?             @relation("DirectMessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      DirectMessage[]            @relation("DirectMessageReply")
   translations DirectMessageTranslation[]
   reports      DirectMessageReport[]
+  reactions    DirectMessageReaction[]
 
   @@index([conversationId, createdAt])
+  @@index([replyToId])
+}
+
+// Chat revamp: reactions on direct messages (same emoji set as channels).
+model DirectMessageReaction {
+  id              String   @id @default(cuid())
+  directMessageId String
+  userId          String
+  emoji           String
+  createdAt       DateTime @default(now())
+
+  directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+  user          User          @relation("DirectMessageReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([directMessageId, userId, emoji])
+  @@index([directMessageId])
 }
 
 model DirectMessageReport {
-  id              String   @id @default(cuid())
-  directMessageId String
-  reporterUserId  String
-  reason          String
-  evidenceContent String?
-  resolvedAt      DateTime?
-  resolvedById    String?
-  resolution      String?
-  createdAt       DateTime @default(now())
+  id                     String    @id @default(cuid())
+  directMessageId        String
+  reporterUserId         String
+  reason                 String
+  evidenceContent        String?
+  // Chat revamp: snapshot of a reported attachment
+  evidenceAttachmentUrl  String?
+  evidenceAttachmentMeta Json?
+  resolvedAt             DateTime?
+  resolvedById           String?
+  resolution             String?
+  createdAt              DateTime  @default(now())
+  // Safeguarding review (2026-09-24): escalation to the platform queue,
+  // overdue alerting and evidence retention. See docs/compliance/UGC_MODERATION.md.
+  escalatedAt            DateTime?
+  escalationReason       String? // 'staff_sender' | 'safeguarding' | 'overdue'
+  overdueAlertedAt       DateTime?
+  evidencePurgedAt       DateTime?
 
   directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
   reporter      User          @relation("DirectMessageReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
@@ -1966,6 +2219,7 @@ model DirectMessageReport {
   @@index([directMessageId])
   @@index([reporterUserId])
   @@index([resolvedAt])
+  @@index([resolvedAt, createdAt])
 }
 
 model DirectMessageTranslation {
@@ -2026,6 +2280,61 @@ model Sponsor {
 
   @@index([clubId])
   @@index([clubId, displayOrder])
+}
+
+// ─── Club-admin revamp: compliance records ─────────────
+// Führungszeugnis (youth staff), Spielerpass, medical/first-aid certificates
+// and member documents without expiry (SEPA mandate, data consent).
+enum ComplianceKind {
+  FUEHRUNGSZEUGNIS
+  SPIELERPASS
+  MEDICAL_CHECK
+  VACCINATION_TETANUS
+  FIRST_AID_CERT
+  SEPA_MANDATE
+  DATA_CONSENT
+}
+
+/// club-admin revamp. Retention (§72a(5) SGB VIII, DSGVO Art. 5(1)(e)):
+/// rows are deleted in the same transaction that removes a member from the
+/// club (leave/remove) and the Führungszeugnis row when a member is offboarded
+/// from staff; ComplianceRetentionWorker sweeps anything left behind nightly
+/// (see docs/compliance/RELEASE_GATE.md). onDelete: Cascade on club and member
+/// is deliberate: erasing a club or a person erases their certificates too.
+model ComplianceRecord {
+  id           String         @id @default(cuid())
+  clubId       String
+  memberUserId String
+  kind         ComplianceKind
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  documentUrl  String?
+  note         String?        @db.VarChar(500)
+  createdById  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  club      Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  member    User  @relation("ComplianceRecordMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("ComplianceRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([clubId, memberUserId, kind])
+  @@index([clubId, kind])
+}
+
+/// club-admin revamp: last compliance reminder per member + document kind,
+/// so an admin can nudge a person at most once per 24 hours.
+model ComplianceReminder {
+  id           String         @id @default(cuid())
+  clubId       String
+  memberUserId String
+  kind         ComplianceKind
+  sentAt       DateTime       @default(now())
+
+  club   Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  member User @relation("ComplianceReminderMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, memberUserId, kind])
 }
 
 // ─── Admin V2 ───────────────────────────────────────────

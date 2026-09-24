@@ -49,6 +49,24 @@ describe('ParentHandoffService', () => {
 
       expect(out.childFirstName).toBe('Lena')
       expect(out.childDateOfBirth).toContain('2014-03-01')
+      expect(out.team).toBeNull()
+    })
+
+    it('includes the remembered team (open slots only) for an invite-path handoff', async () => {
+      const { prisma, service } = createService()
+      prisma.parentHandoff.findUnique.mockResolvedValue({ ...pending, teamId: 'team-1' })
+      prisma.user.findUnique.mockResolvedValue({ email: 'parent@example.com' })
+      prisma.team.findUnique.mockResolvedValue({
+        id: 'team-1',
+        clubId: 'club-1',
+        name: 'U14',
+        displayName: 'U14',
+        club: { id: 'club-1', name: 'SV Albatros', badgeUrl: null, primaryColor: '#1B4F9C' },
+        rosterSlots: [{ id: 'slot-1', fullName: 'Lena', position: null, jerseyNumber: null }],
+      })
+      const out = await service.getByCode('parent-1', 'AB12CD34')
+      expect(out.team?.team.id).toBe('team-1')
+      expect(out.team?.rosterSlots).toHaveLength(1)
     })
 
     it('rejects an unknown code', async () => {
@@ -231,6 +249,63 @@ describe('ParentHandoffService', () => {
 
       expect(tx.parentHandoff.updateMany).not.toHaveBeenCalled()
       expect(managedSubProfiles.createInTransaction).not.toHaveBeenCalled()
+    })
+
+    // onboarding review fix (B2): 16 is not enough to act as a guardian.
+    it('rejects a 17-year-old guardian (guardians need a DOB showing 18+)', async () => {
+      const { prisma, managedSubProfiles, service } = createService()
+      const seventeen = new Date()
+      seventeen.setFullYear(seventeen.getFullYear() - 17)
+      const tx = createRedeemTx({ email: 'parent@example.com', dateOfBirth: seventeen })
+      prisma.team.findUnique.mockResolvedValue({ id: 'team-1', clubId: 'club-1' })
+      prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+
+      const err = await service
+        .redeem('parent-1', { code: 'AB12CD34', teamJoinCode: 'T3AM9K7P2Q', rosterSlotId: 's' })
+        .catch((e) => e)
+      expect(err).toBeInstanceOf(ForbiddenException)
+      expect(err.getResponse()).toMatchObject({ code: 'GUARDIAN_UNDER_18' })
+      expect(managedSubProfiles.createInTransaction).not.toHaveBeenCalled()
+    })
+
+    it('rejects a guardian with only the legacy 16+ declaration and no DOB', async () => {
+      const { prisma, service } = createService()
+      const tx = createRedeemTx({ email: 'parent@example.com', dateOfBirth: null as never })
+      prisma.team.findUnique.mockResolvedValue({ id: 'team-1', clubId: 'club-1' })
+      prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+      await expect(
+        service.redeem('parent-1', { code: 'AB12CD34', teamJoinCode: 'T3AM9K7P2Q', rosterSlotId: 's' }),
+      ).rejects.toThrow(ForbiddenException)
+    })
+
+    // onboarding review fix (H5): the team code is optional when the handoff
+    // came from an invite and remembers its team.
+    it('redeems without a team code into the team the handoff remembers', async () => {
+      const { prisma, managedSubProfiles, service } = createService()
+      const tx = createRedeemTx()
+      prisma.parentHandoff.findUnique.mockResolvedValue({ teamId: 'team-9' })
+      prisma.team.findUnique.mockResolvedValue({ id: 'team-9', clubId: 'club-9' })
+      prisma.$transaction.mockImplementation((fn: any) => fn(tx))
+      managedSubProfiles.createInTransaction.mockResolvedValue({ user: { id: 'kid-1' } })
+
+      await service.redeem('parent-1', { code: 'AB12CD34', rosterSlotId: 'slot-1' })
+
+      expect(prisma.team.findUnique).toHaveBeenCalledWith({
+        where: { id: 'team-9' },
+        select: { id: true, clubId: true },
+      })
+      expect(managedSubProfiles.createInTransaction).toHaveBeenCalledWith(
+        tx,
+        'parent-1',
+        expect.objectContaining({ teamId: 'team-9', expectedClubId: 'club-9' }),
+      )
+    })
+
+    it('asks for a team code when the handoff has no team', async () => {
+      const { prisma, service } = createService()
+      prisma.parentHandoff.findUnique.mockResolvedValue({ teamId: null })
+      const err = await service.redeem('parent-1', { code: 'AB12CD34', rosterSlotId: 's' }).catch((e) => e)
+      expect(err.getResponse()).toMatchObject({ code: 'TEAM_CODE_REQUIRED' })
     })
 
     it('rejects a parent deleted before the lifecycle-locked activation', async () => {

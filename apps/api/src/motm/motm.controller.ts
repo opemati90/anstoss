@@ -51,7 +51,9 @@ export class MotmController {
     @CurrentUser() user: { id: string },
     @Param('clubId') clubId: string,
     @Query('season') season?: string,
+    // Kader Statistik: optional team scope.
+    @Query('teamId') teamId?: string,
   ) {
-    return this.motmService.getArchive(user.id, clubId, season)
+    return this.motmService.getArchive(user.id, clubId, season, teamId || undefined)
   }
 }

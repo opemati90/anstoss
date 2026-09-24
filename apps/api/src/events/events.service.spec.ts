@@ -10,16 +10,27 @@ import { EventsService } from './events.service'
 describe('EventsService', () => {
   let service: EventsService
   let mockPrisma: any
+  let createdRows: any[] = []
   let mockTeamsService: any
   let mockPushService: any
   let mockEventsGateway: any
   let mockChatService: any
 
   beforeEach(() => {
+    createdRows = []
     mockPrisma = {
       event: {
         create: jest.fn(),
-        findMany: jest.fn(),
+        // Series rows go in with createMany and are read back by seriesId.
+        createMany: jest.fn(async ({ data }: any) => {
+          createdRows.push(...data.map((row: any, i: number) => ({ id: `evt-${createdRows.length + i + 1}`, createdAt: new Date(), ...row })))
+          return { count: data.length }
+        }),
+        findMany: jest.fn(async (args: any) =>
+          args?.where?.seriesId && !args?.where?.id
+            ? createdRows.filter((row) => row.seriesId === args.where.seriesId)
+            : [],
+        ),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -36,15 +47,33 @@ describe('EventsService', () => {
         upsert: jest.fn(),
         groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       teamAccess: {
         // Default: caller IS on the team — short-circuits the parent
         // auto-proxy branch in upsertRsvp.
         findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }),
+        // Squad lookups by responder id: everyone who replied is in the squad
+        // unless a test says otherwise.
+        findMany: jest.fn(async (args: any) =>
+          args?.where?.userId?.in
+            ? args.where.userId.in.map((userId: string) => ({
+                teamId: args.where.teamId?.in?.[0] ?? args.where.teamId,
+                userId,
+              }))
+            : [],
+        ),
+      },
+      // Kader revamp: squadSize subtracts INACTIVE players (none by default).
+      teamMember: {
         findMany: jest.fn().mockResolvedValue([]),
       },
       guardianRelationship: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      fixtureOverlay: {
+        upsert: jest.fn().mockResolvedValue({}),
       },
       eventReminderPreference: {
         upsert: jest.fn(),
@@ -65,6 +94,9 @@ describe('EventsService', () => {
       },
       user: {
         findUnique: jest.fn().mockResolvedValue({ name: 'Player One' }),
+        findMany: jest.fn(async ({ where }: any) =>
+          (where?.id?.in ?? []).map((id: string) => ({ id, preferredLanguage: 'de' })),
+        ),
       },
     }
     mockTeamsService = {
@@ -87,6 +119,7 @@ describe('EventsService', () => {
       sendToUser: jest.fn().mockResolvedValue(undefined),
       sendToTeamLocalized: jest.fn().mockResolvedValue(undefined),
       sendToUserLocalized: jest.fn().mockResolvedValue(undefined),
+      sendToTeamRendered: jest.fn().mockResolvedValue(undefined),
     }
     mockEventsGateway = {
       emitRsvpUpdate: jest.fn().mockResolvedValue(undefined),
@@ -192,21 +225,45 @@ describe('EventsService', () => {
       expect(mockPrisma.event.create).not.toHaveBeenCalled()
     })
 
-    it('rejects recurring event ranges that would exceed the 52 occurrence cap', async () => {
-      const first = new Date('2027-01-05T17:30:00.000Z')
-      const fiftyThird = new Date('2028-01-04T17:30:00.000Z')
-
+    it('rejects a series with more than four training days a week (M4)', async () => {
       await expect(
         service.createSeries({
           title: 'Training',
           type: 'TRAINING',
-          date: first,
+          date: new Date('2027-01-05T17:30:00.000Z'),
           teamId: 'team-1',
           createdById: 'user-1',
           intervalWeeks: 1,
-          until: fiftyThird,
+          until: new Date('2027-02-05T17:30:00.000Z'),
+          weekdays: [1, 2, 3, 4, 5],
         }),
       ).rejects.toThrow(BadRequestException)
+      expect(mockPrisma.event.createMany).not.toHaveBeenCalled()
+    })
+
+    it('writes a season of Di + Do with one createMany and an explicit timeout (M4)', async () => {
+      const { events } = await service.createSeries({
+        title: null,
+        type: 'TRAINING',
+        date: new Date('2027-07-06T17:00:00.000Z'),
+        teamId: 'team-1',
+        createdById: 'user-1',
+        intervalWeeks: 1,
+        until: new Date('2028-06-30T21:59:00.000Z'),
+        weekdays: [2, 4],
+      })
+      expect(mockPrisma.event.createMany).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.event.create).not.toHaveBeenCalled()
+      expect(mockPrisma.event.createMany.mock.calls[0][0].data).toHaveLength(events.length)
+      expect(events.length).toBeGreaterThan(100)
+      // $transaction(fn, { timeout }) — not Prisma's 5 s default.
+      expect(mockPrisma.$transaction.mock.calls[0][1]).toEqual(
+        expect.objectContaining({ timeout: 20_000 }),
+      )
+      // L7: the default title is derived, not stored in the creator's language.
+      expect(mockPrisma.event.createMany.mock.calls[0][0].data[0]).toEqual(
+        expect.objectContaining({ title: 'Training', autoTitle: true }),
+      )
     })
 
     it('does not report series creation as failed when the chat notice fails after commit', async () => {
@@ -248,6 +305,7 @@ describe('EventsService', () => {
       expect(mockPrisma.event.create).toHaveBeenCalledWith({
         data: {
           title: 'Training Session',
+          autoTitle: false,
           type: 'TRAINING',
           date: data.date,
           location: 'Stadium',
@@ -280,17 +338,15 @@ describe('EventsService', () => {
       // notifyEventCreated is fire-and-forget — flush the microtask queue
       await new Promise((resolve) => setImmediate(resolve))
 
-      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledTimes(1)
-      const call = mockPushService.sendToTeamLocalized.mock.calls[0]
+      // Rendered once per reader language (sendToTeamRendered).
+      expect(mockPushService.sendToTeamRendered).toHaveBeenCalledTimes(1)
+      const call = mockPushService.sendToTeamRendered.mock.calls[0]
       expect(call[0]).toBe('team-1') // teamId
-      expect(call[1]).toBe('EVENT_CREATED') // template type
-      expect(call[2]).toMatchObject({
-        teamName: 'First XI',
-        eventType: 'match',
-        eventTitle: 'Match Day',
-      })
-      expect(call[4]).toBe('user-1') // excludeUserId = creator
-      expect(call[5]).toMatchObject({ clubId: 'club-1', category: 'events' })
+      expect(call[1]('de').body).toBe('Neuer Termin: Match Day am Mo., 01.03.')
+      expect(call[1]('en').body).toBe('New match: Match Day on Mon 01/03')
+      expect(call[1]('de').title).toContain('First XI')
+      expect(call[3]).toBe('user-1') // excludeUserId = creator
+      expect(call[4]).toMatchObject({ clubId: 'club-1', category: 'events' })
     })
   })
 
@@ -304,7 +360,7 @@ describe('EventsService', () => {
         status: 'ACTIVE',
         OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
       },
-      select: { teamId: true },
+      select: { teamId: true, phase: true },
     })
   })
 
@@ -336,7 +392,7 @@ describe('EventsService', () => {
 
       const result = await service.listUpcoming('team-1', 'user-1')
 
-      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1', expect.anything())
       expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           // Cancelled events stay in the upcoming feed until their date passes
@@ -356,6 +412,44 @@ describe('EventsService', () => {
           myRsvp: 'YES',
         }),
       )
+    })
+
+    it('uses the Kader squad rule for squadSize (players, FULL, not inactive)', async () => {
+      const eventDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      mockPrisma.event.findMany.mockResolvedValue([
+        {
+          id: 'evt-squad',
+          teamId: 'team-1',
+          clubId: 'club-1',
+          title: 'Training',
+          type: 'TRAINING',
+          date: eventDate,
+          location: null,
+          notes: null,
+          createdById: 'user-1',
+          createdAt: eventDate,
+          archivedAt: null,
+          _count: { rsvps: 0 },
+          rsvps: [],
+          team: { id: 'team-1', name: 'A-Team', _count: { access: 18 } },
+        },
+      ])
+      mockPrisma.teamMember.findMany.mockResolvedValue([
+        { teamId: 'team-1', userId: 'inactive-1' },
+      ])
+      mockPrisma.teamAccess.findMany.mockResolvedValue([
+        { teamId: 'team-1', userId: 'inactive-1', loanEndDate: null },
+      ])
+
+      const [event] = await service.listUpcoming('team-1', 'user-1')
+
+      expect(event.squadSize).toBe(17)
+      const include = mockPrisma.event.findMany.mock.calls[0][0].include
+      expect(include.team.select._count.select.access.where).toEqual({
+        status: 'ACTIVE',
+        role: 'PLAYER',
+        phase: 'FULL',
+      })
     })
 
     it('drops cancelled events from the past scope', async () => {
@@ -477,6 +571,7 @@ describe('EventsService', () => {
                       where: {
                         status: 'ACTIVE',
                         role: 'PLAYER',
+                        phase: 'FULL',
                       },
                     },
                   },
@@ -756,7 +851,7 @@ describe('EventsService', () => {
 
       const result = await service.findById('club-1', 'evt-1', 'user-1')
 
-      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1', expect.anything())
       expect(mockPrisma.event.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'evt-1', clubId: 'club-1' },
@@ -782,6 +877,7 @@ describe('EventsService', () => {
                       where: {
                         status: 'ACTIVE',
                         role: 'PLAYER',
+                        phase: 'FULL',
                       },
                     },
                   },
@@ -813,7 +909,7 @@ describe('EventsService', () => {
 
       const result = await service.findById('club-1', 'evt-1', 'player-1')
 
-      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('player-1', 'team-1')
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('player-1', 'team-1', expect.anything())
       expect(result.team).toEqual({ id: 'team-1', name: 'A-Team' })
       expect(result.teamMemberCount).toBeUndefined()
       expect(result.readiness).toBeUndefined()
@@ -867,11 +963,11 @@ describe('EventsService', () => {
 
       const result = await service.upsertRsvp('evt-1', 'user-1', 'YES')
 
-      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1', expect.anything())
       expect(mockPrisma.rsvp.upsert).toHaveBeenCalledWith({
         where: { eventId_userId: { eventId: 'evt-1', userId: 'user-1' } },
-        update: { status: 'YES', reason: null },
-        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null },
+        update: { status: 'YES', reason: null, note: null, squadDroppedAt: null },
+        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null, note: null },
       })
       expect(result.status).toBe('YES')
     })
@@ -1159,21 +1255,22 @@ describe('EventsService', () => {
       mockPrisma.event.update.mockResolvedValue({ ...baseEvent, title: 'New' })
 
       await service.update('evt-1', 'user-1', { title: 'New' })
-      expect(mockPushService.sendToTeamLocalized).not.toHaveBeenCalled()
+      expect(mockPushService.sendToTeamRendered).not.toHaveBeenCalled()
       expect(mockChatService.postSystemNotice).not.toHaveBeenCalled()
 
       const moved = new Date(baseEvent.date.getTime() + 3_600_000)
       mockPrisma.event.update.mockResolvedValue({ ...baseEvent, date: moved })
       await service.update('evt-1', 'user-1', { date: moved })
 
-      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledWith(
+      expect(mockPushService.sendToTeamRendered).toHaveBeenCalledWith(
         baseEvent.teamId,
-        'EVENT_UPDATED',
-        expect.objectContaining({ eventTitle: baseEvent.title }),
+        expect.any(Function),
         expect.objectContaining({ type: 'event_updated', eventId: 'evt-1' }),
         'user-1',
         expect.objectContaining({ category: 'events' }),
       )
+      const render = mockPushService.sendToTeamRendered.mock.calls[0][1]
+      expect(render('de').body).toContain(`Geändert: ${baseEvent.title} ist jetzt am`)
       expect(mockChatService.postSystemNotice).toHaveBeenCalledWith(
         expect.objectContaining({ teamId: baseEvent.teamId, actorId: 'user-1' }),
       )
@@ -1198,7 +1295,7 @@ describe('EventsService', () => {
 
       expect(mockPrisma.event.update).toHaveBeenCalledWith({
         where: { id: 'evt-1' },
-        data: { title: 'Updated' },
+        data: { title: 'Updated', autoTitle: false },
       })
     })
 
@@ -1213,7 +1310,7 @@ describe('EventsService', () => {
 
       expect(mockPrisma.event.update).toHaveBeenCalledWith({
         where: { id: 'evt-1' },
-        data: { title: 'New Title', location: 'New Location' },
+        data: { title: 'New Title', autoTitle: false, location: 'New Location' },
       })
     })
   })
@@ -1323,14 +1420,15 @@ describe('EventsService', () => {
       // Everyone finds out three ways: live refresh, push, and a notice in
       // the team channel.
       expect(mockEventsGateway.emitEventUpsert).toHaveBeenCalledWith('team-1', 'evt-1')
-      expect(mockPushService.sendToTeamLocalized).toHaveBeenCalledWith(
+      expect(mockPushService.sendToTeamRendered).toHaveBeenCalledWith(
         'team-1',
-        'EVENT_CANCELLED',
-        expect.objectContaining({ eventTitle: 'Training', reason: 'Pitch frozen' }),
+        expect.any(Function),
         expect.objectContaining({ type: 'event_cancelled', eventId: 'evt-1', clubId: 'club-1' }),
         'coach-2',
         expect.objectContaining({ clubId: 'club-1', category: 'events' }),
       )
+      const render = mockPushService.sendToTeamRendered.mock.calls[0][1]
+      expect(render('de').body).toMatch(/^Abgesagt: Training am .* – Pitch frozen$/)
       expect(mockChatService.postSystemNotice).toHaveBeenCalledWith(
         expect.objectContaining({
           teamId: 'team-1',

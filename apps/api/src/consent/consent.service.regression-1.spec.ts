@@ -18,10 +18,15 @@ describe('ConsentService authorization and tuple integrity', () => {
       guardianUserId: null,
       status: 'PENDING',
     }
-    const tx = { parentalConsent: { findUnique: jest.fn().mockResolvedValue(consent) } }
+    const tx = {
+      $executeRaw: jest.fn(),
+      parentalConsent: { findUnique: jest.fn().mockResolvedValue(consent) },
+    }
     const prisma = {
       parentalConsent: {
-        findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ clubId: 'club-1', teamId: 'team-1', playerUserId: 'child-1' }),
       },
       user: {
         findFirst: jest.fn().mockResolvedValue({
@@ -53,6 +58,7 @@ describe('ConsentService authorization and tuple integrity', () => {
       status: 'PENDING',
     }
     const tx = {
+      $executeRaw: jest.fn(),
       parentalConsent: {
         findUnique: jest.fn().mockResolvedValue(consent),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -61,7 +67,9 @@ describe('ConsentService authorization and tuple integrity', () => {
     }
     const prisma = {
       parentalConsent: {
-        findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ clubId: 'club-1', teamId: 'team-1', playerUserId: 'child-1' }),
       },
       user: {
         findFirst: jest.fn().mockResolvedValue({

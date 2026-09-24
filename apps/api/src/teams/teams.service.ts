@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   Optional,
@@ -10,6 +11,12 @@ import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
 import { activeTeamAccessWhere } from './active-team-access'
+import { effectiveAbsence, isSquadMember, loanedOutByTeam } from './squad-count'
+// Kader adversarial fixes (H2, M2, M5): messaging rule, duty push, youth check.
+import { resolveRosterMessaging } from './roster-messaging'
+import { formatDutyAssignedPush, resolveDutyPushLocale } from './duty-push'
+import { isYouthTeam } from '../channels/youth-team'
+import { PushService } from '../push/push.service'
 import {
   ClubCapability,
   ClubOperationalRole,
@@ -41,9 +48,14 @@ import { buildClubPermissionMap } from '@anstoss/shared'
 import { inferLinkedTeamPerspective } from '../integrations/fussball.utils'
 import { lockPlayerTeamAccess, reconcileGuardianTeamAccess } from './guardian-team-access'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
+// ── Wechselbörse review fixes (H1/L2): trial-scoped reads + roster decisions.
+import { closeLinkedJoinRequest, resolveTrialSessionScope } from '../marketplace/trial-access'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
+// First public release: no medic collection or disclosure until an Article 9
+// basis, notice, retention/deletion path, and access review are approved.
+const MEDIC_FEATURE_ENABLED = false
 
 @Injectable()
 export class TeamsService {
@@ -51,6 +63,7 @@ export class TeamsService {
     private readonly prisma: PrismaService,
     @Optional() private readonly eventEmitter?: EventEmitter2,
     private readonly clubEntitlements?: ClubEntitlementsService,
+    @Optional() private readonly pushService?: PushService,
   ) {}
 
   async listTeamGroups(clubId: string, userId: string) {
@@ -215,6 +228,14 @@ export class TeamsService {
         },
         include: { group: true },
       })
+    })
+
+    // Chat revamp (H4): provision the team's default channels at creation so
+    // the inbox never has to seed them on read.
+    this.eventEmitter?.emit('team.created', {
+      clubId,
+      teamId: team.id,
+      ageGroup: team.ageGroup ?? null,
     })
 
     if (headCoachUserId) {
@@ -639,34 +660,124 @@ export class TeamsService {
           return updated
         })
       }
-      return this.prisma.teamAccess.update({
-        where: { id: teamAccess.id },
-        data: {
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-        },
+      // Wechselbörse: a Probetraining player has TRIAL access but no club
+      // membership yet. They join through the Aufnahmeantrag (which also
+      // runs the seat check), never by a roster "accept" (L2: also when they
+      // already are a member of another team of the club).
+      const [membership, wechselTrial] = await Promise.all([
+        this.prisma.membership.findUnique({
+          where: { userId_clubId: { userId: teamAccess.userId, clubId } },
+          select: { id: true },
+        }),
+        this.prisma.trialInvite.findFirst({
+          where: {
+            clubId,
+            teamId: teamAccess.teamId,
+            status: { in: ['REQUESTED', 'PENDING', 'ACCEPTED', 'OFFERED'] },
+            freeAgentProfile: { userId: teamAccess.userId },
+          },
+          select: { id: true },
+        }),
+      ])
+      if (!membership || wechselTrial) {
+        throw new BadRequestException(
+          'This player is on a Probetraining. Offer a place in the Wechselbörse; they join via the membership application.',
+        )
+      }
+      return this.prisma.$transaction(async (tx) => {
+        // B1: TRIAL is not a seat; becoming FULL takes one.
+        if (teamAccess.role === TeamRole.PLAYER && this.clubEntitlements) {
+          await this.clubEntitlements.assertCanActivatePlayer(clubId, teamAccess.userId, tx)
+        }
+        return tx.teamAccess.update({
+          where: { id: teamAccess.id },
+          data: {
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
+          },
+        })
       })
     }
 
-    const rejected = await this.prisma.teamAccess.update({
-      where: { id: teamAccess.id },
-      data: {
-        status: TeamAccessStatus.REJECTED,
-      },
+    const rejected = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.teamAccess.update({
+        where: { id: teamAccess.id },
+        data: {
+          status: TeamAccessStatus.REJECTED,
+        },
+      })
+      // L2: a roster "reject" of a Probetraining player ends the trial the
+      // same way the Wechselbörse reject does (invite REJECTED, pending
+      // Aufnahmeantrag closed).
+      if (teamAccess.phase === TeamAccessPhase.TRIAL) {
+        const openTrials = await tx.trialInvite.findMany({
+          where: {
+            clubId,
+            teamId: teamAccess.teamId,
+            status: { in: ['REQUESTED', 'PENDING', 'ACCEPTED', 'OFFERED'] },
+            freeAgentProfile: { userId: teamAccess.userId },
+          },
+          select: { id: true },
+        })
+        for (const trial of openTrials) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${trial.id}`}))`
+          await tx.trialInvite.updateMany({
+            where: {
+              id: trial.id,
+              clubId,
+              status: { in: ['REQUESTED', 'PENDING', 'ACCEPTED', 'OFFERED'] },
+            },
+            data: { status: 'REJECTED', decidedAt: new Date(), decidedByUserId: userId },
+          })
+          await closeLinkedJoinRequest(tx, trial.id, clubId, 'REJECTED' as any, userId)
+        }
+      }
+      return row
     })
     this.eventEmitter?.emit('realtime.access.changed', { userId: teamAccess.userId })
     return rejected
   }
 
-  async assertReadableAccess(userId: string, teamId: string) {
+  /**
+   * H1 (Wechselbörse review): a Probetraining player (TRIAL access from a
+   * trial invite) reads only the invite's sessions, only while the trial
+   * window is open (until TRIAL_ACCESS_GRACE_DAYS after the last session, and
+   * never once all sessions are cancelled): pass `eventId` for an event read,
+   * or `trialFeed` for the event list (the result then carries
+   * `trialEventIds` to filter by). Roster, chat, fixtures etc. stay closed.
+   */
+  async assertReadableAccess(
+    userId: string,
+    teamId: string,
+    opts: { eventId?: string; trialFeed?: boolean } = {},
+  ): Promise<
+    Awaited<ReturnType<TeamsService['getTeamContext']>> & { trialEventIds?: string[] }
+  > {
     const access = await this.getTeamContext(userId, teamId)
 
     if (access.membership && isClubManager(access.membership.role)) {
       return access
     }
 
-    if (access.activeTeamAccess.length > 0) {
+    const fullAccess = access.activeTeamAccess.filter(
+      (entry: any) => entry.phase !== TeamAccessPhase.TRIAL,
+    )
+    if (fullAccess.length > 0) {
       return access
+    }
+
+    if (access.activeTeamAccess.length > 0) {
+      const trial = await resolveTrialSessionScope(this.prisma as any, userId, teamId)
+      if (!trial.wechsel) {
+        // Legacy member trial (join request / invite code, pending the
+        // coach's roster decision): a club member keeps team reads.
+        if (access.membership) return access
+      } else if (
+        (opts.eventId && trial.eventIds.includes(opts.eventId)) ||
+        (opts.trialFeed && trial.eventIds.length > 0)
+      ) {
+        return { ...access, trialEventIds: trial.eventIds }
+      }
     }
 
     // Parents reach the team via their kid's GuardianRelationship — they
@@ -687,6 +798,9 @@ export class TeamsService {
           {
             player: {
               teamAccess: { some: { teamId, ...activeTeamAccessWhere() } },
+              // H1: a child's Probetraining (no club membership yet) does not
+              // open the team to the parent.
+              memberships: { some: { clubId: access.team.clubId } },
             },
           },
         ],
@@ -708,6 +822,7 @@ export class TeamsService {
               ...activeTeamAccessWhere(),
             },
           },
+          memberships: { some: { clubId: access.team.clubId } },
         },
       },
       select: { id: true },
@@ -793,7 +908,7 @@ export class TeamsService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.playerUserId}))`
       const activePlayer = await tx.user.findFirst({
         where: { id: input.playerUserId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, dateOfBirth: true },
       })
       if (!activePlayer) {
         throw new BadRequestException('Player account is no longer active.')
@@ -836,6 +951,31 @@ export class TeamsService {
         existingAccess?.status === TeamAccessStatus.PENDING
       ) {
         throw new BadRequestException('Player already has access to the target team.')
+      }
+
+      // Privacy (H3): a loan must never re-admit an under-16 whose access was
+      // revoked, e.g. by a parental-consent withdrawal. Reactivating a
+      // REVOKED row needs an APPROVED consent for the TARGET team; a fresh
+      // loan needs the lending team's APPROVED consent (the age gate lets a
+      // loaned child in through that consent). Checked under the player-team
+      // locks shared with consent withdrawal/approval.
+      if (activePlayer.dateOfBirth && isUnderConsentAge(activePlayer.dateOfBirth)) {
+        const coveringTeamId =
+          existingAccess?.status === TeamAccessStatus.REVOKED ? input.targetTeamId : sourceTeamId
+        const approvedConsent = await tx.parentalConsent.findFirst({
+          where: {
+            clubId,
+            teamId: coveringTeamId,
+            playerUserId: input.playerUserId,
+            status: ParentalConsentStatus.APPROVED,
+          },
+          select: { id: true },
+        })
+        if (!approvedConsent) {
+          throw new BadRequestException(
+            'This player is under 16 and needs an approved parental consent for this team.',
+          )
+        }
       }
 
       const loanData = {
@@ -1021,7 +1161,38 @@ export class TeamsService {
     userId: string,
     input: UpdateTeamMemberInput,
   ) {
-    await this.assertManageAccess(userId, teamId)
+    // Kader revamp: a player may mark themself away (Urlaub) or back (NONE).
+    // Everything else — position, number, activity, Sperre, and any change
+    // to another member — stays coach-only.
+    const selfAbsenceOnly =
+      targetUserId === userId &&
+      input.position === undefined &&
+      input.jerseyNumber === undefined &&
+      input.operationalStatus === undefined &&
+      (input.absence === 'AWAY' || input.absence === 'NONE')
+
+    if (selfAbsenceOnly) {
+      await this.assertSelfAbsenceAccess(clubId, teamId, userId)
+    } else {
+      await this.assertManageAccess(userId, teamId)
+      await this.assertRosterMemberExists(clubId, teamId, targetUserId)
+    }
+
+    // Kader fix L2: a shirt number is unique within the team's current roster.
+    if (input.jerseyNumber !== undefined && input.jerseyNumber !== null) {
+      await this.assertJerseyNumberFree(clubId, teamId, targetUserId, input.jerseyNumber)
+    }
+
+    const absenceData =
+      input.absence !== undefined
+        ? {
+            absence: input.absence,
+            absenceUntil:
+              input.absence === 'NONE' || !input.absenceUntil ? null : new Date(input.absenceUntil),
+          }
+        : input.absenceUntil !== undefined
+          ? { absenceUntil: input.absenceUntil ? new Date(input.absenceUntil) : null }
+          : {}
 
     return this.prisma.teamMember.upsert({
       where: { teamId_userId: { teamId, userId: targetUserId } },
@@ -1034,6 +1205,7 @@ export class TeamsService {
           input.operationalStatus !== null && {
             operationalStatus: input.operationalStatus,
           }),
+        ...absenceData,
       },
       create: {
         teamId,
@@ -1041,7 +1213,72 @@ export class TeamsService {
         position: input.position ?? null,
         jerseyNumber: input.jerseyNumber ?? null,
         operationalStatus: input.operationalStatus ?? 'ACTIVE',
+        ...absenceData,
       },
+    })
+  }
+
+  /**
+   * Self-service absence: the caller must be an active player of the team
+   * (coaches setting their own status fall through to manage access), and a
+   * player cannot lift a Sperre a coach set by marking themself away or back.
+   */
+  private async assertSelfAbsenceAccess(clubId: string, teamId: string, userId: string) {
+    const ownAccess = await this.prisma.teamAccess.findFirst({
+      where: {
+        clubId,
+        teamId,
+        userId,
+        role: TeamRole.PLAYER,
+        // Kader fix L1: trialists are not squad players and cannot self-report.
+        phase: TeamAccessPhase.FULL,
+        ...activeTeamAccessWhere(),
+      },
+      select: { id: true },
+    })
+
+    if (!ownAccess) {
+      await this.assertManageAccess(userId, teamId)
+      return
+    }
+
+    const existing = await this.prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId, userId } },
+      select: { absence: true, absenceUntil: true },
+    })
+    if (effectiveAbsence(existing?.absence, existing?.absenceUntil).absence === 'SUSPENDED') {
+      throw new TeamAccessDeniedError('Only a coach can lift a suspension.')
+    }
+  }
+
+  /**
+   * Kader fix L2: another member of this team's current roster (active or
+   * pending access) already wears this number → 409 with a clear message.
+   */
+  private async assertJerseyNumberFree(
+    clubId: string,
+    teamId: string,
+    targetUserId: string,
+    jerseyNumber: number,
+  ) {
+    const holders = await this.prisma.teamMember.findMany({
+      where: { teamId, jerseyNumber, userId: { not: targetUserId } },
+      select: { userId: true },
+    })
+    if (holders.length === 0) return
+    const onRoster = await this.prisma.teamAccess.findFirst({
+      where: {
+        clubId,
+        teamId,
+        userId: { in: holders.map((holder: { userId: string }) => holder.userId) },
+        status: { in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING] },
+      },
+      select: { user: { select: { name: true } } },
+    })
+    if (!onRoster) return
+    throw new ConflictException({
+      message: `Jersey number ${jerseyNumber} is already taken in this team by ${onRoster.user?.name ?? 'another player'}.`,
+      code: 'JERSEY_NUMBER_TAKEN',
     })
   }
 
@@ -1050,7 +1287,12 @@ export class TeamsService {
     teamId: string,
     userId: string,
   ): Promise<RosterOpsSnapshot> {
-    await this.assertReadableAccess(userId, teamId)
+    const access = await this.assertReadableAccess(userId, teamId)
+    // Injury titles and return dates are health data. A player's or guardian's
+    // permission to read the roster must not disclose teammates' medic records.
+    const canViewMedic =
+      (access.membership && isClubManager(access.membership.role)) ||
+      access.activeTeamAccess.some((entry: any) => isCoachRole(entry.role))
 
     const team = await this.prisma.team.findFirst({
       where: { id: teamId, clubId },
@@ -1059,6 +1301,7 @@ export class TeamsService {
         name: true,
         displayName: true,
         squadTarget: true,
+        ageGroup: true,
       },
     })
 
@@ -1105,10 +1348,43 @@ export class TeamsService {
     const teamMemberByUserId = new Map(
       teamMemberRecords.map((member: any) => [member.userId, member]),
     )
+    const now = new Date()
 
-    const rosterEntries = accessEntries
+    // ── Kader adversarial fixes (team agent) ──────────────────────────────
+    // L5: players on an active loan from this team to another one.
+    // H2: whether the viewer may DM each member (same rule as the DM API).
+    // M5: in youth teams a Sperre reads as a neutral "Nicht verfügbar" for
+    //     everyone but the team's managers and the player themself.
+    const [loanedOut, messaging] = await Promise.all([
+      loanedOutByTeam(this.prisma, [teamId], now).then((byTeam) => byTeam.get(teamId) ?? new Map()),
+      resolveRosterMessaging(this.prisma, {
+        viewerId: userId,
+        clubId,
+        memberIds: accessEntries.map((entry: any) => entry.userId),
+        now,
+      }),
+    ])
+    const loanTargetIds = Array.from(
+      new Set(Array.from(loanedOut.values(), (loan: { teamId: string }) => loan.teamId)),
+    )
+    const loanTargets =
+      loanTargetIds.length > 0
+        ? await this.prisma.team.findMany({
+            where: { id: { in: loanTargetIds } },
+            select: { id: true, name: true, displayName: true },
+          })
+        : []
+    const loanTargetName = new Map(
+      (loanTargets ?? []).map((target: any) => [target.id, target.displayName || target.name]),
+    )
+    const maskSuspension = isYouthTeam(team.ageGroup) && !canViewMedic
+
+    const rosterEntriesWithLoan = accessEntries
       .map((entry: any) => {
         const member = teamMemberByUserId.get(entry.userId)
+        const absence = effectiveAbsence(member?.absence, member?.absenceUntil, now)
+        const loan = entry.role === TeamRole.PLAYER ? loanedOut.get(entry.userId) : undefined
+        const dm = messaging.get(entry.userId)
         return {
           id: entry.id,
           userId: entry.userId,
@@ -1120,32 +1396,59 @@ export class TeamsService {
           position: member?.position ?? null,
           jerseyNumber: member?.jerseyNumber ?? null,
           operationalStatus: member?.operationalStatus ?? 'ACTIVE',
+          ...(maskSuspension && absence.absence === 'SUSPENDED' && entry.userId !== userId
+            ? { absence: 'UNAVAILABLE' as const, absenceUntil: absence.absenceUntil }
+            : absence),
+          loanEndDate: entry.loanEndDate ?? null,
           createdAt: entry.createdAt.toISOString(),
           loanedFromTeamId: entry.loanedFromTeamId,
           loanedFromTeamName: entry.loanedFromTeam
             ? entry.loanedFromTeam.displayName || entry.loanedFromTeam.name
             : null,
+          loanedOutToTeamName: loan ? (loanTargetName.get(loan.teamId) ?? null) : null,
+          loanedOutUntil: loan?.loanEndDate ? new Date(loan.loanEndDate).toISOString() : null,
+          canMessage: dm?.canMessage ?? false,
+          messageBlockedReason: dm ? dm.reason : 'AGE_UNVERIFIED',
         }
       })
       .sort(compareRosterEntries)
 
-    const [injuryReports, dutyAssignments] = await Promise.all([
-      this.prisma.injuryReport.findMany({
-        where: {
-          clubId,
-          teamId,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              avatarUrl: true,
+    // One squad number (players only, FULL, ACTIVE, not INACTIVE) — the same
+    // rule countSquadByTeam applies to event squadSize.
+    const squadCount = new Set(
+      rosterEntriesWithLoan
+        .filter((entry) =>
+          isSquadMember({ ...entry, loanedOut: loanedOut.has(entry.userId) }, now),
+        )
+        .map((entry) => entry.userId),
+    ).size
+    // A loan that has ended no longer puts the player on this team, even
+    // before the expiry worker revokes the access row.
+    const rosterEntries = rosterEntriesWithLoan
+      .filter(
+        (entry) => !(entry.loanEndDate && new Date(entry.loanEndDate).getTime() <= now.getTime()),
+      )
+      .map(({ loanEndDate: _loanEndDate, ...entry }) => entry)
+
+    const [injuryReports, dutyAssignments, viewerChildIds] = await Promise.all([
+      MEDIC_FEATURE_ENABLED && canViewMedic
+        ? this.prisma.injuryReport.findMany({
+            where: {
+              clubId,
+              teamId,
             },
-          },
-        },
-        orderBy: [{ updatedAt: 'desc' }],
-      }),
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+            orderBy: [{ updatedAt: 'desc' }],
+          })
+        : Promise.resolve([]),
       this.prisma.teamDutyAssignment.findMany({
         where: {
           clubId,
@@ -1162,7 +1465,18 @@ export class TeamsService {
         },
         orderBy: [{ updatedAt: 'desc' }],
       }),
+      // M2: parents see (and may tick off) their linked child's duty.
+      this.getGuardianChildIds(clubId, userId),
     ])
+    const withViewerRelation = (assignment: any) => ({
+      ...serializeDutyAssignment(assignment),
+      viewerRelation:
+        assignment.assignedUserId === userId
+          ? ('SELF' as const)
+          : viewerChildIds.has(assignment.assignedUserId)
+            ? ('CHILD' as const)
+            : null,
+    })
 
     return {
       team: {
@@ -1170,6 +1484,7 @@ export class TeamsService {
         displayName: team.displayName || team.name,
         squadTarget: team.squadTarget,
       },
+      squadCount,
       squad: rosterEntries.filter(
         (entry) =>
           entry.phase === TeamAccessPhase.FULL &&
@@ -1210,11 +1525,11 @@ export class TeamsService {
       kit: {
         pending: dutyAssignments
           .filter((assignment: any) => assignment.status === 'PENDING')
-          .map(serializeDutyAssignment),
+          .map(withViewerRelation),
         recent: dutyAssignments
           .filter((assignment: any) => assignment.status !== 'PENDING')
           .slice(0, 6)
-          .map(serializeDutyAssignment),
+          .map(withViewerRelation),
       },
     }
   }
@@ -1225,6 +1540,9 @@ export class TeamsService {
     actorUserId: string,
     input: CreateInjuryReportInput,
   ) {
+    if (!MEDIC_FEATURE_ENABLED) {
+      throw new NotFoundException('Medic feature is unavailable')
+    }
     await this.assertManageAccess(actorUserId, teamId)
     await this.assertRosterMemberExists(clubId, teamId, input.userId)
 
@@ -1261,6 +1579,9 @@ export class TeamsService {
     actorUserId: string,
     input: UpdateInjuryReportInput,
   ) {
+    if (!MEDIC_FEATURE_ENABLED) {
+      throw new NotFoundException('Medic feature is unavailable')
+    }
     await this.assertManageAccess(actorUserId, teamId)
 
     const existing = await this.prisma.injuryReport.findFirst({
@@ -1333,24 +1654,34 @@ export class TeamsService {
       orderBy: [{ user: { name: 'asc' } }],
     })
 
-    const eligibilityMembers = await this.prisma.teamMember.findMany({
-      where: {
-        teamId,
-        userId: {
-          in: eligibleEntries.map((entry: any) => entry.userId),
+    // Kader fix M2: all profiles, not only the non-INACTIVE ones — filtering
+    // them out in the query made an INACTIVE player look profile-less and
+    // therefore eligible. Skipped: INACTIVE, anyone whose effective absence
+    // is not NONE (Urlaub / Sperre), players loaned IN from another team and
+    // players currently loaned OUT to another team.
+    const now = new Date()
+    const [eligibilityMembers, loanedOut] = await Promise.all([
+      this.prisma.teamMember.findMany({
+        where: {
+          teamId,
+          userId: {
+            in: eligibleEntries.map((entry: any) => entry.userId),
+          },
         },
-        operationalStatus: {
-          not: 'INACTIVE',
-        },
-      },
-    })
+      }),
+      loanedOutByTeam(this.prisma, [teamId], now).then((byTeam) => byTeam.get(teamId) ?? new Map()),
+    ])
 
     const eligibilityByUserId = new Map(
       eligibilityMembers.map((member: any) => [member.userId, member]),
     )
     const eligibleRoster = eligibleEntries.filter((entry: any) => {
+      if (entry.loanedFromTeamId) return false
+      if (loanedOut.has(entry.userId)) return false
       const member = eligibilityByUserId.get(entry.userId)
-      return !member || member.operationalStatus !== 'INACTIVE'
+      if (!member) return true
+      if (member.operationalStatus === 'INACTIVE') return false
+      return effectiveAbsence(member.absence, member.absenceUntil, now).absence === 'NONE'
     })
 
     if (eligibleRoster.length === 0) {
@@ -1394,7 +1725,68 @@ export class TeamsService {
       },
     })
 
+    // M2: tell the assignee. Best-effort: a failed push never undoes the rota.
+    await this.notifyDutyAssigned(clubId, teamId, assignment)
+
     return serializeDutyAssignment(assignment)
+  }
+
+  private async notifyDutyAssigned(
+    clubId: string,
+    teamId: string,
+    assignment: { id: string; assignedUserId: string; kind: string; dueDate: Date | null },
+  ) {
+    if (!this.pushService) return
+    try {
+      const [recipient, team] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: assignment.assignedUserId },
+          select: { preferredLanguage: true },
+        }),
+        this.prisma.team.findUnique({
+          where: { id: teamId },
+          select: { name: true, displayName: true },
+        }),
+      ])
+      const { title, body } = formatDutyAssignedPush(
+        {
+          kind: assignment.kind,
+          teamName: team?.displayName || team?.name || '',
+          dueDate: assignment.dueDate ?? null,
+        },
+        resolveDutyPushLocale(recipient?.preferredLanguage),
+      )
+      await this.pushService.sendToUser(
+        assignment.assignedUserId,
+        title,
+        body,
+        { kind: 'TEAM_DUTY_ASSIGNED', clubId, teamId, dutyId: assignment.id },
+        { clubId, category: 'events' },
+      )
+    } catch {
+      // Delivery problems are logged by the push service; the rota stands.
+    }
+  }
+
+  /**
+   * Children the user is the linked guardian of in this club: a guardian
+   * relationship naming the child, or the child's managing account.
+   */
+  private async getGuardianChildIds(clubId: string, userId: string): Promise<Set<string>> {
+    const [links, managed] = await Promise.all([
+      this.prisma.guardianRelationship.findMany({
+        where: { clubId, parentUserId: userId, playerUserId: { not: null } },
+        select: { playerUserId: true },
+      }),
+      this.prisma.user.findMany({
+        where: { managedById: userId, deletedAt: null },
+        select: { id: true },
+      }),
+    ])
+    return new Set<string>([
+      ...(links ?? []).map((link: any) => link.playerUserId as string).filter(Boolean),
+      ...(managed ?? []).map((child: any) => child.id as string),
+    ])
   }
 
   async updateTeamDuty(
@@ -1404,8 +1796,6 @@ export class TeamsService {
     actorUserId: string,
     input: UpdateTeamDutyInput,
   ) {
-    await this.assertManageAccess(actorUserId, teamId)
-
     const existing = await this.prisma.teamDutyAssignment.findFirst({
       where: {
         id: dutyId,
@@ -1415,11 +1805,37 @@ export class TeamsService {
     })
 
     if (!existing) {
+      // Same answer for "missing" and "not yours" would need the access check
+      // first; managers get the 404, everyone else the access error below.
+      await this.assertManageAccess(actorUserId, teamId)
       throw new NotFoundException('Team duty assignment not found')
     }
 
-    const assignment = await this.prisma.teamDutyAssignment.update({
-      where: { id: dutyId },
+    // Kader revamp (Aufgaben): the assignee — or their linked guardian (M2) —
+    // may tick off the duty as done. Skipping, reopening and editing others'
+    // duties stay coach-only.
+    const completionOnly =
+      existing.status === 'PENDING' && input.status === 'COMPLETED' && input.notes === undefined
+    const ownCompletion =
+      completionOnly &&
+      (existing.assignedUserId === actorUserId ||
+        (await this.getGuardianChildIds(clubId, actorUserId)).has(existing.assignedUserId))
+    if (ownCompletion) {
+      // Only while the assignee is still on the team; a coach's skip is never
+      // overwritten (the compare-and-set below).
+      const stillOnTeam = await this.prisma.teamAccess.findFirst({
+        where: { clubId, teamId, userId: existing.assignedUserId, ...activeTeamAccessWhere() },
+        select: { id: true },
+      })
+      if (!stillOnTeam) await this.assertManageAccess(actorUserId, teamId)
+    } else {
+      await this.assertManageAccess(actorUserId, teamId)
+    }
+
+    // Kader fix M3: compare-and-set on the status we authorised against, so a
+    // coach's skip and a player's "Erledigt" racing each other cannot both win.
+    const updated = await this.prisma.teamDutyAssignment.updateMany({
+      where: { id: dutyId, clubId, teamId, status: existing.status },
       data: {
         status: input.status,
         ...(input.notes !== undefined && {
@@ -1427,6 +1843,16 @@ export class TeamsService {
         }),
         completedAt: input.status === 'COMPLETED' ? new Date() : null,
       },
+    })
+    if (updated.count === 0) {
+      throw new ConflictException({
+        message: 'This duty was changed in the meantime. Reload and try again.',
+        code: 'DUTY_CHANGED',
+      })
+    }
+
+    const assignment = await this.prisma.teamDutyAssignment.findUnique({
+      where: { id: dutyId },
       include: {
         assignedUser: {
           select: {
@@ -2148,4 +2574,12 @@ function serializeDutyAssignment(assignment: any) {
         }
       : undefined,
   }
+}
+
+/** Privacy (H3): under the GDPR Art. 8 consent age (16) on today's date. */
+function isUnderConsentAge(dateOfBirth: Date, today = new Date()): boolean {
+  let age = today.getFullYear() - dateOfBirth.getFullYear()
+  const m = today.getMonth() - dateOfBirth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < dateOfBirth.getDate())) age--
+  return age < 16
 }

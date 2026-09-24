@@ -7,7 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
-import { resolveLocale, type Locale } from '../i18n/translations'
+import { INTL_LOCALE_TAG, resolveLocale, type Locale } from '../i18n/translations'
+import { eventTitleFor } from './event-copy'
 
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000
 const BATCH_SIZE = 100
@@ -57,6 +58,10 @@ export class EventReminderWorker implements OnModuleInit, OnModuleDestroy {
           select: {
             id: true,
             title: true,
+            type: true,
+            opponent: true,
+            homeAway: true,
+            autoTitle: true,
             date: true,
             location: true,
             clubId: true,
@@ -84,7 +89,8 @@ export class EventReminderWorker implements OnModuleInit, OnModuleDestroy {
         const { title, body } = formatPush(
           'EVENT_REMINDER',
           {
-            eventTitle: pref.event.title,
+            // Derived titles ("Heimspiel gegen X") in the reader's language.
+            eventTitle: eventTitleFor(pref.event, locale),
             timeUntil,
             location: pref.event.location ?? undefined,
           },
@@ -115,36 +121,16 @@ export class EventReminderWorker implements OnModuleInit, OnModuleDestroy {
   }
 }
 
-function formatTimeUntil(date: Date, locale: Locale): string {
-  const diffMs = date.getTime() - Date.now()
-  const diffMinutes = Math.round(diffMs / 60000)
-
-  const now: Record<Locale, string> = {
-    de: 'jetzt',
-    en: 'now',
-    fr: 'maintenant',
-    it: 'adesso',
-    pt: 'agora',
-  }
-  // i18next-free relative phrasing incl. the preposition ("in"/"dans"/"tra"/"em").
-  const inMinutes: Record<Locale, (n: number) => string> = {
-    de: (n) => `in ${n} Min.`,
-    en: (n) => `in ${n} min`,
-    fr: (n) => `dans ${n} min`,
-    it: (n) => `tra ${n} min`,
-    pt: (n) => `em ${n} min`,
-  }
-  const inHours: Record<Locale, (n: number) => string> = {
-    de: (n) => `in ${n} Std.`,
-    en: (n) => (n === 1 ? 'in 1 hour' : `in ${n} hours`),
-    fr: (n) => (n === 1 ? 'dans 1 heure' : `dans ${n} heures`),
-    it: (n) => (n === 1 ? 'tra 1 ora' : `tra ${n} ore`),
-    pt: (n) => (n === 1 ? 'em 1 hora' : `em ${n} horas`),
-  }
-
-  if (diffMinutes <= 0) return now[locale]
-  if (diffMinutes < 60) return inMinutes[locale](diffMinutes)
-  return inHours[locale](Math.round(diffMinutes / 60))
+/**
+ * Relative "in 20 minutes" / "dans 2 heures" / "20 dakika sonra" in the
+ * reader's language via Intl.RelativeTimeFormat (native phrasing and plurals).
+ */
+export function formatTimeUntil(date: Date, locale: Locale, now: number = Date.now()): string {
+  const diffMinutes = Math.round((date.getTime() - now) / 60000)
+  const rtf = new Intl.RelativeTimeFormat(INTL_LOCALE_TAG[locale], { numeric: 'auto' })
+  if (diffMinutes <= 0) return rtf.format(0, 'second')
+  if (diffMinutes < 60) return rtf.format(diffMinutes, 'minute')
+  return rtf.format(Math.round(diffMinutes / 60), 'hour')
 }
 
 function resolveInterval() {

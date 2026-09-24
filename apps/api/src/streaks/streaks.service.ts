@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { type StreaksResponse } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { distinctInOrder, isoWeekKey, weekStreaks } from './streak-math'
@@ -22,27 +22,56 @@ export class StreaksService {
    * Returns the caller's current + longest run for each, plus a club
    * leaderboard ranked by current attendance streak.
    */
-  async getStreaks(clubId: string, userId: string): Promise<StreaksResponse> {
+  async getStreaks(clubId: string, userId: string, teamId?: string): Promise<StreaksResponse> {
     const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000)
+
+    // Team scope: the team must belong to this club (the caller's club
+    // membership is enforced by the controller guard). The leaderboard then
+    // lists the team's active members instead of every club member.
+    if (teamId) {
+      const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId }, select: { id: true } })
+      if (!team) throw new NotFoundException('Team not found')
+    }
 
     const [events, memberships, fixtures] = await Promise.all([
       this.prisma.event.findMany({
-        where: { clubId, date: { gte: since } },
+        where: { clubId, ...(teamId ? { teamId } : {}), date: { gte: since } },
         select: {
           date: true,
           rsvps: { where: { status: 'YES' }, select: { userId: true } },
         },
         orderBy: { date: 'asc' },
       }),
-      this.prisma.membership.findMany({
-        where: { clubId },
-        select: {
-          userId: true,
-          user: { select: { id: true, name: true, avatarUrl: true } },
-        },
-      }),
+      teamId
+        ? this.prisma.teamAccess
+            .findMany({
+              where: {
+                clubId,
+                teamId,
+                status: 'ACTIVE',
+                phase: 'FULL',
+                role: { in: ['PLAYER', 'HEAD_COACH', 'ASSISTANT_COACH'] },
+                OR: [{ loanEndDate: null }, { loanEndDate: { gt: new Date() } }],
+              },
+              select: {
+                userId: true,
+                user: { select: { id: true, name: true, avatarUrl: true } },
+              },
+            })
+            .then((rows) => {
+              // One row per person (a playing coach has two access rows).
+              const seen = new Set<string>()
+              return rows.filter((row) => (seen.has(row.userId) ? false : (seen.add(row.userId), true)))
+            })
+        : this.prisma.membership.findMany({
+            where: { clubId },
+            select: {
+              userId: true,
+              user: { select: { id: true, name: true, avatarUrl: true } },
+            },
+          }),
       this.prisma.importedFixture.findMany({
-        where: { clubId, status: 'FINISHED', kickoffAt: { gte: since } },
+        where: { clubId, ...(teamId ? { teamId } : {}), status: 'FINISHED', kickoffAt: { gte: since } },
         select: { id: true, kickoffAt: true },
         orderBy: { kickoffAt: 'asc' },
       }),
@@ -142,6 +171,7 @@ export class StreaksService {
         lastActivityAt: new Date(myLastActivity ?? Date.now()).toISOString(),
       },
       leaderboard,
+      ...(teamId ? { teamId } : {}),
     }
   }
 }

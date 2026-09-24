@@ -14,12 +14,15 @@ describe('TeamsService realtime access change events', () => {
       role: TeamRole.PLAYER,
       team: {},
     }
-    const prisma = {
+    const prisma: any = {
       teamAccess: {
         findFirst: jest.fn().mockResolvedValue(access),
         update: jest.fn().mockResolvedValue({ ...access, status: TeamAccessStatus.REJECTED }),
       },
+      // Wechselbörse review L2: the reject also closes an open trial invite.
+      trialInvite: { findMany: jest.fn().mockResolvedValue([]) },
     }
+    prisma.$transaction = jest.fn(async (fn: (tx: unknown) => unknown) => fn(prisma))
     const events = { emit: jest.fn() }
     const service = new TeamsService(prisma as never, events as never)
     jest.spyOn(service as any, 'assertManageAccess').mockResolvedValue(undefined)

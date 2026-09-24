@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { randomBytes } from 'crypto'
@@ -15,6 +16,9 @@ import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { lockGuardianTeamAccess, lockPlayerTeamAccess } from '../teams/guardian-team-access'
 import { buildInviteEmail, buildWelcomeEmail, resolveEmailLocale } from '../email/email-content'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
+// Safeguarding review (M3 on invite redemption): third-party guardian only.
+import { assertAcceptableGuardianEmail } from '../consent/guardian-email'
+import { PushService } from '../push/push.service'
 import {
   getAge,
   InviteDeliveryChannel,
@@ -43,6 +47,7 @@ export class InvitesService {
     private readonly teamsService: TeamsService,
     private readonly channelsService: ChannelsService,
     private readonly clubEntitlements?: ClubEntitlementsService,
+    @Optional() private readonly push?: PushService,
   ) {}
 
   async create(
@@ -520,7 +525,10 @@ export class InvitesService {
             })
           }
           if (request?.status === 'APPROVED') {
-            throw new ConflictException('You already belong to this club')
+            throw new ConflictException({
+              message: 'You already belong to this club',
+              code: 'ALREADY_MEMBER',
+            })
           }
           await tx.joinRequest.upsert({
             where: { clubId_userId: { clubId: current.clubId, userId } },
@@ -561,7 +569,19 @@ export class InvitesService {
   }
 
   async redeem(code: string, userId: string, input: RedeemInviteInput = {}) {
-    const invite = await this.validate(code)
+    const invite = await this.validate(code).catch(async (err: unknown) => {
+      // Onboarding review fix (M9): the same person opening a link they
+      // already used is a member, not an error. Say so with a stable code so
+      // the app opens the club.
+      const used = await this.prisma.invite.findFirst({
+        where: { code: { in: [code, code.toUpperCase()] }, acceptedByUserId: userId },
+        select: { id: true },
+      })
+      if (used) {
+        throw new ConflictException({ message: 'You already belong to this club', code: 'ALREADY_MEMBER' })
+      }
+      throw err
+    })
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -596,6 +616,27 @@ export class InvitesService {
 
       if (invite.role === TeamRole.PLAYER && !user.dateOfBirth) {
         throw new BadRequestException('Date of birth is required to join as a player')
+      }
+
+      // Onboarding review fix (M3): under 13 never gets an own account,
+      // whichever path it comes through (invite or Verein finden).
+      if (user.dateOfBirth && getAge(user.dateOfBirth) < 13) {
+        throw new ForbiddenException({
+          message: 'Children under 13 are set up by a parent or guardian',
+          code: 'UNDER_13',
+        })
+      }
+
+      // Onboarding review fix (B2): joining as a parent is a guardian action
+      // and needs an 18+ DOB on the account (not the legacy 16+ declaration).
+      if (
+        invite.role === TeamRole.PARENT &&
+        (!user.dateOfBirth || getAge(user.dateOfBirth) < 18)
+      ) {
+        throw new ForbiddenException({
+          message: 'A parent or guardian must be at least 18',
+          code: 'GUARDIAN_UNDER_18',
+        })
       }
 
       const isUnder16 = user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : false
@@ -837,6 +878,12 @@ export class InvitesService {
     if (!guardianEmail) {
       throw new BadRequestException('Guardian email is required for under-16 player access')
     }
+    // Safeguarding review: the child types this email. It may not be their
+    // own, the inviter's, or a club staff member's (a coach cannot consent).
+    await assertAcceptableGuardianEmail(this.prisma, invite.clubId, guardianEmail, {
+      playerEmail: user.email,
+      requestedByUserId: invite.createdById ?? null,
+    })
 
     const childName = input.childName?.trim() || invite.childName || user.name
     const approvalExpiresAt = new Date()
@@ -956,6 +1003,14 @@ export class InvitesService {
         },
       })
     }
+    // Safeguarding review: a guardian with an account also gets a push. The
+    // consent stays PENDING until they approve.
+    await this.notifyGuardianAccount(guardianEmail, {
+      clubId: invite.clubId,
+      clubName: invite.club?.name ?? '',
+      teamName: invite.team?.displayName || invite.team?.name || '',
+      childName,
+    }).catch(() => undefined)
 
     return {
       status: 'pending_parent_approval',
@@ -964,6 +1019,24 @@ export class InvitesService {
       team: invite.team,
       club: invite.club,
     }
+  }
+
+  private async notifyGuardianAccount(
+    guardianEmail: string,
+    data: { clubId: string; clubName: string; teamName: string; childName: string },
+  ) {
+    if (!this.push) return
+    const guardian = await this.prisma.user.findFirst({
+      where: { email: { equals: guardianEmail, mode: 'insensitive' }, deletedAt: null },
+      select: { id: true },
+    })
+    if (!guardian) return
+    await this.push.sendToUserLocalized(
+      guardian.id,
+      'CONSENT_REQUESTED',
+      { clubName: data.clubName, childName: data.childName, teamName: data.teamName },
+      { type: 'consent_requested', clubId: data.clubId },
+    )
   }
 
   private async redeemParentApproval(
@@ -992,6 +1065,19 @@ export class InvitesService {
       throw new BadRequestException(
         'This approval link was sent to a different email address. Please sign in with the correct account.',
       )
+    }
+
+    // Onboarding review fix (B2): approving for a child needs an adult
+    // guardian account (DOB on file, 18+), not the legacy 16+ declaration.
+    const guardian = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { dateOfBirth: true },
+    })
+    if (!guardian?.dateOfBirth || getAge(guardian.dateOfBirth) < 18) {
+      throw new ForbiddenException({
+        message: 'A guardian must be at least 18',
+        code: 'GUARDIAN_UNDER_18',
+      })
     }
 
     const consent = invite.parentalConsent

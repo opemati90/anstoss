@@ -1,7 +1,7 @@
 import { formatPush } from './push.templates'
 import type { Locale } from '../i18n/translations'
 
-const LOCALES: Locale[] = ['de', 'en', 'fr', 'it', 'pt']
+const LOCALES: Locale[] = ['de', 'en', 'fr', 'it', 'pt', 'tr']
 
 describe('formatPush localization', () => {
   it('localizes the contribution-due notification across all locales', () => {
@@ -13,10 +13,11 @@ describe('formatPush localization', () => {
     }
     const expected: Record<Locale, { title: string; bodyHas: string }> = {
       de: { title: 'FC Lichtenberg: Beitrag fällig', bodyHas: 'fällig am' },
-      en: { title: 'FC Lichtenberg: contribution due', bodyHas: 'due' },
+      en: { title: 'FC Lichtenberg: fee due', bodyHas: 'due' },
       fr: { title: 'FC Lichtenberg : cotisation à régler', bodyHas: 'échéance' },
-      it: { title: 'FC Lichtenberg: contributo da pagare', bodyHas: 'scadenza' },
-      pt: { title: 'FC Lichtenberg: contribuição em aberto', bodyHas: 'vence' },
+      it: { title: 'FC Lichtenberg: quota da pagare', bodyHas: 'scadenza' },
+      pt: { title: 'FC Lichtenberg: quota por pagar', bodyHas: 'até' },
+      tr: { title: 'FC Lichtenberg: aidat ödemesi', bodyHas: 'son ödeme tarihi' },
     }
     for (const l of LOCALES) {
       const out = formatPush('CONTRIBUTION_DUE', data, l)
@@ -40,7 +41,7 @@ describe('formatPush localization', () => {
       'fr',
     )
     expect(accepted.title).toContain('a accepté')
-    expect(accepted.body).toContain('activer')
+    expect(accepted.body).toContain('confirmée')
 
     const declined = formatPush(
       'TRIAL_RESPONSE',
@@ -64,9 +65,11 @@ describe('formatPush localization', () => {
   })
 
   it('localizes goal + full-time titles, passes scoreline through', () => {
-    expect(formatPush('GOAL', { scoreline: 'A 1–0 B' }, 'pt').title).toBe('⚽ Golo!')
+    expect(formatPush('GOAL', { scoreline: 'A 1–0 B' }, 'pt').title).toBe('Golo!')
+    expect(formatPush('GOAL', { scoreline: 'A 1–0 B' }, 'tr').title).toBe('Gol!')
     expect(formatPush('GOAL', { scoreline: 'A 1–0 B' }, 'pt').body).toBe('A 1–0 B')
-    expect(formatPush('FULL_TIME', { scoreline: 'A 1–0 B' }, 'it').title).toBe('Fine partita')
+    expect(formatPush('FULL_TIME', { scoreline: 'A 1–0 B' }, 'it').title).toBe('Fischio finale')
+    expect(formatPush('FULL_TIME', { scoreline: 'A 1–0 B' }, 'tr').title).toBe('Maç sona erdi')
   })
 
   it('localizes join-request + welcome notifications', () => {
@@ -76,5 +79,43 @@ describe('formatPush localization', () => {
 
     const welcome = formatPush('JOIN_APPROVED', { clubName: 'FCL' }, 'pt')
     expect(welcome.title).toBe('Bem-vindo ao FCL!')
+  })
+
+  it('renders Turkish copy without suffixes glued to variables', () => {
+    const join = formatPush('JOIN_REQUEST', { userName: 'Tim Weber', clubName: 'SV Albatros' }, 'tr')
+    expect(join.title).toBe('Yeni üyelik başvurusu')
+    expect(join.body).toBe('Tim Weber, SV Albatros kulübüne katılmak istiyor')
+    const offer = formatPush('TRIAL_OFFER', { clubName: 'SV Albatros', teamName: 'U19' }, 'tr')
+    expect(offer.body).toContain('lisans başvurusu')
+    const rsvp = formatPush(
+      'RSVP_UPDATE',
+      { userName: 'Lukas', status: 'YES', eventTitle: 'Antrenman' },
+      'tr',
+    )
+    expect(rsvp.body).toBe('Katılıyor · Antrenman')
+  })
+
+  it('localizes RSVP answers instead of leaking the enum', () => {
+    const body = (l: Locale) =>
+      formatPush('RSVP_UPDATE', { userName: 'Tim', status: 'NO', eventTitle: 'Training' }, l).body
+    expect(body('de')).toBe('Absage · Training')
+    expect(body('en')).toBe('Not going · Training')
+    for (const l of LOCALES) expect(body(l)).not.toMatch(/^NO /)
+  })
+
+  it('keeps emoji out of every title', () => {
+    const emoji = /\p{Extended_Pictographic}/u
+    const samples = {
+      EVENT_CREATED: { teamName: 'U17', eventType: 'training', eventTitle: 'Training', date: 'Sa., 04.10.' },
+      EVENT_UPDATED: { teamName: 'U17', eventTitle: 'Training', date: 'Sa., 04.10.' },
+      EVENT_CANCELLED: { teamName: 'U17', eventTitle: 'Training', date: 'Sa., 04.10.', reason: '' },
+      EVENT_REMINDER: { eventTitle: 'Training', timeUntil: 'in 1 Stunde' },
+      GOAL: { scoreline: 'A 1–0 B' },
+    } as const
+    for (const l of LOCALES) {
+      for (const [type, data] of Object.entries(samples)) {
+        expect(formatPush(type as keyof typeof samples, data as never, l).title).not.toMatch(emoji)
+      }
+    }
   })
 })

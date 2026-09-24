@@ -12,7 +12,10 @@ import {
 } from '@nestjs/common'
 import {
   MembershipRole,
+  childrenOverviewQuerySchema,
   completeOnboardingSchema,
+  memberExportQuerySchema,
+  memberListQuerySchema,
   offboardClubMemberSchema,
   parentHandoffSchema,
   updateOperationalRolesSchema,
@@ -20,11 +23,13 @@ import {
   updateProfileSchema,
 } from '@anstoss/shared'
 import { UsersService } from './users.service'
+import { MemberExportService } from './member-export'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { RequireRole, RolesGuard } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { R2Provider } from '../assets/r2.provider'
+import { AllowWithoutConsent } from '../auth/age-gate.guard'
 
 @Controller()
 @UseGuards(ClerkAuthGuard)
@@ -32,11 +37,13 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly r2: R2Provider,
+    private readonly memberExport: MemberExportService,
   ) {}
 
   /**
    * GET /me — current user's profile + memberships.
    */
+  @AllowWithoutConsent()
   @Get('me')
   async getMe(@CurrentUser() user: { id: string }) {
     return this.usersService.getMe(user.id)
@@ -45,6 +52,7 @@ export class UsersController {
   /**
    * PATCH /me — update profile (name, avatar).
    */
+  @AllowWithoutConsent()
   @Patch('me')
   @RateLimit('write')
   async updateProfile(
@@ -62,6 +70,7 @@ export class UsersController {
   /**
    * POST /me/onboarding — role-dispatched onboarding completion.
    */
+  @AllowWithoutConsent()
   @Post('me/onboarding')
   @RateLimit('write')
   async completeOnboarding(
@@ -76,6 +85,7 @@ export class UsersController {
    * POST /me/parent-handoff — under-16 sign-up: email the guardian an invite to
    * set the child up. Best-effort; the client signs the child out afterwards.
    */
+  @AllowWithoutConsent()
   @Post('me/parent-handoff')
   @RateLimit('write')
   async parentHandoff(
@@ -89,6 +99,7 @@ export class UsersController {
   /**
    * POST /me/avatar/presign — get a presigned URL for avatar upload.
    */
+  @AllowWithoutConsent()
   @Post('me/avatar/presign')
   @RateLimit('write')
   async presignAvatar(
@@ -121,9 +132,40 @@ export class UsersController {
     @CurrentUser() user: { id: string },
     @Param('clubId') clubId: string,
     @Query('teamId') teamId?: string,
+    @Query() rawQuery?: Record<string, string | undefined>,
   ) {
+    // club-admin revamp: `limit` opts into the paginated envelope
+    // ({ items, total, counts }); without it the legacy array is returned.
+    if (!teamId && rawQuery?.limit !== undefined) {
+      const query = memberListQuerySchema.parse({
+        limit: rawQuery.limit,
+        offset: rawQuery.offset,
+        filter: rawQuery.filter,
+        q: rawQuery.q,
+      })
+      return this.usersService.listClubMembersPage(clubId, user.id, query)
+    }
     return this.usersService.listClubMembers(clubId, user.id, teamId)
   }
+
+  // ── club-admin review fixes (H1/H2): member export ──
+  // Declared before `members/:userId` so "export" is never read as a userId
+  // (Nest matches routes in declaration order within a controller, and
+  // UsersModule registers before AdminInboxModule).
+  /** GET /clubs/:clubId/members/export — ADMIN only, audited, emails opt-in. */
+  @Get('clubs/:clubId/members/export')
+  @UseGuards(RolesGuard)
+  @RequireRole(MembershipRole.ADMIN)
+  @RateLimit('write')
+  async exportMembers(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Query() rawQuery?: Record<string, string | undefined>,
+  ) {
+    const query = memberExportQuerySchema.parse({ includeEmails: rawQuery?.includeEmails })
+    return this.memberExport.exportMembers(clubId, user.id, { includeEmails: query.includeEmails })
+  }
+  // ── end member export ──
 
   /** Privacy-safe, server-side club directory for DMs and member pickers. */
   @Get('clubs/:clubId/member-directory')
@@ -226,6 +268,7 @@ export class UsersController {
   /**
    * GET /me/export — GDPR data export.
    */
+  @AllowWithoutConsent()
   @Get('me/export')
   async exportMyData(@CurrentUser() user: { id: string }) {
     return this.usersService.exportUserData(user.id)
@@ -234,6 +277,7 @@ export class UsersController {
   /**
    * DELETE /me — GDPR account deletion (soft delete + anonymization).
    */
+  @AllowWithoutConsent()
   @Delete('me')
   @RateLimit('write')
   async deleteMyAccount(@CurrentUser() user: { id: string }) {
@@ -251,4 +295,20 @@ export class UsersController {
   ) {
     return this.usersService.getChildrenEvents(user.id, { dateFrom, dateTo })
   }
+
+  // ── home revamp: parent home overview ──
+  /**
+   * GET /me/children-overview?clubId=&limit= — the parent home's children
+   * (with all their teams), pending team duties (children's and the
+   * parent's own) and the children's team + club announcements.
+   */
+  @Get('me/children-overview')
+  async getChildrenOverview(
+    @CurrentUser() user: { id: string },
+    @Query() query: unknown,
+  ) {
+    const { clubId, limit } = childrenOverviewQuerySchema.parse(query)
+    return this.usersService.getChildrenOverview(user.id, clubId, limit ?? 3)
+  }
+  // ── end home revamp ──
 }

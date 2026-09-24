@@ -1,5 +1,14 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common'
 import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  UnauthorizedException,
+} from '@nestjs/common'
+import { hashUnderageEmail } from '../underage-email-tombstone'
+import {
+  OTP_CODE_LOCKED,
+  OTP_HOURLY_CAP,
+  UNDERAGE_EMAIL_BLOCKED,
   OtpService,
   OTP_MAX_ATTEMPTS,
   OTP_MAX_REQUESTS_PER_HOUR,
@@ -320,6 +329,65 @@ describe('OtpService', () => {
     // The fresh code was never even checked (still unconsumed, 0 attempts).
     const fresh = prisma._otp.find((r) => r.consumedAt === null)!
     expect(fresh.attempts).toBe(0)
+  })
+
+  // onboarding review fixes (M1): lockouts are 429s with stable codes.
+  it('answers the burning guess and later tries with OTP_CODE_LOCKED (429)', async () => {
+    await service.requestCode('lock@example.com')
+    const realCode = lastSentCode()
+    const bad = realCode === '000000' ? '111111' : '000000'
+    for (let i = 0; i < OTP_MAX_ATTEMPTS - 1; i++) {
+      await expect(service.verifyCode('lock@example.com', bad)).rejects.toThrow(
+        UnauthorizedException,
+      )
+    }
+    const last = await service.verifyCode('lock@example.com', bad).catch((e) => e)
+    expect(last).toBeInstanceOf(HttpException)
+    expect(last.getStatus()).toBe(429)
+    expect(last.getResponse()).toMatchObject({ code: OTP_CODE_LOCKED })
+  })
+
+  it('reports the hourly cap as OTP_HOURLY_CAP with the real wait time', async () => {
+    await service.requestCode('wait@example.com')
+    prisma._otp[0].attempts = OTP_MAX_VERIFY_FAILURES_PER_HOUR
+    prisma._otp[0].createdAt = new Date(Date.now() - 20 * 60 * 1000)
+    const err = await service.verifyCode('wait@example.com', '123456').catch((e) => e)
+    expect(err.getStatus()).toBe(429)
+    const body = err.getResponse()
+    expect(body.code).toBe(OTP_HOURLY_CAP)
+    // Oldest failing code is 20 min old: the window frees in ~40 min.
+    expect(body.retryAfterSeconds).toBeGreaterThan(39 * 60)
+    expect(body.retryAfterSeconds).toBeLessThanOrEqual(40 * 60)
+  })
+
+  // onboarding review fixes (B1): no fresh self-registration for 30 days
+  // after an under-16 handoff removed the account.
+  it('refuses to create an account for a tombstoned under-16 email', async () => {
+    const createdAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    ;(prisma as any).authIdentityTombstone = {
+      findUnique: jest.fn(async ({ where }: any) =>
+        where.provider_subjectHash.subjectHash === hashUnderageEmail('kid@example.com')
+          ? { createdAt }
+          : null,
+      ),
+    }
+    await service.requestCode('kid@example.com')
+    const err = await service.verifyCode('kid@example.com', lastSentCode()).catch((e) => e)
+    expect(err).toBeInstanceOf(ForbiddenException)
+    expect(err.getResponse()).toMatchObject({ code: UNDERAGE_EMAIL_BLOCKED })
+    expect(prisma._users).toHaveLength(0)
+  })
+
+  it('lets the address sign up again after the 30-day window', async () => {
+    ;(prisma as any).authIdentityTombstone = {
+      findUnique: jest.fn(async () => ({
+        createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+      })),
+    }
+    await service.requestCode('kid2@example.com')
+    await expect(service.verifyCode('kid2@example.com', lastSentCode())).resolves.toMatchObject({
+      user: { email: 'kid2@example.com' },
+    })
   })
 
   it('rejects an invalid email shape', async () => {

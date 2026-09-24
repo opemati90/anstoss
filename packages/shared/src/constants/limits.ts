@@ -51,6 +51,8 @@ export const SKELETON = {
 
 // Age gate (GDPR Article 8, Germany = 16)
 export const AGE_GATE = {
+  // Children under 13 are managed through a guardian account, not a direct login.
+  MIN_DIRECT_ACCOUNT_AGE: 13,
   MIN_AGE: 16,
 } as const
 

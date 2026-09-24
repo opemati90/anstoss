@@ -4,9 +4,10 @@ import { InvitesService } from './invites.service'
 import { TeamsModule } from '../teams/teams.module'
 import { ChannelsModule } from '../channels/channels.module'
 import { BillingModule } from '../billing/billing.module'
+import { PushModule } from '../push/push.module'
 
 @Module({
-  imports: [TeamsModule, ChannelsModule, BillingModule],
+  imports: [TeamsModule, ChannelsModule, BillingModule, PushModule],
   controllers: [InvitesController],
   providers: [InvitesService],
   exports: [InvitesService],

@@ -6,7 +6,7 @@ describe('ChatGateway DM typing authorization', () => {
       {} as any,
       {} as any,
       {} as any,
-      dmService as any,
+      { getOtherParticipant: jest.fn().mockResolvedValue(null), ...dmService } as any,
       {} as any,
       {} as any,
       {} as any,
@@ -34,7 +34,7 @@ describe('ChatGateway DM typing authorization', () => {
 
     await expect(
       gateway.handleDmTyping(client, { conversationId: 'conversation-1' }),
-    ).rejects.toThrow('Not a participant')
+    ).resolves.toBeUndefined()
 
     expect(dmService.assertCanMessageConversation).toHaveBeenCalledWith('user-1', 'conversation-1')
     expect(client.to).not.toHaveBeenCalled()
@@ -55,6 +55,7 @@ describe('ChatGateway DM typing authorization', () => {
     expect(emit).toHaveBeenCalledWith('dm:typing', {
       userId: 'user-1',
       userName: 'Mia',
+      conversationId: 'conversation-1',
     })
   })
 

@@ -23,6 +23,7 @@ import { ClerkAuthGuard } from '../clerk.guard'
 import { CurrentUser } from '../user.decorator'
 import { signSessionToken } from './jwt.util'
 import type { AuthenticatedUserShape } from './otp.service'
+import { AllowWithoutConsent } from '../age-gate.guard'
 
 @Controller('auth')
 export class OtpController {
@@ -51,6 +52,7 @@ export class OtpController {
     return this.otpService.verifyCode(body?.email ?? '', body?.code)
   }
 
+  @AllowWithoutConsent()
   @Post('session/refresh')
   @HttpCode(200)
   @UseGuards(ClerkAuthGuard)

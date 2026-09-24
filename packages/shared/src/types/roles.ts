@@ -66,6 +66,8 @@ export enum ParentalConsentStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  // Privacy: guardian withdrew a previously approved consent (GDPR Art. 7(3)).
+  WITHDRAWN = 'WITHDRAWN',
 }
 
 export enum JoinRequestStatus {

@@ -19,6 +19,8 @@ describe('TeamsController join-code endpoints', () => {
     })
       .overrideGuard(require('../auth/clerk.guard').ClerkAuthGuard)
       .useValue({ canActivate: () => true })
+      .overrideGuard(require('../auth/age-gate.guard').AgeGateGuard)
+      .useValue({ canActivate: () => true })
       .compile()
     controller = moduleRef.get(TeamsController)
     jest.clearAllMocks()
@@ -57,6 +59,8 @@ describe('TeamLookupController join-code endpoints', () => {
       providers: [{ provide: TeamsService, useValue: service }],
     })
       .overrideGuard(require('../auth/clerk.guard').ClerkAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(require('../auth/age-gate.guard').AgeGateGuard)
       .useValue({ canActivate: () => true })
       .compile()
     lookupController = moduleRef.get(TeamLookupController)

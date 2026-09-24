@@ -14,6 +14,7 @@ import { RolesGuard, RequireRole } from '../auth/roles.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { createInviteCampaignSchema, createInviteSchema, MembershipRole } from '@anstoss/shared'
+import { AllowWithoutConsent } from '../auth/age-gate.guard'
 
 /**
  * Extracts the caller's club membership (attached by RolesGuard) from the request.
@@ -81,11 +82,13 @@ export class InvitesController {
     return this.invitesService.revokeCampaign(clubId, campaignId, user.id)
   }
 
+  @AllowWithoutConsent()
   @Get('invite-campaigns/:code')
   validateCampaign(@Param('code') code: string) {
     return this.invitesService.validateCampaign(code)
   }
 
+  @AllowWithoutConsent()
   @Post('invite-campaigns/:code/redeem')
   @UseGuards(ClerkAuthGuard)
   @RateLimit('invite-redeem')
@@ -96,6 +99,7 @@ export class InvitesController {
   /**
    * GET /invites/:code — validate invite (public, for landing page).
    */
+  @AllowWithoutConsent()
   @Get('invites/:code')
   async validate(@Param('code') code: string) {
     const invite = await this.invitesService.validate(code)
@@ -113,6 +117,7 @@ export class InvitesController {
   /**
    * POST /invites/:code/redeem — join club via invite.
    */
+  @AllowWithoutConsent()
   @Post('invites/:code/redeem')
   @UseGuards(ClerkAuthGuard)
   @RateLimit('invite-redeem')

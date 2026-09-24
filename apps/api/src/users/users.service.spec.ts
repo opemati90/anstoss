@@ -297,6 +297,53 @@ describe('UsersService.getChildrenEvents', () => {
     expect(result).toEqual([])
   })
 
+  it('returns one row per child when two siblings play on the same team', async () => {
+    const { prisma, service } = createService()
+    prisma.guardianRelationship.findMany.mockResolvedValue([
+      { playerUserId: 'mia', childName: 'Mia' },
+      { playerUserId: 'ben', childName: 'Ben' },
+    ])
+    prisma.teamAccess.findMany.mockResolvedValue([
+      { userId: 'mia', teamId: 'team-1', team: { id: 'team-1', name: 'U11', group: null } },
+      { userId: 'ben', teamId: 'team-1', team: { id: 'team-1', name: 'U11', group: null } },
+    ])
+    prisma.event.findMany.mockResolvedValue([
+      {
+        id: 'evt-1',
+        title: '@ SV Babelsberg 03',
+        type: 'MATCH',
+        date: new Date('2026-10-11T13:00:00.000Z'),
+        location: null,
+        notes: null,
+        teamId: 'team-1',
+        clubId: 'club-1',
+        createdById: 'coach-1',
+        createdAt: new Date('2026-09-01'),
+        opponent: 'SV Babelsberg 03',
+        homeAway: 'AWAY',
+        meetingAt: new Date('2026-10-11T12:00:00.000Z'),
+        carpoolEnabled: true,
+        _count: { rsvps: 1 },
+        rsvps: [{ userId: 'ben', status: 'YES', nominated: true }],
+      },
+    ])
+
+    const result = await service.getChildrenEvents('parent-1')
+
+    expect(result).toHaveLength(2)
+    expect(result.map((row) => [row.childUserId, row.childName, row.childRsvp])).toEqual([
+      ['mia', 'Mia', null],
+      ['ben', 'Ben', 'YES'],
+    ])
+    expect(result[1]).toMatchObject({
+      opponent: 'SV Babelsberg 03',
+      homeAway: 'AWAY',
+      meetingAt: '2026-10-11T12:00:00.000Z',
+      carpoolEnabled: true,
+      myNominated: true,
+    })
+  })
+
   it('returns cross-team events for children', async () => {
     const { prisma, service } = createService()
 
@@ -504,8 +551,14 @@ describe('UsersService.deleteAccount', () => {
       userBlock: { deleteMany: deleteMany() },
       pollVote: { deleteMany: deleteMany() },
       rsvp: { deleteMany: deleteMany() },
+      // Privacy (M4): future team activity is detached on consent withdrawal.
+      event: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
+      fixtureOverlay: { updateMany: updateMany() },
       eventReminderPreference: { deleteMany: deleteMany() },
       eventCheckIn: { deleteMany: deleteMany() },
+      carpoolSeat: { deleteMany: deleteMany() },
+      carpoolRide: { deleteMany: deleteMany() },
+      complianceRecord: { deleteMany: deleteMany(), updateMany: updateMany() },
       messageTranslation: { deleteMany: deleteMany() },
       message: { updateMany: updateMany() },
       directMessageTranslation: { deleteMany: deleteMany() },
@@ -517,6 +570,10 @@ describe('UsersService.deleteAccount', () => {
       parentalConsent: {
         deleteMany: deleteMany(),
         updateMany: updateMany(),
+        // Privacy (guardian deletion): consents this user gave as guardian.
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       parentHandoff: { deleteMany: deleteMany(), updateMany: updateMany() },
       invite: { updateMany: updateMany() },
@@ -563,20 +620,177 @@ describe('UsersService.deleteAccount', () => {
       notificationPreference: { findMany: jest.fn().mockResolvedValue([]) },
       rsvp: { findMany: jest.fn().mockResolvedValue([]) },
       eventReminderPreference: { findMany: jest.fn().mockResolvedValue([]) },
+      carpoolSeat: { findMany: jest.fn().mockResolvedValue([]) },
+      carpoolRide: { findMany: jest.fn().mockResolvedValue([]) },
+      complianceRecord: { findMany: jest.fn().mockResolvedValue([]) },
       freeAgentMedia: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
     }
 
+    const events = { emit: jest.fn() }
     const service = new UsersService(
       prisma as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
+      undefined,
+      events as never,
     )
 
-    return { prisma, tx, service }
+    return { prisma, tx, service, events }
   }
+
+  // Privacy: deleting a guardian must not leave a child's consent APPROVED
+  // (external audit 2026-09-24).
+  describe('guardian deletion', () => {
+    function withGuardianConsent(otherApproved: number) {
+      const ctx = createService()
+      const { tx } = ctx
+      tx.parentalConsent.findMany.mockResolvedValue([{ id: 'consent-1', playerUserId: 'child-1' }])
+      tx.parentalConsent.updateMany.mockImplementation(async (args: any) =>
+        args?.data?.status === 'WITHDRAWN' ? { count: 1 } : { count: 0 },
+      )
+      tx.parentalConsent.findFirst.mockResolvedValue({
+        teamId: 'team-1',
+        playerUserId: 'child-1',
+        guardianUserId: 'user-1',
+      })
+      tx.parentalConsent.count.mockResolvedValue(otherApproved)
+      ;(tx.teamAccess as any).updateMany = jest.fn().mockResolvedValue({ count: 1 })
+      ;(tx.teamAccess as any).count = jest.fn().mockResolvedValue(0)
+      ;(tx as any).guardianRelationship.findMany = jest.fn().mockResolvedValue([])
+      ;(tx.auditLog as any).create = jest.fn().mockResolvedValue({})
+      return ctx
+    }
+
+    it('withdraws the consent the guardian gave and revokes the child team access in the same transaction', async () => {
+      const { tx, service, events, prisma } = withGuardianConsent(0)
+
+      await service.deleteAccount('user-1')
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(tx.parentalConsent.findMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          clubId: 'club-1',
+          status: 'APPROVED',
+          OR: expect.arrayContaining([{ guardianUserId: 'user-1' }]),
+        }),
+        select: { id: true, playerUserId: true },
+      })
+      expect(tx.parentalConsent.updateMany).toHaveBeenCalledWith({
+        where: { id: 'consent-1', clubId: 'club-1', status: 'APPROVED' },
+        data: expect.objectContaining({
+          status: 'WITHDRAWN',
+          withdrawalReason: 'guardian_account_deleted',
+          withdrawnByUserId: null,
+        }),
+      })
+      expect((tx.teamAccess as any).updateMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({ userId: 'child-1', teamId: 'team-1', role: 'PLAYER' }),
+        data: { status: 'REVOKED' },
+      })
+      expect((tx.auditLog as any).create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'consent.withdrawn', actorType: 'system' }),
+      })
+      // Withdrawal runs before the guardian link is anonymized.
+      const withdrawOrder = tx.parentalConsent.updateMany.mock.invocationCallOrder[0]
+      const unlinkCall = tx.parentalConsent.updateMany.mock.calls.findIndex(
+        ([args]: any[]) => args?.where?.guardianUserId === 'user-1',
+      )
+      expect(unlinkCall).toBeGreaterThan(-1)
+      expect(tx.parentalConsent.updateMany.mock.invocationCallOrder[unlinkCall]).toBeGreaterThan(withdrawOrder)
+      expect(events.emit).toHaveBeenCalledWith(
+        'consent.withdrawn',
+        expect.objectContaining({
+          actorUserId: null,
+          effects: [expect.objectContaining({ consentId: 'consent-1', accessRevoked: true })],
+        }),
+      )
+      expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', { userId: 'child-1' })
+    })
+
+    it('keeps the child on the team when another guardian still approves', async () => {
+      const { tx, service, events } = withGuardianConsent(1)
+
+      await service.deleteAccount('user-1')
+
+      expect(tx.parentalConsent.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'WITHDRAWN' }) }),
+      )
+      expect((tx.teamAccess as any).updateMany).not.toHaveBeenCalled()
+      expect(events.emit).not.toHaveBeenCalledWith('realtime.access.changed', { userId: 'child-1' })
+    })
+
+    it('does not notify or revoke when the deleted user gave no consent', async () => {
+      const { tx, service, events } = createService()
+
+      await service.deleteAccount('user-1')
+
+      // Only the PENDING-request close-out (H4) may write WITHDRAWN; no
+      // approved consent is withdrawn.
+      expect(tx.parentalConsent.updateMany).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'APPROVED' }),
+          data: expect.objectContaining({ status: 'WITHDRAWN' }),
+        }),
+      )
+      expect(events.emit).not.toHaveBeenCalledWith('consent.withdrawn', expect.anything())
+    })
+
+    it('M5: re-reads consent clubs under the lock and processes a club the preflight missed', async () => {
+      const { tx, prisma, service } = createService()
+      prisma.parentalConsent.findMany.mockResolvedValue([])
+      tx.parentalConsent.findMany.mockImplementation(async (args: any) =>
+        args?.select?.clubId ? [{ clubId: 'club-late' }] : [],
+      )
+
+      await service.deleteAccount('user-1')
+
+      expect(tx.parentalConsent.findMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { playerUserId: 'user-1' },
+            { guardianUserId: 'user-1' },
+            { guardianEmail: 'Player@Example.com' },
+            { guardianEmail: 'player@example.com' },
+          ],
+        },
+        select: { clubId: true },
+      })
+      // The late club gets the guardian-consent withdrawal pass.
+      expect(tx.parentalConsent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ clubId: 'club-late', status: 'APPROVED' }),
+        }),
+      )
+    })
+
+    it('H4: closes requests still pending with the deleted guardian', async () => {
+      const { tx, service } = createService()
+      await service.deleteAccount('user-1')
+      expect(tx.parentalConsent.updateMany).toHaveBeenCalledWith({
+        where: {
+          guardianEmail: { in: ['Player@Example.com', 'player@example.com'] },
+          status: 'PENDING',
+          playerUserId: { not: 'user-1' },
+        },
+        data: expect.objectContaining({
+          status: 'WITHDRAWN',
+          withdrawalReason: 'guardian_account_deleted',
+        }),
+      })
+    })
+
+    it('rolls back the withdrawal if the deletion transaction fails', async () => {
+      const { tx, service, events } = withGuardianConsent(0)
+      tx.user.update.mockRejectedValue(new Error('db down'))
+
+      await expect(service.deleteAccount('user-1')).rejects.toThrow('db down')
+      // Post-commit side effects must not fire for a rolled-back transaction.
+      expect(events.emit).not.toHaveBeenCalled()
+    })
+  })
 
   it('removes cached translations, direct-message content, and live participation rows before anonymizing the user', async () => {
     const { tx, service } = createService()
@@ -603,6 +817,19 @@ describe('UsersService.deleteAccount', () => {
     expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } })
     expect(tx.eventCheckIn.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
+    })
+    expect(tx.carpoolSeat.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', userId: 'user-1' },
+    })
+    expect(tx.carpoolRide.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', driverUserId: 'user-1' },
+    })
+    expect(tx.complianceRecord.deleteMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', memberUserId: 'user-1' },
+    })
+    expect(tx.complianceRecord.updateMany).toHaveBeenCalledWith({
+      where: { clubId: 'club-1', createdById: 'user-1' },
+      data: { createdById: null },
     })
     expect(tx.parentHandoff.deleteMany).toHaveBeenCalledWith({
       where: { sourceUserId: 'user-1' },
@@ -709,6 +936,9 @@ describe('UsersService.deleteAccount', () => {
         thumbnailUrl: null,
       },
     ])
+    prisma.complianceRecord.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ documentUrl: 'https://assets.example/compliance/club-1/private.pdf' }])
 
     await service.deleteAccount('user-1')
 
@@ -716,6 +946,7 @@ describe('UsersService.deleteAccount', () => {
       'users/user-1/avatar.png',
       'chat/club-1/file.png',
       'users/user-1/free-agent/photo.png',
+      'compliance/club-1/private.pdf',
     ])
   })
 })
@@ -1139,5 +1370,81 @@ describe('UsersService.getMe pending onboarding contracts', () => {
       }),
     )
     expect(result.pendingJoinRequest).toEqual({ id: 'join-1', clubId: 'club-1' })
+  })
+})
+
+// club-admin revamp: paginated member list with aktiv/passiv/jugend filters
+describe('UsersService.listClubMembersPage', () => {
+  const kidDob = new Date()
+  kidDob.setFullYear(kidDob.getFullYear() - 12)
+
+  function createPageService() {
+    const member = (userId: string, name: string, role: MembershipRole) => ({
+      id: `m-${userId}`,
+      userId,
+      clubId: 'club-1',
+      role,
+      operationalRoles: [],
+      user: { id: userId, name, email: `${userId}@example.com`, avatarUrl: null, teamAccess: [] },
+    })
+    const prisma = {
+      membership: {
+        findUnique: jest.fn().mockResolvedValue({ role: MembershipRole.ADMIN }),
+        findMany: jest.fn().mockResolvedValue([
+          member('admin', 'Anna Admin', MembershipRole.ADMIN),
+          member('player', 'Tim Weber', MembershipRole.PLAYER),
+          member('kid', 'Lukas Hoffmann', MembershipRole.PLAYER),
+          member('supporter', 'Paul Passiv', MembershipRole.PLAYER),
+          member('parent', 'Petra Eltern', MembershipRole.PARENT),
+        ]),
+      },
+      teamAccess: {
+        findMany: jest.fn().mockResolvedValue([
+          { userId: 'player', role: 'PLAYER', team: { name: 'Herren', displayName: 'Herren I', group: { type: 'SENIOR' } } },
+          { userId: 'kid', role: 'PLAYER', team: { name: 'U13', displayName: 'U13', group: { type: 'YOUTH' } } },
+          { userId: 'parent', role: 'PARENT', team: { name: 'U13', displayName: 'U13', group: { type: 'YOUTH' } } },
+        ]),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'kid', dateOfBirth: kidDob }]),
+      },
+    }
+    const service = new UsersService(prisma as never, {} as never, {} as never, {} as never, {} as never)
+    return { prisma, service }
+  }
+
+  it('returns counts per filter and flags each row', async () => {
+    const { service } = createPageService()
+    const page = await service.listClubMembersPage('club-1', 'admin', {
+      limit: 50,
+      offset: 0,
+      filter: 'all',
+    })
+    expect(page.total).toBe(5)
+    expect(page.counts).toEqual({ all: 5, active: 3, passive: 2, youth: 1 })
+    const kid = page.items.find((row: any) => row.userId === 'kid')
+    expect(kid).toEqual(expect.objectContaining({ isActive: true, isYouth: true, teamNames: ['U13'] }))
+    const parent = page.items.find((row: any) => row.userId === 'parent')
+    expect(parent).toEqual(expect.objectContaining({ isActive: false, teamNames: [] }))
+  })
+
+  it('filters, searches and paginates', async () => {
+    const { service } = createPageService()
+    const passive = await service.listClubMembersPage('club-1', 'admin', {
+      limit: 1,
+      offset: 1,
+      filter: 'passive',
+    })
+    expect(passive.total).toBe(2)
+    expect(passive.items).toHaveLength(1)
+
+    const search = await service.listClubMembersPage('club-1', 'admin', {
+      limit: 10,
+      offset: 0,
+      filter: 'all',
+      q: 'weber',
+    })
+    expect(search.items.map((row: any) => row.userId)).toEqual(['player'])
+    expect(search.counts.all).toBe(5)
   })
 })

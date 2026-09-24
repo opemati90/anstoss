@@ -10,6 +10,8 @@ import { AssetsModule } from '../assets/assets.module'
 import { ClubsModule } from '../clubs/clubs.module'
 import { InvitesModule } from '../invites/invites.module'
 import { MarketplaceModule } from '../marketplace/marketplace.module'
+import { AuditModule } from '../audit/audit.module'
+import { MemberExportService } from './member-export'
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { MarketplaceModule } from '../marketplace/marketplace.module'
     ClubsModule,
     InvitesModule,
     MarketplaceModule,
+    AuditModule, // club-admin review fixes: audited member export
   ],
   controllers: [
     UsersController,
@@ -28,6 +31,7 @@ import { MarketplaceModule } from '../marketplace/marketplace.module'
     ManagedSubProfilesService,
     ParentHandoffService,
     ParentHandoffPurgeWorker,
+    MemberExportService,
   ],
   exports: [UsersService],
 })

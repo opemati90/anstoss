@@ -8,7 +8,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets'
-import { forwardRef, Inject, Logger } from '@nestjs/common'
+import { forwardRef, Inject, Logger, Optional } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
@@ -19,13 +19,21 @@ import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
 import { CHAT } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
-import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { TranslationService } from '../translation/translation.service'
 import { ChannelsService } from '../channels/channels.service'
 import { ModerationService } from '../moderation/moderation.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { ChatService } from './chat.service'
 import { PlatformSettingsService } from '../admin/platform-settings.service'
+import { AgeGateService, type AgeGateScope } from '../auth/age-gate.service'
+import type { DirectMessageItem } from '@anstoss/shared'
+
+/** H5: how long a socket's passed age-gate check is trusted before re-checking. */
+const AGE_GATE_RECHECK_MS = 60_000
+/** H4: inbox:update fan-out per channel is coalesced into one emit per window. */
+const INBOX_UPDATE_COALESCE_MS = 1_500
+/** Reader lists for typing previews in the inbox are cached briefly. */
+const TYPING_READERS_TTL_MS = 30_000
 
 /**
  * Socket.io gateway for team chat.
@@ -72,8 +80,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     channelId: string | null,
     payload: Record<string, unknown>,
   ) {
-    const room = channelId ? `channel:${channelId}` : `team:${teamId}`
-    this.server.to(room).emit('message', payload)
+    // L3: the legacy team-wide stream is gone; a notice without a channel
+    // has no audience room.
+    if (!channelId) return
+    this.server.to(`channel:${channelId}`).emit('message', payload)
+    void this.emitInboxUpdateForChannel(channelId)
   }
 
   broadcastChatEvent(
@@ -100,6 +111,122 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.server.to(room).emit('chat:event', payload)
   }
 
+  /**
+   * Tell each user's open sockets (any screen, via the per-user room joined on
+   * connect) that an inbox row changed, so the inbox refetches without
+   * polling. Payload is only the row key; the client re-reads via REST, which
+   * re-authorizes.
+   */
+  emitInboxUpdate(userIds: string[], payload: { type: 'CHANNEL' | 'DM'; id: string }) {
+    if (!this.server) return
+    for (const userId of new Set(userIds)) {
+      this.server.to(`user:${userId}`).emit('inbox:update', payload)
+    }
+  }
+
+  /**
+   * inbox:update to every reader of a channel (muted readers included).
+   * H4: bursts are coalesced per channel: the first message schedules one
+   * fan-out INBOX_UPDATE_COALESCE_MS later and later messages in that window
+   * ride along, so a busy match-day thread costs one reader lookup + one
+   * emit per reader per window instead of per message.
+   */
+  private readonly pendingInboxUpdates = new Map<string, ReturnType<typeof setTimeout>>()
+
+  emitInboxUpdateForChannel(channelId: string | null | undefined): Promise<void> {
+    if (!this.server || !channelId) return Promise.resolve()
+    if (this.pendingInboxUpdates.has(channelId)) return Promise.resolve()
+    const timer = setTimeout(() => {
+      this.pendingInboxUpdates.delete(channelId)
+      void this.flushInboxUpdate(channelId)
+    }, INBOX_UPDATE_COALESCE_MS)
+    timer.unref?.()
+    this.pendingInboxUpdates.set(channelId, timer)
+    return Promise.resolve()
+  }
+
+  async flushInboxUpdate(channelId: string): Promise<void> {
+    try {
+      const readers = await this.channelsService.listReadersForChannel(channelId)
+      const scope = await this.channelScope(channelId)
+      this.emitInboxUpdate(await this.allowedIds(readers, scope), { type: 'CHANNEL', id: channelId })
+    } catch (err) {
+      this.logger.warn(`inbox:update fan-out failed for ${channelId}: ${String(err)}`)
+    }
+  }
+
+  private readonly typingReaders = new Map<string, { ids: string[]; at: number }>()
+
+  private async cachedReaders(channelId: string): Promise<string[]> {
+    const cached = this.typingReaders.get(channelId)
+    if (cached && Date.now() - cached.at < TYPING_READERS_TTL_MS) return cached.ids
+    const ids = await this.channelsService.listReadersForChannel(channelId)
+    this.typingReaders.set(channelId, { ids, at: Date.now() })
+    if (this.typingReaders.size > 5_000) this.typingReaders.clear()
+    return ids
+  }
+
+  /**
+   * H5: the REST age gate, applied to sockets. An under-16 without approved
+   * parental consent (or with withdrawn consent) cannot open or keep using a
+   * chat socket. Uses the same AgeGateService as the global HTTP guard.
+   */
+  async passesAgeGate(userId: string, scope: AgeGateScope = {}): Promise<boolean> {
+    if (!this.ageGate) return true
+    try {
+      return await this.ageGate.isAllowed(userId, scope)
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Per-event gate with a short trust window per scope (consent can be
+   * withdrawn; withdrawal also emits realtime.access.changed, which drops
+   * the socket). A socket that fails the unscoped gate is disconnected.
+   */
+  private async ensureAgeGate(client: Socket, scope: AgeGateScope = {}): Promise<boolean> {
+    const userId = client.data.userId as string | undefined
+    if (!userId) return false
+    const key = `${scope.clubId ?? ''}:${scope.teamId ?? ''}`
+    const checks = (client.data.ageGateChecks ??= {}) as Record<string, number>
+    const checkedAt = checks[key]
+    if (checkedAt && Date.now() - checkedAt < AGE_GATE_RECHECK_MS) return true
+    if (await this.passesAgeGate(userId, scope)) {
+      checks[key] = Date.now()
+      return true
+    }
+    if (!scope.clubId) client.disconnect(true)
+    return false
+  }
+
+  private ageGateError() {
+    return { event: 'error', data: { message: 'Age verification required' } }
+  }
+
+  /** Realtime fan-out only reaches users who pass the age gate for the scope. */
+  private async allowedIds(userIds: string[], scope: AgeGateScope): Promise<string[]> {
+    if (!this.ageGate || userIds.length === 0) return userIds
+    try {
+      return await this.ageGate.filterAllowedUserIds(userIds, scope)
+    } catch {
+      return []
+    }
+  }
+
+  private async channelScope(channelId: string): Promise<AgeGateScope> {
+    const channel = await this.prisma.channel
+      ?.findUnique({ where: { id: channelId }, select: { clubId: true, teamId: true } })
+      .catch(() => null)
+    return channel ? { clubId: channel.clubId, teamId: channel.teamId } : {}
+  }
+
+  /** DM events are scoped to the conversation's club. */
+  private async ensureDmAgeGate(client: Socket, conversationId: string): Promise<boolean> {
+    const clubId = await this.dmService.getConversationClubId?.(conversationId).catch(() => null)
+    return this.ensureAgeGate(client, clubId ? { clubId } : {})
+  }
+
   // Redis client for rate limiting (shared with adapter connection)
   private rateLimitRedis: Redis | null = null
   private warnedRateLimitRedisUnavailable = false
@@ -119,6 +246,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
     private readonly platformSettings?: PlatformSettingsService,
+    @Optional() private readonly ageGate?: AgeGateService,
   ) {}
 
   private async isChatDisabled() {
@@ -261,6 +389,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         return
       }
 
+      // H5: same age gate as the REST controllers.
+      if (!(await this.passesAgeGate(user.id))) {
+        client.disconnect()
+        return
+      }
+      client.data.ageGateChecks = { ':': Date.now() }
+
       // Store user info on socket for later use
       client.data.userId = user.id
       client.data.userName = user.name
@@ -325,8 +460,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
-    await this.teamsService.assertReadableAccess(userId, data.teamId)
+    const teamAccess = await this.teamsService.assertReadableAccess(userId, data.teamId)
+    // H5: consent is per club/team.
+    if (!(await this.ensureAgeGate(client, { clubId: teamAccess.team.clubId, teamId: data.teamId }))) {
+      return this.ageGateError()
+    }
     const room = `team:${data.teamId}`
     await client.join(room)
 
@@ -354,6 +494,47 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   }
 
   /**
+   * Join one channel's canonical room, authorized by the channel itself (not
+   * by whichever team the client has selected). Used by the conversation
+   * screen for club channels and groups.
+   */
+  @SubscribeMessage('channel:join')
+  async handleChannelJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { channelId?: string },
+  ) {
+    const userId = client.data.userId as string | undefined
+    if (!userId) return { event: 'error', data: { message: 'Unauthorized' } }
+    if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (typeof data?.channelId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(data.channelId)) {
+      return { event: 'error', data: { message: 'Invalid channel' } }
+    }
+    let access
+    try {
+      access = await this.channelsService.getChannelAccess(userId, data.channelId)
+    } catch {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (!access.canRead) {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (
+      !(await this.ensureAgeGate(client, {
+        clubId: access.channel.clubId,
+        teamId: access.channel.teamId,
+      }))
+    ) {
+      return this.ageGateError()
+    }
+    await client.join(`channel:${data.channelId}`)
+    if (access.channel.teamId) {
+      await client.join(`team:${access.channel.teamId}:channel:${data.channelId}`)
+    }
+    return { event: 'channel:joined', data: { channelId: data.channelId } }
+  }
+
+  /**
    * Leave a team chat room (plus all per-channel rooms for this team).
    */
   @SubscribeMessage('leave')
@@ -376,16 +557,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   }
 
   /**
-   * Send a message to a team chat room.
-   * Rate limited: 1 msg/sec per user.
+   * Send a message to a channel. The channel is the authority (so club
+   * channels and groups work whatever team the client has selected).
+   * L3: the legacy channel-less team stream is closed — sends without a
+   * channelId are rejected and never pushed.
+   * Rate limited per user (Redis-backed for cluster safety).
    */
   @SubscribeMessage('message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody()
     data: {
-      teamId: string
-      clubId: string
+      teamId?: string
+      clubId?: string
       content: string
       clientMessageId?: string | null
       isAnnouncement?: boolean
@@ -398,8 +582,47 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (await this.isChatDisabled()) {
       return { event: 'error', data: { message: 'Chat is temporarily unavailable' } }
     }
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
-    const access = await this.teamsService.assertReadableAccess(userId, data.teamId)
+    if (typeof data?.channelId !== 'string' || data.channelId.length === 0) {
+      return { event: 'error', data: { message: 'Channel required' } }
+    }
+
+    let channelAccess
+    try {
+      channelAccess = await this.channelsService.getChannelAccess(userId, data.channelId)
+    } catch {
+      return { event: 'error', data: { message: 'Invalid channel for team' } }
+    }
+    if (!channelAccess.canRead || !channelAccess.canWrite) {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    const channel = channelAccess.channel
+    const clubId = channel.clubId
+    const channelId = channel.id
+    // H5: consent is per club/team; an approval in another club opens nothing here.
+    if (!(await this.ensureAgeGate(client, { clubId, teamId: channel.teamId }))) {
+      return this.ageGateError()
+    }
+    let teamId: string
+    if (channel.teamId) {
+      teamId = channel.teamId
+    } else {
+      // Club-level channel: Message.teamId is only an anchor. Prefer the
+      // client's team when it belongs to this club, else the first team.
+      const anchor =
+        typeof data.teamId === 'string' && data.teamId
+          ? await this.prisma.team.findFirst({
+              where: { id: data.teamId, clubId },
+              select: { id: true },
+            })
+          : null
+      const fallback = anchor
+        ? anchor
+        : await this.prisma.team.findFirst({ where: { clubId }, select: { id: true } })
+      if (!fallback) return { event: 'error', data: { message: 'Invalid channel for team' } }
+      teamId = fallback.id
+    }
 
     // Rate limit check (Redis-backed for cluster safety)
     if (await this.isChatRateLimited(userId)) {
@@ -407,72 +630,43 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
 
     // Validate content
-    const content = data.content?.trim()
+    const content = typeof data.content === 'string' ? data.content.trim() : ''
     if (!content || content.length > CHAT.MAX_MESSAGE_LENGTH) {
       return { event: 'error', data: { message: 'Invalid message' } }
     }
 
-    const canAnnounce =
-      access.membership?.role === 'OWNER' ||
-      access.membership?.role === 'ADMIN' ||
-      access.membership?.role === 'COACH' ||
-      access.activeTeamAccess.some(
-        (entry: any) => entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
-      )
-
-    // Use server-side clubId from team lookup — never trust client-sent clubId
-    const clubId = access.team.clubId
-
-    // Optional reply target — sent by the new chat UI when replying.
-    const replyToId = typeof data.replyToId === 'string' ? data.replyToId : null
-
-    // Optional channel scope — when the rail picks "Coaches" or
-    // "Announcements", the client passes the channelId. Without it,
-    // the message lands in the team-wide stream (legacy / general
-    // chat). Server validates the channel actually belongs to this
-    // team before persisting.
-    let channelId: string | null = null
-    if (typeof data.channelId === 'string' && data.channelId.length > 0) {
-      const ch = await this.prisma.channel.findFirst({
-        where: {
-          id: data.channelId,
-          OR: [{ teamId: data.teamId }, { teamId: null, clubId }],
-        },
-        select: { id: true },
+    // L5: a reply must quote a message of the same channel. Resolved once,
+    // also used for the "replied" push.
+    let replyToId: string | null = null
+    let replyParentId: string | null = null
+    if (typeof data.replyToId === 'string' && data.replyToId.length > 0) {
+      const parent = await this.prisma.message.findFirst({
+        where: { id: data.replyToId, channelId },
+        select: { id: true, senderId: true },
       })
-      if (!ch) {
-        return { event: 'error', data: { message: 'Invalid channel for team' } }
-      }
-      // Channel-aware authz: belongs-to-team is necessary but not
-      // sufficient. A parent who knows the Coaches channelId could post
-      // there without this check. assertWritable validates against the
-      // channel's visibility (COACHES_ONLY / PARENTS_ONLY / etc.).
-      try {
-        await this.channelsService.assertWritable(userId, ch.id)
-      } catch {
-        return { event: 'error', data: { message: 'Forbidden for this channel' } }
-      }
-      channelId = ch.id
+      if (!parent) return { event: 'error', data: { message: 'Invalid reply target' } }
+      replyToId = parent.id
+      replyParentId = parent.senderId && parent.senderId !== userId ? parent.senderId : null
     }
 
-    // Persist message
+    // H1/M4: only an Ankündigungen channel produces announcements; writing
+    // there is already limited to its staff (club level: OWNER/ADMIN).
+    const isAnnouncement = channel.kind === 'ANNOUNCEMENTS'
+
     const message = await this.prisma.message.create({
       data: {
-        teamId: data.teamId,
+        teamId,
         clubId,
-        channelId: channelId ?? undefined,
+        channelId,
         senderId: userId,
         content,
-        isAnnouncement: !!data.isAnnouncement && canAnnounce,
+        isAnnouncement,
         replyToId: replyToId ?? undefined,
       },
     })
 
-    // Channel-aware emit. Without a channelId, the message lands in the
-    // legacy team-wide stream and goes to every team socket. With a
-    // channelId, scope to `channel:{channelId}` — sockets only join that room
-    // after `handleJoin` confirms the user can read the channel.
-    const room = channelId ? `channel:${channelId}` : `team:${data.teamId}`
+    // Sockets only join `channel:{id}` after the channel authorized them.
+    const room = `channel:${channelId}`
 
     // Detect source language eagerly; after detection broadcast the result so
     // clients can show translated content without waiting for history reload.
@@ -491,11 +685,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,
+      clubId,
       channelId: message.channelId,
       clientMessageId: data.clientMessageId ?? null,
       senderId: userId,
       senderName: client.data.userName,
       content: message.content,
+      messageType: 'TEXT',
       sourceLanguage: null,
       translation: null,
       isAnnouncement: message.isAnnouncement,
@@ -506,91 +702,68 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const senderName = (client.data.userName as string) || ''
     const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
 
-    // Resolve the reply-parent author so they get a "replied" push rather
-    // than a generic one.
-    let replyParentId: string | null = null
-    if (replyToId) {
-      const parent = await this.prisma.message.findUnique({
-        where: { id: replyToId },
-        select: { senderId: true },
-      })
-      replyParentId = parent?.senderId && parent.senderId !== userId ? parent.senderId : null
-    }
+    // Every reader's inbox row changed (muted readers too — only the buzz is
+    // suppressed for them).
+    void this.emitInboxUpdateForChannel(channelId)
 
-    // Resolve @firstname mentions to teammate ids.
+    // Resolve @firstname mentions to readers of this channel.
     const mentionedNames = parseMentions(content)
     const mentioned = new Set<string>()
     if (mentionedNames.length > 0) {
-      const teamUsers = await this.prisma.user.findMany({
-        where: { teamAccess: { some: { teamId: data.teamId, ...activeTeamAccessWhere() } } },
+      const readerIds = await this.channelsService.listReadersForChannel(channelId)
+      const readers = await this.prisma.user.findMany({
+        where: { id: { in: readerIds } },
         select: { id: true, name: true },
       })
-      for (const u of teamUsers as Array<{ id: string; name: string }>) {
+      for (const u of readers as Array<{ id: string; name: string }>) {
         if (u.id === userId) continue
         const first = u.name?.split(/\s+/)[0]?.toLowerCase()
         if (first && mentionedNames.includes(first)) mentioned.add(u.id)
       }
     }
 
-    if (message.isAnnouncement) {
-      // Announcements: a single team-wide push (existing behavior).
-      this.pushService
-        .sendToTeam(
-          data.teamId,
-          `📢 ${senderName}`,
-          preview,
-          { type: 'announcement', teamId: data.teamId, messageId: message.id },
-          userId,
-          { clubId, category: 'announcements' },
-        )
-        .catch((err) => this.logger.error('Failed to send announcement push', err))
-    } else {
-      // Normal message: WhatsApp-style fan-out to every reader except the
-      // sender, picking the most specific reason (reply > mention > message)
-      // so nobody gets two buzzes for one message. Channel-scoped messages
-      // resolve readers via listChannelReaderIds, so a Coaches-only message
-      // never previews to players/parents.
-      const readerIdsPromise = data.channelId
-        ? this.channelsService.listChannelReaderIds(data.teamId, data.channelId)
-        : this.prisma.user
-            .findMany({
-              where: {
-                teamAccess: { some: { teamId: data.teamId, ...activeTeamAccessWhere() } },
-              },
-              select: { id: true },
-            })
-            .then((us) => us.map((u) => u.id))
-      readerIdsPromise
-        .then((readerIds) =>
-          Promise.all(
-            readerIds
-              .filter((rid) => rid !== userId)
-              .map((rid) => {
-                const isReply = rid === replyParentId
-                const isMention = mentioned.has(rid)
-                const title = isReply
-                  ? `${senderName} replied`
-                  : isMention
-                    ? `${senderName} mentioned you`
-                    : senderName
-                const kind = isReply ? 'MESSAGE_REPLY' : isMention ? 'MENTION' : 'CHAT_MESSAGE'
-                return this.pushService.sendToUser(
+    // WhatsApp-style fan-out to every reader except the sender and anyone who
+    // muted the channel, picking the most specific reason (reply > mention >
+    // message) so nobody gets two buzzes for one message. L2: titles are
+    // localized per recipient; M3: data carries clubId so a tap from another
+    // club switches the active club first.
+    this.channelsService
+      .listReadersForChannel(channelId, { excludeMuted: true })
+      .then((readerIds) =>
+        Promise.all(
+          readerIds
+            .filter((rid) => rid !== userId)
+            .map((rid) => {
+              if (message.isAnnouncement) {
+                return this.pushService.sendToUserLocalized(
                   rid,
-                  title,
-                  preview,
-                  {
-                    kind,
-                    messageId: message.id,
-                    teamId: data.teamId,
-                    channelId: data.channelId ?? '',
-                  },
-                  { clubId },
+                  'ANNOUNCEMENT',
+                  { senderName, messagePreview: preview },
+                  { kind: 'announcement', clubId, teamId, channelId, messageId: message.id },
+                  { clubId, category: 'announcements' },
                 )
-              }),
-          ),
-        )
-        .catch(() => undefined)
-    }
+              }
+              const isReply = rid === replyParentId
+              const isMention = mentioned.has(rid)
+              const kind = isReply ? 'MESSAGE_REPLY' : isMention ? 'MENTION' : 'CHAT_MESSAGE'
+              const pushData = { kind, clubId, messageId: message.id, teamId, channelId }
+              if (isReply || isMention) {
+                return this.pushService.sendToUserLocalized(
+                  rid,
+                  isReply ? 'CHAT_REPLY' : 'CHAT_MENTION',
+                  { senderName, messagePreview: preview },
+                  pushData,
+                  { clubId, category: 'chat' },
+                )
+              }
+              return this.pushService.sendToUser(rid, senderName, preview, pushData, {
+                clubId,
+                category: 'chat',
+              })
+            }),
+        ),
+      )
+      .catch(() => undefined)
 
     return {
       ok: true,
@@ -602,28 +775,64 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   }
 
   /**
-   * Broadcast typing indicators to everyone else in the room.
+   * Typing indicator, scoped to the channel room (L4: it used to reach the
+   * whole team room, leaking Trainerteam typing to players). Readers' inbox
+   * rows get an `inbox:typing` hint.
    */
   @SubscribeMessage('typing')
-  async handleTyping(@ConnectedSocket() client: Socket, @MessageBody() data: { teamId: string }) {
+  async handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId?: string; channelId?: string },
+  ) {
     const userId = client.data.userId as string | undefined
     const userName = client.data.userName as string | undefined
 
-    if (!userId || !userName || !data.teamId) {
+    if (!userId || !userName || typeof data?.channelId !== 'string' || !data.channelId) {
       return
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (await this.isTypingRateLimited(userId, data.channelId)) return
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
-    await this.teamsService.assertReadableAccess(userId, data.teamId)
+    let access
+    try {
+      access = await this.channelsService.getChannelAccess(userId, data.channelId)
+    } catch {
+      return
+    }
+    if (!access.canRead || !access.canWrite) return
+    if (
+      !(await this.ensureAgeGate(client, {
+        clubId: access.channel.clubId,
+        teamId: access.channel.teamId,
+      }))
+    ) {
+      return
+    }
 
-    client.to(`team:${data.teamId}`).emit('typing', {
+    client.to(`channel:${data.channelId}`).emit('typing', {
       userId,
       userName,
+      channelId: data.channelId,
     })
+    try {
+      const readers = await this.allowedIds(await this.cachedReaders(data.channelId), {
+        clubId: access.channel.clubId,
+        teamId: access.channel.teamId,
+      })
+      for (const rid of readers) {
+        if (rid === userId) continue
+        this.server
+          .to(`user:${rid}`)
+          .emit('inbox:typing', { type: 'CHANNEL', id: data.channelId, userId, userName })
+      }
+    } catch {
+      // Typing hints are best-effort.
+    }
   }
 
   /**
-   * Search messages in a team chat room.
+   * Search messages in a team's channels the caller can read.
    * Returns up to 20 results matching the query.
    */
   @SubscribeMessage('search')
@@ -636,6 +845,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
     const query = data.query?.trim()
     if (!query || query.length < 2) {
@@ -644,10 +854,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     await this.teamsService.assertReadableAccess(userId, data.teamId)
 
-    // Channel-aware authz: search returns ALL team messages by default,
-    // including private-channel content. Scope to channels this user
-    // can read (always include the legacy null-channel stream so the
-    // General tab still works pre-migration).
+    // Channel-aware authz: only channels this user can read (the legacy
+    // channel-less stream is closed, L3).
     const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
     const visibleChannelIds = visibleChannels.map((c) => c.id)
     const blockedUserIds = await this.moderationService.listBlockedUserIds(userId)
@@ -655,11 +863,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const messages = await this.prisma.message.findMany({
       where: {
         teamId: data.teamId,
+        deletedAt: null,
         content: { contains: query, mode: 'insensitive' },
-        OR: [{ channelId: null }, { channelId: { in: visibleChannelIds } }],
+        channelId: { in: visibleChannelIds },
         ...(blockedUserIds.length > 0 && {
           // NULL senderId (SYSTEM messages) must not be excluded by the block filter
-          AND: [{ OR: [{ senderId: null }, { senderId: { notIn: blockedUserIds } }] }],
+          OR: [{ senderId: null }, { senderId: { notIn: blockedUserIds } }],
         }),
       },
       include: {
@@ -678,48 +887,50 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   }
 
   /**
-   * Fetch message history — cursor-based pagination.
+   * Fetch a channel's message history — cursor-based pagination. The channel
+   * itself is the authority (CUSTOM membership + team access / team access +
+   * visibility / club membership), independent of the client's team.
+   * L3: history of the legacy channel-less stream is no longer served.
    */
   @SubscribeMessage('history')
   async handleHistory(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { teamId: string; cursor?: string; channelId?: string | null },
+    @MessageBody() data: { teamId?: string; cursor?: string; channelId?: string | null },
   ) {
     const userId = client.data.userId as string | undefined
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
-    await this.teamsService.assertReadableAccess(userId, data.teamId)
-
-    // Channel-aware authz: a parent who knows the Coaches channelId
-    // could otherwise paginate through Coaches history without ever
-    // joining the channel. assertWritable would reject writes but
-    // history is a read; channelsService.listForUser already filters
-    // visible channels — use it as the membership oracle.
-    let channelFilter: { channelId: string } | { channelId: null }
-    let isClubChannel = false
-    if (typeof data.channelId === 'string' && data.channelId.length > 0) {
-      const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
-      const allowed = visibleChannels.some((c) => c.id === data.channelId)
-      if (!allowed) {
-        return { event: 'error', data: { message: 'Forbidden for this channel' } }
-      }
-      channelFilter = { channelId: data.channelId }
-      const selected = visibleChannels.find((c) => c.id === data.channelId)
-      isClubChannel = selected?.teamId === null
-    } else {
-      // General tab: legacy team-wide stream (no channelId).
-      channelFilter = { channelId: null }
+    if (typeof data?.channelId !== 'string' || data.channelId.length === 0) {
+      return { event: 'error', data: { message: 'Channel required' } }
+    }
+    let access
+    try {
+      access = await this.channelsService.getChannelAccess(userId, data.channelId)
+    } catch {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (!access.canRead) {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (
+      !(await this.ensureAgeGate(client, {
+        clubId: access.channel.clubId,
+        teamId: access.channel.teamId,
+      }))
+    ) {
+      return this.ageGateError()
     }
 
     const blockedUserIds = await this.moderationService.listBlockedUserIds(userId)
 
     const messages = await this.prisma.message.findMany({
       where: {
-        ...(!isClubChannel ? { teamId: data.teamId } : {}),
-        ...channelFilter,
+        // Every message of the channel, whatever team it was stored under.
+        channelId: data.channelId,
         ...(data.cursor ? { createdAt: { lt: new Date(data.cursor) } } : {}),
         ...(blockedUserIds.length > 0 && {
           // NULL senderId (SYSTEM messages) must not be excluded by the block filter
@@ -762,16 +973,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
     // Only channel-scoped streams carry an unread badge; skip the legacy
     // team-wide (null channelId) stream.
     if (typeof data.channelId !== 'string' || data.channelId.length === 0) {
       return { event: 'marked', data: { marked: 0 } }
     }
 
-    await this.teamsService.assertReadableAccess(userId, data.teamId)
-    const visibleChannels = await this.channelsService.listForUser(userId, data.teamId)
-    if (!visibleChannels.some((c) => c.id === data.channelId)) {
+    let access
+    try {
+      access = await this.channelsService.getChannelAccess(userId, data.channelId)
+    } catch {
       return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (!access.canRead) {
+      return { event: 'error', data: { message: 'Forbidden for this channel' } }
+    }
+    if (
+      !(await this.ensureAgeGate(client, {
+        clubId: access.channel.clubId,
+        teamId: access.channel.teamId,
+      }))
+    ) {
+      return this.ageGateError()
     }
 
     const result = await this.chatService.markChannelRead(userId, data.channelId)
@@ -829,29 +1053,44 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (!(await this.ensureDmAgeGate(client, data.conversationId))) return this.ageGateError()
 
-    // assertConversationAccess is called inside getMessages
-    await this.dmService.getMessages(userId, data.conversationId)
+    try {
+      await this.dmService.assertConversationAccess(userId, data.conversationId)
+    } catch {
+      return { event: 'error', data: { message: 'Forbidden for this conversation' } }
+    }
     const room = `dm:${data.conversationId}`
     await client.join(room)
     return { event: 'dm:joined', data: { conversationId: data.conversationId } }
   }
 
   /**
-   * Send a direct message.
+   * Send a text direct message (attachments go through the REST endpoint,
+   * which validates the upload first). replyToId must be in the same
+   * conversation (L5).
    */
   @SubscribeMessage('dm:message')
   async handleDmMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; content: string; clientMessageId?: string | null },
+    @MessageBody()
+    data: {
+      conversationId: string
+      content: string
+      clientMessageId?: string | null
+      replyToId?: string | null
+    },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
     if (await this.isChatDisabled()) {
       return { event: 'error', data: { message: 'Chat is temporarily unavailable' } }
     }
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (!(await this.ensureDmAgeGate(client, data.conversationId))) return this.ageGateError()
 
-    const content = data.content?.trim()
+    const content = typeof data?.content === 'string' ? data.content.trim() : ''
     if (!content || content.length > CHAT.MAX_MESSAGE_LENGTH) {
       return { event: 'error', data: { message: 'Invalid message' } }
     }
@@ -861,51 +1100,146 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Too fast' } }
     }
 
-    const message = await this.dmService.saveMessage(userId, data.conversationId, content)
-
-    // Broadcast to DM room
-    const room = `dm:${data.conversationId}`
-    this.server.to(room).emit('dm:message', {
-      id: message.id,
-      conversationId: data.conversationId,
-      clientMessageId: data.clientMessageId ?? null,
-      senderId: userId,
-      senderName: client.data.userName,
-      content: message.content,
-      createdAt: message.createdAt,
-    })
-
-    // Push notification to the other participant
-    const otherUser = await this.dmService.getOtherParticipant(data.conversationId, userId)
-    if (otherUser) {
-      const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
-      this.pushService
-        .sendToUser(otherUser.id, client.data.userName || 'Message', preview, {
-          type: 'dm',
-          conversationId: data.conversationId,
-        })
-        .catch((err) => this.logger.error('Failed to send DM push', err))
+    let item: DirectMessageItem
+    try {
+      item = await this.dmService.saveMessage(userId, data.conversationId, {
+        messageType: 'TEXT',
+        content,
+        ...(typeof data.replyToId === 'string' && data.replyToId ? { replyToId: data.replyToId } : {}),
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Forbidden for this conversation'
+      return { event: 'error', data: { message } }
     }
 
-    // Ack shape matches the mobile useDmChat hook expectation:
-    // { ok: true, id }. Without `ok` the client treated every send as
-    // a failure and surfaced "send_error" even though the message was
-    // persisted server-side. Keeping the legacy event/data fields too
-    // for any future Socket.io client that reads them.
+    await this.fanOutDirectMessage({
+      message: item,
+      clientMessageId: data.clientMessageId ?? null,
+    })
+
+    // Ack shape matches the mobile useDmChat hook expectation: { ok: true, id }.
     return {
       ok: true,
-      id: message.id,
+      id: item.id,
       clientMessageId: data.clientMessageId ?? null,
+      message: item,
       event: 'dm:sent',
-      data: { id: message.id },
+      data: { id: item.id },
+    }
+  }
+
+  /** REST-sent DMs (attachments, lineup cards) reach the room the same way. */
+  @OnEvent('dm.message.created')
+  async onDirectMessageCreated(payload: {
+    message: DirectMessageItem
+    clientMessageId?: string | null
+  }) {
+    await this.fanOutDirectMessage(payload)
+  }
+
+  /** Reaction / delete on a DM: patch both participants' open threads. */
+  @OnEvent('dm.message.updated')
+  onDirectMessageUpdated(payload: {
+    kind: 'reaction' | 'deleted'
+    message: DirectMessageItem
+  }) {
+    if (!this.server) return
+    this.server
+      .to(`dm:${payload.message.conversationId}`)
+      .emit('dm:event', { kind: payload.kind, message: payload.message })
+    if (payload.kind === 'deleted') {
+      void this.dmService
+        .listParticipantIds(payload.message.conversationId)
+        .then((ids) =>
+          this.emitInboxUpdate(ids, { type: 'DM', id: payload.message.conversationId }),
+        )
+        .catch(() => undefined)
     }
   }
 
   /**
-   * Handles messages posted via the REST path (e.g. AnnounceSheet).
-   * Broadcasts the new message to the appropriate Socket.io room so
-   * connected clients see it immediately without a history reload.
-   * Also sends a push notification when the message is an announcement.
+   * Broadcast a persisted DM to the room, refresh both inbox rows and push
+   * the peer (unless they muted the chat). L2: attachment pushes are
+   * localized; M3: data carries clubId.
+   */
+  async fanOutDirectMessage(payload: {
+    message: DirectMessageItem
+    clientMessageId?: string | null
+  }) {
+    if (!this.server) return
+    const { message } = payload
+    const conversationId = message.conversationId
+    this.server.to(`dm:${conversationId}`).emit('dm:message', {
+      ...message,
+      clientMessageId: payload.clientMessageId ?? null,
+      senderName: message.sender?.name ?? null,
+    })
+
+    try {
+      const participantIds = await this.dmService.listParticipantIds(conversationId)
+      const dmClubId = await this.dmService.getConversationClubId?.(conversationId).catch(() => null)
+      this.emitInboxUpdate(
+        await this.allowedIds(participantIds, dmClubId ? { clubId: dmClubId } : {}),
+        { type: 'DM', id: conversationId },
+      )
+    } catch {
+      // inbox refresh is best-effort
+    }
+
+    const peer = await this.dmService
+      .getOtherParticipant(conversationId, message.senderId)
+      .catch(() => null)
+    if (!peer) return
+    const peerMuted = await this.dmService
+      .isParticipantMuted(conversationId, peer.id)
+      .catch(() => false)
+    if (peerMuted) return
+    const clubId = await this.dmService.getConversationClubId(conversationId).catch(() => null)
+    const senderName = message.sender?.name ?? ''
+    const data: Record<string, string> = {
+      type: 'dm',
+      kind: 'DM_MESSAGE',
+      conversationId,
+      messageId: message.id,
+      ...(clubId ? { clubId } : {}),
+    }
+    const options = clubId ? { clubId, category: 'chat' as const } : undefined
+    const send =
+      message.messageType === 'TEXT'
+        ? senderName
+          ? this.pushService.sendToUser(
+              peer.id,
+              senderName,
+              message.content.length > 100 ? message.content.slice(0, 97) + '...' : message.content,
+              data,
+              options,
+            )
+          : this.pushService.sendToUserLocalized(
+              peer.id,
+              'DM_FALLBACK_TITLE',
+              {
+                messagePreview:
+                  message.content.length > 100
+                    ? message.content.slice(0, 97) + '...'
+                    : message.content,
+              },
+              data,
+              options,
+            )
+        : this.pushService.sendToUserLocalized(
+            peer.id,
+            'CHAT_ATTACHMENT',
+            { senderName, kind: message.messageType, caption: message.content || null },
+            data,
+            options,
+          )
+    await Promise.resolve(send).catch((err) => this.logger.error('Failed to send DM push', err))
+  }
+
+  /**
+   * Handles messages posted via the REST path (e.g. AnnounceSheet, SYSTEM
+   * notices). Broadcasts to the channel room and pushes announcements to the
+   * channel's readers (localized, L2; with clubId, M3).
    */
   @OnEvent('channel.message.created')
   async handleRestMessage(payload: {
@@ -931,6 +1265,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       id: message.id,
       content: message.content,
       channelId,
+      clubId: payload.clubId,
       userId: message.senderId,
       senderId: message.senderId,
       createdAt: message.createdAt.toISOString(),
@@ -938,25 +1273,48 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       isAnnouncement: message.isAnnouncement,
     })
 
-    // Push notification for team-scoped announcement channels.
-    if (message.isAnnouncement && teamId) {
-      this.pushService
-        .sendToTeam(
-          teamId,
-          '📢 Announcement',
-          message.content.length > 100 ? message.content.slice(0, 97) + '...' : message.content,
-          { type: 'announcement', teamId, messageId: message.id },
-          message.senderId ?? undefined,
-          // Respect quiet-hours + mutedAnnouncements (the socket announcement
-          // path already passes these; the REST path leaked to muted users).
-          { clubId: payload.clubId, category: 'announcements' },
+    void this.emitInboxUpdateForChannel(channelId)
+
+    // Announcement push to the channel's readers, skipping anyone who muted
+    // the channel; the 'announcements' category keeps quiet-hours and the
+    // club-level announcement mute in force.
+    if (message.isAnnouncement) {
+      const preview =
+        message.content.length > 100 ? message.content.slice(0, 97) + '...' : message.content
+      const sender = message.senderId
+        ? await this.prisma.user
+            .findUnique({ where: { id: message.senderId }, select: { name: true } })
+            .catch(() => null)
+        : null
+      this.channelsService
+        .listReadersForChannel(channelId, { excludeMuted: true })
+        .then((readerIds) =>
+          Promise.all(
+            readerIds
+              .filter((rid) => rid !== message.senderId)
+              .map((rid) =>
+                this.pushService.sendToUserLocalized(
+                  rid,
+                  'ANNOUNCEMENT',
+                  { senderName: sender?.name ?? '', messagePreview: preview },
+                  {
+                    kind: 'announcement',
+                    clubId: payload.clubId,
+                    teamId: teamId ?? message.teamId,
+                    channelId,
+                    messageId: message.id,
+                  },
+                  { clubId: payload.clubId, category: 'announcements' },
+                ),
+              ),
+          ),
         )
         .catch((err) => this.logger.error('Failed to send REST announcement push', err))
     }
   }
 
   /**
-   * DM typing indicator.
+   * DM typing indicator. The peer's inbox row gets an `inbox:typing` hint.
    */
   @SubscribeMessage('dm:typing')
   async handleDmTyping(
@@ -968,17 +1326,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId || !userName || !data?.conversationId) return
     if (await this.isChatDisabled()) return this.chatDisabledError()
     if (await this.isTypingRateLimited(userId, data.conversationId)) return
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (!(await this.ensureDmAgeGate(client, data.conversationId))) return
 
-    await this.dmService.assertCanMessageConversation(userId, data.conversationId)
+    try {
+      await this.dmService.assertCanMessageConversation(userId, data.conversationId)
+    } catch {
+      return
+    }
 
     client.to(`dm:${data.conversationId}`).emit('dm:typing', {
       userId,
       userName,
+      conversationId: data.conversationId,
     })
+    const peer = await this.dmService
+      .getOtherParticipant(data.conversationId, userId)
+      .catch(() => null)
+    if (peer) {
+      this.server
+        .to(`user:${peer.id}`)
+        .emit('inbox:typing', { type: 'DM', id: data.conversationId, userId, userName })
+    }
   }
 
   /**
-   * Mark DM conversation as read.
+   * Mark DM conversation as read. The peer's open thread flips ✓ to ✓✓.
    */
   @SubscribeMessage('dm:read')
   async handleDmRead(
@@ -988,12 +1361,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId as string | undefined
     if (!userId) return
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (!(await this.ensureDmAgeGate(client, data.conversationId))) return this.ageGateError()
 
-    await this.dmService.markAsRead(userId, data.conversationId)
+    const result = await this.dmService.markAsRead(userId, data.conversationId)
 
     client.to(`dm:${data.conversationId}`).emit('dm:read', {
       userId,
       conversationId: data.conversationId,
+      readAt: result.readAt,
     })
   }
 
@@ -1010,6 +1386,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
+    if (!(await this.ensureAgeGate(client))) return this.ageGateError()
+    if (!(await this.ensureDmAgeGate(client, data.conversationId))) return this.ageGateError()
 
     const result = await this.dmService.getMessages(userId, data.conversationId, data.cursor)
 

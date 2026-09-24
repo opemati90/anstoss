@@ -273,10 +273,12 @@ describe('ChatGateway.handleSearch', () => {
     expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
     expect(mockPrisma.message.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        // L3: only readable channels; the legacy channel-less stream is gone.
         where: {
           teamId: 'team-1',
+          deletedAt: null,
           content: { contains: 'hello', mode: 'insensitive' },
-          OR: [{ channelId: null }, { channelId: { in: [] } }],
+          channelId: { in: [] },
         },
         take: 20,
       }),
@@ -297,7 +299,9 @@ describe('ChatGateway.handleMarkChannelRead', () => {
       assertReadableAccess: jest.fn().mockResolvedValue(undefined),
     }
     mockChannelsService = {
-      listForUser: jest.fn().mockResolvedValue([{ id: 'chan-1' }]),
+      getChannelAccess: jest
+        .fn()
+        .mockResolvedValue({ canRead: true, channel: { id: 'chan-1', teamId: 'team-1' } }),
     }
     mockChatService = {
       markChannelRead: jest.fn().mockResolvedValue({ marked: 3 }),
@@ -335,7 +339,7 @@ describe('ChatGateway.handleMarkChannelRead', () => {
   })
 
   it('forbids marking a channel the user cannot read', async () => {
-    mockChannelsService.listForUser.mockResolvedValue([{ id: 'other-chan' }])
+    mockChannelsService.getChannelAccess.mockResolvedValue({ canRead: false })
     const res = await gateway.handleMarkChannelRead(client('user-1'), {
       teamId: 'team-1',
       channelId: 'chan-1',
@@ -349,7 +353,8 @@ describe('ChatGateway.handleMarkChannelRead', () => {
       teamId: 'team-1',
       channelId: 'chan-1',
     })
-    expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1')
+    // Authorized by the channel itself, not by the client's selected team.
+    expect(mockChannelsService.getChannelAccess).toHaveBeenCalledWith('user-1', 'chan-1')
     expect(mockChatService.markChannelRead).toHaveBeenCalledWith('user-1', 'chan-1')
     expect(res).toEqual({ event: 'marked', data: { marked: 3 } })
   })

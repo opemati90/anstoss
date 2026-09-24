@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ForbiddenException,
   Controller,
   Get,
   NotFoundException,
@@ -15,25 +16,13 @@ import { R2Provider } from '../assets/r2.provider'
 import { ChannelsService } from '../channels/channels.service'
 import { PrismaService } from '../prisma/prisma.service'
 
-const ALLOWED = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'video/mp4',
-  'audio/m4a',
-  'audio/mp4',
-  'audio/aac',
-  'audio/ogg',
-  'audio/webm',
-  'application/pdf',
-])
-const MAX_BYTES = {
-  voice: 25 * 1024 * 1024,
-  image: 10 * 1024 * 1024,
-  video: 100 * 1024 * 1024,
-  file: 25 * 1024 * 1024,
-} as const
+import {
+  ALL_CHAT_UPLOAD_CONTENT_TYPES,
+  CHAT_UPLOAD_CONTENT_TYPES,
+  CHAT_UPLOAD_MAX_BYTES,
+  safeUploadName,
+  type ChatUploadKind,
+} from './chat-media-limits'
 
 @Controller()
 @UseGuards(ClerkAuthGuard)
@@ -64,20 +53,25 @@ export class MediaController {
     },
   ) {
     const access = await this.teamsService.assertReadableAccess(user.id, teamId)
-    if (!Object.prototype.hasOwnProperty.call(MAX_BYTES, body.kind)) {
+    if (!Object.prototype.hasOwnProperty.call(CHAT_UPLOAD_MAX_BYTES, body.kind)) {
       throw new BadRequestException('Unsupported media kind')
     }
-    if (!ALLOWED.has(body.contentType)) {
+    const kind = body.kind as ChatUploadKind
+    if (
+      !ALL_CHAT_UPLOAD_CONTENT_TYPES.has(body.contentType) ||
+      !CHAT_UPLOAD_CONTENT_TYPES[kind].has(body.contentType)
+    ) {
       throw new BadRequestException('Unsupported content type')
     }
-    if (!Number.isInteger(body.sizeBytes) || body.sizeBytes <= 0 || body.sizeBytes > MAX_BYTES[body.kind]) {
+    if (
+      !Number.isInteger(body.sizeBytes) ||
+      body.sizeBytes <= 0 ||
+      body.sizeBytes > CHAT_UPLOAD_MAX_BYTES[kind]
+    ) {
       throw new BadRequestException('File exceeds the allowed size')
     }
 
-    const safeName = (body.filename || `m-${Date.now()}`).replace(
-      /[^a-zA-Z0-9._-]/g,
-      '-',
-    )
+    const safeName = safeUploadName(body.filename)
     const objectKey = `chat/${access.team.clubId}/${teamId}/${body.kind}/${Date.now()}-${user.id.slice(0, 8)}-${safeName}`
 
     if (!this.r2.enabled) {
@@ -120,12 +114,13 @@ export class MediaController {
     if (message.deletedAt) return { url: null }
     if (!message.attachmentUrl) return { url: null }
 
-    await this.teamsService.assertReadableAccess(user.id, message.teamId)
     if (message.channelId) {
-      const visible = await this.channelsService.listForUser(user.id, message.teamId)
-      if (!visible.some((c) => c.id === message.channelId)) {
-        return { url: null }
-      }
+      // The channel is the authority (club channels, CUSTOM groups on
+      // another team, current team access — H3).
+      const access = await this.channelsService.getChannelAccess(user.id, message.channelId)
+      if (!access.canRead) throw new ForbiddenException('Forbidden for this channel')
+    } else {
+      await this.teamsService.assertReadableAccess(user.id, message.teamId)
     }
 
     if (!this.r2.enabled) return { url: null }

@@ -26,8 +26,14 @@ import { PushService } from '../push/push.service'
 import { ChannelsService } from '../channels/channels.service'
 import { BillingService } from '../billing/billing.service'
 import { R2Provider } from '../assets/r2.provider'
+import {
+  CHAT_UPLOAD_CONTENT_TYPES,
+  CHAT_UPLOAD_MAX_BYTES,
+  uploadKindFor,
+} from '../media/chat-media-limits'
 
-const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🙏'])
+// Chat revamp: the quick bar is 👍 ❤️ 😂 ⚽ 👏; older reactions stay valid.
+const REACTION_EMOJIS = new Set(['👍', '❤️', '😂', '⚽', '👏', '😮', '😢', '🙏'])
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000
 
@@ -162,6 +168,7 @@ export class ChatService {
       replyToId?: string
     },
   ): Promise<ChatMessage> {
+    requireChannel(input.channelId)
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (this.r2) {
       const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
@@ -169,22 +176,11 @@ export class ChatService {
       if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
         throw new BadRequestException('Attachment does not belong to this team upload')
       }
-      const limits = {
-        VOICE: 25 * 1024 * 1024,
-        IMAGE: 10 * 1024 * 1024,
-        VIDEO: 100 * 1024 * 1024,
-        FILE: 25 * 1024 * 1024,
-      } as const
-      const types = {
-        VOICE: new Set(['audio/m4a', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/webm']),
-        IMAGE: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
-        VIDEO: new Set(['video/mp4']),
-        FILE: new Set(['application/pdf']),
-      } as const
+      const kind = uploadKindFor(input.messageType)
       try {
         await this.r2.assertStoredObject(objectKey, {
-          maxBytes: limits[input.messageType],
-          allowedContentTypes: types[input.messageType],
+          maxBytes: CHAT_UPLOAD_MAX_BYTES[kind],
+          allowedContentTypes: CHAT_UPLOAD_CONTENT_TYPES[kind],
         })
       } catch {
         throw new BadRequestException('Attachment upload is invalid or incomplete')
@@ -197,6 +193,7 @@ export class ChatService {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
+    await this.assertReplyInChannel(input.replyToId, input.channelId)
     const message = await this.prisma.message.create({
       data: {
         teamId: input.teamId,
@@ -220,6 +217,7 @@ export class ChatService {
       },
       input.channelId ?? null,
     )
+    void this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null)
 
     // Push fan-out: media posts skipped the gateway-level notify path,
     // so for parity with text messages we dispatch (a) a reply push
@@ -230,81 +228,69 @@ export class ChatService {
       where: { id: userId },
       select: { name: true },
     })
-    const senderName = sender?.name ?? 'Someone'
-    const preview = previewForMedia(input.messageType, input.content)
+    const senderName = sender?.name ?? ''
+    const clubId = access.team.clubId
+    const channelId = input.channelId as string
+    const caption = input.content?.trim() || null
 
+    // Reply push to the quoted author (L2: localized; M3: data has clubId).
+    let replyParentId: string | null = null
     if (input.replyToId) {
-      this.prisma.message
-        .findUnique({
-          where: { id: input.replyToId },
-          select: { senderId: true },
-        })
-        .then((parent) => {
-          if (!parent || !parent.senderId || parent.senderId === userId) return
-          return this.pushService.sendToUser(
-            parent.senderId,
-            `${senderName} replied`,
-            preview,
-            {
-              kind: 'MESSAGE_REPLY',
-              messageId: message.id,
-              teamId: input.teamId,
-            },
-            // category 'chat' so a user who muted chat for this club doesn't
-            // get reply pings (quiet-hours alone left a mute leak).
-            { clubId: access.team.clubId, category: 'chat' },
-          )
-        })
-        .catch(() => undefined)
+      const parent = await this.prisma.message.findUnique({
+        where: { id: input.replyToId },
+        select: { senderId: true },
+      })
+      replyParentId = parent?.senderId && parent.senderId !== userId ? parent.senderId : null
     }
 
-    if (input.channelId) {
-      // Channel-scoped fan-out: only users with read access to the
-      // channel get the push. Without this, a Coaches-only photo pushes
-      // a notification preview to every parent/player.
-      this.channelsService
-        .listChannelReaderIds(input.teamId, input.channelId)
-        .then((readerIds) =>
-          Promise.all(
-            readerIds
-              .filter((rid) => rid !== userId)
-              .map((rid) =>
-                this.pushService.sendToUser(
-                  rid,
-                  senderName,
-                  preview,
-                  {
-                    kind: 'MEDIA_MESSAGE',
-                    messageId: message.id,
-                    teamId: input.teamId,
-                    channelId: input.channelId ?? '',
-                  },
-                  // category 'chat' so muted-chat users don't get per-reader
-                  // channel pings (only the team fallback respected mute before).
-                  { clubId: access.team.clubId, category: 'chat' },
-                ),
-              ),
-          ),
-        )
-        .catch(() => undefined)
-    } else {
-      this.pushService
-        .sendToTeam(
-          input.teamId,
-          senderName,
-          preview,
-          {
-            kind: 'MEDIA_MESSAGE',
-            messageId: message.id,
-            teamId: input.teamId,
-          },
-          userId,
-          { clubId: access.team.clubId, category: 'chat' },
-        )
-        .catch(() => undefined)
-    }
+    // Channel-scoped fan-out: only readers of the channel, minus anyone who
+    // muted it. L3: the legacy team-wide push for channel-less posts is gone.
+    this.channelsService
+      .listChannelReaderIds(input.teamId, channelId, { excludeMuted: true })
+      .then((readerIds) =>
+        Promise.all(
+          readerIds
+            .filter((rid) => rid !== userId)
+            .map((rid) => {
+              const isReply = rid === replyParentId
+              const data = {
+                kind: isReply ? 'MESSAGE_REPLY' : 'MEDIA_MESSAGE',
+                clubId,
+                messageId: message.id,
+                teamId: input.teamId,
+                channelId,
+              }
+              return isReply
+                ? this.pushService.sendToUserLocalized(
+                    rid,
+                    'CHAT_REPLY',
+                    { senderName, messagePreview: caption ?? '' },
+                    data,
+                    { clubId, category: 'chat' },
+                  )
+                : this.pushService.sendToUserLocalized(
+                    rid,
+                    'CHAT_ATTACHMENT',
+                    { senderName, kind: input.messageType, caption },
+                    data,
+                    { clubId, category: 'chat' },
+                  )
+            }),
+        ),
+      )
+      .catch(() => undefined)
 
     return serialized
+  }
+
+  /** L5: a reply must quote a message of the same channel. */
+  private async assertReplyInChannel(replyToId: string | undefined, channelId: string | undefined) {
+    if (!replyToId) return
+    const parent = await this.prisma.message.findFirst({
+      where: { id: replyToId, channelId: channelId ?? '__none__' },
+      select: { id: true },
+    })
+    if (!parent) throw new BadRequestException('Invalid reply target')
   }
 
   private isTeamManager(access: {
@@ -332,6 +318,7 @@ export class ChatService {
       closesAt?: string
     },
   ): Promise<ChatMessage> {
+    requireChannel(input.channelId)
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
@@ -375,6 +362,7 @@ export class ChatService {
       { kind: 'poll', message: serialized, messageId: message.id },
       input.channelId ?? null,
     )
+    void this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null)
     return serialized
   }
 
@@ -382,6 +370,7 @@ export class ChatService {
     userId: string,
     input: { teamId: string; channelId?: string; eventId: string },
   ): Promise<ChatMessage> {
+    requireChannel(input.channelId)
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
@@ -421,6 +410,7 @@ export class ChatService {
       { kind: 'rsvp-poll', message: serialized, messageId: message.id },
       input.channelId ?? null,
     )
+    void this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null)
     return serialized
   }
 
@@ -434,6 +424,7 @@ export class ChatService {
       xi: string
     },
   ): Promise<ChatMessage> {
+    requireChannel(input.channelId)
     const access = await this.teamsService.assertReadableAccess(userId, input.teamId)
     if (input.channelId) {
       await this.channelsService.assertWritable(userId, input.channelId)
@@ -479,16 +470,35 @@ export class ChatService {
       },
       input.channelId ?? null,
     )
-    this.pushService
-      .sendToTeamLocalized(
-        input.teamId,
-        'LINEUP_POSTED',
-        { formation: input.formation },
-        { kind: 'LINEUP_POSTED', messageId: message.id, teamId: input.teamId },
-        userId,
-        { clubId: access.team.clubId, category: 'announcements' },
-      )
-      .catch(() => undefined)
+    void this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null)
+    if (input.channelId) {
+      // Channel post: only the channel's readers, minus anyone who muted it.
+      const channelId = input.channelId
+      this.channelsService
+        .listChannelReaderIds(input.teamId, channelId, { excludeMuted: true })
+        .then((readerIds) =>
+          Promise.all(
+            readerIds
+              .filter((rid) => rid !== userId)
+              .map((rid) =>
+                this.pushService.sendToUserLocalized(
+                  rid,
+                  'LINEUP_POSTED',
+                  { formation: input.formation },
+                  {
+                    kind: 'LINEUP_POSTED',
+                    clubId: access.team.clubId,
+                    messageId: message.id,
+                    teamId: input.teamId,
+                    channelId,
+                  },
+                  { clubId: access.team.clubId, category: 'announcements' },
+                ),
+              ),
+          ),
+        )
+        .catch(() => undefined)
+    }
     return serialized
   }
 
@@ -662,12 +672,18 @@ export class ChatService {
         select: { name: true },
       })
       this.pushService
-        .sendToUser(
+        .sendToUserLocalized(
           message.senderId,
-          'Anstoss',
-          `${reactor?.name ?? 'Someone'} reacted ${emoji}`,
-          { kind: 'MESSAGE_REACTION', messageId, teamId: message.teamId },
-          { clubId: message.clubId },
+          'CHAT_REACTION',
+          { senderName: reactor?.name ?? '', emoji },
+          {
+            kind: 'MESSAGE_REACTION',
+            clubId: message.clubId,
+            messageId,
+            teamId: message.teamId,
+            ...(message.channelId ? { channelId: message.channelId } : {}),
+          },
+          { clubId: message.clubId, category: 'chat' },
         )
         .catch(() => undefined)
     }
@@ -788,24 +804,8 @@ export class ChatService {
    * read access first (the gateway does, mirroring `history`).
    */
   async markChannelRead(userId: string, channelId: string): Promise<{ marked: number }> {
-    // Scope by channelId ONLY — exactly mirroring the unread count in
-    // ChannelsService.listForUser. Do NOT add a teamId predicate: a club-level
-    // channel (channel.teamId = null) stores each message under the posting
-    // user's own teamId, so filtering by the reader's team would leave other
-    // teams' messages permanently unread and the badge would never clear.
-    const inserted = await this.prisma.$executeRaw`
-      INSERT INTO "MessageReadReceipt" ("id", "messageId", "userId", "readAt")
-      SELECT gen_random_uuid()::text, m."id", ${userId}, NOW()
-       FROM "Message" m
-       LEFT JOIN "MessageReadReceipt" r
-         ON r."messageId" = m."id" AND r."userId" = ${userId}
-       WHERE m."channelId" = ${channelId}
-         AND m."deletedAt" IS NULL
-         AND (m."senderId" IS NULL OR m."senderId" <> ${userId})
-         AND r."id" IS NULL
-       ON CONFLICT ("messageId", "userId") DO NOTHING
-    `
-    return { marked: typeof inserted === 'number' ? inserted : 0 }
+    // Single implementation (mirrors the unread count) lives in ChannelsService.
+    return this.channelsService.markChannelRead(userId, channelId)
   }
 
   async serializeMessage(userId: string, messageId: string): Promise<ChatMessage> {
@@ -879,7 +879,10 @@ export class ChatService {
       where: { id: messageId },
     })
     if (!message) throw new NotFoundException('Message not found')
-    await this.teamsService.assertReadableAccess(userId, message.teamId)
+    if (!message.channelId) {
+      // L3: the legacy channel-less stream is closed.
+      await this.teamsService.assertReadableAccess(userId, message.teamId)
+    }
 
     // Channel-aware authz: a parent who knows the messageId of a
     // Coaches-only message could otherwise react / mark-read against
@@ -889,9 +892,9 @@ export class ChatService {
     // only the legacy null-channel stream and channels the user can
     // read pass through.
     if (message.channelId) {
-      const visible = await this.channelsService.listForUser(userId, message.teamId)
-      const allowed = visible.some((c) => c.id === message.channelId)
-      if (!allowed) {
+      // The channel is the authority (club channels, groups, team access).
+      const access = await this.channelsService.getChannelAccess(userId, message.channelId)
+      if (!access.canRead) {
         throw new ForbiddenException('Forbidden for this channel')
       }
     }
@@ -908,25 +911,19 @@ export class ChatService {
 }
 
 function previewFor(content: string, type: string): string {
-  if (type === 'VOICE') return '🎙 Voice note'
-  if (type === 'IMAGE') return '📷 Photo'
-  if (type === 'VIDEO') return '🎬 Video'
-  if (type === 'FILE') return '📎 File'
-  if (type === 'POLL') return '📊 Poll'
-  if (type === 'RSVP_POLL') return '📋 RSVP poll'
-  if (type === 'LINEUP') return '🟢 Lineup'
+  if (type === 'VOICE') return 'Voice note'
+  if (type === 'IMAGE') return 'Photo'
+  if (type === 'VIDEO') return 'Video'
+  if (type === 'FILE') return 'File'
+  if (type === 'POLL') return 'Poll'
+  if (type === 'RSVP_POLL') return 'RSVP poll'
+  if (type === 'LINEUP') return 'Lineup'
   return content.slice(0, 80)
 }
 
-function previewForMedia(type: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE', caption?: string): string {
-  const trimmed = caption?.trim()
-  if (trimmed) {
-    return trimmed.length > 100 ? trimmed.slice(0, 97) + '...' : trimmed
-  }
-  if (type === 'VOICE') return '🎙 Voice note'
-  if (type === 'IMAGE') return '📷 Photo'
-  if (type === 'VIDEO') return '🎬 Video'
-  return '📎 File'
+/** L3: every chat post needs a channel (the team-wide stream is closed). */
+function requireChannel(channelId: string | undefined): asserts channelId is string {
+  if (!channelId) throw new BadRequestException('Channel required')
 }
 
 function toChatRetentionSettings(settings: {

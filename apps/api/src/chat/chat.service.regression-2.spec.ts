@@ -25,6 +25,7 @@ describe('ChatService media upload binding', () => {
     await expect(
       service.postMedia('user-1', {
         teamId: 'team-1',
+        channelId: 'ch-1',
         messageType: 'IMAGE',
         attachmentUrl: 'https://assets.example/foreign.png',
       }),
@@ -55,10 +56,35 @@ describe('ChatService media upload binding', () => {
     await expect(
       service.postMedia('user-1', {
         teamId: 'team-1',
+        channelId: 'ch-1',
         messageType: 'IMAGE',
         attachmentUrl: 'https://assets.example/x.png',
       }),
     ).rejects.toThrow('Attachment upload is invalid or incomplete')
+    expect(prisma.message.create).not.toHaveBeenCalled()
+  })
+
+  it('L3: refuses a media post without a channel before touching storage', async () => {
+    const prisma = { message: { create: jest.fn() } }
+    const teams = { assertReadableAccess: jest.fn() }
+    const r2 = { objectKeyFromUrl: jest.fn(), assertStoredObject: jest.fn() }
+    const service = new ChatService(
+      prisma as never,
+      teams as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      r2 as never,
+    )
+    await expect(
+      service.postMedia('user-1', {
+        teamId: 'team-1',
+        messageType: 'IMAGE',
+        attachmentUrl: 'https://assets.example/x.png',
+      }),
+    ).rejects.toThrow('Channel required')
+    expect(teams.assertReadableAccess).not.toHaveBeenCalled()
     expect(prisma.message.create).not.toHaveBeenCalled()
   })
 })

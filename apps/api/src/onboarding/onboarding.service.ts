@@ -206,7 +206,12 @@ export class OnboardingService {
    */
   async joinTeamByCode(
     userId: string,
-    input: { joinCode: string; role: 'PLAYER' | 'COACH' },
+    input: {
+      joinCode: string
+      role: 'PLAYER' | 'COACH'
+      /** Coaches only (M4): defaults to the assistant role. */
+      teamRole?: 'HEAD_COACH' | 'ASSISTANT_COACH'
+    },
   ): Promise<{ clubId: string; teamId: string; status: 'ACTIVE' | 'PENDING' }> {
     const code = input.joinCode.trim().toUpperCase()
     if (code.length !== JOIN_CODE_LENGTH) {
@@ -216,6 +221,15 @@ export class OnboardingService {
     if (input.role === 'PLAYER') {
       if (!this.joinRequestsService) {
         throw new ForbiddenException('Team-code joining is temporarily unavailable')
+      }
+      // onboarding revamp: adults may skip the DOB with a 16+ declaration,
+      // but a player always needs a real DOB for the under-16 gate.
+      const player = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { dateOfBirth: true },
+      })
+      if (!player?.dateOfBirth) {
+        throw new ForbiddenException('Players must add their date of birth before joining a team')
       }
       const team = await this.prisma.team.findUnique({
         where: { joinCode: code },
@@ -241,7 +255,7 @@ export class OnboardingService {
       await this.clubActivationService.submitStaffRequest(userId, team.clubId, {
         desiredRole: 'COACH',
         requestedTeamIds: [team.id],
-        teamRoles: ['ASSISTANT_COACH'],
+        teamRoles: [input.teamRole ?? 'ASSISTANT_COACH'],
       })
       return { clubId: team.clubId, teamId: team.id, status: 'PENDING' }
     }

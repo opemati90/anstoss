@@ -52,7 +52,12 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     directMessage: {
-      findMany: jest.fn().mockResolvedValueOnce([{ id: 'dm-1' }]).mockResolvedValue([]),
+      // 1st: DM attachment sweep (none), 2nd: expired DMs, then nothing.
+      findMany: jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'dm-1' }])
+        .mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     directMessageTranslation: {
@@ -176,7 +181,7 @@ describe('ChatRetentionWorker', () => {
           reports: { none: { resolvedAt: null } },
           conversation: { clubId: 'club-1' },
         }),
-        data: { content: '', deletedAt: now },
+        data: expect.objectContaining({ content: '', attachmentUrl: null, deletedAt: now }),
       }),
     )
   })
@@ -326,5 +331,53 @@ describe('ChatRetentionWorker', () => {
 
     expect(prisma.message.updateMany).not.toHaveBeenCalled()
     expect(prisma.directMessage.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('deletes expired DM attachments from storage and clears only unreported rows (FakePrisma)', async () => {
+    const { CHAT_FAKE_SCHEMA, FakePrisma } = await import('../test-utils/fake-prisma')
+    const now = new Date('2026-09-24T12:00:00Z')
+    const old = new Date('2026-06-01T12:00:00Z')
+    const prisma = new FakePrisma(
+      {
+        ...CHAT_FAKE_SCHEMA,
+        club: {},
+        messageTranslation: {},
+        directMessageTranslation: {},
+        pollVote: {},
+        pollOption: {},
+        poll: {},
+      },
+      {
+        club: [{ id: 'club-1' }],
+        conversation: [
+          { id: 'conv-1', clubId: 'club-1' },
+          { id: 'conv-x', clubId: 'club-2' },
+        ],
+        directMessage: [
+          { id: 'dm-old', conversationId: 'conv-1', senderId: 'u', content: '', messageType: 'IMAGE', attachmentUrl: 'https://cdn.example/dm/club-1/conv-1/image/a.jpg', attachmentMeta: {}, deletedAt: null, createdAt: old },
+          { id: 'dm-reported', conversationId: 'conv-1', senderId: 'u', content: '', messageType: 'IMAGE', attachmentUrl: 'https://cdn.example/dm/club-1/conv-1/image/b.jpg', attachmentMeta: {}, deletedAt: null, createdAt: old },
+          { id: 'dm-fresh', conversationId: 'conv-1', senderId: 'u', content: '', messageType: 'FILE', attachmentUrl: 'https://cdn.example/dm/club-1/conv-1/file/c.pdf', attachmentMeta: {}, deletedAt: null, createdAt: now },
+          { id: 'dm-other-club', conversationId: 'conv-x', senderId: 'u', content: '', messageType: 'IMAGE', attachmentUrl: 'https://cdn.example/dm/club-2/conv-x/image/d.jpg', attachmentMeta: {}, deletedAt: null, createdAt: old },
+        ],
+        directMessageReport: [{ id: 'r1', directMessageId: 'dm-reported', resolvedAt: null }],
+        message: [],
+      },
+    )
+    ;(prisma as any).club.findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'club-1',
+        chatRetentionSettings: { clubId: 'club-1', enabled: true, messageRetentionDays: 365, attachmentRetentionDays: 30 },
+      },
+    ])
+    const r2 = makeR2()
+    const worker = new ChatRetentionWorker(prisma as never, r2 as never)
+    const result = await worker.purgeExpired(now)
+    expect(r2.deleteObjects).toHaveBeenCalledWith(['dm/club-1/conv-1/image/a.jpg'])
+    const byId = new Map(prisma.rows('directMessage').map((m) => [m.id, m]))
+    expect(byId.get('dm-old')!.attachmentUrl).toBeNull()
+    expect(byId.get('dm-reported')!.attachmentUrl).not.toBeNull()
+    expect(byId.get('dm-fresh')!.attachmentUrl).not.toBeNull()
+    expect(byId.get('dm-other-club')!.attachmentUrl).not.toBeNull()
+    expect(result.attachmentsPurged).toBe(1)
   })
 })

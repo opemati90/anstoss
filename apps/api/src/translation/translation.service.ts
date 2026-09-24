@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import { PrismaService } from '../prisma/prisma.service'
 
-const SUPPORTED = new Set(['de', 'en', 'fr', 'pt', 'it', 'tr', 'ar'])
+const SUPPORTED = new Set(['de', 'en', 'fr', 'pt', 'it', 'tr'])
 const DEFAULT_TARGET = 'de'
 
 type Surface = 'channel' | 'dm'

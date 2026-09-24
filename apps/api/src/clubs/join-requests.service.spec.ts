@@ -23,7 +23,8 @@ describe('JoinRequestsService.create', () => {
         findMany: jest.fn().mockResolvedValue([{ userId: 'admin-1' }]),
       },
       user: {
-        findUnique: jest.fn().mockResolvedValue({ name: 'Mara' }),
+        // Players join with a date of birth (onboarding fix).
+        findUnique: jest.fn().mockResolvedValue({ name: 'Mara', dateOfBirth: new Date('1995-03-01') }),
         findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
       auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
@@ -66,7 +67,7 @@ describe('JoinRequestsService.create', () => {
     ).resolves.toBe(request)
 
     expect(prisma.joinRequest.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         clubId: 'club-1',
         userId: 'user-1',
         role: 'PLAYER',
@@ -75,10 +76,127 @@ describe('JoinRequestsService.create', () => {
         status: JoinRequestStatus.PENDING,
         reviewedBy: null,
         reviewedAt: null,
-      },
+        // A plain join request carries no Aufnahmeantrag data.
+        trialInviteId: null,
+        sepaConsentAt: null,
+        releaseStatus: null,
+      }),
     })
     expect(prisma.auditLog.create).toHaveBeenCalledTimes(1)
     expect(push.sendToUserLocalized).toHaveBeenCalledTimes(1)
+  })
+
+  describe('Aufnahmeantrag after a Probetraining offer', () => {
+    const aufnahme = {
+      role: 'PLAYER' as const,
+      trialInviteId: 'invite-1',
+      street: 'Kastanienallee 12',
+      postalCode: '14482',
+      city: 'Potsdam',
+      phone: '+49 151 2345678',
+      nationality: 'deutsch',
+      previousClubName: 'SV Babelsberg 03',
+      lastMatchDate: '2026-05-31',
+      sepaConsent: true,
+    }
+
+    function withOffer() {
+      const ctx = makeService()
+      const prisma = ctx.prisma as any
+      prisma.trialInvite = {
+        findFirst: jest.fn().mockResolvedValue({ id: 'invite-1', teamId: 'team-offer' }),
+      }
+      prisma.user.findUnique.mockResolvedValue({
+        name: 'Amir Kaya',
+        dateOfBirth: new Date('1998-05-15'),
+      })
+      prisma.joinRequest.create.mockImplementation(async ({ data }: any) => ({ id: 'jr-9', ...data }))
+      return ctx
+    }
+
+    it('binds the request to the offered team and records consent without an IBAN', async () => {
+      const { service, prisma } = withOffer()
+
+      await service.create('user-1', 'club-1', aufnahme)
+
+      expect((prisma as any).trialInvite.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'invite-1',
+          clubId: 'club-1',
+          status: 'OFFERED',
+          freeAgentProfile: { userId: 'user-1' },
+        },
+        select: { id: true, teamId: true },
+      })
+      const data = prisma.joinRequest.create.mock.calls[0][0].data
+      expect(data).toMatchObject({
+        teamId: 'team-offer',
+        trialInviteId: 'invite-1',
+        street: 'Kastanienallee 12',
+        postalCode: '14482',
+        previousClubName: 'SV Babelsberg 03',
+        releaseStatus: 'PENDING',
+      })
+      expect(data.sepaConsentAt).toBeInstanceOf(Date)
+      expect(data.lastMatchDate).toEqual(new Date('2026-05-31T00:00:00.000Z'))
+      expect(Object.keys(data).some((key) => /iban/i.test(key))).toBe(false)
+    })
+
+    it('marks the Freigabe as not needed when the player had no club', async () => {
+      const { service, prisma } = withOffer()
+
+      await service.create('user-1', 'club-1', { ...aufnahme, previousClubName: null })
+
+      expect(prisma.joinRequest.create.mock.calls[0][0].data.releaseStatus).toBe('NOT_NEEDED')
+    })
+
+    it('refuses a withdrawn or foreign offer', async () => {
+      const { service, prisma } = withOffer()
+      ;(prisma as any).trialInvite.findFirst.mockResolvedValue(null)
+
+      await expect(service.create('user-1', 'club-1', aufnahme)).rejects.toBeInstanceOf(
+        BadRequestException,
+      )
+      expect(prisma.joinRequest.create).not.toHaveBeenCalled()
+    })
+
+    it('requires SEPA consent from adults; under 18 a guardian consents, never the child', async () => {
+      const ctx = withOffer()
+      const service = ctx.service
+      const prisma = ctx.prisma as any
+      prisma.parentalConsent = {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'consent-1' }),
+        updateMany: jest.fn(),
+      }
+      prisma.membership.findFirst = jest.fn().mockResolvedValue(null)
+      await expect(
+        service.create('user-1', 'club-1', { ...aufnahme, sepaConsent: false }),
+      ).rejects.toThrow('SEPA')
+
+      prisma.user.findUnique.mockResolvedValue({
+        name: 'Luca Brandt',
+        dateOfBirth: new Date(new Date().getFullYear() - 17, 0, 1),
+      })
+      // The child's own ticks do not count.
+      await expect(
+        service.create('user-1', 'club-1', { ...aufnahme, parentalConsent: true }),
+      ).rejects.toThrow('guardian')
+      await expect(
+        service.create('user-1', 'club-1', { ...aufnahme, guardianEmail: 'eltern@example.de' }),
+      ).resolves.toMatchObject({ id: 'jr-9', sepaConsentAt: null, parentalConsentAt: null })
+      expect(prisma.parentalConsent.create).toHaveBeenCalledWith({
+        data: {
+          clubId: 'club-1',
+          teamId: 'team-offer',
+          playerUserId: 'user-1',
+          guardianEmail: 'eltern@example.de',
+          status: 'PENDING',
+        },
+        select: { id: true },
+      })
+      expect(prisma.joinRequest.create).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('does not create a request for an account deleted before the lifecycle lock', async () => {
@@ -143,7 +261,10 @@ describe('JoinRequestsService.create', () => {
 
     expect(prisma.auditLog.create).not.toHaveBeenCalled()
     expect(prisma.membership.findMany).not.toHaveBeenCalled()
-    expect(prisma.user.findUnique).not.toHaveBeenCalled()
+    // Only the in-transaction DOB check ran; no post-commit notification reads.
+    expect(prisma.user.findUnique).not.toHaveBeenCalledWith(
+      expect.objectContaining({ select: { name: true } }),
+    )
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
 
@@ -328,6 +449,12 @@ describe('JoinRequestsService.approve', () => {
       team: { findFirst: jest.fn().mockResolvedValue({ id: 'team-9' }) },
       teamAccess: { upsert: jest.fn().mockResolvedValue(undefined) },
       teamMember: { upsert: jest.fn().mockResolvedValue(undefined) },
+      trialInvite: {
+        // B2: the offer is re-read inside the approval transaction.
+        findFirst: jest.fn().mockResolvedValue({ id: 'invite-3', teamId: 'team-9' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      freeAgentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       joinRequest: {
         findFirst: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -499,6 +626,32 @@ describe('JoinRequestsService.approve', () => {
         where: { teamId_userId: { teamId: 'team-9', userId: 'user-2' } },
       }),
     )
+  })
+
+  it('turns an approved Aufnahmeantrag into full access and closes the trial as JOINED', async () => {
+    const { service, prisma, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-3',
+      clubId: 'club-1',
+      userId: 'user-3',
+      role: 'PLAYER',
+      teamId: 'team-9',
+      trialInviteId: 'invite-3',
+      status: JoinRequestStatus.PENDING,
+    })
+
+    await service.approve('club-1', 'jr-3', 'reviewer-1', { revision: 1 })
+
+    expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ phase: 'FULL', status: 'ACTIVE' }),
+        update: { phase: 'FULL', status: 'ACTIVE' },
+      }),
+    )
+    expect(tx.trialInvite.updateMany).toHaveBeenCalledWith({
+      where: { id: 'invite-3', clubId: 'club-1', status: 'OFFERED' },
+      data: expect.objectContaining({ status: 'JOINED', decidedByUserId: 'reviewer-1' }),
+    })
   })
 
   it('grants approved coach access without polluting the player roster', async () => {

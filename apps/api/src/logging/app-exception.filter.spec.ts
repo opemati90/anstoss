@@ -100,6 +100,28 @@ describe('AppExceptionFilter', () => {
     expect(mockLogger.warn).toHaveBeenCalled()
   })
 
+  // onboarding review fixes (M1/M9): stable codes + wait time pass through.
+  it('passes a machine code and retryAfterSeconds from an object HttpException body', () => {
+    const error = new HttpException(
+      { message: 'Too many attempts', code: 'OTP_HOURLY_CAP', retryAfterSeconds: 1234.2 },
+      HttpStatus.TOO_MANY_REQUESTS,
+    )
+    filter.catch(error, mockHost as any)
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: { code: 'OTP_HOURLY_CAP', message: 'Too many attempts', retryAfterSeconds: 1235 },
+      }),
+    )
+  })
+
+  it('ignores a malformed custom code', () => {
+    const error = new HttpException({ message: 'x', code: 'drop table;' }, HttpStatus.CONFLICT)
+    filter.catch(error, mockHost as any)
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: { code: 'HTTP_409', message: 'x' } }),
+    )
+  })
+
   it('handles unknown errors with 500', () => {
     filter.catch(new Error('kaboom'), mockHost as any)
 

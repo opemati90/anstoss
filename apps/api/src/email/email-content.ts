@@ -1,7 +1,7 @@
 /**
  * Localized copy for Anstoss transactional emails.
  *
- * Resolves the recipient's preferred language (de/en/fr/it/pt — the same set
+ * Resolves the recipient's preferred language (de/en/fr/it/pt/tr, the same set
  * the mobile app ships) and assembles the structured {@link EmailLayoutInput}
  * that {@link renderEmail} turns into branded HTML + a plain-text fallback.
  *
@@ -9,7 +9,7 @@
  * site — so adding a locale or tweaking wording never touches business logic.
  */
 import { renderEmail } from './email-render'
-import { resolveLocale, type Locale } from '../i18n/translations'
+import { INTL_LOCALE_TAG, resolveLocale, type Locale } from '../i18n/translations'
 
 /**
  * Map an ISO-639-1 language (e.g. User.preferredLanguage) to a supported email
@@ -17,23 +17,28 @@ import { resolveLocale, type Locale } from '../i18n/translations'
  */
 export const resolveEmailLocale = resolveLocale
 
-const DATE_TAG: Record<Locale, string> = {
-  de: 'de-DE',
-  en: 'en-GB',
-  fr: 'fr-FR',
-  it: 'it-IT',
-  pt: 'pt-PT',
-}
+const DATE_TAG: Record<Locale, string> = INTL_LOCALE_TAG
 
-function formatDate(value: Date, locale: Locale): string {
+export function formatDate(value: Date, locale: Locale): string {
   return new Intl.DateTimeFormat(DATE_TAG[locale], {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/Berlin',
   }).format(value)
 }
 
-function formatAmount(amountCents: number, currency: string, locale: Locale): string {
+/** Short numeric date for push bodies ("01.07.2026" / "01/07/2026") in the reader's locale. */
+export function formatShortDate(value: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(DATE_TAG[locale], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Berlin',
+  }).format(value)
+}
+
+export function formatAmount(amountCents: number, currency: string, locale: Locale): string {
   try {
     return new Intl.NumberFormat(DATE_TAG[locale], {
       style: 'currency',
@@ -128,25 +133,25 @@ const INVITE: Record<Locale, InviteStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   fr: {
-    subjectParent: ({ child, club }) => `Merci de confirmer ${child} à ${club}`,
-    subjectTrial: ({ team, club }) => `Séance d'essai avec ${team} – ${club}`,
+    subjectParent: ({ child, club }) => `Confirme l’inscription de ${child} à ${club}`,
+    subjectTrial: ({ team, club }) => `Entraînement d’essai avec ${team} – ${club}`,
     subjectInvite: ({ team, club }) => `Invitation à rejoindre ${team} – ${club}`,
-    headingParent: "Confirmer l'inscription",
-    headingTrial: "Invitation à une séance d'essai",
-    headingInvite: 'Vous êtes invité',
+    headingParent: 'Confirmer l’inscription',
+    headingTrial: 'Invitation à un entraînement d’essai',
+    headingInvite: 'Tu es invité',
     introParent: ({ child, team, club }) =>
-      `${child} souhaite rejoindre ${team} à ${club}. Veuillez confirmer l'inscription pour activer le compte.`,
+      `${child} souhaite rejoindre ${team} à ${club}. Confirme l’inscription pour activer le compte.`,
     introTrial: ({ team, club }) =>
-      `Vous avez été invité à une séance d'essai avec ${team} à ${club}.`,
-    introInvite: ({ team, club }) => `Vous avez été invité à rejoindre ${team} à ${club}.`,
+      `Tu es invité à un entraînement d’essai avec ${team} à ${club}.`,
+    introInvite: ({ team, club }) => `Tu es invité à rejoindre ${team} à ${club}.`,
     metaChild: 'Enfant',
     metaTeam: 'Équipe',
-    metaValidUntil: "Valable jusqu'au",
-    ctaParent: "Confirmer l'inscription",
-    ctaAccept: "Accepter l'invitation",
-    noteValidity: ({ date }) => `Cette invitation est valable jusqu'au ${date}.`,
+    metaValidUntil: 'Valable jusqu’au',
+    ctaParent: 'Confirmer l’inscription',
+    ctaAccept: 'Accepter l’invitation',
+    noteValidity: ({ date }) => `Cette invitation est valable jusqu’au ${date}.`,
     noteUnder16:
-      "Si vous avez moins de 16 ans, nous demanderons le consentement d'un parent à l'étape suivante.",
+      'Si tu as moins de 16 ans, nous demanderons ensuite l’accord d’un parent.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
   it: {
@@ -155,13 +160,13 @@ const INVITE: Record<Locale, InviteStrings> = {
     subjectInvite: ({ team, club }) => `Invito a unirti a ${team} – ${club}`,
     headingParent: "Conferma l'iscrizione",
     headingTrial: 'Invito a un allenamento di prova',
-    headingInvite: 'Sei stato invitato',
+    headingInvite: 'Sei invitato',
     introParent: ({ child, team, club }) =>
       `${child} desidera unirsi a ${team} presso ${club}. Conferma l'iscrizione per attivare l'account.`,
     introTrial: ({ team, club }) =>
       `Sei stato invitato a un allenamento di prova con ${team} presso ${club}.`,
     introInvite: ({ team, club }) => `Sei stato invitato a unirti a ${team} presso ${club}.`,
-    metaChild: 'Bambino',
+    metaChild: 'Figlio/a',
     metaTeam: 'Squadra',
     metaValidUntil: 'Valido fino al',
     ctaParent: "Conferma l'iscrizione",
@@ -172,17 +177,17 @@ const INVITE: Record<Locale, InviteStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   pt: {
-    subjectParent: ({ child, club }) => `Confirme ${child} no ${club}`,
-    subjectTrial: ({ team, club }) => `Treino experimental com ${team} – ${club}`,
-    subjectInvite: ({ team, club }) => `Convite para entrar em ${team} – ${club}`,
+    subjectParent: ({ child, club }) => `Confirma a inscrição de ${child} no ${club}`,
+    subjectTrial: ({ team, club }) => `Treino de captação com ${team} – ${club}`,
+    subjectInvite: ({ team, club }) => `Convite para ${team} – ${club}`,
     headingParent: 'Confirmar inscrição',
-    headingTrial: 'Convite para treino experimental',
-    headingInvite: 'Você foi convidado',
+    headingTrial: 'Convite para treino de captação',
+    headingInvite: 'Foste convidado',
     introParent: ({ child, team, club }) =>
-      `${child} gostaria de entrar em ${team} no ${club}. Confirme a inscrição para ativar a conta.`,
+      `${child} quer entrar na equipa ${team} do ${club}. Confirma a inscrição para ativar a conta.`,
     introTrial: ({ team, club }) =>
-      `Você foi convidado para um treino experimental com ${team} no ${club}.`,
-    introInvite: ({ team, club }) => `Você foi convidado para entrar em ${team} no ${club}.`,
+      `Foste convidado para um treino de captação com ${team} do ${club}.`,
+    introInvite: ({ team, club }) => `Foste convidado para a equipa ${team} do ${club}.`,
     metaChild: 'Criança',
     metaTeam: 'Equipa',
     metaValidUntil: 'Válido até',
@@ -190,7 +195,29 @@ const INVITE: Record<Locale, InviteStrings> = {
     ctaAccept: 'Aceitar convite',
     noteValidity: ({ date }) => `Este convite é válido até ${date}.`,
     noteUnder16:
-      'Se tiver menos de 16 anos, pediremos o consentimento de um responsável na etapa seguinte.',
+      'Se tiveres menos de 16 anos, pedimos a seguir a autorização de um encarregado de educação.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  tr: {
+    subjectParent: ({ child, club }) => `${child} için kayıt onayı – ${club}`,
+    subjectTrial: ({ team, club }) => `Deneme antrenmanı daveti: ${team} – ${club}`,
+    subjectInvite: ({ team, club }) => `Takım daveti: ${team} – ${club}`,
+    headingParent: 'Kaydı onayla',
+    headingTrial: 'Deneme antrenmanına davet',
+    headingInvite: 'Davetlisin',
+    introParent: ({ child, team, club }) =>
+      `${child}, ${club} kulübünde ${team} takımına katılmak istiyor. Hesabın etkinleşmesi için lütfen kaydı onayla.`,
+    introTrial: ({ team, club }) =>
+      `${club} kulübünde ${team} takımının deneme antrenmanına davet edildin.`,
+    introInvite: ({ team, club }) => `${club} kulübünde ${team} takımına katılmaya davet edildin.`,
+    metaChild: 'Çocuk',
+    metaTeam: 'Takım',
+    metaValidUntil: 'Son geçerlilik tarihi',
+    ctaParent: 'Kaydı onayla',
+    ctaAccept: 'Daveti kabul et',
+    noteValidity: ({ date }) => `Bu davet ${date} tarihine kadar geçerli.`,
+    noteUnder16:
+      '16 yaşından küçüksen bir sonraki adımda veli onayı isteyeceğiz.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
 }
@@ -298,7 +325,7 @@ const REMINDER: Record<Locale, ReminderStrings> = {
     subject: ({ club, plan }) => `${club}: ${plan} fällig`,
     headingDue: 'Beitrag fällig',
     headingOverdue: 'Beitrag überfällig',
-    intro: ({ name, plan }) => `Hallo ${name}, dein Beitrag „${plan}" ist derzeit offen.`,
+    intro: ({ name, plan }) => `Hallo ${name}, dein Beitrag „${plan}“ ist noch offen.`,
     metaAmount: 'Betrag',
     metaDueDate: 'Fällig am',
     metaStatus: 'Status',
@@ -309,10 +336,10 @@ const REMINDER: Record<Locale, ReminderStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   en: {
-    subject: ({ club, plan }) => `${club}: ${plan} contribution due`,
-    headingDue: 'Contribution due',
-    headingOverdue: 'Contribution overdue',
-    intro: ({ name, plan }) => `Hi ${name}, your "${plan}" contribution is currently outstanding.`,
+    subject: ({ club, plan }) => `${club}: ${plan} fee due`,
+    headingDue: 'Membership fee due',
+    headingOverdue: 'Membership fee overdue',
+    intro: ({ name, plan }) => `Hi ${name}, your “${plan}” fee is still outstanding.`,
     metaAmount: 'Amount',
     metaDueDate: 'Due date',
     metaStatus: 'Status',
@@ -323,45 +350,59 @@ const REMINDER: Record<Locale, ReminderStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   fr: {
-    subject: ({ club, plan }) => `${club} : ${plan} à régler`,
+    subject: ({ club, plan }) => `${club} : cotisation ${plan} à régler`,
     headingDue: 'Cotisation à régler',
     headingOverdue: 'Cotisation en retard',
-    intro: ({ name, plan }) => `Bonjour ${name}, votre cotisation « ${plan} » est actuellement due.`,
+    intro: ({ name, plan }) => `Bonjour ${name}, ta cotisation « ${plan} » n’est pas encore réglée.`,
     metaAmount: 'Montant',
-    metaDueDate: "Date d'échéance",
+    metaDueDate: 'Échéance',
     metaStatus: 'Statut',
     statusOverdue: 'En retard',
     statusOutstanding: 'À régler',
     footnote:
-      'Si vous avez déjà payé, le club peut mettre à jour votre statut directement dans Anstoss.',
+      'Si tu as déjà payé, le club peut mettre à jour ton statut directement dans Anstoss.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
   it: {
-    subject: ({ club, plan }) => `${club}: ${plan} da pagare`,
-    headingDue: 'Contributo da pagare',
-    headingOverdue: 'Contributo scaduto',
-    intro: ({ name, plan }) => `Ciao ${name}, il tuo contributo "${plan}" è attualmente da pagare.`,
+    subject: ({ club, plan }) => `${club}: quota ${plan} da pagare`,
+    headingDue: 'Quota da pagare',
+    headingOverdue: 'Quota scaduta',
+    intro: ({ name, plan }) => `Ciao ${name}, la tua quota “${plan}” non è ancora stata pagata.`,
     metaAmount: 'Importo',
     metaDueDate: 'Scadenza',
     metaStatus: 'Stato',
-    statusOverdue: 'Scaduto',
+    statusOverdue: 'Scaduta',
     statusOutstanding: 'Da pagare',
     footnote:
       'Se hai già pagato, il club può aggiornare il tuo stato direttamente in Anstoss.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
   pt: {
-    subject: ({ club, plan }) => `${club}: ${plan} em aberto`,
-    headingDue: 'Contribuição em aberto',
-    headingOverdue: 'Contribuição em atraso',
-    intro: ({ name, plan }) => `Olá ${name}, a sua contribuição "${plan}" está atualmente em aberto.`,
+    subject: ({ club, plan }) => `${club}: quota ${plan} por pagar`,
+    headingDue: 'Quota por pagar',
+    headingOverdue: 'Quota em atraso',
+    intro: ({ name, plan }) => `Olá ${name}, a tua quota “${plan}” ainda está por pagar.`,
     metaAmount: 'Valor',
-    metaDueDate: 'Data de vencimento',
+    metaDueDate: 'Data limite',
     metaStatus: 'Estado',
     statusOverdue: 'Em atraso',
-    statusOutstanding: 'Em aberto',
+    statusOutstanding: 'Por pagar',
     footnote:
-      'Se já efetuou o pagamento, o clube pode atualizar o seu estado diretamente no Anstoss.',
+      'Se já pagaste, o clube pode atualizar o teu estado diretamente no Anstoss.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  tr: {
+    subject: ({ club, plan }) => `${club}: ${plan} aidatı bekleniyor`,
+    headingDue: 'Aidat ödemesi bekleniyor',
+    headingOverdue: 'Aidat ödemesi gecikti',
+    intro: ({ name, plan }) => `Merhaba ${name}, “${plan}” aidatın henüz ödenmedi.`,
+    metaAmount: 'Tutar',
+    metaDueDate: 'Son ödeme tarihi',
+    metaStatus: 'Durum',
+    statusOverdue: 'Gecikti',
+    statusOutstanding: 'Ödenmedi',
+    footnote:
+      'Ödemeyi zaten yaptıysan kulüp durumunu doğrudan Anstoss’ta güncelleyebilir.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
 }
@@ -431,7 +472,7 @@ const RECEIPT: Record<Locale, ReceiptStrings> = {
     subject: ({ plan }) => `Zahlung erhalten – ${plan}`,
     heading: 'Zahlung erhalten',
     intro: ({ name, plan, club }) =>
-      `Hallo ${name}, vielen Dank – wir haben deine Zahlung „${plan}" bei ${club} verbucht.`,
+      `Hallo ${name}, vielen Dank! Wir haben deine Zahlung „${plan}“ bei ${club} verbucht.`,
     metaAmount: 'Betrag',
     metaPaidOn: 'Bezahlt am',
     metaStatus: 'Status',
@@ -443,7 +484,7 @@ const RECEIPT: Record<Locale, ReceiptStrings> = {
     subject: ({ plan }) => `Payment received – ${plan}`,
     heading: 'Payment received',
     intro: ({ name, plan, club }) =>
-      `Hi ${name}, we've recorded your "${plan}" payment at ${club}.`,
+      `Hi ${name}, thanks! We’ve recorded your “${plan}” payment at ${club}.`,
     metaAmount: 'Amount',
     metaPaidOn: 'Paid on',
     metaStatus: 'Status',
@@ -455,19 +496,19 @@ const RECEIPT: Record<Locale, ReceiptStrings> = {
     subject: ({ plan }) => `Paiement reçu – ${plan}`,
     heading: 'Paiement reçu',
     intro: ({ name, plan, club }) =>
-      `Bonjour ${name}, merci — nous avons enregistré votre paiement « ${plan} » à ${club}.`,
+      `Bonjour ${name}, merci ! Nous avons bien enregistré ton paiement « ${plan} » à ${club}.`,
     metaAmount: 'Montant',
     metaPaidOn: 'Payé le',
     metaStatus: 'Statut',
     statusPaid: 'Payé',
-    footnote: 'Conservez cet e-mail comme reçu. En cas de problème, contactez votre club.',
+    footnote: 'Garde cet e-mail comme reçu. En cas de problème, contacte ton club.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
   it: {
     subject: ({ plan }) => `Pagamento ricevuto – ${plan}`,
     heading: 'Pagamento ricevuto',
     intro: ({ name, plan, club }) =>
-      `Ciao ${name}, grazie — abbiamo registrato il tuo pagamento "${plan}" presso ${club}.`,
+      `Ciao ${name}, grazie! Abbiamo registrato il tuo pagamento “${plan}” presso ${club}.`,
     metaAmount: 'Importo',
     metaPaidOn: 'Pagato il',
     metaStatus: 'Stato',
@@ -479,12 +520,24 @@ const RECEIPT: Record<Locale, ReceiptStrings> = {
     subject: ({ plan }) => `Pagamento recebido – ${plan}`,
     heading: 'Pagamento recebido',
     intro: ({ name, plan, club }) =>
-      `Olá ${name}, obrigado — registámos o teu pagamento "${plan}" no ${club}.`,
+      `Olá ${name}, obrigado! Registámos o teu pagamento “${plan}” no ${club}.`,
     metaAmount: 'Valor',
     metaPaidOn: 'Pago em',
     metaStatus: 'Estado',
     statusPaid: 'Pago',
-    footnote: 'Guarda este email como recibo. Se algo estiver errado, contacta o teu clube.',
+    footnote: 'Guarda este e-mail como recibo. Se algo estiver errado, contacta o teu clube.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  tr: {
+    subject: ({ plan }) => `Ödeme alındı – ${plan}`,
+    heading: 'Ödeme alındı',
+    intro: ({ name, plan, club }) =>
+      `Merhaba ${name}, teşekkürler! ${club} kulübüne yaptığın “${plan}” ödemesini kaydettik.`,
+    metaAmount: 'Tutar',
+    metaPaidOn: 'Ödeme tarihi',
+    metaStatus: 'Durum',
+    statusPaid: 'Ödendi',
+    footnote: 'Bu e-postayı makbuz olarak sakla. Bir sorun varsa kulübünle iletişime geç.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
 }
@@ -553,7 +606,7 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
     subject: ({ club }) => `Willkommen bei ${club}`,
     heading: ({ club }) => `Willkommen bei ${club}`,
     intro: ({ name, team, club }) =>
-      `Hallo ${name}, du bist jetzt Teil von ${team} bei ${club}. Spieltage, Training, Nachrichten und Beiträge an einem Ort — öffne Anstoss, um loszulegen.`,
+      `Hallo ${name}, du gehörst jetzt zu ${team} bei ${club}. Spiele, Training, Nachrichten und Beiträge an einem Ort. Öffne Anstoss und leg los.`,
     metaTeam: 'Team',
     metaRole: 'Rolle',
     cta: 'Anstoss öffnen',
@@ -575,7 +628,7 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
     subject: ({ club }) => `Bienvenue à ${club}`,
     heading: ({ club }) => `Bienvenue à ${club}`,
     intro: ({ name, team, club }) =>
-      `Bonjour ${name}, vous faites désormais partie de ${team} à ${club}. Matchs, entraînements, messages et cotisations au même endroit — ouvrez Anstoss pour commencer.`,
+      `Salut ${name}, tu fais désormais partie de ${team} à ${club}. Matchs, entraînements, messages et cotisations au même endroit : ouvre Anstoss pour commencer.`,
     metaTeam: 'Équipe',
     metaRole: 'Rôle',
     cta: 'Ouvrir Anstoss',
@@ -583,10 +636,10 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
     footer: ({ club }) => `${club} · Anstoss`,
   },
   it: {
-    subject: ({ club }) => `Benvenuto a ${club}`,
-    heading: ({ club }) => `Benvenuto a ${club}`,
+    subject: ({ club }) => `Benvenuto nel ${club}`,
+    heading: ({ club }) => `Benvenuto nel ${club}`,
     intro: ({ name, team, club }) =>
-      `Ciao ${name}, ora fai parte di ${team} presso ${club}. Partite, allenamenti, messaggi e quote in un unico posto — apri Anstoss per iniziare.`,
+      `Ciao ${name}, ora fai parte di ${team} del ${club}. Partite, allenamenti, messaggi e quote in un unico posto: apri Anstoss per iniziare.`,
     metaTeam: 'Squadra',
     metaRole: 'Ruolo',
     cta: 'Apri Anstoss',
@@ -597,11 +650,22 @@ const WELCOME: Record<Locale, WelcomeStrings> = {
     subject: ({ club }) => `Bem-vindo ao ${club}`,
     heading: ({ club }) => `Bem-vindo ao ${club}`,
     intro: ({ name, team, club }) =>
-      `Olá ${name}, agora fazes parte de ${team} no ${club}. Jogos, treinos, mensagens e quotas num só lugar — abre o Anstoss para começar.`,
+      `Olá ${name}, agora fazes parte da equipa ${team} do ${club}. Jogos, treinos, mensagens e quotas num só lugar: abre o Anstoss para começar.`,
     metaTeam: 'Equipa',
     metaRole: 'Função',
     cta: 'Abrir o Anstoss',
-    footnote: 'Até já no campo.',
+    footnote: 'Até breve no relvado.',
+    footer: ({ club }) => `${club} · Anstoss`,
+  },
+  tr: {
+    subject: ({ club }) => `Hoş geldin – ${club}`,
+    heading: ({ club }) => `Hoş geldin – ${club}`,
+    intro: ({ name, team, club }) =>
+      `Merhaba ${name}, artık ${club} kulübünde ${team} takımının bir parçasısın. Maçlar, antrenmanlar, mesajlar ve aidatlar tek yerde. Başlamak için Anstoss’u aç.`,
+    metaTeam: 'Takım',
+    metaRole: 'Rol',
+    cta: 'Anstoss’u aç',
+    footnote: 'Sahada görüşürüz.',
     footer: ({ club }) => `${club} · Anstoss`,
   },
 }
@@ -617,6 +681,8 @@ export interface ParentHandoffParams {
 }
 
 type ParentHandoffStrings = {
+  /** Stands in for a blank child name. */
+  childFallback: string
   subject: (p: { child: string }) => string
   preheader: (p: { child: string }) => string
   heading: (p: { child: string }) => string
@@ -628,6 +694,7 @@ type ParentHandoffStrings = {
 
 const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
   en: {
+    childFallback: 'Your child',
     subject: ({ child }) => `Set up ${child} on Anstoss`,
     preheader: ({ child }) => `${child} needs a parent to set up their Anstoss account.`,
     heading: ({ child }) => `Set ${child} up on their team`,
@@ -641,55 +708,73 @@ const PARENT_HANDOFF: Record<Locale, ParentHandoffStrings> = {
     footer: 'Anstoss',
   },
   de: {
-    subject: ({ child }) => `Richte ${child} auf Anstoss ein`,
+    childFallback: 'Dein Kind',
+    subject: ({ child }) => `Anstoss-Konto einrichten: ${child}`,
     preheader: ({ child }) => `${child} braucht ein Elternteil, um das Anstoss-Konto einzurichten.`,
-    heading: ({ child }) => `Richte ${child} im Team ein`,
+    heading: ({ child }) => `Konto für ${child} einrichten`,
     intro: ({ child }) => [
-      `${child} hat versucht, sich bei Anstoss anzumelden – der App, die der Fußballverein für Spiele, Training, Chat und Beiträge nutzt.`,
-      `Da ${child} unter 16 ist, darf das Kind kein eigenes Konto haben – wir haben die Anmeldung pausiert. Zum Abschließen: Lade Anstoss herunter, erstelle dein eigenes Elternkonto und gib den untenstehenden Code ein, um ${child} als verwaltetes Profil unter dir hinzuzufügen.`,
-      `Falls du diese E-Mail nicht erwartet hast, kannst du sie ignorieren – ohne dich geht die Anmeldung von ${child} nicht weiter.`,
+      `${child} wollte sich bei Anstoss anmelden, der App, die der Fußballverein für Spiele, Training, Chat und Beiträge nutzt.`,
+      `Da ${child} unter 16 ist, ist kein eigenes Konto möglich, deshalb haben wir die Anmeldung pausiert. So geht es weiter: Lade Anstoss herunter, erstelle dein eigenes Elternkonto und gib den Code unten ein. Dann verwaltest du das Profil von ${child} über dein Konto.`,
+      `Falls du diese E-Mail nicht erwartet hast, kannst du sie ignorieren. Ohne dich geht die Anmeldung von ${child} nicht weiter.`,
     ],
     codeLabel: 'Einrichtungscode',
     footnote: 'Du erhältst diese E-Mail, weil deine Adresse bei einer Anmeldung in Anstoss eingegeben wurde.',
     footer: 'Anstoss',
   },
   fr: {
-    subject: ({ child }) => `Configurez ${child} sur Anstoss`,
-    preheader: ({ child }) => `${child} a besoin d'un parent pour créer son compte Anstoss.`,
-    heading: ({ child }) => `Configurez ${child} dans son équipe`,
+    childFallback: 'Ton enfant',
+    subject: ({ child }) => `Créer le compte Anstoss de ${child}`,
+    preheader: ({ child }) => `${child} a besoin d’un parent pour créer son compte Anstoss.`,
+    heading: ({ child }) => `Inscris ${child} dans son équipe`,
     intro: ({ child }) => [
-      `${child} a essayé de s'inscrire sur Anstoss — l'appli que son club de foot utilise pour les matchs, les entraînements, la messagerie et les cotisations.`,
-      `Comme ${child} a moins de 16 ans, il ne peut pas avoir son propre compte : nous avons mis l'inscription en pause. Pour terminer, téléchargez Anstoss, créez votre compte parent et saisissez le code ci-dessous pour ajouter ${child} comme profil géré sous votre compte.`,
-      `Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer — sans vous, l'inscription de ${child} n'ira pas plus loin.`,
+      `${child} a essayé de s’inscrire sur Anstoss, l’appli que son club de foot utilise pour les matchs, les entraînements, la messagerie et les cotisations.`,
+      `Comme ${child} a moins de 16 ans, un compte personnel n’est pas possible : nous avons mis l’inscription en pause. Pour la terminer, télécharge Anstoss, crée ton compte parent et saisis le code ci-dessous pour ajouter ${child} comme profil géré depuis ton compte.`,
+      `Si tu n’attendais pas cet e-mail, tu peux l’ignorer. Sans toi, l’inscription de ${child} n’ira pas plus loin.`,
     ],
     codeLabel: 'Code de configuration',
-    footnote: 'Vous recevez cet e-mail car votre adresse a été saisie lors d\'une inscription sur Anstoss.',
+    footnote: 'Tu reçois cet e-mail parce que ton adresse a été saisie lors d’une inscription sur Anstoss.',
     footer: 'Anstoss',
   },
   it: {
-    subject: ({ child }) => `Configura ${child} su Anstoss`,
-    preheader: ({ child }) => `${child} ha bisogno di un genitore per creare l'account Anstoss.`,
-    heading: ({ child }) => `Configura ${child} nella squadra`,
+    childFallback: 'Tuo figlio',
+    subject: ({ child }) => `Crea l’account Anstoss per ${child}`,
+    preheader: ({ child }) => `${child} ha bisogno di un genitore per creare l’account Anstoss.`,
+    heading: ({ child }) => `Iscrivi ${child} alla squadra`,
     intro: ({ child }) => [
-      `${child} ha provato a registrarsi su Anstoss — l'app che il club di calcio usa per partite, allenamenti, chat e quote.`,
-      `Poiché ${child} ha meno di 16 anni, non può avere un proprio account: abbiamo messo in pausa la registrazione. Per completare, scarica Anstoss, crea il tuo account genitore e inserisci il codice qui sotto per aggiungere ${child} come profilo gestito sotto di te.`,
-      `Se non aspettavi questa email, puoi ignorarla — senza di te la registrazione di ${child} non prosegue.`,
+      `${child} ha provato a registrarsi su Anstoss, l’app che la società di calcio usa per partite, allenamenti, chat e quote.`,
+      `Dato che ${child} ha meno di 16 anni, non può avere un account personale: abbiamo sospeso la registrazione. Per completarla, scarica Anstoss, crea il tuo account genitore e inserisci il codice qui sotto per aggiungere ${child} come profilo gestito da te.`,
+      `Se non aspettavi questa email, puoi ignorarla. Senza di te la registrazione di ${child} non va avanti.`,
     ],
     codeLabel: 'Codice di configurazione',
     footnote: 'Hai ricevuto questa email perché il tuo indirizzo è stato inserito durante una registrazione su Anstoss.',
     footer: 'Anstoss',
   },
   pt: {
-    subject: ({ child }) => `Configura ${child} no Anstoss`,
-    preheader: ({ child }) => `${child} precisa de um pai/mãe para configurar a conta Anstoss.`,
-    heading: ({ child }) => `Configura ${child} na equipa`,
+    childFallback: 'O teu filho',
+    subject: ({ child }) => `Criar a conta Anstoss de ${child}`,
+    preheader: ({ child }) => `${child} precisa de um encarregado de educação para criar a conta Anstoss.`,
+    heading: ({ child }) => `Inscreve ${child} na equipa`,
     intro: ({ child }) => [
-      `${child} tentou registar-se no Anstoss — a app que o clube de futebol usa para jogos, treinos, mensagens e quotas.`,
-      `Como ${child} tem menos de 16 anos, não pode ter a própria conta: pausámos o registo. Para concluir, descarrega o Anstoss, cria a tua conta de pai/mãe e introduz o código abaixo para adicionar ${child} como perfil gerido por ti.`,
-      `Se não estavas à espera deste email, podes ignorá-lo — sem ti, o registo de ${child} não avança.`,
+      `${child} tentou registar-se no Anstoss, a app que o clube de futebol usa para jogos, treinos, mensagens e quotas.`,
+      `Como ${child} tem menos de 16 anos, não pode ter conta própria, por isso pausámos o registo. Para concluir, descarrega o Anstoss, cria a tua conta de encarregado de educação e introduz o código abaixo para adicionar ${child} como perfil gerido por ti.`,
+      `Se não estavas à espera deste e-mail, podes ignorá-lo. Sem ti, o registo de ${child} não avança.`,
     ],
     codeLabel: 'Código de configuração',
-    footnote: 'Recebeste este email porque o teu endereço foi introduzido num registo no Anstoss.',
+    footnote: 'Recebeste este e-mail porque o teu endereço foi introduzido num registo no Anstoss.',
+    footer: 'Anstoss',
+  },
+  tr: {
+    childFallback: 'Çocuğun',
+    subject: ({ child }) => `Anstoss hesabı kurulumu: ${child}`,
+    preheader: ({ child }) => `${child} için Anstoss hesabını bir velinin kurması gerekiyor.`,
+    heading: ({ child }) => `${child} için hesabı kur`,
+    intro: ({ child }) => [
+      `${child}, futbol kulübünün maçlar, antrenmanlar, mesajlar ve aidatlar için kullandığı Anstoss uygulamasına kaydolmaya çalıştı.`,
+      `16 yaşından küçükler kendi hesabını açamadığı için kaydı beklemeye aldık. Tamamlamak için Anstoss’u indir, kendi veli hesabını oluştur ve aşağıdaki kodu gir. Böylece ${child} için profili kendi hesabından yönetebilirsin.`,
+      `Bu e-postayı beklemiyorduysan görmezden gelebilirsin. Sen onaylamadan kayıt devam etmez.`,
+    ],
+    codeLabel: 'Kurulum kodu',
+    footnote: 'Bu e-postayı, adresin Anstoss’ta bir kayıt sırasında girildiği için aldın.',
     footer: 'Anstoss',
   },
 }
@@ -700,7 +785,7 @@ export function buildParentHandoffEmail(params: ParentHandoffParams): {
   text: string
 } {
   const t = PARENT_HANDOFF[params.locale]
-  const child = params.childFirstName.trim() || 'Your child'
+  const child = params.childFirstName.trim() || t.childFallback
 
   const { html, text } = renderEmail({
     clubName: 'Anstoss',
@@ -778,14 +863,14 @@ const OTP_CODE: Record<
     footer: 'Anstoss',
   },
   fr: {
-    subject: ({ code }) => `Votre code Anstoss : ${code}`,
-    preheader: ({ code }) => `Votre code de connexion est ${code}`,
-    heading: 'Votre code de connexion',
+    subject: ({ code }) => `Ton code Anstoss : ${code}`,
+    preheader: ({ code }) => `Ton code de connexion : ${code}`,
+    heading: 'Ton code de connexion',
     intro: ({ minutes }) =>
-      `Saisissez ce code dans l'application pour vous connecter. Il expire dans ${minutes} minutes.`,
+      `Saisis ce code dans l’appli pour te connecter. Il expire dans ${minutes} minutes.`,
     metaCode: 'Code de vérification',
     footnote:
-      "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+      'Si tu n’as rien demandé, ignore simplement cet e-mail.',
     footer: 'Anstoss',
   },
   it: {
@@ -799,13 +884,23 @@ const OTP_CODE: Record<
     footer: 'Anstoss',
   },
   pt: {
-    subject: ({ code }) => `O seu código Anstoss: ${code}`,
-    preheader: ({ code }) => `O seu código de acesso é ${code}`,
-    heading: 'O seu código de acesso',
+    subject: ({ code }) => `O teu código Anstoss: ${code}`,
+    preheader: ({ code }) => `O teu código de acesso: ${code}`,
+    heading: 'O teu código de acesso',
     intro: ({ minutes }) =>
-      `Introduza este código na app para iniciar sessão. Expira em ${minutes} minutos.`,
+      `Introduz este código na app para iniciar sessão. Expira dentro de ${minutes} minutos.`,
     metaCode: 'Código de verificação',
-    footnote: 'Se não solicitou este código, pode ignorar este email.',
+    footnote: 'Se não pediste este código, podes ignorar este e-mail.',
+    footer: 'Anstoss',
+  },
+  tr: {
+    subject: ({ code }) => `Anstoss kodun: ${code}`,
+    preheader: ({ code }) => `Giriş kodun: ${code}`,
+    heading: 'Giriş kodun',
+    intro: ({ minutes }) =>
+      `Giriş yapmak için bu kodu uygulamaya gir. Kodun geçerlilik süresi: ${minutes} dakika.`,
+    metaCode: 'Doğrulama kodu',
+    footnote: 'Bu kodu sen istemediysen bu e-postayı görmezden gelebilirsin.',
     footer: 'Anstoss',
   },
 }
@@ -834,22 +929,100 @@ export function buildOtpCodeEmail(params: OtpCodeEmailParams): {
   return { subject: t.subject({ code: params.code }), html, text }
 }
 
+const OWNERSHIP_CODE: Record<
+  Locale,
+  {
+    subject: (a: { code: string }) => string
+    preheader: (a: { code: string }) => string
+    heading: string
+    intro: (a: { minutes: number }) => string
+    metaCode: string
+    footnote: string
+    footer: string
+  }
+> = {
+  en: {
+    subject: ({ code }) => `Confirm Anstoss ownership change: ${code}`,
+    preheader: ({ code }) => `Confirm this ownership change with ${code}`,
+    heading: 'Confirm club ownership change',
+    intro: ({ minutes }) =>
+      `Enter this one-time code in Anstoss to confirm the ownership action you just requested. It expires in ${minutes} minutes.`,
+    metaCode: 'Confirmation code',
+    footnote:
+      'This code is tied to one club and one ownership action. If you did not request it, do not share it.',
+    footer: 'Anstoss security',
+  },
+  de: {
+    subject: ({ code }) => `Inhaberwechsel bei Anstoss bestätigen: ${code}`,
+    preheader: ({ code }) => `Bestätige den Inhaberwechsel mit ${code}`,
+    heading: 'Wechsel der Vereinsinhaberschaft bestätigen',
+    intro: ({ minutes }) =>
+      `Gib diesen Einmalcode in Anstoss ein, um die gerade angeforderte Änderung der Inhaberschaft zu bestätigen. Er läuft in ${minutes} Minuten ab.`,
+    metaCode: 'Bestätigungscode',
+    footnote:
+      'Der Code gilt nur für einen Verein und diese eine Änderung. Wenn du das nicht angefordert hast, gib ihn nicht weiter.',
+    footer: 'Anstoss Sicherheit',
+  },
+  fr: {
+    subject: ({ code }) => `Confirme le changement de propriétaire sur Anstoss : ${code}`,
+    preheader: ({ code }) => `Confirme ce changement de propriétaire avec ${code}`,
+    heading: 'Confirmer le changement de propriétaire du club',
+    intro: ({ minutes }) =>
+      `Saisis ce code à usage unique dans Anstoss pour confirmer l’action sur la propriété du club que tu viens de demander. Il expire dans ${minutes} minutes.`,
+    metaCode: 'Code de confirmation',
+    footnote:
+      'Ce code ne vaut que pour un club et une seule action. Si tu n’as rien demandé, ne le communique à personne.',
+    footer: 'Sécurité Anstoss',
+  },
+  it: {
+    subject: ({ code }) => `Conferma il cambio di proprietà su Anstoss: ${code}`,
+    preheader: ({ code }) => `Conferma il cambio di proprietà con ${code}`,
+    heading: 'Conferma il cambio di proprietà del club',
+    intro: ({ minutes }) =>
+      `Inserisci questo codice monouso in Anstoss per confermare l’operazione sulla proprietà del club che hai appena richiesto. Scade tra ${minutes} minuti.`,
+    metaCode: 'Codice di conferma',
+    footnote:
+      'Il codice vale per un solo club e una sola operazione. Se non l’hai richiesto, non condividerlo con nessuno.',
+    footer: 'Sicurezza Anstoss',
+  },
+  pt: {
+    subject: ({ code }) => `Confirma a mudança de proprietário no Anstoss: ${code}`,
+    preheader: ({ code }) => `Confirma esta mudança de proprietário com ${code}`,
+    heading: 'Confirmar mudança de propriedade do clube',
+    intro: ({ minutes }) =>
+      `Introduz este código de utilização única no Anstoss para confirmar a ação de propriedade que acabaste de pedir. Expira dentro de ${minutes} minutos.`,
+    metaCode: 'Código de confirmação',
+    footnote:
+      'Este código só vale para um clube e uma ação. Se não o pediste, não o partilhes com ninguém.',
+    footer: 'Segurança Anstoss',
+  },
+  tr: {
+    subject: ({ code }) => `Anstoss kulüp sahipliği değişikliğini onayla: ${code}`,
+    preheader: ({ code }) => `Sahiplik değişikliği onay kodu: ${code}`,
+    heading: 'Kulüp sahipliği değişikliğini onayla',
+    intro: ({ minutes }) =>
+      `Az önce istediğin sahiplik işlemini onaylamak için bu tek kullanımlık kodu Anstoss’a gir. Kodun geçerlilik süresi: ${minutes} dakika.`,
+    metaCode: 'Onay kodu',
+    footnote:
+      'Bu kod yalnızca tek bir kulüp ve tek bir işlem için geçerli. Bu işlemi sen istemediysen kodu kimseyle paylaşma.',
+    footer: 'Anstoss güvenlik',
+  },
+}
+
 export function buildOwnershipTransferCodeEmail(params: OtpCodeEmailParams): {
   subject: string
   html: string
   text: string
 } {
+  const t = OWNERSHIP_CODE[params.locale]
   const { html, text } = renderEmail({
     clubName: 'Anstoss',
-    preheader: `Confirm this ownership change with ${params.code}`,
-    heading: 'Confirm club ownership change',
-    intro: [
-      `Enter this one-time code in Anstoss to confirm the ownership action you just requested. It expires in ${params.expiresInMinutes} minutes.`,
-    ],
-    meta: [{ label: 'Confirmation code', value: params.code, mono: true }],
-    footnote:
-      'This code is tied to one club and one ownership action. If you did not request it, do not share it.',
-    footer: 'Anstoss security',
+    preheader: t.preheader({ code: params.code }),
+    heading: t.heading,
+    intro: [t.intro({ minutes: params.expiresInMinutes })],
+    meta: [{ label: t.metaCode, value: params.code, mono: true }],
+    footnote: t.footnote,
+    footer: t.footer,
   })
-  return { subject: `Confirm Anstoss ownership change: ${params.code}`, html, text }
+  return { subject: t.subject({ code: params.code }), html, text }
 }

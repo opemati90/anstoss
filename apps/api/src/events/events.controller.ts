@@ -25,7 +25,29 @@ import {
   updateRsvpSchema,
   proxyRsvpSchema,
   toggleEventReminderSchema,
+  updateEventSquadSchema,
+  saveEventLineupSchema,
 } from '@anstoss/shared'
+
+/** Logistics fields shared by create / series / update; ISO strings → Date. */
+function logisticsFrom(data: {
+  meetingAt?: string | null
+  meetingPoint?: string | null
+  opponent?: string | null
+  homeAway?: 'HOME' | 'AWAY' | null
+  carpoolEnabled?: boolean
+  durationMin?: number | null
+}) {
+  return {
+    meetingAt:
+      data.meetingAt === undefined ? undefined : data.meetingAt ? new Date(data.meetingAt) : null,
+    meetingPoint: data.meetingPoint,
+    opponent: data.opponent,
+    homeAway: data.homeAway,
+    carpoolEnabled: data.carpoolEnabled,
+    durationMin: data.durationMin,
+  }
+}
 
 @Controller('clubs/:clubId/events')
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -53,6 +75,7 @@ export class EventsController {
       teamId: data.teamId,
       createdById: user.id,
       clubId,
+      ...logisticsFrom(data),
     })
   }
 
@@ -133,6 +156,8 @@ export class EventsController {
       clubId,
       intervalWeeks: data.repeat.intervalWeeks,
       until: new Date(data.repeat.until),
+      weekdays: data.repeat.weekdays,
+      ...logisticsFrom(data),
     })
   }
 
@@ -154,6 +179,7 @@ export class EventsController {
         date: data.date ? new Date(data.date) : undefined,
         location: data.location,
         notes: data.notes,
+        ...logisticsFrom(data),
       },
       data.scope ?? 'this',
       clubId,
@@ -186,8 +212,8 @@ export class EventsController {
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
-    const { status, reason } = updateRsvpSchema.parse(body)
-    return this.eventsService.upsertRsvp(eventId, user.id, status, reason)
+    const { status, reason, note, childUserId } = updateRsvpSchema.parse(body)
+    return this.eventsService.upsertRsvp(eventId, user.id, status, reason, note, childUserId)
   }
 
   /**
@@ -201,8 +227,8 @@ export class EventsController {
     @Param('eventId') eventId: string,
     @Body() body: unknown,
   ) {
-    const { status, reason, childUserId } = proxyRsvpSchema.parse(body)
-    return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status, reason)
+    const { status, reason, note, childUserId } = proxyRsvpSchema.parse(body)
+    return this.eventsService.upsertRsvpProxy(eventId, user.id, childUserId, status, reason, note)
   }
 
   /**
@@ -260,6 +286,61 @@ export class EventsController {
     @CurrentUser() user: { id: string },
   ): Promise<{ checkedInAt: string }> {
     return this.eventsService.checkIn(clubId, eventId, user.id)
+  }
+
+  /**
+   * GET /clubs/:clubId/events/:eventId/squad — the Kader (event managers).
+   */
+  @Get(':eventId/squad')
+  getSquad(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.getSquad(clubId, eventId, user.id)
+  }
+
+  /**
+   * PUT /clubs/:clubId/events/:eventId/squad — set the Kader; `publish`
+   * notifies the players who are newly in it.
+   */
+  @Put(':eventId/squad')
+  @RateLimit('write')
+  updateSquad(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateEventSquadSchema.parse(body)
+    return this.eventsService.updateSquad(clubId, eventId, user.id, input)
+  }
+
+  /**
+   * GET /clubs/:clubId/events/:eventId/lineup — the saved Aufstellung or null.
+   */
+  @Get(':eventId/lineup')
+  getLineup(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.getLineup(clubId, eventId, user.id)
+  }
+
+  /**
+   * PUT /clubs/:clubId/events/:eventId/lineup — save the Aufstellung.
+   */
+  @Put(':eventId/lineup')
+  @RateLimit('write')
+  saveLineup(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = saveEventLineupSchema.parse(body)
+    return this.eventsService.saveLineup(clubId, eventId, user.id, input)
   }
 
   /**

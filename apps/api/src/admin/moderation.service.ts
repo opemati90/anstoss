@@ -1,6 +1,12 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { R2Provider } from '../assets/r2.provider'
+import {
+  ESCALATION,
+  quarantineRemovedAttachment,
+  signEvidenceUrl,
+} from '../moderation/moderation-safety'
 import type { PlatformAdminActor } from './platform-admin.types'
 
 /**
@@ -12,7 +18,12 @@ import type { PlatformAdminActor } from './platform-admin.types'
  */
 @Injectable()
 export class ModerationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ModerationService.name)
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly r2?: R2Provider,
+  ) {}
 
   async listReports(opts: { resolved?: boolean; limit?: number } = {}) {
     const limit = Math.min(opts.limit ?? 50, 200)
@@ -26,7 +37,9 @@ export class ModerationService {
     const [channelReports, directReports] = await Promise.all([
       this.prisma.messageReport.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // Safeguarding review: escalated reports (child safety, staff sender,
+        // overdue) come first so they are never paged away.
+        orderBy: [{ escalatedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
         take: limit,
         include: {
           reporter: { select: { id: true, name: true, email: true } },
@@ -43,7 +56,9 @@ export class ModerationService {
       }),
       this.prisma.directMessageReport.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // Safeguarding review: escalated reports (child safety, staff sender,
+        // overdue) come first so they are never paged away.
+        orderBy: [{ escalatedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
         take: limit,
         include: {
           reporter: { select: { id: true, name: true, email: true } },
@@ -60,7 +75,7 @@ export class ModerationService {
       }),
     ])
 
-    return [
+    const rows = [
       ...channelReports.map((report) => ({ ...report, kind: 'channel' as const })),
       ...directReports.map(({ directMessage, ...report }) => ({
         ...report,
@@ -74,8 +89,15 @@ export class ModerationService {
         },
       })),
     ]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort((a, b) => rank(a) - rank(b) || b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit)
+    // H6: short-lived signed URL for attachment evidence.
+    return Promise.all(
+      rows.map(async (row) => ({
+        ...row,
+        evidenceAttachmentSignedUrl: await signEvidenceUrl(this.r2, row),
+      })),
+    )
   }
 
   async resolveReport(
@@ -87,7 +109,7 @@ export class ModerationService {
     const report = await this.prisma.messageReport.findUnique({
       where: { id: reportId },
       include: {
-        message: { select: { id: true, clubId: true } },
+        message: { select: { id: true, clubId: true, attachmentUrl: true } },
       },
     })
     if (!report) {
@@ -97,6 +119,7 @@ export class ModerationService {
           directMessage: {
             select: {
               id: true,
+              attachmentUrl: true,
               conversation: { select: { clubId: true } },
             },
           },
@@ -104,7 +127,7 @@ export class ModerationService {
       })
       if (!directReport) throw new NotFoundException('Report not found')
 
-      return this.prisma.$transaction(async (tx) => {
+      const resolved = await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.directMessageReport.updateMany({
           where: { id: reportId, resolvedAt: null },
           data: {
@@ -119,7 +142,12 @@ export class ModerationService {
         if (action === 'remove') {
           await tx.directMessage.update({
             where: { id: directReport.directMessage.id },
-            data: { content: '' },
+            data: {
+              deletedAt: new Date(),
+              content: '',
+              attachmentUrl: null,
+              attachmentMeta: Prisma.JsonNull,
+            },
           })
         }
         await tx.auditLog.create({
@@ -141,6 +169,19 @@ export class ModerationService {
         })
         return tx.directMessageReport.findUniqueOrThrow({ where: { id: reportId } })
       })
+      if (action === 'remove') {
+        await quarantineRemovedAttachment(
+          this.prisma,
+          this.r2,
+          {
+            kind: 'direct',
+            messageId: directReport.directMessage.id,
+            attachmentUrl: directReport.directMessage.attachmentUrl ?? null,
+          },
+          this.logger,
+        )
+      }
+      return resolved
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -186,6 +227,18 @@ export class ModerationService {
       return tx.messageReport.findUniqueOrThrow({ where: { id: reportId } })
     })
 
+    if (action === 'remove') {
+      await quarantineRemovedAttachment(
+        this.prisma,
+        this.r2,
+        {
+          kind: 'channel',
+          messageId: report.message.id,
+          attachmentUrl: report.message.attachmentUrl ?? null,
+        },
+        this.logger,
+      )
+    }
     return updated
   }
 
@@ -200,4 +253,10 @@ export class ModerationService {
       },
     })
   }
+}
+
+/** Child-safety reports first, then other escalations, then the rest. */
+function rank(row: { escalationReason?: string | null; escalatedAt?: Date | null }) {
+  if (row.escalationReason === ESCALATION.SAFEGUARDING) return 0
+  return row.escalatedAt ? 1 : 2
 }
