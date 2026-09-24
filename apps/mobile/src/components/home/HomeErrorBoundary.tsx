@@ -3,15 +3,16 @@ import * as Sentry from '@sentry/react-native'
 
 type Props = {
   children: ReactNode
-  fallback: (error: Error) => ReactNode
+  /** Rendered instead of the children after a crash; `reset` remounts them. */
+  fallback: (error: Error, reset: () => void) => ReactNode
 }
 
-type State = { hasError: boolean; error: Error | null }
+type State = { hasError: boolean; error: Error | null; attempt: number }
 
 export class HomeErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null }
+  state: State = { hasError: false, error: null, attempt: 0 }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error }
   }
 
@@ -24,10 +25,19 @@ export class HomeErrorBoundary extends Component<Props, State> {
     })
   }
 
+  reset = () => {
+    this.setState((prev) => ({ hasError: false, error: null, attempt: prev.attempt + 1 }))
+  }
+
   render() {
     if (this.state.hasError && this.state.error) {
-      return this.props.fallback(this.state.error)
+      return this.props.fallback(this.state.error, this.reset)
     }
-    return this.props.children
+    // Keyed so a retry remounts the subtree and refetches from scratch.
+    return <Remount key={this.state.attempt}>{this.props.children}</Remount>
   }
+}
+
+function Remount({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }

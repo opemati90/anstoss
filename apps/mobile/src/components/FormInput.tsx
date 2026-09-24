@@ -52,6 +52,8 @@ export function FormInput({ label, error, focusColor, style, ...rest }: FormInpu
           style,
         ]}
         placeholderTextColor={c.textTertiary}
+        // Screen readers announce the visible label; callers can override.
+        accessibilityLabel={label}
         onFocus={(e) => {
           setFocused(true)
           rest.onFocus?.(e)

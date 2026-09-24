@@ -1,31 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect, useState } from 'react'
-import { RegistrationRole } from '@anstoss/shared'
-import {
-  ONBOARDING_FLOW_STORAGE_KEY,
-  type OnboardingFlowState,
-} from '../context/OnboardingFlowContext'
+import type { OnboardingFlowState } from '../context/OnboardingFlowContext'
+import { ONBOARDING_FLOW_STORAGE_KEY } from './storageKeys'
 
-const RESUMABLE_AUTH_STEPS = new Set([
-  '/(auth)/about',
-  '/(auth)/role',
-  '/(auth)/team-code',
-  '/(auth)/club-search',
-  '/(auth)/club-create',
-  '/(auth)/club-identity',
-  '/(auth)/roster-build',
-  '/(auth)/roster-claim',
-  '/(auth)/parent-handoff',
-  '/(auth)/done',
-])
+/**
+ * The only onboarding screen worth resuming from a local draft is the club
+ * setup form (several fields). Every other step derives its position from the
+ * server (/me): name set or not, request pending or not. A draft that points
+ * anywhere else, including screens that no longer exist (about, role,
+ * team-code, roster-build, roster-claim, done), is discarded.
+ */
+export const RESUMABLE_ONBOARDING_STEPS: ReadonlySet<string> = new Set(['/(auth)/club-setup'])
 
 function parseState(raw: string | null): OnboardingFlowState | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as unknown
-    return parsed && typeof parsed === 'object'
-      ? (parsed as OnboardingFlowState)
-      : null
+    return parsed && typeof parsed === 'object' ? (parsed as OnboardingFlowState) : null
   } catch {
     return null
   }
@@ -35,79 +26,61 @@ export function resolveOnboardingResumeTarget(
   state: OnboardingFlowState | null,
   ownerUserId: string | null | undefined,
 ): string | null {
-  if (!state) return null
-  if (Object.keys(state).length === 0) return null
+  if (!state || Object.keys(state).length === 0) return null
   if (!ownerUserId || state.ownerUserId !== ownerUserId) return null
-  if (state.lastStep && RESUMABLE_AUTH_STEPS.has(state.lastStep)) {
-    return state.lastStep
-  }
-  if (state.role === RegistrationRole.PARENT) {
-    return '/(auth)/parent-handoff'
-  }
-  if (
-    state.role === RegistrationRole.PLAYER ||
-    state.role === RegistrationRole.COACH
-  ) {
-    return '/(auth)/team-code'
-  }
-  if (state.role === RegistrationRole.CLUB_ADMIN) {
-    return '/(auth)/club-create'
-  }
-  if (state.dateOfBirth || state.firstName) {
-    return '/(auth)/role'
-  }
-  return '/(auth)/about'
+  if (state.lastStep && RESUMABLE_ONBOARDING_STEPS.has(state.lastStep)) return state.lastStep
+  return null
 }
 
+/** True when the stored draft must be deleted: foreign owner or dead step. */
 export function shouldDiscardOnboardingResumeState(
   state: OnboardingFlowState | null,
   ownerUserId: string | null | undefined,
 ): boolean {
-  if (!state) return false
-  if (Object.keys(state).length === 0) return false
-  return !!ownerUserId && state.ownerUserId !== ownerUserId
+  if (!state || Object.keys(state).length === 0) return false
+  if (ownerUserId && state.ownerUserId !== ownerUserId) return true
+  return !!state.lastStep && !RESUMABLE_ONBOARDING_STEPS.has(state.lastStep)
 }
 
 /**
  * Returns undefined while loading, then a whitelisted resume route or null.
+ * The answer is keyed to (enabled, owner) so the render in which the user
+ * finishes loading never sees the previous render's answer.
  */
 export function useOnboardingResumeTarget(
   enabled: boolean,
   ownerUserId?: string | null,
 ): string | null | undefined {
-  const [target, setTarget] = useState<string | null | undefined>(
-    enabled ? undefined : null,
-  )
+  const key = `${enabled ? 1 : 0}:${ownerUserId ?? ''}`
+  const [loaded, setLoaded] = useState<{ key: string; target: string | null } | null>(null)
 
   useEffect(() => {
     let alive = true
     if (!enabled) {
-      setTarget(null)
+      setLoaded({ key, target: null })
       return () => {
         alive = false
       }
     }
-
-    setTarget(undefined)
     void AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)
       .then((raw) => {
-        if (alive) {
-          const parsed = parseState(raw)
-          if (shouldDiscardOnboardingResumeState(parsed, ownerUserId)) {
-            void AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
-              // tolerated
-            })
-          }
-          setTarget(resolveOnboardingResumeTarget(parsed, ownerUserId))
+        if (!alive) return
+        const parsed = parseState(raw)
+        if (shouldDiscardOnboardingResumeState(parsed, ownerUserId)) {
+          void AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
+          setLoaded({ key, target: null })
+          return
         }
+        setLoaded({ key, target: resolveOnboardingResumeTarget(parsed, ownerUserId) })
       })
       .catch(() => {
-        if (alive) setTarget('/(auth)/about')
+        if (alive) setLoaded({ key, target: null })
       })
     return () => {
       alive = false
     }
-  }, [enabled, ownerUserId])
+  }, [enabled, key, ownerUserId])
 
-  return target
+  if (!enabled) return null
+  return loaded?.key === key ? loaded.target : undefined
 }

@@ -1,10 +1,24 @@
-import { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Icon, PressableScale, Text } from '../ui'
+import { Button, Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hairline, radius, space } from '../../theme/tokens'
-import { RsvpControl, type RsvpStatus } from './RsvpControl'
+import {
+  RsvpControl,
+  rsvpTone,
+  type AbsenceDetail,
+  type RsvpStatus,
+} from '../events/RsvpControl'
+import {
+  HomeAwayChip,
+  KickoffBlock,
+  LocationLine,
+  TypeChip,
+  eventHeadline,
+  formatCountdown,
+  formatShortDate,
+  formatTime,
+} from './HomeKit'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
 
 export type NextUpHeroProps = {
@@ -12,7 +26,7 @@ export type NextUpHeroProps = {
   locale: string
   nowMs: number
   rsvpPending: boolean
-  onRsvp: (status: RsvpStatus) => void
+  onRsvp: (status: RsvpStatus, absence?: AbsenceDetail) => void
   onOpen: () => void
 }
 
@@ -31,15 +45,12 @@ export function isInCheckInWindow(eventDate: string, nowMs: number): boolean {
 }
 
 /**
- * The one surface on home that is allowed to be loud.
+ * "Next up": the one surface on home allowed to be large.
  *
- * It answers a single question — *what do I have to do about the next thing?* —
- * and it answers it in place. Unanswered: the reply control is right here, no
- * navigation. Answered: it states your answer and gets quieter. Inside the
- * arrival window: it becomes check-in. Live: it becomes the score.
- *
- * Everything below this card on the screen is intentionally flatter so this
- * one reads first.
+ * It answers the three questions a player has about the next thing, in the
+ * order they ask them: what is it and against whom, when do I have to be
+ * there (Treffpunkt before Anstoß), and am I coming. The reply is answered in
+ * place; inside the arrival window it becomes check-in.
  */
 export function NextUpHero({
   event,
@@ -52,120 +63,119 @@ export function NextUpHero({
   const c = useClubColors()
   const { t } = useTranslation()
 
-  const date = useMemo(() => new Date(event.date), [event.date])
   const inCheckInWindow = isInCheckInWindow(event.date, nowMs)
-
-  const when = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(date),
-    [date, locale],
-  )
-  const countdown = formatCountdown(date.getTime() - nowMs, t)
+  const countdown = formatCountdown(event.date, nowMs, locale, t)
+  const isMatch = event.type === 'MATCH'
+  const headline = eventHeadline(event)
+  const kickoff = formatTime(event.date, locale)
+  const dateLabel = formatShortDate(event.date, locale)
+  const meeting = formatTime(event.meetingAt, locale)
+  const isCancelled = Boolean(event.cancelledAt)
 
   const needsReply = !event.myRsvp || Boolean(event.myRsvpStale)
+  const answered = event.myRsvp && !event.myRsvpStale ? event.myRsvp : null
+  const answerTone = answered ? rsvpTone(answered, c) : null
   const statusLabel = event.myRsvpStale
     ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
-    : event.myRsvp
-    ? t(`home.player.status.${event.myRsvp.toLowerCase()}`, {
-        defaultValue:
-          event.myRsvp === 'YES'
-            ? "You're in"
-            : event.myRsvp === 'MAYBE'
-              ? 'You said maybe'
-              : "You're out",
-      })
-    : null
+    : answered === 'YES'
+      ? t('homeHub.player.youreIn', { defaultValue: "You're going" })
+      : answered === 'MAYBE'
+        ? t('homeHub.player.youreMaybe', { defaultValue: 'You said maybe' })
+        : answered === 'NO'
+          ? t('homeHub.player.youreOut', { defaultValue: "You're not going" })
+          : t('home.player.areYouIn', { defaultValue: 'Are you in?' })
+
+  const a11ySummary = [
+    headline,
+    event.homeAway === 'AWAY'
+      ? t('homeHub.away', { defaultValue: 'Away' })
+      : event.homeAway === 'HOME'
+        ? t('homeHub.home', { defaultValue: 'Home' })
+        : null,
+    `${dateLabel} ${kickoff}`,
+    meeting ? t('homeHub.meetShort', { defaultValue: 'Meet {{time}}', time: meeting }) : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
       <PressableScale
         onPress={onOpen}
         accessibilityRole="button"
-        accessibilityLabel={event.title}
+        accessibilityLabel={a11ySummary}
         haptic="tapLight"
-        style={styles.cardBody}
+        style={styles.body}
       >
-        <View style={styles.eyebrowRow}>
-          <Text variant="caption2" tracking="wide" weight="bold" style={{ color: c.primary }}>
-            {t(`event.type.${event.type}`, { defaultValue: event.type }).toUpperCase()}
-          </Text>
-          {countdown ? (
-            <>
-              <View style={[styles.dot, { backgroundColor: c.borderStrong }]} />
-              <Text variant="caption2" tracking="wide" weight="semibold" color="tertiary">
-                {countdown.toUpperCase()}
-              </Text>
-            </>
+        <View style={styles.chipRow}>
+          <TypeChip type={event.type} />
+          {isMatch ? <HomeAwayChip homeAway={event.homeAway} /> : null}
+          {countdown && !isCancelled ? (
+            <Text variant="footnote" weight="medium" color="secondary" tabular style={styles.countdown}>
+              {countdown}
+            </Text>
           ) : null}
         </View>
 
-        <Text variant="title1" weight="bold" color="primary" numberOfLines={2} style={styles.title}>
-          {event.title}
+        <Text
+          variant="title2"
+          weight="bold"
+          color={isCancelled ? 'tertiary' : 'primary'}
+          numberOfLines={2}
+          style={isCancelled ? styles.struck : undefined}
+        >
+          {headline}
         </Text>
 
-        <View style={styles.metaRow}>
-          <Icon name="calendar" size={14} color="tertiary" />
-          <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.metaText}>
-            {when}
-          </Text>
-        </View>
-        {event.location ? (
-          <View style={styles.metaRow}>
-            <Icon name="mappin" size={14} color="tertiary" />
-            <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.metaText}>
-              {event.location}
-            </Text>
-          </View>
-        ) : null}
+        <KickoffBlock event={event} locale={locale} />
+        <LocationLine event={event} />
       </PressableScale>
 
       <View style={[styles.actionZone, { borderTopColor: c.borderSubtle }]}>
-        {event.cancelledAt ? (
-          <View style={styles.cancelledRow}>
-            <Icon name="xmark.circle.fill" size={16} color="secondary" />
-            <Text variant="footnote" weight="semibold" color="secondary" numberOfLines={2} style={styles.actionLabel}>
+        {isCancelled ? (
+          <View style={styles.statusRow}>
+            <Icon name="xmark.circle.fill" size={18} color={c.error} />
+            <Text variant="subheadline" weight="semibold" color="secondary" style={styles.flex}>
               {t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}
               {event.cancelReason ? ` · ${event.cancelReason}` : ''}
             </Text>
           </View>
         ) : inCheckInWindow && event.myRsvp === 'YES' ? (
-          <PressableScale
+          <Button
+            label={t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
             onPress={onOpen}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
-            haptic="tapMedium"
-            style={[styles.primaryAction, { backgroundColor: c.primary }]}
-          >
-            <Icon name="checkmark" size={16} color={c.textInverse} />
-            <Text variant="footnote" weight="bold" style={{ color: c.textInverse }}>
-              {t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
-            </Text>
-          </PressableScale>
+            fullWidth
+            hapticTone="tapMedium"
+          />
         ) : (
           <>
-            <View style={styles.actionLabelRow}>
+            <View style={styles.statusRow}>
+              {answerTone ? (
+                <Icon
+                  name={
+                    answered === 'YES'
+                      ? 'checkmark.circle.fill'
+                      : answered === 'MAYBE'
+                        ? 'questionmark.circle.fill'
+                        : 'xmark.circle.fill'
+                  }
+                  size={18}
+                  color={answerTone.fg}
+                />
+              ) : null}
               <Text
-                variant="caption1"
-                weight={needsReply ? 'bold' : 'medium'}
-                color={needsReply ? 'primary' : 'tertiary'}
-                numberOfLines={1}
-                style={styles.actionLabel}
+                variant="subheadline"
+                weight="semibold"
+                color={needsReply ? 'primary' : 'secondary'}
+                style={styles.flex}
               >
-                {needsReply
-                  ? t('home.player.areYouIn', { defaultValue: 'Are you in?' })
-                  : statusLabel}
+                {statusLabel}
               </Text>
-              {event.yesCount + event.maybeCount + event.noCount > 0 ? (
-                <Text variant="caption1" color="tertiary" tabular numberOfLines={1}>
-                  {t('home.player.yesCount', {
-                    defaultValue: '{{yes}} in',
-                    yes: event.yesCount,
+              {event.yesCount > 0 ? (
+                <Text variant="footnote" color="secondary" tabular>
+                  {t('homeHub.player.yesCount', {
+                    defaultValue: '{{count}} going',
+                    count: event.yesCount,
                   })}
                 </Text>
               ) : null}
@@ -174,37 +184,13 @@ export function NextUpHero({
               value={event.myRsvp}
               onChange={onRsvp}
               disabled={rsvpPending}
-              />
+              testID="home-hero-rsvp"
+            />
           </>
         )}
       </View>
     </View>
   )
-}
-
-/**
- * Short, human lead time: "today", "tomorrow", "in 3 days", "in 2 h".
- * Anything further out than a week is left to the date line above it.
- */
-function formatCountdown(
-  deltaMs: number,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string | null {
-  if (deltaMs <= 0) return t('home.player.now', { defaultValue: 'Now' })
-  const hours = deltaMs / 3_600_000
-  if (hours < 1) {
-    return t('home.player.inMinutes', {
-      defaultValue: 'in {{n}} min',
-      n: Math.max(1, Math.round(deltaMs / 60_000)),
-    })
-  }
-  if (hours < 12) {
-    return t('home.player.inHours', { defaultValue: 'in {{n}} h', n: Math.round(hours) })
-  }
-  const days = Math.round(hours / 24)
-  if (days <= 1) return t('home.tomorrow', { defaultValue: 'Tomorrow' })
-  if (days <= 7) return t('home.inNDays', { defaultValue: 'In {{n}} days', n: days })
-  return null
 }
 
 const styles = StyleSheet.create({
@@ -214,54 +200,32 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
     overflow: 'hidden',
   },
-  cardBody: {
-    paddingHorizontal: space.lg,
+  body: {
+    paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.md,
-    gap: space.xs,
+    gap: space.sm + 4,
   },
-  eyebrowRow: {
+  chipRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: space.sm,
   },
-  dot: { width: 3, height: 3, borderRadius: radius.full },
-  title: { marginTop: space['2xs'], marginBottom: space['2xs'] },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  metaText: { flex: 1 },
+  countdown: { marginStart: 'auto' },
+  flex: { flex: 1 },
+  struck: { textDecorationLine: 'line-through' },
   actionZone: {
     borderTopWidth: hairline,
     paddingHorizontal: space.md,
-    paddingTop: space.sm,
+    paddingTop: space.sm + 4,
     paddingBottom: space.md,
-    gap: space.sm,
+    gap: space.sm + 4,
   },
-  actionLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    paddingHorizontal: space.xs,
-  },
-  actionLabel: { flex: 1 },
-  cancelledRow: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.xs,
-    paddingVertical: space.sm,
-  },
-  primaryAction: {
-    minHeight: 46,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
+    minHeight: 24,
   },
 })

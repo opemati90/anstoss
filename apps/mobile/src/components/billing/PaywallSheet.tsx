@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 2,
     fontWeight: '700',
   },

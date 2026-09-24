@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   root: { marginTop: space.lg, gap: space.xs },
   heading: {
     fontFamily: fonts.label,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.2,
     paddingHorizontal: space.xs,
   },

@@ -146,14 +146,14 @@ describe('PlayerHome', () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await findByText('Monday training')).toBeTruthy()
     expect(await findByText('Are you in?')).toBeTruthy()
-    expect(await findByText('Yes')).toBeTruthy()
-    expect(await findByText('Maybe')).toBeTruthy()
-    expect(await findByText('No')).toBeTruthy()
+    expect(await findByText('eventFlow.rsvp.yes')).toBeTruthy()
+    expect(await findByText('eventFlow.rsvp.maybe')).toBeTruthy()
+    expect(await findByText('eventFlow.rsvp.no')).toBeTruthy()
   })
 
   it('RSVP Yes fires an API PUT', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-    const yes = await findByText('Yes')
+    const yes = await findByText('eventFlow.rsvp.yes')
     fireEvent.press(yes)
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
@@ -211,8 +211,8 @@ describe('PlayerHome', () => {
     // A cancelled event owes nobody an answer: no reply badge, and the only
     // reply control on screen is the hero's (Monday, already answered, which
     // keeps its control so the answer can be changed).
-    expect(queryByText(/to reply/)).toBeNull()
-    expect(queryAllByText('Maybe')).toHaveLength(1)
+    expect(queryByText(/to answer/)).toBeNull()
+    expect(queryAllByText('eventFlow.rsvp.maybe')).toHaveLength(1)
   })
 
   it('renders announcement titles', async () => {
@@ -539,7 +539,7 @@ describe('PlayerHome', () => {
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByLabelText(/Team A vs A United live/)).toBeTruthy()
+    expect(await findByLabelText(/Team A vs A United, live/)).toBeTruthy()
     // The live match is represented once: the score card plus the decision
     // card for it. It must never also appear as a row in the week list.
     expect(queryAllByText('Team A live event')).toHaveLength(1)
@@ -678,4 +678,130 @@ describe('PlayerHome', () => {
       params: { fixtureId: 'fixture-team-2', teamId: 'team-2' },
     })
   })
+
+  describe('matchday logistics, jobs and fees', () => {
+    const kickoff = new Date(Date.now() + 3 * 86400000)
+    kickoff.setHours(15, 0, 0, 0)
+    const meet = new Date(kickoff.getTime() - 90 * 60000)
+
+    function mockMatchday(overrides: { dues?: unknown; duties?: unknown[] } = {}) {
+      mockApi.mockImplementation((path: string) => {
+        if (path.includes('/events?') && path.includes('scope=upcoming')) {
+          return Promise.resolve([
+            {
+              id: 'm1',
+              type: 'MATCH',
+              title: '@ SV Babelsberg 03',
+              opponent: 'SV Babelsberg 03',
+              homeAway: 'AWAY',
+              date: kickoff.toISOString(),
+              meetingAt: meet.toISOString(),
+              meetingPoint: 'Vereinsheim',
+              location: 'Karl-Liebknecht-Stadion',
+              myRsvp: 'YES',
+              yesCount: 14,
+              maybeCount: 1,
+              noCount: 2,
+            },
+          ])
+        }
+        if (path.includes('/roster-ops')) {
+          return Promise.resolve({
+            team: { id: 'team-1', displayName: 'Senior Team', squadTarget: 18 },
+            squadCount: 20,
+            squad: [],
+            operations: { trials: [], newPlayers: [], inactive: [], pendingCoaches: [] },
+            medic: { active: [], recentlyCleared: [] },
+            kit: {
+              pending: overrides.duties ?? [
+                {
+                  id: 'd1',
+                  assignedUserId: 'u1',
+                  kind: 'JERSEY_CLEANUP',
+                  status: 'PENDING',
+                  dueDate: kickoff.toISOString(),
+                  notes: null,
+                },
+                {
+                  id: 'd2',
+                  assignedUserId: 'someone-else',
+                  kind: 'BIB_CLEANUP',
+                  status: 'PENDING',
+                  dueDate: kickoff.toISOString(),
+                  notes: null,
+                },
+              ],
+              recent: [],
+            },
+          })
+        }
+        if (path.includes('/contributions/my')) {
+          return Promise.resolve(
+            overrides.dues ?? {
+              hasContributions: true,
+              bankTransfer: null,
+              items: [
+                {
+                  planId: 'p1',
+                  planName: 'Trikotumlage',
+                  amount: 4500,
+                  currency: 'EUR',
+                  cadence: 'YEARLY',
+                  dueDate: new Date(Date.now() - 86400000).toISOString(),
+                  status: 'OVERDUE',
+                  paidAmount: null,
+                  paidAt: null,
+                  paymentReported: false,
+                },
+              ],
+            },
+          )
+        }
+        if (path.includes('/fixtures')) return Promise.resolve([])
+        if (path.includes('/channels')) return Promise.resolve([])
+        if (path.includes('/announcements')) return Promise.resolve([])
+        return Promise.resolve(null)
+      })
+    }
+
+    it('leads the hero with the opponent, Away, kick-off and meeting time and place', async () => {
+      mockMatchday()
+      const { findByText, getByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
+      expect(await findByText('SV Babelsberg 03')).toBeTruthy()
+      expect(getByText('Away')).toBeTruthy()
+      expect(getByText('Kick-off')).toBeTruthy()
+      expect(getByText('15:00')).toBeTruthy()
+      expect(getByText('Meet')).toBeTruthy()
+      expect(getByText('13:30')).toBeTruthy()
+      expect(getByText('Vereinsheim')).toBeTruthy()
+    })
+
+    it("shows only the player's own jobs and the fee owed", async () => {
+      mockMatchday()
+      const { findByText, getByText, queryByText } = render(
+        wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
+      )
+      expect(await findByText('My jobs')).toBeTruthy()
+      expect(getByText('Jersey wash')).toBeTruthy()
+      expect(queryByText('Bib wash')).toBeNull()
+      const fee = getByText(/45\.00 outstanding/)
+      fireEvent.press(fee)
+      const { router } = require('expo-router')
+      expect(router.push).toHaveBeenCalledWith('/my-contributions')
+    })
+
+    it('hides jobs and fees when there are none', async () => {
+      mockMatchday({
+        duties: [],
+        dues: { hasContributions: true, bankTransfer: null, items: [] },
+      })
+      const { findByText, queryByText } = render(
+        wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
+      )
+      expect(await findByText('SV Babelsberg 03')).toBeTruthy()
+      expect(queryByText('My jobs')).toBeNull()
+      expect(queryByText(/outstanding/)).toBeNull()
+    })
+  })
 })
+

@@ -15,7 +15,6 @@ import {
   FONT_SIZE_BODY,
   FONT_SIZE_BODY_SMALL,
   FONT_SIZE_CAPTION,
-  FONT_SIZE_MICRO,
   LINE_HEIGHT_TIGHT,
   LINE_HEIGHT_DISPLAY,
   LINE_HEIGHT_NORMAL,
@@ -49,7 +48,7 @@ import {
  *   subheadline     →  bodySmall      →  14
  *   footnote        →  bodySmall      →  14
  *   caption1        →  caption        →  12
- *   caption2        →  micro (wide)   →  10
+ *   caption2        →  caption (wide) →  13
  *   data            →  h2 mono        →  20 (Geist Mono)
  *   dataLarge       →  display mono   →  32 (Geist Mono)
  */
@@ -174,9 +173,11 @@ const VARIANTS: Record<TextVariant, VariantStyle> = {
     letterSpacing: LETTER_SPACING_WIDE,
     defaultWeight: 'medium',
   },
+  // caption2 used to be the 10pt micro size. It now shares the 13pt caption
+  // floor; FONT_SIZE_MICRO (12) is reserved for tab labels and count badges.
   caption2: {
-    fontSize: FONT_SIZE_MICRO,
-    lineHeight: FONT_SIZE_MICRO * LINE_HEIGHT_RELAXED,
+    fontSize: FONT_SIZE_CAPTION,
+    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_RELAXED,
     fontFamily: FONT_FAMILY_MEDIUM,
     letterSpacing: LETTER_SPACING_WIDE,
     defaultWeight: 'medium',
@@ -230,6 +231,24 @@ function resolveColor(color: TextColor | undefined, c: ClubTheme): string {
   return color // raw hex or named RN color
 }
 
+// Dynamic Type: text scales with the user's iOS/Android setting, capped per
+// role so large accessibility sizes stay legible without breaking layouts.
+const MAX_FONT_SCALE: Record<TextVariant, number> = {
+  largeTitle: 1.4,
+  title1: 1.4,
+  title2: 1.4,
+  title3: 1.5,
+  headline: 1.8,
+  body: 1.8,
+  callout: 1.8,
+  subheadline: 1.8,
+  footnote: 1.8,
+  caption1: 1.6,
+  caption2: 1.6,
+  data: 1.3,
+  dataLarge: 1.2,
+}
+
 export function Text({
   variant = 'body',
   color,
@@ -241,6 +260,7 @@ export function Text({
   style,
   children,
   allowFontScaling = true,
+  maxFontSizeMultiplier,
   ...rest
 }: TextProps) {
   const c = useClubColors()
@@ -262,6 +282,7 @@ export function Text({
   return (
     <RNText
       allowFontScaling={allowFontScaling}
+      maxFontSizeMultiplier={maxFontSizeMultiplier ?? MAX_FONT_SCALE[variant]}
       style={[composed, style as TextStyle | TextStyle[]]}
       {...rest}
     >

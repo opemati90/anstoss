@@ -1,23 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { render } from '@testing-library/react-native'
 import Index from '../index'
-import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/context/OnboardingFlowContext'
+import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/onboarding/storageKeys'
 
 const mockUseAuth = jest.fn()
 
 jest.mock('expo-router', () => ({
-  Redirect: ({
-    href,
-  }: {
-    href: string | { pathname: string; params?: Record<string, string> }
-  }) => {
+  Redirect: ({ href }: { href: string }) => {
     const React = require('react')
     const { Text } = require('react-native')
-    const rendered =
-      typeof href === 'string'
-        ? href
-        : `${href.pathname}${href.params?.claimId ? `?claimId=${href.params.claimId}` : ''}`
-    return React.createElement(Text, null, rendered)
+    return React.createElement(Text, null, href)
   },
 }))
 
@@ -25,283 +17,173 @@ jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
-jest.mock('../../src/onboarding/welcomeSeen', () => ({
-  useWelcomeSeen: () => true,
-}))
+function signedIn(overrides: Record<string, unknown> = {}) {
+  return {
+    isLoading: false,
+    isSignedIn: true,
+    memberships: [],
+    ageGate: null,
+    pendingJoinRequest: null,
+    pendingClubClaim: null,
+    user: {
+      id: 'user-1',
+      email: 'tim.weber@example.de',
+      name: 'Tim Weber',
+      registrationRole: 'PLAYER',
+      dateOfBirth: '1998-05-15',
+    },
+    ...overrides,
+  }
+}
 
-describe('Index routing', () => {
+describe('Index routing (onboarding revamp)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.mocked(AsyncStorage.getItem).mockResolvedValue(null)
   })
 
-  it('routes signed-out users to auth', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: false,
-      memberships: [],
-      ageGate: null,
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: null,
-    })
-
+  it('sends signed-out users to the welcome screen with the email field', () => {
+    mockUseAuth.mockReturnValue({ ...signedIn(), isSignedIn: false, user: null })
     const { getByText } = render(<Index />)
-
-    // Default route for unsigned users is the bare sign-in screen.
-    // Welcome.tsx is only reachable via the "Create account" link inside.
-    expect(getByText('/(auth)/sign-in')).toBeTruthy()
+    expect(getByText('/(auth)/welcome')).toBeTruthy()
   })
 
-  it('routes free agents without memberships to the free-agent profile', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: {
-        registrationRole: 'FREE_AGENT',
-      },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/free-agent/profile')).toBeTruthy()
+  it('asks a fresh account (named after its email) for a name first', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({ user: { id: 'u', email: 'tim.weber@example.de', name: 'tim.weber' } }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/name')).toBeTruthy()
   })
 
-  it('routes club admins without memberships to /(tabs) with a setup CTA on home', () => {
-    // Hard-redirecting to /club-setup used to lock admins out of all other
-    // navigation (marketplace, more, sign-out). Now they land on tabs and
-    // see a "Finish setting up your club" empty-state with a CTA to
-    // /club-setup — but they can also navigate elsewhere.
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: {
-        registrationRole: 'CLUB_ADMIN',
-      },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/(tabs)')).toBeTruthy()
+  it('sends a named account without a club to Verein finden', async () => {
+    mockUseAuth.mockReturnValue(signedIn())
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/club-search')).toBeTruthy()
   })
 
-  it('routes players without memberships to the next-step holding screen', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: {
-        registrationRole: 'PLAYER',
-      },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/account-next-step')).toBeTruthy()
+  it('sends a pending join request to the waiting screen', async () => {
+    mockUseAuth.mockReturnValue(signedIn({ pendingJoinRequest: { id: 'jr', clubId: 'c' } }))
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/request-pending')).toBeTruthy()
   })
 
-  it('routes an unlinked player with a pending join request to pollable approval UX', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsRegistration: false,
-      pendingJoinRequest: { id: 'join-1', clubId: 'club-1' },
-      pendingClubClaim: null,
-      user: { registrationRole: 'PLAYER' },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/pending-approval')).toBeTruthy()
+  it('sends a coach with a pending staff request to the waiting screen', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({
+        pendingClubClaim: { id: 'claim-7', status: 'SUBMITTED' },
+        user: { id: 'u', email: 'a@b.de', name: 'Coach Albrecht', registrationRole: 'COACH' },
+      }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/request-pending')).toBeTruthy()
   })
 
-  it('routes an unlinked coach with a pending staff claim to that exact claim', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsRegistration: false,
-      pendingJoinRequest: null,
-      pendingClubClaim: { id: 'staff-claim-7', status: 'SUBMITTED' },
-      user: { registrationRole: 'COACH' },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/(auth)/claim-pending?claimId=staff-claim-7')).toBeTruthy()
+  it('lets a club admin with a claim in review onto home (banner, not a blocking screen)', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({
+        pendingClubClaim: { id: 'claim-1', status: 'SUBMITTED' },
+        user: { id: 'u', email: 'a@b.de', name: 'Mara Schulte', registrationRole: 'CLUB_ADMIN' },
+      }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(tabs)')).toBeTruthy()
   })
 
-  it('keeps the standalone DOB gate for already-registered users', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [
-        {
-          id: 'membership-1',
-          club: { id: 'club-1', name: 'FC Test' },
+  it('returns to a saved invite after sign-in', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) =>
+      key === 'anstoss.pendingInviteCode' ? 'E2EINV01' : null,
+    )
+    mockUseAuth.mockReturnValue(signedIn())
+    const { findByText } = render(<Index />)
+    expect(await findByText('/join/E2EINV01')).toBeTruthy()
+  })
+
+  it('resumes the club setup draft but never a deleted step', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) =>
+      key === ONBOARDING_FLOW_STORAGE_KEY
+        ? JSON.stringify({ ownerUserId: 'user-1', lastStep: '/(auth)/club-setup' })
+        : null,
+    )
+    mockUseAuth.mockReturnValue(signedIn())
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/club-setup')).toBeTruthy()
+  })
+
+  it('keeps the DOB gate only for legacy members without a DOB', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({ memberships: [{ id: 'm' }], ageGate: { status: 'DOB_REQUIRED' } }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/enter-dob')).toBeTruthy()
+  })
+
+  it('sends members home', async () => {
+    mockUseAuth.mockReturnValue(signedIn({ memberships: [{ id: 'm' }] }))
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(tabs)')).toBeTruthy()
+  })
+
+  // onboarding review fixes
+  it('asks a named account without a date of birth for it on "Wie heißt du?" (B1)', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({
+        user: { id: 'u', email: 'a@b.de', name: 'Tim Weber', registrationRole: 'PARENT', dateOfBirth: null },
+      }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(auth)/name')).toBeTruthy()
+  })
+
+  it('lets a legacy 16+ declaration through without a DOB', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({
+        user: {
+          id: 'u',
+          email: 'a@b.de',
+          name: 'Tim Weber',
+          registrationRole: 'COACH',
+          dateOfBirth: null,
+          adultConfirmedAt: '2026-08-01T00:00:00.000Z',
         },
-      ],
-      ageGate: { status: 'DOB_REQUIRED' },
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: {
-        clerkId: 'clerk-existing',
-        registrationRole: 'PLAYER',
-        dateOfBirth: null,
-      },
-    })
-
-    const { getByText } = render(<Index />)
-
-    expect(getByText('/enter-dob')).toBeTruthy()
-  })
-
-  it('routes fresh signups with no saved state back into registration', async () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: { status: 'DOB_REQUIRED' },
-      needsOnboarding: false,
-      needsRegistration: true,
-      user: {
-        id: 'clerk-fresh',
-        registrationRole: '',
-        dateOfBirth: null,
-      },
-    })
-
+      }),
+    )
     const { findByText } = render(<Index />)
-
-    // With no saved wizard state, un-roled users restart the registration wizard.
-    expect(await findByText('/(auth)/about')).toBeTruthy()
+    expect(await findByText('/(auth)/club-search')).toBeTruthy()
   })
 
-  it('resumes fresh signups from the saved onboarding step', async () => {
-    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
-      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
-        return JSON.stringify({
-          ownerUserId: 'clerk-fresh',
-          firstName: 'Mara',
-          dateOfBirth: '1997-04-12',
-          lastStep: '/(auth)/role',
-        })
-      }
-      return null
-    })
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: { status: 'DOB_REQUIRED' },
-      needsOnboarding: false,
-      needsRegistration: true,
-      user: {
-        id: 'clerk-fresh',
-        registrationRole: '',
-        dateOfBirth: null,
-      },
-    })
-
+  it('H1: a member with a saved invite lands on the invite, not silently on home', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) =>
+      key === 'anstoss.pendingInviteCode' ? 'E2EINV01' : null,
+    )
+    mockUseAuth.mockReturnValue(signedIn({ memberships: [{ id: 'm' }] }))
     const { findByText } = render(<Index />)
-
-    expect(await findByText('/(auth)/role')).toBeTruthy()
+    expect(await findByText('/join/E2EINV01')).toBeTruthy()
   })
 
-  it('resumes fresh signups from the final onboarding action screen', async () => {
-    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
-      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
-        return JSON.stringify({
-          ownerUserId: 'clerk-fresh',
-          firstName: 'Mara',
-          dateOfBirth: '1997-04-12',
-          role: 'FREE_AGENT',
-          lastStep: '/(auth)/done',
-        })
-      }
-      return null
-    })
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: { status: 'DOB_REQUIRED' },
-      needsOnboarding: false,
-      needsRegistration: true,
-      user: {
-        id: 'clerk-fresh',
-        registrationRole: '',
-        dateOfBirth: null,
-      },
-    })
-
+  it('H5: the setup-code intent goes from the name to "Kind hinzufügen"', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) =>
+      key === 'anstoss:onboarding-intent' ? 'parent-handoff' : null,
+    )
+    mockUseAuth.mockReturnValue(signedIn())
     const { findByText } = render(<Index />)
-
-    expect(await findByText('/(auth)/done')).toBeTruthy()
+    expect(await findByText('/(auth)/parent-handoff')).toBeTruthy()
   })
 
-  it('ignores saved onboarding state from another signed-in account', async () => {
-    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) => {
-      if (key === ONBOARDING_FLOW_STORAGE_KEY) {
-        return JSON.stringify({
-          ownerUserId: 'other-clerk',
-          firstName: 'Mara',
-          dateOfBirth: '1997-04-12',
-          lastStep: '/(auth)/role',
-        })
-      }
-      return null
-    })
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: { status: 'DOB_REQUIRED' },
-      needsOnboarding: false,
-      needsRegistration: true,
-      user: {
-        id: 'clerk-fresh',
-        registrationRole: '',
-        dateOfBirth: null,
-      },
-    })
-
+  it('sends the free-agent intent from the name to the player profile', async () => {
+    jest.mocked(AsyncStorage.getItem).mockImplementation(async (key) =>
+      key === 'anstoss:onboarding-intent' ? 'free-agent' : null,
+    )
+    mockUseAuth.mockReturnValue(signedIn())
     const { findByText } = render(<Index />)
-
-    expect(await findByText('/(auth)/about')).toBeTruthy()
+    expect(await findByText('/(auth)/free-agent-profile')).toBeTruthy()
   })
 
-  it('keeps legacy users (with DOB, no memberships) on the role-specific landing', () => {
-    mockUseAuth.mockReturnValue({
-      isLoading: false,
-      isSignedIn: true,
-      memberships: [],
-      ageGate: null,
-      needsOnboarding: false,
-      needsRegistration: false,
-      user: {
-        registrationRole: 'FREE_AGENT',
-        dateOfBirth: '1995-06-15',
-      },
-    })
-
-    const { getByText } = render(<Index />)
-
-    // Falls through to the legacy FREE_AGENT path, not /register
-    expect(getByText('/free-agent/profile')).toBeTruthy()
+  it('sends free agents to their own tab bar (Wechselbörse)', async () => {
+    mockUseAuth.mockReturnValue(
+      signedIn({ user: { id: 'u', email: 'a@b.de', name: 'Amir Kaya', registrationRole: 'FREE_AGENT' } }),
+    )
+    const { findByText } = render(<Index />)
+    expect(await findByText('/(tabs)')).toBeTruthy()
   })
 })

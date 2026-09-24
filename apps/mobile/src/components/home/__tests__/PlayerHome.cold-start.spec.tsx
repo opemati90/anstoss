@@ -88,19 +88,14 @@ describe('PlayerHome — cold-start welcome card', () => {
     })
   })
 
-  it('shows welcome card when no upcoming events exist', async () => {
+  it('shows a composed empty state when no upcoming events exist', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-    // Welcome card with club name
-    expect(
-      await findByText(/Welcome to SV Albatros!/),
-    ).toBeTruthy()
-    // Subtitle
-    expect(
-      await findByText(/Your upcoming matches will appear here/),
-    ).toBeTruthy()
+    // Composed empty state: says what is missing and who fills it.
+    expect(await findByText('No events yet')).toBeTruthy()
+    expect(await findByText(/Your coach is still planning/)).toBeTruthy()
   })
 
-  it('hides welcome card when at least one event exists', async () => {
+  it('hides the empty state when at least one event exists', async () => {
     mockApi.mockImplementation((path: string) => {
       if (path.includes('scope=upcoming')) {
         return Promise.resolve([
@@ -128,6 +123,6 @@ describe('PlayerHome — cold-start welcome card', () => {
     // Event should be visible
     expect(await findByText('Tuesday training')).toBeTruthy()
     // Welcome card should not be shown
-    expect(queryByText(/Welcome to SV Albatros!/)).toBeNull()
+    expect(queryByText('No events yet')).toBeNull()
   })
 })

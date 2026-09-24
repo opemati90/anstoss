@@ -11,12 +11,12 @@ export const statesIt: StatesCopy = {
       title: 'Impossibile caricare la tua settimana',
       body: 'Controlla la connessione e trascina verso il basso per riprovare.',
     },
-    stale: 'Stai vedendo l\'ultimo aggiornamento — trascina per riprovare.',
+    stale: 'Stai vedendo l\'ultimo aggiornamento disponibile. Trascina in basso per riprovare.',
   },
   events: {
     empty: {
-      title: 'Nessun evento ancora',
-      body: "Allenamenti e partite appariranno qui non appena l'allenatore li crea.",
+      title: 'Ancora nessun evento',
+      body: "Allenamenti e partite appariranno qui non appena l'allenatore li avrà creati.",
       cta: 'Crea il primo evento',
     },
     error: {
@@ -38,7 +38,7 @@ export const statesIt: StatesCopy = {
   },
   admin_members: {
     empty: {
-      title: 'Nessun membro ancora',
+      title: 'Ancora nessun membro',
       body: 'Invita il primo membro per iniziare.',
       cta: 'Invita un membro',
     },
@@ -51,11 +51,11 @@ export const statesIt: StatesCopy = {
   },
   contributions: {
     empty: {
-      title: 'Nessun contributo ancora',
+      title: 'Ancora nessuna quota',
       body: 'Le quote impostate dal tuo club appariranno qui.',
     },
     error: {
-      title: 'Impossibile caricare i contributi',
+      title: 'Impossibile caricare le quote',
       body: 'Scorri verso il basso per aggiornare o riprova.',
       retry: 'Riprova',
     },
@@ -72,7 +72,7 @@ export const statesIt: StatesCopy = {
     },
     noTeam: {
       title: 'Nessuna squadra selezionata',
-      body: 'Unisciti o seleziona una squadra per vedere le partite.',
+      body: 'Unisciti a una squadra o selezionane una per vedere le partite.',
     },
   },
   transfers: {
@@ -88,7 +88,7 @@ export const statesIt: StatesCopy = {
   },
   dm: {
     empty: {
-      title: 'Nessuna conversazione ancora',
+      title: 'Ancora nessuna conversazione',
       body: 'Avvia un messaggio diretto dal profilo di un compagno o del tuo allenatore.',
       cta: 'Inizia una conversazione',
     },

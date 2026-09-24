@@ -1,31 +1,57 @@
 import { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hexToRgba } from '../../theme/club-theme'
 import { hairline, radius, space } from '../../theme/tokens'
-import { RsvpControl, type RsvpStatus } from './RsvpControl'
+import {
+  RsvpControl,
+  rsvpTone,
+  type AbsenceDetail,
+  type RsvpStatus,
+} from '../events/RsvpControl'
+import {
+  HomeCard,
+  HomeSection,
+  eventHeadline,
+  eventMetaLine,
+  formatShortDate,
+  formatTime,
+} from './HomeKit'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
 
 export type WeekAheadProps = {
   events: HomeEvent[]
   locale: string
   pendingIds: Record<string, boolean>
-  onRsvp: (eventId: string, status: RsvpStatus) => void
+  onRsvp: (eventId: string, status: RsvpStatus, absence?: AbsenceDetail) => void
   onOpen: (event: HomeEvent) => void
+  /** Clock for the 7-day window; defaults to now. */
+  nowMs?: number
 }
 
 const MAX_ROWS = 5
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+/** Events from now until seven days out; the rest lives in the events tab. */
+export function eventsThisWeek<T extends { date: string }>(events: T[], nowMs: number): T[] {
+  return events.filter((event) => {
+    const ms = new Date(event.date).getTime()
+    return Number.isFinite(ms) && ms - nowMs <= WEEK_MS
+  })
+}
+
+const awaitsReply = (event: HomeEvent) =>
+  (!event.myRsvp || Boolean(event.myRsvpStale)) && !event.cancelledAt
 
 /**
- * One list for the week, not two.
+ * "Diese Woche" for a player: one list, chronological.
  *
- * This used to be two stacked sections — "Needs your reply" and "Your week" —
- * each with its own header and its own bordered card. Same subject, same rows,
- * twice the chrome, and it was a large part of why home felt like a lot. Now
- * it is a single list: anything still unanswered sorts first and carries the
- * reply control inline, everything else is a quiet one-line row.
+ * Every row carries its own date line, so the order stays the calendar's
+ * order. Only rows that still owe an answer carry the reply pills; answered
+ * rows show the answer as a small semantic mark, so the list reads as a
+ * schedule rather than a wall of buttons.
  */
 export function WeekAhead({
   events,
@@ -33,43 +59,31 @@ export function WeekAhead({
   pendingIds,
   onRsvp,
   onOpen,
+  nowMs = Date.now(),
 }: WeekAheadProps) {
-  const c = useClubColors()
   const { t } = useTranslation()
-
-  // A cancelled event owes nobody an answer: it neither sorts first nor
-  // counts toward the "to reply" badge.
-  const awaits = (event: HomeEvent) =>
-    (!event.myRsvp || Boolean(event.myRsvpStale)) && !event.cancelledAt
-  const ordered = useMemo(
-    () => [...events.filter(awaits), ...events.filter((event) => !awaits(event))],
-    [events],
-  )
-
-  const outstanding = events.filter(awaits).length
-  const rows = ordered.slice(0, MAX_ROWS)
+  const week = useMemo(() => eventsThisWeek(events, nowMs), [events, nowMs])
+  const rows = useMemo(() => week.slice(0, MAX_ROWS), [week])
+  // The header counts what the list can show: this week's open replies only.
+  const outstanding = week.filter(awaitsReply).length
 
   if (rows.length === 0) return null
 
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-          {t('home.yourWeek', { defaultValue: 'Your week' }).toUpperCase()}
-        </Text>
-        {outstanding > 0 ? (
-          <View style={[styles.count, { backgroundColor: hexToRgba(c.primary, 0.12) }]}>
-            <Text variant="caption2" weight="bold" style={{ color: c.primary }}>
-              {t('home.player.replyCount', {
-                defaultValue: '{{n}} to reply',
-                n: outstanding,
-              })}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+    <HomeSection
+      actionLabel={t('homeHub.allEvents', { defaultValue: 'All events' })}
+      onAction={() => router.push('/(tabs)/events' as never)}
+      testID="home-week-ahead"
+      title={
+        outstanding > 0
+          ? t('homeHub.player.weekWithOpen', {
+              defaultValue: 'This week · {{count}} to answer',
+              count: outstanding,
+            })
+          : t('homeHub.thisWeek', { defaultValue: 'This week' })
+      }
+    >
+      <HomeCard>
         {rows.map((event, index) => (
           <WeekRow
             key={event.id}
@@ -77,12 +91,12 @@ export function WeekAhead({
             locale={locale}
             pending={Boolean(pendingIds[event.id])}
             showDivider={index > 0}
-            onRsvp={(status) => onRsvp(event.id, status)}
+            onRsvp={(status, absence) => onRsvp(event.id, status, absence)}
             onPress={() => onOpen(event)}
           />
         ))}
-      </View>
-    </View>
+      </HomeCard>
+    </HomeSection>
   )
 }
 
@@ -98,145 +112,137 @@ function WeekRow({
   locale: string
   pending: boolean
   showDivider: boolean
-  onRsvp: (status: RsvpStatus) => void
+  onRsvp: (status: RsvpStatus, absence?: AbsenceDetail) => void
   onPress: () => void
 }) {
   const c = useClubColors()
   const { t } = useTranslation()
-  const date = useMemo(() => new Date(event.date), [event.date])
   const isCancelled = Boolean(event.cancelledAt)
-  const needsReply = (!event.myRsvp || Boolean(event.myRsvpStale)) && !isCancelled
+  const needsReply = awaitsReply(event)
+  const answered = event.myRsvp && !event.myRsvpStale ? event.myRsvp : null
+  const meta = eventMetaLine(event, locale, t)
+  const title = eventHeadline(event)
+  // Several reply groups share this list; each is named after its event.
+  const groupLabel = [
+    title,
+    `${formatShortDate(event.date, locale)} ${formatTime(event.date, locale)}`,
+  ].join(', ')
 
-  const day = useMemo(
-    () => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).toUpperCase(),
-    [date, locale],
-  )
-  const dayNumber = useMemo(
-    () => new Intl.DateTimeFormat(locale, { day: '2-digit' }).format(date),
-    [date, locale],
-  )
-  const time = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date),
-    [date, locale],
-  )
+  const answerLabel =
+    answered === 'YES'
+      ? t('homeHub.rsvp.yes', { defaultValue: 'Going' })
+      : answered === 'MAYBE'
+        ? t('homeHub.rsvp.maybe', { defaultValue: 'Maybe' })
+        : answered === 'NO'
+          ? t('homeHub.rsvp.no', { defaultValue: 'Not going' })
+          : null
 
-  const answerLabel = event.myRsvp
-    ? t(`event.rsvp${event.myRsvp[0]}${event.myRsvp.slice(1).toLowerCase()}`, {
-        defaultValue: event.myRsvp,
-      })
-    : ''
+  const detail = isCancelled
+    ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
+        event.cancelReason ? ` · ${event.cancelReason}` : ''
+      }`
+    : event.myRsvpStale
+      ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
+      : null
 
   return (
     <View
       style={[
         styles.row,
-        needsReply && styles.rowAnswerable,
         showDivider && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
       ]}
     >
       <PressableScale
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={
-          isCancelled
-            ? `${event.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
-                event.cancelReason ? `, ${event.cancelReason}` : ''
-              }`
-            : `${event.title}, ${day} ${dayNumber} ${time}${
-                event.myRsvpStale
-                  ? `, ${t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })}`
-                  : answerLabel
-                    ? `, ${answerLabel}`
-                    : ''
-              }`
-        }
+        accessibilityLabel={[title, meta, detail, answerLabel].filter(Boolean).join(', ')}
         haptic="tapLight"
         style={styles.rowHead}
       >
-        <View style={[styles.dayChip, { backgroundColor: c.surfaceSunken }]}>
-          <Text variant="caption2" weight="medium" color="tertiary">
-            {day}
-          </Text>
-          <Text variant="callout" weight="bold" color="primary" tabular>
-            {dayNumber}
-          </Text>
-        </View>
         <View style={styles.rowText}>
           <Text
             variant="callout"
             weight="semibold"
             color={isCancelled ? 'tertiary' : 'primary'}
-            numberOfLines={1}
+            numberOfLines={2}
             style={isCancelled ? styles.struck : undefined}
           >
-            {event.title}
+            {title}
           </Text>
-          <Text variant="caption1" color="secondary" numberOfLines={1}>
-            {isCancelled
-              ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${event.cancelReason ? ` · ${event.cancelReason}` : ''}`
-              : event.myRsvpStale
-                ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
-                : `${time}${event.location ? ` · ${event.location}` : ''}${answerLabel ? ` · ${answerLabel}` : ''}`}
+          <Text variant="footnote" color="secondary" tabular numberOfLines={2}>
+            {meta}
           </Text>
+          {detail ? (
+            <Text
+              variant="footnote"
+              weight="medium"
+              color={isCancelled ? 'error' : 'warning'}
+              numberOfLines={2}
+            >
+              {detail}
+            </Text>
+          ) : null}
         </View>
+        {answered && !isCancelled ? <AnswerMark status={answered} label={answerLabel ?? ''} /> : null}
         <Icon name="chevron.right" size={14} color="tertiary" />
       </PressableScale>
 
-      {/* Only rows that still owe an answer carry a control. Putting one on
-          every row turned a schedule back into a wall of buttons. */}
       {needsReply ? (
         <RsvpControl
           value={event.myRsvp}
           onChange={onRsvp}
           disabled={pending}
           size="compact"
+          accessibilityLabel={groupLabel}
         />
       ) : null}
     </View>
   )
 }
 
+function AnswerMark({ status, label }: { status: RsvpStatus; label: string }) {
+  const c = useClubColors()
+  const tone = rsvpTone(status, c)
+  return (
+    <View style={[styles.answer, { backgroundColor: tone.bg }]}>
+      <Icon
+        name={
+          status === 'YES'
+            ? 'checkmark'
+            : status === 'MAYBE'
+              ? 'questionmark.circle'
+              : 'xmark'
+        }
+        size={13}
+        color={tone.fg}
+      />
+      <Text variant="caption1" weight="semibold" style={{ color: tone.fg }}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  count: {
-    height: 20,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  card: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
   row: {
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 56,
-    justifyContent: 'center',
+    paddingVertical: space.sm + 4,
+    gap: space.sm + 4,
   },
-  rowAnswerable: { gap: space.sm, paddingVertical: space.md },
   rowHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-  },
-  dayChip: {
-    minWidth: 44,
-    paddingVertical: space.xs,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    alignItems: 'center',
+    gap: space.sm + 4,
+    minHeight: 44,
   },
   rowText: { flex: 1, gap: space['2xs'] },
   struck: { textDecorationLine: 'line-through' },
+  answer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    minHeight: 26,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.full,
+  },
 })

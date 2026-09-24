@@ -1,1312 +1,662 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Pressable, Share, StyleSheet, View } from 'react-native'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ContributionOverview, EventReadiness, RosterOpsSnapshot } from '@anstoss/shared'
-
-type PendingPause = {
-  id: string
-  memberUserId: string
-  memberName: string
-  reason: string
-  createdAt: string
-  weeks: number
-  status: 'PENDING' | 'APPROVED' | 'SNOOZED'
-}
-
-import { api, ApiError } from '../../api/client'
-import { Banner, Icon, Text, type IconName } from '../ui'
+import type {
+  AdminInbox,
+  AdminInboxJoinRequest,
+  AdminInboxSafeguardingItem,
+} from '@anstoss/shared'
+import { api } from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
-import { AnnounceSheet } from './AnnounceSheet'
-import { EventReadinessCard } from './EventReadinessCard'
-import { SeasonStatsCard } from './SeasonStatsCard'
-import { WeekRows, type WeekRowEvent } from './WeekRows'
+import { Avatar, Button, Icon, ListRow, SectionGroup, SoftIcon, Text } from '../ui'
+import { Skeleton } from '../Skeleton'
+import { ErrorState } from '../ErrorState'
+import { RADIUS_CARD, space } from '../../theme/tokens'
+import { useAdminInbox } from '../admin/useAdminInbox'
+import { useOpenReportsSummary } from '../admin/useModerationReports'
+import { COMPLIANCE_FEATURE_ENABLED } from '../../launchFeatures'
 import {
-  buildEventReadinessShareText,
-  formatEventReadinessWhen,
-} from '../../lib/eventReadinessShareText'
-
-type AdminStats = {
-  memberCount: number
-  teamCount: number
-  upcomingEventCount: number
-  overallRsvpRate: number
-  pendingJoinRequests?: number
-  duesOutstanding?: number
-}
-
-type ActivityItem = {
-  id: string
-  kind: string
-  title: string
-  occurredAt: string
-}
+  adminActionErrorKey,
+  complianceReminderLabelKey,
+  complianceReminderState,
+  duesReminderOutcome,
+  shouldReloadAfterError,
+  type ComplianceReminderState,
+  type DuesReminderOutcome,
+} from '../admin/adminActions'
+import {
+  clubCountsLabel,
+  daysFromNow,
+  formatEventWhen,
+  formatMoney,
+  formatShortDate,
+} from '../admin/adminFormat'
 
 type NextEvent = {
   id: string
   title: string
-  type: 'TRAINING' | 'MATCH' | 'OTHER'
   date: string
   location: string | null
-  yesCount: number
-  maybeCount: number
-  noCount: number
-  readiness?: EventReadiness | null
-}
-
-type ActivationLink = { id: string; teamId: string }
-type ActivationCampaign = { id: string; teamId: string; status: string }
-type ActivationRosterAccess = { role?: string | null }
-type ActivationResult<T> = { ok: true; value: T } | { ok: false; value: T }
-
-function activationRequest<T>(request: Promise<T>, fallback: T): Promise<ActivationResult<T>> {
-  return request
-    .then((value) => ({ ok: true as const, value }))
-    .catch(() => ({ ok: false as const, value: fallback }))
+  cancelledAt?: string | null
 }
 
 export type AdminHomeProps = {
   clubId: string
   teamId?: string | null
+  onRefreshStateChange?: (handle: { refresh: () => void; refreshing: boolean }) => void
 }
 
-export function AdminHome({ clubId, teamId }: AdminHomeProps) {
-  const c = useClubColors()
-  const { t, i18n } = useTranslation()
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [activity, setActivity] = useState<ActivityItem[]>([])
-  const [statsError, setStatsError] = useState(false)
-  const [contributions, setContributions] = useState<ContributionOverview | null>(null)
-  const [pendingPauses, setPendingPauses] = useState<PendingPause[]>([])
-  const [announceVisible, setAnnounceVisible] = useState(false)
-  const [pendingCoachCount, setPendingCoachCount] = useState(0)
+/**
+ * Admin home = "Aufgaben". An inbox of what the club needs from the admin
+ * right now: every row is a live count from GET /admin-inbox with exactly
+ * one primary action, and an empty inbox is a calm "Alles erledigt".
+ */
+export function AdminHome({ clubId, onRefreshStateChange }: AdminHomeProps) {
+  const { t } = useTranslation()
+  const { activeClub } = useAuth()
+  const { inbox, status, refreshing, reload, refresh: refreshInbox } = useAdminInbox(clubId)
+  const reports = useOpenReportsSummary(clubId)
+  const reloadReports = reports.reload
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshInbox(), reloadReports()])
+  }, [refreshInbox, reloadReports])
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
-  const [weekEvents, setWeekEvents] = useState<WeekRowEvent[]>([])
-  const [nudgingEventId, setNudgingEventId] = useState<string | null>(null)
-  const [activationLinks, setActivationLinks] = useState<ActivationLink[]>([])
-  const [activationCampaigns, setActivationCampaigns] = useState<ActivationCampaign[]>([])
-  const [activationRosterCount, setActivationRosterCount] = useState(0)
-  const [activationStatus, setActivationStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-  const nudgingRef = useRef(false)
-
-  const load = useCallback(async () => {
-    setStatsError(false)
-    setActivationStatus('loading')
-    // One request feeds both the hero (first event) and the week list.
-    const eventPath = teamId
-      ? `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming&limit=6`
-      : `/clubs/${clubId}/events?scope=upcoming&limit=6`
-
-    const [s, a, contrib, pauses, rosterOps, events, links, campaigns, roster] = await Promise.all([
-      api<AdminStats>(`/clubs/${clubId}/stats`).catch(() => null),
-      api<ActivityItem[]>(`/clubs/${clubId}/activity?limit=5`).catch(() => []),
-      api<ContributionOverview>(`/clubs/${clubId}/contributions`).catch(() => null),
-      api<PendingPause[]>(`/clubs/${clubId}/contributions/pending-pauses`).catch(() => []),
-      teamId
-        ? api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null)
-        : Promise.resolve(null),
-      activationRequest(api<NextEvent[]>(eventPath), []),
-      teamId
-        ? activationRequest(
-            api<ActivationLink[]>(`/integrations/fussball/team-links?teamId=${teamId}`),
-            [],
-          )
-        : Promise.resolve({ ok: true as const, value: [] }),
-      activationRequest(api<ActivationCampaign[]>(`/clubs/${clubId}/invite-campaigns`), []),
-      teamId
-        ? activationRequest(
-            api<ActivationRosterAccess[]>(`/clubs/${clubId}/members?teamId=${teamId}`),
-            [],
-          )
-        : Promise.resolve({ ok: true as const, value: [] }),
-    ])
-    if (s) setStats(s)
-    else setStatsError(true)
-    setActivity(a ?? [])
-    setContributions(contrib)
-    setPendingPauses(Array.isArray(pauses) ? pauses : [])
-    setPendingCoachCount(rosterOps?.operations?.pendingCoaches?.length ?? 0)
-    const eventList = Array.isArray(events.value) ? events.value : []
-    const firstLive = eventList.find((e) => !(e as WeekRowEvent).cancelledAt) ?? null
-    setNextEvent(firstLive)
-    const weekEnd = Date.now() + 7 * 24 * 60 * 60 * 1000
-    setWeekEvents(
-      eventList
-        .filter((e) => e.id !== firstLive?.id && new Date(e.date).getTime() <= weekEnd)
-        .map((e) => e as WeekRowEvent),
-    )
-    setActivationLinks(Array.isArray(links.value) ? links.value : [])
-    setActivationCampaigns(Array.isArray(campaigns.value) ? campaigns.value : [])
-    setActivationRosterCount(
-      Array.isArray(roster.value)
-        ? roster.value.filter((entry) => entry.role === 'PLAYER').length
-        : 0,
-    )
-    setActivationStatus(
-      events.ok && links.ok && campaigns.ok && roster.ok ? 'ready' : 'error',
-    )
-  }, [clubId, teamId])
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [duesReminder, setDuesReminder] = useState<DuesReminderOutcome | null>(null)
+  const [remindedFz, setRemindedFz] = useState<Record<string, ComplianceReminderState>>({})
 
   useEffect(() => {
-    void load()
-  }, [load])
+    onRefreshStateChange?.({ refresh: () => void refresh(), refreshing })
+  }, [onRefreshStateChange, refresh, refreshing])
 
-  const pending = stats?.pendingJoinRequests ?? 0
-  const dues = stats?.duesOutstanding ?? 0
-  const coachPending = pendingCoachCount
-  const rsvpRate = Math.round(stats?.overallRsvpRate ?? 0)
-  const pausesPending = pendingPauses.filter((p) => p.status === 'PENDING')
-  const nextPause = pausesPending[0] ?? null
-
-  const goToNextEvent = useCallback(() => {
-    if (!nextEvent) return
-    router.push({
-      pathname: '/event-detail',
-      params: { eventId: nextEvent.id },
-    } as never)
-  }, [nextEvent])
-
-  const goToNextEventAttendance = useCallback(() => {
-    if (!nextEvent) return
-    router.push({
-      pathname: '/event-detail',
-      params: { eventId: nextEvent.id, attendance: '1' },
-    } as never)
-  }, [nextEvent])
-
-  const shareNextEventReadiness = useCallback(async () => {
-    if (!nextEvent?.readiness) return
-    try {
-      await Share.share({
-        message: buildEventReadinessShareText({
-          eventTitle: nextEvent.title,
-          whenLabel: formatEventReadinessWhen(nextEvent.date, i18n.language),
-          readiness: nextEvent.readiness,
-          t,
-        }),
+  useEffect(() => {
+    let cancelled = false
+    api<NextEvent[]>(`/clubs/${clubId}/events?scope=upcoming&limit=3`)
+      .then((events) => {
+        if (cancelled) return
+        const list = Array.isArray(events) ? events : []
+        setNextEvent(list.find((event) => !event.cancelledAt) ?? null)
       })
-    } catch {
-      Alert.alert(
-        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
-        t('home.readiness.shareError', {
-          defaultValue: "Couldn't open the share sheet. Try again.",
-        }),
-      )
+      .catch(() => {
+        if (!cancelled) setNextEvent(null)
+      })
+    return () => {
+      cancelled = true
     }
-  }, [i18n.language, nextEvent, t])
+  }, [clubId])
 
-  const nudgeNextEventReadiness = useCallback(async () => {
-    if (!nextEvent?.readiness || nudgingRef.current) return
-    nudgingRef.current = true
-    setNudgingEventId(nextEvent.id)
-    try {
-      const result = await api<{ sent: number; nextAvailableAt: string }>(
-        `/clubs/${clubId}/events/${nextEvent.id}/remind-rsvp`,
-        { method: 'POST' },
-      )
-      Alert.alert(
-        t('home.readiness.nudgeSentTitle', { defaultValue: 'Nudge sent' }),
-        t('home.readiness.nudgeSentBody', {
-          defaultValue: 'Sent RSVP reminders to {{count}} players.',
-          count: result.sent,
-        }).replace('{{count}}', String(result.sent)),
-      )
-      await load()
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        await load()
-        const body = err.data as Record<string, unknown> | null | undefined
-        const retryAfter = typeof body?.retryAfter === 'string' ? body.retryAfter : null
+  // M3: failures show a translated message for the status, never the raw
+  // server text; a 409/404 means the inbox is stale, so it always reloads.
+  const runAction = useCallback(
+    async <T,>(key: string, action: () => Promise<T>): Promise<{ ok: true; value: T } | { ok: false }> => {
+      setBusyKey(key)
+      try {
+        const value = await action()
+        await reload()
+        return { ok: true, value }
+      } catch (error) {
         Alert.alert(
-          t('home.readiness.nudgeCooldownTitle', {
-            defaultValue: 'Nudge already sent',
-          }),
-          retryAfter
-            ? t('home.readiness.nudgeCooldownBody', {
-                defaultValue: 'Try again after {{time}}.',
-                time: new Intl.DateTimeFormat(i18n.language, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }).format(new Date(retryAfter)),
-              }).replace(
-                '{{time}}',
-                new Intl.DateTimeFormat(i18n.language, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }).format(new Date(retryAfter)),
-              )
-            : t('event.rsvpReminderCooldownHint', {
-                defaultValue: 'Reminders sent',
-              }),
+          t('common.errorTitle', { defaultValue: 'Something went wrong' }),
+          t(adminActionErrorKey(error)),
         )
-        return
+        if (shouldReloadAfterError(error)) void reload()
+        return { ok: false }
+      } finally {
+        setBusyKey(null)
       }
-      Alert.alert(
-        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
-        t('event.rsvpReminderError', {
-          defaultValue: 'Could not send reminders. Please try again.',
+    },
+    [reload, t],
+  )
+
+  const decideJoinRequest = (request: AdminInboxJoinRequest, decision: 'approve' | 'reject') => {
+    const perform = () =>
+      void runAction(`join:${request.id}`, () =>
+        api(`/clubs/${clubId}/join-requests/${request.id}/${decision}`, {
+          method: 'POST',
+          body: { revision: request.revision },
         }),
       )
-    } finally {
-      nudgingRef.current = false
-      setNudgingEventId(null)
+    if (decision === 'approve') {
+      perform()
+      return
     }
-  }, [clubId, i18n.language, load, nextEvent, t])
-
-  const approvePause = (pause: PendingPause) => {
     Alert.alert(
-      t('home.admin.pauseTitle', {
-        defaultValue: 'Pause dues for {{name}}?',
-        name: pause.memberName,
-      }),
-      t('home.admin.pauseBody', {
-        defaultValue:
-          '{{reason}} · pauses {{weeks}} weeks of dues. The Kassenwart can resume early from billing.',
-        reason: pause.reason,
-        weeks: pause.weeks,
-      }),
+      t('pendingRequests.rejectConfirmTitle'),
+      t('pendingRequests.rejectConfirmBody'),
       [
-        {
-          text: t('home.admin.pauseSnooze', { defaultValue: 'Snooze 7d' }),
-          onPress: async () => {
-            try {
-              await api(`/clubs/${clubId}/contributions/pending-pauses/${pause.id}/snooze`, {
-                method: 'POST',
-              })
-              load()
-            } catch {
-              /* tolerated */
-            }
-          },
-        },
         { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('home.admin.pauseApprove', { defaultValue: 'Pause dues' }),
-          style: 'default',
-          onPress: async () => {
-            try {
-              await api(`/clubs/${clubId}/contributions/pending-pauses/${pause.id}/approve`, {
-                method: 'POST',
-              })
-              Alert.alert(
-                t('home.admin.pauseDoneTitle', { defaultValue: 'Dues paused' }),
-                t('home.admin.pauseDoneBody', {
-                  defaultValue: "{{name}} won't be billed for {{weeks}} weeks.",
-                  name: pause.memberName,
-                  weeks: pause.weeks,
-                }),
-              )
-              load()
-            } catch {
-              Alert.alert(
-                t('common.error'),
-                t('home.admin.pauseError', {
-                  defaultValue: "Couldn't pause dues. Try again.",
-                }),
-              )
-            }
-          },
-        },
+        { text: t('pendingRequests.reject'), style: 'destructive', onPress: perform },
       ],
     )
   }
 
-  // "Needs your attention" is computed, not curated: every row is a count
-  // that is non-zero right now, and each opens the screen that clears it.
-  const setupSteps = teamId
-    ? [
-        activationLinks.some((link) => link.teamId === teamId),
-        activationRosterCount > 0,
-        activationCampaigns.some(
-          (campaign) => campaign.teamId === teamId && campaign.status !== 'REVOKED',
-        ),
-        Boolean(nextEvent?.readiness),
-      ]
-    : []
-  const setupOpen =
-    activationStatus === 'ready' && teamId ? setupSteps.filter((done) => !done).length : 0
+  // L4: the button shows what the server did ("3 erinnert" / "heute bereits erinnert").
+  const remindDues = async () => {
+    const result = await runAction('dues', () =>
+      api(`/clubs/${clubId}/contributions/reminders/send`, {
+        method: 'POST',
+        body: { onlyOverdue: true },
+      }),
+    )
+    if (result.ok) setDuesReminder(duesReminderOutcome(result.value))
+  }
 
-  const attention: AttentionItem[] = [
-    pending > 0
-      ? {
-          key: 'requests',
-          icon: 'person.circle',
-          label: t('home.admin.pendingPill', { defaultValue: '{{count}} join request', count: pending }),
-          hint: t('home.admin.attention.requestsHint', { defaultValue: 'Approve or decline' }),
-          count: pending,
-          onPress: () => router.push('/pending-requests' as never),
-        }
-      : null,
-    dues > 0
-      ? {
-          key: 'dues',
-          icon: 'banknote',
-          label: t('home.admin.duesPill', { defaultValue: '{{count}} dues open', count: dues }),
-          hint: t('home.admin.attention.duesHint', { defaultValue: 'Remind or record payments' }),
-          count: dues,
-          onPress: () => router.push('/admin-billing' as never),
-        }
-      : null,
-    coachPending > 0
-      ? {
-          key: 'coaches',
-          icon: 'person.badge.key',
-          label: t('home.admin.coachPendingPill', {
-            defaultValue: '{{count}} coach pending',
-            count: coachPending,
-          }),
-          hint: t('home.admin.attention.coachHint', { defaultValue: 'Confirm team access' }),
-          count: coachPending,
-          onPress: () =>
-            router.push({
-              pathname: '/(tabs)/roster',
-              params: { tab: 'operations', returnTo: '/(tabs)' },
-            } as never),
-        }
-      : null,
-    nextPause
-      ? {
-          key: 'pause',
-          icon: 'pause.fill',
-          label: t('home.admin.attention.pause', {
-            defaultValue: 'Pause dues for {{name}}?',
-            name: nextPause.memberName,
-          }),
-          hint: t('home.admin.attention.pauseHint', {
-            defaultValue: '{{weeks}} weeks out',
-            weeks: nextPause.weeks,
-          }),
-          count: pausesPending.length,
-          onPress: () => approvePause(nextPause),
-        }
-      : null,
-  ].filter((item): item is AttentionItem => item !== null)
+  const markFzPresented = (item: AdminInboxSafeguardingItem) =>
+    void runAction(`fz:${item.memberUserId}`, () =>
+      api(`/clubs/${clubId}/compliance`, {
+        method: 'POST',
+        body: {
+          memberUserId: item.memberUserId,
+          kind: 'FUEHRUNGSZEUGNIS',
+          issuedAt: new Date().toISOString(),
+        },
+      }),
+    )
 
-  return (
-    <View style={styles.root}>
-      {/* Hero: what needs the admin, or the next event when nothing does. */}
-      {attention.length > 0 ? (
-        <View
-          style={[styles.attentionCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-        >
-          <View style={styles.attentionHead}>
-            <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-              {t('home.admin.attention.title', { defaultValue: 'Needs your attention' }).toUpperCase()}
-            </Text>
-            <View style={[styles.attentionCount, { backgroundColor: c.primary }]}>
-              <Text style={[styles.attentionCountText, { color: c.textInverse }]} tabular>
-                {attention.length}
-              </Text>
-            </View>
-          </View>
-          {attention.map((item, index) => (
-            <Pressable
-              key={item.key}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              onPress={item.onPress}
-              style={({ pressed }) => [
-                styles.attentionRow,
-                index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
-                pressed && { backgroundColor: c.surfaceSunken },
-              ]}
-            >
-              <View style={[styles.attentionIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
-                <Icon name={item.icon} size={16} color="tint" />
-              </View>
-              <View style={{ flex: 1, gap: space['2xs'] }}>
-                <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-                  {item.label}
-                </Text>
-                <Text variant="caption1" color="secondary" numberOfLines={1}>
-                  {item.hint}
-                </Text>
-              </View>
-              <Icon name="chevron.right" size={14} color="tertiary" />
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+  // M1: the server allows one reminder per person and document per 24 hours.
+  const remindFz = async (item: AdminInboxSafeguardingItem) => {
+    const result = await runAction(`fz-remind:${item.memberUserId}`, () =>
+      api(`/clubs/${clubId}/compliance/remind`, {
+        method: 'POST',
+        body: { memberUserId: item.memberUserId, kind: 'FUEHRUNGSZEUGNIS' },
+      }),
+    )
+    if (!result.ok) return
+    const state = complianceReminderState(result.value)
+    if (state === 'failed') {
+      Alert.alert(t('common.errorTitle'), t('aufgaben.actionError'))
+      return
+    }
+    setRemindedFz((current) => ({ ...current, [item.memberUserId]: state }))
+  }
 
-      {nextEvent ? <NextEventCard event={nextEvent} onPress={goToNextEvent} t={t} c={c} /> : null}
+  const shareInviteLink = () => {
+    const slug = activeClub?.club.slug
+    if (!slug) return
+    const url = `https://anstoss.io/join/${slug}`
+    void Share.share({
+      message: t('adminDashboard.shareJoinMessage', { clubName: activeClub?.club.name, url }),
+      url,
+    }).catch(() => undefined)
+  }
 
-      {nextEvent?.readiness ? (
-        <EventReadinessCard
-          readiness={nextEvent.readiness}
-          eventTitle={nextEvent.title}
-          compact
-          onPress={goToNextEvent}
-          onAttendance={goToNextEventAttendance}
-          onShare={shareNextEventReadiness}
-          onNudge={nudgeNextEventReadiness}
-          nudgePending={nudgingEventId === nextEvent.id}
-        />
-      ) : null}
+  if (status === 'loading') return <AdminHomeSkeleton />
 
-      {activationStatus === 'ready' && teamId && setupOpen > 0 ? (
-        <ActivationChecklist
-          teamConfirmed
-          fixtureSourceReady={setupSteps[0]}
-          rosterReady={setupSteps[1]}
-          invitationsReady={setupSteps[2]}
-          availabilityReady={setupSteps[3]}
-          t={t}
-          c={c}
-        />
-      ) : null}
-
-      {activationStatus === 'error' && teamId ? (
-        <Banner
-          tone="warning"
-          title={t('home.activation.loadErrorTitle', {
-            defaultValue: 'Club setup could not be checked',
-          })}
-          description={t('home.activation.loadErrorBody', {
-            defaultValue:
-              'Your club data is safe. Check the connection and retry the setup checklist.',
-          })}
-          action={{
-            label: t('common.retry', { defaultValue: 'Retry' }),
-            onPress: () => void load(),
-          }}
-        />
-      ) : null}
-
-      <WeekRows
-        events={weekEvents}
-        locale={i18n.language}
-        onCreate={() => router.push('/create-event' as never)}
-        emptyLabel={t('home.coach.nothingScheduled', { defaultValue: 'Nothing scheduled yet.' })}
-      />
-
-      {/* Club workspace door plus the everyday tools, one quiet row. */}
-      <View style={styles.toolRow}>
-        <ToolChip
-          icon="shield.fill"
-          label={t('home.admin.club', { defaultValue: 'Club' })}
-          onPress={() => router.push('/admin-dashboard' as never)}
-        />
-        <ToolChip
-          icon="megaphone"
-          label={t('home.announce', { defaultValue: 'Announce' })}
-          onPress={() => setAnnounceVisible(true)}
-        />
-        <ToolChip
-          icon="person.badge.plus"
-          label={t('home.admin.invite', { defaultValue: 'Invite' })}
-          onPress={() =>
-            router.push({ pathname: '/invite', params: { returnTo: '/(tabs)' } } as never)
-          }
-        />
-        <ToolChip
-          icon="plus.circle.fill"
-          label={t('home.admin.createEvent', { defaultValue: 'Create event' })}
-          onPress={() => router.push('/create-event' as never)}
+  if (status === 'error' || !inbox) {
+    return (
+      <View style={styles.root}>
+        <ErrorState
+          message={t('aufgaben.loadError')}
+          hint={t('aufgaben.loadErrorHint')}
+          onRetry={() => void reload()}
         />
       </View>
+    )
+  }
 
-      {/* Beitrag radar — live %paid / %overdue / %pending + 1-tap remind. */}
-      {contributions && contributions.summary && contributions.summary.assignedMembers > 0 ? (
-        <BeitragRadar clubId={clubId} contributions={contributions} onChanged={load} />
-      ) : null}
-
-      {/* Club-wide numbers last: they describe, they don't ask. */}
-      {statsError && !stats ? (
-        <View
-          style={[styles.errorCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-        >
-          <Text variant="footnote" color="secondary" style={styles.errorBody}>
-            {t('home.admin.statsLoadError', { defaultValue: "Couldn't load dashboard stats." })}
-          </Text>
-          <Pressable
-            onPress={() => void load()}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.retryBtn,
-              { borderColor: c.borderDefault },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text variant="footnote" weight="semibold" color="primary">
-              {t('home.admin.retry', { defaultValue: 'Try again' })}
-            </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View
-          style={[styles.kpiCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-        >
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {t('home.admin.dashboard', { defaultValue: 'Overview' }).toUpperCase()}
-          </Text>
-          <View style={styles.kpiGrid}>
-            <Kpi
-              label={t('home.admin.members', { defaultValue: 'Members' })}
-              value={stats?.memberCount ?? 0}
-            />
-            <Kpi
-              label={t('home.admin.teams', { defaultValue: 'Teams' })}
-              value={stats?.teamCount ?? 0}
-            />
-            <Kpi
-              label={t('home.admin.rsvpRate', { defaultValue: 'RSVP' })}
-              value={rsvpRate}
-              suffix="%"
-            />
-            <Kpi
-              label={t('home.admin.upcomingEvents', { defaultValue: 'Upcoming' })}
-              value={stats?.upcomingEventCount ?? 0}
-            />
-          </View>
-        </View>
-      )}
-
-      {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} /> : null}
-
-      {/* Recent activity — flat list, no big section card */}
-      <Text variant="footnote" color="secondary" style={styles.sectionLabel}>
-        {t('home.admin.recentActivity', { defaultValue: 'Recent activity' }).toUpperCase()}
-      </Text>
-      {activity.length === 0 ? (
-        <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          <Text variant="footnote" color="secondary">
-            {t('home.admin.noRecentActivity', { defaultValue: 'No recent activity yet.' })}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.activityList}>
-          {activity.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.activityRow,
-                { backgroundColor: c.surface, borderColor: c.borderDefault },
-              ]}
-            >
-              <View style={[styles.dot, { backgroundColor: c.primary }]} />
-              <Text
-                variant="callout"
-                color="primary"
-                numberOfLines={1}
-                style={styles.activityTitle}
-              >
-                {item.title}
-              </Text>
-              <Text variant="caption2" color="secondary" tabular>
-                {formatRelative(item.occurredAt, i18n.language)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* AnnounceSheet — no teamId: admin posts to club-level channel */}
-      <AnnounceSheet
-        clubId={clubId}
-        visible={announceVisible}
-        onClose={() => setAnnounceVisible(false)}
-      />
-    </View>
-  )
-}
-
-type AttentionItem = {
-  key: string
-  icon: IconName
-  label: string
-  hint: string
-  count: number
-  onPress: () => void
-}
-
-function ToolChip({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IconName
-  label: string
-  onPress: () => void
-}) {
-  const c = useClubColors()
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.tool,
-        { backgroundColor: c.surfaceSunken },
-        pressed && { opacity: 0.9 },
-      ]}
-    >
-      <Icon name={icon} size={16} color="tint" />
-      <Text variant="caption1" color="primary" weight="semibold" style={styles.toolLabel}>
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-function Kpi({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
-  return (
-    <View style={styles.kpi}>
-      <Text variant="title2" color="primary" weight="semibold" tabular>
-        {String(value)}
-        {suffix ? (
-          <Text variant="title3" color="secondary">
-            {suffix}
-          </Text>
-        ) : null}
-      </Text>
-      <Text variant="caption2" color="secondary">
-        {label}
-      </Text>
-    </View>
-  )
-}
-
-function ActivationChecklist({
-  teamConfirmed,
-  fixtureSourceReady,
-  rosterReady,
-  invitationsReady,
-  availabilityReady,
-  t,
-  c,
-}: {
-  teamConfirmed: boolean
-  fixtureSourceReady: boolean
-  rosterReady: boolean
-  invitationsReady: boolean
-  availabilityReady: boolean
-  t: (key: string, options?: Record<string, unknown>) => string
-  c: ReturnType<typeof useClubColors>
-}) {
-  const steps = [
-    {
-      key: 'team',
-      done: teamConfirmed,
-      label: t('home.activation.team', { defaultValue: 'Confirm club and team' }),
-      route: '/team-management',
-    },
-    {
-      key: 'fixtures',
-      done: fixtureSourceReady,
-      label: t('home.activation.fixtures', { defaultValue: 'Save the official team page' }),
-      route: '/fussball-link',
-    },
-    {
-      key: 'roster',
-      done: rosterReady,
-      label: t('home.activation.roster', { defaultValue: 'Build the roster' }),
-      route: '/invite',
-    },
-    {
-      key: 'invite',
-      done: invitationsReady,
-      label: t('home.activation.invite', { defaultValue: 'Invite the squad' }),
-      route: '/invite',
-    },
-    {
-      key: 'availability',
-      done: availabilityReady,
-      label: t('home.activation.availability', { defaultValue: 'Create first availability event' }),
-      route: '/create-event',
-    },
-  ]
-  const completed = steps.filter((step) => step.done).length
-  if (completed === steps.length) return null
+  // L7: the headline counts exactly the groups rendered below, so it can
+  // never disagree with the list. Safeguarding only counts while the
+  // compliance feature is live (the group is hidden otherwise), and chat
+  // reports come from their own endpoint rather than the inbox total.
+  const openTotal =
+    inbox.joinRequests.count +
+    inbox.staffAccessRequests.count +
+    inbox.overdueDues.count +
+    inbox.teamsWithoutHeadCoach.count +
+    (COMPLIANCE_FEATURE_ENABLED ? inbox.safeguarding.count : 0) +
+    inbox.unfilledOffices.count +
+    reports.count
 
   return (
-    <View
-      style={[
-        styles.activationCard,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-      ]}
-      accessibilityLabel={t('home.activation.progress', {
-        defaultValue: '{{completed}} of {{total}} setup steps complete',
-        completed,
-        total: steps.length,
-      })}
-    >
-      <View style={styles.activationHeader}>
-        <View style={{ flex: 1, gap: space['2xs'] }}>
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {t('home.activation.eyebrow', { defaultValue: 'GET MATCH-READY' })}
-          </Text>
-          <Text variant="headline" weight="semibold" color="primary">
-            {t('home.activation.title', { defaultValue: 'Finish club setup' })}
-          </Text>
-        </View>
-        <Text variant="footnote" color="secondary" tabular>
-          {completed}/{steps.length}
+    <View style={styles.root} testID="admin-home-inbox">
+      <View style={styles.headline}>
+        <Text variant="title1" weight="bold" color="primary" tabular>
+          {openTotal > 0 ? t('aufgaben.openCount', { count: openTotal }) : t('aufgaben.allDoneTitle')}
+        </Text>
+        <Text variant="subheadline" color="secondary">
+          {clubCountsLabel(t, inbox.memberCount, inbox.teamCount)}
         </Text>
       </View>
-      <View style={styles.activationList}>
-        {steps.map((step) => (
-          <Pressable
-            key={step.key}
-            disabled={step.done}
-            accessibilityRole={step.done ? 'text' : 'button'}
-            accessibilityState={{ disabled: step.done }}
-            onPress={() => router.push(step.route as never)}
-            style={({ pressed }) => [styles.activationRow, pressed && { opacity: 0.7 }]}
-          >
-            <Icon
-              name={step.done ? 'checkmark.circle.fill' : 'circle'}
-              size={20}
-              color={step.done ? c.success : c.textTertiary}
-            />
-            <Text
-              variant="callout"
-              weight={step.done ? 'regular' : 'semibold'}
-              color={step.done ? 'secondary' : 'primary'}
-              style={{ flex: 1 }}
-            >
-              {step.label}
-            </Text>
-            {!step.done ? <Icon name="chevron.right" size={14} color="tertiary" /> : null}
-          </Pressable>
-        ))}
-      </View>
+
+      {openTotal === 0 ? <AllDone /> : null}
+
+      {reports.count > 0 ? <ReportsGroup count={reports.count} overdue={reports.overdue} /> : null}
+
+      <TaskGroups
+        inbox={inbox}
+        busyKey={busyKey}
+        duesReminder={duesReminder}
+        remindedFz={remindedFz}
+        onDecideJoin={decideJoinRequest}
+        onRemindDues={() => void remindDues()}
+        onMarkFz={markFzPresented}
+        onRemindFz={(item) => void remindFz(item)}
+      />
+
+      <SectionGroup header={t('aufgaben.footerHeader')}>
+        {nextEvent ? (
+          <ListRow
+            left={<SoftIcon name="calendar" />}
+            title={nextEvent.title}
+            subtitle={[formatEventWhen(nextEvent.date), nextEvent.location]
+              .filter(Boolean)
+              .join(' · ')}
+            showChevron
+            accessibilityLabel={`${t('aufgaben.nextEvent')}: ${nextEvent.title}`}
+            onPress={() =>
+              router.push({ pathname: '/event-detail', params: { eventId: nextEvent.id } } as never)
+            }
+          />
+        ) : (
+          <ListRow
+            left={<SoftIcon name="calendar" />}
+            title={t('aufgaben.noNextEvent')}
+            subtitle={t('aufgaben.noNextEventHint')}
+            showChevron
+            onPress={() => router.push('/create-event' as never)}
+          />
+        )}
+        <ListRow
+          left={<SoftIcon name="square.and.arrow.up" />}
+          title={t('aufgaben.shareInvite')}
+          subtitle={t('aufgaben.shareInviteHint')}
+          showChevron
+          onPress={shareInviteLink}
+        />
+      </SectionGroup>
     </View>
   )
 }
 
-function BeitragRadar({
-  clubId,
-  contributions,
-  onChanged,
+function TaskGroups({
+  inbox,
+  busyKey,
+  duesReminder,
+  remindedFz,
+  onDecideJoin,
+  onRemindDues,
+  onMarkFz,
+  onRemindFz,
 }: {
-  clubId: string
-  contributions: ContributionOverview
-  onChanged: () => void
+  inbox: AdminInbox
+  busyKey: string | null
+  duesReminder: DuesReminderOutcome | null
+  remindedFz: Record<string, ComplianceReminderState>
+  onDecideJoin: (request: AdminInboxJoinRequest, decision: 'approve' | 'reject') => void
+  onRemindDues: () => void
+  onMarkFz: (item: AdminInboxSafeguardingItem) => void
+  onRemindFz: (item: AdminInboxSafeguardingItem) => void
 }) {
-  const c = useClubColors()
   const { t } = useTranslation()
-  const [reminding, setReminding] = useState(false)
-
-  const { summary } = contributions
-  const total = Math.max(1, summary.assignedMembers)
-  const paid = summary.paidMembers
-  const overdue = summary.overdueMembers
-  const pending = Math.max(0, total - paid - overdue)
-  const paidPct = Math.round((paid / total) * 100)
-
-  const sendReminders = async () => {
-    if (overdue === 0 || reminding) return
-    setReminding(true)
-    try {
-      const result = await api<{ requested: number; sent: number; skipped: number }>(
-        `/clubs/${clubId}/contributions/reminders/send`,
-        { method: 'POST', body: { onlyOverdue: true } },
-      )
-      Alert.alert(
-        t('home.admin.remindersSentTitle', { defaultValue: 'Reminders sent' }),
-        t('home.admin.remindersSentBody', {
-          defaultValue: '{{count}} member(s) notified.',
-          count: result?.sent ?? overdue,
-        }),
-      )
-      onChanged()
-    } catch {
-      Alert.alert(
-        t('common.error'),
-        t('home.admin.remindersError', {
-          defaultValue: "Couldn't send reminders. Try again.",
-        }),
-      )
-    } finally {
-      setReminding(false)
-    }
-  }
+  const c = useClubColors()
+  const busy = busyKey !== null
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push('/admin-billing' as never)}
-      style={({ pressed }) => [
-        styles.radarCard,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.96 },
-      ]}
-    >
-      <View style={styles.radarHead}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-            {t('home.admin.beitragEyebrow', { defaultValue: 'BEITRAG RADAR' })}
-          </Text>
-          <Text variant="title3" color="primary" weight="semibold" tabular>
-            {paidPct}%
-            <Text variant="footnote" color="secondary">
-              {' '}
-              {t('home.admin.paidLabel', { defaultValue: 'paid' })}
-            </Text>
-          </Text>
-        </View>
-        <Icon name="chevron.right" size={16} color="tertiary" />
-      </View>
-
-      <View style={[styles.radarBar, { backgroundColor: c.borderDefault }]}>
-        {paid > 0 ? (
-          <View style={[styles.radarSegment, { flex: paid, backgroundColor: c.success }]} />
-        ) : null}
-        {pending > 0 ? (
-          <View style={[styles.radarSegment, { flex: pending, backgroundColor: c.warning }]} />
-        ) : null}
-        {overdue > 0 ? (
-          <View style={[styles.radarSegment, { flex: overdue, backgroundColor: c.error }]} />
-        ) : null}
-      </View>
-
-      <View style={styles.radarLegend}>
-        <RadarDot
-          color={c.success}
-          count={paid}
-          label={t('home.admin.paidLabel', { defaultValue: 'paid' })}
-        />
-        <RadarDot
-          color={c.warning}
-          count={pending}
-          label={t('home.admin.pendingLabel', { defaultValue: 'pending' })}
-        />
-        <RadarDot
-          color={c.error}
-          count={overdue}
-          label={t('home.admin.overdueLabel', { defaultValue: 'overdue' })}
-        />
-      </View>
-
-      {overdue > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={(e) => {
-            ;(e as unknown as { stopPropagation?: () => void } | undefined)?.stopPropagation?.()
-            void sendReminders()
-          }}
-          disabled={reminding}
-          style={({ pressed }) => [
-            styles.remindBtn,
-            { backgroundColor: c.textPrimary },
-            pressed && { opacity: 0.9 },
-            reminding && { opacity: 0.6 },
-          ]}
-        >
-          <Icon name="bell.fill" size={12} color="inverse" />
-          <Text style={[styles.remindBtnText, { color: c.textInverse }]}>
-            {reminding
-              ? t('common.sending', { defaultValue: 'Sending…' })
-              : t('home.admin.remindOverdue', {
-                  defaultValue: 'Remind {{count}} overdue',
-                  count: overdue,
-                })}
-          </Text>
-        </Pressable>
+    <>
+      {inbox.joinRequests.count > 0 ? (
+        <SectionGroup header={groupHeader(t('aufgaben.joinRequests'), inbox.joinRequests.count)}>
+          {inbox.joinRequests.items.map((request) => (
+            <View key={request.id} style={styles.taskRow}>
+              <View style={styles.taskHead}>
+                <Avatar size="md" src={request.user.avatarUrl} fallbackText={request.user.name} />
+                <View style={styles.taskText}>
+                  <Text variant="body" weight="semibold" color="primary" numberOfLines={1}>
+                    {request.user.name}
+                  </Text>
+                  <Text variant="footnote" color="secondary" numberOfLines={2}>
+                    {[
+                      t(`teamRoles.${request.role}`, { defaultValue: request.role }),
+                      relativeDay(request.createdAt, t),
+                      request.message ? `„${request.message}“` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.taskActions}>
+                <Button
+                  label={t('pendingRequests.reject')}
+                  variant="plain"
+                  size="sm"
+                  disabled={busy}
+                  onPress={() => onDecideJoin(request, 'reject')}
+                  accessibilityLabel={`${t('pendingRequests.reject')}: ${request.user.name}`}
+                />
+                <Button
+                  label={t('pendingRequests.approve')}
+                  variant="filled"
+                  size="sm"
+                  loading={busyKey === `join:${request.id}`}
+                  disabled={busy}
+                  onPress={() => onDecideJoin(request, 'approve')}
+                  accessibilityLabel={`${t('pendingRequests.approve')}: ${request.user.name}`}
+                />
+              </View>
+            </View>
+          ))}
+          {inbox.joinRequests.count > inbox.joinRequests.items.length ? (
+            <SeeAllRow
+              count={inbox.joinRequests.count}
+              onPress={() => router.push('/pending-requests' as never)}
+            />
+          ) : null}
+        </SectionGroup>
       ) : null}
-    </Pressable>
+
+      {inbox.staffAccessRequests.count > 0 ? (
+        <SectionGroup
+          header={groupHeader(t('aufgaben.staffRequests'), inbox.staffAccessRequests.count)}
+        >
+          {inbox.staffAccessRequests.items.map((request) => (
+            <ListRow
+              key={request.id}
+              left={
+                <Avatar size="md" src={request.claimant.avatarUrl} fallbackText={request.claimant.name} />
+              }
+              title={request.claimant.name}
+              subtitle={t('aufgaben.staffRequestSubtitle', {
+                role: t(`verein.roleLabel.${request.desiredRole}`, {
+                  defaultValue: request.desiredRole,
+                }),
+              })}
+              right={<ActionLabel label={t('aufgaben.review')} />}
+              onPress={() => router.push('/club-staff' as never)}
+            />
+          ))}
+        </SectionGroup>
+      ) : null}
+
+      {inbox.overdueDues.count > 0 ? (
+        <SectionGroup header={groupHeader(t('aufgaben.dues'), inbox.overdueDues.count)}>
+          <View style={styles.taskRow}>
+            <View style={styles.taskHead}>
+              <SoftIcon name="banknote" color={c.warning} />
+              <View style={styles.taskText}>
+                <Text variant="body" weight="semibold" color="primary">
+                  {t('aufgaben.duesTitle', { count: inbox.overdueDues.count })}
+                </Text>
+                <Text variant="footnote" color="secondary" numberOfLines={2} tabular>
+                  {[
+                    t('aufgaben.duesAmount', {
+                      amount: formatMoney(inbox.overdueDues.amount, inbox.overdueDues.currency),
+                    }),
+                    inbox.overdueDues.items.map((item) => item.name).join(', '),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.taskActions}>
+              <Button
+                label={t('aufgaben.openBilling')}
+                variant="plain"
+                size="sm"
+                disabled={busy}
+                onPress={() => router.push('/admin-billing' as never)}
+              />
+              <Button
+                label={duesReminderLabel(duesReminder, t)}
+                variant={duesReminder ? 'tinted' : 'filled'}
+                size="sm"
+                loading={busyKey === 'dues'}
+                disabled={busy || duesReminder !== null}
+                onPress={onRemindDues}
+                accessibilityLabel={
+                  duesReminder ? duesReminderLabel(duesReminder, t) : t('aufgaben.remindAllOverdue')
+                }
+              />
+            </View>
+            {duesReminder?.kind === 'nobody' ? (
+              <Text variant="footnote" color="secondary">
+                {t('aufgaben.nobodyToRemind')}
+              </Text>
+            ) : null}
+          </View>
+        </SectionGroup>
+      ) : null}
+
+      {inbox.teamsWithoutHeadCoach.count > 0 ? (
+        <SectionGroup
+          header={groupHeader(t('aufgaben.teamsWithoutCoach'), inbox.teamsWithoutHeadCoach.count)}
+        >
+          {inbox.teamsWithoutHeadCoach.items.map((team) => (
+            <ListRow
+              key={team.teamId}
+              left={<SoftIcon name="person.2.fill" color={c.warning} />}
+              title={team.teamName}
+              subtitle={[team.groupName, t('verein.teams.noCoach')].filter(Boolean).join(' · ')}
+              right={<ActionLabel label={t('aufgaben.assignCoach')} />}
+              accessibilityLabel={`${t('aufgaben.assignCoach')}: ${team.teamName}`}
+              onPress={() =>
+                router.push({ pathname: '/team-management', params: { teamId: team.teamId } } as never)
+              }
+            />
+          ))}
+          {inbox.teamsWithoutHeadCoach.count > inbox.teamsWithoutHeadCoach.items.length ? (
+            <SeeAllRow
+              count={inbox.teamsWithoutHeadCoach.count}
+              onPress={() => router.push('/team-management' as never)}
+            />
+          ) : null}
+        </SectionGroup>
+      ) : null}
+
+      {COMPLIANCE_FEATURE_ENABLED && inbox.safeguarding.count > 0 ? (
+        <SectionGroup
+          header={groupHeader(t('aufgaben.safeguarding'), inbox.safeguarding.count)}
+          footer={t('aufgaben.safeguardingFooter')}
+        >
+          {inbox.safeguarding.items.map((item) => {
+            const reminderState = remindedFz[item.memberUserId]
+            const reminded = reminderState !== undefined
+            return (
+              <View key={item.memberUserId} style={styles.taskRow}>
+                <View style={styles.taskHead}>
+                  <Avatar size="md" fallbackText={item.name} />
+                  <View style={styles.taskText}>
+                    <Text variant="body" weight="semibold" color="primary" numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text variant="footnote" color="secondary" numberOfLines={2}>
+                      {[item.teamNames.join(', '), safeguardingStatus(item, t)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.taskActions}>
+                  <Button
+                    label={t(complianceReminderLabelKey(reminderState))}
+                    variant="plain"
+                    size="sm"
+                    loading={busyKey === `fz-remind:${item.memberUserId}`}
+                    disabled={busy || reminded}
+                    onPress={() => onRemindFz(item)}
+                    accessibilityLabel={`${t('aufgaben.remind')}: ${item.name}`}
+                  />
+                  <Button
+                    label={t('aufgaben.fzPresented')}
+                    variant="filled"
+                    size="sm"
+                    loading={busyKey === `fz:${item.memberUserId}`}
+                    disabled={busy}
+                    onPress={() => onMarkFz(item)}
+                    accessibilityLabel={`${t('aufgaben.fzPresented')}: ${item.name}`}
+                  />
+                </View>
+              </View>
+            )
+          })}
+          {inbox.safeguarding.count > inbox.safeguarding.items.length ? (
+            <SeeAllRow
+              count={inbox.safeguarding.count}
+              onPress={() => router.push('/compliance' as never)}
+            />
+          ) : null}
+        </SectionGroup>
+      ) : null}
+
+      {inbox.unfilledOffices.count > 0 ? (
+        <SectionGroup header={groupHeader(t('aufgaben.offices'), inbox.unfilledOffices.count)}>
+          {inbox.unfilledOffices.items.map((item) => (
+            <ListRow
+              key={item.office}
+              left={<SoftIcon name="person.badge.key" color={c.warning} />}
+              title={t('aufgaben.officeUnfilled', {
+                office: t(`verein.office.${item.office}`),
+              })}
+              subtitle={t('aufgaben.officeUnfilledHint')}
+              right={<ActionLabel label={t('aufgaben.fill')} />}
+              onPress={() => router.push('/club-staff' as never)}
+            />
+          ))}
+        </SectionGroup>
+      ) : null}
+    </>
   )
 }
 
-function RadarDot({ color, count, label }: { color: string; count: number; label: string }) {
+/** Chat reports (App Store 1.2 / Play UGC): red when one is past the 24h target. */
+function ReportsGroup({ count, overdue }: { count: number; overdue: number }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
   return (
-    <View style={styles.radarDotRow}>
-      <View style={[styles.radarDot, { backgroundColor: color }]} />
-      <Text variant="caption2" color="secondary" tabular>
-        {String(count)}
-      </Text>
-      <Text variant="caption2" color="tertiary">
+    <SectionGroup header={groupHeader(t('aufgaben.reports'), count)}>
+      <ListRow
+        left={<SoftIcon name="flag.fill" color={overdue > 0 ? c.error : c.warning} />}
+        title={t('aufgaben.reportsTitle', { count })}
+        subtitle={
+          overdue > 0 ? t('aufgaben.reportsOverdue', { count: overdue }) : t('aufgaben.reportsHint')
+        }
+        right={<ActionLabel label={t('aufgaben.review')} />}
+        accessibilityLabel={`${t('aufgaben.reportsTitle', { count })}${
+          overdue > 0 ? `, ${t('aufgaben.reportsOverdue', { count: overdue })}` : ''
+        }`}
+        onPress={() => router.push('/admin-reports' as never)}
+        testID="admin-home-reports"
+      />
+    </SectionGroup>
+  )
+}
+
+function duesReminderLabel(
+  outcome: DuesReminderOutcome | null,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (!outcome) return t('aufgaben.remind')
+  if (outcome.kind === 'sent') return t('aufgaben.remindedCount', { count: outcome.count })
+  if (outcome.kind === 'alreadyToday') return t('aufgaben.remindedToday')
+  return t('aufgaben.remind')
+}
+
+function groupHeader(title: string, count: number) {
+  return `${title} · ${count}`
+}
+
+function relativeDay(iso: string, t: (key: string, options?: Record<string, unknown>) => string) {
+  const days = daysFromNow(iso)
+  if (days === null) return null
+  const ago = Math.abs(days)
+  if (ago === 0) return t('aufgaben.today')
+  return t('aufgaben.daysAgo', { count: ago })
+}
+
+function safeguardingStatus(
+  item: AdminInboxSafeguardingItem,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (item.status === 'MISSING') return t('verein.fz.missing')
+  if (item.status === 'EXPIRED') return t('verein.fz.expiredOn', { date: formatShortDate(item.expiresAt) })
+  return t('verein.fz.expiresOn', { date: formatShortDate(item.expiresAt) })
+}
+
+function ActionLabel({ label }: { label: string }) {
+  return (
+    <View style={styles.actionLabel}>
+      <Text variant="subheadline" weight="semibold" color="tint">
         {label}
       </Text>
+      <Icon name="chevron.right" size="sm" color="tertiary" />
     </View>
   )
 }
 
-function NextEventCard({
-  event,
-  onPress,
-  t,
-  c,
-}: {
-  event: NextEvent
-  onPress: () => void
-
-  t: (key: string, opts?: any) => string
-  c: ReturnType<typeof import('../../context/ClubThemeContext').useClubColors>
-}) {
-  const typeIcon =
-    event.type === 'MATCH' ? 'football' : event.type === 'TRAINING' ? 'figure.soccer' : 'calendar'
-  const typeLabel =
-    event.type === 'MATCH'
-      ? t('event.type.match', { defaultValue: 'Match' })
-      : event.type === 'TRAINING'
-        ? t('event.type.training', { defaultValue: 'Training' })
-        : t('event.type.other', { defaultValue: 'Event' })
-
-  const d = new Date(event.date)
-  const dateStr = new Intl.DateTimeFormat(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d)
-
-  const total = event.yesCount + event.maybeCount + event.noCount
-  const rsvpStr =
-    total > 0
-      ? t('home.admin.rsvpSummary', {
-          defaultValue: '{{yes}} yes · {{maybe}} maybe · {{no}} no',
-          yes: event.yesCount,
-          maybe: event.maybeCount,
-          no: event.noCount,
-        })
-      : t('home.admin.noRsvps', { defaultValue: 'No responses yet' })
-
+function SeeAllRow({ count, onPress }: { count: number; onPress: () => void }) {
+  const { t } = useTranslation()
   return (
-    <Pressable
-      accessibilityRole="button"
+    <ListRow
+      compact
+      title={t('aufgaben.seeAll', { count })}
+      showChevron
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.nextEventCard,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-        pressed && { opacity: 0.94 },
-      ]}
-    >
-      <View style={styles.nextEventHead}>
-        <View style={[styles.nextEventIconWrap, { backgroundColor: withAlpha(c.primary, 0.1) }]}>
-          <Icon name={typeIcon as import('../ui').IconName} size={18} color="tint" />
-        </View>
-        <View style={{ flex: 1, gap: space['2xs'] }}>
-          <Text style={[styles.nextEventEyebrow, { color: c.textTertiary }]}>
-            {typeLabel.toUpperCase()}
-          </Text>
-          <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-            {event.title}
-          </Text>
-        </View>
-        <Icon name="chevron.right" size={14} color="tertiary" />
-      </View>
-
-      <View style={[styles.nextEventDivider, { backgroundColor: c.borderDefault }]} />
-
-      <View style={styles.nextEventMeta}>
-        <View style={styles.nextEventMetaItem}>
-          <Icon name="calendar" size={13} color="tertiary" />
-          <Text variant="caption1" color="secondary">
-            {dateStr}
-          </Text>
-        </View>
-        {event.location ? (
-          <View style={styles.nextEventMetaItem}>
-            <Icon name="mappin" size={13} color="tertiary" />
-            <Text variant="caption1" color="secondary" numberOfLines={1} style={{ flex: 1 }}>
-              {event.location}
-            </Text>
-          </View>
-        ) : null}
-        <View style={styles.nextEventMetaItem}>
-          <Icon name="person.2.fill" size={13} color="tertiary" />
-          <Text variant="caption1" color="secondary">
-            {rsvpStr}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
+    />
   )
 }
 
-function formatRelative(iso: string, locale: string): string {
-  const delta = Date.now() - new Date(iso).getTime()
-  const minutes = Math.round(delta / 60_000)
-  if (minutes < 1) return 'now'
-  if (minutes < 60) return `${minutes}m`
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) return `${hours}h`
-  const days = Math.round(hours / 24)
-  if (days < 7) return `${days}d`
-  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+function AllDone() {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  return (
+    <View
+      style={[styles.allDone, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      accessibilityRole="summary"
+    >
+      <SoftIcon name="checkmark.seal.fill" size={48} color={c.success} />
+      <View style={styles.allDoneText}>
+        <Text variant="headline" color="primary" align="center">
+          {t('aufgaben.allDoneHeadline')}
+        </Text>
+        <Text variant="subheadline" color="secondary" align="center">
+          {t('aufgaben.allDoneBody')}
+        </Text>
+      </View>
+    </View>
+  )
 }
 
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body)
-        .split(',')
-        .map((p) => p.trim())
-        .slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3)
-    h = h
-      .split('')
-      .map((ch) => ch + ch)
-      .join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+function AdminHomeSkeleton() {
+  return (
+    <View style={styles.root} testID="admin-home-skeleton">
+      <View style={styles.headline}>
+        <Skeleton shape="line" width="60%" height={30} />
+        <Skeleton shape="line" width="45%" height={14} />
+      </View>
+      <Skeleton shape="card" height={132} />
+      <Skeleton shape="card" height={88} />
+      <Skeleton shape="card" height={120} />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
   root: { gap: space.lg },
-
-  // Next event hero card
-  nextEventCard: {
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  nextEventHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    padding: space.md,
-  },
-  nextEventIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextEventEyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  nextEventDivider: { height: hairline, marginHorizontal: space.md },
-  nextEventMeta: {
-    padding: space.md,
-    gap: space.xs + 2,
-  },
-  nextEventMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs + 2,
-  },
-
-  attentionCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  attentionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  headline: { gap: space.xs },
+  taskRow: {
     paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.xs,
-  },
-  attentionCount: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space['2xs'] + 2,
-  },
-  attentionCountText: { fontFamily: fonts.data, fontSize: 12, fontWeight: '700' },
-  attentionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 56,
-  },
-  attentionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolRow: { flexDirection: 'row', gap: space.sm },
-  toolLabel: { textAlign: 'center' },
-  tool: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space['2xs'] + 2,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: space['2xs'],
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    minHeight: 60,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs + 2,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm - 1,
-    borderRadius: radius.full,
-  },
-  pillText: { fontFamily: fonts.label, letterSpacing: 0.3 },
-
-  kpiCard: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
+    paddingVertical: space.sm + space.xs,
     gap: space.sm,
   },
-  activationCard: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    gap: space.md,
-  },
-  activationHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  activationList: { gap: space['2xs'] },
-  activationRow: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  eyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  kpiGrid: {
+  taskHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  taskText: { flex: 1, minWidth: 0, gap: space['2xs'] },
+  taskActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: space.md,
-  },
-  kpi: {
-    width: '50%',
-    gap: space['2xs'],
-  },
-
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  actionLabel: { textAlign: 'center', flexShrink: 1 },
-  action: {
-    width: '48%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.xs,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    minHeight: 92,
-  },
-  actionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  sectionLabel: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginTop: space.xs,
-    marginBottom: -space.xs,
-  },
-  activityList: { gap: space.sm },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: space.md,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  dot: { width: 6, height: 6, borderRadius: radius.full },
-  activityTitle: { flex: 1 },
-
-  empty: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-
-  // Beitrag radar — admin home tile with segment bar + remind CTA
-  radarCard: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
+    justifyContent: 'flex-end',
     gap: space.sm,
   },
-  radarHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  radarBar: { height: 6, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
-  radarSegment: { height: '100%' },
-  radarLegend: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  radarDotRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  radarDot: { width: 6, height: 6, borderRadius: radius.full },
-  remindBtn: {
-    marginTop: space['2xs'],
-    height: 40,
-    borderRadius: radius.md,
+  actionLabel: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  allDone: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: space.xs + 2,
-  },
-  remindBtnText: {
-    fontFamily: fonts.label,
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-
-  // Pending dues-pause prompt + compliance heads-up share this layout.
-  pauseCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    padding: space.sm + 2,
-    borderRadius: radius.md,
+    gap: space.md,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  pauseBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pauseEyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  errorCard: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    alignItems: 'flex-start',
-  },
-  errorBody: { marginBottom: space.sm },
-  retryBtn: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    alignSelf: 'flex-start',
-  },
+  allDoneText: { gap: space.xs, alignItems: 'center' },
 })

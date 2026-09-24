@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
   },
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: space.xs, lineHeight: 18 },
 
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     marginTop: space.sm,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   crownText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     borderWidth: hairline,
   },
   voteSmallText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.data,
     fontWeight: '700',
     letterSpacing: 0.2,

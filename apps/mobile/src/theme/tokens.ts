@@ -52,11 +52,13 @@ export const card = {
   paddingHero: 20,
 } as const
 
+// 12pt floor: '2xs' used to be 10, which fails legibility for the
+// Kreisliga crowd reading schedules at the pitch in sunlight.
 export const fontSize = {
-  '2xs': 10,
-  xs: 12,
-  sm: 14,
-  md: 16,
+  '2xs': 12,
+  xs: 13,
+  sm: 15,
+  md: 17,
   lg: 18,
   xl: 20,
   '2xl': 24,
@@ -124,9 +126,9 @@ export const spring = {
 } as const
 
 export const lineHeight = {
-  '2xs': 14,
-  xs: 17,
-  sm: 20,
+  '2xs': 16,
+  xs: 18,
+  sm: 21,
   md: 24,
   lg: 24,
   xl: 26,

@@ -1,1514 +1,755 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
-  Animated,
   Pressable,
+  RefreshControl,
+  ScrollView,
   Share,
   StyleSheet,
   Switch,
   View,
 } from 'react-native'
-import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
-import {
-  canPlayerUseEventCheckIn,
-  EventNextActionPanel,
-  getEventNextAction,
-} from '../src/components/events/EventNextActionPanel'
-import {
-  MatchdayControlPanel,
-  getMatchdayStage,
-} from '../src/components/events/MatchdayControlPanel'
-import { UnavailableReasonSheet } from '../src/components/events/UnavailableReasonSheet'
-import { RSVP, type EventReadiness, type ImportedFixture } from '@anstoss/shared'
+import { RSVP, type EventDetail } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { Avatar, BottomSheet, Button, Icon, ListRow, Screen, SegmentedControl, Text } from '../src/components/ui'
-import { FormInput } from '../src/components/FormInput'
-import { RsvpControl } from '../src/components/home/RsvpControl'
-import { EventReadinessCard } from '../src/components/home/EventReadinessCard'
-import { EventListSkeleton } from '../src/components/Skeleton'
+import { BottomSheet, Button, Icon, ListRow, SegmentedControl, Text } from '../src/components/ui'
+import { Skeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
+import { FormInput } from '../src/components/FormInput'
+import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
+import { CarpoolBoard, type CarpoolRider } from '../src/components/events/CarpoolBoard'
+import { EventHeaderCard } from '../src/components/events/EventHeaderCard'
+import { ResponsesPanel } from '../src/components/events/ResponsesPanel'
+import {
+  RsvpControl,
+  type AbsenceDetail,
+  type RsvpStatus,
+} from '../src/components/events/RsvpControl'
+import { SquadPanel } from '../src/components/events/SquadPanel'
+import { eventDisplayTitle, eventTimeLine, reasonLabel } from '../src/components/events/eventFormat'
 import { Haptics } from '../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import {
-  buildEventReadinessShareText,
-  formatEventReadinessWhen,
-} from '../src/lib/eventReadinessShareText'
-import { findFixtureForEvent } from '../src/lib/matchFixtureLink'
-import {
-  elevation,
-  hairline,
-  radius,
-  space,
-} from '../src/theme/tokens'
+import { hairline, radius, space } from '../src/theme/tokens'
 
-type RsvpUser = {
-  id: string
-  status: 'YES' | 'MAYBE' | 'NO'
-  updatedAt: string
-  reason?: string | null
-  user: { id: string; name: string; avatarUrl?: string | null }
-}
+type Segment = 'responses' | 'squad' | 'rides'
 
-type EventDetail = {
-  id: string
-  title: string
-  type: 'TRAINING' | 'MATCH' | 'OTHER'
-  date: string
-  location: string | null
-  notes: string | null
-  cancelledAt: string | null
-  cancelReason?: string | null
-  rsvps: RsvpUser[]
-  team?: { id: string; name: string }
-  yesCount?: number
-  maybeCount?: number
-  noCount?: number
-  myRsvp?: 'YES' | 'MAYBE' | 'NO' | null
-  myRsvpStale?: boolean
-  seriesId?: string | null
-  series?: { id: string; intervalWeeks: number; until: string } | null
-  reminderEnabled?: boolean
-  lastRsvpReminderAt?: string | null
-  teamMemberCount?: number | null
-  myCheckInAt?: string | null
-  readiness?: EventReadiness | null
-}
+const CHECK_IN_BEFORE_MS = 2 * 60 * 60 * 1000
+const CHECK_IN_AFTER_MS = 3 * 60 * 60 * 1000
 
-type LinkedFixtureState = {
-  eventId: string
-  fixture: ImportedFixture
-}
-
+/**
+ * The one event screen. Header (what, when, where), the viewer's own answer,
+ * then Zusagen · Kader · Fahrten. Coaches find edit / duplicate / share /
+ * cancel in the header menu; the live ticker and table live one tap away on
+ * match-detail for imported fixtures.
+ */
 export default function EventDetailScreen() {
   const { t } = useTranslation()
-  const { eventId: eventIdParam, attendance, cancel } = useLocalSearchParams<{
-    eventId?: string | string[]
-    teamId?: string
-    attendance?: string | string[]
-    /** `1` opens the cancel sheet on arrival (schedule long-press). */
-    cancel?: string | string[]
-  }>()
-  const eventId = firstRouteParam(eventIdParam)
-  const { activeClub, teamMembers } = useAuth()
-  const [manageOpen, setManageOpen] = useState(false)
-  const [cancelOpen, setCancelOpen] = useState(false)
-  const [cancelReason, setCancelReason] = useState('')
-  const [cancelling, setCancelling] = useState(false)
-  const [cancelScope, setCancelScope] = useState<'this' | 'following'>('this')
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
+  const params = useLocalSearchParams<{
+    eventId?: string | string[]
+    attendance?: string | string[]
+    cancel?: string | string[]
+    tab?: string | string[]
+  }>()
+  const eventId = first(params.eventId)
+  const { activeClub, user } = useAuth()
+  const clubId = activeClub?.club.id ?? null
 
   const [event, setEvent] = useState<EventDetail | null>(null)
-  const [linkedFixtureState, setLinkedFixtureState] =
-    useState<LinkedFixtureState | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [rsvpPending, setRsvpPending] = useState(false)
-  const [reminderEnabled, setReminderEnabled] = useState(false)
-  const [reminderPending, setReminderPending] = useState(false)
-
-  // RSVP reminder (admin/coach only)
-  const [remindedAt, setRemindedAt] = useState<string | null>(null)
-  const [remindedCount, setRemindedCount] = useState<number | null>(null)
-  const [reminding, setReminding] = useState(false)
-
-  // Check-in (player only)
-  const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
-  const [checkingIn, setCheckingIn] = useState(false)
-  const checkingInRef = useRef(false)
-
-  // Attendance sheet (coach/admin only)
-  const [attendanceSheetVisible, setAttendanceSheetVisible] = useState(false)
-  const attendanceDeepLinkHandledRef = useRef<string | null>(null)
-
-  // Reason sheet — shown when user taps "No"
-  const [reasonSheetVisible, setReasonSheetVisible] = useState(false)
-  const [nowMs, setNowMs] = useState(() => Date.now())
-
-  const rsvpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const rsvpScale = useRef(new Animated.Value(1)).current
-  const remindingRef = useRef(false)
-  const fetchEventSeqRef = useRef(0)
-
-  const attendanceRsvps = useMemo(
-    () =>
-      (event?.rsvps ?? []).map((r) => ({
-        userId: r.user.id,
-        user: r.user,
-        status: r.status,
-        reason: r.reason,
-      })),
-    [event?.rsvps],
+  const [refreshing, setRefreshing] = useState(false)
+  const [segment, setSegment] = useState<Segment>(() =>
+    first(params.tab) === 'rides' ? 'rides' : first(params.tab) === 'squad' ? 'squad' : 'responses',
   )
-
+  const [pendingRsvp, setPendingRsvp] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelScope, setCancelScope] = useState<'this' | 'following'>('this')
+  const [cancelling, setCancelling] = useState(false)
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
+  const [reminding, setReminding] = useState(false)
+  const [remindCooldown, setRemindCooldown] = useState<string | null>(null)
+  const [remindSent, setRemindSent] = useState<number | null>(null)
+  const [checkingIn, setCheckingIn] = useState(false)
+  const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
+  const [reminderOn, setReminderOn] = useState(false)
+  const seq = useRef(0)
+  const deepLinksHandled = useRef<string | null>(null)
 
   const fetchEvent = useCallback(async () => {
-    const requestSeq = fetchEventSeqRef.current + 1
-    fetchEventSeqRef.current = requestSeq
-    if (!activeClub || !eventId) {
-      // Without club context or event id we can't fetch — stop showing the
-      // skeleton, surface an error empty state instead.
-      setLoading(false)
+    const request = ++seq.current
+    if (!clubId || !eventId) {
       setError(true)
       return
     }
-    setError(false)
     try {
-      const data = await api<EventDetail>(
-        `/clubs/${activeClub.club.id}/events/${eventId}`,
-      )
-      if (fetchEventSeqRef.current !== requestSeq) return
+      const data = await api<EventDetail>(`/clubs/${clubId}/events/${eventId}`)
+      if (seq.current !== request) return
       setEvent(data)
-      setReminderEnabled(data.reminderEnabled ?? false)
+      setError(false)
+      setCheckedInAt(data.myCheckInAt ?? null)
+      setReminderOn(Boolean(data.reminderEnabled))
       if (data.lastRsvpReminderAt) {
-        const lastReminderMs = new Date(data.lastRsvpReminderAt).getTime()
-        setRemindedAt(
-          Number.isFinite(lastReminderMs)
-            ? new Date(lastReminderMs + 24 * 60 * 60 * 1000).toISOString()
-            : null,
+        setRemindCooldown(
+          new Date(new Date(data.lastRsvpReminderAt).getTime() + 24 * 60 * 60 * 1000).toISOString(),
         )
       }
-      if (data.myCheckInAt !== undefined) {
-        setCheckedInAt(data.myCheckInAt ?? null)
-      }
     } catch {
-      if (fetchEventSeqRef.current !== requestSeq) return
+      if (seq.current !== request) return
       setError(true)
-    } finally {
-      if (fetchEventSeqRef.current === requestSeq) {
-        setLoading(false)
-      }
     }
-  }, [activeClub, eventId])
+  }, [clubId, eventId])
 
   useEffect(() => {
-    const interval = setInterval(() => setNowMs(Date.now()), 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    fetchEvent()
+    void fetchEvent()
   }, [fetchEvent])
 
+  // Deep links from home / pushes: ?attendance=1 opens the attendance sheet,
+  // ?cancel=1 the cancel sheet — once per event.
   useEffect(() => {
-    const eventTeamId = event?.team?.id ?? null
-    if (!event?.id || !eventTeamId || event.type !== 'MATCH') {
-      setLinkedFixtureState(null)
-      return
-    }
+    if (!event || !event.viewer.canManage || deepLinksHandled.current === event.id) return
+    deepLinksHandled.current = event.id
+    if (first(params.cancel) === '1' && !event.cancelledAt) setCancelOpen(true)
+    else if (isTruthy(first(params.attendance)) && !event.cancelledAt) setAttendanceOpen(true)
+  }, [event, params.attendance, params.cancel])
 
-    const matchEvent = {
-      id: event.id,
-      type: event.type,
-      date: event.date,
-      team: { id: eventTeamId },
-    }
-    setLinkedFixtureState(null)
-    let cancelled = false
-    const loadLinkedFixture = async () => {
-      try {
-        const [upcomingFixtures, recentFixtures] = await Promise.all([
-          api<ImportedFixture[]>(
-            `/teams/${eventTeamId}/fixtures?scope=upcoming&limit=50`,
-          ).catch(() => [] as ImportedFixture[]),
-          api<ImportedFixture[]>(
-            `/teams/${eventTeamId}/fixtures?scope=recent&limit=50`,
-          ).catch(() => [] as ImportedFixture[]),
-        ])
-        if (!cancelled) {
-          const fixtures = uniqueFixturesById([
-            ...upcomingFixtures,
-            ...recentFixtures,
-          ])
-          const fixture = findFixtureForEvent(matchEvent, fixtures)
-          setLinkedFixtureState(fixture ? { eventId: event.id, fixture } : null)
-        }
-      } catch {
-        if (!cancelled) setLinkedFixtureState(null)
-      }
-    }
-
-    void loadLinkedFixture()
-    return () => {
-      cancelled = true
-    }
-  }, [event?.id, event?.date, event?.team?.id, event?.type])
-
-  const submitRsvp = useCallback(
-    async (status: string, reason?: string) => {
-      if (!activeClub || !event) return
-      setRsvpPending(true)
-      try {
-        const body: { status: string; reason?: string } = { status }
-        if (reason !== undefined) body.reason = reason
-        await api(`/clubs/${activeClub.club.id}/events/${event.id}/rsvp`, {
-          method: 'PUT',
-          body,
-        })
-        await fetchEvent()
-      } catch {
-        await fetchEvent()
-      } finally {
-        setRsvpPending(false)
-      }
-    },
-    [activeClub, event, fetchEvent],
-  )
-
-  const handleRsvp = useCallback(
-    (status: string) => {
-      if (!activeClub || !event || rsvpPending) return
-
-      Haptics.tap()
-      Animated.sequence([
-        Animated.timing(rsvpScale, { toValue: 0.95, duration: 50, useNativeDriver: true }),
-        Animated.spring(rsvpScale, { toValue: 1, useNativeDriver: true }),
-      ]).start()
-
-      setEvent((prev) =>
-        prev ? { ...prev, myRsvp: status as EventDetail['myRsvp'], myRsvpStale: false } : prev,
-      )
-
-      if (status === 'NO') {
-        // Show reason picker before submitting — the sheet callbacks will call submitRsvp
-        if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
-        setReasonSheetVisible(true)
-        return
-      }
-
-      if (rsvpTimer.current) clearTimeout(rsvpTimer.current)
-      rsvpTimer.current = setTimeout(async () => {
-        await submitRsvp(status)
-      }, RSVP.DEBOUNCE_MS)
-    },
-    [activeClub, event, rsvpPending, rsvpScale, submitRsvp],
-  )
-
-  const handleReasonSelect = useCallback(
-    (reason: string) => {
-      setReasonSheetVisible(false)
-      void submitRsvp('NO', reason)
-    },
-    [submitRsvp],
-  )
-
-  const handleReasonSkip = useCallback(() => {
-    setReasonSheetVisible(false)
-    void submitRsvp('NO')
-  }, [submitRsvp])
-
-  const handleToggleReminder = useCallback(
-    async (enabled: boolean) => {
-      if (!activeClub || !event || reminderPending) return
-      setReminderEnabled(enabled)
-      setReminderPending(true)
-      try {
-        await api(`/clubs/${activeClub.club.id}/events/${event.id}/reminder`, {
-          method: 'PUT',
-          body: { enabled },
-        })
-      } catch {
-        setReminderEnabled(!enabled)
-      } finally {
-        setReminderPending(false)
-      }
-    },
-    [activeClub, event, reminderPending],
-  )
-
-  const isFutureEvent = event
-    ? new Date(event.date) > new Date(nowMs + 2 * 60 * 60 * 1000)
-    : false
-
-  // Use ALL access rows for this team so dual-role users (PLAYER + COACH) get both paths.
-  const eventTeamAccessRows = teamMembers.filter((m) => m.team.id === event?.team?.id)
-  const canManage =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    eventTeamAccessRows.some((m) =>
-      ['HEAD_COACH', 'ASSISTANT_COACH', 'COACH'].includes(m.role),
-    )
-
-  // Player check-in: user has PLAYER row on this team (independent of canManage)
-  const isPlayer = eventTeamAccessRows.some((m) => m.role === 'PLAYER')
-
-  useEffect(() => {
-    const deepLinkKey = getAttendanceDeepLinkKey(eventId, attendance)
-    if (!deepLinkKey || attendanceDeepLinkHandledRef.current === deepLinkKey) return
-    if (
-      !activeClub ||
-      !event ||
-      event.id !== eventId ||
-      event.cancelledAt ||
-      !canManage ||
-      isFutureEvent
-    ) return
-    attendanceDeepLinkHandledRef.current = deepLinkKey
-    setAttendanceSheetVisible(true)
-  }, [activeClub, attendance, canManage, event, eventId, isFutureEvent])
-
-  useEffect(() => {
-    attendanceDeepLinkHandledRef.current = null
-    setAttendanceSheetVisible(false)
-  }, [eventId])
-
-  // Schedule long-press → "Cancel event" lands here with the sheet open,
-  // so the reason box is one tap from the row, not three.
-  const cancelDeepLinkHandledRef = useRef<string | null>(null)
-  useEffect(() => {
-    const wantsCancel = firstRouteParam(cancel) === '1'
-    if (!wantsCancel || !eventId || cancelDeepLinkHandledRef.current === eventId) return
-    if (!event || event.id !== eventId || event.cancelledAt || !canManage) return
-    cancelDeepLinkHandledRef.current = eventId
-    setCancelOpen(true)
-  }, [cancel, canManage, event, eventId])
-
-  // Check-in window: 2h before → 3h after event start
-  const isInCheckInWindow = event
-    ? (() => {
-        const eventMs = new Date(event.date).getTime()
-        return nowMs >= eventMs - 2 * 60 * 60 * 1000 && nowMs <= eventMs + 3 * 60 * 60 * 1000
-      })()
-    : false
-
-  const handleCheckIn = useCallback(async () => {
-    if (
-      checkingInRef.current ||
-      !activeClub ||
-      !event ||
-      checkedInAt ||
-      !canPlayerUseEventCheckIn(event.myRsvp, checkedInAt)
-    ) return
-    checkingInRef.current = true
-    setCheckingIn(true)
+  const onRefresh = async () => {
+    setRefreshing(true)
     try {
-      const res = await api<{ checkedInAt: string }>(
-        `/clubs/${activeClub.club.id}/events/${event.id}/check-in`,
-        { method: 'POST' },
-      )
-      setCheckedInAt(res.checkedInAt)
-    } catch (err: unknown) {
-      const status = err && typeof err === 'object' && 'status' in err
-        ? (err as { status: number }).status
-        : 0
-      if (status === 400 || status === 409) {
-        Alert.alert(t('common.errorTitle'), t('event.checkIn.windowClosed'))
-      } else {
-        Alert.alert(t('common.errorTitle'), t('common.error'))
-      }
+      await fetchEvent()
     } finally {
-      checkingInRef.current = false
-      setCheckingIn(false)
+      setRefreshing(false)
     }
-  }, [activeClub, event, checkedInAt, t])
+  }
 
-  const isReminderInCooldown =
-    remindedAt != null &&
-    Number.isFinite(new Date(remindedAt).getTime()) &&
-    nowMs < new Date(remindedAt).getTime()
+  const submitRsvp = async (
+    status: RsvpStatus,
+    absence: AbsenceDetail | undefined,
+    childUserId: string | null,
+  ) => {
+    if (!clubId || !event) return
+    const key = childUserId ?? 'self'
+    if (pendingRsvp) return
+    setPendingRsvp(key)
+    Haptics.tap()
+    const snapshot = event
+    setEvent((current) =>
+      current
+        ? childUserId
+          ? {
+              ...current,
+              children: current.children.map((child) =>
+                child.userId === childUserId
+                  ? {
+                      ...child,
+                      rsvp: status,
+                      reason: absence?.reason ?? null,
+                      note: absence?.note ?? null,
+                    }
+                  : child,
+              ),
+            }
+          : {
+              ...current,
+              myRsvp: status,
+              myRsvpStale: false,
+              myRsvpReason: status === 'NO' ? (absence?.reason ?? null) : null,
+              myRsvpNote: absence?.note ?? null,
+            }
+        : current,
+    )
+    try {
+      await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
+      await api(`/clubs/${clubId}/events/${event.id}/rsvp`, {
+        method: 'PUT',
+        body: {
+          status,
+          ...(status === 'NO' ? absence : {}),
+          ...(childUserId ? { childUserId } : {}),
+        },
+      })
+      Haptics.success()
+      void fetchEvent()
+    } catch {
+      setEvent(snapshot)
+      Haptics.fail()
+      Alert.alert(t('eventFlow.rsvp.failedTitle'), t('eventFlow.rsvp.failedBody'))
+    } finally {
+      setPendingRsvp(null)
+    }
+  }
 
-  const handleRemind = useCallback(async () => {
-    // Fix 6: ref guard prevents double-submission from rapid taps
-    if (remindingRef.current || !activeClub || !event || isReminderInCooldown) return
-    remindingRef.current = true
+  const remind = async () => {
+    if (!clubId || !event || reminding) return
     setReminding(true)
     try {
       const res = await api<{ sent: number; nextAvailableAt: string }>(
-        `/clubs/${activeClub.club.id}/events/${event.id}/remind-rsvp`,
+        `/clubs/${clubId}/events/${event.id}/remind-rsvp`,
         { method: 'POST' },
       )
-      // Fix 2: use the nextAvailableAt the server returns so cooldown is exact
-      setRemindedAt(res.nextAvailableAt ?? new Date().toISOString())
-      setRemindedCount(res.sent)
-    } catch (err: unknown) {
+      setRemindCooldown(res.nextAvailableAt)
+      setRemindSent(res.sent)
+      Haptics.success()
+    } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        // Fix 2: read retryAfter from the parsed 429 body (ApiError.data carries the raw response).
-        // Falls back to a conservative 24h lockout if the server doesn't include retryAfter.
-        const body = err.data as Record<string, unknown> | null | undefined
-        const retryAfter =
-          (typeof body?.retryAfter === 'string' ? body.retryAfter : null)
-          ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        setRemindedAt(retryAfter)
+        const body = err.data as { retryAfter?: string } | null | undefined
+        setRemindCooldown(
+          body?.retryAfter ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        )
       } else {
-        // Fix 5: surface unexpected errors — don't silently swallow 403 or 5xx
-        Alert.alert(t('common.errorTitle'), t('event.rsvpReminderError'))
+        Alert.alert(
+          t('eventFlow.responses.remindFailedTitle'),
+          t('eventFlow.responses.remindFailedBody'),
+        )
       }
     } finally {
-      remindingRef.current = false
       setReminding(false)
     }
-  }, [activeClub, event, isReminderInCooldown, t])
+  }
 
-  const handleShareReadiness = useCallback(async () => {
-    if (!event?.readiness) return
+  const checkIn = async () => {
+    if (!clubId || !event || checkingIn || checkedInAt) return
+    setCheckingIn(true)
     try {
-      await Share.share({
-        message: buildEventReadinessShareText({
-          eventTitle: event.title,
-          whenLabel: formatEventReadinessWhen(event.date, locale),
-          readiness: event.readiness,
-          t,
-        }),
+      const res = await api<{ checkedInAt: string }>(
+        `/clubs/${clubId}/events/${event.id}/check-in`,
+        { method: 'POST' },
+      )
+      setCheckedInAt(res.checkedInAt)
+      Haptics.success()
+    } catch {
+      Alert.alert(t('eventFlow.checkIn.failedTitle'), t('eventFlow.checkIn.failedBody'))
+    } finally {
+      setCheckingIn(false)
+    }
+  }
+
+  const toggleReminder = async (enabled: boolean) => {
+    if (!clubId || !event) return
+    setReminderOn(enabled)
+    try {
+      await api(`/clubs/${clubId}/events/${event.id}/reminder`, {
+        method: 'PUT',
+        body: { enabled },
       })
     } catch {
-      Alert.alert(
-        t('common.errorTitle', { defaultValue: 'Something went wrong' }),
-        t('home.readiness.shareError', {
-          defaultValue: "Couldn't open the share sheet. Try again.",
-        }),
-      )
+      setReminderOn(!enabled)
     }
-  }, [event, locale, t])
-
-  const openAttendanceSheet = useCallback(() => {
-    setAttendanceSheetVisible(true)
-  }, [])
-
-  const linkedFixture =
-    linkedFixtureState && linkedFixtureState.eventId === event?.id
-      ? linkedFixtureState.fixture
-      : null
-
-  const openLineupBuilder = useCallback(() => {
-    const eventTeamId = event?.team?.id
-    if (!eventTeamId) return
-    router.push({
-      pathname: '/lineup-builder',
-      params: linkedFixture
-        ? { teamId: eventTeamId, fixtureId: linkedFixture.id }
-        : { teamId: eventTeamId },
-    } as never)
-  }, [event?.team?.id, linkedFixture])
-
-  const openMatchScreen = useCallback(() => {
-    const eventTeamId = event?.team?.id
-    if (!eventTeamId || !linkedFixture) return
-    router.push({
-      pathname: '/match-live',
-      params: { teamId: eventTeamId, fixtureId: linkedFixture.id },
-    } as never)
-  }, [event?.team?.id, linkedFixture])
-
-  if (loading) {
-    return (
-      <Screen
-        header={<ModalHeader mode="back" title={t('event.detailTitle')} />}
-        padded={false}
-      >
-        <EventListSkeleton />
-      </Screen>
-    )
   }
 
-  if (error || !event) {
-    return (
-      <Screen
-        header={<ModalHeader mode="back" title={t('event.detailTitle')} />}
-        padded={false}
-      >
-        <View style={styles.centered}>
-          <ErrorState
-            message={t('event.loadError')}
-            onRetry={fetchEvent}
-            retryLabel={t('common.retry')}
-          />
-        </View>
-      </Screen>
-    )
+  const share = async () => {
+    if (!event) return
+    setMenuOpen(false)
+    const lines = [
+      eventDisplayTitle(event, t),
+      new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(
+        new Date(event.date),
+      ),
+      eventTimeLine(event, locale, t),
+      event.meetingPoint ? `${t('eventFlow.detail.meetingPoint')}: ${event.meetingPoint}` : null,
+      event.location,
+    ].filter(Boolean)
+    try {
+      await Share.share({ message: lines.join('\n') })
+    } catch {
+      // The share sheet was dismissed.
+    }
   }
-
-  const date = new Date(event.date)
-  const eventStartMs = date.getTime()
-  const isBeforeEventStart = Number.isFinite(eventStartMs) && nowMs < eventStartMs
-  const isCancelled = event.cancelledAt != null
-
-  // Manager menu: edit, duplicate, cancel. One sheet reached from the header
-  // action or a long-press on the hero. It is the app's own sheet rather than
-  // the native action sheet so it looks the same on Android, can carry the
-  // cancellation reason as a real field there too, and is visible to the E2E
-  // driver.
-  const openManageMenu = () => setManageOpen(true)
 
   const confirmCancel = async () => {
-    if (!activeClub || cancelling) return
+    if (!clubId || !event || cancelling) return
     setCancelling(true)
     try {
       const reason = cancelReason.trim()
-      await api(`/clubs/${activeClub.club.id}/events/${event.id}`, {
+      await api(`/clubs/${clubId}/events/${event.id}`, {
         method: 'DELETE',
         body: { ...(reason ? { reason } : {}), ...(event.seriesId ? { scope: cancelScope } : {}) },
       })
       setCancelOpen(false)
       setCancelReason('')
+      Haptics.success()
       void fetchEvent()
     } catch {
-      Alert.alert(t('common.error'), t('event.manage.cancelFailed'))
+      Alert.alert(t('eventFlow.manage.cancelFailedTitle'), t('eventFlow.manage.cancelFailedBody'))
     } finally {
       setCancelling(false)
     }
   }
-  const isAttendanceOpen = !isFutureEvent
-  const formattedDate = new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(date)
-  const formattedTime = new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
 
-  const yesCount = event.yesCount ?? event.rsvps?.filter((r) => r.status === 'YES').length ?? 0
-  const maybeCount = event.maybeCount ?? event.rsvps?.filter((r) => r.status === 'MAYBE').length ?? 0
-  const noCount = event.noCount ?? event.rsvps?.filter((r) => r.status === 'NO').length ?? 0
-  const matchdayStage =
-    event.type === 'MATCH' && !event.cancelledAt
-      ? getMatchdayStage(event.date, nowMs)
-      : 'upcoming'
-  const matchdayPanelStage =
-    canManage && matchdayStage !== 'upcoming' ? matchdayStage : null
-  const showMatchdayControlPanel = matchdayPanelStage != null
-  const readinessAttendanceHandler =
-    showMatchdayControlPanel || isCancelled
-      ? undefined
-      : canManage && !isFutureEvent
-        ? openAttendanceSheet
-        : undefined
+  // Fahrten only when the coach opened them; the API refuses seats otherwise.
+  const showRides = Boolean(event?.carpoolEnabled)
+  const showSquad = event?.type === 'MATCH'
+  const segments = useMemo(() => {
+    const list: Array<{ key: Segment; label: string }> = [
+      { key: 'responses', label: t('eventFlow.detail.tabResponses') },
+    ]
+    if (showSquad) list.push({ key: 'squad', label: t('eventFlow.detail.tabSquad') })
+    if (showRides) list.push({ key: 'rides', label: t('eventFlow.detail.tabRides') })
+    return list
+  }, [showRides, showSquad, t])
+  const activeSegment = segments.some((item) => item.key === segment) ? segment : 'responses'
 
-  // Fix 1: non-responder count for button label.
-  // Use teamMemberCount from API when available; fall back to rsvps array length
-  // (which only covers responded members — so nonResponderCount would be 0 as a safe fallback).
-  const respondedCount = yesCount + maybeCount + noCount
-  const totalMembers = event.teamMemberCount ?? null
-  const nonResponderCount = totalMembers != null ? Math.max(0, totalMembers - respondedCount) : null
+  const riders: CarpoolRider[] = useMemo(() => {
+    if (!event) return []
+    if (event.children.length > 0) {
+      return event.children.map((child) => ({ userId: child.userId, name: firstName(child.name) }))
+    }
+    return user ? [{ userId: user.id, name: firstName(user.name) }] : []
+  }, [event, user])
 
-  const typeTint =
-    event.type === 'TRAINING'
-      ? c.info
-      : event.type === 'MATCH'
-        ? c.success
-        : c.textTertiary
-  const nextAction = getEventNextAction({
-    canManage,
-    checkedInAt,
-    eventCancelled: isCancelled,
-    isAttendanceOpen,
-    isBeforeEventStart,
-    isInCheckInWindow,
-    isPlayer,
-    isReminderInCooldown,
-    myRsvp: event.myRsvp,
-    nonResponderCount,
-    showMatchdayControlPanel,
-  })
-  const nextActionKind = nextAction?.kind ?? null
-  const canUseCheckIn = canPlayerUseEventCheckIn(event.myRsvp, checkedInAt)
-  const nextActionOwnsRsvp = nextActionKind === 'player-rsvp'
-  const nextActionOwnsCheckIn =
-    nextActionKind === 'player-check-in' || nextActionKind === 'player-checked-in'
-  const nextActionOwnsReminder = nextActionKind === 'staff-nudge'
-  const nextActionOwnsAttendance = nextActionKind === 'staff-attendance'
+  const title = event ? eventDisplayTitle(event, t) : t('eventFlow.detail.title')
+
+  if (!event) {
+    return (
+      <View style={[styles.root, { backgroundColor: c.background }]}>
+        <ModalHeader mode="back" title={t('eventFlow.detail.title')} />
+        {error ? (
+          <View style={styles.centered}>
+            <ErrorState
+              message={t('eventFlow.detail.loadError')}
+              onRetry={() => void fetchEvent()}
+              retryLabel={t('eventFlow.retry')}
+            />
+          </View>
+        ) : (
+          <View style={styles.content}>
+            <Skeleton shape="card" height={280} />
+            <Skeleton shape="card" height={96} />
+            <Skeleton shape="card" height={48} />
+            <Skeleton shape="card" height={200} />
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  const nowMs = Date.now()
+  const startMs = new Date(event.date).getTime()
+  const cancelled = Boolean(event.cancelledAt)
+  const started = nowMs >= startMs
+  const canManage = event.viewer.canManage
+  // Everyone who plays answers for themselves, including a Spielertrainer or
+  // a board member who plays; a parent who also plays gets both their own
+  // answer and one per child.
+  const answersForSelf = event.viewer.isPlayer
+  const answersForChildren = event.children.length > 0
+  const inCheckInWindow =
+    nowMs >= startMs - CHECK_IN_BEFORE_MS && nowMs <= startMs + CHECK_IN_AFTER_MS
+  const showCheckIn =
+    event.viewer.isPlayer && !cancelled && inCheckInWindow && event.myRsvp !== 'NO'
+  const nominatedPublished = Boolean(event.squadPublishedAt)
 
   return (
-    <Screen
-      header={
-        <ModalHeader
-          mode="back"
-          title={event.title}
-          rightAction={
-            canManage && !isCancelled ? (
-              <Pressable
-                onPress={openManageMenu}
-                accessibilityRole="button"
-                accessibilityLabel={t('event.manage.manage')}
-                hitSlop={12}
-                style={styles.manageButton}
-              >
-                <Icon name="ellipsis.circle" size="md" color="primary" />
-              </Pressable>
-            ) : undefined
-          }
-        />
-      }
-      scroll
-      padded={false}
-    >
-      <View style={styles.content}>
-        {/* Hero card: date + time + location. Managers can long-press it for
-            the same edit / duplicate / cancel menu as the header action: a
-            context menu on the thing you want to change is the native
-            gesture. */}
-        <Pressable
-          onLongPress={canManage && !isCancelled ? openManageMenu : undefined}
-          delayLongPress={350}
-          accessibilityRole={canManage && !isCancelled ? 'button' : undefined}
-          // The Pressable collapses its children into one element for
-          // assistive tech, so give it the title as its label and the menu
-          // as its hint. VoiceOver then reads "vs. X, button, Manage event".
-          accessibilityLabel={canManage && !isCancelled ? event.title : undefined}
-          accessibilityHint={canManage && !isCancelled ? t('event.manage.manage') : undefined}
-          style={[
-            styles.heroCard,
-            {
-              backgroundColor: c.textPrimary,
-              ...elevation.hero,
-            },
-          ]}
-        >
-          <View style={styles.heroTop}>
-            <View style={styles.heroEyebrowRow}>
-              <View style={[styles.heroTypeDot, { backgroundColor: typeTint }]} />
-              <Text
-                variant="footnote"
-                weight="bold"
-                color={hexWithAlpha(c.textInverse, 0.72)}
-                style={styles.heroEyebrowText}
-              >
-                {t(`event.type.${event.type}`).toUpperCase()}
-              </Text>
-            </View>
-            {event.team?.name ? (
-              <Text variant="footnote" color={hexWithAlpha(c.textInverse, 0.72)}>
-                {event.team.name}
-              </Text>
-            ) : null}
-          </View>
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <ModalHeader
+        mode="back"
+        title={title}
+        rightAction={
+          canManage && !cancelled ? (
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('eventFlow.manage.menu')}
+              hitSlop={8}
+              style={styles.menuButton}
+              testID="event-manage-menu"
+            >
+              <Icon name="ellipsis.circle" size="lg" color="primary" />
+            </Pressable>
+          ) : undefined
+        }
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <EventHeaderCard event={event} locale={locale} />
 
-          <Text variant="title1" color="inverse" numberOfLines={3}>
-            {event.title}
-          </Text>
-
-          <View style={styles.metaList}>
-            <View style={styles.metaRow}>
-              <Icon name="calendar.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
-              <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)}>
-                {formattedDate}
-              </Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Icon name="clock.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
-              <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} tabular>
-                {formattedTime}
-              </Text>
-            </View>
-            {event.location ? (
-              <View style={styles.metaRow}>
-                <Icon name="mappin.circle.fill" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
-                <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} numberOfLines={2}>
-                  {event.location}
+        {!cancelled && !started && answersForSelf ? (
+          <View
+            style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+            testID="event-self-answer"
+          >
+            <>
+              <View style={styles.cardHead}>
+                <Text variant="headline" weight="semibold" color="primary">
+                  {t('eventFlow.detail.yourAnswer')}
                 </Text>
+                {nominatedPublished && event.myNominated ? (
+                  <Text variant="footnote" weight="semibold" color="tint">
+                    {t('eventFlow.detail.inSquad')}
+                  </Text>
+                ) : null}
               </View>
-            ) : null}
-            {event.series ? (
-              <View style={styles.metaRow}>
-                <Icon name="arrow.clockwise" size="sm" color={hexWithAlpha(c.textInverse, 0.6)} />
-                <Text variant="subheadline" color={hexWithAlpha(c.textInverse, 0.82)} numberOfLines={1}>
-                  {t(event.series.intervalWeeks === 2 ? 'event.repeat.repeatsBiweekly' : 'event.repeat.repeatsWeekly', {
-                    defaultValue:
-                      event.series.intervalWeeks === 2 ? 'Every 2 weeks until {{date}}' : 'Every week until {{date}}',
-                    date: new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
-                      day: 'numeric',
-                      month: 'short',
-                    }).format(new Date(event.series.until)),
-                  })}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          {event.notes ? (
-            <View style={[styles.notesSection, { borderTopColor: hexWithAlpha(c.textInverse, 0.14) }]}>
-              <Text variant="body" color="inverse">
-                {event.notes}
-              </Text>
-            </View>
-          ) : null}
-
-          {/* Remind toggle folded into the hero — one designed unit instead of
-              a stray floating card below it. */}
-          {isFutureEvent && !isCancelled ? (
-            <View style={[styles.heroRemindRow, { borderTopColor: hexWithAlpha(c.textInverse, 0.14) }]}>
-              <Icon name="bell.fill" size="md" color="inverse" />
-              <Text variant="body" color="inverse" style={{ flex: 1 }}>
-                {t('event.remindMe')}
-              </Text>
-              <Switch
-                value={reminderEnabled}
-                onValueChange={handleToggleReminder}
-                disabled={reminderPending}
-                trackColor={{ false: hexWithAlpha(c.textInverse, 0.22), true: c.success }}
-                thumbColor={c.textInverse}
-                accessibilityRole="switch"
-                accessibilityLabel={t('event.remindMe')}
-                accessibilityState={{ checked: reminderEnabled, disabled: reminderPending }}
-              />
-            </View>
-          ) : null}
-        </Pressable>
-
-        <EventNextActionPanel
-          action={nextAction}
-          currentRsvp={event.myRsvp}
-          rsvpPending={rsvpPending}
-          checkInPending={checkingIn}
-          remindPending={reminding}
-          onRsvp={handleRsvp}
-          onCheckIn={handleCheckIn}
-          onRemind={handleRemind}
-          onOpenAttendance={openAttendanceSheet}
-        />
-
-        {event.readiness ? (
-          <EventReadinessCard
-            readiness={event.readiness}
-            eventTitle={event.title}
-            onAttendance={nextActionOwnsAttendance ? undefined : readinessAttendanceHandler}
-            onShare={handleShareReadiness}
-          />
-        ) : null}
-
-        {matchdayPanelStage ? (
-          <MatchdayControlPanel
-            stage={matchdayPanelStage}
-            confirmedCount={yesCount}
-            checkedInCount={event.readiness?.metrics.checkInCount ?? 0}
-            onOpenAttendance={openAttendanceSheet}
-            onOpenLineup={openLineupBuilder}
-            onOpenMatch={linkedFixture ? openMatchScreen : undefined}
-          />
-        ) : null}
-
-        {!isCancelled && !nextActionOwnsRsvp ? (
-          <View>
-            <View style={styles.sectionLabel}>
-              <Text variant="headline" weight="semibold" color="primary">
-                {t('event.yourRsvp')}
-              </Text>
-            </View>
-            {/* Same control as home and the schedule: one accent, the
-                selected answer filled, the others neutral. The scale pulse on
-                commit is kept. */}
-            <Animated.View style={{ transform: [{ scale: rsvpScale }] }}>
-              <RsvpControl
-                value={event.myRsvp ?? null}
-                onChange={(status) => handleRsvp(status)}
-                disabled={rsvpPending}
-              />
-            </Animated.View>
-          </View>
-        ) : null}
-
-        {isCancelled ? (
-          <View style={[styles.cancelledBanner, { backgroundColor: c.surfaceSunken, borderColor: c.borderDefault }]}>
-            <Icon name="xmark.circle.fill" size="md" color="secondary" />
-            <View style={styles.cancelledText}>
-              <Text variant="callout" weight="semibold" color="primary">
-                {t('event.manage.cancelledBanner')}
-              </Text>
-              {event.cancelReason ? (
-                <Text variant="footnote" color="secondary">
-                  {event.cancelReason}
+              {event.myRsvpStale ? (
+                <Text variant="footnote" color="tint">
+                  {t('eventFlow.detail.rescheduled')}
                 </Text>
               ) : null}
-            </View>
+              <RsvpControl
+                value={event.myRsvpStale ? null : event.myRsvp}
+                onChange={(status, absence) => void submitRsvp(status, absence, null)}
+                disabled={pendingRsvp != null}
+                testID="event-rsvp"
+              />
+              {event.myRsvp === 'NO' && (event.myRsvpReason || event.myRsvpNote) ? (
+                <Text variant="footnote" color="secondary">
+                  {[reasonLabel(event.myRsvpReason, t), event.myRsvpNote]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              ) : null}
+              <View style={[styles.switchRow, { borderTopColor: c.borderSubtle }]}>
+                <Icon name="bell" size={18} color="secondary" />
+                <Text variant="body" color="primary" style={styles.flex}>
+                  {t('eventFlow.detail.remindMe')}
+                </Text>
+                <Switch
+                  value={reminderOn}
+                  onValueChange={(value) => void toggleReminder(value)}
+                  trackColor={{ true: c.primary, false: c.borderStrong }}
+                  accessibilityLabel={t('eventFlow.detail.remindMe')}
+                />
+              </View>
+            </>
           </View>
         ) : null}
 
-        {/* RSVP Breakdown */}
-        <RsvpBreakdown
-          rsvps={event.rsvps || []}
-          yesCount={yesCount}
-          maybeCount={maybeCount}
-          noCount={noCount}
-          onViewAll={openAttendanceSheet}
-          manageMode={
-            canManage &&
-            isAttendanceOpen &&
-            !isCancelled &&
-            !showMatchdayControlPanel &&
-            !nextActionOwnsAttendance
-          }
-        />
-
-        {/* Remind non-responders — admin/coach + future + not cancelled */}
-        {canManage && isBeforeEventStart && !isCancelled && !nextActionOwnsReminder ? (
-          <RsvpReminderRow
-            remindedCount={remindedCount}
-            reminding={reminding}
-            isInCooldown={isReminderInCooldown}
-            nonResponderCount={nonResponderCount}
-            onRemind={handleRemind}
-          />
-        ) : null}
-
-        {/* Player check-in row — only for PLAYER role, within check-in window or already checked in */}
-        {isPlayer && !isCancelled && canUseCheckIn && !nextActionOwnsCheckIn && (isInCheckInWindow || checkedInAt) ? (
-          <CheckInRow
-            checkedInAt={checkedInAt}
-            pending={checkingIn}
-            onCheckIn={handleCheckIn}
-          />
-        ) : null}
-
-        {/* Coach/admin attendance review now lives inside the single attendance
-            card above (RsvpBreakdown manageMode) — no second door. */}
-
-        {activeClub && event ? (
-          <AttendanceSheet
-            visible={attendanceSheetVisible}
-            onClose={() => setAttendanceSheetVisible(false)}
-            clubId={activeClub.club.id}
-            eventId={event.id}
-            eventDate={event.date}
-            canManageAttendance={canManage}
-            rsvps={attendanceRsvps}
-          />
-        ) : null}
-
-        <BottomSheet visible={manageOpen} onClose={() => setManageOpen(false)}>
-          <View style={styles.sheetBody}>
-            <Text variant="title3" weight="semibold" color="primary" numberOfLines={2}>
-              {event.title}
-            </Text>
-            <ListRow
-              title={t('event.manage.edit')}
-              onPress={() => {
-                setManageOpen(false)
-                router.push({ pathname: '/create-event', params: { eventId: event.id } })
-              }}
-              showChevron
-            />
-            <ListRow
-              title={t('event.manage.duplicate')}
-              onPress={() => {
-                setManageOpen(false)
-                router.push({ pathname: '/create-event', params: { duplicateFrom: event.id } })
-              }}
-              showChevron
-            />
-            <ListRow
-              title={t('event.manage.cancelEvent')}
-              destructive
-              onPress={() => {
-                setManageOpen(false)
-                setCancelOpen(true)
-              }}
-            />
+        {!cancelled && !started && answersForChildren ? (
+          <View
+            style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+            testID="event-child-answers"
+          >
+            <>
+              <Text variant="headline" weight="semibold" color="primary">
+                {t('eventFlow.detail.childAnswers')}
+              </Text>
+              {event.children.map((child) => (
+                <View key={child.userId} style={styles.childRow}>
+                  <View style={styles.childHead}>
+                    <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
+                      {[firstName(child.name), child.teamName].filter(Boolean).join(' · ')}
+                    </Text>
+                    {nominatedPublished && child.nominated ? (
+                      <Text variant="footnote" weight="semibold" color="tint">
+                        {t('eventFlow.detail.inSquad')}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <RsvpControl
+                    value={child.rsvp}
+                    subjectName={firstName(child.name)}
+                    onChange={(status, absence) => void submitRsvp(status, absence, child.userId)}
+                    disabled={pendingRsvp != null}
+                    testID={`event-rsvp-child-${child.userId}`}
+                  />
+                  {child.rsvp === 'NO' && (child.reason || child.note) ? (
+                    <Text variant="footnote" color="secondary">
+                      {[reasonLabel(child.reason, t), child.note].filter(Boolean).join(' · ')}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </>
           </View>
-        </BottomSheet>
+        ) : null}
 
-        <BottomSheet
-          visible={cancelOpen}
-          onClose={() => {
-            if (!cancelling) setCancelOpen(false)
-          }}
-        >
-          <View style={styles.sheetBody}>
-            <Text variant="title3" weight="semibold" color="primary">
-              {t('event.manage.cancelTitle')}
+        {showCheckIn ? (
+          <View
+            style={[
+              styles.card,
+              styles.inline,
+              { backgroundColor: c.surface, borderColor: c.borderSubtle },
+            ]}
+          >
+            <Icon
+              name={checkedInAt ? 'checkmark.circle.fill' : 'figure.walk'}
+              size={20}
+              color={checkedInAt ? c.primary : c.textSecondary}
+            />
+            <Text variant="body" color="primary" style={styles.flex}>
+              {checkedInAt
+                ? t('eventFlow.checkIn.done', {
+                    time: new Intl.DateTimeFormat(locale, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }).format(new Date(checkedInAt)),
+                  })
+                : t('eventFlow.checkIn.prompt')}
             </Text>
-            <Text variant="footnote" color="secondary">
-              {t('event.manage.cancelBody')}
-            </Text>
-            {event.seriesId ? (
-              <SegmentedControl<'this' | 'following'>
-                segments={[
-                  { key: 'this', label: t('event.repeat.scopeThis', { defaultValue: 'This event only' }) },
-                  {
-                    key: 'following',
-                    label: t('event.repeat.scopeFollowing', { defaultValue: 'This and following' }),
-                  },
-                ]}
-                value={cancelScope}
-                onChange={setCancelScope}
+            {!checkedInAt ? (
+              <Button
+                label={t('eventFlow.checkIn.action')}
+                variant="filled"
+                size="md"
+                loading={checkingIn}
+                onPress={() => void checkIn()}
+                testID="event-check-in"
               />
             ) : null}
-            <FormInput
-              label={t('event.manage.cancelReasonPlaceholder')}
-              value={cancelReason}
-              onChangeText={setCancelReason}
-              maxLength={200}
-              autoFocus
-              returnKeyType="done"
-            />
-            <Button
-              label={t('event.manage.cancelConfirm')}
-              variant="destructive"
-              size="lg"
-              fullWidth
-              loading={cancelling}
-              onPress={() => void confirmCancel()}
-            />
-            <Button
-              label={t('common.back')}
-              variant="plain"
-              size="md"
-              fullWidth
-              disabled={cancelling}
-              onPress={() => setCancelOpen(false)}
+          </View>
+        ) : null}
+
+        {event.fixtureId && event.team ? (
+          <View
+            style={[
+              styles.card,
+              styles.flush,
+              { backgroundColor: c.surface, borderColor: c.borderSubtle },
+            ]}
+          >
+            <ListRow
+              title={t('eventFlow.detail.liveTitle')}
+              subtitle={t('eventFlow.detail.liveSubtitle')}
+              left={<Icon name="football" size={20} color="secondary" />}
+              showChevron
+              onPress={() =>
+                router.push({
+                  pathname: '/match-detail',
+                  params: { fixtureId: event.fixtureId as string, teamId: event.team?.id ?? '' },
+                })
+              }
+              testID="event-open-match"
             />
           </View>
-        </BottomSheet>
+        ) : null}
 
-        <UnavailableReasonSheet
-          visible={reasonSheetVisible}
-          onSelect={handleReasonSelect}
-          onSkip={handleReasonSkip}
-          onClose={() => {
-            setReasonSheetVisible(false)
-            // Revert optimistic update if user dismisses without selecting
-            void fetchEvent()
-          }}
+        {segments.length > 1 ? (
+          <SegmentedControl<Segment>
+            segments={segments}
+            value={activeSegment}
+            onChange={setSegment}
+            testID="event-segments"
+          />
+        ) : (
+          <Text variant="title3" color="primary" style={styles.sectionTitle}>
+            {t('eventFlow.detail.tabResponses')}
+          </Text>
+        )}
+
+        {activeSegment === 'responses' ? (
+          <ResponsesPanel
+            rsvps={event.rsvps}
+            members={event.members}
+            canManage={canManage}
+            remind={
+              canManage && !started && !cancelled
+                ? {
+                    onPress: () => void remind(),
+                    pending: reminding,
+                    cooldownUntil: remindCooldown,
+                    sentCount: remindSent,
+                  }
+                : null
+            }
+            onOpenAttendance={
+              canManage && started && !cancelled ? () => setAttendanceOpen(true) : null
+            }
+          />
+        ) : null}
+        {activeSegment === 'squad' && clubId ? (
+          <SquadPanel
+            clubId={clubId}
+            event={event}
+            locale={locale}
+            onPublished={() => void fetchEvent()}
+            onOpenLineup={() =>
+              router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
+            }
+          />
+        ) : null}
+        {activeSegment === 'rides' && clubId ? (
+          <CarpoolBoard
+            clubId={clubId}
+            eventId={event.id}
+            eventDate={event.date}
+            meetingAt={event.meetingAt}
+            locale={locale}
+            riders={riders}
+            cancelled={cancelled}
+          />
+        ) : null}
+      </ScrollView>
+
+      {clubId ? (
+        <AttendanceSheet
+          visible={attendanceOpen}
+          onClose={() => setAttendanceOpen(false)}
+          clubId={clubId}
+          eventId={event.id}
+          eventDate={event.date}
+          canManageAttendance={canManage}
+          rsvps={event.rsvps.map((entry) => ({
+            userId: entry.userId,
+            user: entry.user,
+            status: entry.status,
+            reason: entry.reason,
+          }))}
         />
-      </View>
-    </Screen>
+      ) : null}
+
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} heightPct="auto">
+        <View style={styles.sheet}>
+          <Text variant="title3" color="primary" numberOfLines={2}>
+            {title}
+          </Text>
+          <View style={[styles.menu, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+            <ListRow
+              title={t('eventFlow.manage.edit')}
+              left={<Icon name="pencil" size={18} color="secondary" />}
+              onPress={() => {
+                setMenuOpen(false)
+                router.push({ pathname: '/create-event', params: { eventId: event.id } })
+              }}
+              testID="event-menu-edit"
+            />
+            <ListRow
+              title={t('eventFlow.manage.duplicate')}
+              left={<Icon name="doc.on.doc" size={18} color="secondary" />}
+              onPress={() => {
+                setMenuOpen(false)
+                router.push({ pathname: '/create-event', params: { duplicateFrom: event.id } })
+              }}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+            />
+            <ListRow
+              title={t('eventFlow.manage.share')}
+              left={<Icon name="square.and.arrow.up" size={18} color="secondary" />}
+              onPress={() => void share()}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+            />
+            <ListRow
+              title={t('eventFlow.manage.cancel')}
+              left={<Icon name="xmark.circle" size={18} color={c.error} />}
+              destructive
+              onPress={() => {
+                setMenuOpen(false)
+                setCancelOpen(true)
+              }}
+              style={{ borderTopWidth: hairline, borderTopColor: c.borderSubtle }}
+              testID="event-menu-cancel"
+            />
+          </View>
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={cancelOpen}
+        onClose={() => {
+          if (!cancelling) setCancelOpen(false)
+        }}
+        heightPct="auto"
+      >
+        <View style={styles.sheet}>
+          <Text variant="title3" color="primary">
+            {t('eventFlow.manage.cancelTitle')}
+          </Text>
+          <Text variant="footnote" color="secondary">
+            {t('eventFlow.manage.cancelBody')}
+          </Text>
+          {event.seriesId ? (
+            <SegmentedControl<'this' | 'following'>
+              segments={[
+                { key: 'this', label: t('eventFlow.scope.this') },
+                { key: 'following', label: t('eventFlow.scope.following') },
+              ]}
+              value={cancelScope}
+              onChange={setCancelScope}
+            />
+          ) : null}
+          <FormInput
+            label={t('eventFlow.manage.cancelReason')}
+            value={cancelReason}
+            onChangeText={setCancelReason}
+            placeholder={t('eventFlow.manage.cancelReasonPlaceholder')}
+            maxLength={200}
+            returnKeyType="done"
+          />
+          <Button
+            label={t('eventFlow.manage.cancelConfirm')}
+            variant="destructive"
+            size="lg"
+            fullWidth
+            loading={cancelling}
+            onPress={() => void confirmCancel()}
+            testID="event-cancel-confirm"
+          />
+          <Button
+            label={t('eventFlow.manage.keep')}
+            variant="plain"
+            size="md"
+            fullWidth
+            disabled={cancelling}
+            onPress={() => setCancelOpen(false)}
+          />
+        </View>
+      </BottomSheet>
+    </View>
   )
 }
 
-function uniqueFixturesById(fixtures: ImportedFixture[]): ImportedFixture[] {
-  const seen = new Set<string>()
-  return fixtures.filter((fixture) => {
-    if (seen.has(fixture.id)) return false
-    seen.add(fixture.id)
-    return true
-  })
-}
-
-function firstRouteParam(value: string | string[] | undefined): string | undefined {
+function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
-function getAttendanceDeepLinkKey(
-  eventId: string | undefined,
-  value: string | string[] | undefined,
-): string | null {
-  if (!eventId || !hasAttendanceDeepLink(value)) return null
-  return `${eventId}:attendance`
+function isTruthy(value: string | undefined): boolean {
+  return value === '1' || value === 'true' || value === 'sheet'
 }
 
-function hasAttendanceDeepLink(value: string | string[] | undefined): boolean {
-  const values = Array.isArray(value) ? value : value ? [value] : []
-  return values.some((param) => param === '1' || param === 'true' || param === 'sheet')
-}
-
-function RsvpReminderRow({
-  remindedCount,
-  reminding,
-  isInCooldown,
-  nonResponderCount,
-  onRemind,
-}: {
-  remindedCount: number | null
-  reminding: boolean
-  isInCooldown: boolean
-  nonResponderCount: number | null
-  onRemind: () => void
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  const isDisabled = reminding || isInCooldown
-
-  // Fix 1: build button label
-  let buttonLabel: string
-  if (isInCooldown && remindedCount != null) {
-    buttonLabel = t('event.rsvpReminderSentCount', { count: remindedCount })
-  } else if (isInCooldown) {
-    buttonLabel = t('event.rsvpReminderCooldownHint')
-  } else if (nonResponderCount != null && nonResponderCount > 0) {
-    // Fix 1: show count of non-responders
-    buttonLabel = t('event.rsvpRemindNPeople', { count: nonResponderCount })
-  } else {
-    buttonLabel = t('event.rsvpRemindNow')
-  }
-
-  const buttonBg = isDisabled
-    ? hexWithAlpha(c.primary, 0.35)
-    : c.primary
-
-  return (
-    <View
-      style={[
-        styles.reminderRow,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-        },
-      ]}
-    >
-      <Icon name="bell.badge.fill" size="md" color="tint" />
-      <Text variant="body" color="secondary" style={{ flex: 1 }}>
-        {isInCooldown
-          ? t('event.rsvpReminderCooldownHint')
-          : t('event.rsvpReminderHint')}
-      </Text>
-      <Pressable
-        onPress={onRemind}
-        disabled={isDisabled}
-        accessibilityRole="button"
-        accessibilityLabel={buttonLabel}
-        accessibilityState={{ disabled: isDisabled }}
-        style={({ pressed }) => [
-          styles.remindButton,
-          { backgroundColor: buttonBg },
-          pressed && !isDisabled && { opacity: 0.85 },
-        ]}
-      >
-        <Text variant="footnote" weight="semibold" color={c.textInverse}>
-          {buttonLabel}
-        </Text>
-      </Pressable>
-    </View>
-  )
-}
-
-function CheckInRow({
-  checkedInAt,
-  pending,
-  onCheckIn,
-}: {
-  checkedInAt: string | null
-  pending: boolean
-  onCheckIn: () => void
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  const isCheckedIn = checkedInAt != null
-  const isDisabled = pending || isCheckedIn
-
-  const formattedTime = checkedInAt
-    ? new Intl.DateTimeFormat(undefined, {
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date(checkedInAt))
-    : null
-
-  const buttonBg = isCheckedIn
-    ? hexWithAlpha(c.success, 0.12)
-    : isDisabled
-      ? hexWithAlpha(c.primary, 0.35)
-      : c.primary
-
-  const buttonFg = isCheckedIn ? c.success : c.textInverse
-
-  return (
-    <View
-      style={[
-        styles.reminderRow,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.borderDefault,
-        },
-      ]}
-    >
-      <Icon
-        name={isCheckedIn ? 'checkmark.circle.fill' : 'qrcode'}
-        size="md"
-        color={isCheckedIn ? 'success' : 'tint'}
-      />
-      <Text variant="body" color="secondary" style={{ flex: 1 }}>
-        {isCheckedIn
-          ? t('event.checkIn.checkedInAt', { time: formattedTime })
-          : t('event.checkIn.button')}
-      </Text>
-      {!isCheckedIn ? (
-        <Pressable
-          onPress={onCheckIn}
-          disabled={isDisabled}
-          accessibilityRole="button"
-          accessibilityLabel={t('event.checkIn.button')}
-          accessibilityState={{ disabled: isDisabled }}
-          style={({ pressed }) => [
-            styles.remindButton,
-            { backgroundColor: buttonBg },
-            pressed && !isDisabled && { opacity: 0.85 },
-          ]}
-        >
-          <Text variant="footnote" weight="semibold" color={buttonFg}>
-            {pending ? '...' : t('event.checkIn.button')}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  )
-}
-
-
-function RsvpBreakdown({
-  rsvps,
-  yesCount,
-  maybeCount,
-  noCount,
-  onViewAll,
-  manageMode = false,
-}: {
-  rsvps: RsvpUser[]
-  yesCount: number
-  maybeCount: number
-  noCount: number
-  onViewAll: () => void
-  manageMode?: boolean
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  const rsvpSections: Array<{
-    status: 'YES' | 'MAYBE' | 'NO'
-    labelKey: string
-    color: string
-  }> = [
-    // One accent at three densities: this is a split of one squad, not three
-    // alerts, and colour must not be the only carrier of meaning.
-    { status: 'YES', labelKey: 'event.rsvpYes', color: c.primary },
-    { status: 'MAYBE', labelKey: 'event.rsvpMaybe', color: c.textSecondary },
-    { status: 'NO', labelKey: 'event.rsvpNo', color: c.textTertiary },
-  ]
-
-  const counts = { YES: yesCount, MAYBE: maybeCount, NO: noCount }
-  const totalResponses = yesCount + maybeCount + noCount
-  // Show the people who are coming as overlapping faces — scans instantly and
-  // stays compact whether 4 or 40 said yes. The full, per-status list lives in
-  // the attendance sheet (tap the card), so the screen never dumps 40 rows.
-  const going = rsvps.filter((r) => r.status === 'YES')
-  const preview = going.slice(0, 6)
-  const overflow = Math.max(0, yesCount - preview.length)
-
-  return (
-    <View style={styles.breakdownWrapper}>
-      <View style={styles.sectionLabel}>
-        <Text variant="headline" weight="semibold" color="primary">
-          {t('event.attendees')}
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={onViewAll}
-        accessibilityRole="button"
-        accessibilityLabel={
-          manageMode ? t('event.checkIn.attendanceTitle') : t('event.attendees')
-        }
-        style={({ pressed }) => [
-          styles.breakdownCard,
-          { backgroundColor: c.surface, borderColor: c.borderDefault, ...elevation.card },
-          pressed && { opacity: 0.97 },
-        ]}
-      >
-        {/* Summary counts row */}
-        <View style={styles.breakdownCountsRow}>
-          {rsvpSections.map((section) => (
-            <View key={section.status} style={styles.breakdownCountChip}>
-              <View
-                style={[styles.breakdownDot, { backgroundColor: section.color }]}
-              />
-              <Text variant="title3" weight="bold" color={section.color} tabular>
-                {counts[section.status]}
-              </Text>
-              <Text variant="caption1" color="secondary">
-                {t(section.labelKey)}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {totalResponses > 0 ? (
-          <View style={[styles.goingRow, { borderTopColor: c.borderDefault }]}>
-            {going.length > 0 ? (
-              <View style={styles.avatarStack}>
-                {preview.map((rsvp, i) => (
-                  <View
-                    key={rsvp.id}
-                    style={[
-                      styles.avatarRing,
-                      {
-                        backgroundColor: c.surface,
-                        marginLeft: i === 0 ? 0 : -12,
-                        zIndex: preview.length - i,
-                      },
-                    ]}
-                  >
-                    <Avatar size="md" src={rsvp.user.avatarUrl} fallbackText={rsvp.user.name} />
-                  </View>
-                ))}
-                {overflow > 0 ? (
-                  <View
-                    style={[styles.avatarRing, { backgroundColor: c.surface, marginLeft: -12 }]}
-                  >
-                    <View style={[styles.avatarOverflow, { backgroundColor: c.surfaceSunken }]}>
-                      <Text variant="caption1" weight="bold" color="secondary">
-                        +{overflow}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            ) : (
-              <Text variant="subheadline" color="tertiary" style={{ flex: 1 }}>
-                {t('eventAttendance.noResponses')}
-              </Text>
-            )}
-            {!manageMode ? (
-              <Icon name="chevron.right" size="sm" color="tertiary" />
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.breakdownEmpty}>
-            <Text variant="subheadline" color="tertiary">
-              {t('eventAttendance.noResponses')}
-            </Text>
-          </View>
-        )}
-
-        {manageMode ? (
-          <View style={[styles.reviewFooter, { borderTopColor: c.borderDefault }]}>
-            <Icon name="person.2.fill" size="sm" color="tint" />
-            <Text variant="subheadline" weight="medium" color="primary" style={{ flex: 1 }}>
-              {t('event.checkIn.attendanceTitle')}
-            </Text>
-            <Icon name="chevron.right" size="sm" color="tertiary" />
-          </View>
-        ) : null}
-      </Pressable>
-    </View>
-  )
-}
-
-function hexWithAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith('#')) return hex
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+function firstName(name: string | null | undefined): string {
+  return (name ?? '').trim().split(/\s+/)[0] ?? ''
 }
 
 const styles = StyleSheet.create({
-  manageButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelledBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
+  root: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.md },
+  menuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  card: {
     padding: space.md,
+    gap: space.sm + space.xs,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
-  cancelledText: { flex: 1, gap: space['2xs'] },
-  sheetBody: { gap: space.md, paddingBottom: space.lg },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    padding: space.md,
-    paddingBottom: space['2xl'],
-    gap: space.md,
-  },
-  heroCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: space.md,
-    gap: space.md,
-  },
-  heroTop: {
+  flush: { padding: 0, overflow: 'hidden' },
+  inline: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  cardHead: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  heroEyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-  },
-  heroTypeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radius.full,
-  },
-  heroEyebrowText: {
-    letterSpacing: 1.4,
-  },
-  heroRemindRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: space.sm,
-    marginTop: space.xs,
-    paddingTop: space.md,
+  },
+  flex: { flex: 1, minWidth: 0 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm + space.xs,
     borderTopWidth: hairline,
+    paddingTop: space.sm + space.xs,
+    minHeight: 44,
   },
-  typeBadge: {
-    paddingHorizontal: space.sm + space.xs,
-    paddingVertical: space.xs,
-    borderRadius: radius.full,
-  },
-  metaList: {
+  childRow: { gap: space.sm },
+  childHead: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: space.sm,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  notesSection: {
-    marginTop: space.xs,
-    paddingTop: space.md,
-    borderTopWidth: hairline,
-  },
-
-  reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space['2xs'],
-    ...elevation.card,
-  },
-  sectionLabel: {
-    paddingHorizontal: space['2xs'],
-    paddingBottom: space.sm,
-  },
-
-  // RSVP buttons
-  rsvpRow: {
-    flexDirection: 'row',
-    gap: space.xs,
-  },
-  rsvpButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  remindButton: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs + 2,
-    borderRadius: radius.full,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  breakdownWrapper: {
-    gap: 0,
-  },
-  breakdownCard: {
+  sectionTitle: { marginTop: space.xs },
+  sheet: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.md },
+  menu: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
-  },
-  breakdownCountsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-  },
-  // "Who's coming" preview: overlapping faces + a chevron into the full sheet.
-  goingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    borderTopWidth: hairline,
-  },
-  reviewFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    borderTopWidth: hairline,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  // 2px ring of surface colour so overlapping avatars read as separate.
-  avatarRing: {
-    borderRadius: radius.full,
-    padding: space['2xs'],
-  },
-  avatarOverflow: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  breakdownCountChip: {
-    flex: 1,
-    alignItems: 'center',
-    gap: space['2xs'],
-  },
-  breakdownDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radius.full,
-  },
-  breakdownSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    paddingHorizontal: space.md,
-  },
-  breakdownSectionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  breakdownMemberList: {
-    paddingHorizontal: space.md,
-    paddingBottom: space.xs,
-  },
-  breakdownMemberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: space.sm,
-  },
-  // Inset hairline between member rows — aligns under the name (past the
-  // avatar) for an iOS-list rhythm instead of a floaty gap-stacked list.
-  breakdownMemberDivider: {
-    height: hairline,
-    marginLeft: 40 + space.sm,
-  },
-  breakdownReasonBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'],
-    borderRadius: radius.full,
-    maxWidth: 120,
-  },
-  breakdownEmpty: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    alignItems: 'center',
-  },
-  viewAttendanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingHorizontal: space.md,
-    borderTopWidth: hairline,
   },
 })

@@ -19,25 +19,27 @@
 // so pre-club flows (sign-in, onboarding, club-setup) do not look like any
 // particular club. Once a club is active, buildClubTheme() hydrates these
 // slots with the club's color.
-export const DEFAULT_PRIMARY = '#1A1C22'
-export const DEFAULT_PRIMARY_PRESSED = '#000000'
-export const DEFAULT_PRIMARY_50 = '#F3F4F6'
+// Default accent when no club colour is loaded: a football-pitch green that
+// matches the splash. Clubs override it with their own Vereinsfarbe.
+export const DEFAULT_PRIMARY = '#16794A'
+export const DEFAULT_PRIMARY_PRESSED = '#0F5C37'
+export const DEFAULT_PRIMARY_50 = 'rgba(22, 121, 74, 0.10)'
 
 // Text constants — also imported by typography.ts
-export const TEXT_PRIMARY = '#1A1C22'
-export const TEXT_SECONDARY = '#5F626C'
-export const TEXT_TERTIARY = '#767D8C'
+export const TEXT_PRIMARY = '#1A1A18'
+export const TEXT_SECONDARY = '#5C5C57'
+export const TEXT_TERTIARY = '#6B6B65'
 export const TEXT_WHITE = '#FFFFFF'
 
 // Surfaces / borders
 export const SURFACE = '#FFFFFF'
 export const SURFACE_RAISED = '#FFFFFF'
-export const SURFACE_SUNKEN = '#F3F3F3'
+export const SURFACE_SUNKEN = '#F2F2EE'
 export const SURFACE_OVERLAY = 'rgba(15, 17, 22, 0.55)'
 export const SCRIM_BASE = '#0F1116'
-export const BORDER_SUBTLE = '#F3F4F6'
-export const BORDER_DEFAULT = '#E6E7F2'
-export const BORDER_STRONG = '#C9CCD9'
+export const BORDER_SUBTLE = '#EFEFEA'
+export const BORDER_DEFAULT = '#E4E4DE'
+export const BORDER_STRONG = '#CFCFC8'
 
 // Semantic — light theme values darkened to meet WCAG AA non-text 3:1 on
 // the warm off-white background; dark theme overrides below keep the
@@ -46,9 +48,9 @@ export const SUCCESS = '#15803D'
 export const SUCCESS_BG = '#DCFCE7'
 export const WARNING = '#B45309'
 export const WARNING_BG = '#FEF3C7'
-export const ERROR = '#9C4A67'
-export const ERROR_BG = '#FEE7E7'
-export const INFO = '#3B82F6'
+export const ERROR = '#C4372C'
+export const ERROR_BG = '#FDECEA'
+export const INFO = '#2563A0'
 export const INFO_BG = '#E8EBFF'
 
 // App-level chrome (Anstoss-specific)
@@ -68,6 +70,9 @@ export const lightTheme = {
   primary: DEFAULT_PRIMARY,
   primaryPressed: DEFAULT_PRIMARY_PRESSED,
   primary50: DEFAULT_PRIMARY_50,
+
+  // Text/icon colour on a primary fill; recomputed per club in club-theme.ts
+  onPrimary: TEXT_WHITE,
 
   // App background (the screen root)
   background: APP_BACKGROUND,
@@ -91,6 +96,8 @@ export const lightTheme = {
   borderSubtle: BORDER_SUBTLE,
   borderDefault: BORDER_DEFAULT,
   borderStrong: BORDER_STRONG,
+  // Outlines that carry meaning (inputs, unselected RSVP pills): 3:1 on bg
+  borderControl: '#8A8A83',
   // Legacy alias for the single default border
   border: BORDER_DEFAULT,
 
@@ -113,9 +120,10 @@ export const lightTheme = {
  * Semantic colors lighten ~10% for legibility; surfaces go to warm charcoals.
  */
 export const darkTheme = {
-  primary: '#E8E8E4',
-  primaryPressed: '#FFFFFF',
-  primary50: 'rgba(232, 232, 228, 0.12)',
+  primary: '#3FB27A',
+  primaryPressed: '#2E9463',
+  primary50: 'rgba(63, 178, 122, 0.16)',
+  onPrimary: '#0F0F0E',
 
   background: '#0F0F0E',
 
@@ -127,20 +135,21 @@ export const darkTheme = {
 
   textPrimary: '#E8E8E4',
   textSecondary: '#9C9C96',
-  textTertiary: '#6B6B66',
+  textTertiary: '#86867F',
   textInverse: '#1A1A18',
 
   borderSubtle: '#2A2A28',
   borderDefault: '#2E2E2C',
   borderStrong: '#3A3A38',
+  borderControl: '#5A5A56',
   border: '#2E2E2C',
 
   success: '#3ED671',
   successBg: 'rgba(34, 197, 94, 0.18)',
   warning: '#F5B945',
   warningBg: 'rgba(245, 158, 11, 0.18)',
-  error: '#D5708A',
-  errorBg: 'rgba(156, 74, 103, 0.22)',
+  error: '#F07167',
+  errorBg: 'rgba(240, 113, 103, 0.18)',
   info: '#6FA3F9',
   infoBg: 'rgba(59, 130, 246, 0.18)',
 

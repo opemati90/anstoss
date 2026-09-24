@@ -1,10 +1,11 @@
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, useWindowDimensions } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
 import { hairline, radius, space } from '../../theme/tokens'
+import { HomeSection } from './HomeKit'
 import type { StreaksResponse } from '@anstoss/shared'
 import type { TeamSeasonStats } from '../../hooks/usePlayerHome'
 
@@ -27,48 +28,57 @@ export type SeasonStripProps = {
 export function SeasonStrip({ streaks, rank, seasonStats }: SeasonStripProps) {
   const c = useClubColors()
   const { t } = useTranslation()
+  // Three tiles side by side until the text is too large for a third of the
+  // width; then they wrap to full-width rows instead of clipping.
+  const { width, fontScale } = useWindowDimensions()
+  const wrapTiles = fontScale >= 1.35 || width / Math.max(1, fontScale) < 340
 
   // Both payloads are defensive: a club with no history, an older API, or a
   // partial response must leave the strip out rather than crash the screen
   // that holds the player's next match.
+  // Before the season (or for a new player) every figure is 0; a row of
+  // zeros says nothing, so a tile only shows once it has a record to show.
   const hasStreaks = typeof streaks?.attendanceWeeks === 'number'
+  const showAttendance =
+    hasStreaks && (streaks!.attendanceWeeks > 0 || (streaks!.attendanceLongest ?? 0) > 0)
+  const showMotm = hasStreaks && ((streaks!.motmWeeks ?? 0) > 0 || (streaks!.motmLongest ?? 0) > 0)
   const form = Array.isArray(seasonStats?.recentForm) ? seasonStats!.recentForm : []
   const hasForm = form.length > 0
-  if (!hasStreaks && !hasForm) return null
+  if (!showAttendance && !showMotm && !hasForm) return null
 
   return (
-    <View style={styles.section}>
-      <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-        {t('home.player.seasonTitle', { defaultValue: 'Your season' }).toUpperCase()}
-      </Text>
-      <View style={styles.row}>
-        {hasStreaks ? (
-          <>
-            <Tile
-              icon="flame"
-              value={String(streaks!.attendanceWeeks)}
-              label={t('home.player.streakWeeks', { defaultValue: 'week streak' })}
-              caption={
-                rank
-                  ? t('home.player.clubRank', { defaultValue: '#{{n}} in club', n: rank })
-                  : t('home.player.streakBest', {
-                      defaultValue: 'best {{n}}',
-                      n: streaks!.attendanceLongest,
-                    })
-              }
-              onPress={() => router.push('/streaks')}
-            />
-            <Tile
-              icon="trophy"
-              value={String(streaks!.motmWeeks)}
-              label={t('home.player.motmWins', { defaultValue: 'MOTM' })}
-              caption={t('home.player.streakBest', {
-                defaultValue: 'best {{n}}',
-                n: streaks!.motmLongest,
-              })}
-              onPress={() => router.push('/motm-archive')}
-            />
-          </>
+    <HomeSection title={t('home.player.seasonTitle', { defaultValue: 'Your season' })}>
+      <View style={[styles.row, wrapTiles && styles.rowStacked]}>
+        {showAttendance ? (
+          <Tile
+            icon="flame"
+            value={String(streaks!.attendanceWeeks)}
+            label={t('home.player.streakWeeks', {
+              defaultValue: 'week streak',
+              count: streaks!.attendanceWeeks,
+            })}
+            caption={
+              rank
+                ? t('home.player.clubRank', { defaultValue: '#{{n}} in club', n: rank })
+                : t('home.player.streakBest', {
+                    defaultValue: 'best {{n}}',
+                    n: streaks!.attendanceLongest,
+                  })
+            }
+            onPress={() => router.push('/team-stats')}
+          />
+        ) : null}
+        {showMotm ? (
+          <Tile
+            icon="trophy"
+            value={String(streaks!.motmWeeks)}
+            label={t('home.player.motmWins', { defaultValue: 'MOTM' })}
+            caption={t('home.player.streakBest', {
+              defaultValue: 'best {{n}}',
+              n: streaks!.motmLongest,
+            })}
+            onPress={() => router.push('/team-stats')}
+          />
         ) : null}
         {hasForm ? (
           <PressableScale
@@ -104,10 +114,10 @@ export function SeasonStrip({ streaks, rank, seasonStats }: SeasonStripProps) {
                   ]}
                 >
                   <Text
-                    variant="caption2"
+                    variant="caption1"
                     weight="bold"
                     style={{
-                      color: result === 'W' ? c.textInverse : c.textSecondary,
+                      color: result === 'W' ? c.onPrimary : c.textSecondary,
                     }}
                   >
                     {t(`home.player.form.${result}`, { defaultValue: result })}
@@ -115,13 +125,13 @@ export function SeasonStrip({ streaks, rank, seasonStats }: SeasonStripProps) {
                 </View>
               ))}
             </View>
-            <Text variant="caption1" color="tertiary" numberOfLines={1}>
+            <Text variant="caption1" color="secondary" numberOfLines={2}>
               {t('home.player.teamForm', { defaultValue: 'Team form' })}
             </Text>
           </PressableScale>
         ) : null}
       </View>
-    </View>
+    </HomeSection>
   )
 }
 
@@ -150,14 +160,14 @@ function Tile({
     >
       <Icon name={icon} size={16} color={c.primary} />
       <View style={styles.tileValueRow}>
-        <Text variant="data" weight="bold" color="primary" tabular numberOfLines={1}>
+        <Text variant="title2" weight="bold" color="primary" tabular numberOfLines={1}>
           {value}
         </Text>
       </View>
-      <Text variant="caption1" color="secondary" numberOfLines={1}>
+      <Text variant="caption1" color="secondary" numberOfLines={2}>
         {label}
       </Text>
-      <Text variant="caption2" color="tertiary" numberOfLines={1}>
+      <Text variant="caption1" color="tertiary" numberOfLines={2}>
         {caption}
       </Text>
     </PressableScale>
@@ -165,7 +175,7 @@ function Tile({
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
+  rowStacked: { flexDirection: 'column' },
   row: {
     flexDirection: 'row',
     gap: space.sm,
@@ -188,8 +198,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   formPip: {
-    width: 22,
-    height: 22,
+    width: 24,
+    height: 24,
     borderRadius: radius.sm,
     borderCurve: 'continuous',
     borderWidth: hairline,

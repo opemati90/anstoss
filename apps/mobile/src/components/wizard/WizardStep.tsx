@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   scrollableContent: { marginTop: space.xl },
   stepLabel: {
     fontFamily: fonts.label,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 2,
     fontWeight: '700',
     marginBottom: space.sm,

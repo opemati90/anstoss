@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, radius, space } from '../../theme/tokens'
+import { fontSize, fonts, space } from '../../theme/tokens'
+import { RADIUS_INPUT } from '../../theme/spacing'
 
 const LENGTH = 6
 const CELL_HEIGHT = 56
@@ -17,15 +18,30 @@ export type OtpCellInputProps = {
    */
   onComplete?: (code: string) => void
   autoFocus?: boolean
+  /** Paints every cell in the error colour (wrong code). */
+  hasError?: boolean
+  /** Bump to put the caret back into the field (after a wrong code clears). */
+  refocusKey?: number
+  /** Screen-reader label; defaults to the localized "6-stelliger Code". */
+  accessibilityLabel?: string
 }
 
-export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: OtpCellInputProps) {
+export function OtpCellInput({
+  value,
+  onChange,
+  onComplete,
+  autoFocus = true,
+  hasError = false,
+  refocusKey,
+  accessibilityLabel,
+}: OtpCellInputProps) {
   const colors = useClubColors()
   const { t } = useTranslation()
   const inputRef = useRef<TextInput>(null)
   const [focused, setFocused] = useState(false)
   const cells = Array.from({ length: LENGTH }, (_, i) => value[i] ?? '')
   const activeIndex = Math.min(value.length, LENGTH - 1)
+  const label = accessibilityLabel ?? t('onboardingFlow.code.otpA11y')
 
   useEffect(() => {
     if (!autoFocus) return
@@ -33,14 +49,17 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
     return () => clearTimeout(id)
   }, [autoFocus])
 
+  useEffect(() => {
+    if (refocusKey === undefined) return
+    inputRef.current?.focus()
+  }, [refocusKey])
+
   return (
     <Pressable
       onPress={() => inputRef.current?.focus()}
       style={styles.wrapper}
       accessibilityRole="none"
-      accessibilityLabel={t('onboarding.code.title', {
-        defaultValue: 'Enter the code',
-      })}
+      accessibilityLabel={label}
     >
       <View style={styles.row} pointerEvents="none">
         {cells.map((d, i) => {
@@ -53,17 +72,26 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
               style={[
                 styles.cell,
                 {
-                  borderColor: isActive
-                    ? colors.primary
-                    : isFilled
-                      ? colors.textPrimary
-                      : colors.border,
+                  borderColor: hasError
+                    ? colors.error
+                    : isActive
+                      ? colors.primary
+                      : isFilled
+                        ? colors.textPrimary
+                        : colors.border,
                   borderWidth: isActive ? 2 : 1.5,
                   backgroundColor: colors.surfaceSunken,
                 },
               ]}
             >
-              <Text style={[styles.digit, { color: colors.textPrimary }]}>{d}</Text>
+              <Text
+                style={[styles.digit, { color: colors.textPrimary }]}
+                // Six cells must fit a 320pt phone at 200 % text: the digits
+                // grow up to 1.6x, the cell grows in height, never in width.
+                maxFontSizeMultiplier={1.6}
+              >
+                {d}
+              </Text>
               {isActive && !isFilled ? (
                 <View style={[styles.caret, { backgroundColor: colors.primary }]} />
               ) : null}
@@ -90,6 +118,8 @@ export function OtpCellInput({ value, onChange, onComplete, autoFocus = true }: 
         keyboardType="number-pad"
         autoComplete="sms-otp"
         textContentType="oneTimeCode"
+        importantForAutofill="yes"
+        accessibilityLabel={label}
         maxLength={LENGTH}
         autoFocus={autoFocus}
         caretHidden
@@ -109,9 +139,12 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    maxWidth: 50,
-    height: CELL_HEIGHT,
-    borderRadius: radius.md,
+    minWidth: 0,
+    maxWidth: 52,
+    minHeight: CELL_HEIGHT,
+    paddingVertical: space.xs,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -122,6 +155,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   caret: {
     position: 'absolute',

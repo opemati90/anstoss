@@ -47,6 +47,43 @@ export function ClubThemeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+// ── onboarding revamp: preview a club's colour before the user is a member.
+/**
+ * Re-themes its subtree with a club that is known but not joined yet (an
+ * invite, a search result, a team-code match), so the accent switches from
+ * pitch green to the club colour the moment the club is known. Passing no
+ * colour keeps the surrounding theme.
+ */
+export function ClubThemeOverride({
+  club,
+  children,
+}: {
+  club: { id?: string; name?: string; primaryColor?: string | null; badgeUrl?: string | null } | null
+  children: React.ReactNode
+}) {
+  const parent = useContext(ClubThemeContext)
+  const colorScheme = useColorScheme()
+  const isDark = colorScheme === 'dark'
+  const primary = club?.primaryColor ?? null
+  const value = useMemo(() => {
+    if (!primary || !/^#[0-9A-Fa-f]{6}$/.test(primary)) return parent
+    return {
+      theme: buildClubTheme(
+        {
+          id: club?.id ?? 'preview',
+          name: club?.name ?? '',
+          primary,
+          badgeUrl: club?.badgeUrl ?? null,
+        },
+        isDark,
+      ),
+      isDark,
+    }
+  }, [club?.badgeUrl, club?.id, club?.name, isDark, parent, primary])
+  return <ClubThemeContext.Provider value={value}>{children}</ClubThemeContext.Provider>
+}
+// ── end onboarding revamp ──
+
 /**
  * Primary color hook — returns the full ClubTheme object.
  * Name kept for backward compatibility (legacy code calls it "colors").

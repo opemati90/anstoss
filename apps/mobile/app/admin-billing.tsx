@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Alert, RefreshControl, StyleSheet, View } from 'react-native'
+import { Alert, RefreshControl, StyleSheet, Switch, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -81,7 +81,8 @@ export default function AdminBillingScreen() {
 
     try {
       const [billingData, contributionData] = await Promise.all([
-        api<BillingStatus>(`/clubs/${clubId}/billing/status`),
+        // Plan status is garnish; the finance hub must load without it.
+        api<BillingStatus>(`/clubs/${clubId}/billing/status`).catch(() => null),
         api<ContributionOverview>(`/clubs/${clubId}/contributions`),
       ])
 
@@ -197,6 +198,11 @@ export default function AdminBillingScreen() {
     }
   }
 
+  const enrolled = (contributions?.members ?? []).filter((m) => m.planId)
+  const SETTLED = new Set(['PAID', 'WAIVED', 'EXEMPT'])
+  const openItems = enrolled.filter((m) => !m.status || !SETTLED.has(m.status))
+  const settledItems = enrolled.filter((m) => m.status && SETTLED.has(m.status))
+
   if (!hasBillingAccess) {
     return (
       <Screen
@@ -267,10 +273,10 @@ export default function AdminBillingScreen() {
             />
           </View>
 
-          {/* ── Tracking + auto-reminders ── */}
+          {/* ── Tracking + auto-reminders: real switches ── */}
           <SectionGroup
             header={t('contributions.tracking', { defaultValue: 'Tracking' })}
-            footer={t('contributions.settingsBody')}
+            footer={t('verein.finance.trackingFooter')}
             style={styles.section}
           >
             <ListRow
@@ -278,12 +284,14 @@ export default function AdminBillingScreen() {
               title={t('contributions.trackContributions', {
                 defaultValue: 'Track contributions',
               })}
-              right={<OnOffValue on={contributions.settings.enabled} />}
-              disabled={savingSettings}
-              onPress={() =>
-                updateContributionSettings({
-                  enabled: !contributions.settings.enabled,
-                })
+              right={
+                <Switch
+                  value={contributions.settings.enabled}
+                  disabled={savingSettings}
+                  onValueChange={(enabled) => void updateContributionSettings({ enabled })}
+                  trackColor={{ true: c.primary, false: c.borderDefault }}
+                  accessibilityLabel={t('contributions.trackContributions')}
+                />
               }
             />
             <ListRow
@@ -291,17 +299,26 @@ export default function AdminBillingScreen() {
               title={t('contributions.autoReminders', {
                 defaultValue: 'Auto reminders',
               })}
-              right={<OnOffValue on={contributions.settings.autoRemindersEnabled} />}
-              disabled={savingSettings || !contributions.settings.enabled}
-              onPress={() =>
-                updateContributionSettings({
-                  autoRemindersEnabled: !contributions.settings.autoRemindersEnabled,
-                })
+              subtitle={t('verein.finance.autoRemindersHint')}
+              right={
+                <Switch
+                  value={contributions.settings.autoRemindersEnabled}
+                  disabled={savingSettings || !contributions.settings.enabled}
+                  onValueChange={(autoRemindersEnabled) =>
+                    void updateContributionSettings({ autoRemindersEnabled })
+                  }
+                  trackColor={{ true: c.primary, false: c.borderDefault }}
+                  accessibilityLabel={t('contributions.autoReminders')}
+                />
               }
             />
+          </SectionGroup>
+
+          {/* ── Bank: account members pay to + statement matching ── */}
+          <SectionGroup header={t('verein.finance.bankSection')} style={styles.section}>
             <ListRow
-              left={<SoftIcon name="banknote" />}
-              title={t('contributions.bankSetup.rowTitle', { defaultValue: 'Bank transfer' })}
+              left={<SoftIcon name="building.2" />}
+              title={t('verein.finance.bank')}
               subtitle={
                 contributions.settings.bankIban
                   ? t('contributions.bankSetup.rowSubtitleSet', {
@@ -316,10 +333,8 @@ export default function AdminBillingScreen() {
               onPress={() => router.push('/admin-contribution-bank')}
             />
             <ListRow
-              left={<SoftIcon name="doc.text.fill" />}
-              title={t('contributions.reconciliationTitle', {
-                defaultValue: 'Bank reconciliation',
-              })}
+              left={<SoftIcon name="arrow.left.arrow.right" />}
+              title={t('verein.finance.reconciliation')}
               subtitle={t('contributions.reconciliationSubtitle', {
                 defaultValue: 'Import CSV/CAMT.053 and confirm payment matches',
               })}
@@ -329,7 +344,7 @@ export default function AdminBillingScreen() {
           </SectionGroup>
 
           {/* ── Contribution plans ── */}
-          <SectionGroup header={t('contributions.plansTitle')} style={styles.section}>
+          <SectionGroup header={t('verein.finance.feeSchedule')} style={styles.section}>
             <ListRow
               left={<SoftIcon name="plus.circle.fill" />}
               title={t('contributions.addPlan')}
@@ -353,9 +368,9 @@ export default function AdminBillingScreen() {
             ))}
           </SectionGroup>
 
-          {/* ── Members enrolled ── */}
+          {/* ── Offene Posten: everything not settled, overdue first ── */}
           <SectionGroup
-            header={t('contributions.membersTitle')}
+            header={t('verein.finance.openItems')}
             footer={t('contributions.membersBody')}
             style={styles.section}
           >
@@ -368,31 +383,48 @@ export default function AdminBillingScreen() {
                 onPress={() => handleSendReminders()}
               />
             ) : null}
-            {contributions.members.filter((m) => m.planId).length === 0 ? (
+            {openItems.length === 0 ? (
               <ListRow
-                left={<SoftIcon name="info.circle.fill" color={c.textSecondary} />}
-                title={t('contributions.emptyMembersTitle')}
-                subtitle={t('contributions.emptyMembersBody')}
+                left={<SoftIcon name="checkmark.circle.fill" color={c.success} />}
+                title={
+                  contributions.members.some((m) => m.planId)
+                    ? t('verein.finance.noOpenItems')
+                    : t('contributions.emptyMembersTitle')
+                }
+                subtitle={
+                  contributions.members.some((m) => m.planId)
+                    ? undefined
+                    : t('contributions.emptyMembersBody')
+                }
               />
             ) : (
-              contributions.members
-                .filter((m) => m.planId)
-                .map((member) => (
-                  <MemberRow
-                    key={`${member.memberUserId}:${member.planId}`}
-                    member={member}
-                    locale={locale}
-                    onPress={() => setSelectedMember(member)}
-                  />
-                ))
+              openItems.map((member) => (
+                <MemberRow
+                  key={`${member.memberUserId}:${member.planId}`}
+                  member={member}
+                  locale={locale}
+                  onPress={() => setSelectedMember(member)}
+                />
+              ))
             )}
           </SectionGroup>
 
+          {settledItems.length > 0 ? (
+            <SectionGroup header={t('verein.finance.settledItems')} style={styles.section}>
+              {settledItems.map((member) => (
+                <MemberRow
+                  key={`${member.memberUserId}:${member.planId}`}
+                  member={member}
+                  locale={locale}
+                  onPress={() => setSelectedMember(member)}
+                />
+              ))}
+            </SectionGroup>
+          ) : null}
+
           {/* ── Anstoss plan access. Club dues stay offline/bank-transfer only. ── */}
           <SectionGroup
-            header={t('adminBilling.paymentSectionTitle', {
-              defaultValue: 'Anstoss plan',
-            })}
+            header={t('verein.settings.plan')}
             style={styles.section}
           >
             <PlatformBillingRows billing={billing} />
@@ -516,17 +548,6 @@ function CountStat({ label, value, tone }: { label: string; value: number; tone?
   )
 }
 
-/** iOS-native short "On" / "Off" indicator. */
-function OnOffValue({ on }: { on: boolean }) {
-  const c = useClubColors()
-  const { t } = useTranslation()
-  return (
-    <Text variant="body" style={{ color: on ? c.primary : c.textTertiary }}>
-      {on ? t('common.on', { defaultValue: 'On' }) : t('common.off', { defaultValue: 'Off' })}
-    </Text>
-  )
-}
-
 function PlanRow({
   plan,
   locale,
@@ -607,10 +628,7 @@ function PlatformBillingRows({ billing }: { billing: BillingStatus | null }) {
       <ListRow
         left={<SoftIcon name="star.fill" />}
         title={t('adminBilling.launchAccessTitle', { defaultValue: 'Launch access included' })}
-        subtitle={t('adminBilling.launchAccessSubtitle', {
-          defaultValue:
-            'No digital subscription is sold in this store build. Club finance tools remain available during launch.',
-        })}
+        subtitle={t('verein.finance.planIncluded')}
         right={
           <Text variant="body" style={{ color: c.success }}>
             {t('adminBilling.included', { defaultValue: 'Included' })}

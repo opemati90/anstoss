@@ -1,516 +1,327 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
-import { useEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { RegistrationRole } from '@anstoss/shared'
-import { Icon, Text } from '../../src/components/ui'
-import { WizardStep } from '../../src/components/wizard/WizardStep'
-import { TEAM_CODE_LENGTH, TeamCodeInput } from '../../src/components/wizard/TeamCodeInput'
-import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
-import {
-  HANDOFF_CODE_LENGTH,
-  normalizeParentHandoffCode,
-} from '../../src/auth/parentHandoffCode'
-import { api, ApiError, setTokenGetter } from '../../src/api/client'
-import { useAuth as useAppAuth } from '../../src/context/AuthContext'
-import { useClubColors } from '../../src/context/ClubThemeContext'
-import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
-import { fontSize, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { ApiError, api } from '../../src/api/client'
+import { HANDOFF_CODE_LENGTH, normalizeParentHandoffCode } from '../../src/auth/parentHandoffCode'
+import { Text } from '../../src/components/ui'
+import { normalizeTeamCode, TEAM_CODE_LENGTH } from '../../src/components/wizard/TeamCodeInput'
+import { useAuth } from '../../src/context/AuthContext'
+import { ClubThemeOverride } from '../../src/context/ClubThemeContext'
+import { DateOfBirthInput, validateDob, type DobParts } from '../../src/onboarding/DateOfBirthInput'
+import { apiErrorCode } from '../../src/onboarding/errors'
+import { clearOnboardingIntent } from '../../src/onboarding/intent'
+import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
+import { onboardingProgress } from '../../src/onboarding/steps'
+import { ChoiceRow, ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
+import { goBackOrReplace } from '../../src/utils/navigation'
+import { space } from '../../src/theme/tokens'
 
-type HandoffPreview = {
-  childFirstName: string
-  childDateOfBirth: string
-}
-
-type RosterSlotPreview = {
-  id: string
-  fullName: string
-  position: string | null
-  jerseyNumber: number | null
-}
+/** Guardians act for a child: 18+, from the date of birth on the account. */
+export const GUARDIAN_MIN_AGE = 18
 
 type TeamPreview = {
   team: { id: string; clubId: string; name: string; displayName: string | null }
   club: { id: string; name: string; badgeUrl: string | null; primaryColor: string | null }
-  rosterSlots: RosterSlotPreview[]
+  rosterSlots: Array<{
+    id: string
+    fullName: string
+    position: string | null
+    jerseyNumber: number | null
+  }>
 }
 
-async function waitForToken(
-  getToken: () => Promise<string | null>,
-  budgetMs: number,
-): Promise<boolean> {
-  const deadline = Date.now() + budgetMs
-  while (Date.now() < deadline) {
-    const token = await getToken()
-    if (token) return true
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
-  return false
+type HandoffPreview = {
+  childFirstName: string
+  childDateOfBirth: string
+  /** Set when the child followed an invite: the team code is then optional. */
+  team?: TeamPreview | null
 }
 
-function formatDob(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString(undefined, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function withAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
+/**
+ * "Kind hinzufügen": the parent enters the setup code from the email about
+ * their child. Reached from welcome and Verein finden ("Einrichtungscode
+ * eingeben", no club needed) and from the parent's home. When the child came
+ * through an invite the team is already known and the parent only picks the
+ * child's spot; otherwise they add the team code from the coach.
+ */
 export default function ParentHandoff() {
   const router = useRouter()
   const { t } = useTranslation()
-  const colors = useClubColors()
-  const { state, reset, markStep } = useOnboardingFlow()
-  const { finalizeSession } = useOnboardingAuth()
-  const { getToken, refreshUser } = useAppAuth()
-
+  // The lookups below run on code changes only, not on a new `t` identity.
+  const tRef = useRef(t)
+  tRef.current = t
+  const { user, memberships, refreshUser } = useAuth()
+  const onExpired = useSessionExpiryHandler()
+  const isMember = memberships.length > 0
   const [setupCode, setSetupCode] = useState('')
   const [teamCode, setTeamCode] = useState('')
   const [child, setChild] = useState<HandoffPreview | null>(null)
-  const [team, setTeam] = useState<TeamPreview | null>(null)
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  const [codeTeam, setCodeTeam] = useState<TeamPreview | null>(null)
+  const [slotId, setSlotId] = useState<string | null>(null)
+  const [dob, setDob] = useState<DobParts>({ day: '', month: '', year: '' })
   const [codeError, setCodeError] = useState<string | null>(null)
   const [teamError, setTeamError] = useState<string | null>(null)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [loadingCode, setLoadingCode] = useState(false)
-  const [loadingTeam, setLoadingTeam] = useState(false)
-  const [redeeming, setRedeeming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState<'code' | 'team' | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  useEffect(() => markStep('/(auth)/parent-handoff'), [markStep])
+  // A legacy account without a DOB gives it here; everyone else gave it on
+  // "Wie heißt du?".
+  const needsParentDob = !user?.dateOfBirth
+  const dobCheck = validateDob(dob)
+  const parentTooYoung =
+    (needsParentDob && dobCheck.status === 'valid' && dobCheck.age < GUARDIAN_MIN_AGE) ||
+    (!needsParentDob && !!user?.dateOfBirth && ageFromIso(user.dateOfBirth) < GUARDIAN_MIN_AGE)
+
+  const knownTeam = child?.team ?? null
+  const team = codeTeam ?? knownTeam
 
   useEffect(() => {
     setChild(null)
-    setTeam(null)
-    setTeamCode('')
-    setSelectedSlotId(null)
     setCodeError(null)
-    setTeamError(null)
-    setSubmitError(null)
-    if (setupCode.length !== HANDOFF_CODE_LENGTH) {
-      setLoadingCode(false)
-      return
-    }
-    let cancelled = false
-    async function lookup() {
-      setLoadingCode(true)
-      try {
-        const result = await api<HandoffPreview>(`/parent-handoff/${setupCode}`)
-        if (!cancelled) setChild(result)
-      } catch (err) {
-        if (cancelled) return
-        const fallback =
+    setSlotId(null)
+    if (setupCode.length !== HANDOFF_CODE_LENGTH) return
+    let alive = true
+    setLoading('code')
+    api<HandoffPreview>(`/parent-handoff/${setupCode}`)
+      .then((res) => {
+        if (!alive) return
+        setChild(res)
+        if (res.team?.rosterSlots.length === 1) setSlotId(res.team.rosterSlots[0].id)
+      })
+      .catch((err) => {
+        if (!alive || onExpired(err)) return
+        setCodeError(
           err instanceof ApiError && err.status === 409
-            ? t('onboarding.parentHandoff.codeUsed', {
-                defaultValue: 'This setup code was already used or has expired.',
-              })
-            : t('onboarding.parentHandoff.codeInvalid', {
-                defaultValue: 'We could not find that setup code.',
-              })
-        setCodeError(fallback)
-      } finally {
-        if (!cancelled) setLoadingCode(false)
-      }
-    }
-    lookup()
+            ? tRef.current('onboardingFlow.parentHandoff.codeUsed')
+            : err instanceof ApiError && err.status === 403
+              ? tRef.current('onboardingFlow.parentHandoff.codeOtherEmail')
+              : tRef.current('onboardingFlow.parentHandoff.codeInvalid'),
+        )
+      })
+      .finally(() => {
+        if (alive) setLoading(null)
+      })
     return () => {
-      cancelled = true
+      alive = false
     }
-  }, [setupCode, t])
+  }, [onExpired, setupCode])
 
   useEffect(() => {
-    setTeam(null)
-    setSelectedSlotId(null)
+    setCodeTeam(null)
     setTeamError(null)
-    setSubmitError(null)
-    if (!child || teamCode.length !== TEAM_CODE_LENGTH) {
-      setLoadingTeam(false)
-      return
-    }
-    let cancelled = false
-    async function lookupTeam() {
-      setLoadingTeam(true)
-      try {
-        const result = await api<TeamPreview>(
-          `/parent-handoff/${setupCode}/team/${teamCode}`,
-        )
-        if (!cancelled) {
-          setTeam(result)
-          if (result.rosterSlots.length === 1) {
-            setSelectedSlotId(result.rosterSlots[0].id)
-          }
+    if (!child || teamCode.length !== TEAM_CODE_LENGTH) return
+    let alive = true
+    setLoading('team')
+    setSlotId(null)
+    api<TeamPreview>(`/parent-handoff/${setupCode}/team/${teamCode}`)
+      .then((res) => {
+        if (!alive) return
+        setCodeTeam(res)
+        if (res.rosterSlots.length === 1) setSlotId(res.rosterSlots[0].id)
+      })
+      .catch((err) => {
+        if (alive && !onExpired(err)) {
+          setTeamError(tRef.current('onboardingFlow.parentHandoff.teamInvalid'))
         }
-      } catch {
-        if (!cancelled) {
-          setTeamError(
-            t('onboarding.parentHandoff.teamInvalid', {
-              defaultValue: 'That team code does not match an active team.',
-            }),
-          )
-        }
-      } finally {
-        if (!cancelled) setLoadingTeam(false)
-      }
-    }
-    lookupTeam()
+      })
+      .finally(() => {
+        if (alive) setLoading(null)
+      })
     return () => {
-      cancelled = true
+      alive = false
     }
-  }, [child, setupCode, teamCode, t])
+  }, [child, onExpired, setupCode, teamCode])
 
-  const selectedSlot = useMemo(
-    () => team?.rosterSlots.find((slot) => slot.id === selectedSlotId) ?? null,
-    [selectedSlotId, team],
-  )
-
-  const canRedeem =
+  const ready =
     !!child &&
     !!team &&
-    !!selectedSlot &&
-    !loadingCode &&
-    !loadingTeam &&
-    !redeeming
+    !!slotId &&
+    (!needsParentDob || dobCheck.status === 'valid') &&
+    !parentTooYoung &&
+    !busy
 
-  async function handleRedeem() {
-    if (!canRedeem || !selectedSlot || !team) return
-    const currentTeam = team
-    setRedeeming(true)
-    setSubmitError(null)
+  function back() {
+    if (!isMember) void clearOnboardingIntent()
+    goBackOrReplace(router, isMember ? '/(tabs)' : '/(auth)/club-search')
+  }
+
+  async function submit() {
+    if (!ready || !team) return
+    setBusy(true)
+    setError(null)
     try {
-      await finalizeSession()
-      setTokenGetter(() => getToken())
-      await waitForToken(getToken, 3000)
-
-      const profilePatch = {
-        ...(state.firstName ? { name: state.firstName } : {}),
-        ...(state.dateOfBirth ? { dateOfBirth: state.dateOfBirth } : {}),
-        registrationRole: RegistrationRole.PARENT,
+      if (needsParentDob && dobCheck.status === 'valid') {
+        await api('/me', { method: 'PATCH', body: { dateOfBirth: dobCheck.iso } })
       }
-      await api('/me', { method: 'PATCH', body: profilePatch })
       await api('/parent-handoff/redeem', {
         method: 'POST',
         body: {
           code: setupCode,
-          teamJoinCode: teamCode,
-          rosterSlotId: selectedSlot.id,
+          ...(codeTeam ? { teamJoinCode: teamCode } : {}),
+          rosterSlotId: slotId,
         },
       })
-      await refreshUser(undefined, {
-        preferredClubId: currentTeam.club.id,
-        throwOnError: true,
-      })
-      reset()
+      await clearOnboardingIntent()
+      await refreshUser(undefined, { preferredClubId: team.club.id, throwOnError: true }).catch(
+        () => undefined,
+      )
       router.replace('/')
     } catch (err) {
-      if (__DEV__) console.warn('[parent-handoff] redeem failed', err)
-      const message =
-        err instanceof ApiError && err.status === 409
-          ? t('onboarding.parentHandoff.slotTaken', {
-              defaultValue:
-                'That setup code or open spot is no longer available. Please refresh and try again.',
-            })
-          : t('onboarding.parentHandoff.redeemError', {
-              defaultValue: 'We could not finish the child setup. Please try again.',
-            })
-      setSubmitError(message)
-      Alert.alert(t('common.error', { defaultValue: 'Error' }), message)
+      if (onExpired(err)) return
+      const code = apiErrorCode(err)
+      setError(
+        code === 'GUARDIAN_UNDER_18'
+          ? t('onboardingFlow.parentHandoff.parentTooYoung')
+          : code === 'TEAM_CODE_REQUIRED'
+            ? t('onboardingFlow.parentHandoff.teamCodeRequired')
+            : err instanceof ApiError && err.status === 409
+              ? t('onboardingFlow.parentHandoff.slotTaken')
+              : err instanceof ApiError && err.status !== 0
+                ? t('onboardingFlow.parentHandoff.redeemFailed')
+                : t('onboardingFlow.common.networkError'),
+      )
     } finally {
-      setRedeeming(false)
+      setBusy(false)
     }
   }
 
   return (
-    <WizardStep
-      title={t('onboarding.parentHandoff.title', {
-        defaultValue: 'Set up your child',
-      })}
-      hint={t('onboarding.parentHandoff.hint', {
-        defaultValue:
-          'Enter the parent setup code, then the team code from the coach.',
-      })}
-      ctaLabel={t('onboarding.parentHandoff.cta', {
-        defaultValue: 'Finish setup',
-      })}
-      ctaDisabled={!canRedeem}
-      ctaLoading={redeeming}
-      onCta={handleRedeem}
-      scrollable
-    >
-      <View style={styles.section}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>
-          {t('onboarding.parentHandoff.setupCodeLabel', {
-            defaultValue: 'Parent setup code',
-          })}
-        </Text>
-        <TextInput
+    <ClubThemeOverride club={team?.club ?? null}>
+      <OnboardingScreen
+        title={t('onboardingFlow.parentHandoff.title')}
+        subtitle={t('onboardingFlow.parentHandoff.subtitle')}
+        progress={isMember ? null : onboardingProgress('guardian', 'parentHandoff')}
+        onBack={back}
+        primary={{
+          label: t('onboardingFlow.parentHandoff.cta'),
+          onPress: () => void submit(),
+          disabled: !ready,
+          loading: busy,
+          testID: 'parent-handoff-submit',
+        }}
+        footerNote={
+          error || parentTooYoung ? (
+            <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
+              {error ?? t('onboardingFlow.parentHandoff.parentTooYoung')}
+            </Text>
+          ) : undefined
+        }
+        testID="parent-handoff"
+      >
+        <OnboardingTextField
+          label={t('onboardingFlow.parentHandoff.setupCodeLabel')}
           value={setupCode}
           onChangeText={(raw) => setSetupCode(normalizeParentHandoffCode(raw))}
           placeholder="AB23CD45"
-          placeholderTextColor={colors.textTertiary}
           autoCapitalize="characters"
           autoCorrect={false}
-          style={[
-            styles.codeInput,
-            {
-              color: colors.textPrimary,
-              borderColor: codeError ? colors.error : colors.borderDefault,
-              backgroundColor: colors.surfaceSunken,
-            },
-          ]}
+          autoFocus
+          error={codeError}
+          hint={t('onboardingFlow.parentHandoff.setupCodeHint')}
+          testID="parent-handoff-setup-code"
         />
-        {loadingCode ? (
-          <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />
-        ) : null}
-        {codeError ? (
-          <Text style={[styles.errorText, { color: colors.error }]}>{codeError}</Text>
-        ) : null}
-      </View>
-
-      {child ? (
-        <View
-          style={[
-            styles.preview,
-            { backgroundColor: colors.surfaceSunken, borderColor: colors.borderDefault },
-          ]}
-        >
-          <View style={[styles.previewIcon, { backgroundColor: withAlpha(colors.primary, 0.12) }]}>
-            <Icon name="heart" size={22} color={colors.primary} />
-          </View>
-          <View style={styles.previewBody}>
-            <Text style={[styles.previewTitle, { color: colors.textPrimary }]}>
-              {child.childFirstName}
-            </Text>
-            <Text style={[styles.previewMeta, { color: colors.textSecondary }]}>
-              {formatDob(child.childDateOfBirth)}
-            </Text>
-          </View>
-        </View>
-      ) : null}
-
-      {child ? (
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            {t('onboarding.parentHandoff.teamCodeLabel', {
-              defaultValue: 'Team code',
-            })}
+        {loading === 'code' ? <ActivityIndicator /> : null}
+        {child ? (
+          <Text variant="body" weight="semibold">
+            {t('onboardingFlow.parentHandoff.childFound', { name: child.childFirstName })}
           </Text>
-          <TeamCodeInput value={teamCode} onChange={setTeamCode} autoFocus={false} />
-          {loadingTeam ? (
-            <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />
-          ) : null}
-          {teamError ? (
-            <Text style={[styles.errorText, { color: colors.error }]}>{teamError}</Text>
-          ) : null}
-        </View>
-      ) : null}
+        ) : null}
 
-      {team ? (
-        <View style={styles.section}>
-          <View
-            style={[
-              styles.teamCard,
-              { borderColor: colors.borderDefault, backgroundColor: colors.surface },
-            ]}
-          >
-            <Text style={[styles.teamName, { color: colors.textPrimary }]}>
-              {team.club.name}
-            </Text>
-            <Text style={[styles.teamMeta, { color: colors.textSecondary }]}>
-              {team.team.displayName || team.team.name}
-            </Text>
-          </View>
+        {child ? (
+          <OnboardingTextField
+            label={
+              knownTeam
+                ? t('onboardingFlow.parentHandoff.teamCodeOptionalLabel')
+                : t('onboardingFlow.parentHandoff.teamCodeLabel')
+            }
+            value={teamCode}
+            onChangeText={(raw) => setTeamCode(normalizeTeamCode(raw))}
+            placeholder="SVAB2345HX"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            error={teamError}
+            hint={
+              knownTeam
+                ? t('onboardingFlow.parentHandoff.teamCodeOptionalHint', {
+                    team: knownTeam.team.displayName || knownTeam.team.name,
+                  })
+                : t('onboardingFlow.parentHandoff.teamCodeHint')
+            }
+            testID="parent-handoff-team-code"
+          />
+        ) : null}
+        {loading === 'team' ? <ActivityIndicator /> : null}
 
-          {team.rosterSlots.length > 0 ? (
-            <View style={styles.slotList}>
-              {team.rosterSlots.map((slot) => {
-                const selected = selectedSlotId === slot.id
-                return (
-                  <Pressable
-                    key={slot.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => setSelectedSlotId(slot.id)}
-                    style={({ pressed }) => [
-                      styles.slotRow,
-                      {
-                        borderColor: selected ? colors.primary : colors.borderDefault,
-                        backgroundColor: selected
-                          ? withAlpha(colors.primary, 0.08)
-                          : pressed
-                            ? colors.surfaceSunken
-                            : colors.surface,
-                      },
-                    ]}
-                  >
-                    <View style={styles.slotBody}>
-                      <Text style={[styles.slotName, { color: colors.textPrimary }]}>
-                        {slot.fullName}
-                      </Text>
-                      <Text style={[styles.slotMeta, { color: colors.textSecondary }]}>
-                        {[slot.position, slot.jerseyNumber ? `#${slot.jerseyNumber}` : null]
-                          .filter(Boolean)
-                          .join(' · ') ||
-                          t('onboarding.parentHandoff.rosterSlot', {
-                            defaultValue: 'Open spot',
-                          })}
-                      </Text>
-                    </View>
-                    <Icon
-                      name={selected ? 'checkmark.circle.fill' : 'circle'}
-                      size={22}
-                      color={selected ? colors.primary : colors.textTertiary}
-                    />
-                  </Pressable>
-                )
-              })}
+        {child && team ? (
+          <View style={styles.group}>
+            <View style={styles.teamRow}>
+              <ClubCrest club={team.club} size={40} />
+              <View style={styles.teamCopy}>
+                <Text variant="headline" weight="semibold">
+                  {team.club.name}
+                </Text>
+                <Text variant="footnote" color="secondary">
+                  {team.team.displayName || team.team.name}
+                </Text>
+              </View>
             </View>
-          ) : (
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              {t('onboarding.parentHandoff.noSlots', {
-                defaultValue:
-                  'This team has no open spots yet. Ask the coach to add your child first.',
-              })}
+            <Text variant="subheadline" weight="semibold" color="secondary">
+              {t('onboardingFlow.parentHandoff.slotQuestion')}
             </Text>
-          )}
-        </View>
-      ) : null}
+            {team.rosterSlots.length === 0 ? (
+              <Text variant="footnote" color="secondary">
+                {t('onboardingFlow.parentHandoff.noSlots')}
+              </Text>
+            ) : (
+              team.rosterSlots.map((slot) => (
+                <ChoiceRow
+                  key={slot.id}
+                  title={slot.fullName}
+                  body={
+                    [slot.position, slot.jerseyNumber ? `#${slot.jerseyNumber}` : null]
+                      .filter(Boolean)
+                      .join(' · ') || undefined
+                  }
+                  selected={slotId === slot.id}
+                  onPress={() => setSlotId(slot.id)}
+                  testID={`parent-handoff-slot-${slot.id}`}
+                />
+              ))
+            )}
+          </View>
+        ) : null}
 
-      {submitError ? (
-        <Text style={[styles.errorText, styles.submitError, { color: colors.error }]}>
-          {submitError}
-        </Text>
-      ) : null}
-    </WizardStep>
+        {team && needsParentDob ? (
+          <DateOfBirthInput
+            value={dob}
+            onChange={setDob}
+            error={
+              dobCheck.status === 'invalid' || dobCheck.status === 'future'
+                ? t('onboardingFlow.dob.invalid')
+                : null
+            }
+            hint={t('onboardingFlow.parentHandoff.parentDobHint')}
+          />
+        ) : null}
+      </OnboardingScreen>
+    </ClubThemeOverride>
   )
 }
 
+function ageFromIso(iso: string): number {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 0
+  const now = new Date()
+  let age = now.getFullYear() - date.getFullYear()
+  const m = now.getMonth() - date.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < date.getDate())) age -= 1
+  return age
+}
+
 const styles = StyleSheet.create({
-  section: {
-    gap: space.sm,
-    marginBottom: space.xl,
-  },
-  label: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-  },
-  codeInput: {
-    height: 60,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.data,
-    fontSize: fontSize['2xl'],
-    fontWeight: '700',
-    letterSpacing: 4,
-    textAlign: 'center',
-  },
-  inlineLoader: {
-    alignSelf: 'center',
-    marginTop: space.xs,
-  },
-  errorText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    lineHeight: 19,
-  },
-  preview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    padding: space.md,
-    marginBottom: space.xl,
-  },
-  previewIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewBody: {
-    flex: 1,
-  },
-  previewTitle: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  previewMeta: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    marginTop: 2,
-  },
-  teamCard: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    padding: space.md,
-  },
-  teamName: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-  },
-  teamMeta: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    marginTop: 3,
-  },
-  slotList: {
-    gap: space.sm,
-  },
-  slotRow: {
-    minHeight: 66,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    padding: space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-  },
-  slotBody: {
-    flex: 1,
-  },
-  slotName: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.md,
-    fontWeight: '700',
-  },
-  slotMeta: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    marginTop: 2,
-  },
-  emptyText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginTop: space.sm,
-  },
-  submitError: {
-    textAlign: 'center',
-    marginBottom: space.lg,
-  },
+  group: { gap: space.sm },
+  teamRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  teamCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
 })

@@ -1,6 +1,6 @@
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
-import { Alert, Share, StyleSheet } from 'react-native'
+import { Alert, Share } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { CoachHome } from '../../src/components/home/CoachHome'
 
@@ -17,6 +17,7 @@ let mockFixtures: Array<{
 }> = []
 let mockUpcomingEvents: Array<Record<string, unknown>> | null = null
 let mockRosterOps: Record<string, unknown> | null = null
+let mockEventsFail = false
 let dateNowSpy: jest.SpyInstance<number, []>
 
 const mockSoon = (offsetDays: number) =>
@@ -82,21 +83,50 @@ const mockDefaultUpcomingEvents = () => [
   },
 ]
 
-const mockDefaultRosterOps = () => ({
+const mockDefaultRosterOps = (overrides: Record<string, unknown> = {}) => ({
   team: { id: 't1', displayName: 'U19', squadTarget: 18 },
-  squad: Array.from({ length: 18 }).map((_, i) => ({ userId: `u${i}` })),
+  squadCount: 20,
+  squad: Array.from({ length: 20 }).map((_, i) => ({ userId: `u${i}`, name: `Player ${i}` })),
   operations: {
     trials: [],
     newPlayers: [],
     inactive: [],
+    pendingCoaches: [],
   },
   medic: { active: [], recentlyCleared: [] },
-  kit: { pending: [], recent: [] },
+  kit: {
+    pending: [
+      {
+        id: 'duty-1',
+        kind: 'JERSEY_CLEANUP',
+        status: 'PENDING',
+        assignedUserId: 'u3',
+        dueDate: new Date(Date.now() + 2 * 86400000).toISOString(),
+      },
+    ],
+    recent: [],
+  },
+  ...overrides,
 })
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+  // The real useFocusEffect runs its callback on mount (and on refocus).
+  useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
+}))
+
+// home revamp: CoachHome reads the auth token (events socket) and roles.
+jest.mock('../../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    token: null,
+    activeClub: { role: 'COACH', club: { id: 'c1' } },
+    activeTeamAccess: { role: 'HEAD_COACH' },
+  }),
+}))
+jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'en', getAppLocale: () => 'en-GB' }))
+jest.mock('../../src/hooks/useEventsSocket', () => ({ useEventsSocket: jest.fn() }))
 
 jest.mock('react-i18next', () => {
   const t = (k: string, opts?: { defaultValue?: string } & Record<string, unknown>) => {
@@ -157,6 +187,7 @@ jest.mock('../../src/api/client', () => ({
       return Promise.resolve(mockFixtures)
     }
     if (path.includes('scope=upcoming')) {
+      if (mockEventsFail) return Promise.reject(new Error('offline'))
       // Return mix of match + training events within the next 7 days
       return Promise.resolve(mockUpcomingEvents ?? mockDefaultUpcomingEvents())
     }
@@ -191,6 +222,7 @@ describe('CoachHome', () => {
     router.push.mockReset()
     mockUpcomingEvents = null
     mockRosterOps = null
+    mockEventsFail = false
     mockFixtures = [
       {
         id: 'fixture-1',
@@ -207,564 +239,304 @@ describe('CoachHome', () => {
     dateNowSpy.mockRestore()
   })
 
-  it('renders next match with kick-off eyebrow + title', async () => {
-    const { findByText, findAllByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-    const titleHits = await findAllByText('vs FC Nord')
-    expect(titleHits.length).toBeGreaterThan(0)
-    // Eyebrow uses locale-formatted day + time joined by ` · ` so we can't
-    // pin a specific clock format across CI timezones. Match the separator
-    // pattern instead — that's what the eyebrow renderer always produces.
-    expect(await findByText(/[A-Z]{3}\s·\s/)).toBeTruthy()
+  const renderCoach = () => render(wrap(<CoachHome clubId="c1" teamId="team-1" />))
+
+  it('shows a layout-shaped skeleton before the first load resolves', () => {
+    const { getByTestId } = renderCoach()
+    expect(getByTestId('home-skeleton', { includeHiddenElements: true })).toBeTruthy()
   })
 
-  it('surfaces the smart RSVP nudge as the coach next action', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Chase 3 missing replies')).toBeTruthy()
-    expect(await findByText('Send nudge')).toBeTruthy()
+  it('leads with the next match and its kick-off time', async () => {
+    const { findByText, getAllByText, getByText } = renderCoach()
+    expect(await findByText('Next match')).toBeTruthy()
+    expect(getAllByText('vs FC Nord').length).toBeGreaterThan(0)
+    expect(getByText('Kick-off')).toBeTruthy()
   })
 
-  it('uses singular copy for one missing RSVP nudge', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 17,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          metrics: {
-            squadSize: 18,
-            responseCount: 17,
-            yesCount: 17,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 1,
-            responseRate: 0.94,
-            confirmedRate: 0.94,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [{ key: 'pending_replies', severity: 'info', count: 1, target: 18 }],
-          nudge: {
-            recommended: true,
-            reason: 'pending_replies',
-            targetCount: 1,
-            urgency: 'medium',
-          },
-        }),
-      },
-    ]
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Chase 1 missing reply')).toBeTruthy()
+  it('spells the squad split out instead of bare numbers', async () => {
+    const { findByText, getByText, getByLabelText } = renderCoach()
+    const hidden = { includeHiddenElements: true }
+    expect(await findByText('13 going', hidden)).toBeTruthy()
+    expect(getByText('1 maybe', hidden)).toBeTruthy()
+    expect(getByText('1 not going', hidden)).toBeTruthy()
+    expect(getByText('3 no reply', hidden)).toBeTruthy()
+    expect(getByLabelText('13 going · 1 maybe · 1 not going · 3 no reply')).toBeTruthy()
   })
 
-  it('sends the RSVP nudge from the coach next-action panel', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    fireEvent.press(await findByText('Send nudge'))
-
+  it('makes reminding the open replies the primary action', async () => {
+    const { findByText } = renderCoach()
+    fireEvent.press(await findByText('Remind 3 players'))
+    const { api } = require('../../src/api/client')
     await waitFor(() => {
-      const { api } = require('../../src/api/client')
-      expect(api).toHaveBeenCalledWith(
-        '/clubs/club-1/events/m1/remind-rsvp',
-        { method: 'POST' },
-      )
+      expect(api).toHaveBeenCalledWith('/clubs/c1/events/m1/remind-rsvp', { method: 'POST' })
+    })
+    await waitFor(() => {
+      expect(mockAlert).toHaveBeenCalledWith('Nudge sent', 'Sent RSVP reminders to 3 players.')
     })
   })
 
-  it('surfaces create-event only when there are no upcoming events', async () => {
-    mockUpcomingEvents = []
+  it('opens the lineup builder with the linked fixture from the secondary action', async () => {
+    const { findByText } = renderCoach()
+    fireEvent.press(await findByText('Lineup'))
     const { router } = require('expo-router')
-    const { findAllByText, findByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-
-    expect(await findByText('Create the next team event')).toBeTruthy()
-    const createActions = await findAllByText('Create event')
-    fireEvent.press(createActions[0])
-
-    expect(router.push).toHaveBeenCalledWith('/create-event')
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/lineup-builder',
+      params: { teamId: 'team-1', fixtureId: 'fixture-1' },
+    })
   })
 
-  it('does not call a training-only week empty', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'e-training',
-        type: 'TRAINING',
-        title: 'Recovery training',
-        date: mockSoon(1),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findByText, queryByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
+  it('switches to the lineup once a reminder is on cooldown and says when the next is possible', async () => {
+    mockUpcomingEvents = mockDefaultUpcomingEvents().map((event) =>
+      event.id === 'm1'
+        ? {
+            ...event,
+            readiness: mockDefaultReadiness({
+              nudge: {
+                recommended: false,
+                reason: 'cooldown',
+                targetCount: 3,
+                nextAvailableAt: new Date(TEST_NOW_MS + 3 * 3600000).toISOString(),
+              },
+            }),
+          }
+        : event,
     )
-
-    expect(await findByText('Schedule the next match')).toBeTruthy()
-    expect(queryByText('Create the next team event')).toBeNull()
-    fireEvent.press(await findByText('Schedule match'))
-
-    expect(router.push).toHaveBeenCalledWith('/create-event')
+    const { findByText, queryByText } = renderCoach()
+    expect(await findByText(/Reminder sent\. You can send the next one from/)).toBeTruthy()
+    expect(queryByText('Remind 3 players')).toBeNull()
+    expect(await findByText('Lineup')).toBeTruthy()
   })
 
-  it('does not show the cold-start nudge when training exists outside this week', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'e-training-later',
-        type: 'TRAINING',
-        title: 'Next block training',
-        date: mockSoon(8),
-      },
-    ]
-    const { findByText, queryByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
+  it('opens attendance as the primary action once kick-off is close', async () => {
+    mockUpcomingEvents = mockDefaultUpcomingEvents().map((event) =>
+      event.id === 'm1' ? { ...event, date: new Date(TEST_NOW_MS + 30 * 60000).toISOString() } : event,
     )
-
-    expect(await findByText('Schedule the next match')).toBeTruthy()
-    expect(queryByText(/No upcoming events yet/)).toBeNull()
-  })
-
-
-  it('prioritizes attendance when the next match is underway', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(0),
-        location: 'Stadion',
-        yesCount: 18,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'WATCH',
-          briefing: { key: 'event_started' },
-          signals: [{ key: 'check_in_gap', severity: 'warning', count: 6, target: 18 }],
-          nudge: null,
-        }),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Run arrivals for vs FC Nord')).toBeTruthy()
+    const { findByText } = renderCoach()
     fireEvent.press(await findByText('Open attendance'))
-
+    const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/event-detail',
       params: { eventId: 'm1', attendance: '1' },
     })
   })
 
-  it('prioritizes roster gaps before lineup work', async () => {
-    mockRosterOps = {
-      team: { id: 't1', displayName: 'U19', squadTarget: 18 },
-      squad: Array.from({ length: 12 }).map((_, i) => ({ userId: `u${i}` })),
-      operations: { trials: [], newPlayers: [], inactive: [] },
-      medic: { active: [], recentlyCleared: [] },
-      kit: { pending: [], recent: [] },
-    }
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 12,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'READY',
-          metrics: {
-            squadSize: 18,
-            responseCount: 18,
-            yesCount: 18,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [],
-          nudge: null,
-        }),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Fill 6 squad spots')).toBeTruthy()
-    fireEvent.press(await findByText('Open squad'))
-
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/(tabs)/roster', params: { returnTo: '/(tabs)' } })
+  it('shares the readiness briefing from the match card', async () => {
+    const { findByLabelText } = renderCoach()
+    fireEvent.press(await findByLabelText('Share briefing'))
+    await waitFor(() => expect(mockShare).toHaveBeenCalled())
   })
 
-  // The roster-gap pill no longer renders when the next-action card is
-  // already about the roster (it restated the card verbatim), so the singular
-  // copy is asserted on the card that actually carries it.
-  it('uses singular copy for one open roster spot', async () => {
-    mockRosterOps = {
-      team: { id: 't1', displayName: 'U19', squadTarget: 18 },
-      squad: Array.from({ length: 17 }).map((_, i) => ({ userId: `u${i}` })),
-      operations: { trials: [], newPlayers: [], inactive: [] },
-      medic: { active: [], recentlyCleared: [] },
-      kit: { pending: [], recent: [] },
-    }
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 17,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'READY',
-          metrics: {
-            squadSize: 17,
-            responseCount: 17,
-            yesCount: 17,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [],
-          nudge: null,
-        }),
-      },
-    ]
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Fill 1 squad spot')).toBeTruthy()
-    expect(await findByText('Fill 1 squad spot')).toBeTruthy()
-  })
-
-  it('routes no-squad readiness to roster setup instead of lineup', async () => {
-    mockRosterOps = {}
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 0,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'NEEDS_SETUP',
-          metrics: {
-            squadSize: 0,
-            responseCount: 0,
-            yesCount: 0,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 0,
-            confirmedRate: 0,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [{ key: 'no_squad', severity: 'critical' }],
-          nudge: null,
-        }),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findByText, queryByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-
-    expect(await findByText('Set up the squad for vs FC Nord')).toBeTruthy()
-    expect(queryByText('Build the lineup for vs FC Nord')).toBeNull()
-    expect(queryByText('Build lineup')).toBeNull()
-    fireEvent.press(await findByText('Open squad'))
-
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/(tabs)/roster', params: { returnTo: '/(tabs)' } })
-  })
-
-  it('routes at-risk readiness to event review instead of lineup', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 18,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'AT_RISK',
-          metrics: {
-            squadSize: 18,
-            responseCount: 18,
-            yesCount: 18,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 2,
-            suspensionRiskCount: 0,
-          },
-          signals: [{ key: 'availability_risks', severity: 'warning', count: 2 }],
-          nudge: null,
-        }),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findByText, queryByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-
-    expect(await findByText('Review blockers for vs FC Nord')).toBeTruthy()
-    expect(queryByText('Build the lineup for vs FC Nord')).toBeNull()
-    expect(queryByText('Build lineup')).toBeNull()
-    fireEvent.press(await findByText('Open event'))
-
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/event-detail',
-      params: { eventId: 'm1' },
-    })
-  })
-
-  it('uses readiness pending counts when roster ops are unavailable', async () => {
-    mockRosterOps = {}
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 14,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'WATCH',
-          metrics: {
-            squadSize: 18,
-            responseCount: 14,
-            yesCount: 14,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 4,
-            responseRate: 0.78,
-            confirmedRate: 0.78,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [{ key: 'pending_replies', severity: 'info', count: 4, target: 18 }],
-          nudge: null,
-        }),
-      },
-    ]
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    expect(await findByText('Review 4 pending replies')).toBeTruthy()
-    // One label for one intent: the pill and the short count were merged.
-    expect(await findByText('4 awaiting RSVP')).toBeTruthy()
-  })
-
-  it('moves to lineup when the match is ready', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 18,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'READY',
-          metrics: {
-            squadSize: 18,
-            responseCount: 18,
-            yesCount: 18,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [],
-          nudge: null,
-        }),
-      },
-    ]
-    const { router } = require('expo-router')
-    const { findAllByText, findByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-
-    expect(await findByText('Build the lineup for vs FC Nord')).toBeTruthy()
-    const lineupActions = await findAllByText('Build lineup')
-    fireEvent.press(lineupActions[0])
-
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/lineup-builder',
-      params: { teamId: 'team-1', fixtureId: 'fixture-1' },
-    })
-  })
-
-  it("renders this week's events", async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
+  it('lists this week with tabular yes/squad ratios and an add action', async () => {
+    const { findByText, getByLabelText } = renderCoach()
+    expect(await findByText('This week')).toBeTruthy()
     expect(await findByText('Tuesday training')).toBeTruthy()
-    expect(await findByText('Thursday training')).toBeTruthy()
-  })
-
-  it('keeps coach actions readable on narrow screens and large text', async () => {
-    const { findByLabelText, findByText } = render(
-      wrap(<CoachHome clubId="club-1" teamId="team-1" />),
-    )
-    const action = await findByLabelText('Announce')
-    const label = await findByText('Announce')
-
-    expect(StyleSheet.flatten(action.props.style)).toEqual(
-      expect.objectContaining({ flex: 1, minHeight: 60 }),
-    )
-    expect(label.props.numberOfLines).toBeUndefined()
-  })
-
-  it('renders roster snapshot counts', async () => {
-    const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-    // Squad size (18) now rides on the week rows as "x of 18"; the squad
-    // card itself moved to the Team tab.
-    expect((await findAllByText(/\b18\b/)).length).toBeGreaterThan(0)
-  })
-
-  it('shares the readiness briefing for the next match', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    fireEvent.press(await findByText('Share briefing'))
-
-    await waitFor(() => {
-      expect(mockShare).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining('Anstoss readiness: vs FC Nord'),
-        }),
-      )
-    })
-  })
-
-  it('sends a smart RSVP nudge from the readiness card', async () => {
-    const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    fireEvent.press(await findByText('Nudge now'))
-
-    await waitFor(() => {
-      const { api } = require('../../src/api/client')
-      expect(api).toHaveBeenCalledWith(
-        '/clubs/club-1/events/m1/remind-rsvp',
-        { method: 'POST' },
-      )
-    })
-    expect(mockAlert).toHaveBeenCalledWith('Nudge sent', expect.stringContaining('3'))
-  })
-
-  it('opens the lineup builder with the linked imported fixture', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 18,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'READY',
-          metrics: {
-            squadSize: 18,
-            responseCount: 18,
-            yesCount: 18,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [],
-          nudge: null,
-        }),
-      },
-    ]
+    expect(await findByText('13/20')).toBeTruthy()
+    fireEvent.press(getByLabelText('Event'))
     const { router } = require('expo-router')
-    const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    const lineupActions = await findAllByText('Build lineup')
-    fireEvent.press(lineupActions[0])
-
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/lineup-builder',
-      params: { teamId: 'team-1', fixtureId: 'fixture-1' },
-    })
+    expect(router.push).toHaveBeenCalledWith('/create-event')
   })
 
-  it('opens the lineup builder with team context when no fixture is linked', async () => {
-    mockUpcomingEvents = [
-      {
-        id: 'm1',
-        type: 'MATCH',
-        title: 'vs FC Nord',
-        date: mockSoon(2),
-        yesCount: 18,
-        maybeCount: 0,
-        noCount: 0,
-        readiness: mockDefaultReadiness({
-          status: 'READY',
-          metrics: {
-            squadSize: 18,
-            responseCount: 18,
-            yesCount: 18,
-            maybeCount: 0,
-            noCount: 0,
-            pendingCount: 0,
-            responseRate: 1,
-            confirmedRate: 1,
-            checkInCount: 0,
-            injuryRiskCount: 0,
-            suspensionRiskCount: 0,
-          },
-          signals: [],
-          nudge: null,
-        }),
+  it('surfaces only what the data proves needs attention', async () => {
+    mockRosterOps = mockDefaultRosterOps({
+      medic: {
+        active: [{ id: 'i1', title: 'Hamstring', user: { name: 'Tim Weber' } }],
+        recentlyCleared: [],
       },
-    ]
-    mockFixtures = []
-    const { router } = require('expo-router')
-    const { findAllByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-
-    const lineupActions = await findAllByText('Build lineup')
-    fireEvent.press(lineupActions[0])
-
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/lineup-builder',
-      params: { teamId: 'team-1' },
+      operations: {
+        trials: [{ userId: 't1', name: 'Jonas Wagner' }],
+        newPlayers: [],
+        inactive: [],
+        pendingCoaches: [],
+      },
+      // The team runs the rota (last wash was weeks ago) but nobody has the
+      // wash for this match.
+      kit: {
+        pending: [],
+        recent: [
+          {
+            id: 'old',
+            kind: 'JERSEY_CLEANUP',
+            status: 'COMPLETED',
+            assignedUserId: 'u1',
+            dueDate: new Date(TEST_NOW_MS - 20 * 86400000).toISOString(),
+          },
+        ],
+      },
     })
+    const { findByText, getByText, queryByText } = renderCoach()
+    expect(await findByText('Needs attention')).toBeTruthy()
+    expect(getByText('1 injured')).toBeTruthy()
+    expect(getByText('Tim Weber')).toBeTruthy()
+    expect(getByText(/No one on kit wash for/)).toBeTruthy()
+    expect(getByText('1 trial players to review')).toBeTruthy()
+    // A full squad never produces a "fill squad spots" nag.
+    expect(queryByText(/Squad:/)).toBeNull()
+    expect(queryByText(/Fill/)).toBeNull()
+  })
+
+  // ── home review fixes ──
+  it('only chases the kit wash for teams that use duties, counts a done wash, and opens Aufgaben', async () => {
+    // No duty ever assigned: the team does not run the rota, no nag.
+    mockRosterOps = mockDefaultRosterOps({ kit: { pending: [], recent: [] } })
+    const first = renderCoach()
+    expect(await first.findByText('Next match')).toBeTruthy()
+    expect(first.queryByText(/No one on kit wash for/)).toBeNull()
+    first.unmount()
+
+    // Wash already done around this match: covered.
+    mockRosterOps = mockDefaultRosterOps({
+      kit: {
+        pending: [],
+        recent: [
+          {
+            id: 'done',
+            kind: 'JERSEY_CLEANUP',
+            status: 'COMPLETED',
+            assignedUserId: 'u2',
+            dueDate: mockSoon(2),
+            completedAt: mockSoon(2),
+          },
+        ],
+      },
+    })
+    const second = renderCoach()
+    expect(await second.findByText('Next match')).toBeTruthy()
+    expect(second.queryByText(/No one on kit wash for/)).toBeNull()
+    second.unmount()
+
+    // Rota in use, nothing for this match: the row opens the assign action.
+    mockRosterOps = mockDefaultRosterOps({
+      kit: {
+        pending: [
+          {
+            id: 'far',
+            kind: 'JERSEY_CLEANUP',
+            status: 'PENDING',
+            assignedUserId: 'u2',
+            dueDate: mockSoon(20),
+          },
+        ],
+        recent: [],
+      },
+    })
+    const third = renderCoach()
+    fireEvent.press(await third.findByText(/No one on kit wash for/))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/aufgaben')
+  })
+
+  it('names the day of a reminder cooldown that ends tomorrow, not just a time', async () => {
+    mockUpcomingEvents = mockDefaultUpcomingEvents().map((event) =>
+      event.id === 'm1'
+        ? {
+            ...event,
+            readiness: mockDefaultReadiness({
+              nudge: {
+                recommended: false,
+                reason: 'cooldown',
+                targetCount: 3,
+                nextAvailableAt: new Date(TEST_NOW_MS + 26 * 3600000).toISOString(),
+              },
+            }),
+          }
+        : event,
+    )
+    const { findByText } = renderCoach()
+    const note = await findByText(/You can send the next one from/)
+    const when = new Date(TEST_NOW_MS + 26 * 3600000)
+    const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(when)
+    expect(String(note.props.children)).toContain(weekday)
+  })
+
+  it('makes "Invite players" the primary action while the squad is empty', async () => {
+    mockRosterOps = mockDefaultRosterOps({ squadCount: 0, squad: [] })
+    mockUpcomingEvents = mockDefaultUpcomingEvents().map((event) =>
+      event.id === 'm1'
+        ? { ...event, yesCount: 0, maybeCount: 0, noCount: 0, readiness: undefined, squadSize: 0 }
+        : event,
+    )
+    const { findByText } = renderCoach()
+    fireEvent.press(await findByText('Invite players'))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/invite')
+  })
+
+  it('renders only the new team when the team switches during an in-flight load', async () => {
+    const { api } = require('../../src/api/client')
+    const original = api.getMockImplementation()
+    let releaseOld: (() => void) | null = null
+    api.mockImplementation((path: string) => {
+      if (path.includes('teamId=team-old') && path.includes('scope=upcoming')) {
+        // The old team's feed answers late, after the switch.
+        return new Promise((resolve) => {
+          releaseOld = () =>
+            resolve([
+              { id: 'old-m', type: 'MATCH', title: 'vs Old Opponent', date: mockSoon(2), yesCount: 9 },
+            ])
+        })
+      }
+      if (path.includes('teamId=team-new') && path.includes('scope=upcoming')) {
+        return Promise.resolve([
+          { id: 'new-m', type: 'MATCH', title: 'vs SV Babelsberg 03', date: mockSoon(3), yesCount: 4 },
+        ])
+      }
+      return original(path)
+    })
+    try {
+      const view = render(wrap(<CoachHome clubId="c1" teamId="team-old" />))
+      view.rerender(wrap(<CoachHome clubId="c1" teamId="team-new" />))
+      expect((await view.findAllByText('vs SV Babelsberg 03')).length).toBeGreaterThan(0)
+      await React.act(async () => {
+        releaseOld?.()
+        await Promise.resolve()
+      })
+      expect(view.queryByText('vs Old Opponent')).toBeNull()
+      expect(view.getAllByText('vs SV Babelsberg 03').length).toBeGreaterThan(0)
+    } finally {
+      api.mockImplementation(original)
+    }
+  })
+  // ── end home review fixes ──
+
+  it('hides the attention section when nothing needs the coach', async () => {
+    const { findByText, queryByText } = renderCoach()
+    expect(await findByText('Next match')).toBeTruthy()
+    expect(queryByText('Needs attention')).toBeNull()
+  })
+
+  it('flags a short squad from roster-ops squadCount only when truly short', async () => {
+    mockRosterOps = mockDefaultRosterOps({ squadCount: 11 })
+    const { findByText } = renderCoach()
+    expect(await findByText('Squad: 11 of 18')).toBeTruthy()
+  })
+
+  it('asks for the next match when only training is planned', async () => {
+    mockUpcomingEvents = mockDefaultUpcomingEvents().filter((event) => event.type !== 'MATCH')
+    const { findByText } = renderCoach()
+    expect(await findByText('Schedule the next match')).toBeTruthy()
+    fireEvent.press(await findByText('Schedule match'))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/create-event')
+  })
+
+  it('shows a composed empty state when nothing is planned', async () => {
+    mockUpcomingEvents = []
+    const { findByText } = renderCoach()
+    expect(await findByText('Nothing planned yet')).toBeTruthy()
+    expect(await findByText('Create event')).toBeTruthy()
+  })
+
+  it('shows an inline error with retry when the schedule fails to load', async () => {
+    mockEventsFail = true
+    const { findByText, getByLabelText } = renderCoach()
+    expect(await findByText("Couldn't load your team's week")).toBeTruthy()
+    mockEventsFail = false
+    fireEvent.press(getByLabelText('Try again'))
+    expect(await findByText('Next match')).toBeTruthy()
+  })
+
+  it('offers Announce on the team section', async () => {
+    const { findByLabelText } = renderCoach()
+    expect(await findByLabelText('Announce')).toBeTruthy()
   })
 })

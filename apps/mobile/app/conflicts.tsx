@@ -314,7 +314,7 @@ export default function ConflictsScreen() {
               <Text variant="callout" color="primary" weight="semibold">
                 {t('conflicts.summary', {
                   defaultValue:
-                    '{{count}} overlapping session(s) in the next 14 days',
+                    'Clashes in the next 14 days: {{count}}',
                   count: conflicts.length,
                 })}
               </Text>
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
   },
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     letterSpacing: 1.4,
     marginLeft: space.xs,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   urgencyText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 1.2,

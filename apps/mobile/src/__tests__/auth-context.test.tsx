@@ -288,23 +288,37 @@ describe('AuthContext signOut', () => {
       )
     })
 
+    // Role-mode rework: with no explicit choice the highest role is the
+    // default persona (coach), and team access follows that persona.
     await waitFor(() => {
       expect(latestAuth?.activeTeamId).toBe('team-1')
-      expect(latestAuth?.activeRoleMode).toBe('PLAYER')
-      expect(latestAuth?.activeTeamAccess?.id).toBe('player-access')
-      expect(latestAuth?.activeTeamAccess?.role).toBe('PLAYER')
-    })
-
-    act(() => {
-      latestAuth?.setActiveRoleMode('COACH')
-    })
-
-    await waitFor(() => {
       expect(latestAuth?.activeRoleMode).toBe('COACH')
       expect(latestAuth?.activeTeamAccess?.id).toBe('coach-access')
       expect(latestAuth?.activeTeamAccess?.role).toBe('ASSISTANT_COACH')
+    })
+
+    // An explicitly selected persona wins over the highest-role default, and
+    // the team access switches with it.
+    act(() => {
+      latestAuth?.setActiveRoleMode('PLAYER')
+    })
+
+    await waitFor(() => {
+      expect(latestAuth?.activeRoleMode).toBe('PLAYER')
+      expect(latestAuth?.activeTeamAccess?.id).toBe('player-access')
+      expect(latestAuth?.activeTeamAccess?.role).toBe('PLAYER')
       expect(latestAuth?.teamsForActiveClub).toHaveLength(1)
-      expect(latestAuth?.teamsForActiveClub[0].id).toBe('coach-access')
+      expect(latestAuth?.teamsForActiveClub[0].id).toBe('player-access')
+    })
+
+    act(() => {
+      latestAuth?.setActiveRoleMode('PARENT')
+    })
+
+    await waitFor(() => {
+      expect(latestAuth?.activeRoleMode).toBe('PARENT')
+      expect(latestAuth?.activeTeamAccess?.id).toBe('parent-access')
+      expect(latestAuth?.activeTeamAccess?.role).toBe('PARENT')
     })
 
     act(() => {

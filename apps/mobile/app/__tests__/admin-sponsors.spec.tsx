@@ -134,11 +134,14 @@ describe('AdminSponsorsScreen', () => {
   it('opens the paywall when add is pressed without entitlement', async () => {
     entitlementsState.features = []
     mockApi.mockResolvedValue([])
-    const { getByLabelText } = render(<AdminSponsorsScreen />)
+    const { getByLabelText, getByText, queryByText } = render(<AdminSponsorsScreen />)
     await waitFor(() => {
-      expect(getByLabelText('sponsors.add')).toBeTruthy()
+      expect(getByText('sponsors.add')).toBeTruthy()
     })
-    fireEvent.press(getByLabelText('sponsors.add'))
+    // The empty state has its own title, not a second "Sponsoren" heading.
+    expect(getByText('verein.sponsors.emptyTitle')).toBeTruthy()
+    expect(queryByText('sponsors.title', { exact: true })).toBeTruthy()
+    fireEvent.press(getByText('sponsors.add'))
     // PaywallSheet renders nothing because the mock returns a fragment;
     // the assertion is that pressing Add did NOT route into a form.
     // If it did, we'd see the name input rendered.

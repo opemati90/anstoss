@@ -1,130 +1,103 @@
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Icon, PressableScale, Text } from '../ui'
+import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hexToRgba } from '../../theme/club-theme'
-import { hairline, radius, space } from '../../theme/tokens'
+import { radius, space } from '../../theme/tokens'
+import { HomeCard, HomeRow, HomeSection } from './HomeKit'
 import type { HomeAnnouncement, HomeChannel } from '../../hooks/usePlayerHome'
 
 export type TeamPulseProps = {
   channel: HomeChannel | null
   announcements: HomeAnnouncement[]
+  /** Coaches get an "Announce" action in the section header. */
+  onAnnounce?: () => void
 }
 
 /**
- * What the rest of the team has been saying.
+ * "Team": what the rest of the team has been saying.
  *
- * One grouped surface rather than the two separate bordered cards this used to
- * be — chat and announcements are the same idea (things other people posted)
- * and giving each its own card was what made home feel like a pile.
+ * Team chat (with its unread count) and the latest announcement, in one
+ * grouped surface. Only the newest announcement shows; the chat tab keeps the
+ * rest. Hidden entirely when there is nothing to show and nothing to do.
  */
-export function TeamPulse({ channel, announcements }: TeamPulseProps) {
+export function TeamPulse({ channel, announcements, onAnnounce }: TeamPulseProps) {
   const c = useClubColors()
   const { t } = useTranslation()
+  const latest = announcements[0] ?? null
 
-  if (!channel && announcements.length === 0) return null
+  if (!channel && !latest && !onAnnounce) return null
+
+  const unread = channel?.unreadCount ?? 0
 
   return (
-    <View style={styles.section}>
-      <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-        {t('home.player.pulseTitle', { defaultValue: 'From your team' }).toUpperCase()}
-      </Text>
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+    <HomeSection
+      title={t('homeHub.team', { defaultValue: 'Team' })}
+      actionLabel={onAnnounce ? t('homeHub.announce', { defaultValue: 'Announce' }) : undefined}
+      actionIcon="megaphone"
+      onAction={onAnnounce}
+    >
+      <HomeCard>
         {channel ? (
-          <PressableScale
+          <HomeRow
+            icon="bubble"
+            tone={unread > 0 ? 'accent' : 'neutral'}
+            title={t('home.teamChat', { defaultValue: 'Team chat' })}
+            detail={
+              channel.lastMessage
+                ? `${channel.lastMessage.senderName}: ${channel.lastMessage.contentPreview}`
+                : t('home.teamChatEmpty', { defaultValue: 'Say hi to your teammates' })
+            }
+            accessibilityLabel={
+              unread > 0
+                ? t('homeHub.chatUnreadA11y', {
+                    defaultValue: 'Team chat, {{count}} unread',
+                    count: unread,
+                  })
+                : t('home.teamChat', { defaultValue: 'Team chat' })
+            }
+            trailing={
+              unread > 0 ? (
+                <View style={[styles.badge, { backgroundColor: c.primary }]}>
+                  <Text variant="caption1" weight="bold" tabular style={{ color: c.onPrimary }}>
+                    {unread > 99 ? '99+' : String(unread)}
+                  </Text>
+                </View>
+              ) : null
+            }
             onPress={() => router.push('/(tabs)/chat')}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.teamChat', { defaultValue: 'Team chat' })}
-            haptic="tapLight"
-            style={styles.row}
-          >
-            <View style={[styles.iconWell, { backgroundColor: hexToRgba(c.primary, 0.12) }]}>
-              <Icon name="bubble" size={16} color={c.primary} />
-            </View>
-            <View style={styles.rowText}>
-              <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-                {t('home.teamChat', { defaultValue: 'Team chat' })}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={1}>
-                {channel.lastMessage
-                  ? `${channel.lastMessage.senderName}: ${channel.lastMessage.contentPreview}`
-                  : t('home.teamChatEmpty', { defaultValue: 'Say hi to your teammates' })}
-              </Text>
-            </View>
-            {channel.unreadCount > 0 ? (
-              <View style={[styles.badge, { backgroundColor: c.primary }]}>
-                <Text variant="caption2" weight="bold" tabular style={{ color: c.textInverse }}>
-                  {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
-                </Text>
-              </View>
-            ) : (
-              <Icon name="chevron.right" size={14} color="tertiary" />
-            )}
-          </PressableScale>
+          />
         ) : null}
-
-        {announcements.map((announcement, index) => (
-          <View
-            key={announcement.id}
-            style={[
-              styles.row,
-              styles.announcementRow,
-              (channel || index > 0) && {
-                borderTopWidth: hairline,
-                borderTopColor: c.borderSubtle,
-              },
-            ]}
-          >
-            <View style={[styles.iconWell, { backgroundColor: c.surfaceSunken }]}>
-              <Icon name="megaphone" size={16} color={c.textSecondary} />
-            </View>
-            <View style={styles.rowText}>
-              <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-                {announcement.title}
-              </Text>
-              <Text variant="footnote" color="secondary" numberOfLines={2}>
-                {announcement.body}
-              </Text>
-            </View>
+        {latest ? (
+          <HomeRow
+            icon="megaphone"
+            title={latest.title}
+            detail={latest.body}
+            showDivider={Boolean(channel)}
+          />
+        ) : null}
+        {!channel && !latest ? (
+          <View style={styles.empty}>
+            <Text variant="footnote" color="secondary">
+              {t('homeHub.coach.noAnnouncements', {
+                defaultValue: "No announcements yet. Let the team know what's coming up.",
+              })}
+            </Text>
           </View>
-        ))}
-      </View>
-    </View>
+        ) : null}
+      </HomeCard>
+    </HomeSection>
   )
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
-  card: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-  },
-  announcementRow: { alignItems: 'flex-start' },
-  iconWell: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: { flex: 1, gap: space['2xs'] },
   badge: {
-    minWidth: 24,
-    height: 22,
-    paddingHorizontal: space.xs + 1,
+    minWidth: 26,
+    height: 24,
+    paddingHorizontal: space.sm - 2,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  empty: { padding: space.md },
 })

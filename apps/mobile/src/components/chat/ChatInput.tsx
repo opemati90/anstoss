@@ -1,64 +1,108 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import * as ImagePicker from 'expo-image-picker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Animated, { useReducedMotion, ZoomIn, ZoomOut } from 'react-native-reanimated'
 import { CHAT } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { ensurePickerMediaAccess } from '../../utils/mediaPermissions'
+import * as Haptics from '../../utils/haptics'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { VoiceRecorderButton, type VoiceRecorderResult } from './VoiceRecorderButton'
-import {
-  FONT_FAMILY_REGULAR,
-  FONT_SIZE_BODY,
-  hairline,
-  RADIUS_FULL,
-  RADIUS_LG,
-  SPACING_MD,
-  SPACING_SM,
-} from '../../theme/tokens'
+import { FONT_FAMILY_REGULAR, hairline, radius, space } from '../../theme/tokens'
 
-export type ChatAttachment =
-  | {
-      kind: 'voice'
-      uri: string
-      durationMs: number
-      contentType: string
-    }
-  | {
-      kind: 'image'
-      uri: string
-      contentType: string
-      width?: number
-      height?: number
-    }
+export { pickChatImage, type ChatAttachment } from './chatAttachments'
+
+/** Body text line height in the composer; the field grows to six lines, then scrolls. */
+const LINE_HEIGHT = 22
+const MAX_LINES = 6
+const FIELD_PADDING_V = 10
+const MAX_FIELD_HEIGHT = LINE_HEIGHT * MAX_LINES + FIELD_PADDING_V * 2
+const DRAFT_PREFIX = 'chat:draft:'
 
 type Props = {
   onSend: (content: string) => Promise<boolean>
-  onSendAttachment?: (attachment: ChatAttachment) => Promise<boolean>
-  /** Managers get a compose menu (announcement, poll, event, lineup). */
-  onCompose?: () => void
+  /** Hold-to-record voice notes (mic replaces send while the field is empty). */
+  onVoiceRecorded?: (result: VoiceRecorderResult) => Promise<unknown> | void
+  /** The + menu (photo/video, file, voice, lineup, manager cards). */
+  onOpenMenu?: () => void
+  /** Camera shortcut inside the field. */
+  onCamera?: () => void
+  placeholder?: string
   onTyping: () => void
   disabled?: boolean
-  primaryColor?: string
   errorMessage?: string | null
+  /** One-line tip above the field (e.g. how to record a voice message). */
+  hint?: string | null
+  /** Per-conversation draft, kept across leaving and re-opening the thread. */
+  draftKey?: string | null
+  /** Legacy props kept for call-site compatibility. */
+  primaryColor?: string
+  onSendAttachment?: unknown
+  onCompose?: () => void
 }
 
+/**
+ * One rounded composer: + on the left, a field that grows to six lines with a
+ * camera shortcut, and a send button that springs in over the mic as soon as
+ * there is text. Drafts persist per conversation.
+ */
 export function ChatInput({
   onSend,
-  onSendAttachment,
-  onCompose,
+  onVoiceRecorded,
+  onOpenMenu,
+  onCamera,
   onTyping,
   disabled,
-  primaryColor,
   errorMessage,
+  placeholder,
+  hint,
+  draftKey,
+  onCompose,
 }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const resolvedPrimary = primaryColor || c.primary
+  const reduceMotion = useReducedMotion()
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<TextInput>(null)
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const openMenu = onOpenMenu ?? onCompose
+
+  // Restore the draft for this conversation.
+  useEffect(() => {
+    if (!draftKey) return
+    let cancelled = false
+    AsyncStorage.getItem(`${DRAFT_PREFIX}${draftKey}`)
+      .then((draft) => {
+        if (!cancelled && draft) setText((current) => current || draft)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [draftKey])
+
+  const persistDraft = useCallback(
+    (value: string) => {
+      if (!draftKey) return
+      if (draftTimer.current) clearTimeout(draftTimer.current)
+      draftTimer.current = setTimeout(() => {
+        const key = `${DRAFT_PREFIX}${draftKey}`
+        void (value.trim() ? AsyncStorage.setItem(key, value) : AsyncStorage.removeItem(key)).catch(
+          () => undefined,
+        )
+      }, 400)
+    },
+    [draftKey],
+  )
+
+  useEffect(
+    () => () => {
+      if (draftTimer.current) clearTimeout(draftTimer.current)
+    },
+    [],
+  )
 
   const handleSend = useCallback(() => {
     void (async () => {
@@ -69,200 +113,176 @@ export function ChatInput({
       try {
         const didSend = await onSend(trimmed)
         if (!didSend) return
-
+        Haptics.tap()
         setText('')
+        persistDraft('')
         inputRef.current?.focus()
       } finally {
         setIsSending(false)
       }
     })()
-  }, [text, onSend, isSending])
+  }, [text, onSend, isSending, persistDraft])
 
   const handleChangeText = useCallback(
     (value: string) => {
       setText(value)
+      persistDraft(value)
       if (value.trim()) onTyping()
     },
-    [onTyping],
+    [onTyping, persistDraft],
   )
 
   const hasText = text.trim().length > 0
   const canSend = hasText && !disabled && !isSending
+  const entering = reduceMotion ? undefined : ZoomIn.springify().damping(16).stiffness(220)
+  const exiting = reduceMotion ? undefined : ZoomOut.duration(120)
 
   const handleVoiceRecorded = useCallback(
     async (rec: VoiceRecorderResult) => {
-      if (!onSendAttachment) return
-      await onSendAttachment({
-        kind: 'voice',
-        uri: rec.uri,
-        durationMs: rec.durationMs,
-        contentType: rec.contentType,
-      })
+      if (!onVoiceRecorded) return
+      await onVoiceRecorded(rec)
     },
-    [onSendAttachment],
+    [onVoiceRecorded],
   )
 
-  const handlePickImage = useCallback(async () => {
-    if (!onSendAttachment) return
-    const hasAccess = await ensurePickerMediaAccess()
-    if (!hasAccess) return
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.8,
-    })
-    if (result.canceled || !result.assets?.[0]) return
-    const asset = result.assets[0]
-    await onSendAttachment({
-      kind: 'image',
-      uri: asset.uri,
-      contentType: asset.mimeType ?? 'image/jpeg',
-      width: asset.width,
-      height: asset.height,
-    })
-  }, [onSendAttachment])
-
   return (
-    <View style={[styles.wrap, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}>
+    <View style={[styles.wrap, { backgroundColor: c.background, borderTopColor: c.borderSubtle }]}>
       {errorMessage ? (
-        <Text variant="caption1" style={[styles.errorLabel, { color: c.error }]}>
+        <Text variant="caption1" style={[styles.notice, { color: c.error }]}>
           {errorMessage}
         </Text>
+      ) : hint ? (
+        <Text variant="footnote" color="secondary" style={styles.notice} accessibilityLiveRegion="polite">
+          {hint}
+        </Text>
       ) : null}
-      <View style={[styles.container, { backgroundColor: c.surface }]}>
-        {onCompose ? (
+      <View style={styles.container}>
+        {openMenu ? (
           <Pressable
-            onPress={onCompose}
+            onPress={openMenu}
             accessibilityRole="button"
-            accessibilityLabel={t('chat.compose.open', { defaultValue: 'Compose' })}
+            accessibilityLabel={t('chatThread.attach.open')}
             disabled={disabled}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              { backgroundColor: pressed ? c.surfaceSunken : 'transparent' },
-            ]}
-            hitSlop={4}
+            android_ripple={{ color: c.borderSubtle, borderless: true, radius: 22 }}
+            style={({ pressed }) => [styles.iconBtn, pressed && { backgroundColor: c.surfaceSunken }]}
+            testID="chat-attach-open"
           >
-            <Icon name="plus.circle" size="md" color={c.textSecondary} />
-          </Pressable>
-        ) : null}
-        {onSendAttachment ? (
-          <Pressable
-            onPress={() => void handlePickImage()}
-            accessibilityRole="button"
-            accessibilityLabel={t('a11y.attachPhoto')}
-            disabled={disabled}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                backgroundColor: pressed ? c.surfaceSunken : 'transparent',
-              },
-            ]}
-            hitSlop={4}
-          >
-            <Icon name="photo" size="md" color={c.textSecondary} />
+            <Icon name="plus" size={26} color={disabled ? c.textTertiary : c.primary} />
           </Pressable>
         ) : null}
 
-        <TextInput
-          ref={inputRef}
-          style={[
-            styles.input,
-            {
-              color: c.textPrimary,
-              backgroundColor: c.surfaceSunken,
-              borderColor: c.borderDefault,
-            },
-          ]}
-          value={text}
-          onChangeText={handleChangeText}
-          placeholder={t('chat.inputPlaceholder')}
-          placeholderTextColor={c.textTertiary}
-          accessibilityLabel={t('chat.inputPlaceholder')}
-          testID="chat-message-input"
-          multiline
-          textAlignVertical="top"
-          maxLength={CHAT.MAX_MESSAGE_LENGTH}
-          editable={!disabled}
-          returnKeyType="default"
-        />
-        {hasText ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.sendButton,
-              { backgroundColor: disabled ? c.surfaceSunken : resolvedPrimary },
-              pressed && canSend && styles.sendPressed,
-            ]}
-            onPress={handleSend}
-            disabled={!canSend}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSend, busy: isSending }}
-            accessibilityLabel={t('a11y.sendMessage')}
-            testID="chat-send-message"
-          >
-            {isSending ? (
-              <ActivityIndicator color={c.textInverse} />
-            ) : (
-              <Icon name="paperplane.fill" size="md" color={c.textInverse} />
-            )}
-          </Pressable>
-        ) : onSendAttachment ? (
-          <VoiceRecorderButton onRecorded={handleVoiceRecorded} disabled={disabled} size={44} />
-        ) : (
-          <Pressable
-            style={[styles.sendButton, { backgroundColor: c.surfaceSunken }]}
-            disabled
-            accessibilityRole="button"
-            accessibilityLabel={t('a11y.sendMessage')}
-            testID="chat-send-message"
-          >
-            <Icon name="paperplane.fill" size="md" color={c.textTertiary} />
-          </Pressable>
-        )}
+        <View style={[styles.field, { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle }]}>
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: c.textPrimary }]}
+            value={text}
+            onChangeText={handleChangeText}
+            placeholder={placeholder ?? t('chat.inputPlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            accessibilityLabel={placeholder ?? t('chat.inputPlaceholder')}
+            testID="chat-message-input"
+            multiline
+            scrollEnabled
+            textAlignVertical="center"
+            maxLength={CHAT.MAX_MESSAGE_LENGTH}
+            editable={!disabled}
+            returnKeyType="default"
+          />
+          {onCamera && !hasText ? (
+            <Pressable
+              onPress={onCamera}
+              accessibilityRole="button"
+              accessibilityLabel={t('chatThread.attach.camera')}
+              disabled={disabled}
+              hitSlop={6}
+              style={styles.fieldIcon}
+              testID="chat-camera"
+            >
+              <Icon name="camera" size={22} color={c.textSecondary} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.actionSlot}>
+          {hasText || isSending || !onVoiceRecorded ? (
+            <Animated.View key="send" entering={entering} exiting={exiting}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.sendButton,
+                  { backgroundColor: canSend || isSending ? c.primary : c.surfaceSunken },
+                  pressed && canSend && styles.sendPressed,
+                ]}
+                onPress={handleSend}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSend, busy: isSending }}
+                accessibilityLabel={t('a11y.sendMessage')}
+                testID="chat-send-message"
+              >
+                {isSending ? (
+                  <ActivityIndicator color={c.onPrimary} />
+                ) : (
+                  <Icon name="arrow.up" size={20} color={canSend ? c.onPrimary : c.textTertiary} />
+                )}
+              </Pressable>
+            </Animated.View>
+          ) : (
+            <Animated.View key="mic" entering={entering} exiting={exiting}>
+              <VoiceRecorderButton onRecorded={handleVoiceRecorded} disabled={disabled} size={44} />
+            </Animated.View>
+          )}
+        </View>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    borderTopWidth: hairline,
-  },
-  errorLabel: {
-    paddingHorizontal: SPACING_MD,
-    paddingTop: SPACING_SM,
-  },
+  wrap: { borderTopWidth: hairline },
+  notice: { paddingHorizontal: space.md, paddingTop: space.sm },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: SPACING_MD,
-    paddingVertical: SPACING_SM,
-    gap: SPACING_SM,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
+    gap: space.xs,
+  },
+  field: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    minHeight: 44,
+    borderRadius: radius.xl,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   input: {
     flex: 1,
     minHeight: 44,
-    fontSize: FONT_SIZE_BODY,
+    maxHeight: MAX_FIELD_HEIGHT,
+    fontSize: 17,
+    lineHeight: LINE_HEIGHT,
     fontFamily: FONT_FAMILY_REGULAR,
-    borderRadius: RADIUS_LG,
-    paddingHorizontal: SPACING_MD,
-    paddingVertical: SPACING_SM,
-    maxHeight: 120,
-    borderWidth: hairline,
+    includeFontPadding: false,
+    paddingHorizontal: space.md,
+    paddingTop: FIELD_PADDING_V,
+    paddingBottom: FIELD_PADDING_V,
   },
+  fieldIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  actionSlot: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   sendButton: {
     width: 44,
     height: 44,
-    borderRadius: RADIUS_FULL,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendPressed: {
-    transform: [{ scale: 0.96 }],
-  },
+  sendPressed: { transform: [{ scale: 0.94 }] },
   iconBtn: {
     width: 44,
     height: 44,
-    borderRadius: RADIUS_FULL,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -54,3 +54,22 @@ export function usePendingInvite(): string | null {
   }, [])
   return code
 }
+
+/**
+ * Tri-state variant for routing: `undefined` while storage loads, then the
+ * stored code or `null`. index.tsx waits for it so a signed-in user with an
+ * invite in flight lands back on the invite instead of Verein finden.
+ */
+export function usePendingInviteState(): string | null | undefined {
+  const [code, setCode] = useState<string | null | undefined>(undefined)
+  useEffect(() => {
+    let alive = true
+    void getPendingInvite().then((c) => {
+      if (alive) setCode(c)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return code
+}

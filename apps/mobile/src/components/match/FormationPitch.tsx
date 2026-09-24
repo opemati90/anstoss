@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   tokenName: {
     fontFamily: fonts.label,
-    fontSize: 10,
+    fontSize: 12,
     marginTop: 2,
     opacity: 0.85,
     textAlign: 'center',

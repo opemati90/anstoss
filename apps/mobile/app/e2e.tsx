@@ -53,12 +53,16 @@ export default function E2EBootstrapScreen() {
       if (nextScenario === 'signed-out') {
         await clearSessionToken().catch(() => {})
         await clearE2ESession()
+        if (router.canDismiss()) router.dismissAll()
         router.replace('/(auth)/welcome')
         return
       }
 
       await activateE2EScenario(nextScenario)
       await refreshUser()
+      // Switching persona must not leave the previous persona's modals on the
+      // stack, or the new home renders as a sheet on top of them.
+      if (router.canDismiss()) router.dismissAll()
       router.replace('/')
     })()
   }, [refreshUser, scenario])

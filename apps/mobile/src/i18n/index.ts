@@ -6,6 +6,7 @@ import {
   APP_LANGUAGE_STORAGE_KEY,
   DEFAULT_LANGUAGE,
   normalizeLanguage,
+  parseStoredLanguagePreference,
   resolveInitialLanguage,
   serializeLanguagePreference,
   type AppLanguage,
@@ -76,8 +77,63 @@ export async function setAppLanguage(language: AppLanguage) {
   )
   await i18n.changeLanguage(nextLanguage)
   // Persist to server so chat translation targets the user's choice on
-  // every device. Best-effort — server falls back to Accept-Language header.
-  void persistPreferredLanguage(nextLanguage).catch(() => undefined)
+  // every device — but only when it differs from what the server already has
+  // (R9: this used to PATCH /me on every launch, e.g. from the e2e bootstrap
+  // and before sign-in, where the request could only 401).
+  void syncPreferredLanguage().catch(() => undefined)
+}
+
+// ── Server language sync (R9) ──────────────────────────────────────────────
+// `undefined` = /me not loaded yet (signed out or still loading): never PATCH.
+// `null` = the server has no preference stored.
+let serverLanguage: string | null | undefined
+let syncInFlight: Promise<void> | null = null
+
+/**
+ * Called by AuthContext after every /me load (and with `undefined` on sign-out).
+ * Adopts the server language when this device has no explicit choice yet, and
+ * otherwise pushes the device's explicit choice if it differs.
+ */
+export function noteServerLanguage(value: string | null | undefined) {
+  serverLanguage = value === undefined ? undefined : value ? normalizeLanguage(value) : null
+  if (serverLanguage === undefined) return
+  void reconcileWithServer().catch(() => undefined)
+}
+
+async function reconcileWithServer() {
+  const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY).catch(() => null)
+  const explicitChoice = parseStoredLanguagePreference(stored)
+  if (!explicitChoice && serverLanguage) {
+    // Fresh install on a second device: follow the account's language.
+    if (getAppLanguage() !== serverLanguage) {
+      await i18n.changeLanguage(serverLanguage)
+    }
+    return
+  }
+  if (explicitChoice) await syncPreferredLanguage()
+}
+
+/** PATCH /me only when signed in and the choice differs from the server. */
+export async function syncPreferredLanguage(): Promise<void> {
+  if (serverLanguage === undefined) return
+  const current = getAppLanguage()
+  if (serverLanguage === current) return
+  if (syncInFlight) return syncInFlight
+  syncInFlight = (async () => {
+    try {
+      await persistPreferredLanguage(current)
+      serverLanguage = current
+    } finally {
+      syncInFlight = null
+    }
+  })()
+  return syncInFlight
+}
+
+/** Test hook: forget the server language between specs. */
+export function __resetLanguageSyncForTests() {
+  serverLanguage = undefined
+  syncInFlight = null
 }
 
 /**
@@ -105,6 +161,8 @@ export function getAppLocale(language: AppLanguage) {
       return 'pt-PT'
     case 'it':
       return 'it-IT'
+    case 'tr':
+      return 'tr-TR'
     default:
       return 'en-GB'
   }
@@ -120,6 +178,8 @@ export function getLanguageLabel(language: AppLanguage) {
       return 'Português'
     case 'it':
       return 'Italiano'
+    case 'tr':
+      return 'Türkçe'
     default:
       return 'English'
   }

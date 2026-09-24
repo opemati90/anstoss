@@ -21,14 +21,15 @@ export const FONT_FAMILY_REGULAR = 'DMSans_400Regular'
 export const FONT_FAMILY_MEDIUM = 'DMSans_500Medium'
 export const FONT_FAMILY_BOLD = 'DMSans_700Bold'
 
-// ─── Font Sizes (7-step scale, ~1.25 ratio) ─────────────────────────────────
+// ─── Font Sizes (iOS text-style aligned; 12pt floor) ───────────────────────
 export const FONT_SIZE_DISPLAY = ms(32)
-export const FONT_SIZE_H1 = ms(24)
-export const FONT_SIZE_H2 = ms(20)
-export const FONT_SIZE_BODY = ms(16)
-export const FONT_SIZE_BODY_SMALL = ms(14)
-export const FONT_SIZE_CAPTION = ms(12)
-export const FONT_SIZE_MICRO = ms(10)
+export const FONT_SIZE_H1 = ms(26)
+export const FONT_SIZE_H2 = ms(21)
+export const FONT_SIZE_BODY = ms(17)
+export const FONT_SIZE_BODY_SMALL = ms(15)
+export const FONT_SIZE_CAPTION = ms(13)
+// Floor for any readable text. Nothing in the app renders below 12pt.
+export const FONT_SIZE_MICRO = ms(12)
 
 // Named exception above the standard scale: match-context score numerals are
 // the loudest piece of data on the screen and benefit from being bigger than
@@ -141,7 +142,7 @@ export const TextStyles = {
   tag: {
     fontFamily: FONT_FAMILY_BOLD,
     fontSize: FONT_SIZE_MICRO,
-    letterSpacing: 1.0,
+    letterSpacing: 0.6,
     textTransform: 'uppercase' as const,
   },
 } as const

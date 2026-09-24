@@ -1,79 +1,144 @@
-import { Pressable, StyleSheet, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheet } from '../ui/BottomSheet'
-import { Icon, Text } from '../ui'
+import { Button, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { fonts, hairline, radius, space, RADIUS_INPUT } from '../../theme/tokens'
+import { ABSENCE_REASON_CHIPS, type RsvpReasonKey } from './eventFormat'
+
+export type AbsenceDetail = { reason?: RsvpReasonKey; note?: string }
 
 export interface UnavailableReasonSheetProps {
   visible: boolean
-  onSelect: (reason: string) => void
-  onSkip: () => void
+  /** Who the Absage is for when a parent answers ("Mia"). */
+  subjectName?: string | null
+  onSubmit: (detail: AbsenceDetail) => void
   onClose: () => void
 }
 
+const NOTE_MAX = 200
+
+/**
+ * The short Absage sheet: one tap on a reason chip, an optional line for the
+ * coach, and a quiet way out without giving a reason. A reason is never
+ * required, because a player who has to explain themselves just stops
+ * answering.
+ */
 export function UnavailableReasonSheet({
   visible,
-  onSelect,
-  onSkip,
+  subjectName,
+  onSubmit,
   onClose,
 }: UnavailableReasonSheetProps) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const [reason, setReason] = useState<RsvpReasonKey | null>(null)
+  const [note, setNote] = useState('')
 
-  const reasons = [
-    { key: 'injury', label: t('event.rsvpReasons.injury') },
-    { key: 'work', label: t('event.rsvpReasons.work') },
-    { key: 'personal', label: t('event.rsvpReasons.personal') },
-    { key: 'other', label: t('event.rsvpReasons.other') },
-  ]
+  useEffect(() => {
+    if (visible) {
+      setReason(null)
+      setNote('')
+    }
+  }, [visible])
+
+  const trimmedNote = note.trim()
+  const submit = (withReason: boolean) => {
+    onSubmit({
+      ...(withReason && reason ? { reason } : {}),
+      ...(withReason && trimmedNote ? { note: trimmedNote } : {}),
+    })
+  }
 
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.container}>
-        <Text variant="title2" weight="semibold" color="primary" style={styles.title}>
-          {t('event.rsvpReasons.whyUnavailable')}
-        </Text>
-
-        <View
-          style={[
-            styles.listCard,
-            { backgroundColor: c.surface, borderColor: c.borderDefault },
-          ]}
-        >
-          {reasons.map((reason, idx) => (
-            <Pressable
-              key={reason.key}
-              accessibilityRole="radio"
-              accessibilityLabel={reason.label}
-              onPress={() => onSelect(reason.key)}
-              style={({ pressed }) => [
-                styles.row,
-                idx < reasons.length - 1 && {
-                  borderBottomColor: c.borderDefault,
-                  borderBottomWidth: hairline,
-                },
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <Text variant="body" color="primary" style={{ flex: 1 }}>
-                {reason.label}
-              </Text>
-              <Icon name="chevron.right" size="sm" color="tertiary" />
-            </Pressable>
-          ))}
+        <View style={styles.header}>
+          <Text variant="title3" color="primary">
+            {subjectName
+              ? t('eventFlow.absence.titleFor', { name: subjectName })
+              : t('eventFlow.absence.title')}
+          </Text>
+          <Text variant="footnote" color="secondary">
+            {t('eventFlow.absence.subtitle')}
+          </Text>
         </View>
 
-        <Pressable
-          onPress={onSkip}
-          accessibilityRole="button"
-          accessibilityLabel={t('event.rsvpReasons.skip')}
-          style={({ pressed }) => [styles.skipButton, pressed && { opacity: 0.7 }]}
-        >
-          <Text variant="subheadline" weight="semibold" color="tertiary">
-            {t('event.rsvpReasons.skip')}
-          </Text>
-        </Pressable>
+        <View style={styles.chips} accessibilityRole="radiogroup">
+          {ABSENCE_REASON_CHIPS.map((key) => {
+            const selected = reason === key
+            const label = t(`eventFlow.reason.${key}`)
+            return (
+              <Pressable
+                key={key}
+                testID={`absence-reason-${key}`}
+                accessibilityRole="radio"
+                accessibilityLabel={label}
+                accessibilityState={{ selected }}
+                android_ripple={{ color: c.borderSubtle }}
+                onPress={() => setReason(selected ? null : key)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? c.primary : c.surfaceSunken,
+                    borderColor: selected ? c.primary : c.borderSubtle,
+                  },
+                  pressed && !selected && { opacity: 0.8 },
+                ]}
+              >
+                <Text
+                  variant="subheadline"
+                  weight={selected ? 'semibold' : 'medium'}
+                  color={selected ? c.textInverse : c.textPrimary}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+
+        <View>
+          <TextInput
+            testID="absence-note"
+            value={note}
+            onChangeText={setNote}
+            placeholder={t('eventFlow.absence.notePlaceholder')}
+            placeholderTextColor={c.textTertiary}
+            maxLength={NOTE_MAX}
+            multiline
+            accessibilityLabel={t('eventFlow.absence.noteLabel')}
+            style={[
+              styles.note,
+              { color: c.textPrimary, backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },
+            ]}
+          />
+          {note.length > NOTE_MAX - 40 ? (
+            <Text variant="caption1" color="tertiary" tabular style={styles.counter}>
+              {`${note.length}/${NOTE_MAX}`}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.actions}>
+          <Button
+            label={t('eventFlow.absence.confirm')}
+            variant="filled"
+            size="lg"
+            fullWidth
+            onPress={() => submit(true)}
+            testID="absence-confirm"
+          />
+          <Button
+            label={t('eventFlow.absence.withoutReason')}
+            variant="plain"
+            size="md"
+            fullWidth
+            onPress={() => submit(false)}
+            testID="absence-skip"
+          />
+        </View>
       </View>
     </BottomSheet>
   )
@@ -85,26 +150,30 @@ const styles = StyleSheet.create({
     paddingBottom: space.lg,
     gap: space.md,
   },
-  title: {
-    paddingBottom: space.xs,
-  },
-  listCard: {
-    borderRadius: radius.md,
+  header: { gap: space.xs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  chip: {
+    minHeight: 44,
+    paddingHorizontal: space.md,
+    borderRadius: radius.full,
     borderCurve: 'continuous',
     borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  note: {
+    minHeight: 64,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 52,
-    gap: space.sm,
+    paddingTop: space.sm + 2,
+    paddingBottom: space.sm + 2,
+    fontSize: 16,
+    fontFamily: fonts.body,
+    includeFontPadding: false,
+    textAlignVertical: 'top',
   },
-  skipButton: {
-    alignSelf: 'center',
-    paddingVertical: space.sm,
-    paddingHorizontal: space.lg,
-  },
+  counter: { alignSelf: 'flex-end', marginTop: space.xs },
+  actions: { gap: space.xs },
 })

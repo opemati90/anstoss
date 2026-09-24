@@ -108,3 +108,18 @@ console.error = (...args) => {
 
   originalConsoleError(...args)
 }
+
+// Chat revamp: native keyboard tracking. The package ships its own jest mock
+// (KeyboardProvider, KeyboardAvoidingView, KeyboardStickyView render children).
+jest.mock('react-native-keyboard-controller', () =>
+  require('react-native-keyboard-controller/jest'),
+)
+
+// Chat revamp: reanimated (layout animations, swipe-to-reply) and gesture
+// handler run on their official jest mocks.
+jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'))
+jest.mock('react-native-reanimated', () => {
+  const mock = require('react-native-reanimated/mock')
+  return { ...mock, useReducedMotion: () => false, default: mock.default }
+})
+require('react-native-gesture-handler/jestSetup')

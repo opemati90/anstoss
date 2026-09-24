@@ -1,9 +1,8 @@
 import { renderHook, act } from '@testing-library/react-native'
-import { RegistrationRole } from '@anstoss/shared'
 import { OnboardingFlowProvider, useOnboardingFlow } from '../OnboardingFlowContext'
 
 jest.mock('../AuthContext', () => ({
-  useAuth: () => ({ user: null }),
+  useAuth: () => ({ user: { id: 'user-1' } }),
 }))
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -16,23 +15,20 @@ describe('OnboardingFlowContext', () => {
     expect(result.current.state).toEqual({})
   })
 
-  it('records phone, name, dob, role across calls', () => {
+  it('stamps the owner on every club-setup draft update', () => {
     const { result } = renderHook(() => useOnboardingFlow(), { wrapper })
-    act(() => result.current.update({ phone: '+4915112345678' }))
-    act(() => result.current.update({ firstName: 'Mara' }))
-    act(() => result.current.update({ dateOfBirth: '2010-04-26' }))
-    act(() => result.current.update({ role: RegistrationRole.PLAYER }))
+    act(() => result.current.update({ clubName: 'SV Albatros' }))
+    act(() => result.current.update({ teamName: 'Herren II' }))
     expect(result.current.state).toEqual({
-      phone: '+4915112345678',
-      firstName: 'Mara',
-      dateOfBirth: '2010-04-26',
-      role: 'PLAYER',
+      ownerUserId: 'user-1',
+      clubName: 'SV Albatros',
+      teamName: 'Herren II',
     })
   })
 
   it('reset() clears state', () => {
     const { result } = renderHook(() => useOnboardingFlow(), { wrapper })
-    act(() => result.current.update({ firstName: 'X' }))
+    act(() => result.current.update({ clubName: 'X' }))
     act(() => result.current.reset())
     expect(result.current.state).toEqual({})
   })

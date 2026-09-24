@@ -9,74 +9,41 @@ import {
   type ReactNode,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import type { TeamRole } from '@anstoss/shared'
 import { useAuth } from './AuthContext'
-import type { RegistrationRole, TeamRole } from '@anstoss/shared'
+import { ONBOARDING_FLOW_STORAGE_KEY } from '../onboarding/storageKeys'
 
-export const ONBOARDING_FLOW_STORAGE_KEY = '@anstoss/onboarding-state-v1'
+// Re-exported for callers that imported the key from here before it moved to
+// the leaf module (the move broke the AuthContext <-> flow require cycle).
+export { ONBOARDING_FLOW_STORAGE_KEY }
 
+/**
+ * Locally persisted onboarding draft. Only the club-setup form is long enough
+ * to be worth restoring after a cold start; every other step is one question
+ * and reads its truth from the server (/me).
+ */
 export type OnboardingFlowState = {
-  /** Backend user id that owns this locally persisted draft. State without an
-   * owner is ignored for signed-in resume so shared devices cannot leak a
-   * previous user's abandoned onboarding details. Keyed on the stable
-   * `user.id` — NOT `clerkId`, which is null for every email-OTP account and
-   * silently disabled resume + the shared-device guard after the Clerk→OTP
-   * migration. */
+  /** Backend user id that owns this draft. Drafts owned by someone else are
+   * dropped so a shared device never shows the previous user's details. */
   ownerUserId?: string
-  phone?: string
-  /** Email address chosen during signup if the user picked email instead
-   * of phone OTP. Only one of phone/email is set per session. */
-  email?: string
-  firstName?: string
-  dateOfBirth?: string
-  role?: RegistrationRole
-  teamId?: string
-  clubId?: string
+  /** Club setup (admin): directory entry the club was picked from. */
+  directoryEntryId?: string
   clubName?: string
-  /** Primary brand color picked during club setup. Used by clubs/setup. */
-  clubPrimaryColor?: string
-  /** Local file URI of the picked logo before upload. */
-  clubLogoUri?: string | null
-  /** Remote URL after upload (set post-finalize). */
-  clubBadgeUrl?: string | null
-  /** Team name collected during club setup. Persisted until /clubs/setup. */
   teamName?: string
-  /** Roster names captured during onboarding, posted after finalize. */
-  rosterNames?: string[]
-  /** True once the user accepted Privacy + Terms on welcome. Required to
-   * leave the welcome step. */
-  policyAccepted?: boolean
-  rosterSlotId?: string
-  /** Raw join code the user entered on the team-code screen. Persisted
-   * so done.tsx can call /onboarding/join-team after the Clerk session
-   * is finalized — without this, COACH/PARENT/PLAYER flows (and PLAYER
-   * paths that skip roster-claim) finish onboarding with no Membership
-   * row, so home/agenda/chat 401. */
-  teamJoinCode?: string
-  /** When the admin picked their club from fussball.de autocomplete,
-   * we keep the externalClubId so the post-finalize hook can fetch
-   * teams + auto-link the first team without making the admin paste a
-   * URL. Empty string / undefined = manual flow, no link. */
-  fussballExternalClubId?: string
+  teamGroupType?: 'SENIOR' | 'YOUTH'
   officialTeamUrl?: string
-  /** Optional participation roles for the activating administrator. Club
-   * authority is independent, so the owner may also coach and/or play. */
+  clubPrimaryColor?: string
   adminTeamRoles?: TeamRole[]
-  fussballClubLogoUrl?: string
-  fussballClubCity?: string
-  /** Path of the last step the user was on. Used to resume after a
-   * cold-start. Set explicitly via `markStep`; never written
-   * automatically (keeps the state shape deterministic). */
+  /** Path of the last onboarding step, for cold-start resume. */
   lastStep?: string
 }
 
 type OnboardingFlowContextValue = {
   state: OnboardingFlowState
-  /** True until AsyncStorage has been read on first mount. Consumers
-   * should hold off on routing decisions while this is true. */
+  /** True until AsyncStorage has been read on first mount. */
   hydrating: boolean
   update: (patch: Partial<OnboardingFlowState>) => void
-  /** Record the path of the current screen so we can resume here on
-   * cold-start. Call this from each step's mount effect. */
+  /** Record the current screen so a cold start can resume here. */
   markStep: (path: string) => void
   reset: () => void
 }
@@ -84,38 +51,25 @@ type OnboardingFlowContextValue = {
 const Ctx = createContext<OnboardingFlowContextValue | null>(null)
 
 export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
-  // Owner id for the persisted draft. Uses the stable backend `user.id` so the
-  // "shared device cannot leak a previous user's abandoned onboarding" guard —
-  // and cold-start resume — keep working after the move off Clerk (clerkId is
-  // null for every OTP account). Null until the user is loaded (pre-auth
-  // onboarding drafts are simply unowned, same as before).
   const { user } = useAuth()
   const ownerUserId = user?.id ?? null
   const [state, setState] = useState<OnboardingFlowState>({})
   const [hydrating, setHydrating] = useState(true)
   const persistVersion = useRef(0)
 
-  // Hydrate once on mount.
   useEffect(() => {
     let cancelled = false
     AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)
       .then((raw) => {
-        if (cancelled) return
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as OnboardingFlowState
-            // Drop expired or malformed shapes — ignore parse errors.
-            if (parsed && typeof parsed === 'object') {
-              setState(parsed)
-            }
-          } catch {
-            // tolerated
-          }
+        if (cancelled || !raw) return
+        try {
+          const parsed = JSON.parse(raw) as OnboardingFlowState
+          if (parsed && typeof parsed === 'object') setState(parsed)
+        } catch {
+          // Malformed draft: ignore it.
         }
       })
-      .catch(() => {
-        // tolerated — first launch may have nothing
-      })
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setHydrating(false)
       })
@@ -124,6 +78,7 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // A draft owned by another account never survives a user switch.
   useEffect(() => {
     if (!ownerUserId) return
     setState((current) => {
@@ -133,8 +88,8 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
     })
   }, [ownerUserId])
 
-  // Persist on every change. Versioned microtask writes prevent an older
-  // queued write from resurrecting stale state after reset().
+  // Versioned microtask writes stop an older queued write from resurrecting
+  // state after reset().
   useEffect(() => {
     if (hydrating) return
     const snapshot = state
@@ -142,24 +97,16 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       if (version !== persistVersion.current) return
       if (Object.keys(snapshot).length === 0) {
-        AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
-          // tolerated
-        })
+        AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
         return
       }
-      AsyncStorage.setItem(ONBOARDING_FLOW_STORAGE_KEY, JSON.stringify(snapshot)).catch(() => {
-        // tolerated
-      })
+      AsyncStorage.setItem(ONBOARDING_FLOW_STORAGE_KEY, JSON.stringify(snapshot)).catch(() => {})
     })
   }, [state, hydrating])
 
   const update = useCallback(
     (patch: Partial<OnboardingFlowState>) => {
-      setState((s) => ({
-        ...s,
-        ...(ownerUserId ? { ownerUserId } : {}),
-        ...patch,
-      }))
+      setState((s) => ({ ...s, ...(ownerUserId ? { ownerUserId } : {}), ...patch }))
     },
     [ownerUserId],
   )
@@ -167,11 +114,8 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
   const markStep = useCallback(
     (path: string) => {
       setState((s) => {
-        const ownerPatch = ownerUserId ? { ownerUserId } : {}
-        if (s.lastStep === path && (!ownerUserId || s.ownerUserId === ownerUserId)) {
-          return s
-        }
-        return { ...s, ...ownerPatch, lastStep: path }
+        if (s.lastStep === path && (!ownerUserId || s.ownerUserId === ownerUserId)) return s
+        return { ...s, ...(ownerUserId ? { ownerUserId } : {}), lastStep: path }
       })
     },
     [ownerUserId],
@@ -180,9 +124,7 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     persistVersion.current += 1
     setState({})
-    AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {
-      // tolerated
-    })
+    AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
   }, [])
 
   const value = useMemo(

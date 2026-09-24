@@ -1,15 +1,12 @@
 /**
- * Tests for UnavailableReasonSheet and the reason badge in AttendanceSheet.
+ * The Absage sheet (reason chips, optional note, "without reason") and the
+ * reason label it feeds into the AttendanceSheet.
  */
 
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
-// ── common mocks ──────────────────────────────────────────────────────────────
-
-jest.mock('@expo/vector-icons', () => ({
-  Ionicons: 'Ionicons',
-}))
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
 jest.mock('../../../components/ui/Icon', () => ({
   Icon: ({ name }: { name: string }) => {
@@ -19,58 +16,50 @@ jest.mock('../../../components/ui/Icon', () => ({
 }))
 
 jest.mock('../../../components/ui', () => {
-  const { Text: RNText, View: RNView } = require('react-native')
+  const { Text: RNText, View: RNView, Pressable } = require('react-native')
   return {
     Icon: ({ name }: { name: string }) => <RNView testID={`icon-${name}`} />,
-    Text: ({
-      children,
-      testID,
-      numberOfLines,
-    }: {
-      children: React.ReactNode
-      testID?: string
-      numberOfLines?: number
-    }) => <RNText testID={testID} numberOfLines={numberOfLines}>{children}</RNText>,
+    Text: ({ children, testID }: { children: React.ReactNode; testID?: string }) => (
+      <RNText testID={testID}>{children}</RNText>
+    ),
+    Button: ({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) => (
+      <Pressable accessibilityRole="button" onPress={onPress} testID={testID}>
+        <RNText>{label}</RNText>
+      </Pressable>
+    ),
   }
 })
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, opts?: Record<string, unknown>) => {
       const map: Record<string, string> = {
-        'event.rsvpReasons.whyUnavailable': 'Why are you unavailable?',
-        'event.rsvpReasons.injury': 'Injury / illness',
-        'event.rsvpReasons.work': 'Work / school',
-        'event.rsvpReasons.personal': 'Personal',
-        'event.rsvpReasons.other': 'Other',
-        'event.rsvpReasons.skip': 'Skip',
+        'eventFlow.absence.title': 'Why can’t you make it?',
+        'eventFlow.absence.subtitle': 'Only the coaches see the reason.',
+        'eventFlow.absence.confirm': 'Can’t make it',
+        'eventFlow.absence.withoutReason': 'Skip the reason',
+        'eventFlow.absence.notePlaceholder': 'Note (optional)',
+        'eventFlow.absence.noteLabel': 'Note for the coaches',
+        'eventFlow.reason.injured': 'Injured',
+        'eventFlow.reason.sick': 'Ill',
+        'eventFlow.reason.work': 'Work/School',
+        'eventFlow.reason.vacation': 'On holiday',
+        'eventFlow.reason.personal': 'Personal',
+        'eventFlow.reason.suspended': 'Suspended',
         'event.checkIn.attendanceTitle': 'Attendance',
-        'event.checkIn.attendance': '0 checked in',
-        'event.checkIn.noShows': '0 no-shows',
         'eventAttendance.noResponses': 'No responses yet.',
         'common.loadError': 'Could not load data',
       }
+      if (key === 'eventFlow.absence.titleFor') return `Why can’t ${opts?.name} make it?`
       return map[key] ?? key
     },
   }),
 }))
 
-jest.mock('../../../context/ClubThemeContext', () => ({
-  useClubColors: () => ({
-    primary: '#0050ff',
-    primary50: '#dde7ff',
-    surface: '#fff',
-    borderDefault: '#e5e5e0',
-    surfaceOverlay: 'rgba(0,0,0,0.4)',
-    background: '#fafaf8',
-    success: '#2D7A3A',
-    error: '#C4372C',
-    textInverse: '#fff',
-    textTertiary: '#9C9C96',
-    textPrimary: '#1A1A18',
-  }),
-  useIsDark: () => false,
-}))
+jest.mock('../../../context/ClubThemeContext', () => {
+  const { FALLBACK_THEME } = require('../../../theme/club-theme')
+  return { useClubColors: () => FALLBACK_THEME, useIsDark: () => false }
+})
 
 jest.mock('../../ui/BottomSheet', () => {
   const { View: V } = require('react-native')
@@ -80,210 +69,108 @@ jest.mock('../../ui/BottomSheet', () => {
   }
 })
 
-jest.mock('../../../api/client', () => ({
-  api: jest.fn(),
-}))
-
-jest.useFakeTimers()
-
-// ── UnavailableReasonSheet tests ──────────────────────────────────────────────
+jest.mock('../../../api/client', () => ({ api: jest.fn() }))
 
 import { UnavailableReasonSheet } from '../UnavailableReasonSheet'
+import { AttendanceSheet } from '../AttendanceSheet'
 
 describe('UnavailableReasonSheet', () => {
-  const onSelect = jest.fn()
-  const onSkip = jest.fn()
+  const onSubmit = jest.fn()
   const onClose = jest.fn()
 
-  beforeEach(() => {
-    jest.clearAllMocks()
+  beforeEach(() => jest.clearAllMocks())
+
+  it('renders all six reason chips, including Gesperrt', () => {
+    render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
+    for (const key of ['injured', 'sick', 'work', 'vacation', 'personal', 'suspended']) {
+      expect(screen.getByTestId(`absence-reason-${key}`)).toBeTruthy()
+    }
   })
 
-  afterEach(() => {
-    jest.runOnlyPendingTimers()
-  })
-
-  it('renders when visible', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={true}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
-    expect(screen.getByTestId('bottom-sheet')).toBeOnTheScreen()
-    expect(screen.getByText('Why are you unavailable?')).toBeOnTheScreen()
-  })
-
-  it('does not render when not visible', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={false}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
+  it('renders nothing when hidden', () => {
+    render(<UnavailableReasonSheet visible={false} onSubmit={onSubmit} onClose={onClose} />)
     expect(screen.queryByTestId('bottom-sheet')).toBeNull()
   })
 
-  it('shows all four reason options', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={true}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
-    expect(screen.getByText('Injury / illness')).toBeOnTheScreen()
-    expect(screen.getByText('Work / school')).toBeOnTheScreen()
-    expect(screen.getByText('Personal')).toBeOnTheScreen()
-    expect(screen.getByText('Other')).toBeOnTheScreen()
+  it('names the child when a parent answers', () => {
+    render(<UnavailableReasonSheet visible subjectName="Mia" onSubmit={onSubmit} onClose={onClose} />)
+    expect(screen.getByText('Why can’t Mia make it?')).toBeTruthy()
   })
 
-  it('calls onSelect with the stable reason code when a reason is tapped', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={true}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
-    fireEvent.press(screen.getByText('Injury / illness'))
-    expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith('injury')
+  it('submits the chosen reason and the trimmed note', () => {
+    render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
+    fireEvent.press(screen.getByTestId('absence-reason-suspended'))
+    fireEvent.changeText(screen.getByTestId('absence-note'), '  Rote Karte letzte Woche  ')
+    fireEvent.press(screen.getByTestId('absence-confirm'))
+    expect(onSubmit).toHaveBeenCalledWith({ reason: 'suspended', note: 'Rote Karte letzte Woche' })
   })
 
-  it('calls onSelect with stable code for Work / school when tapped', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={true}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
-    fireEvent.press(screen.getByText('Work / school'))
-    expect(onSelect).toHaveBeenCalledWith('work')
+  it('tapping a chosen chip again clears it', () => {
+    render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
+    fireEvent.press(screen.getByTestId('absence-reason-sick'))
+    fireEvent.press(screen.getByTestId('absence-reason-sick'))
+    fireEvent.press(screen.getByTestId('absence-confirm'))
+    expect(onSubmit).toHaveBeenCalledWith({})
   })
 
-  it('calls onSkip when Skip is tapped', () => {
-    render(
-      <UnavailableReasonSheet
-        visible={true}
-        onSelect={onSelect}
-        onSkip={onSkip}
-        onClose={onClose}
-      />,
-    )
-    fireEvent.press(screen.getByText('Skip'))
-    expect(onSkip).toHaveBeenCalledTimes(1)
-    expect(onSelect).not.toHaveBeenCalled()
+  it('"without reason" never sends a reason or note', () => {
+    render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
+    fireEvent.press(screen.getByTestId('absence-reason-injured'))
+    fireEvent.changeText(screen.getByTestId('absence-note'), 'Knie')
+    fireEvent.press(screen.getByTestId('absence-skip'))
+    expect(onSubmit).toHaveBeenCalledWith({})
   })
 })
 
-// ── AttendanceSheet reason badge tests ───────────────────────────────────────
-
-import { AttendanceSheet } from '../AttendanceSheet'
-
-describe('AttendanceSheet reason badge', () => {
+describe('AttendanceSheet reason label', () => {
   const mockApi = require('../../../api/client').api as jest.Mock
-
-  afterEach(() => {
-    jest.clearAllMocks()
-    jest.runOnlyPendingTimers()
-  })
-
   const pastDate = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
 
-  it('does not show a reason badge when reason is null', async () => {
+  afterEach(() => jest.clearAllMocks())
+
+  function renderSheet() {
+    return render(
+      <AttendanceSheet
+        visible
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-1"
+        eventDate={pastDate}
+      />,
+    )
+  }
+
+  it('shows no reason when none was given', async () => {
     mockApi.mockResolvedValue({
       rsvps: [],
       checkIns: [],
       noShows: [{ userId: 'u1', user: { name: 'Alice' }, status: 'NO', reason: null }],
     })
-
-    render(
-      <AttendanceSheet
-        visible={true}
-        onClose={() => {}}
-        clubId="club-1"
-        eventId="event-1"
-        eventDate={pastDate}
-      />,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Alice')).toBeOnTheScreen()
-    })
-
-    // No reason text should appear alongside Alice
-    expect(screen.queryByText('Injury / illness')).toBeNull()
-    expect(screen.queryByText('Personal')).toBeNull()
+    renderSheet()
+    await waitFor(() => expect(screen.getByText('Alice')).toBeOnTheScreen())
+    expect(screen.queryByText('Injured')).toBeNull()
   })
 
-  it('shows a reason badge for a NO-status entry with a reason code', async () => {
+  it('maps the legacy injury code to the new label', async () => {
     mockApi.mockResolvedValue({
       rsvps: [],
       checkIns: [],
-      noShows: [
-        {
-          userId: 'u1',
-          user: { name: 'Bob' },
-          status: 'NO',
-          reason: 'personal',
-        },
-      ],
+      noShows: [{ userId: 'u1', user: { name: 'Carol' }, status: 'NO', reason: 'injury' }],
     })
-
-    render(
-      <AttendanceSheet
-        visible={true}
-        onClose={() => {}}
-        clubId="club-1"
-        eventId="event-1"
-        eventDate={pastDate}
-      />,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Bob')).toBeOnTheScreen()
-      // t('event.rsvpReasons.personal') → 'Personal' via i18n mock
-      expect(screen.getByText('Personal')).toBeOnTheScreen()
-    })
-  })
-
-  it('shows badge for injury reason code with translated label', async () => {
-    mockApi.mockResolvedValue({
-      rsvps: [],
-      checkIns: [],
-      noShows: [
-        {
-          userId: 'u1',
-          user: { name: 'Carol' },
-          status: 'NO',
-          reason: 'injury',
-        },
-      ],
-    })
-
-    render(
-      <AttendanceSheet
-        visible={true}
-        onClose={() => {}}
-        clubId="club-1"
-        eventId="event-1"
-        eventDate={pastDate}
-      />,
-    )
-
+    renderSheet()
     await waitFor(() => {
       expect(screen.getByText('Carol')).toBeOnTheScreen()
-      // t('event.rsvpReasons.injury') → 'Injury / illness' via i18n mock
-      expect(screen.getByText('Injury / illness')).toBeOnTheScreen()
+      expect(screen.getByText('Injured')).toBeOnTheScreen()
     })
+  })
+
+  it('labels suspended replies', async () => {
+    mockApi.mockResolvedValue({
+      rsvps: [],
+      checkIns: [],
+      noShows: [{ userId: 'u1', user: { name: 'Dirk' }, status: 'NO', reason: 'suspended' }],
+    })
+    renderSheet()
+    await waitFor(() => expect(screen.getByText('Suspended')).toBeOnTheScreen())
   })
 })

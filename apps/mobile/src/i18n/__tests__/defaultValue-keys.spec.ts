@@ -61,7 +61,9 @@ describe('i18n referenced keys exist in the German locale', () => {
     }
 
     const missing = [...referenced]
-      .filter((k) => !deKeys.has(k) && !NON_I18N.test(k))
+      // A plural key is referenced by its base name; i18next resolves it to
+      // `${key}_one` / `${key}_other`, so either form counts as present.
+      .filter((k) => !deKeys.has(k) && !deKeys.has(`${k}_other`) && !NON_I18N.test(k))
       .sort()
 
     expect(missing).toEqual([])

@@ -5,7 +5,6 @@ import { Icon, PressableScale, Text } from '../ui'
 import { LiveStatusPill } from '../match'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
-import { TEXT_WHITE } from '../../theme/colors'
 import { hairline, radius, space } from '../../theme/tokens'
 
 export type LiveMatchCardProps = {
@@ -31,51 +30,56 @@ export function LiveMatchCard({ fixture, showOpenAction, onPress }: LiveMatchCar
     <PressableScale
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${fixture.homeTeam} vs ${fixture.awayTeam} live, ${fixture.resultHome ?? 0}-${fixture.resultAway ?? 0}`}
+      accessibilityLabel={t('homeHub.liveA11y', {
+        defaultValue: '{{home}} vs {{away}}, live, {{homeScore}} to {{awayScore}}',
+        home: fixture.homeTeam,
+        away: fixture.awayTeam,
+        homeScore: fixture.resultHome ?? 0,
+        awayScore: fixture.resultAway ?? 0,
+      })}
       haptic="tapLight"
       style={[styles.card, { backgroundColor: c.primary }]}
     >
       <View style={styles.head}>
         <LiveStatusPill status="live" inverse />
         <Text
-          variant="caption2"
-          tracking="wide"
-          weight="semibold"
-          numberOfLines={1}
-          style={{ color: hexToRgba(TEXT_WHITE, 0.72) }}
+          variant="footnote"
+          weight="medium"
+          numberOfLines={2}
+          style={[styles.competition, { color: hexToRgba(c.onPrimary, 0.8) }]}
         >
-          {fixture.competition.toUpperCase()}
+          {fixture.competition}
         </Text>
       </View>
 
       <View style={styles.scoreRow}>
         <Text
-          variant="footnote"
+          variant="subheadline"
           weight="semibold"
-          numberOfLines={1}
-          style={[styles.team, { color: TEXT_WHITE }]}
+          numberOfLines={2}
+          style={[styles.team, { color: c.onPrimary }]}
         >
           {fixture.homeTeam}
         </Text>
-        <Text variant="dataLarge" weight="bold" tabular style={{ color: TEXT_WHITE }}>
+        <Text variant="title1" weight="bold" tabular style={{ color: c.onPrimary }}>
           {fixture.resultHome ?? 0}-{fixture.resultAway ?? 0}
         </Text>
         <Text
-          variant="footnote"
+          variant="subheadline"
           weight="semibold"
-          numberOfLines={1}
-          style={[styles.team, styles.teamRight, { color: TEXT_WHITE }]}
+          numberOfLines={2}
+          style={[styles.team, styles.teamRight, { color: c.onPrimary }]}
         >
           {fixture.awayTeam}
         </Text>
       </View>
 
       {showOpenAction ? (
-        <View style={[styles.footer, { borderTopColor: hexToRgba(TEXT_WHITE, 0.22) }]}>
-          <Text variant="footnote" weight="semibold" style={{ color: TEXT_WHITE }}>
+        <View style={[styles.footer, { borderTopColor: hexToRgba(c.onPrimary, 0.22) }]}>
+          <Text variant="subheadline" weight="semibold" style={{ color: c.onPrimary }}>
             {t('home.player.openLive', { defaultValue: 'Open live match' })}
           </Text>
-          <Icon name="chevron.right" size={14} color={TEXT_WHITE} />
+          <Icon name="chevron.right" size={14} color={c.onPrimary} />
         </View>
       ) : null}
     </PressableScale>
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.md,
     paddingVertical: space.md,
     gap: space.sm,
   },
@@ -103,10 +107,12 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   team: { flex: 1 },
+  competition: { flexShrink: 1, textAlign: 'right' },
   teamRight: { textAlign: 'right' },
   footer: {
     borderTopWidth: hairline,
     paddingTop: space.sm,
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

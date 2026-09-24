@@ -4,16 +4,24 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { hairline, space } from '../../theme/tokens'
+import { HomeCard, HomeSection, eventHeadline, eventMetaLine } from './HomeKit'
 
 export type WeekRowEvent = {
   id: string
+  type?: string
   title: string
   date: string
   location?: string | null
+  opponent?: string | null
+  homeAway?: 'HOME' | 'AWAY' | null
+  meetingAt?: string | null
+  meetingPoint?: string | null
   yesCount?: number
   maybeCount?: number
   noCount?: number
+  /** Active players at read time, from the feed. Preferred over `squadSize`. */
+  squadSize?: number
   cancelledAt?: string | null
   cancelReason?: string | null
 }
@@ -21,7 +29,7 @@ export type WeekRowEvent = {
 export type WeekRowsProps = {
   events: WeekRowEvent[]
   locale: string
-  /** Squad size, so a row can say "12 of 18" instead of a bare count. */
+  /** Team squad count (roster-ops squadCount), the fallback denominator. */
   squadSize?: number | null
   onCreate?: () => void
   emptyLabel: string
@@ -30,41 +38,23 @@ export type WeekRowsProps = {
 const MAX_ROWS = 5
 
 /**
- * The manager's week: one list, each row carrying the availability count.
- *
- * Coaches and admins used to get the same rows as players but without the
- * one number they actually scan for, and the count lived a tap away on the
- * detail screen. Now it sits on the row. Cancelled events stay in the list,
- * struck through, so a cancelled training doesn't read as a free evening.
+ * The manager's week: one list, each row carrying "Zusagen / Kader" in
+ * tabular digits, so the one number a coach scans for sits on the row.
+ * Cancelled events stay in the list, struck through, so a cancelled training
+ * doesn't read as a free evening.
  */
 export function WeekRows({ events, locale, squadSize, onCreate, emptyLabel }: WeekRowsProps) {
-  const c = useClubColors()
   const { t } = useTranslation()
   const rows = useMemo(() => events.slice(0, MAX_ROWS), [events])
 
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-          {t('home.coach.thisWeek', { defaultValue: 'This week' }).toUpperCase()}
-        </Text>
-        {onCreate ? (
-          <PressableScale
-            onPress={onCreate}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.coach.createEvent', { defaultValue: 'Create event' })}
-            haptic="tapLight"
-            style={styles.headAction}
-          >
-            <Icon name="plus.circle" size={14} color={c.primary} />
-            <Text variant="caption1" weight="semibold" style={{ color: c.primary }}>
-              {t('home.week.new', { defaultValue: 'New' })}
-            </Text>
-          </PressableScale>
-        ) : null}
-      </View>
-
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+    <HomeSection
+      title={t('homeHub.thisWeek', { defaultValue: 'This week' })}
+      actionLabel={onCreate ? t('homeHub.coach.addEvent', { defaultValue: 'Event' }) : undefined}
+      actionIcon="plus"
+      onAction={onCreate}
+    >
+      <HomeCard>
         {rows.length === 0 ? (
           <View style={styles.empty}>
             <Text variant="footnote" color="secondary">
@@ -82,8 +72,8 @@ export function WeekRows({ events, locale, squadSize, onCreate, emptyLabel }: We
             />
           ))
         )}
-      </View>
-    </View>
+      </HomeCard>
+    </HomeSection>
   )
 }
 
@@ -100,27 +90,26 @@ function WeekRow({
 }) {
   const c = useClubColors()
   const { t } = useTranslation()
-  const date = useMemo(() => new Date(event.date), [event.date])
   const isCancelled = Boolean(event.cancelledAt)
-
-  const day = new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).toUpperCase()
-  const dayNumber = new Intl.DateTimeFormat(locale, { day: '2-digit' }).format(date)
-  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+  const title = eventHeadline(event)
+  const meta = eventMetaLine(event, locale, t)
 
   const yes = event.yesCount ?? 0
   const answered = yes + (event.maybeCount ?? 0) + (event.noCount ?? 0)
-  // Guests and loans can push replies past the roster, so the total is
-  // whichever is larger; "14 of 3" is never an honest number.
-  const total = Math.max(squadSize ?? 0, answered)
-  const countLabel =
-    total > 0
-      ? t('home.week.yesOf', { defaultValue: '{{yes}} of {{total}}', yes, total })
-      : t('home.week.yesCount', { defaultValue: '{{yes}} yes', yes })
+  // Guests and loans can push replies past the roster, so the denominator is
+  // whichever is larger; "14/3" is never an honest number.
+  const total = Math.max(event.squadSize ?? squadSize ?? 0, answered)
   const pending = Math.max(0, total - answered)
+  const ratio = total > 0 ? `${yes}/${total}` : String(yes)
 
   const label = isCancelled
-    ? `${event.title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}`
-    : `${event.title}, ${day} ${dayNumber} ${time}, ${countLabel}`
+    ? `${title}, ${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}`
+    : `${title}, ${meta}, ${t('homeHub.coach.yesOfA11y', {
+        defaultValue: '{{yes}} of {{total}} going',
+        yes,
+        total,
+        count: yes,
+      })}`
 
   return (
     <PressableScale
@@ -128,42 +117,33 @@ function WeekRow({
       accessibilityRole="button"
       accessibilityLabel={label}
       haptic="tapLight"
-      style={[
-        styles.row,
-        showDivider && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
-      ]}
+      style={[styles.row, showDivider && { borderTopWidth: hairline, borderTopColor: c.borderSubtle }]}
     >
-      <View style={[styles.dayChip, { backgroundColor: c.surfaceSunken }]}>
-        <Text variant="caption2" weight="medium" color="tertiary">
-          {day}
-        </Text>
-        <Text variant="callout" weight="bold" color="primary" tabular>
-          {dayNumber}
-        </Text>
-      </View>
       <View style={styles.rowText}>
         <Text
           variant="callout"
           weight="semibold"
           color={isCancelled ? 'tertiary' : 'primary'}
-          numberOfLines={1}
+          numberOfLines={2}
           style={isCancelled ? styles.struck : undefined}
         >
-          {event.title}
+          {title}
         </Text>
-        <Text variant="caption1" color="secondary" numberOfLines={1}>
+        <Text variant="footnote" color={isCancelled ? 'error' : 'secondary'} tabular numberOfLines={2}>
           {isCancelled
-            ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${event.cancelReason ? ` · ${event.cancelReason}` : ''}`
-            : `${time}${event.location ? ` · ${event.location}` : ''}`}
+            ? `${t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}${
+                event.cancelReason ? ` · ${event.cancelReason}` : ''
+              }`
+            : meta}
         </Text>
       </View>
       {!isCancelled ? (
         <View style={styles.count}>
-          <Text variant="callout" weight="bold" color="primary" tabular>
-            {countLabel}
+          <Text variant="headline" weight="bold" color="primary" tabular>
+            {ratio}
           </Text>
           {pending > 0 ? (
-            <Text variant="caption2" color="tertiary" tabular>
+            <Text variant="caption1" color="secondary" tabular>
               {t('home.coach.pendingShort', { defaultValue: '{{count}} pending', count: pending })}
             </Text>
           ) : null}
@@ -175,41 +155,14 @@ function WeekRow({
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space['2xs'],
-    minHeight: 32,
-    paddingHorizontal: space.xs,
-  },
-  card: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
   empty: { padding: space.md },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: space.sm + 4,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 60,
-  },
-  dayChip: {
-    minWidth: 44,
-    paddingVertical: space.xs,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    alignItems: 'center',
+    paddingVertical: space.sm + 4,
+    minHeight: 64,
   },
   rowText: { flex: 1, gap: space['2xs'] },
   count: { alignItems: 'flex-end', gap: 1 },

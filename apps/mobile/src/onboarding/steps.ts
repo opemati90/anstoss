@@ -1,33 +1,65 @@
 /**
- * Single source of truth for the onboarding progress indicator.
+ * The onboarding paths, screen by screen, and the progress bar derived from
+ * them. Every distinct titled view counts as a screen (email and code are two).
+ * The paths are checked against the real router in paths.spec.ts, which walks
+ * each persona through resolveSignedInRoute and the screens' own navigation
+ * and asserts both the count and the caps below.
  *
- * The full bar sequence is the club-admin path (the only branch where every
- * step shows a progress bar):
- *   1 phone → 2 about → 3 role → 4 club-create → 5 club-identity
+ *   member     welcome → code → Wie heißt du? → Verein finden (sends)   = 4
+ *   admin      welcome → code → Wie heißt du? → Verein finden → Verein  = 5
+ *   freeAgent  welcome → code → Wie heißt du? → Spielerprofil           = 4
+ *              (from Verein finden the listing is sent inline there     = 4)
+ *   guardian   welcome → code → Wie heißt du? → Kind hinzufügen         = 4
+ *   invite     Einladung + E-Mail → code → Beitreten                     = 3
  *
- * Other role branches (team-code, free-agent-profile) reuse steps 1–3 and
- * then finish on screens without a bar, so the numbers a user sees always
- * advance monotonically and never contradict each other across screens.
- *
- * Before this existed, every screen hard-coded its own {current,total}
- * (1/4, 3/5, 4/6, 4/5, 5/6, 6/6) and the indicator visibly lied.
+ * The admin screen is only added once the user chooses to set up a club, so
+ * the first four screens read "x of 4" for everyone until the path forks.
  */
-export const ONBOARDING_TOTAL = 5
+export type OnboardingScreenKey =
+  | 'welcome'
+  | 'code'
+  | 'profile'
+  | 'clubSearch'
+  | 'clubSetup'
+  | 'freeAgentProfile'
+  | 'parentHandoff'
+  | 'invitePreview'
+  | 'inviteConfirm'
 
-export const ONBOARDING_STEP = {
-  phone: 1,
-  about: 2,
-  role: 3,
-  clubCreate: 4,
-  clubIdentity: 5,
-} as const
+export type OnboardingPathKey = 'member' | 'admin' | 'freeAgent' | 'guardian' | 'invite'
 
-export type OnboardingStepKey = keyof typeof ONBOARDING_STEP
+export type OnboardingProgress = { current: number; total: number }
 
-/** Convenience for callers that pass the whole `step` prop to WizardStep. */
-export function onboardingStep(key: OnboardingStepKey): {
-  current: number
-  total: number
-} {
-  return { current: ONBOARDING_STEP[key], total: ONBOARDING_TOTAL }
+export const ONBOARDING_PATHS: Readonly<Record<OnboardingPathKey, readonly OnboardingScreenKey[]>> = {
+  member: ['welcome', 'code', 'profile', 'clubSearch'],
+  admin: ['welcome', 'code', 'profile', 'clubSearch', 'clubSetup'],
+  freeAgent: ['welcome', 'code', 'profile', 'freeAgentProfile'],
+  guardian: ['welcome', 'code', 'profile', 'parentHandoff'],
+  invite: ['invitePreview', 'code', 'inviteConfirm'],
+}
+
+/** Owner's hard caps: screens up to and including the one with the final tap. */
+export const ONBOARDING_SCREEN_CAPS: Readonly<Record<OnboardingPathKey, number>> = {
+  member: 4,
+  admin: 5,
+  freeAgent: 4,
+  guardian: 4,
+  invite: 3,
+}
+
+export function onboardingProgress(
+  path: OnboardingPathKey,
+  screen: OnboardingScreenKey,
+): OnboardingProgress | null {
+  const screens = ONBOARDING_PATHS[path]
+  const index = screens.indexOf(screen)
+  if (index < 0) return null
+  return { current: index + 1, total: screens.length }
+}
+
+/** Which path an intent picked before sign-in puts the user on. */
+export function pathForIntent(intent: string | null | undefined): OnboardingPathKey {
+  if (intent === 'free-agent') return 'freeAgent'
+  if (intent === 'parent-handoff') return 'guardian'
+  return 'member'
 }

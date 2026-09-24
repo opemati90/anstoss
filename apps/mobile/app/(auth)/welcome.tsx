@@ -1,381 +1,398 @@
-import { useState } from 'react'
-import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Icon, Text } from '../../src/components/ui'
-import { KenBurnsImage } from '../../src/components/wizard/KenBurnsImage'
-import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
-import { markWelcomeSeen } from '../../src/onboarding/welcomeSeen'
-import { hexToRgba } from '../../src/theme/club-theme'
-import { SCRIM_BASE, TEXT_WHITE } from '../../src/theme/colors'
-import { fontSize, fontWeight, fonts, radius, space } from '../../src/theme/tokens'
-import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../../src/i18n'
+import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
+import { Button, Icon, Text } from '../../src/components/ui'
+import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
+import type { PolicyKind } from '../../src/content/policies'
+import { useAuth } from '../../src/context/AuthContext'
+import { useClubColors } from '../../src/context/ClubThemeContext'
+import { APP_LANGUAGES, getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
+import { OnboardingTextField, ProgressSegments, useKeyboardInset } from '../../src/onboarding/ui'
+import type { OnboardingIntent } from '../../src/onboarding/intent'
+import { onboardingProgress } from '../../src/onboarding/steps'
+import { sendCodeErrorKey } from '../../src/onboarding/errors'
+import { hairline, radius, space } from '../../src/theme/tokens'
 
-const SCRIM_FULL = hexToRgba(SCRIM_BASE, 0.35)
-const SCRIM_TEXT_DIM = hexToRgba(TEXT_WHITE, 0.82)
-const PILL_BG = hexToRgba(TEXT_WHITE, 0.14)
-const PILL_BORDER = hexToRgba(TEXT_WHITE, 0.22)
-const SHEET_BG = hexToRgba(SCRIM_BASE, 0.96)
-const SHEET_DIVIDER = hexToRgba(TEXT_WHITE, 0.08)
-const BACKDROP = hexToRgba(SCRIM_BASE, 0.4)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-type DevFlow = {
-  key: 'player' | 'coach' | 'owner' | 'parent' | 'free-agent'
-  label: string
+const LANGUAGE_LABELS: Record<AppLanguage, string> = {
+  de: 'Deutsch',
+  en: 'English',
+  fr: 'Français',
+  it: 'Italiano',
+  pt: 'Português',
+  tr: 'Türkçe',
 }
 
-const DEV_FLOWS: DevFlow[] = [
-  { key: 'player', label: 'Player' },
-  { key: 'coach', label: 'Coach' },
-  { key: 'owner', label: 'Club admin' },
-  { key: 'parent', label: 'Parent' },
-  { key: 'free-agent', label: 'Free agent' },
-]
-
+/**
+ * Screen 1 for everyone: the first impression and the email field in one.
+ * New and returning users type the same thing; the code screen follows.
+ */
 export default function Welcome() {
   const router = useRouter()
+  const { t } = useTranslation()
+  const c = useClubColors()
   const insets = useSafeAreaInsets()
-  const { t, i18n } = useTranslation()
-  const { update } = useOnboardingFlow()
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [devOpen, setDevOpen] = useState(false)
-  const active = (i18n.language?.slice(0, 2) as AppLanguage) ?? 'de'
+  const { height } = useWindowDimensions()
+  const keyboardInset = useKeyboardInset()
+  const { startOtp } = useOnboardingAuth()
+  const { isSignedIn } = useAuth()
+  const params = useLocalSearchParams<{ inviteCode?: string; reason?: string }>()
+  const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
+  const reason = Array.isArray(params.reason) ? params.reason[0] : params.reason
+  // M7: sent back here because the session ran out mid-onboarding.
+  const sessionExpired = reason === 'expired'
 
-  // Cold-start resume removed earlier — it caused a visible "double slide"
-  // as the welcome rendered and was immediately replaced. Persisted state
-  // still keeps form values across crashes; users always see the welcome
-  // moment fresh on cold start, which is the right call.
+  const inputRef = useRef<TextInput>(null)
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+  const [languageOpen, setLanguageOpen] = useState(false)
+  const [policy, setPolicy] = useState<PolicyKind | null>(null)
+  const trimmed = email.trim().toLowerCase()
+  const valid = EMAIL_RE.test(trimmed)
 
-  function handlePickLanguage(code: AppLanguage) {
-    // Persist the choice (AsyncStorage + server preference sync), not just a
-    // transient i18n switch — otherwise the onboarding language resets.
-    void setAppLanguage(code)
-    setPickerOpen(false)
+  // Autofocus once the hero has painted, so the first frame is calm and the
+  // keyboard follows a beat later instead of covering the welcome.
+  useEffect(() => {
+    const id = setTimeout(() => inputRef.current?.focus(), 450)
+    return () => clearTimeout(id)
+  }, [])
+
+  async function send(intent?: OnboardingIntent) {
+    if (!valid || sending) return
+    setSending(true)
+    setError(null)
+    try {
+      await startOtp(trimmed, 'signin', 'email')
+      router.push({
+        pathname: '/(auth)/sign-in',
+        params: {
+          email: trimmed,
+          sent: '1',
+          ...(inviteCode ? { inviteCode } : {}),
+          ...(intent ? { intent } : {}),
+        },
+      })
+    } catch (err) {
+      setError(t(sendCodeErrorKey(err)))
+    } finally {
+      setSending(false)
+    }
   }
 
-  function handleDevPick(_flow: DevFlow) {
-    update({
-      phone: '+15555550100',
-      firstName: 'Test',
-      dateOfBirth: '1995-05-23',
-      policyAccepted: true,
-    })
-    void markWelcomeSeen()
-    setDevOpen(false)
-    router.push('/(auth)/sign-in')
-  }
+  // A signed-in user never sees the entry screen (deep link, stale stack).
+  if (isSignedIn) return <Redirect href="/" />
 
-  function handlePrimary() {
-    // One auth path: the unified sign-in screen handles both new + returning
-    // users (and carries its own consent line), so welcome is just the hero.
-    // Mark it seen so subsequent cold launches skip straight to sign-in.
-    update({ policyAccepted: true })
-    void markWelcomeSeen()
-    router.push({ pathname: '/(auth)/sign-in', params: { intent: 'signup' } })
-  }
-
-  function handleSecondary() {
-    // Same screen, same email-OTP flow — but a returning member should be
-    // greeted as one. Two buttons that land on an identically-worded screen
-    // read as a broken link.
-    void markWelcomeSeen()
-    router.push({ pathname: '/(auth)/sign-in', params: { intent: 'login' } })
-  }
+  const keyboardUp = keyboardInset > 0
+  // The photo stays as a slim band on tall phones while typing and gives its
+  // space to the form on small ones (iPhone SE, compact Android).
+  const heroHeight = keyboardUp
+    ? height >= 800
+      ? 112
+      : 0
+    : Math.min(Math.round(height * 0.34), 300)
+  const footerBottom = keyboardUp ? keyboardInset + space.sm : insets.bottom + space.md
+  const progress = onboardingProgress('member', 'welcome')
 
   return (
-    <View style={styles.root}>
-      <KenBurnsImage source={require('../../assets/welcome-stadium.jpg')} durationMs={16000} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM_FULL }]} />
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        showsVerticalScrollIndicator={false}
+      >
+        {heroHeight > 0 ? (
+          <Image
+            source={require('../../assets/welcome-stadium.jpg')}
+            style={[styles.hero, { height: heroHeight + insets.top }]}
+            resizeMode="cover"
+            accessible={false}
+          />
+        ) : null}
 
-      <View style={[styles.topBar, { paddingTop: insets.top + space.sm }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('onboarding.welcome.languageA11y')}
-          onPress={() => setPickerOpen(true)}
-          style={[styles.langPill, { backgroundColor: PILL_BG, borderColor: PILL_BORDER }]}
-          hitSlop={8}
+        <View
+          style={[styles.topBar, { top: insets.top + space.sm }]}
         >
-          <Icon name="globe" size={16} color={TEXT_WHITE} />
-          <Text style={styles.langText}>{t('onboarding.welcome.languageLabel')}</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('onboardingFlow.welcome.languageA11y', {
+              language: LANGUAGE_LABELS[getAppLanguage()],
+            })}
+            onPress={() => setLanguageOpen(true)}
+            android_ripple={{ color: c.borderDefault, borderless: false }}
+            style={[styles.languagePill, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+          >
+            <Icon name="globe" size={16} color={c.textPrimary} />
+            <Text variant="footnote" weight="semibold">
+              {LANGUAGE_LABELS[getAppLanguage()]}
+            </Text>
+          </Pressable>
+        </View>
 
-      {/* Faux bottom gradient so the image stays full-bleed (no white card)
-          while the content below remains legible. */}
-      <Image
-        source={require('../../assets/welcome-scrim.png')}
-        style={styles.scrimGradient}
-        resizeMode="stretch"
-      />
+        <View
+          style={[
+            styles.content,
+            { paddingTop: heroHeight > 0 ? space.lg : insets.top + space['2xl'] },
+          ]}
+        >
+          {progress ? <ProgressSegments progress={progress} /> : null}
+          <Text variant="caption1" weight="semibold" color="tertiary" style={styles.eyebrow}>
+            {t('onboardingFlow.welcome.tagline')}
+          </Text>
+          <Text variant="title1" accessibilityRole="header">
+            {t('onboardingFlow.welcome.title')}
+          </Text>
+          <Text variant="body" color="secondary">
+            {t('onboardingFlow.welcome.subtitle')}
+          </Text>
+          {sessionExpired ? (
+            <View
+              style={[styles.notice, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+              accessibilityLiveRegion="polite"
+              testID="welcome-session-expired"
+            >
+              <Icon name="clock.fill" size={18} color={c.textSecondary} />
+              <Text variant="footnote" color="secondary" style={styles.freeAgentText}>
+                {t('onboardingFlow.welcome.sessionExpired')}
+              </Text>
+            </View>
+          ) : null}
+          <View style={styles.field}>
+            <OnboardingTextField
+              ref={inputRef}
+              label={t('onboardingFlow.welcome.emailLabel')}
+              value={email}
+              onChangeText={(next) => {
+                setEmail(next)
+                setError(null)
+              }}
+              placeholder={t('onboardingFlow.welcome.emailPlaceholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              autoCorrect={false}
+              spellCheck={false}
+              returnKeyType="go"
+              onSubmitEditing={() => void send()}
+              error={error}
+              hint={t('onboardingFlow.welcome.hint')}
+              testID="welcome-email"
+            />
+          </View>
+          {!inviteCode ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('onboardingFlow.welcome.freeAgentLink')}
+              onPress={() => {
+                if (valid) void send('free-agent')
+                else {
+                  setError(t('onboardingFlow.welcome.freeAgentNeedsEmail'))
+                  inputRef.current?.focus()
+                }
+              }}
+              android_ripple={{ color: c.borderDefault }}
+              style={styles.freeAgent}
+              testID="welcome-free-agent"
+            >
+              <Icon name="magnifyingglass" size={18} color={c.primary} />
+              <Text variant="subheadline" weight="semibold" color="tint" style={styles.freeAgentText}>
+                {t('onboardingFlow.welcome.freeAgentLink')}
+              </Text>
+            </Pressable>
+          ) : null}
+          {!inviteCode ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('onboardingFlow.welcome.setupCodeLink')}
+              onPress={() => {
+                // H5: a parent with a setup code for their child goes from
+                // the name straight to "Kind hinzufügen".
+                if (valid) void send('parent-handoff')
+                else {
+                  setError(t('onboardingFlow.welcome.freeAgentNeedsEmail'))
+                  inputRef.current?.focus()
+                }
+              }}
+              android_ripple={{ color: c.borderDefault }}
+              style={styles.freeAgent}
+              testID="welcome-setup-code"
+            >
+              <Icon name="figure.and.child.holdinghands" size={18} color={c.primary} />
+              <Text variant="subheadline" weight="semibold" color="tint" style={styles.freeAgentText}>
+                {t('onboardingFlow.welcome.setupCodeLink')}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </ScrollView>
 
       <View
         style={[
-          styles.card,
-          { paddingBottom: insets.bottom + space.lg },
+          styles.footer,
+          { paddingBottom: footerBottom, borderTopColor: c.borderSubtle, backgroundColor: c.background },
         ]}
       >
-        <Text style={[styles.eyebrow, { color: SCRIM_TEXT_DIM }]}>
-          {t('onboarding.welcome.tagline')}
+        <Button
+          label={t('onboardingFlow.common.continue')}
+          onPress={() => void send()}
+          disabled={!valid}
+          loading={sending}
+          size="lg"
+          fullWidth
+          testID="welcome-continue"
+        />
+        <Text variant="caption1" color="tertiary" align="center">
+          {t('onboardingFlow.welcome.consent')}
         </Text>
-        <Text style={[styles.headline, { color: TEXT_WHITE }]}>
-          {t('onboarding.welcome.headline')}
-        </Text>
-        <Text style={[styles.subline, { color: SCRIM_TEXT_DIM }]}>
-          {t('onboarding.welcome.subline', {
-            defaultValue:
-              'Your team. Your matches. Your moments.',
-          })}
-        </Text>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('onboarding.welcome.primary')}
-          onPress={handlePrimary}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: TEXT_WHITE },
-            pressed && styles.primaryBtnPressed,
-          ]}
-        >
-          <Text style={[styles.primaryText, { color: SCRIM_BASE }]}>
-            {t('onboarding.welcome.primary')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('onboarding.welcome.secondary')}
-          onPress={handleSecondary}
-          hitSlop={12}
-          style={styles.secondary}
-        >
-          <Text style={[styles.secondaryText, { color: SCRIM_TEXT_DIM }]}>
-            {t('onboarding.welcome.secondary')}
-          </Text>
-        </Pressable>
+        <View style={styles.links}>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => setPolicy('terms')}
+            hitSlop={4}
+            style={styles.link}
+          >
+            <Text variant="caption1" weight="semibold" color="secondary">
+              {t('onboardingFlow.welcome.termsLink')}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => setPolicy('privacy')}
+            hitSlop={4}
+            style={styles.link}
+          >
+            <Text variant="caption1" weight="semibold" color="secondary">
+              {t('onboardingFlow.welcome.privacyLink')}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
-      {__DEV__ ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Dev shortcuts"
-          onPress={() => setDevOpen(true)}
-          style={[
-            styles.devChip,
-            {
-              top: insets.top + space.sm,
-              left: space.lg,
-              backgroundColor: PILL_BG,
-              borderColor: PILL_BORDER,
-            },
-          ]}
-          hitSlop={8}
-        >
-          <Text style={styles.devChipText}>DEV</Text>
-        </Pressable>
-      ) : null}
-
       <Modal
-        animationType="fade"
+        visible={languageOpen}
         transparent
-        visible={devOpen}
-        onRequestClose={() => setDevOpen(false)}
+        animationType="fade"
+        onRequestClose={() => setLanguageOpen(false)}
       >
         <Pressable
-          style={[StyleSheet.absoluteFill, { backgroundColor: BACKDROP }]}
-          onPress={() => setDevOpen(false)}
+          style={[StyleSheet.absoluteFill, { backgroundColor: c.surfaceOverlay }]}
+          onPress={() => setLanguageOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel="Close dev shortcuts"
-        >
-          <View />
-        </Pressable>
+          accessibilityLabel={t('common.close')}
+        />
         <View
           style={[
             styles.sheet,
-            { backgroundColor: SHEET_BG, paddingBottom: insets.bottom + space.lg },
+            { backgroundColor: c.surface, paddingBottom: insets.bottom + space.md },
           ]}
         >
-          <Text style={styles.sheetTitle}>Dev shortcuts</Text>
-          <Text style={styles.devSubtitle}>
-            Prefills phone +15555550100, name &amp; DOB. OTP code: 424242. Pick the role on the role
-            screen.
+          <Text variant="title3" style={styles.sheetTitle}>
+            {t('onboardingFlow.welcome.languageTitle')}
           </Text>
-          {DEV_FLOWS.map((flow) => (
-            <Pressable
-              key={flow.key}
-              accessibilityRole="button"
-              accessibilityLabel={`Dev jump: ${flow.label}`}
-              onPress={() => handleDevPick(flow)}
-              style={[styles.sheetRow, { borderBottomColor: SHEET_DIVIDER }]}
-            >
-              <Text style={styles.sheetRowLabel}>{flow.label}</Text>
-              <Icon name="chevron.right" size={18} color={TEXT_WHITE} />
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="fade"
-        transparent
-        visible={pickerOpen}
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <Pressable
-          style={[StyleSheet.absoluteFill, { backgroundColor: BACKDROP }]}
-          onPress={() => setPickerOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel="Close language picker"
-        >
-          <View />
-        </Pressable>
-        <View style={[styles.sheet, { backgroundColor: SHEET_BG, paddingBottom: insets.bottom + space.lg }]}>
-          <Text style={styles.sheetTitle}>{t('onboarding.welcome.languageA11y')}</Text>
           {APP_LANGUAGES.map((code) => {
-            const isActive = code === active
+            const active = code === getAppLanguage()
             return (
               <Pressable
                 key={code}
-                accessibilityRole="button"
-                accessibilityLabel={`Set language ${code}`}
-                onPress={() => handlePickLanguage(code)}
-                style={[styles.sheetRow, { borderBottomColor: SHEET_DIVIDER }]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={LANGUAGE_LABELS[code]}
+                android_ripple={{ color: c.borderDefault }}
+                onPress={() => {
+                  void setAppLanguage(code)
+                  setLanguageOpen(false)
+                }}
+                style={[styles.sheetRow, { borderBottomColor: c.borderSubtle }]}
               >
-                <Text style={styles.sheetRowLabel}>{labelFor(code)}</Text>
-                {isActive ? <Icon name="checkmark" size={20} color={TEXT_WHITE} /> : null}
+                <Text variant="body" weight={active ? 'semibold' : 'regular'}>
+                  {LANGUAGE_LABELS[code]}
+                </Text>
+                {active ? <Icon name="checkmark" size={20} color={c.primary} /> : null}
               </Pressable>
             )
           })}
         </View>
       </Modal>
+
+      <PolicyOverlay visible={policy !== null} kind={policy ?? 'terms'} onClose={() => setPolicy(null)} />
     </View>
   )
 }
 
-function labelFor(code: AppLanguage): string {
-  switch (code) {
-    case 'de':
-      return 'Deutsch'
-    case 'en':
-      return 'English'
-    case 'fr':
-      return 'Français'
-    case 'pt':
-      return 'Português'
-    case 'it':
-      return 'Italiano'
-    case 'tr':
-      return 'Türkçe'
-  }
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: SCRIM_BASE },
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  hero: { width: '100%' },
   topBar: {
     position: 'absolute',
-    left: space.lg,
-    right: space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    right: space.md,
     zIndex: 2,
   },
-  langPill: {
+  languagePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
+    minHeight: 44,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: hairline,
+    overflow: 'hidden',
   },
-  langText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: TEXT_WHITE,
-  },
-  card: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: space.lg,
-    paddingTop: space.xl,
-    gap: space.md,
-  },
-  scrimGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '72%',
-    width: '100%',
-  },
-  subline: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    marginTop: -space.xs,
-    marginBottom: space.sm,
-    opacity: 0.78,
-  },
-  eyebrow: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.xs,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  headline: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize['3xl'],
-    lineHeight: 36,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.4,
-    marginBottom: space.sm,
-  },
-  primaryBtn: {
-    height: 54,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnPressed: { opacity: 0.85 },
-  primaryBtnDisabled: { opacity: 0.45 },
-  primaryText: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.2,
-  },
-  policyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  content: {
+    paddingHorizontal: space.md,
+    paddingBottom: space.lg,
     gap: space.sm,
-    marginBottom: space.xs,
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    alignItems: 'center',
+  eyebrow: { marginTop: space.md, textTransform: 'uppercase', letterSpacing: 1.2 },
+  field: { marginTop: space.md },
+  footer: {
+    paddingHorizontal: space.md,
+    paddingTop: space.sm,
+    borderTopWidth: hairline,
+    gap: space.xs,
+  },
+  links: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    marginTop: space['2xs'],
+    columnGap: space.md,
   },
-  policyText: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
+  link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.xs },
+  freeAgent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 44,
+    marginTop: space.xs,
   },
-  policyLink: { fontWeight: fontWeight.bold, textDecorationLine: 'underline' },
-  secondary: { alignSelf: 'center', paddingVertical: space.sm },
-  secondaryText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+  freeAgentText: { flexShrink: 1 },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    padding: space.md,
+    marginTop: space.sm,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
   sheet: {
     position: 'absolute',
@@ -383,50 +400,17 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingTop: space.lg,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.md,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
+    borderCurve: 'continuous',
   },
-  sheetTitle: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: TEXT_WHITE,
-    marginBottom: space.md,
-  },
+  sheetTitle: { marginBottom: space.sm },
   sheetRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  sheetRowLabel: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: TEXT_WHITE,
-  },
-  devChip: {
-    position: 'absolute',
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs + 2,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    zIndex: 3,
-  },
-  devChipText: {
-    fontFamily: fonts.data,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1.5,
-    color: TEXT_WHITE,
-  },
-  devSubtitle: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    color: TEXT_WHITE,
-    opacity: 0.7,
-    marginBottom: space.md,
+    borderBottomWidth: hairline,
   },
 })

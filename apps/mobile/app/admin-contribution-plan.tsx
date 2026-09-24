@@ -956,7 +956,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontWeight: '700',
   },
-  memberActionDivider: { fontSize: 10, fontFamily: fonts.label },
+  memberActionDivider: { fontSize: 12, fontFamily: fonts.label },
 
   emptyMembers: {
     padding: space.md,

@@ -8,10 +8,7 @@ import { api, API_URL } from '../../api/client'
 import { useEventsSocket, type EventRsvpUpdate } from '../../hooks/useEventsSocket'
 import { usePlayerHome, type HomeEvent } from '../../hooks/usePlayerHome'
 import { Text } from '../ui'
-import { EmptyState } from '../EmptyState'
-import { ErrorState } from '../ErrorState'
 import { useAuth } from '../../context/AuthContext'
-import { getAppLanguage, getAppLocale } from '../../i18n'
 import { space } from '../../theme/tokens'
 import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 import { Haptics } from '../../utils/haptics'
@@ -20,8 +17,11 @@ import { LiveMatchCard } from './LiveMatchCard'
 import { WeekAhead } from './WeekAhead'
 import { SeasonStrip } from './SeasonStrip'
 import { TeamPulse } from './TeamPulse'
-import { PlayerHomeSkeleton } from './PlayerHomeSkeleton'
-import type { RsvpStatus } from './RsvpControl'
+import { HomeSkeleton } from './HomeSkeleton'
+import { EmptyCard, HomeSection, InlineError, formatDayTime } from './HomeKit'
+import { useHomeLocale } from './useHomeLocale'
+import { DuesRow, TasksSection, useDutyTasks } from './HomeTasks'
+import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 
 export type PlayerHomeProps = {
   clubId: string
@@ -33,18 +33,26 @@ export type PlayerHomeProps = {
 /**
  * The player's home screen.
  *
- * Rebuilt 2026-09-11 around a single question — *what do I have to do?* —
- * instead of the previous stack of same-weight cards. The order is the
- * priority order: who you are, the next thing and its decision, everything
- * else you still owe an answer on, your own season, then the team's noise.
+ * Built around one question, *what do I have to do?*, in priority order: a
+ * live match if one is on, the next event and its reply, my duties, the rest
+ * of the week, money owed, the team's news, and my season last.
  */
 export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeProps) {
   const { t } = useTranslation()
-  const { user, activeClub, token } = useAuth()
-  const locale = getAppLocale(getAppLanguage())
+  const { user, token } = useAuth()
+  const locale = useHomeLocale()
 
-  const { data, loading, refreshing, error, refresh, applyRsvp, applyRsvpCounts } =
-    usePlayerHome(clubId, teamId, user?.id ?? null)
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    refresh,
+    scheduleSilentRefresh,
+    updatedAt,
+    applyRsvp,
+    applyRsvpCounts,
+  } = usePlayerHome(clubId, teamId, user?.id ?? null)
 
   const [pendingIds, setPendingIds] = useState<Record<string, boolean>>({})
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -73,7 +81,10 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
       },
       [applyRsvpCounts],
     ),
-    onEventUpsert: useCallback(() => refresh(), [refresh]),
+    // A coach editing an event must not spin the pull-to-refresh control or
+    // fire the whole home's requests per keystroke: one quiet, debounced
+    // re-read of the events list.
+    onEventUpsert: useCallback(() => scheduleSilentRefresh(), [scheduleSilentRefresh]),
   })
 
   const withTeam = useCallback(
@@ -112,10 +123,8 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   )
   const liveOwnsHero = Boolean(heroIsLive && !heroOwesDecision)
 
-  // Everything past the hero is one list. It used to be two stacked sections
-  // with two headers and two cards for the same subject, which was most of
-  // why this screen felt like a lot. The list sorts unanswered first and
-  // carries the reply control only on those rows.
+  // Everything past the hero is one chronological list ("Diese Woche"); rows
+  // carry the reply pills only where an answer is still missing.
   const weekAhead = useMemo(
     () =>
       data.events
@@ -148,7 +157,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   )
 
   const onRsvp = useCallback(
-    async (eventId: string, status: RsvpStatus) => {
+    async (eventId: string, status: RsvpStatus, absence?: AbsenceDetail) => {
       if (pendingIds[eventId]) return
       const previous = data.events.find((event) => event.id === eventId)?.myRsvp ?? null
       setPendingIds((prev) => ({ ...prev, [eventId]: true }))
@@ -160,7 +169,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
         await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
         await api(`/clubs/${clubId}/events/${eventId}/rsvp`, {
           method: 'PUT',
-          body: { status },
+          body: { status, ...(status === 'NO' ? absence : {}) },
         })
         Haptics.success()
       } catch {
@@ -183,21 +192,22 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
     [applyRsvp, clubId, data.events, pendingIds, t],
   )
 
+  const dutyTasks = useDutyTasks(data.duties, locale)
+
   if (loading && data.events.length === 0 && !error) {
-    return <PlayerHomeSkeleton />
+    return <HomeSkeleton variant="player" />
   }
 
   if (error && data.events.length === 0) {
     return (
       <View style={styles.root}>
-        <ErrorState
-          message={t('states.home.error.title', {
+        <InlineError
+          title={t('states.home.error.title', {
             defaultValue: "Couldn't load your week",
           })}
-          hint={t('states.home.error.body', {
+          body={t('states.home.error.body', {
             defaultValue: 'Check your connection and pull down to try again.',
           })}
-          retryLabel={t('common.retry', { defaultValue: 'Try again' })}
           onRetry={refresh}
         />
       </View>
@@ -206,7 +216,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
 
   return (
     <View style={styles.root}>
-
+      {/* 1. Live strip: only while a match is actually being played. */}
       {liveFixture ? (
         <LiveMatchCard
           fixture={liveFixture}
@@ -215,44 +225,51 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
         />
       ) : null}
 
+      {/* 2. Next up: what, when to be there, and am I coming. */}
       {heroEvent && !liveOwnsHero ? (
-        <NextUpHero
-          event={heroEvent}
-          locale={locale}
-          nowMs={nowMs}
-          rsvpPending={Boolean(pendingIds[heroEvent.id])}
-          onRsvp={(status) => void onRsvp(heroEvent.id, status)}
-          onOpen={() => openEventOrMatch(heroEvent)}
-        />
+        <HomeSection title={t('homeHub.nextUp', { defaultValue: 'Next up' })}>
+          <NextUpHero
+            event={heroEvent}
+            locale={locale}
+            nowMs={nowMs}
+            rsvpPending={Boolean(pendingIds[heroEvent.id])}
+            onRsvp={(status, absence) => void onRsvp(heroEvent.id, status, absence)}
+            onOpen={() => openEventOrMatch(heroEvent)}
+          />
+        </HomeSection>
       ) : null}
 
       {!heroEvent && !liveFixture ? (
-        <EmptyState
+        <EmptyCard
           icon="calendar"
-          illustration="emptyHome"
-          title={t('home.welcome.title', {
-            defaultValue: 'Welcome to {{clubName}}!',
-            clubName: activeClub?.club?.name ?? '',
-          })}
-          description={t('home.welcome.subtitle', {
+          title={t('homeHub.player.emptyTitle', { defaultValue: 'No events yet' })}
+          body={t('homeHub.player.emptyBody', {
             defaultValue:
-              'Your upcoming matches will appear here. Ask your coach to schedule your first event.',
+              "Your coach is still planning. Trainings and matches appear here as soon as they're set.",
           })}
         />
       ) : null}
 
+      {/* 3. My tasks this week (Trikotwäsche and friends). */}
+      <TasksSection tasks={dutyTasks} />
+
+      {/* 4. The rest of the week; reply pills only where an answer is missing. */}
       <WeekAhead
         events={weekAhead}
         locale={locale}
         pendingIds={pendingIds}
-        onRsvp={(eventId, status) => void onRsvp(eventId, status)}
+        nowMs={nowMs}
+        onRsvp={(eventId, status, absence) => void onRsvp(eventId, status, absence)}
         onOpen={openEventOrMatch}
       />
 
+      {/* 5. Money, only while some is owed. */}
+      <DuesRow dues={data.dues} locale={locale} />
+
+      {/* 6. What the team is saying. */}
       <TeamPulse channel={data.teamChannel} announcements={data.announcements} />
 
-      {/* Ambient, not actionable — so it sits last, under the things that
-          actually need the player to do something. */}
+      {/* 7. Ambient, so last. */}
       <SeasonStrip
         streaks={data.streaks}
         rank={data.streakRank}
@@ -260,10 +277,15 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
       />
 
       {error ? (
-        <Text variant="caption1" color="tertiary" style={styles.staleNote}>
-          {t('states.home.stale', {
-            defaultValue: 'Showing your last update — pull down to retry.',
-          })}
+        <Text variant="footnote" color="secondary" style={styles.staleNote}>
+          {updatedAt
+            ? t('homeHub.staleAt', {
+                defaultValue: 'Last updated {{time}}. Pull down to retry.',
+                time: formatDayTime(new Date(updatedAt).toISOString(), locale, nowMs),
+              })
+            : t('states.home.stale', {
+                defaultValue: 'Showing your last update — pull down to retry.',
+              })}
         </Text>
       ) : null}
     </View>

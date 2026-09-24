@@ -4,10 +4,11 @@ import { OnboardingFlowProvider } from '../../src/context/OnboardingFlowContext'
 import { setAuthExpiryHandlingSuspended } from '../../src/api/client'
 
 export default function AuthLayout() {
-  // The Clerk session isn't active until finalizeSession() runs at the end of
-  // the wizard. Any 401 the API returns during onboarding is expected (no token),
-  // not a real session expiry — suspend the global "session expired" alert for
-  // the whole auth stack and let each screen handle its own errors.
+  // The global "session expired" alert + sign-out stays off in the auth
+  // stack: a stray 401 here must not yank someone out of the middle of a
+  // form. Every screen that calls the API instead routes a 401 through
+  // useSessionExpiryHandler (src/onboarding/sessionExpiry.ts), which signs out
+  // and returns to welcome with a "please sign in again" message (M7).
   useEffect(() => {
     setAuthExpiryHandlingSuspended(true)
     return () => setAuthExpiryHandlingSuspended(false)

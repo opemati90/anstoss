@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   stampText: {
     fontFamily: fonts.data,
-    fontSize: 9,
+    fontSize: 12,
     letterSpacing: 1.5,
     fontWeight: '700',
     position: 'absolute',
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   primaryStatLabel: {
     fontFamily: fonts.data,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.6,
     fontWeight: '700',
   },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: fonts.data,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.5,
     fontWeight: '700',
   },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   },
   footerUrl: {
     fontFamily: fonts.data,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '600',
   },

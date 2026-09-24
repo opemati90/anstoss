@@ -113,7 +113,7 @@ export function Button({
   const handlePressIn = () => {
     if (reduceMotion) return
     Animated.timing(scale, {
-      toValue: 0.95,
+      toValue: 0.97,
       duration: 100,
       useNativeDriver: true,
     }).start()
@@ -141,8 +141,11 @@ export function Button({
   const isWaitingOnInput = !!disabled && !loading
   const mutedFill = effectiveVariant === 'filled' || effectiveVariant === 'destructive'
 
+  // minHeight, not height: at large Dynamic Type / Android font scale the
+  // label wraps to a second line and the pill grows instead of clipping.
   const containerStyle: ViewStyle = {
-    height: HEIGHTS[size],
+    minHeight: HEIGHTS[size],
+    paddingVertical: size === 'sm' ? 6 : 10,
     paddingHorizontal: H_PADDING[size],
     backgroundColor:
       isWaitingOnInput && mutedFill ? c.surfaceSunken : palette.bg,
@@ -188,7 +191,11 @@ export function Button({
         ) : (
           <View style={styles.inner}>
             {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
-            <Text style={textStyle} numberOfLines={1}>
+            <Text
+              style={[textStyle, styles.label]}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.6}
+            >
               {label}
             </Text>
             {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
@@ -291,6 +298,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_SM,
+    maxWidth: '100%',
+  },
+  label: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   icon: {
     alignItems: 'center',

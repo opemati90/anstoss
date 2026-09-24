@@ -163,7 +163,7 @@ describe('ClubSwitcher', () => {
       actionRow.props.onPress()
     })
 
-    expect(mockPush).toHaveBeenCalledWith('/admin-dashboard')
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/verein')
     expect(onClose).toHaveBeenCalled()
   })
 

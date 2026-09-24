@@ -1,550 +1,319 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
-import type { FreeAgentProfile } from '@anstoss/shared'
-import type { TrialInvite } from '@anstoss/shared'
+import { useMemo, useState } from 'react'
+import { Alert, Image, RefreshControl, StyleSheet, View } from 'react-native'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { api } from '../../src/api/client'
-import { ModalHeader } from '../../src/components/ModalHeader'
-import { SelectionSheet } from '../../src/components/SelectionSheet'
+import type { FreeAgentProfile, TrialInvite } from '@anstoss/shared'
+import { EmptyState } from '../../src/components/EmptyState'
 import { ErrorState } from '../../src/components/ErrorState'
-import { useAuth } from '../../src/context/AuthContext'
+import { ModalHeader } from '../../src/components/ModalHeader'
+import { Avatar, Button, Screen, SectionGroup, StatusPill, Text } from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Screen, Button, Text, BottomSheet, Icon } from '../../src/components/ui'
 import {
-  fontSize,
-  space,
-  radius,
-  fonts,
-  lineHeight,
   hairline,
-  elevation,
+  RADIUS_CARD,
+  RADIUS_MD,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_XXL,
 } from '../../src/theme/tokens'
+import { ApiError } from '../../src/api/client'
+import { paths, wechselApi } from '../../src/features/wechsel/api'
+import { CardListSkeleton } from '../../src/features/wechsel/components/Primitives'
+import { apiErrorMessage, InviteSheet } from '../../src/features/wechsel/components/Sheets'
+import {
+  footLabel,
+  formatDate,
+  leagueLabel,
+  ageLabel,
+  positionLabel,
+  regionLabel,
+  statusChip,
+} from '../../src/features/wechsel/format'
+import { useManagedTeams, useWechselAccess } from '../../src/features/wechsel/hooks'
+import { invalidateApi, useApiQuery } from '../../src/features/wechsel/query'
+import { OPEN_STATUSES } from '../../src/features/wechsel/status'
 
-function withAlpha(hex: string, alpha: number): string {
-  // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body)
-        .split(',')
-        .map((p) => p.trim())
-        .slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-type TeamChoice = {
-  id: string
-  displayName: string
-  groupName: string
-}
-
-const EXPIRY_OPTIONS = [3, 7, 14]
-
+/** A free agent's card as a club sees it, with "Zum Probetraining einladen". */
 export default function FreeAgentDetailScreen() {
-  const { id } = useLocalSearchParams<{ id?: string | string[] }>()
-  const profileId = Array.isArray(id) ? id[0] : id
   const { t } = useTranslation()
-  const { activeClub } = useAuth()
   const c = useClubColors()
-  const [profile, setProfile] = useState<FreeAgentProfile | null>(null)
-  const [teams, setTeams] = useState<TeamChoice[]>([])
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
-  const [message, setMessage] = useState('')
-  const [expiryDays, setExpiryDays] = useState<number>(7)
-  const [isLoading, setIsLoading] = useState(true)
-  const [, setLoadFailed] = useState(false)
-  const [isSending, setIsSending] = useState(false)
-  const [teamSheetOpen, setTeamSheetOpen] = useState(false)
-  const [inviteSheetOpen, setInviteSheetOpen] = useState(false)
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const access = useWechselAccess()
+  const { teams } = useManagedTeams()
+  const profile = useApiQuery<FreeAgentProfile>(id ? paths.freeAgent(id) : null)
+  const trials = useApiQuery<TrialInvite[]>(
+    access.canManage && access.clubId ? paths.clubTrials(access.clubId) : null,
+  )
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [sending, setSending] = useState(false)
 
-  const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
-
-  const loadScreen = useCallback(async () => {
-    if (!profileId) return
-
-    setIsLoading(true)
-    try {
-      const freeAgent = await api<FreeAgentProfile>(`/free-agents/${profileId}`)
-      setProfile(freeAgent)
-
-      if (activeClub?.club.id && isAdmin) {
-        const groups = await api<
-          Array<{
-            id: string
-            displayName: string
-            teams: Array<{ id: string; displayName: string }>
-          }>
-        >(`/clubs/${activeClub.club.id}/team-groups`)
-
-        const flattenedTeams = (groups || []).flatMap((group) =>
-          group.teams.map((team) => ({
-            id: team.id,
-            displayName: team.displayName,
-            groupName: group.displayName,
-          })),
-        )
-
-        setTeams(flattenedTeams)
-        setSelectedTeamId(flattenedTeams[0]?.id || '')
-      }
-    } catch {
-      setLoadFailed(true)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [activeClub?.club.id, isAdmin, profileId, t])
-
-  useEffect(() => {
-    void loadScreen()
-  }, [loadScreen])
-
-  const selectedTeam = useMemo(
-    () => teams.find((team) => team.id === selectedTeamId) || null,
-    [selectedTeamId, teams],
+  const openTrial = useMemo(
+    () =>
+      (trials.data ?? []).find(
+        (invite) => invite.freeAgentProfileId === id && OPEN_STATUSES.includes(invite.status),
+      ) ?? null,
+    [trials.data, id],
   )
 
-  const sendTrialInvite = async () => {
-    if (!activeClub?.club.id || !selectedTeamId || !profileId) {
-      return
-    }
+  const header = <ModalHeader title={t('wechsel.playerTitle')} mode="back" fallbackHref="/wechselboerse" />
 
-    setIsSending(true)
+  if (profile.isLoading) {
+    return (
+      <Screen header={header} padded={false} contentStyle={styles.content}>
+        <CardListSkeleton rows={2} />
+      </Screen>
+    )
+  }
+  if (!profile.data) {
+    const notFound = profile.error instanceof ApiError && profile.error.status === 404
+    return (
+      <Screen header={header} padded={false} contentStyle={styles.content}>
+        {notFound ? (
+          <EmptyState
+            icon="person.crop.circle.badge.exclamationmark"
+            title={t('wechsel.playerGoneTitle')}
+            description={t('wechsel.playerGoneBody')}
+          />
+        ) : (
+          <ErrorState
+            message={t('wechsel.playerError')}
+            hint={apiErrorMessage(t, profile.error)}
+            onRetry={() => void profile.refetch()}
+          />
+        )}
+      </Screen>
+    )
+  }
+
+  const player = profile.data
+  const facts: Array<{ label: string; value: string }> = [
+    { label: t('spielerprofil.fieldPosition'), value: positionLabel(t, player.position) ?? '–' },
+    { label: t('spielerprofil.fieldFoot'), value: footLabel(t, player.preferredFoot) ?? '–' },
+    {
+      label: t('spielerprofil.fieldLeague'),
+      value: leagueLabel(t, player.highestLeague) ?? '–',
+    },
+    {
+      label: t('spielerprofil.fieldCurrentClub'),
+      value: player.currentClubName ?? t('spielerprofil.noClub'),
+    },
+    {
+      label: t('spielerprofil.fieldAvailableFrom'),
+      value:
+        player.availableFrom && new Date(player.availableFrom).getTime() > Date.now()
+          ? formatDate(player.availableFrom)
+          : t('spielerprofil.availableNow'),
+    },
+    {
+      label: t('spielerprofil.fieldArea'),
+      // H2: clubs see the region, never the postcode.
+      value: [regionLabel(t, player.postalRegion), player.city].filter(Boolean).join(' · ') || '–',
+    },
+  ]
+  const photos = player.media.filter((media) => media.type === 'PHOTO')
+  const chip = openTrial ? statusChip(t, openTrial) : null
+
+  const sendInvite = async (input: { teamId: string; sessionEventIds: string[]; message?: string }) => {
+    if (!access.clubId) return
+    setSending(true)
     try {
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + expiryDays)
-
-      await api<TrialInvite>(`/clubs/${activeClub.club.id}/trial-invites`, {
-        method: 'POST',
-        body: {
-          freeAgentProfileId: profileId,
-          teamId: selectedTeamId,
-          message: message.trim() || undefined,
-          expiresAt: expiresAt.toISOString(),
-        },
+      await wechselApi.createInvite(access.clubId, {
+        freeAgentProfileId: player.id,
+        teamId: input.teamId,
+        sessionEventIds: input.sessionEventIds,
+        message: input.message,
       })
-
-      Alert.alert(t('transferList.inviteSentTitle'), t('transferList.inviteSentBody'))
-      setMessage('')
+      invalidateApi(paths.clubTrials(access.clubId))
+      setInviteOpen(false)
+      Alert.alert(t('wechsel.inviteSent', { name: player.user.name }))
     } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : t('transferList.inviteSendError'),
-      )
+      Alert.alert(t('common.error'), apiErrorMessage(t, error))
     } finally {
-      setIsSending(false)
+      setSending(false)
     }
   }
 
-  // Invite form content — rendered inside the BottomSheet
-  const inviteFormContent =
-    teams.length === 0 ? (
-      <Text variant="subheadline" color="secondary" style={styles.bodyText}>
-        {t('transferList.noTeamsBody')}
-      </Text>
-    ) : (
-      <>
-        <Pressable
-          style={[
-            styles.selector,
-            { borderColor: c.borderDefault, backgroundColor: c.background },
-          ]}
-          onPress={() => setTeamSheetOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t('transferList.selectTeam')}
-        >
-          <View>
-            <Text style={[styles.selectorLabel, { color: c.textTertiary }]}>
-              {t('transferList.teamLabel')}
+  return (
+    <Screen
+      header={header}
+      scroll
+      padded={false}
+      contentStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={profile.isRefetching}
+          onRefresh={() => void profile.refetch()}
+          tintColor={c.textTertiary}
+        />
+      }
+    >
+      <View style={styles.hero}>
+        <Avatar size="xl" src={player.avatarUrl} fallbackText={player.user.name} />
+        <Text variant="title1" color="primary" align="center">
+          {player.user.name}
+        </Text>
+        <Text variant="subheadline" color="secondary" align="center">
+          {[
+            ageLabel(t, player),
+            positionLabel(t, player.position),
+            player.city,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        {player.isOnTransferList ? (
+          <StatusPill label={t('spielerprofil.searching')} tone="success" icon="checkmark.circle.fill" />
+        ) : null}
+      </View>
+
+      {access.canManage ? (
+        openTrial && chip ? (
+          <View style={[styles.trialBox, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+            <View style={styles.flex}>
+              <Text variant="headline" color="primary">
+                {t('wechsel.trialRunning', { team: openTrial.team.displayName })}
+              </Text>
+              <Text variant="footnote" color="secondary">
+                {chip.label}
+              </Text>
+            </View>
+            <Button
+              label={t('wechsel.openTrial')}
+              variant="bordered"
+              size="sm"
+              onPress={() => router.push({ pathname: '/trial/[id]', params: { id: openTrial.id } })}
+            />
+          </View>
+        ) : (
+          <Button
+            label={t('wechsel.inviteCta')}
+            onPress={() => setInviteOpen(true)}
+            disabled={teams.length === 0 || !player.isOnTransferList}
+            fullWidth
+          />
+        )
+      ) : null}
+
+      <View style={[styles.facts, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+        {facts.map((fact) => (
+          <View key={fact.label} style={styles.fact}>
+            <Text variant="footnote" color="secondary">
+              {fact.label}
             </Text>
-            <Text style={[styles.selectorValue, { color: c.textPrimary }]}>
-              {selectedTeam?.displayName || t('transferList.selectTeam')}
+            <Text variant="body" weight="semibold" color="primary">
+              {fact.value}
             </Text>
           </View>
-          <Text style={[styles.selectorMeta, { color: c.textSecondary }]}>
-            {selectedTeam?.groupName || ''}
+        ))}
+      </View>
+
+      {player.bio ? (
+        <SectionGroup header={t('spielerprofil.sectionAbout')}>
+          <Text variant="body" color="primary" style={styles.bio}>
+            {player.bio}
           </Text>
-        </Pressable>
+        </SectionGroup>
+      ) : null}
 
-        <TextInput
-          style={[
-            styles.input,
-            styles.textarea,
-            {
-              borderColor: c.borderDefault,
-              backgroundColor: c.background,
-              color: c.textPrimary,
-            },
-          ]}
-          value={message}
-          onChangeText={setMessage}
-          placeholder={t('transferList.messagePlaceholder')}
-          placeholderTextColor={c.textTertiary}
-          multiline
-          textAlignVertical="top"
-        />
-
-        <View style={styles.expiryRow}>
-          {EXPIRY_OPTIONS.map((days) => {
-            const active = days === expiryDays
-            return (
-              <Pressable
-                key={days}
-                style={[
-                  styles.expiryChip,
-                  { borderColor: c.borderDefault, backgroundColor: c.background },
-                  active && {
-                    borderColor: c.primary,
-                    backgroundColor: withAlpha(c.primary, 0.08),
-                  },
-                ]}
-                onPress={() => setExpiryDays(days)}
-                accessibilityRole="button"
-                accessibilityLabel={t('transferList.expiryOption', { count: days })}
-              >
-                <Text
-                  style={[
-                    styles.expiryChipText,
-                    { color: c.textPrimary },
-                    active ? { color: c.primary } : {},
-                  ]}
-                >
-                  {t('transferList.expiryOption', { count: days })}
+      {player.experience.length > 0 ? (
+        <SectionGroup header={t('spielerprofil.sectionStations')}>
+          {player.experience.map((entry) => (
+            <View key={entry.id} style={styles.station}>
+              <View style={styles.flex}>
+                <Text variant="body" weight="semibold" color="primary">
+                  {entry.clubName}
                 </Text>
-              </Pressable>
-            )
-          })}
+                <Text variant="footnote" color="secondary">
+                  {entry.roleLabel}
+                </Text>
+              </View>
+              {entry.fromYear ? (
+                <Text variant="footnote" color="secondary" tabular>
+                  {entry.toYear ? `${entry.fromYear}–${entry.toYear}` : `${entry.fromYear}–`}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </SectionGroup>
+      ) : null}
+
+      {photos.length > 0 ? (
+        <View style={styles.photos}>
+          {photos.slice(0, 6).map((photo) => (
+            <Image
+              key={photo.id}
+              source={{ uri: photo.url }}
+              style={[styles.photo, { backgroundColor: c.surfaceSunken }]}
+              accessibilityIgnoresInvertColors
+            />
+          ))}
         </View>
+      ) : null}
 
-        <Button
-          label={t('transferList.sendInvite')}
-          variant="filled"
-          size="lg"
-          fullWidth
-          loading={isSending}
-          disabled={!selectedTeamId || isSending}
-          onPress={() => void sendTrialInvite()}
+      {access.canManage && access.clubId ? (
+        <InviteSheet
+          visible={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          clubId={access.clubId}
+          teams={teams}
+          playerName={player.user.name}
+          submitting={sending}
+          onSubmit={(input) => void sendInvite(input)}
         />
-      </>
-    )
-
-  return (
-    <Screen header={<ModalHeader mode="back" title={t('transferList.profileTitle')} />} padded={false}>
-      {isLoading ? (
-        <View style={styles.state}>
-          <ActivityIndicator color={c.primary} />
-        </View>
-      ) : profile ? (
-        <>
-          {/* Clean profile scroll — no invite form card */}
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Hero — name as the large title, key facts as quiet meta */}
-            <View style={styles.hero}>
-              <View style={styles.heroRow}>
-                {profile.avatarUrl ? (
-                  <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatarFallback, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
-                    <Text variant="title2" weight="bold" style={{ color: c.primary }}>
-                      {(profile.user?.name ?? 'P').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.heroCopy}>
-                  <Text variant="title2" weight="semibold" color="primary" style={styles.name} numberOfLines={2}>
-                    {profile.user?.name ?? ''}
-                  </Text>
-                  {[profile.position, profile.city].filter(Boolean).length > 0 ? (
-                    <Text variant="footnote" color="secondary" numberOfLines={1}>
-                      {[profile.position, profile.city].filter(Boolean).join(' · ')}
-                    </Text>
-                  ) : null}
-                  <View style={styles.heroMetaRow}>
-                    <Icon name="eye" size={13} color="tertiary" />
-                    <Text variant="caption1" color="tertiary">
-                      {t(`freeAgent.visibilityLabel.${profile.visibility}`)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* About — eyebrow + grouped content in the one card language */}
-            <View style={styles.sectionGroup}>
-              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                {t('freeAgent.bio').toUpperCase()}
-              </Text>
-              <View
-                style={[
-                  styles.section,
-                  elevation.card,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                ]}
-              >
-                <Text variant="subheadline" color="secondary" style={styles.bodyText}>
-                  {profile.bio || t('transferList.noBio')}
-                </Text>
-              </View>
-            </View>
-
-            {/* Experience */}
-            <View style={styles.sectionGroup}>
-              <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                {t('freeAgent.experienceTitle').toUpperCase()}
-              </Text>
-              <View
-                style={[
-                  styles.section,
-                  elevation.card,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
-                ]}
-              >
-                {profile.experience.length === 0 ? (
-                  <Text variant="subheadline" color="secondary" style={styles.bodyText}>
-                    {t('freeAgent.experienceEmpty')}
-                  </Text>
-                ) : (
-                  profile.experience.map((entry, index) => (
-                    <View
-                      key={entry.id}
-                      style={[
-                        styles.experienceRow,
-                        index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle ?? c.borderDefault },
-                      ]}
-                    >
-                      <Text variant="callout" color="primary" numberOfLines={1}>
-                        {entry.clubName}
-                      </Text>
-                      <Text variant="footnote" color="secondary">
-                        {entry.roleLabel}
-                        {entry.fromYear || entry.toYear
-                          ? ` · ${entry.fromYear || '...'}-${entry.toYear || t('transferList.now')}`
-                          : ''}
-                      </Text>
-                    </View>
-                  ))
-                )}
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Sticky primary CTA at the bottom — opens invite BottomSheet */}
-          {isAdmin ? (
-            <View
-              style={[
-                styles.stickyFooter,
-                {
-                  backgroundColor: c.background,
-                  borderTopColor: c.borderDefault,
-                },
-              ]}
-            >
-              <Button
-                label={t('freeAgent.sendTrialInvite', { defaultValue: 'Send trial invite' })}
-                variant="filled"
-                size="lg"
-                fullWidth
-                onPress={() => setInviteSheetOpen(true)}
-              />
-            </View>
-          ) : null}
-
-          {/* Invite form in a BottomSheet — keeps profile scroll clean */}
-          {isAdmin ? (
-            <BottomSheet
-              visible={inviteSheetOpen}
-              onClose={() => setInviteSheetOpen(false)}
-              heightPct="auto"
-            >
-              <ScrollView
-                contentContainerStyle={styles.sheetContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={[styles.sheetTitle, { color: c.textPrimary }]}>
-                  {t('transferList.inviteSectionTitle')}
-                </Text>
-                {inviteFormContent}
-              </ScrollView>
-            </BottomSheet>
-          ) : null}
-
-          <SelectionSheet
-            visible={teamSheetOpen}
-            title={t('transferList.selectTeam')}
-            options={teams.map((team) => ({
-              label: team.displayName,
-              value: team.id,
-              description: team.groupName,
-            }))}
-            selectedValue={selectedTeamId}
-            onSelect={setSelectedTeamId}
-            onClose={() => setTeamSheetOpen(false)}
-          />
-        </>
-      ) : (
-        <ErrorState
-          message={t('transferList.detailError')}
-          onRetry={() => void loadScreen()}
-          fillContainer
-        />
-      )}
+      ) : null}
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1 },
   content: {
-    paddingHorizontal: space.md,
-    paddingBottom: space['2xl'],
-    gap: space.lg,
+    gap: SPACING_LG,
+    paddingHorizontal: SPACING_LG,
+    paddingTop: SPACING_LG,
+    paddingBottom: SPACING_XXL,
   },
-  state: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.xl,
-  },
-  hero: {
-    paddingTop: space.sm,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    gap: space.md,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.full,
-  },
-  avatarFallback: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCopy: {
-    flex: 1,
-    gap: space['2xs'],
-  },
-  name: {
-    letterSpacing: -0.3,
-  },
-  heroMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs + 2,
-    marginTop: space['2xs'],
-  },
-  sectionGroup: { gap: space.sm },
-  eyebrow: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.xs,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginLeft: space.xs,
-  },
-  section: {
-    borderWidth: hairline,
-    borderCurve: 'continuous',
-    borderRadius: radius.lg,
-    padding: space.md,
-    gap: space.sm,
-  },
-  bodyText: {
-    lineHeight: lineHeight.sm,
-  },
-  experienceRow: {
-    paddingVertical: space.sm,
-  },
-  stickyFooter: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.lg,
-    borderTopWidth: hairline,
-  },
-  sheetContent: {
-    paddingHorizontal: space.md,
-    paddingBottom: space.lg,
-    gap: space.sm,
-  },
-  sheetTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    marginBottom: space.sm,
-  },
-  selector: {
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    gap: space.xs,
-  },
-  selectorLabel: {
-    fontSize: fontSize.xs,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-  selectorValue: {
-    fontSize: fontSize.md,
-    fontFamily: fonts.heading,
-  },
-  selectorMeta: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-  },
-  input: {
-    minHeight: 52,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    fontSize: fontSize.md,
-    fontFamily: fonts.body,
-  },
-  textarea: {
-    minHeight: 120,
-  },
-  expiryRow: {
+  hero: { alignItems: 'center', gap: SPACING_SM, paddingVertical: SPACING_SM },
+  flex: { flex: 1, minWidth: 0 },
+  trialBox: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  expiryChip: {
-    minHeight: 44,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: SPACING_MD,
+    padding: SPACING_LG,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
   },
-  expiryChipText: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.label,
+  facts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: SPACING_SM,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+    borderWidth: hairline,
+  },
+  fact: {
+    flexGrow: 1,
+    flexBasis: 140,
+    padding: SPACING_SM,
+    gap: SPACING_XS,
+  },
+  bio: { padding: SPACING_MD },
+  station: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD,
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM + SPACING_XS,
+  },
+  photos: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_SM },
+  photo: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    aspectRatio: 1,
+    borderRadius: RADIUS_MD,
+    borderCurve: 'continuous',
   },
 })

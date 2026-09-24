@@ -1,8 +1,7 @@
 import React from 'react'
-import { render } from '@testing-library/react-native'
+import { fireEvent, render } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import HomeScreen from '../(tabs)/index'
-import { setFeatureOverride, clearFeatureOverrides } from '../../src/utils/featureFlags'
 
 type AuthState = {
   user: { name: string; registrationRole: string | null } | null
@@ -67,14 +66,6 @@ jest.mock('../../src/api/client', () => ({
   api: jest.fn(() => Promise.resolve([])),
 }))
 
-jest.mock('../../src/components/home/LegacyHomeScreen', () => ({
-  LegacyHomeScreen: () => {
-    const React = require('react')
-    const { Text } = require('react-native')
-    return React.createElement(Text, null, 'LEGACY HOME')
-  },
-}))
-
 jest.mock('../../src/components/home/AdminHome', () => ({
   AdminHome: () => {
     const React = require('react')
@@ -91,8 +82,11 @@ jest.mock('../../src/components/home/CoachHome', () => ({
   },
 }))
 
+let mockPlayerHomeThrows = false
+
 jest.mock('../../src/components/home/PlayerHome', () => ({
   PlayerHome: () => {
+    if (mockPlayerHomeThrows) throw new Error('player home crashed')
     const React = require('react')
     const { Text } = require('react-native')
     return React.createElement(Text, null, 'PLAYER HOME')
@@ -114,6 +108,8 @@ jest.mock('../../src/components/home/FreeAgentHome', () => ({
     return React.createElement(Text, null, 'FREE AGENT HOME')
   },
 }))
+
+jest.mock('@sentry/react-native', () => ({ captureException: jest.fn() }))
 
 jest.mock('../../src/components/sponsors/SponsorStrip', () => ({
   SponsorStrip: () => null,
@@ -159,20 +155,28 @@ describe('HomeScreen branching', () => {
     resetAuthState()
   })
 
-  afterEach(() => clearFeatureOverrides())
-
-  it('falls back to LegacyHomeScreen when flag is off', () => {
-    setFeatureOverride('anstoss.roleAwareHome', false)
-    authState.activeClub = {
-      role: 'OWNER',
-      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
-    }
-    const { getByText } = render(wrap(<HomeScreen />))
-    expect(getByText('LEGACY HOME')).toBeTruthy()
+  afterEach(() => {
+    mockPlayerHomeThrows = false
   })
 
-  it('renders AdminHome branch for OWNER when flag is on', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
+  it('shrinks a crashing role home to an inline error with a working retry', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockPlayerHomeThrows = true
+    authState.activeClub = {
+      role: 'PLAYER',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    const { getByText, getByLabelText, findByText } = render(wrap(<HomeScreen />))
+    expect(getByText("Home couldn't be shown")).toBeTruthy()
+
+    mockPlayerHomeThrows = false
+    fireEvent.press(getByLabelText('Try again'))
+    expect(await findByText('PLAYER HOME')).toBeTruthy()
+    spy.mockRestore()
+  })
+
+  it('renders AdminHome branch for OWNER', async () => {
     authState.activeClub = {
       role: 'OWNER',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -182,7 +186,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders CoachHome branch for COACH', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'COACH',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -193,7 +196,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders PlayerHome branch for PLAYER', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'PLAYER',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -204,7 +206,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders ParentHome branch for PARENT', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'PARENT',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -215,7 +216,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders CoachHome when a parent has selected coach team access', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'PARENT',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -229,7 +229,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders PlayerHome when a parent has selected player team access', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'PARENT',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -243,7 +242,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('lets an admin who also plays explicitly enter the player home', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'ADMIN',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -258,7 +256,6 @@ describe('HomeScreen branching', () => {
   })
 
   it('lets a parent who also plays switch between parent and player homes', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = {
       role: 'PARENT',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -273,10 +270,22 @@ describe('HomeScreen branching', () => {
   })
 
   it('renders FreeAgentHome when no club and registrationRole is FREE_AGENT', async () => {
-    setFeatureOverride('anstoss.roleAwareHome', true)
     authState.activeClub = null
     authState.user = { name: 'QA', registrationRole: 'FREE_AGENT' }
     const { findByText } = render(wrap(<HomeScreen />))
     expect(await findByText('FREE AGENT HOME')).toBeTruthy()
+  })
+
+  it('keeps 16pt gutters and tab-bar clearance on the scroll view', () => {
+    authState.activeClub = {
+      role: 'PLAYER',
+      club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+    }
+    authState.activeTeamId = 'team-1'
+    const { UNSAFE_getByType } = render(wrap(<HomeScreen />))
+    const { ScrollView, StyleSheet } = require('react-native')
+    const style = StyleSheet.flatten(UNSAFE_getByType(ScrollView).props.contentContainerStyle)
+    expect(style.paddingHorizontal).toBe(16)
+    expect(style.paddingBottom).toBeGreaterThan(0)
   })
 })

@@ -31,17 +31,24 @@ import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
 import {
   clearE2ESession,
+  getE2EPendingState,
   getE2ESession,
   hydrateStoredE2ESession,
   isE2ESupported,
   subscribeToE2ESession,
   type E2ESessionSnapshot,
 } from '../e2e/session'
-import { ONBOARDING_FLOW_STORAGE_KEY } from './OnboardingFlowContext'
-
-const TEAM_PREF_PREFIX = 'anstoss:team-pref:'
-const ROLE_MODE_PREF_PREFIX = 'anstoss:role-mode-pref:'
-const ONBOARDING_KEY_PREFIX = 'anstoss:onboarding-complete:'
+// Storage keys live in a leaf module: importing them from
+// OnboardingFlowContext created a require cycle (that context imports useAuth).
+import { clearPendingInvite } from '../auth/pendingInvite'
+import { clearOnboardingIntent } from '../onboarding/intent'
+import {
+  ONBOARDING_FLOW_STORAGE_KEY,
+  ONBOARDING_KEY_PREFIX,
+  TEAM_PREF_PREFIX,
+  roleModePreferenceKey,
+} from '../onboarding/storageKeys'
+import { noteServerLanguage } from '../i18n'
 
 type User = {
   id: string
@@ -51,6 +58,9 @@ type User = {
   avatarUrl: string | null
   registrationRole: string
   dateOfBirth: string | null
+  /** ISO timestamp of the 16+ self-declaration (coach/parent/admin), if any. */
+  adultConfirmedAt?: string | null
+  preferredLanguage?: string | null
 }
 
 type TeamMember = {
@@ -109,7 +119,12 @@ type AuthState = {
   needsRegistration: boolean
   /** Returns the current session JWT (or e2e sentinel). Null when signed out. */
   getToken: () => Promise<string | null>
-  signOut: () => Promise<void>
+  /**
+   * Signs out and forgets onboarding intents and any pending invite.
+   * `keepPendingInvite` is only for the explicit "sign in with another email"
+   * switch on an invite, where the invite must survive the account change.
+   */
+  signOut: (options?: { keepPendingInvite?: boolean }) => Promise<void>
   setActiveClub: (membership: Membership) => void
   setActiveTeam: (teamId: string) => void
   setActiveRoleMode: (mode: RoleMode) => void
@@ -156,6 +171,16 @@ function selectPrimaryAccessPerTeam(teamMembers: TeamMember[]): TeamMember[] {
   })
 
   return Array.from(byTeam.values())
+}
+
+/**
+ * The mode a user lands in when they have no saved preference for this club:
+ * the highest authority they hold. An OWNER/ADMIN who also coaches starts in
+ * admin mode, a coach who also plays starts in coach mode.
+ */
+export function defaultRoleMode(modes: readonly RoleMode[]): RoleMode | null {
+  const order: RoleMode[] = ['ADMIN', 'COACH', 'PLAYER', 'PARENT', 'FREE_AGENT']
+  return order.find((mode) => modes.includes(mode)) ?? null
 }
 
 function teamAccessMatchesMode(teamMember: TeamMember, mode: RoleMode | null): boolean {
@@ -238,6 +263,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     setAgeGate(null)
     setPendingJoinRequest(null)
+    setPendingClubClaim(null)
+    setActiveRoleModeState(null)
+    noteServerLanguage(undefined)
     setNeedsOnboarding(false)
     setE2ESession(null)
     setIsLoading(false)
@@ -260,11 +288,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl: session.user.avatarUrl,
         registrationRole: session.user.registrationRole,
         dateOfBirth: (session.user as { dateOfBirth?: string | null }).dateOfBirth ?? null,
+        adultConfirmedAt:
+          (session.user as { adultConfirmedAt?: string | null }).adultConfirmedAt ?? null,
       })
       setMemberships(session.memberships)
       setTeamMembers(session.teamMembers)
       setAgeGate(session.ageGate)
       setNeedsOnboarding(session.needsOnboarding)
+      // Onboarding revamp: mirror /me's pending join request / club claim so
+      // e2e personas route to the same waiting screens as real users.
+      const pending = getE2EPendingState(session)
+      setPendingJoinRequest(pending.pendingJoinRequest)
+      setPendingClubClaim(pending.pendingClubClaim)
       setToken('e2e-session-token')
 
       const firstMembership = session.memberships[0] || null
@@ -495,37 +530,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeClub, teamsForActiveClub, validatedTeamId])
 
+  // Role mode (R1): the preference is keyed by user AND club, and the
+  // in-memory mode never survives an account or club switch. Before this, a
+  // club admin could inherit the "Coach" mode a coach had picked on the same
+  // device. Without a saved preference the user lands in their highest role.
+  const roleModeScope = user?.id ? `${user.id}:${activeClub?.club.id ?? 'none'}` : null
+  const roleModeScopeRef = useRef<string | null>(null)
   useEffect(() => {
     let cancelled = false
-    const scope = activeClub?.club.id ?? user?.id
-    if (!scope || availableRoleModes.length === 0) {
+    const scopeChanged = roleModeScopeRef.current !== roleModeScope
+    roleModeScopeRef.current = roleModeScope
+    if (!user?.id || availableRoleModes.length === 0) {
       setActiveRoleModeState(null)
       return () => {
         cancelled = true
       }
     }
-    void AsyncStorage.getItem(ROLE_MODE_PREF_PREFIX + scope)
+    const fallback = defaultRoleMode(availableRoleModes)
+    if (scopeChanged) {
+      // Drop the previous user's/club's mode immediately; never render with it.
+      setActiveRoleModeState(fallback)
+    }
+    const key = roleModePreferenceKey(user.id, activeClub?.club.id ?? 'none')
+    void AsyncStorage.getItem(key)
       .catch(() => null)
       .then((saved) => {
         if (cancelled) return
         const valid = availableRoleModes.find((mode) => mode === saved)
-        setActiveRoleModeState((current) =>
-          current && availableRoleModes.includes(current)
-            ? current
-            : (valid ?? availableRoleModes[0]),
-        )
+        setActiveRoleModeState((current) => {
+          if (valid) return valid
+          return current && availableRoleModes.includes(current) ? current : fallback
+        })
       })
     return () => {
       cancelled = true
     }
-  }, [activeClub?.club.id, availableRoleModes, user?.id])
+  }, [activeClub?.club.id, availableRoleModes, roleModeScope, user?.id])
 
   const setActiveRoleMode = useCallback(
     (mode: RoleMode) => {
       if (!availableRoleModes.includes(mode)) return
       setActiveRoleModeState(mode)
-      const scope = activeClub?.club.id ?? user?.id
-      if (scope) AsyncStorage.setItem(ROLE_MODE_PREF_PREFIX + scope, mode).catch(() => {})
+      if (user?.id) {
+        AsyncStorage.setItem(
+          roleModePreferenceKey(user.id, activeClub?.club.id ?? 'none'),
+          mode,
+        ).catch(() => {})
+      }
     },
     [activeClub?.club.id, availableRoleModes, user?.id],
   )
@@ -599,6 +650,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatarUrl: string | null
           registrationRole: string
           dateOfBirth: string | null
+          adultConfirmedAt?: string | null
+          preferredLanguage?: string | null
           memberships: Membership[]
           teamMembers: TeamMember[]
           ageGate?: AgeGate | null
@@ -624,7 +677,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatarUrl: data.avatarUrl,
           registrationRole: data.registrationRole,
           dateOfBirth: data.dateOfBirth ?? null,
+          adultConfirmedAt: data.adultConfirmedAt ?? null,
+          preferredLanguage: data.preferredLanguage ?? null,
         })
+        // R9: remember the server's language so the client only PATCHes /me
+        // when the user's choice actually differs from it.
+        noteServerLanguage(data.preferredLanguage ?? null)
         setMemberships(data.memberships)
         setTeamMembers(data.teamMembers || [])
 
@@ -705,9 +763,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNeedsOnboarding(false)
   }, [user])
 
-  const signOut = useCallback(async () => {
-    await clearAuthSession({ unregisterPush: true })
-  }, [clearAuthSession])
+  // onboarding review fix (H2): a sign-out forgets the pending invite and the
+  // onboarding intent, so the next person on this phone never lands on
+  // someone else's invitation.
+  const signOut = useCallback(
+    async (options?: { keepPendingInvite?: boolean }) => {
+      await Promise.all([
+        options?.keepPendingInvite ? Promise.resolve() : clearPendingInvite(),
+        clearOnboardingIntent(),
+      ])
+      await clearAuthSession({ unregisterPush: true })
+    },
+    [clearAuthSession],
+  )
 
   const refreshUser = useCallback(
     async (tokenOverride?: string, options?: RefreshUserOptions) => {

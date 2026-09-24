@@ -1,363 +1,366 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useState } from 'react'
-import { Alert, View, StyleSheet, Pressable } from 'react-native'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  ActionSheetIOS,
+  Alert,
+  Animated,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { router } from 'expo-router'
-import type { Channel } from '@anstoss/shared'
+import { useTranslation } from 'react-i18next'
+import type { InboxItem } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
-import { ChatScreen } from '../../../src/components/chat'
-import { ChannelRail } from '../../../src/components/chat/ChannelRail'
-import { ChannelInfoSheet } from '../../../src/components/chat/ChannelInfoSheet'
-import { CreateGroupSheet } from '../../../src/components/chat/CreateGroupSheet'
-import { DmListView } from '../../../src/components/DmListView'
-import { api } from '../../../src/api/client'
+import { useInbox, patchInboxItem, refreshInbox } from '../../../src/hooks/useInbox'
+import { markConversationRead, muteConversation } from '../../../src/api/chat'
 import { EmptyState } from '../../../src/components/EmptyState'
-import { Icon, SegmentedControl, Text } from '../../../src/components/ui'
-import { API_URL } from '../../../src/api/client'
+import { ErrorState } from '../../../src/components/ErrorState'
+import { Skeleton } from '../../../src/components/Skeleton'
+import { IconButton, Icon, SearchBar, Text } from '../../../src/components/ui'
+import { InboxRow, INBOX_AVATAR_SIZE } from '../../../src/components/chat/InboxRow'
+import { openConversation } from '../../../src/components/chat/chatRoutes'
 import {
-  elevation,
-  hairline,
-  radius,
-  space,
-  TAB_BAR_CLEARANCE,
-  TAB_BAR_HEIGHT,
-} from '../../../src/theme/tokens'
+  conversationSubtitle,
+  conversationTitle,
+  filterInbox,
+  isMuted,
+  previewLine,
+  routeKindFor,
+  sortInbox,
+  typingPreview,
+} from '../../../src/components/chat/inboxModel'
+import { hairline, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
-type ChatMode = 'team' | 'direct'
-const CHAT_CHANNEL_PREF_PREFIX = 'chat_channel_pref:'
+/** Scroll offset over which the large title hands over to the compact bar. */
+const COLLAPSE_START = 24
+const COLLAPSE_END = 44
 
-export default function ChatTab() {
+/**
+ * Chat inbox. One list, the way WhatsApp already taught everyone: every
+ * team channel, club channel, group and direct message the member can read,
+ * newest first. Unread Ankündigungen stay pinned on top.
+ */
+export default function ChatInboxScreen() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamId, activeTeamAccess, token } = useAuth()
   const c = useClubColors()
-  const [chatMode, setChatMode] = useState<ChatMode>('team')
-  const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
-  const [activeChannelTeamId, setActiveChannelTeamId] = useState<string | null>(null)
-  const [activeChannelClubId, setActiveChannelClubId] = useState<string | null>(null)
-  const [createGroupOpen, setCreateGroupOpen] = useState(false)
-  const [channelInfoOpen, setChannelInfoOpen] = useState(false)
-  const [channelRailKey, setChannelRailKey] = useState(0)
-  const [preferredChannelId, setPreferredChannelId] = useState<string | null>(null)
-  const [channelPreferenceHydrated, setChannelPreferenceHydrated] = useState(false)
+  const { user, activeClub, teamsForActiveClub } = useAuth()
+  const { items, status, refetch, typing } = useInbox()
+  // Large title + search scroll away; a compact title bar fades in (iOS
+  // large-title behaviour, identical on Android).
+  const scrollY = useRef(new Animated.Value(0)).current
+  const compactOpacity = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  })
+  const [query, setQuery] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+  const clubId = activeClub?.club.id ?? null
+  const teamCount = teamsForActiveClub?.length ?? 0
+  const crestUrl = activeClub?.club.badgeUrl ?? null
 
-  const canCreateGroup =
-    activeClub?.role === 'OWNER' ||
-    activeClub?.role === 'ADMIN' ||
-    activeClub?.role === 'COACH'
-  // The API lets team-role coaches post lineups and event cards too; the
-  // composer has to agree with it, not with the club role alone.
-  const canCompose =
-    canCreateGroup ||
-    activeTeamAccess?.role === 'HEAD_COACH' ||
-    activeTeamAccess?.role === 'ASSISTANT_COACH'
+  const rows = useMemo(() => {
+    const decorated = items.map((item) => {
+      const typist = typing[item.id]
+      return {
+        item,
+        title: conversationTitle(item, t),
+        subtitle: conversationSubtitle(item, teamCount, t),
+        typing: !!typist,
+        preview: typist ? typingPreview(item, typist.userName, t) : previewLine(item, user?.id, t),
+      }
+    })
+    const byId = new Map(decorated.map((row) => [row.item.id, row]))
+    const sorted = sortInbox(items)
+    const filtered = filterInbox(sorted, query, (item) => byId.get(item.id)?.title ?? item.title)
+    return filtered.map((item) => byId.get(item.id)!)
+  }, [items, query, t, teamCount, typing, user?.id])
 
-  // The latest-announcement banner in the team channel opens the
-  // announcements channel itself, so "read the rest" is one tap.
-  const openAnnouncementsChannel = async () => {
-    if (!activeTeamId || !activeClub) return
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
     try {
-      const channels = await api<Channel[]>(`/teams/${activeTeamId}/channels`)
-      const target = (channels ?? []).find((ch) => ch.kind === 'ANNOUNCEMENTS')
-      if (!target) return
-      setActiveChannel(target)
-      setActiveChannelTeamId(activeTeamId)
-      setActiveChannelClubId(activeClub.club.id)
-    } catch {
-      // stay where we are
+      await refetch()
+    } finally {
+      setRefreshing(false)
     }
-  }
+  }, [refetch])
 
-  const resolvedActiveChannel =
-    activeChannel &&
-    activeTeamId &&
-    activeChannelTeamId === activeTeamId &&
-    activeChannelClubId === activeClub?.club.id &&
-    (activeChannel.teamId === null || activeChannel.teamId === activeTeamId)
-      ? activeChannel
-      : null
-
-  // Keep the rail's fetch effect stable. An inline callback here used to be
-  // recreated on every ChatTab render; ChannelRail treats callback identity as
-  // part of its fetch dependencies, so selecting a channel could trigger an
-  // unbounded request loop and exhaust the API read limiter for the whole app.
-  const handleChannelSelect = useCallback((ch: Channel) => {
-    if (!activeTeamId || !activeClub) return
-    if (resolvedActiveChannel?.id === ch.id) {
-      setChannelInfoOpen(true)
-      return
-    }
-    setActiveChannel(ch)
-    setActiveChannelTeamId(activeTeamId)
-    setActiveChannelClubId(activeClub.club.id)
-  }, [activeClub?.club.id, activeTeamId, resolvedActiveChannel?.id])
-
-  useEffect(() => {
-    if (!activeTeamId) {
-      setPreferredChannelId(null)
-      setActiveChannel(null)
-      setActiveChannelTeamId(null)
-      setActiveChannelClubId(null)
-      setChannelPreferenceHydrated(true)
-      return
-    }
-    setChannelPreferenceHydrated(false)
-    let cancelled = false
-    void AsyncStorage.getItem(CHAT_CHANNEL_PREF_PREFIX + activeTeamId)
-      .then((stored) => {
-        if (cancelled) return
-        setPreferredChannelId(stored || null)
-        setActiveChannel(null)
-        setActiveChannelTeamId(null)
-        setActiveChannelClubId(null)
-        setChannelPreferenceHydrated(true)
+  const open = useCallback(
+    (item: InboxItem) => {
+      if (item.unreadCount > 0) patchInboxItem(item.id, { unreadCount: 0 })
+      openConversation({
+        kind: routeKindFor(item),
+        id: item.id,
+        teamId: item.teamId,
+        title: conversationTitle(item, t),
       })
-      .catch(() => {
-        if (cancelled) return
-        setPreferredChannelId(null)
-        setActiveChannel(null)
-        setActiveChannelTeamId(null)
-        setActiveChannelClubId(null)
-        setChannelPreferenceHydrated(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeTeamId])
+    },
+    [t],
+  )
 
-  useEffect(() => {
-    if (!activeTeamId || !resolvedActiveChannel?.id) return
-    void AsyncStorage.setItem(
-      CHAT_CHANNEL_PREF_PREFIX + activeTeamId,
-      resolvedActiveChannel.id,
-    ).catch(() => {})
-  }, [activeTeamId, resolvedActiveChannel?.id])
+  const toggleMute = useCallback(
+    async (item: InboxItem) => {
+      if (!clubId) return
+      const nextMuted = !isMuted(item)
+      patchInboxItem(item.id, { muted: nextMuted, mutedUntil: null })
+      try {
+        await muteConversation(clubId, routeKindFor(item), item.id, nextMuted)
+      } catch {
+        patchInboxItem(item.id, { muted: item.muted, mutedUntil: item.mutedUntil })
+        Alert.alert(t('common.error'), t('chatHub.errors.muteFailed'))
+      } finally {
+        void refreshInbox(clubId)
+      }
+    },
+    [clubId, t],
+  )
 
-  if (!activeClub || !user || !token) {
+  const markRead = useCallback(
+    async (item: InboxItem) => {
+      if (!clubId || item.unreadCount === 0) return
+      patchInboxItem(item.id, { unreadCount: 0 })
+      try {
+        await markConversationRead(clubId, routeKindFor(item), item.id)
+      } catch {
+        patchInboxItem(item.id, { unreadCount: item.unreadCount })
+      } finally {
+        void refreshInbox(clubId)
+      }
+    },
+    [clubId],
+  )
+
+  // Long-press is the row menu (mute, mark read), mirroring the swipe
+  // actions; VoiceOver users get the same two as accessibility actions.
+  const showRowMenu = useCallback(
+    (item: InboxItem) => {
+      const muteLabel = isMuted(item) ? t('chatHub.actions.unmute') : t('chatHub.actions.mute')
+      const actions: Array<{ label: string; run: () => void }> = [
+        { label: muteLabel, run: () => void toggleMute(item) },
+      ]
+      if (item.unreadCount > 0) {
+        actions.push({ label: t('chatHub.actions.markRead'), run: () => void markRead(item) })
+      }
+      const title = conversationTitle(item, t)
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            title,
+            options: [...actions.map((a) => a.label), t('common.cancel')],
+            cancelButtonIndex: actions.length,
+          },
+          (index) => actions[index]?.run(),
+        )
+        return
+      }
+      Alert.alert(title, undefined, [
+        ...actions.map((a) => ({ text: a.label, onPress: a.run })),
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ])
+    },
+    [markRead, t, toggleMute],
+  )
+
+  // Free agents have no club chat yet. Clubs reach them once they ask for a
+  // Probetraining, so point there instead of a dead "join a club" line.
+  if (!activeClub) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
+      <View style={[styles.container, styles.centered, { backgroundColor: c.background }]}>
         <EmptyState
+          illustration="emptyChat"
           icon="bubble.fill"
-          title={t('chat.screenTitle')}
-          description={t('chat.emptyWithoutClub')}
+          title={t('chatHub.freeAgent.title')}
+          description={t('chatHub.freeAgent.body')}
+          actionLabel={t('chatHub.freeAgent.cta')}
+          onAction={() => router.push('/find-club' as never)}
+          testID="chat-free-agent-empty"
         />
       </View>
     )
   }
 
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.titleRow}>
+        <Text variant="largeTitle" color="primary" accessibilityRole="header" style={styles.title}>
+          {t('chatHub.title')}
+        </Text>
+        <IconButton
+          onPress={() => router.push('/chat/new' as never)}
+          accessibilityLabel={t('chatHub.newChat')}
+          testID="chat-compose"
+        >
+          <Icon name="square.and.pencil" size="lg" color={c.primary} />
+        </IconButton>
+      </View>
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('chatHub.searchPlaceholder')}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+        testID="chat-inbox-search"
+      />
+    </View>
+  )
+
+  const body = (() => {
+    if (status === 'loading' && items.length === 0) return <InboxSkeleton />
+    if (status === 'error' && items.length === 0) {
+      return (
+        <ErrorState
+          message={t('chatHub.errors.loadTitle')}
+          hint={t('chatHub.errors.loadHint')}
+          onRetry={() => void refetch()}
+          fillContainer
+        />
+      )
+    }
+    return null
+  })()
+
+  const compactBar = (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.compactBar,
+        { backgroundColor: c.background, borderBottomColor: c.borderSubtle, opacity: compactOpacity },
+      ]}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+    >
+      <Text variant="headline" weight="semibold" color="primary" numberOfLines={1}>
+        {t('chatHub.title')}
+      </Text>
+    </Animated.View>
+  )
+
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            borderBottomColor: c.borderDefault,
-            backgroundColor: c.background,
-            paddingTop: space.sm,
-          },
-        ]}
-      >
-        <Text variant="largeTitle" color="primary" style={styles.title}>
-          {t('chat.screenTitle')}
-        </Text>
-        <SegmentedControl<ChatMode>
-          segments={[
-            {
-              key: 'team',
-              label: t('chat.channelsTab', { defaultValue: 'Channels' }),
-            },
-            { key: 'direct', label: t('chat.directTab') },
-          ]}
-          value={chatMode}
-          onChange={setChatMode}
-        />
-      </View>
-
-      {chatMode === 'team' ? (
-        activeTeamId ? (
-          <View style={{ flex: 1 }}>
-            <View
-              style={[
-                styles.railWrap,
-                {
-                  borderBottomColor: c.borderDefault,
-                  backgroundColor: c.background,
-                },
-              ]}
-            >
-              <View style={styles.railRow}>
-                <View style={styles.railScroll}>
-                  <ChannelRail
-                    key={channelRailKey}
-                    teamId={activeTeamId}
-                    selectedChannelId={resolvedActiveChannel?.id ?? null}
-                    preferredChannelId={preferredChannelId}
-                    autoSelectEnabled={channelPreferenceHydrated}
-                    onSelect={handleChannelSelect}
-                  />
-                </View>
-                {canCreateGroup ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.railAddBtn,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface },
-                      pressed && styles.pressedScale,
-                    ]}
-                    onPress={() => setCreateGroupOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('chat.newGroup', { defaultValue: 'New group' })}
-                    hitSlop={8}
-                  >
-                    <Icon name="plus" size="sm" color="secondary" />
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-            <ChatScreen
-              // The keyboard covers the tab bar, so the avoidance padding
-              // must not also reserve room for it.
-              keyboardOffset={TAB_BAR_HEIGHT}
-              key={`${activeTeamId}:${resolvedActiveChannel?.id ?? 'team'}`}
-              teamId={activeTeamId}
-              channelId={resolvedActiveChannel?.id ?? null}
-              clubId={activeClub.club.id}
-              userId={user.id}
-              token={token}
-              apiUrl={API_URL}
-              primaryColor={c.primary}
-              canCompose={canCompose}
-              channelKind={resolvedActiveChannel?.kind ?? null}
-              onOpenAnnouncements={() => void openAnnouncementsChannel()}
-            />
-          </View>
-        ) : (
-          <View style={[styles.emptyContainer, { backgroundColor: c.background }]}>
-            <EmptyState
-              icon="bubble.fill"
-              title={t('chat.screenTitle')}
-              description={t('chat.emptyWithoutClub')}
-            />
-          </View>
-        )
+      {body ? (
+        <>
+          {header}
+          {body}
+        </>
       ) : (
-        <View style={styles.dmContainer}>
-          <DmListView />
-          <Pressable
-            style={[styles.fab, elevation.fab, { backgroundColor: c.primary }]}
-            onPress={() => router.push('/dm-new')}
-            accessibilityRole="button"
-            accessibilityLabel={t('dm.newConversation')}
-          >
-            <Icon name="square.and.pencil" size="lg" color="inverse" />
-          </Pressable>
-        </View>
-      )}
-
-      {activeTeamId && resolvedActiveChannel ? (
-        <ChannelInfoSheet
-          visible={channelInfoOpen}
-          channel={resolvedActiveChannel}
-          teamId={activeTeamId}
-          currentUserId={user.id}
-          canManage={canCreateGroup}
-          onClose={() => setChannelInfoOpen(false)}
-          onChanged={() => setChannelRailKey((k) => k + 1)}
-        />
-      ) : null}
-
-      <CreateGroupSheet
-        visible={createGroupOpen}
-        onClose={() => setCreateGroupOpen(false)}
-        onSubmit={async (input) => {
-          if (!activeClub || !activeTeamId) {
-            // Without team context there's no place for the channel to live.
-            // Surface this instead of resolving silently — otherwise the
-            // sheet closes and the user sees nothing change.
-            throw new Error(
-              t('chat.newGroupErrorNoTeam', {
-                defaultValue: 'Pick a team before creating a group.',
-              }),
+        <Animated.FlatList
+          data={rows}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
+          scrollEventThrottle={16}
+          keyExtractor={(row) => `${row.item.type}:${row.item.id}`}
+          ListHeaderComponent={header}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void onRefresh()}
+              tintColor={c.textTertiary}
+              colors={[c.primary]}
+              progressBackgroundColor={c.surface}
+            />
+          }
+          renderItem={({ item: row }) => (
+            <InboxRow
+              item={row.item}
+              title={row.title}
+              subtitle={row.subtitle}
+              preview={row.preview}
+              typing={row.typing}
+              crestUrl={crestUrl}
+              onPress={open}
+              onLongPress={showRowMenu}
+              onToggleMute={(i) => void toggleMute(i)}
+              onMarkRead={(i) => void markRead(i)}
+            />
+          )}
+          ListEmptyComponent={
+            query.trim() ? (
+              <View style={styles.searchEmpty}>
+                <Text variant="body" color="secondary" style={styles.centerText}>
+                  {t('chatHub.searchEmpty', { query: query.trim() })}
+                </Text>
+              </View>
+            ) : (
+              <EmptyState
+                illustration="emptyChat"
+                icon="bubble.fill"
+                title={t('chatHub.empty.title')}
+                description={t('chatHub.empty.body')}
+                actionLabel={t('chatHub.newChat')}
+                onAction={() => router.push('/chat/new' as never)}
+                style={styles.empty}
+              />
             )
           }
-          try {
-            const created = await api<Channel>(`/clubs/${activeClub.club.id}/channels`, {
-              method: 'POST',
-              body: { name: input.name, description: input.description, teamId: activeTeamId },
-            })
-            // Open the new group immediately — otherwise it lands last in the
-            // horizontal channel rail (off-screen) and the user thinks it
-            // vanished. Selecting it switches the chat to it + highlights its chip.
-            setActiveChannel(created)
-            setChannelRailKey((k) => k + 1)
-          } catch (err) {
-            // Re-throw so CreateGroupSheet keeps the form open with the
-            // submitting state cleared. Show a real alert too — silent
-            // failure is the worst possible UX for a create flow.
-            const message =
-              err instanceof Error && err.message
-                ? err.message
-                : t('chat.newGroupError', {
-                    defaultValue: 'Could not create the group. Please try again.',
-                  })
-            Alert.alert(t('common.error'), message)
-            throw err
-          }
-        }}
-      />
+          testID="chat-inbox-list"
+        />
+      )}
+      {body ? null : compactBar}
+    </View>
+  )
+}
+
+function InboxSkeleton() {
+  return (
+    <View style={styles.skeleton} accessibilityLabel="" importantForAccessibility="no-hide-descendants">
+      {Array.from({ length: 7 }).map((_, index) => (
+        <View key={index} style={styles.skeletonRow}>
+          <Skeleton shape="circle" width={INBOX_AVATAR_SIZE} height={INBOX_AVATAR_SIZE} />
+          <View style={styles.skeletonText}>
+            <Skeleton width="55%" height={16} />
+            <Skeleton width="85%" height={14} />
+          </View>
+        </View>
+      ))}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  compactBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.md,
+    borderBottomWidth: hairline,
+  },
+  centered: { justifyContent: 'center', paddingHorizontal: space.md },
   header: {
     paddingHorizontal: space.md,
-    paddingBottom: space.xs,
-    borderBottomWidth: hairline,
+    paddingTop: space.xs,
+    paddingBottom: space.sm,
     gap: space.sm,
   },
-  title: {
-    paddingBottom: space.xs,
-  },
-  railWrap: {},
-  railRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: space.md,
-    gap: space.xs,
+    justifyContent: 'space-between',
   },
-  railScroll: {
-    flex: 1,
-    minWidth: 0,
-  },
-  railAddBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+  title: { flex: 1 },
+  listContent: { paddingBottom: space.lg + TAB_BAR_CLEARANCE },
+  searchEmpty: { paddingHorizontal: space.lg, paddingVertical: space.xl },
+  centerText: { textAlign: 'center' },
+  empty: { marginTop: space.xl },
+  skeleton: { paddingTop: space.sm },
+  skeletonRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressedScale: {
-    transform: [{ scale: 0.97 }],
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    gap: space.sm + space.xs,
     paddingHorizontal: space.md,
+    paddingVertical: space.sm + space.xs,
   },
-  dmContainer: {
-    flex: 1,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: space.lg + TAB_BAR_CLEARANCE,
-    right: space.md,
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    borderCurve: 'continuous',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  skeletonText: { flex: 1, gap: space.sm },
 })

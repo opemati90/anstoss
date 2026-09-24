@@ -341,24 +341,6 @@ export default function MatchDetailScreen() {
                       hint={venueAddress ?? undefined}
                       onPress={venueAddress || venueMapsUrl ? openMaps : undefined}
                     />
-                    <Divider />
-                    <KvRow
-                      label={t('matches.tab.carpoolLabel', {
-                        defaultValue: 'Carpool',
-                      })}
-                      value={t('matches.tab.carpoolValue', {
-                        defaultValue: 'Open carpool board',
-                      })}
-                      hint={t('matches.tab.carpoolHint', {
-                        defaultValue: 'Offer a ride or claim a seat',
-                      })}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/carpool',
-                          params: { fixtureId: fixture.id },
-                        } as never)
-                      }
-                    />
                   </>
                 ) : null}
                 {fixture.competition ? (
@@ -370,25 +352,9 @@ export default function MatchDetailScreen() {
                     />
                   </>
                 ) : null}
-                {isCoach && overlay?.arrivalTime ? (
-                  <>
-                    <Divider />
-                    <KvRow
-                      label={t('matches.arrivalTime')}
-                      value={new Intl.DateTimeFormat(locale, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }).format(new Date(overlay.arrivalTime))}
-                      valueMono
-                    />
-                  </>
-                ) : null}
-                {isCoach && overlay?.meetingPoint ? (
-                  <>
-                    <Divider />
-                    <KvRow label={t('matches.meetingPoint')} value={overlay.meetingPoint} />
-                  </>
-                ) : null}
+                {/* Treffpunkt and Fahrgemeinschaft live on the event screen
+                    (event-detail), visible to the whole squad; this screen is
+                    the live ticker, table and timeline only. */}
                 {isCoach && overlay?.kitColor ? (
                   <>
                     <Divider />
@@ -421,7 +387,7 @@ export default function MatchDetailScreen() {
                             defaultValue: 'Change MOTM vote',
                           })
                         : t('matches.motmVote', {
-                            defaultValue: 'Vote Man of the Match',
+                            defaultValue: 'Vote for player of the match',
                           })}
                     </Text>
                   </Pressable>
@@ -1367,7 +1333,7 @@ const styles = StyleSheet.create({
   },
   livePulseText: {
     fontFamily: fonts.heading,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     color: TEXT_WHITE,
@@ -1382,7 +1348,7 @@ const styles = StyleSheet.create({
   },
   motmEyebrow: {
     fontFamily: fonts.label,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.4,
     fontWeight: '700',
   },
@@ -1413,7 +1379,7 @@ const styles = StyleSheet.create({
   motmBadgeText: {
     fontFamily: fonts.data,
     color: TEXT_WHITE,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
   },

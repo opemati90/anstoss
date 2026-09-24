@@ -165,7 +165,14 @@ export default function OwnershipTransfersScreen() {
   }
 
   const isOwner = activeClub?.role === 'OWNER'
-  const candidates = members.filter((member) => member.userId !== user?.id)
+  // Never offer the current owner as a candidate: compare both id shapes the
+  // members endpoint can return, and skip existing owners.
+  const candidates = members.filter(
+    (member) =>
+      (member.userId ?? member.user?.id) !== user?.id &&
+      member.user?.id !== user?.id &&
+      member.role !== 'OWNER',
+  )
 
   return (
     <Screen

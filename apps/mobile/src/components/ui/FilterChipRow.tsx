@@ -33,6 +33,8 @@ export interface FilterChipRowProps<T extends string = string> {
   selected: T[] | T | null
   onToggle: (key: T) => void
   singleSelect?: boolean
+  /** Lay chips out in wrapping rows instead of one horizontal scroller. */
+  wrap?: boolean
   style?: StyleProp<ViewStyle>
   contentStyle?: StyleProp<ViewStyle>
   testID?: string
@@ -43,6 +45,7 @@ export function FilterChipRow<T extends string = string>({
   selected,
   onToggle,
   singleSelect,
+  wrap,
   style,
   contentStyle,
   testID,
@@ -59,12 +62,11 @@ export function FilterChipRow<T extends string = string>({
     onToggle(key)
   }
 
+  const Container = wrap ? WrapContainer : ScrollContainer
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.content, contentStyle]}
+    <Container
       style={style}
+      contentStyle={contentStyle}
       testID={testID}
       accessibilityRole={singleSelect ? 'tablist' : undefined}
     >
@@ -124,7 +126,42 @@ export function FilterChipRow<T extends string = string>({
           </Pressable>
         )
       })}
+    </Container>
+  )
+}
+
+type ContainerProps = {
+  children: React.ReactNode
+  style?: StyleProp<ViewStyle>
+  contentStyle?: StyleProp<ViewStyle>
+  testID?: string
+  accessibilityRole?: 'tablist'
+}
+
+function ScrollContainer({ children, style, contentStyle, testID, accessibilityRole }: ContainerProps) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.content, contentStyle]}
+      style={style}
+      testID={testID}
+      accessibilityRole={accessibilityRole}
+    >
+      {children}
     </ScrollView>
+  )
+}
+
+function WrapContainer({ children, style, contentStyle, testID, accessibilityRole }: ContainerProps) {
+  return (
+    <View
+      style={[styles.content, styles.wrap, style, contentStyle]}
+      testID={testID}
+      accessibilityRole={accessibilityRole}
+    >
+      {children}
+    </View>
   )
 }
 
@@ -135,6 +172,10 @@ const styles = StyleSheet.create({
     gap: SPACING_SM,
     paddingHorizontal: SPACING_XXS,
     paddingVertical: SPACING_XXS,
+  },
+  wrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   chip: {
     minHeight: CHIP_HEIGHT,

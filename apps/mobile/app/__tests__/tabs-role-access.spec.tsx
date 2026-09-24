@@ -77,7 +77,8 @@ jest.mock('expo-router', () => {
   return {
     Tabs,
     Redirect: (props: unknown) => mockRedirect(props),
-    router: { push: jest.fn() },
+    router: { push: jest.fn(), replace: jest.fn() },
+    usePathname: () => '/',
   }
 })
 
@@ -117,8 +118,8 @@ jest.mock('../../src/components/ClubSwitcher', () => ({
   ClubSwitcher: () => null,
 }))
 
-jest.mock('../../src/components/DmListView', () => ({
-  useDmUnreadCount: () => 0,
+jest.mock('../../src/hooks/useInbox', () => ({
+  useInboxUnreadCount: () => 0,
 }))
 
 jest.mock('@expo/vector-icons', () => ({
@@ -152,13 +153,8 @@ describe('TabLayout role access', () => {
         }),
       }),
     )
-    expect(mockTabsScreen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'roster/index',
-        options: expect.objectContaining({
-          href: null,
-        }),
-      }),
+    expect(mockTabsScreen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'roster/index' }),
     )
   })
 
@@ -203,14 +199,9 @@ describe('TabLayout role access', () => {
       renderer.create(<TabLayout />)
     })
 
-    // The legacy roster tab is fully hidden (href: null) — squad replaces it.
-    expect(mockTabsScreen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'roster/index',
-        options: expect.objectContaining({
-          href: null,
-        }),
-      }),
+    // Kader revamp: the legacy roster tab is deleted — squad (Kader) replaces it.
+    expect(mockTabsScreen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'roster/index' }),
     )
     // Squad tab visible (href undefined = default routing).
     expect(mockTabsScreen).toHaveBeenCalledWith(

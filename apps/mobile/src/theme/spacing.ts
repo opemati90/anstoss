@@ -37,7 +37,8 @@ export const RADIUS_MD = ms(12)
 export const RADIUS_LG = ms(16)
 export const RADIUS_XL = ms(20)
 export const RADIUS_FULL = 9999
-export const RADIUS_BUTTON = ms(12)
+// Shape rule: actions are pills, cards 16, inputs 12.
+export const RADIUS_BUTTON = RADIUS_FULL
 export const RADIUS_CARD = ms(16)
 export const RADIUS_INPUT = ms(12)
 
@@ -49,11 +50,11 @@ export const ICON_XL = ms(28)
 export const ICON_XXL = ms(32)
 
 // Button heights
-export const BUTTON_HEIGHT_SM = ms(36)
-export const BUTTON_HEIGHT_MD = ms(46)
+export const BUTTON_HEIGHT_SM = ms(40)
+export const BUTTON_HEIGHT_MD = ms(50)
 
 // Input heights
-export const INPUT_HEIGHT = ms(46)
+export const INPUT_HEIGHT = ms(50)
 
 // Tab bar
 // Compact enough to keep content visible, while retaining a 44pt minimum

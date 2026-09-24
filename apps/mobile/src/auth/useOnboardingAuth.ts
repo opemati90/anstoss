@@ -83,8 +83,10 @@ export function useOnboardingAuth() {
     [],
   )
 
-  const verifyOtp = useCallback(async (code: string) => {
-    const email = emailRef.current
+  // `emailOverride` lets the code screen verify a code that the welcome
+  // screen requested (a different hook instance, so emailRef is empty here).
+  const verifyOtp = useCallback(async (code: string, emailOverride?: string) => {
+    const email = emailOverride ? normalizeIdentifier(emailOverride, 'email') : emailRef.current
     if (!email) throw new Error('Start the code flow before verifying')
     // 400/401 on failure → ApiError thrown → caller shows the surfaced error.
     const result = await api<OtpVerifyResponse>('/auth/otp/verify', {

@@ -25,7 +25,12 @@ jest.mock('expo-router', () => {
   }
   Tabs.Screen = (props: any) => mockTabsScreen(props)
 
-  return { Tabs, Redirect: () => null, router: { push: jest.fn() } }
+  return {
+    Tabs,
+    Redirect: () => null,
+    router: { push: jest.fn(), replace: jest.fn() },
+    usePathname: () => '/',
+  }
 })
 
 jest.mock('react-i18next', () => ({
@@ -87,8 +92,8 @@ jest.mock('../../src/components/ClubSwitcher', () => ({
   ClubSwitcher: () => null,
 }))
 
-jest.mock('../../src/components/DmListView', () => ({
-  useDmUnreadCount: () => 0,
+jest.mock('../../src/hooks/useInbox', () => ({
+  useInboxUnreadCount: () => 0,
 }))
 
 jest.mock('@expo/vector-icons', () => ({
@@ -133,13 +138,9 @@ describe('TabLayout', () => {
         }),
       }),
     )
-    expect(mockTabsScreen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'roster/index',
-        options: expect.objectContaining({
-          title: 'Kader',
-        }),
-      }),
+    // Kader revamp: the hidden roster workspace is gone; the Team tab is the Kader.
+    expect(mockTabsScreen).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'roster/index' }),
     )
   })
 

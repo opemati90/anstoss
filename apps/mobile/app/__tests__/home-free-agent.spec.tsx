@@ -1,238 +1,151 @@
 import React from 'react'
-import { fireEvent, render } from '@testing-library/react-native'
-import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
-import {
-  FreeAgentHome,
-  computeCompleteness,
-  getFreeAgentNextAction,
-  type FreeAgentProfile,
-} from '../../src/components/home/FreeAgentHome'
+import { Alert } from 'react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import type { FreeAgentProfile, PlayerSearch } from '@anstoss/shared'
+import { FreeAgentHome, profileGap } from '../../src/components/home/FreeAgentHome'
 import { api } from '../../src/api/client'
+import { resetApiCache } from '../../src/features/wechsel/query'
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
-
-jest.mock('react-i18next', () => {
-  const map: Record<string, string> = {
-    'home.freeAgent.nextActionEyebrow': 'FREE AGENT NEXT ACTION',
-    'home.freeAgent.loadingTitle': 'Checking your player profile',
-    'home.freeAgent.loadingBody':
-      'We are finding your free-agent status before showing the next step.',
-    'home.freeAgent.loadingA11y': 'Checking your free agent player profile',
-    'home.freeAgent.loadErrorTitle': "Couldn't load your player profile",
-    'home.freeAgent.loadErrorBody':
-      'Keep your current setup intact and try again before creating anything new.',
-    'home.freeAgent.retryLoadCta': 'Try again',
-    'home.freeAgent.retryLoadA11y': 'Try loading your free agent player profile again',
-    'home.freeAgent.createProfileTitle': 'Create your player profile',
-    'home.freeAgent.createProfileBody':
-      'Add position, city, and a short football note so clubs know where you fit.',
-    'home.freeAgent.createProfileCta': 'Create profile',
-    'home.freeAgent.createProfileA11y': 'Create your free agent player profile',
-    'home.freeAgent.completeProfileTitle': 'Finish your player profile',
-    'home.freeAgent.completeProfileBody':
-      '{{pct}}% complete. Add the missing details before sharing it with coaches.',
-    'home.freeAgent.completeProfileCta': 'Update profile',
-    'home.freeAgent.completeProfileA11y': 'Update your free agent player profile',
-    'home.freeAgent.enableTrialsTitle': 'Switch on trial availability',
-    'home.freeAgent.enableTrialsBody':
-      'Your profile is complete, but clubs need to see you are open to sessions.',
-    'home.freeAgent.enableTrialsCta': 'Open profile',
-    'home.freeAgent.enableTrialsA11y': 'Open profile to switch on trial availability',
-    'home.freeAgent.shareCardTitle': 'Share your player card',
-    'home.freeAgent.shareCardBody':
-      'Your listing is ready. Send it to coaches while you wait for trial invites.',
-    'home.freeAgent.shareCardCta': 'Open player card',
-    'home.freeAgent.shareCardA11y': 'Open your player card to share',
-    'home.freeAgent.progressLabel': '{{pct}}% ready',
-    'home.freeAgent.trialInvites': 'Trial invites',
-    'home.freeAgent.trialEmptyTitle': 'No trial invites yet',
-    'home.freeAgent.trialEmptyBody': 'Invites land here when a club views your profile.',
+jest.mock('expo-router', () => {
+  const { useEffect } = require('react')
+  return {
+    router: { push: jest.fn(), navigate: jest.fn(), back: jest.fn() },
+    useFocusEffect: (cb: () => void) => useEffect(() => cb(), [cb]),
   }
-  const t = (key: string, opts?: Record<string, unknown>) => {
-    const template = map[key] ?? key
-    return Object.entries(opts ?? {}).reduce(
-      (text, [nextKey, value]) =>
-        text.replaceAll(`{{${nextKey}}}`, value == null ? '' : String(value)),
-      template,
-    )
-  }
-  return { useTranslation: () => ({ t }) }
 })
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+  selectionAsync: jest.fn(() => Promise.resolve()),
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+}))
+
+jest.mock('../../src/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }))
+
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
 
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
-  return {
-    useClubColors: () => ({
-      ...FALLBACK_THEME,
-      primary: '#1E3A5F',
-      primary50: '#DDE7F1',
-    }),
-    useIsDark: () => false,
-  }
+  return { useClubColors: () => FALLBACK_THEME, useIsDark: () => false }
 })
+
+jest.mock('../../src/i18n', () => ({
+  __esModule: true,
+  default: { language: 'de', resolvedLanguage: 'de' },
+}))
 
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
+  ApiError: class ApiError extends Error {
+    status = 500
+  },
 }))
 
-const mockedApi = api as jest.MockedFunction<typeof api>
-const mockedPush = router.push as jest.Mock
+const mockApi = api as jest.MockedFunction<typeof api>
 
-const completeProfile: FreeAgentProfile = {
-  displayName: 'Lea',
-  position: ['ST'],
-  experienceYears: 3,
-  location: 'Berlin',
-  availableForTrials: true,
-  bio: 'Fast winger who can press high.',
-}
+const profile = {
+  id: 'free-agent-profile-1',
+  userId: 'user-1',
+  position: 'GK',
+  preferredFoot: 'RIGHT',
+  city: 'Potsdam',
+  bio: null,
+  avatarUrl: null,
+  isOnTransferList: true,
+  visibility: 'CLUB_ONLY',
+  postalCode: '14482',
+  searchRadiusKm: 25,
+  highestLeague: 'BEZIRKSLIGA',
+  currentClubName: null,
+  availableFrom: null,
+  age: 25,
+  experience: [],
+  media: [],
+  createdAt: '2026-09-01T00:00:00.000Z',
+  updatedAt: '2026-09-01T00:00:00.000Z',
+  user: { id: 'user-1', name: 'Amir Kaya', avatarUrl: null },
+} as unknown as FreeAgentProfile
 
-function mockProfile(profile: FreeAgentProfile | null) {
-  mockedApi.mockImplementation((path: string) => {
-    if (path.includes('/me/free-agent-profile')) {
-      return Promise.resolve(profile) as ReturnType<typeof api>
-    }
-    return Promise.resolve(null) as ReturnType<typeof api>
+const gesuch = {
+  id: 'gesuch-albatros-torwart',
+  clubId: 'club-1',
+  teamId: 'team-2',
+  positions: ['GK'],
+  note: 'Herren II sucht Torwart, Kreisliga A.',
+  status: 'OPEN',
+  expiresAt: null,
+  createdAt: '2026-09-20T10:00:00.000Z',
+  club: { id: 'club-1', name: 'SV Albatros', badgeUrl: null, primaryColor: '#1B4F9C', city: 'Potsdam' },
+  team: { id: 'team-2', displayName: 'Herren II', leagueName: 'Kreisliga A', ageGroup: null },
+  myTrialInviteId: null,
+} as unknown as PlayerSearch
+
+describe('profileGap', () => {
+  it('asks for the facts clubs filter by, then for visibility', () => {
+    expect(profileGap(null)).toBe('create')
+    expect(profileGap({ ...profile, postalCode: null })).toBe('complete')
+    expect(profileGap({ ...profile, isOnTransferList: false })).toBe('inactive')
+    expect(profileGap(profile)).toBeNull()
   })
-}
+})
 
-function mockProfileFailure() {
-  mockedApi.mockRejectedValue(new Error('network down'))
-}
-
-function mockProfilePending() {
-  mockedApi.mockImplementation((path: string) => {
-    if (path.includes('/me/free-agent-profile')) {
-      return new Promise(() => undefined) as ReturnType<typeof api>
-    }
-    return Promise.resolve(null) as ReturnType<typeof api>
-  })
-}
-
-const wrap = (ui: React.ReactElement) => (
-  <SafeAreaProvider
-    initialMetrics={{
-      insets: { top: 0, bottom: 0, left: 0, right: 0 },
-      frame: { x: 0, y: 0, width: 375, height: 812 },
-    }}
-  >
-    {ui}
-  </SafeAreaProvider>
-)
-
-describe('FreeAgentHome', () => {
+describe('FreeAgentHome (Entdecken)', () => {
   beforeEach(() => {
-    mockedApi.mockReset()
-    mockedPush.mockReset()
-    mockProfile({ ...completeProfile, bio: '' })
+    resetApiCache()
+    mockApi.mockReset()
   })
 
-  it('counts zero years of experience as a filled profile field', () => {
-    expect(
-      computeCompleteness({
-        ...completeProfile,
-        experienceYears: 0,
+  it('lists Gesuche near the player filtered by their position and PLZ', async () => {
+    mockApi.mockImplementation(async (path: string) => {
+      if (path === '/me/free-agent-profile') return profile as never
+      return { items: [gesuch], page: 1, pageSize: 30, total: 1 } as never
+    })
+    const screen = render(<FreeAgentHome />)
+
+    expect(await screen.findByText('Herren II sucht Torwart, Kreisliga A.')).toBeTruthy()
+    const searchCall = mockApi.mock.calls.find(([path]) => String(path).startsWith('/player-searches'))
+    expect(searchCall?.[0]).toContain('position=GK')
+    expect(searchCall?.[0]).toContain('postalCode=14482')
+  })
+
+  it('asks for a Probetraining from the card', async () => {
+    mockApi.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (options?.method === 'POST') return { id: 'trial-new' } as never
+      if (path === '/me/free-agent-profile') return profile as never
+      return { items: [gesuch], page: 1, pageSize: 30, total: 1 } as never
+    })
+    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    const screen = render(<FreeAgentHome />)
+
+    fireEvent.press(await screen.findByText('entdecken.requestCta'))
+    fireEvent.press(await screen.findByText('entdecken.requestSend'))
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith('/player-searches/gesuch-albatros-torwart/trial-requests', {
+        method: 'POST',
+        body: {},
       }),
-    ).toBe(100)
-  })
-
-  it('prioritizes profile creation when the free-agent profile does not exist', async () => {
-    mockProfile(null)
-
-    const { findByLabelText, findByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText('Create your player profile')).toBeTruthy()
-    fireEvent.press(await findByLabelText('Create your free agent player profile'))
-
-    expect(mockedPush).toHaveBeenCalledWith('/free-agent/profile')
-  })
-
-  it('shows a stable loading panel while profile state is unknown', async () => {
-    mockProfilePending()
-
-    const { findByLabelText, getByTestId, queryByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByLabelText('Checking your free agent player profile')).toBeTruthy()
-    expect(getByTestId('free-agent-loading-action-placeholder')).toBeTruthy()
-    expect(queryByText('Create your player profile')).toBeNull()
-    expect(queryByText('Finish your player profile')).toBeNull()
-  })
-
-  it('does not tell existing players to create a profile when loading fails', async () => {
-    mockProfileFailure()
-
-    const { findByLabelText, findByText, queryByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText("Couldn't load your player profile")).toBeTruthy()
-    expect(
-      await findByLabelText(
-        /Couldn't load your player profile\. Keep your current setup intact/i,
-      ),
-    ).toBeTruthy()
-    expect(queryByText('Create your player profile')).toBeNull()
-
-    mockProfile(completeProfile)
-    fireEvent.press(await findByLabelText('Try loading your free agent player profile again'))
-
-    expect(await findByText('Share your player card')).toBeTruthy()
-  })
-
-  it('prioritizes missing profile details before sharing', async () => {
-    mockProfile({ ...completeProfile, experienceYears: 0, bio: '' })
-
-    const { findByLabelText, findByText, queryByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText('Finish your player profile')).toBeTruthy()
-    expect(await findByText(/80% complete/)).toBeTruthy()
-    expect(await findByText('80% ready')).toBeTruthy()
-    expect(queryByText('Share your player card')).toBeNull()
-    fireEvent.press(await findByLabelText('Update your free agent player profile'))
-
-    expect(mockedPush).toHaveBeenCalledWith('/free-agent/profile')
-  })
-
-  it('asks complete profiles to switch on trial availability before sharing', async () => {
-    mockProfile({ ...completeProfile, availableForTrials: false })
-
-    const { findByLabelText, findByText, queryByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText('Switch on trial availability')).toBeTruthy()
-    expect(queryByText('Share your player card')).toBeNull()
-    fireEvent.press(await findByLabelText('Open profile to switch on trial availability'))
-
-    expect(mockedPush).toHaveBeenCalledWith('/free-agent/profile')
-  })
-
-  it('surfaces sharing as the next action once the profile is complete and visible', async () => {
-    mockProfile(completeProfile)
-
-    const { findByLabelText, findByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText('Share your player card')).toBeTruthy()
-    expect(await findByText(/Your listing is ready/)).toBeTruthy()
-    fireEvent.press(await findByLabelText('Open your player card to share'))
-
-    expect(mockedPush).toHaveBeenCalledWith('/free-agent/profile')
-  })
-
-  it('keeps the trial invite inbox visible below the primary action', async () => {
-    const { findByText } = render(wrap(<FreeAgentHome />))
-
-    expect(await findByText(/No trial invites yet/i)).toBeTruthy()
-  })
-
-  it('chooses the same next action outside React for edge-case tests', () => {
-    expect(getFreeAgentNextAction(null, 0).kind).toBe('create-profile')
-    expect(getFreeAgentNextAction({ ...completeProfile, bio: '' }, 80).kind).toBe(
-      'complete-profile',
     )
-    expect(
-      getFreeAgentNextAction({ ...completeProfile, availableForTrials: false }, 100)
-        .kind,
-    ).toBe('enable-trials')
-    expect(getFreeAgentNextAction(completeProfile, 100).kind).toBe('share-card')
+  })
+
+  it('prompts a player without a profile to create one', async () => {
+    mockApi.mockImplementation(async (path: string) => {
+      if (path === '/me/free-agent-profile') return null as never
+      return { items: [], page: 1, pageSize: 30, total: 0 } as never
+    })
+    const screen = render(<FreeAgentHome />)
+    expect(await screen.findByText('entdecken.gap.create.title')).toBeTruthy()
+    expect(await screen.findByText('entdecken.emptyTitle')).toBeTruthy()
   })
 })

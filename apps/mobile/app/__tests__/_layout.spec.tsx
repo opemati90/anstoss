@@ -47,8 +47,16 @@ jest.mock('@expo-google-fonts/geist-mono', () => ({
   GeistMono_400Regular: {},
 }))
 
+const mockSetActiveClub = jest.fn()
+const mockUseAuth = jest.fn<any, any>(() => ({
+  memberships: [],
+  activeClub: null,
+  setActiveClub: mockSetActiveClub,
+}))
+
 jest.mock('../../src/context/AuthContext', () => ({
   AuthProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  useAuth: () => mockUseAuth(),
 }))
 
 jest.mock('../../src/context/ClubThemeContext', () => ({
@@ -195,9 +203,63 @@ describe('RootLayout', () => {
     })
 
     expect(mockRouterPush).toHaveBeenCalledWith({
-      pathname: '/dm-chat',
-      params: { conversationId: 'conversation-7' },
+      pathname: '/chat/[id]',
+      params: { id: 'conversation-7', kind: 'dm' },
     })
+  })
+
+  // Chat revamp (M3): a chat push from another club switches the club first.
+  it('switches to the push club before opening a chat from another club', async () => {
+    const otherClub = { id: 'm-2', club: { id: 'club-2' } }
+    mockUseAuth.mockReturnValue({
+      memberships: [{ id: 'm-1', club: { id: 'club-1' } }, otherClub],
+      activeClub: { id: 'm-1', club: { id: 'club-1' } },
+      setActiveClub: mockSetActiveClub,
+    })
+    mockUsePushContext.mockReturnValue({
+      lastNotification: {
+        notification: {
+          request: {
+            content: {
+              data: { kind: 'CHAT_MESSAGE', channelId: 'ch-9', clubId: 'club-2' },
+            },
+          },
+        },
+      },
+    })
+
+    await act(async () => {
+      mountedTree = renderer.create(<PushDeepLinkHandler />)
+    })
+
+    expect(mockSetActiveClub).toHaveBeenCalledWith(otherClub)
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/chat/[id]',
+      params: { id: 'ch-9', kind: 'channel' },
+    })
+  })
+
+  it('does not switch clubs when the push belongs to the active club', async () => {
+    mockUseAuth.mockReturnValue({
+      memberships: [{ id: 'm-1', club: { id: 'club-1' } }],
+      activeClub: { id: 'm-1', club: { id: 'club-1' } },
+      setActiveClub: mockSetActiveClub,
+    })
+    mockUsePushContext.mockReturnValue({
+      lastNotification: {
+        notification: {
+          request: {
+            content: { data: { type: 'dm', conversationId: 'c-1', clubId: 'club-1' } },
+          },
+        },
+      },
+    })
+
+    await act(async () => {
+      mountedTree = renderer.create(<PushDeepLinkHandler />)
+    })
+
+    expect(mockSetActiveClub).not.toHaveBeenCalled()
   })
 
   it('reports no config issues when the API URL is set', async () => {

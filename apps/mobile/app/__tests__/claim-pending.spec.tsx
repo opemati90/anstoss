@@ -6,7 +6,21 @@ const mockApi = jest.fn()
 const mockReplace = jest.fn()
 let mockClaimId: string | undefined = 'claim-1'
 
-jest.mock('../../src/api/client', () => ({ api: (...args: unknown[]) => mockApi(...args) }))
+jest.mock('../../src/api/client', () => {
+  // The screen's session-expiry handler checks `instanceof ApiError`, so the
+  // stub must export a class (the real module pulls in the i18n bootstrap).
+  class ApiError extends Error {
+    status: number
+    code?: string
+    constructor(message: string, httpStatus: number, errorCode?: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = httpStatus
+      this.code = errorCode
+    }
+  }
+  return { api: (...args: unknown[]) => mockApi(...args), ApiError }
+})
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ claimId: mockClaimId }),
   useRouter: () => ({ replace: mockReplace }),

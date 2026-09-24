@@ -14,16 +14,35 @@ import {
   TeamAccessPhase,
   TeamAccessStatus,
   TeamRole,
-  TrialInviteStatus,
+  type CarpoolBoard,
+  type CarpoolRideItem,
   type ClubAggregateStats,
   type CrossTeamEventItem,
+  type EventDetail,
   type EventFeedItem,
+  type EventGuardedChild,
+  type EventLineup,
+  type EventRsvpEntry,
+  type EventSquad,
+  type EventSquadMember,
   type ExternalTeamLink,
   type FreeAgentProfile,
   type ImportedFixture,
   type RosterOpsSnapshot,
-  type TrialInvite,
 } from '@anstoss/shared'
+// ── chat revamp: inbox, conversations, members, contacts, polls ──
+import { handleE2EChatRequest } from './chatMocks'
+// ── club-admin revamp: consistent club-admin world + missing shared mocks ──
+import {
+  createClubAdminContributionMembers,
+  handleClubAdminWorldRequest,
+  resetClubAdminWorld,
+  type ClubAdminWorldSession,
+} from './clubAdminWorld'
+// ── end club-admin revamp ──
+
+// Wechselbörse revamp: Gesuche, Spielersuche, Probetraining, Aufnahmeantrag mocks
+import { handleWechselMock } from './wechselMocks'
 
 export const E2E_SESSION_KEY = 'anstoss:e2e:session'
 const STRICT_E2E_MOCKS = process.env.EXPO_PUBLIC_E2E_MOCK_STRICT === '1'
@@ -49,6 +68,8 @@ type E2EAuthUser = {
   avatarUrl: string | null
   registrationRole: RegistrationRole
   dateOfBirth?: string
+  /** onboarding revamp: 16+ self-declaration (coach/parent/admin). */
+  adultConfirmedAt?: string
 }
 
 type E2EAuthMembership = {
@@ -82,15 +103,48 @@ type E2EAuthTeamMember = {
   }
 }
 
+// ─── Events revamp (2026-09): per-event replies, Kader, Aufstellung, Fahrten ──
+// Lazily initialised (see ensureEventFlow) so persisted sessions from older
+// builds pick it up without a migration.
+type E2EEventReply = {
+  userId: string
+  status: 'YES' | 'MAYBE' | 'NO'
+  reason: string | null
+  note: string | null
+  nominated: boolean
+  updatedAt: string
+}
+
+type E2EEventRide = {
+  id: string
+  driverId: string
+  driverName: string
+  seats: number
+  departFrom: string | null
+  departAt: string | null
+  note: string | null
+  passengers: Array<{ userId: string; name: string }>
+  createdAt: string
+}
+
+type E2EEventFlowState = {
+  replies: Record<string, E2EEventReply[]>
+  squadPublishedAt: Record<string, string | null>
+  lineups: Record<string, EventLineup | null>
+  rides: Record<string, E2EEventRide[]>
+}
+// ─── /Events revamp ──────────────────────────────────────────────────────────
+
 type E2EApiState = {
   events: EventFeedItem[]
+  /** Events revamp mock state; created on first use. */
+  eventFlow?: E2EEventFlowState
   parentEvents: CrossTeamEventItem[]
   conversations: E2EConversationItem[]
   fixtures: ImportedFixture[]
   linkedTeams: ExternalTeamLink[]
   clubStats: ClubAggregateStats | null
   rosterOps: RosterOpsSnapshot | null
-  trialInvites: TrialInvite[]
   joinRequests: Array<{
     id: string
     role: string
@@ -98,7 +152,22 @@ type E2EApiState = {
     status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'
     revision: number
     createdAt: string
-    user: { id: string; name: string; email: string }
+    user: { id: string; name: string; email: string; dateOfBirth?: string | null }
+    // club-admin review fixes: Aufnahmeantrag fields when the request came from a trial
+    trialInviteId?: string | null
+    trialInvite?: { id: string; team: { id: string; displayName: string } | null } | null
+    street?: string | null
+    postalCode?: string | null
+    city?: string | null
+    phone?: string | null
+    nationality?: string | null
+    previousClubName?: string | null
+    lastMatchDate?: string | null
+    sepaConsentAt?: string | null
+    parentalConsentAt?: string | null
+    releaseStatus?: 'PENDING' | 'GRANTED' | 'REFUSED' | 'NOT_NEEDED' | null
+    passApplicationAt?: string | null
+    eligibleFrom?: string | null
   }>
   freeAgentProfile: FreeAgentProfile | null
   myContributions: {
@@ -137,61 +206,6 @@ type E2EApiState = {
     fixtureId: string | null
     createdAt: string
   }>
-  sportgericht: Array<{
-    id: string
-    fixtureId: string
-    fixtureTitle: string
-    kickoffAt: string
-    competition: string
-    referee: string
-    /** Cards as captured during the match, pre-filled into the report. */
-    incidents: Array<{
-      minute: number
-      kind: 'YELLOW' | 'YELLOW2' | 'RED' | 'OTHER'
-      playerName: string
-      playerNumber: number | null
-      reason: string
-      narrative: string
-    }>
-    coachNarrative: string
-    status: 'DRAFT' | 'SUBMITTED' | 'ACKNOWLEDGED'
-    submittedAt: string | null
-  }>
-  trialScouts: Array<{
-    id: string
-    userId: string
-    name: string
-    age: number
-    position: 'GK' | 'DEF' | 'MID' | 'ATT'
-    foot: 'LEFT' | 'RIGHT' | 'BOTH'
-    /** German postcode, used as a coarse "nearby" filter. */
-    postcode: string
-    distanceKm: number
-    /** Highest level previously played. */
-    history: string
-    note: string
-    avatarUrl: string | null
-    videoUrl: string | null
-    contactedByThisClub: boolean
-    /** ISO date the agent posted / refreshed the listing. */
-    postedAt: string
-  }>
-  exchange: Array<{
-    id: string
-    sellerUserId: string
-    sellerName: string
-    title: string
-    category: 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
-    sizeLabel: string
-    condition: 'NEW' | 'GOOD' | 'WORN'
-    askCents: number
-    note?: string | null
-    photoUrl: string
-    postedAt: string
-    status: 'AVAILABLE' | 'CLAIMED' | 'GONE'
-    claimedByUserId: string | null
-    claimedByName: string | null
-  }>
   streaks: {
     me: {
       attendanceWeeks: number
@@ -206,47 +220,6 @@ type E2EApiState = {
       attendanceWeeks: number
       motmWeeks: number
     }>
-  }
-  jerseys: Array<{
-    number: number
-    holderUserId: string | null
-    holderName: string | null
-    /** Has the holder washed + returned the jersey for next match? */
-    washed: boolean
-    /** ISO date when the assignment last changed. */
-    assignedAt: string
-    /** Free-text note (size, condition, captain band, etc.). */
-    note?: string | null
-  }>
-  pitchStatus: {
-    fixtureId: string | null
-    state: 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
-    reportedById: string | null
-    reportedByName: string | null
-    reportedAt: string | null
-    photoUrl: string | null
-    note: string | null
-  }
-  vereinsheim: {
-    menu: Array<{
-      id: string
-      name: string
-      priceCents: number
-      icon: string
-      category: 'FOOD' | 'DRINK' | 'OTHER'
-    }>
-    orders: Array<{
-      id: string
-      buyerId: string | null
-      buyerName: string
-      itemId: string
-      itemName: string
-      priceCents: number
-      qty: number
-      placedAt: string
-      paid: boolean
-    }>
-    targetCents: number
   }
   compliance: Array<{
     id: string
@@ -275,22 +248,6 @@ type E2EApiState = {
     weeks: number
     status: 'PENDING' | 'APPROVED' | 'SNOOZED'
   }>
-  ehrenamt: {
-    settings: {
-      annualGoalHours: number
-      foerderungReady: boolean
-    }
-    entries: Array<{
-      id: string
-      memberUserId: string
-      memberName: string
-      role: 'COACH' | 'PARENT' | 'ADMIN' | 'OWNER'
-      activity: string
-      hours: number
-      occurredAt: string
-      note?: string | null
-    }>
-  }
   liveMatches: Record<
     string,
     {
@@ -332,19 +289,6 @@ type E2EApiState = {
       myVoted: boolean
     }>
   >
-  carpool: Record<
-    string,
-    Array<{
-      id: string
-      driverId: string | null
-      driverName: string | null
-      postcode: string
-      seatsOffered: number
-      parking?: string | null
-      notes?: string | null
-      riders: Array<{ userId: string; name: string }>
-    }>
-  >
   childrenAgenda: {
     kids: Array<{ userId: string; name: string; teamName: string }>
     events: Array<{
@@ -377,19 +321,6 @@ type E2EApiState = {
       isMember: boolean
     }>
   >
-  duties: {
-    members: Array<{ userId: string; name: string }>
-    duties: Array<{
-      id: string
-      kind: 'KUCHEN' | 'AUFBAU' | 'PLATZWART' | 'SCHIRI'
-      title: string
-      date: string
-      matchTitle: string
-      assignedUserId: string
-      assignedName: string
-      swappable: boolean
-    }>
-  }
   adminContributions: {
     settings: {
       clubId: string
@@ -561,7 +492,7 @@ function e2eResolveCoach(userId: string | null | undefined): E2ECoach | null {
     : { userId, name: 'Coach', avatarUrl: null }
 }
 const TEAM_DISPLAY_NAME = 'Senior Team'
-const CLUB_PRIMARY = '#4A4A48'
+const CLUB_PRIMARY = '#1B4F9C'
 
 let currentSession: E2ESessionSnapshot | null = null
 // Pending club claim created by the club-admin onboarding wizard.
@@ -572,6 +503,9 @@ let e2eClaim: {
   expiresAt: string
   escalatesAt: string | null
   directoryEntry: { name: string; city: string | null; badgeUrl: string | null }
+  /** onboarding revamp: coach requests are STAFF_CLAIMs on an active club. */
+  kind?: 'FIRST_CLAIM' | 'STAFF_CLAIM'
+  club?: { id: string; name: string; badgeUrl: string | null } | null
 } | null = null
 const listeners = new Set<(session: E2ESessionSnapshot | null) => void>()
 let e2eInviteCounter = 0
@@ -586,6 +520,34 @@ function nowIso(offsetDays = 0, hour = 18, minute = 0) {
   value.setHours(hour, minute, 0, 0)
   return value.toISOString()
 }
+
+/** Next occurrence (at least tomorrow) of a weekday (0 = Sun … 6 = Sat), plus whole weeks. */
+function nextWeekdayIso(weekday: number, hour: number, minute = 0, weeksAhead = 0) {
+  const value = new Date()
+  const delta = ((weekday - value.getDay() + 7) % 7) || 7
+  value.setDate(value.getDate() + delta + weeksAhead * 7)
+  value.setHours(hour, minute, 0, 0)
+  return value.toISOString()
+}
+
+function minutesBefore(iso: string, minutes: number) {
+  return new Date(new Date(iso).getTime() - minutes * 60000).toISOString()
+}
+
+/** Logistics defaults every feed item carries (events revamp contract). */
+const EVENT_LOGISTICS_DEFAULTS = {
+  meetingAt: null,
+  meetingPoint: null,
+  opponent: null,
+  homeAway: null,
+  fixtureId: null,
+  squadPublishedAt: null,
+  carpoolEnabled: false,
+  durationMin: null,
+  myNominated: false,
+} satisfies Partial<EventFeedItem>
+
+const E2E_TRAINING_SERIES_ID = 'series-e2e-training'
 
 function slugifyClubName(value: string) {
   const normalized = value
@@ -657,38 +619,91 @@ function createTeamMember(
 }
 
 function createEvents(): EventFeedItem[] {
+  const homeKickoff = nowIso(3, 14, 0)
+  const awayKickoff = nextWeekdayIso(0, 15, 0)
+  const trainingSeries = {
+    id: E2E_TRAINING_SERIES_ID,
+    intervalWeeks: 1,
+    until: nextWeekdayIso(2, 23, 0, 20),
+    weekdays: [2, 4],
+  }
+  const trainingBase = {
+    teamId: TEAM_ID,
+    clubId: CLUB_ID,
+    type: 'TRAINING' as const,
+    location: 'Sportplatz Am Wald',
+    notes: null,
+    createdById: 'coach-1',
+    archivedAt: null,
+    ...EVENT_LOGISTICS_DEFAULTS,
+    durationMin: 90,
+    seriesId: E2E_TRAINING_SERIES_ID,
+    series: trainingSeries,
+  }
   return [
     // ─── Upcoming ─────────────────────────────────────────────
+    // Home match with a published Kader (the player persona is nominated).
+    // Title and id are load-bearing for Maestro flows + chat seed.
     {
       id: 'event-match-next',
       teamId: TEAM_ID,
       clubId: CLUB_ID,
       title: 'vs. SV Babelsberg 03',
       type: 'MATCH',
-      date: nowIso(3, 14, 0),
-      location: 'Karl-Liebknecht-Stadion',
+      date: homeKickoff,
+      location: 'Albatros Hauptplatz, Am Wald 1',
       notes: null,
       createdById: 'coach-1',
       createdAt: nowIso(-4, 9, 0),
       archivedAt: null,
       responseCount: 17,
-      yesCount: 14,
+      yesCount: 13,
       maybeCount: 1,
-      noCount: 2,
+      noCount: 3,
       myRsvp: 'YES',
+      ...EVENT_LOGISTICS_DEFAULTS,
+      opponent: 'SV Babelsberg 03',
+      homeAway: 'HOME',
+      meetingAt: minutesBefore(homeKickoff, 30),
+      meetingPoint: 'Kabine 2',
+      fixtureId: 'fixture-1',
+      squadPublishedAt: nowIso(-1, 20, 0),
+      durationMin: 105,
     },
+    // Away match with the Fahrten board open.
     {
-      id: 'event-training-later',
+      id: 'event-match-away',
       teamId: TEAM_ID,
       clubId: CLUB_ID,
-      title: 'Tuesday session',
-      type: 'TRAINING',
-      date: nowIso(5, 19, 30),
-      location: 'Pitch 2',
-      notes: null,
+      title: '@ FC Stahl Brandenburg',
+      type: 'MATCH',
+      date: awayKickoff,
+      location: 'Stadion am Quenz, Brandenburg an der Havel',
+      notes: 'Schwarze Auswärtstrikots mitbringen.',
       createdById: 'coach-1',
-      createdAt: nowIso(-2, 11, 0),
+      createdAt: nowIso(-3, 9, 0),
       archivedAt: null,
+      responseCount: 11,
+      yesCount: 8,
+      maybeCount: 2,
+      noCount: 1,
+      myRsvp: null,
+      ...EVENT_LOGISTICS_DEFAULTS,
+      opponent: 'FC Stahl Brandenburg',
+      homeAway: 'AWAY',
+      meetingAt: minutesBefore(awayKickoff, 60),
+      meetingPoint: 'Parkplatz Vereinsheim',
+      carpoolEnabled: true,
+      durationMin: 105,
+    },
+    // Training series Di + Do 19:00. "Tuesday session" is referenced by
+    // Maestro flows, so the first occurrence keeps that title.
+    {
+      ...trainingBase,
+      id: 'event-training-later',
+      title: 'Tuesday session',
+      date: nextWeekdayIso(2, 19, 0),
+      createdAt: nowIso(-2, 11, 0),
       responseCount: 16,
       yesCount: 12,
       maybeCount: 2,
@@ -697,6 +712,30 @@ function createEvents(): EventFeedItem[] {
       // Answered before the coach moved it: home and schedule ask again.
       rescheduledAt: nowIso(0, 9, 0),
       myRsvpStale: true,
+    },
+    {
+      ...trainingBase,
+      id: 'event-training-thu',
+      title: 'Training',
+      date: nextWeekdayIso(4, 19, 0),
+      createdAt: nowIso(-2, 11, 0),
+      responseCount: 9,
+      yesCount: 7,
+      maybeCount: 1,
+      noCount: 1,
+      myRsvp: null,
+    },
+    {
+      ...trainingBase,
+      id: 'event-training-tue-2',
+      title: 'Training',
+      date: nextWeekdayIso(2, 19, 0, 1),
+      createdAt: nowIso(-2, 11, 0),
+      responseCount: 3,
+      yesCount: 3,
+      maybeCount: 0,
+      noCount: 0,
+      myRsvp: null,
     },
     // ─── Past (within the 3-day window) ──────────────────────
     {
@@ -714,10 +753,12 @@ function createEvents(): EventFeedItem[] {
       responseCount: 15,
       yesCount: 11,
       checkInCount: 9,
-      squadSize: 16,
+      squadSize: 18,
       maybeCount: 2,
       noCount: 2,
       myRsvp: 'YES',
+      ...EVENT_LOGISTICS_DEFAULTS,
+      durationMin: 90,
     },
     {
       id: 'event-match-past',
@@ -734,34 +775,157 @@ function createEvents(): EventFeedItem[] {
       responseCount: 18,
       yesCount: 15,
       checkInCount: 13,
-      squadSize: 16,
+      squadSize: 18,
       maybeCount: 2,
       noCount: 1,
       myRsvp: 'YES',
+      ...EVENT_LOGISTICS_DEFAULTS,
+      opponent: 'FC Energie Cottbus II',
+      homeAway: 'HOME',
+      meetingAt: nowIso(-2, 13, 30),
     },
   ]
 }
 
+/** Parent persona children (both on the senior mock team). */
+const E2E_PARENT_KIDS = [
+  { userId: 'child-1', name: 'Leo Becker' },
+  { userId: 'child-2', name: 'Mia Becker' },
+] as const
+
+// ── privacy: guardian consent withdrawal (app/child-consent.tsx) ──
+type E2EGuardianConsent = {
+  id: string
+  status: 'APPROVED' | 'PENDING' | 'WITHDRAWN'
+  requestedAt: string
+  approvedAt: string | null
+  withdrawnAt: string | null
+  club: { id: string; name: string; badgeUrl: string | null }
+  team: { id: string; displayName: string }
+  player: { id: string; name: string; avatarUrl: string | null }
+}
+const e2eGuardianConsents = new WeakMap<object, E2EGuardianConsent[]>()
+
+function guardianConsentsFor(session: object): E2EGuardianConsent[] {
+  let rows = e2eGuardianConsents.get(session)
+  if (!rows) {
+    const club = { id: CLUB_ID, name: 'SV Albatros', badgeUrl: null }
+    const team = { id: TEAM_ID, displayName: 'U15 I' }
+    rows = E2E_PARENT_KIDS.map((kid, index) => ({
+      id: `consent-e2e-${kid.userId}`,
+      status: 'APPROVED' as const,
+      requestedAt: nowIso(-60 - index * 7, 18, 0),
+      approvedAt: nowIso(-59 - index * 7, 19, 30),
+      withdrawnAt: null,
+      club,
+      team,
+      player: { id: kid.userId, name: kid.name, avatarUrl: null },
+    }))
+    e2eGuardianConsents.set(session, rows)
+  }
+  return rows
+}
+
+function handleGuardianConsentRequest(
+  session: E2ESessionSnapshot,
+  method: string,
+  pathname: string,
+): E2EApiResponse | null {
+  if (method === 'GET' && pathname === '/consent/mine') {
+    const rows = session.scenario === 'parent' ? guardianConsentsFor(session) : []
+    return { handled: true, ok: true, status: 200, body: clone(rows) }
+  }
+  const withdraw = pathname.match(/^\/consent\/([^/]+)\/withdraw$/)
+  if (method === 'POST' && withdraw) {
+    const row = session.scenario === 'parent'
+      ? guardianConsentsFor(session).find((c) => c.id === withdraw[1])
+      : undefined
+    if (!row) return { handled: true, ok: false, status: 404, body: { message: 'Consent record not found' } }
+    if (row.status !== 'WITHDRAWN') {
+      row.status = 'WITHDRAWN'
+      row.withdrawnAt = new Date().toISOString()
+    }
+    return { handled: true, ok: true, status: 200, body: clone(row) }
+  }
+  return null
+}
+// ── end privacy ──
+
 function createParentEvents(): CrossTeamEventItem[] {
+  const events = createEvents()
+  const byId = (id: string) => events.find((event) => event.id === id)!
+  // ── home revamp: Leo plays U15, Mia plays U11, so the parent home shows
+  // one card per child with that child's own team ("Leo · U15", "Mia · U11").
+  const KID_TEAM: Record<string, { teamName: string; teamDisplayName: string }> = {
+    [E2E_PARENT_KIDS[0].userId]: { teamName: 'U15', teamDisplayName: 'U15 I' },
+    [E2E_PARENT_KIDS[1].userId]: { teamName: 'U11', teamDisplayName: 'U11 I' },
+  }
+  const row = (
+    event: EventFeedItem,
+    kid: (typeof E2E_PARENT_KIDS)[number],
+    childRsvp: CrossTeamEventItem['childRsvp'] = null,
+  ): CrossTeamEventItem => ({
+    ...event,
+    myRsvp: null,
+    ...KID_TEAM[kid.userId],
+    childUserId: kid.userId,
+    childName: kid.name,
+    childRsvp,
+  })
+  const u11 = (id: string, overrides: Partial<EventFeedItem>): EventFeedItem => ({
+    ...byId('event-training-thu'),
+    id,
+    teamId: 'team-u11',
+    seriesId: null,
+    series: null,
+    location: 'Albatros Platz 2',
+    yesCount: 9,
+    maybeCount: 1,
+    noCount: 0,
+    responseCount: 10,
+    ...overrides,
+  })
+  // ── end home revamp ──
   return [
+    row(byId('event-match-next'), E2E_PARENT_KIDS[0]),
+    row(
+      u11('event-u11-training', {
+        title: 'Training',
+        date: nextWeekdayIso(4, 17, 0),
+        durationMin: 75,
+      }),
+      E2E_PARENT_KIDS[1],
+    ),
+    row(
+      u11('event-u11-match', {
+        title: 'vs. FC Stern Marienfelde',
+        type: 'MATCH',
+        date: nextWeekdayIso(6, 10, 0),
+        opponent: 'FC Stern Marienfelde',
+        homeAway: 'HOME',
+        meetingAt: minutesBefore(nextWeekdayIso(6, 10, 0), 45),
+        meetingPoint: 'Kabine 3',
+        durationMin: 60,
+      }),
+      E2E_PARENT_KIDS[1],
+      'YES',
+    ),
+    row(byId('event-match-away'), E2E_PARENT_KIDS[0]),
     {
-      ...createEvents()[0],
-      teamName: 'U15',
-      teamDisplayName: 'U15 I',
-      childUserId: 'child-1',
-      childName: 'Leo Becker',
-      childRsvp: null,
-    },
-    {
-      ...createEvents()[1],
+      ...row(byId('event-training-later'), E2E_PARENT_KIDS[0]),
       id: 'event-parent-second',
       title: 'Saturday away match',
+      type: 'MATCH',
       date: nowIso(7, 11, 0),
-      teamName: 'U15',
-      teamDisplayName: 'U15 I',
-      childUserId: 'child-1',
-      childName: 'Leo Becker',
-      childRsvp: null,
+      seriesId: null,
+      series: null,
+      durationMin: 90,
+      opponent: 'SV Grün-Weiß Brieselang',
+      homeAway: 'AWAY',
+      meetingAt: nowIso(7, 10, 0),
+      meetingPoint: 'Parkplatz Vereinsheim',
+      carpoolEnabled: true,
+      location: 'Sportplatz Brieselang',
     },
   ]
 }
@@ -860,144 +1024,160 @@ function createClubStats(): ClubAggregateStats {
   }
 }
 
-function createRosterOps(): RosterOpsSnapshot {
+// ── Kader revamp (team agent) ────────────────────────────────────────────
+// One consistent squad for every persona: the 18 players of createSquadStats
+// (same ids, names and numbers the event flow uses for RSVPs), two coaches,
+// one inactive player and two trial requests. 18 in the squad: 15 fit,
+// Niklas gesperrt, Anna and Tobias im Urlaub. Hendrik is a new player
+// (still counted). squadCount is recomputed on every GET so PATCHes stay
+// consistent. The medic feature is switched off for release (no injury
+// data leaves the API), so Anna is on leave instead of injured.
+const E2E_KADER_POSITIONS: Record<string, string> = {
+  'user-player-1': 'TW',
+  'user-player-2': 'RV',
+  'user-player-3': 'IV',
+  'user-player-4': 'IV',
+  'user-player-5': 'LV',
+  'user-player-6': 'IV',
+  'user-player-7': 'ZM',
+  'user-player-8': 'OM',
+  'user-player-9': 'DM',
+  'user-player-10': 'ZM',
+  'user-player-11': 'LM',
+  'user-player-12': 'ST',
+  'user-player-13': 'RA',
+  'user-player-14': 'LA',
+  'user-player-15': 'TW',
+  'user-player-16': 'IV',
+  'user-player-17': 'ZM',
+  'user-player-18': 'ST',
+}
+const E2E_KADER_ABSENCE: Record<string, { absence: 'SUSPENDED' | 'AWAY'; untilDays: number }> = {
+  'user-player-6': { absence: 'SUSPENDED', untilDays: 10 },
+  'user-player-11': { absence: 'AWAY', untilDays: 8 },
+  'user-player-4': { absence: 'AWAY', untilDays: 21 },
+}
+const E2E_KADER_NEW_PLAYER_ID = 'user-player-16'
+
+/** Players who should answer NO in seeded RSVPs: injured, suspended, away. */
+function e2eUnavailableSquadIds(): string[] {
+  const ops = currentSession?.api.rosterOps
+  if (!ops) return Object.keys(E2E_KADER_ABSENCE)
+  const injured = ops.medic.active.map((injury) => injury.userId)
+  const absent = [...ops.squad, ...ops.operations.newPlayers]
+    .filter((member) => member.absence !== 'NONE')
+    .map((member) => member.userId)
+  return Array.from(new Set([...injured, ...absent]))
+}
+
+/** The NO reason that matches a player's Kader status, if they have one. */
+function e2eKaderReplyReason(userId: string): { reason: string; note: string | null } | null {
+  const ops = currentSession?.api.rosterOps
+  if (ops?.medic.active.some((injury) => injury.userId === userId)) {
+    return { reason: 'injured', note: null }
+  }
+  const member = ops
+    ? [...ops.squad, ...ops.operations.newPlayers].find((m) => m.userId === userId)
+    : null
+  if (member?.absence === 'SUSPENDED') return { reason: 'suspended', note: 'Rote Karte' }
+  if (member?.absence === 'AWAY') return { reason: 'vacation', note: null }
+  return null
+}
+
+function e2eRosterCount(ops: RosterOpsSnapshot): number {
+  return new Set(
+    [...ops.squad, ...ops.operations.newPlayers]
+      .filter((member) => member.role === TeamRole.PLAYER && member.phase === TeamAccessPhase.FULL)
+      .map((member) => member.userId),
+  ).size
+}
+
+function kaderMember(
+  userId: string,
+  name: string,
+  overrides: Partial<RosterOpsSnapshot['squad'][number]> = {},
+): RosterOpsSnapshot['squad'][number] {
   return {
+    id: `roster-${userId}`,
+    userId,
+    name,
+    avatarUrl: null,
+    role: TeamRole.PLAYER,
+    phase: TeamAccessPhase.FULL,
+    status: TeamAccessStatus.ACTIVE,
+    position: E2E_KADER_POSITIONS[userId] ?? null,
+    jerseyNumber: null,
+    operationalStatus: 'ACTIVE',
+    absence: 'NONE',
+    absenceUntil: null,
+    createdAt: nowIso(-200, 10, 0),
+    loanedFromTeamId: null,
+    loanedFromTeamName: null,
+    // Kader fixes (H2, L5): the adult personas may DM each other; nobody is
+    // loaned out unless a scenario says so.
+    loanedOutToTeamName: null,
+    loanedOutUntil: null,
+    canMessage: true,
+    messageBlockedReason: null,
+    ...overrides,
+  }
+}
+
+function createRosterOps(): RosterOpsSnapshot {
+  const players = createSquadStats().map((player) => {
+    const absence = E2E_KADER_ABSENCE[player.userId]
+    return kaderMember(player.userId, player.name, {
+      jerseyNumber: player.jerseyNumber,
+      operationalStatus: player.userId === E2E_KADER_NEW_PLAYER_ID ? 'NEW_PLAYER' : 'ACTIVE',
+      absence: absence?.absence ?? 'NONE',
+      absenceUntil: absence ? nowIso(absence.untilDays, 23, 59) : null,
+      createdAt: player.userId === E2E_KADER_NEW_PLAYER_ID ? nowIso(-9, 10, 0) : nowIso(-200, 10, 0),
+    })
+  })
+  const coaches = [
+    kaderMember('user-coach-1', 'Coach Albrecht', { role: TeamRole.HEAD_COACH, position: null }),
+    kaderMember('user-coach-2', 'Markus Brandt', { role: TeamRole.ASSISTANT_COACH, position: null }),
+  ]
+  const ops: RosterOpsSnapshot = {
     team: {
       id: TEAM_ID,
       displayName: TEAM_DISPLAY_NAME,
-      squadTarget: 13,
+      squadTarget: 20,
     },
-    squad: [
-      {
-        id: 'roster-player-1',
-        userId: 'player-1',
-        name: 'Julian Becker',
-        avatarUrl: null,
-        role: TeamRole.PLAYER,
-        phase: TeamAccessPhase.FULL,
-        status: TeamAccessStatus.ACTIVE,
-        position: 'ST',
-        jerseyNumber: 9,
-        operationalStatus: 'ACTIVE',
-        createdAt: nowIso(-30, 10, 0),
-        loanedFromTeamId: null,
-        loanedFromTeamName: null,
-      },
-      {
-        id: 'roster-player-2',
-        userId: 'player-2',
-        name: 'Tim Hoffmann',
-        avatarUrl: null,
-        role: TeamRole.PLAYER,
-        phase: TeamAccessPhase.FULL,
-        status: TeamAccessStatus.ACTIVE,
-        position: 'CB',
-        jerseyNumber: 4,
-        operationalStatus: 'ACTIVE',
-        createdAt: nowIso(-20, 10, 0),
-        loanedFromTeamId: null,
-        loanedFromTeamName: null,
-      },
-    ],
+    squadCount: 0,
+    squad: [...coaches, ...players.filter((p) => p.operationalStatus === 'ACTIVE')],
     operations: {
       trials: [
-        {
-          id: 'trial-player-1',
-          userId: 'trial-player-1',
-          name: 'Jonas Wagner',
-          avatarUrl: null,
-          role: TeamRole.PLAYER,
+        kaderMember('user-trial-1', 'Ben Schulz', {
+          id: 'trial-access-1',
+          phase: TeamAccessPhase.TRIAL,
+          status: TeamAccessStatus.PENDING,
+          position: 'ZM',
+          createdAt: nowIso(-2, 18, 30),
+        }),
+        kaderMember('user-trial-2', 'Mehmet Yılmaz', {
+          id: 'trial-access-2',
           phase: TeamAccessPhase.TRIAL,
           status: TeamAccessStatus.ACTIVE,
-          position: 'MID',
-          jerseyNumber: null,
-          operationalStatus: 'ACTIVE',
-          createdAt: nowIso(-3, 10, 0),
-          loanedFromTeamId: null,
-          loanedFromTeamName: null,
-        },
+          position: 'ST',
+          createdAt: nowIso(-5, 19, 0),
+        }),
       ],
-      newPlayers: [
-        {
-          id: 'new-player-1',
-          userId: 'new-player-1',
-          name: 'David Fischer',
-          avatarUrl: null,
-          role: TeamRole.PLAYER,
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-          position: 'DEF',
-          jerseyNumber: 16,
-          operationalStatus: 'NEW_PLAYER',
-          createdAt: nowIso(-5, 10, 0),
-          loanedFromTeamId: null,
-          loanedFromTeamName: null,
-        },
-      ],
+      newPlayers: players.filter((p) => p.operationalStatus === 'NEW_PLAYER'),
       inactive: [
-        {
-          id: 'inactive-player-1',
-          userId: 'inactive-player-1',
-          name: 'Lukas Meyer',
-          avatarUrl: null,
-          role: TeamRole.PLAYER,
-          phase: TeamAccessPhase.FULL,
-          status: TeamAccessStatus.ACTIVE,
-          position: 'GK',
+        kaderMember('user-player-inactive-1', 'Lukas Meyer', {
+          position: 'TW',
           jerseyNumber: 31,
           operationalStatus: 'INACTIVE',
-          createdAt: nowIso(-120, 10, 0),
-          loanedFromTeamId: null,
-          loanedFromTeamName: null,
-        },
+          createdAt: nowIso(-400, 10, 0),
+        }),
       ],
       pendingCoaches: [],
     },
     medic: {
-      active: [
-        {
-          id: 'injury-1',
-          clubId: CLUB_ID,
-          teamId: TEAM_ID,
-          userId: 'player-2',
-          reportedById: 'coach-1',
-          title: 'Hamstring tear',
-          notes: null,
-          status: 'OUT',
-          expectedReturnAt: null,
-          expectedReturnLabel: '6 wks',
-          clearedAt: null,
-          createdAt: nowIso(-2, 9, 0),
-          updatedAt: nowIso(-2, 9, 0),
-          user: {
-            id: 'player-2',
-            name: 'Tim Hoffmann',
-            avatarUrl: null,
-          },
-        },
-      ],
-      recentlyCleared: [
-        {
-          id: 'injury-2',
-          clubId: CLUB_ID,
-          teamId: TEAM_ID,
-          userId: 'player-3',
-          reportedById: 'coach-1',
-          title: 'Ankle sprain',
-          notes: null,
-          status: 'DAY_TO_DAY',
-          expectedReturnAt: null,
-          expectedReturnLabel: 'cleared',
-          clearedAt: nowIso(-1, 9, 0),
-          createdAt: nowIso(-12, 9, 0),
-          updatedAt: nowIso(-1, 9, 0),
-          user: {
-            id: 'player-3',
-            name: 'Luca Weber',
-            avatarUrl: null,
-          },
-        },
-      ],
+      // Medic kill switch: the API returns no injury data for release.
+      active: [],
+      recentlyCleared: [],
     },
     kit: {
       pending: [
@@ -1005,78 +1185,71 @@ function createRosterOps(): RosterOpsSnapshot {
           id: 'duty-1',
           clubId: CLUB_ID,
           teamId: TEAM_ID,
-          assignedUserId: 'player-1',
-          createdById: 'coach-1',
-          kind: 'JERSEY_CLEANUP',
+          assignedUserId: 'user-player-1',
+          createdById: 'user-coach-1',
+          kind: 'BIB_CLEANUP',
           status: 'PENDING',
-          dueDate: nowIso(3, 21, 0),
-          notes: 'Wash first-team jerseys after the away match.',
+          dueDate: nowIso(2, 18, 0),
+          notes: null,
           completedAt: null,
-          createdAt: nowIso(-1, 9, 0),
-          updatedAt: nowIso(-1, 9, 0),
-          assignedUser: {
-            id: 'player-1',
-            name: 'Julian Becker',
-            avatarUrl: null,
-          },
+          createdAt: nowIso(-1, 21, 0),
+          updatedAt: nowIso(-1, 21, 0),
+          assignedUser: { id: 'user-player-1', name: 'Julian Becker', avatarUrl: null },
         },
-      ],
-      recent: [
         {
           id: 'duty-2',
           clubId: CLUB_ID,
           teamId: TEAM_ID,
-          assignedUserId: 'player-4',
-          createdById: 'coach-1',
+          assignedUserId: 'user-player-8',
+          createdById: 'user-coach-1',
+          kind: 'JERSEY_CLEANUP',
+          status: 'PENDING',
+          dueDate: nowIso(4, 12, 0),
+          notes: null,
+          completedAt: null,
+          createdAt: nowIso(-2, 16, 0),
+          updatedAt: nowIso(-2, 16, 0),
+          assignedUser: { id: 'user-player-8', name: 'Paul Schäfer', avatarUrl: null },
+        },
+      ],
+      recent: [
+        {
+          id: 'duty-3',
+          clubId: CLUB_ID,
+          teamId: TEAM_ID,
+          assignedUserId: 'user-player-7',
+          createdById: 'user-coach-1',
+          kind: 'JERSEY_CLEANUP',
+          status: 'COMPLETED',
+          dueDate: nowIso(-3, 12, 0),
+          notes: null,
+          completedAt: nowIso(-4, 20, 15),
+          createdAt: nowIso(-9, 16, 0),
+          updatedAt: nowIso(-4, 20, 15),
+          assignedUser: { id: 'user-player-7', name: 'Jonas Krüger', avatarUrl: null },
+        },
+        {
+          id: 'duty-4',
+          clubId: CLUB_ID,
+          teamId: TEAM_ID,
+          assignedUserId: 'user-player-9',
+          createdById: 'user-coach-1',
           kind: 'BIB_CLEANUP',
           status: 'COMPLETED',
-          dueDate: nowIso(-2, 21, 0),
-          notes: 'Collect training bibs after Tuesday session.',
-          completedAt: nowIso(-1, 21, 30),
-          createdAt: nowIso(-4, 9, 0),
-          updatedAt: nowIso(-1, 21, 30),
-          assignedUser: {
-            id: 'player-4',
-            name: 'Leon Goretzka',
-            avatarUrl: null,
-          },
+          dueDate: nowIso(-6, 18, 0),
+          notes: null,
+          completedAt: nowIso(-6, 21, 40),
+          createdAt: nowIso(-8, 21, 0),
+          updatedAt: nowIso(-6, 21, 40),
+          assignedUser: { id: 'user-player-9', name: 'Leon Fischer', avatarUrl: null },
         },
       ],
     },
   }
+  ops.squadCount = e2eRosterCount(ops)
+  return ops
 }
-
-function createTrialInvites(): TrialInvite[] {
-  return [
-    {
-      id: 'trial-invite-1',
-      clubId: CLUB_ID,
-      freeAgentProfileId: 'free-agent-profile-1',
-      teamId: TEAM_ID,
-      sentByUserId: 'coach-1',
-      club: {
-        id: CLUB_ID,
-        name: 'SV Albatros',
-        badgeUrl: null,
-        primaryColor: CLUB_PRIMARY,
-      },
-      team: {
-        id: TEAM_ID,
-        displayName: TEAM_DISPLAY_NAME,
-        groupName: 'Senior',
-      },
-      status: TrialInviteStatus.PENDING,
-      message: 'Join the next training session and meet the staff.',
-      createdAt: nowIso(-2, 8, 0),
-      expiresAt: nowIso(5, 20, 0),
-      respondedAt: null,
-      sender: {
-        id: 'coach-1',
-        name: 'Coach Albrecht',
-      },
-    },
-  ]
-}
+// ── end Kader revamp ─────────────────────────────────────────────────────
 
 function createJoinRequests(): E2EApiState['joinRequests'] {
   // Two PENDING join requests so the admin Pending-requests screen shows
@@ -1095,6 +1268,21 @@ function createJoinRequests(): E2EApiState['joinRequests'] {
         name: 'Erik Brandt',
         email: 'erik.brandt@sv-albatros.example',
       },
+      // club-admin review fixes: Aufnahmeantrag after a Probetraining (Wechsel).
+      trialInviteId: 'trial-e2e-erik',
+      trialInvite: { id: 'trial-e2e-erik', team: { id: 'team-herren-1', displayName: 'Herren I' } },
+      street: 'Lindenstraße 12',
+      postalCode: '14467',
+      city: 'Potsdam',
+      phone: '0171 2345678',
+      nationality: null,
+      previousClubName: 'TSV Linden',
+      lastMatchDate: '2026-06-07',
+      sepaConsentAt: nowIso(-1, 17, 25),
+      parentalConsentAt: null,
+      releaseStatus: 'PENDING',
+      passApplicationAt: null,
+      eligibleFrom: null,
     },
     {
       id: 'join-request-2',
@@ -1123,6 +1311,15 @@ function createFreeAgentProfile(): FreeAgentProfile {
     isOnTransferList: true,
     visibility: FreeAgentVisibility.CLUB_ONLY,
     avatarUrl: null,
+    postalCode: '14482',
+    // Wechselbörse review fixes: region for viewers, U18 flag.
+    postalRegion: '14',
+    searchRadiusKm: 25,
+    highestLeague: 'BEZIRKSLIGA',
+    currentClubName: null,
+    availableFrom: null,
+    age: 28,
+    isMinor: false,
     createdAt: nowIso(-30, 10, 0),
     updatedAt: nowIso(-1, 10, 0),
     user: {
@@ -1281,249 +1478,6 @@ function createVoiceMemos(): E2EApiState['voiceMemos'] {
   ]
 }
 
-function createSportgericht(): E2EApiState['sportgericht'] {
-  // One auto-generated draft after the most recent fixture. Pre-fills
-  // every yellow/red captured during the live ticker as an incident
-  // row with a coach-narrative scaffold the user can edit.
-  return [
-    {
-      id: 'sg-1',
-      fixtureId: 'fixture-1',
-      fixtureTitle: 'SV Albatros vs SV Babelsberg 03',
-      kickoffAt: nowIso(0, 14, 0),
-      competition: 'League match',
-      referee: 'A. Lindner',
-      incidents: [
-        {
-          minute: 23,
-          kind: 'YELLOW',
-          playerName: 'Tim Weber',
-          playerNumber: 2,
-          reason: 'Tactical foul · breaking up counter',
-          narrative:
-            'Late challenge on a counter break, no malice. Clean on the ball, ref called as professional foul.',
-        },
-        {
-          minute: 67,
-          kind: 'YELLOW',
-          playerName: 'Lukas Hoffmann',
-          playerNumber: 5,
-          reason: 'Dissent · disputing decision',
-          narrative:
-            'Brief verbal protest after a no-call on what we believed was a clear foul on the wing.',
-        },
-      ],
-      coachNarrative:
-        'Match was competitive but fair. No off-the-ball incidents observed. We accept both yellows and have spoken with the players.',
-      status: 'DRAFT',
-      submittedAt: null,
-    },
-  ]
-}
-
-function createTrialScouts(): E2EApiState['trialScouts'] {
-  // 6 free agents with varied positions, ages, distances. Distance is
-  // coarse "as the crow flies km" derived from postcode prefix; finer
-  // matching is server-side in real mode. Two have video links.
-  const ago = (days: number) => {
-    const d = new Date()
-    d.setDate(d.getDate() - days)
-    return d.toISOString()
-  }
-  const u = (seed: string) => `https://picsum.photos/seed/${seed}/240/240`
-  return [
-    {
-      id: 'fa-1',
-      userId: 'fa-user-1',
-      name: 'Max Wernicke',
-      age: 16,
-      position: 'MID',
-      foot: 'RIGHT',
-      postcode: '14169',
-      distanceKm: 4,
-      history: 'Hertha 03 Zehlendorf U16',
-      note: 'Looking for U17/U19 club for next season — box-to-box.',
-      avatarUrl: u('fa-max'),
-      videoUrl: 'https://example.com/clip-max.mp4',
-      contactedByThisClub: false,
-      postedAt: ago(2),
-    },
-    {
-      id: 'fa-2',
-      userId: 'fa-user-2',
-      name: 'Lina Stein',
-      age: 18,
-      position: 'GK',
-      foot: 'BOTH',
-      postcode: '14199',
-      distanceKm: 7,
-      history: 'TuS Lichterfelde Damen II',
-      note: 'GK with reflex training cert. Open to trials in Berlin SW.',
-      avatarUrl: u('fa-lina'),
-      videoUrl: null,
-      contactedByThisClub: false,
-      postedAt: ago(5),
-    },
-    {
-      id: 'fa-3',
-      userId: 'fa-user-3',
-      name: 'Yusuf Demir',
-      age: 17,
-      position: 'ATT',
-      foot: 'LEFT',
-      postcode: '12161',
-      distanceKm: 12,
-      history: 'BSC Eintracht Südring U17',
-      note: 'Striker, 11 goals last season. Schedule conflict at Eintracht.',
-      avatarUrl: u('fa-yusuf'),
-      videoUrl: 'https://example.com/clip-yusuf.mp4',
-      contactedByThisClub: false,
-      postedAt: ago(8),
-    },
-    {
-      id: 'fa-4',
-      userId: 'fa-user-4',
-      name: 'Tom Hartmann',
-      age: 22,
-      position: 'DEF',
-      foot: 'RIGHT',
-      postcode: '13627',
-      distanceKm: 18,
-      history: 'SV Tasmania III',
-      note: 'CB, 188cm, headed-set-piece specialist. Moving south for work.',
-      avatarUrl: u('fa-tom'),
-      videoUrl: null,
-      contactedByThisClub: true,
-      postedAt: ago(11),
-    },
-    {
-      id: 'fa-5',
-      userId: 'fa-user-5',
-      name: 'Sophie Klein',
-      age: 19,
-      position: 'MID',
-      foot: 'BOTH',
-      postcode: '10967',
-      distanceKm: 25,
-      history: 'BFC Dynamo Frauen II',
-      note: 'Defensive 6, 2 years senior football. Looking for next step.',
-      avatarUrl: u('fa-sophie'),
-      videoUrl: null,
-      contactedByThisClub: false,
-      postedAt: ago(14),
-    },
-    {
-      id: 'fa-6',
-      userId: 'fa-user-6',
-      name: 'Niclas Roth',
-      age: 15,
-      position: 'GK',
-      foot: 'RIGHT',
-      postcode: '14163',
-      distanceKm: 3,
-      history: 'New to organised football — 5 years futsal.',
-      note: 'Fast hands, strong distribution. Trials welcome any time.',
-      avatarUrl: u('fa-niclas'),
-      videoUrl: null,
-      contactedByThisClub: false,
-      postedAt: ago(1),
-    },
-  ]
-}
-
-function createExchange(): E2EApiState['exchange'] {
-  // 5 listings — boots in 3 sizes, gloves, an outgrown jersey. Three
-  // available, one claimed, one gone so the demo shows all states.
-  const ago = (days: number) => {
-    const d = new Date()
-    d.setDate(d.getDate() - days)
-    return d.toISOString()
-  }
-  const u = (seed: string) => `https://picsum.photos/seed/${seed}/600/600`
-  return [
-    {
-      id: 'ex-1',
-      sellerUserId: 'user-parent-1',
-      sellerName: 'Nina Becker',
-      title: 'Adidas Predator FG · Size 38',
-      category: 'BOOTS',
-      sizeLabel: 'EU 38',
-      condition: 'GOOD',
-      askCents: 2500,
-      note: 'Outgrown after one season. Studs still solid.',
-      photoUrl: u('boots-predator'),
-      postedAt: ago(3),
-      status: 'AVAILABLE',
-      claimedByUserId: null,
-      claimedByName: null,
-    },
-    {
-      id: 'ex-2',
-      sellerUserId: 'user-coach-1',
-      sellerName: 'Markus Hoffmann',
-      title: 'Nike GK gloves · adult M',
-      category: 'GLOVES',
-      sizeLabel: 'M',
-      condition: 'WORN',
-      askCents: 1000,
-      note: 'Backup pair from last season — palms still grippy.',
-      photoUrl: u('gloves-nike'),
-      postedAt: ago(7),
-      status: 'AVAILABLE',
-      claimedByUserId: null,
-      claimedByName: null,
-    },
-    {
-      id: 'ex-3',
-      sellerUserId: 'user-player-3',
-      sellerName: 'Lukas Hoffmann',
-      title: 'Albatros home jersey · 152',
-      category: 'KIT',
-      sizeLabel: 'Youth 152',
-      condition: 'GOOD',
-      askCents: 1500,
-      note: 'Outgrown — perfect for U13/U14.',
-      photoUrl: u('jersey-albatros'),
-      postedAt: ago(2),
-      status: 'CLAIMED',
-      claimedByUserId: 'user-player-7',
-      claimedByName: 'Jonas Krüger',
-    },
-    {
-      id: 'ex-4',
-      sellerUserId: 'user-parent-1',
-      sellerName: 'Nina Becker',
-      title: 'Puma Future MG · Size 42',
-      category: 'BOOTS',
-      sizeLabel: 'EU 42',
-      condition: 'NEW',
-      askCents: 4500,
-      note: 'Brand new in box — wrong size. Receipt available.',
-      photoUrl: u('boots-puma'),
-      postedAt: ago(4),
-      status: 'AVAILABLE',
-      claimedByUserId: null,
-      claimedByName: null,
-    },
-    {
-      id: 'ex-5',
-      sellerUserId: 'user-coach-1',
-      sellerName: 'Markus Hoffmann',
-      title: 'Training cones (set of 12)',
-      category: 'OTHER',
-      sizeLabel: '—',
-      condition: 'GOOD',
-      askCents: 800,
-      note: 'Old set, replaced. Free to a good home if you collect.',
-      photoUrl: u('cones'),
-      postedAt: ago(20),
-      status: 'GONE',
-      claimedByUserId: 'user-coach-1',
-      claimedByName: 'Markus Hoffmann',
-    },
-  ]
-}
-
 function createStreaks(): E2EApiState['streaks'] {
   // Personal stats high enough that the demo lands ("8-week attendance
   // streak — best of the season!"). Leaderboard shows the top helpers
@@ -1544,264 +1498,6 @@ function createStreaks(): E2EApiState['streaks'] {
       { userId: 'user-player-3', name: 'Lukas Hoffmann', attendanceWeeks: 6, motmWeeks: 1 },
       { userId: 'user-player-9', name: 'Leon Fischer', attendanceWeeks: 5, motmWeeks: 1 },
     ],
-  }
-}
-
-function createJerseys(): E2EApiState['jerseys'] {
-  // 18 jerseys — most assigned to seeded squad, a couple unassigned, a
-  // mix of washed/not so the demo shows the rotation status clearly.
-  const now = new Date().toISOString()
-  return [
-    {
-      number: 1,
-      holderUserId: 'user-player-1',
-      holderName: 'Julian Becker',
-      washed: true,
-      assignedAt: now,
-      note: 'GK kit',
-    },
-    {
-      number: 2,
-      holderUserId: 'user-player-2',
-      holderName: 'Tim Weber',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 3,
-      holderUserId: 'user-player-5',
-      holderName: 'Felix Bauer',
-      washed: false,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 4,
-      holderUserId: 'user-player-4',
-      holderName: 'Anna Schmidt',
-      washed: false,
-      assignedAt: now,
-      note: 'Dropped at clubhouse Sat night',
-    },
-    {
-      number: 5,
-      holderUserId: 'user-player-3',
-      holderName: 'Lukas Hoffmann',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 6,
-      holderUserId: 'user-player-6',
-      holderName: 'Niklas Wagner',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 7,
-      holderUserId: 'user-player-10',
-      holderName: 'Max Hoffmann',
-      washed: false,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 8,
-      holderUserId: 'user-player-7',
-      holderName: 'Jonas Krüger',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 9,
-      holderUserId: 'user-player-12',
-      holderName: 'David Köhler',
-      washed: true,
-      assignedAt: now,
-      note: 'Captain band',
-    },
-    {
-      number: 10,
-      holderUserId: 'user-player-8',
-      holderName: 'Paul Schäfer',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 11,
-      holderUserId: 'user-player-11',
-      holderName: 'Tobias Lang',
-      washed: false,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 13,
-      holderUserId: 'user-player-16',
-      holderName: 'Hendrik Maier',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 14,
-      holderUserId: 'user-player-9',
-      holderName: 'Leon Fischer',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 15,
-      holderUserId: 'user-player-17',
-      holderName: 'Yannick Roth',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 17,
-      holderUserId: 'user-player-13',
-      holderName: 'Erik Walter',
-      washed: true,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 19,
-      holderUserId: 'user-player-14',
-      holderName: 'Moritz Vogel',
-      washed: false,
-      assignedAt: now,
-      note: null,
-    },
-    {
-      number: 20,
-      holderUserId: null,
-      holderName: null,
-      washed: true,
-      assignedAt: now,
-      note: 'Spare',
-    },
-    {
-      number: 22,
-      holderUserId: 'user-player-15',
-      holderName: 'Simon Klein',
-      washed: true,
-      assignedAt: now,
-      note: 'Backup GK',
-    },
-  ]
-}
-
-function createPitchStatus(): E2EApiState['pitchStatus'] {
-  // Fresh pitch as the default — the Saturday match is on. The first
-  // arriver-confirms photo-mock kicks in via the POST handler.
-  return {
-    fixtureId: 'fixture-1',
-    state: 'OK',
-    reportedById: null,
-    reportedByName: null,
-    reportedAt: null,
-    photoUrl: null,
-    note: null,
-  }
-}
-
-function createVereinsheim(): E2EApiState['vereinsheim'] {
-  // A standard Vereinsheim menu — Bratwurst, Pommes, Schnitzel, plus
-  // Pils + Apfelschorle. Six seeded orders so the revenue summary
-  // lands "84 € of 200 € target" on first open.
-  const placedAt = (mins: number) => {
-    const d = new Date()
-    d.setMinutes(d.getMinutes() - mins)
-    return d.toISOString()
-  }
-  return {
-    menu: [
-      { id: 'm-brat', name: 'Bratwurst', priceCents: 350, icon: '🌭', category: 'FOOD' },
-      { id: 'm-pom', name: 'Pommes', priceCents: 300, icon: '🍟', category: 'FOOD' },
-      { id: 'm-schnitzel', name: 'Schnitzel', priceCents: 850, icon: '🍖', category: 'FOOD' },
-      { id: 'm-cake', name: 'Kuchen', priceCents: 250, icon: '🍰', category: 'FOOD' },
-      { id: 'm-pils', name: 'Pils 0.3l', priceCents: 350, icon: '🍺', category: 'DRINK' },
-      { id: 'm-apfel', name: 'Apfelschorle', priceCents: 250, icon: '🥤', category: 'DRINK' },
-      { id: 'm-kaffee', name: 'Kaffee', priceCents: 200, icon: '☕', category: 'DRINK' },
-      { id: 'm-water', name: 'Wasser', priceCents: 200, icon: '💧', category: 'DRINK' },
-    ],
-    orders: [
-      {
-        id: 'o-1',
-        buyerId: 'user-parent-1',
-        buyerName: 'Nina Becker',
-        itemId: 'm-brat',
-        itemName: 'Bratwurst',
-        priceCents: 350,
-        qty: 2,
-        placedAt: placedAt(8),
-        paid: true,
-      },
-      {
-        id: 'o-2',
-        buyerId: 'user-coach-1',
-        buyerName: 'Markus Hoffmann',
-        itemId: 'm-pils',
-        itemName: 'Pils 0.3l',
-        priceCents: 350,
-        qty: 1,
-        placedAt: placedAt(11),
-        paid: true,
-      },
-      {
-        id: 'o-3',
-        buyerId: 'user-admin-1',
-        buyerName: 'Franziska Vogel',
-        itemId: 'm-cake',
-        itemName: 'Kuchen',
-        priceCents: 250,
-        qty: 3,
-        placedAt: placedAt(20),
-        paid: true,
-      },
-      {
-        id: 'o-4',
-        buyerId: 'user-player-2',
-        buyerName: 'Tim Weber',
-        itemId: 'm-apfel',
-        itemName: 'Apfelschorle',
-        priceCents: 250,
-        qty: 1,
-        placedAt: placedAt(25),
-        paid: true,
-      },
-      {
-        id: 'o-5',
-        buyerId: null,
-        buyerName: 'Walk-up',
-        itemId: 'm-schnitzel',
-        itemName: 'Schnitzel',
-        priceCents: 850,
-        qty: 1,
-        placedAt: placedAt(40),
-        paid: true,
-      },
-      {
-        id: 'o-6',
-        buyerId: null,
-        buyerName: 'Walk-up',
-        itemId: 'm-pils',
-        itemName: 'Pils 0.3l',
-        priceCents: 350,
-        qty: 4,
-        placedAt: placedAt(55),
-        paid: true,
-      },
-    ],
-    targetCents: 20000,
   }
 }
 
@@ -1912,87 +1608,6 @@ function createPendingDuesPauses(): E2EApiState['pendingDuesPauses'] {
   ]
 }
 
-function createEhrenamt(): E2EApiState['ehrenamt'] {
-  // Volunteer hours across 4 contributors with a healthy spread + a
-  // cluster of recent entries so the demo lands "this month: 12.5h"
-  // and "year-to-date: 87h of 200h" cleanly.
-  const offsetIso = (days: number) => {
-    const d = new Date()
-    d.setDate(d.getDate() - days)
-    return d.toISOString()
-  }
-  return {
-    settings: { annualGoalHours: 200, foerderungReady: true },
-    entries: [
-      {
-        id: 'ea-1',
-        memberUserId: 'user-parent-1',
-        memberName: 'Nina Becker',
-        role: 'PARENT',
-        activity: 'Kuchen-Dienst',
-        hours: 3,
-        occurredAt: offsetIso(2),
-        note: 'Saturday home match',
-      },
-      {
-        id: 'ea-2',
-        memberUserId: 'user-coach-1',
-        memberName: 'Markus Hoffmann',
-        role: 'COACH',
-        activity: 'Coaching session',
-        hours: 1.5,
-        occurredAt: offsetIso(3),
-      },
-      {
-        id: 'ea-3',
-        memberUserId: 'user-admin-1',
-        memberName: 'Franziska Vogel',
-        role: 'ADMIN',
-        activity: 'Vereinsheim renovation',
-        hours: 4,
-        occurredAt: offsetIso(5),
-        note: 'Repainted the entry hall',
-      },
-      {
-        id: 'ea-4',
-        memberUserId: 'user-coach-1',
-        memberName: 'Markus Hoffmann',
-        role: 'COACH',
-        activity: 'Match coaching',
-        hours: 2,
-        occurredAt: offsetIso(9),
-      },
-      {
-        id: 'ea-5',
-        memberUserId: 'user-parent-1',
-        memberName: 'Nina Becker',
-        role: 'PARENT',
-        activity: 'Platzdienst',
-        hours: 2,
-        occurredAt: offsetIso(11),
-      },
-      {
-        id: 'ea-6',
-        memberUserId: 'user-admin-1',
-        memberName: 'Franziska Vogel',
-        role: 'ADMIN',
-        activity: 'BFV reporting',
-        hours: 1.5,
-        occurredAt: offsetIso(14),
-      },
-      {
-        id: 'ea-7',
-        memberUserId: 'user-parent-1',
-        memberName: 'Nina Becker',
-        role: 'PARENT',
-        activity: 'Schiedsrichter-Begleitung',
-        hours: 2,
-        occurredAt: offsetIso(20),
-      },
-    ],
-  }
-}
-
 function createLiveMatches(): E2EApiState['liveMatches'] {
   // Fixture-1 seeded as a live match at minute 67, score 2-1. Five
   // earlier events build the story; refetching advances the clock and
@@ -2059,8 +1674,8 @@ function createMotmTallies(): E2EApiState['motm'] {
   // Per-candidate votes are seeded to SUM to the header total so the sheet
   // is internally consistent. Julian leads with the brace; Tim close behind.
   const results = [
-    { userId: 'player-1', name: 'Julian Becker', votes: 8, pct: 0 },
-    { userId: 'player-2', name: 'Tim Hoffmann', votes: 6, pct: 0 },
+    { userId: 'user-player-12', name: 'David Köhler', votes: 8, pct: 0 },
+    { userId: 'user-player-8', name: 'Paul Schäfer', votes: 6, pct: 0 },
   ]
   const totalVotes = results.reduce((sum, r) => sum + r.votes, 0)
   const seeded = results.map((r) => ({
@@ -2144,50 +1759,6 @@ function createPhotos(): E2EApiState['photos'] {
         caption: 'Got the opener!',
         votes: 17,
         myVoted: false,
-      },
-    ],
-  }
-}
-
-function createCarpool(): E2EApiState['carpool'] {
-  // Two seeded drivers (one mostly full, one half full) and one rider
-  // looking for a seat. Drivers cluster by adjacent Berlin postcodes so
-  // the postcode-match story reads naturally on first open.
-  return {
-    'fixture-1': [
-      {
-        id: 'ride-1',
-        driverId: 'user-coach-1',
-        driverName: 'Markus Hoffmann',
-        postcode: '14169',
-        seatsOffered: 4,
-        parking: 'Lot F · 13:30 at clubhouse',
-        notes: 'Will pass through Steglitz at 13:00 — ping me.',
-        riders: [
-          { userId: 'user-player-7', name: 'Jonas Krüger' },
-          { userId: 'user-player-9', name: 'Leon Fischer' },
-          { userId: 'user-player-13', name: 'Erik Walter' },
-        ],
-      },
-      {
-        id: 'ride-2',
-        driverId: 'user-admin-1',
-        driverName: 'Franziska Vogel',
-        postcode: '14195',
-        seatsOffered: 3,
-        parking: 'Meet at U Krumme Lanke · 13:15',
-        notes: null,
-        riders: [{ userId: 'user-player-14', name: 'Moritz Vogel' }],
-      },
-      {
-        id: 'ride-3',
-        driverId: null,
-        driverName: null,
-        postcode: '14199',
-        seatsOffered: 0,
-        parking: null,
-        notes: 'Ideally pickup near S Sundgauer Str.',
-        riders: [{ userId: 'user-player-18', name: 'Kai Berger' }],
       },
     ],
   }
@@ -2436,73 +2007,6 @@ function createSquadStats(): E2EApiState['squadStats'] {
   ]
 }
 
-// Builds a plausible RSVP roster matching the seeded aggregate counts, so the
-// event-detail and attendance screens line up with the home card. The real API
-// returns the full `rsvps` relation; this mirrors that contract in mock mode.
-const RSVP_NAME_POOL = [
-  'Julian Becker',
-  'Tim Weber',
-  'Lukas Hoffmann',
-  'Felix Braun',
-  'Jonas Schäfer',
-  'Niklas Wolf',
-  'Max Hoffmann',
-  'Tobias Lang',
-  'David Köhler',
-  'Erik Walter',
-  'Moritz Vogel',
-  'Simon Klein',
-  'Hendrik Maier',
-  'Yannick Roth',
-  'Kai Berger',
-  'Leon Fuchs',
-  'Paul Schäfer',
-  'Finn Krüger',
-  'Jan Richter',
-  'Marvin Sommer',
-]
-
-function synthesizeRsvps(
-  eventId: string,
-  yes: number,
-  maybe: number,
-  no: number,
-): Array<{
-  id: string
-  status: 'YES' | 'MAYBE' | 'NO'
-  updatedAt: string
-  user: { id: string; name: string; avatarUrl: null }
-}> {
-  const out: Array<{
-    id: string
-    status: 'YES' | 'MAYBE' | 'NO'
-    updatedAt: string
-    user: { id: string; name: string; avatarUrl: null }
-  }> = []
-  let i = 0
-  const push = (status: 'YES' | 'MAYBE' | 'NO', count: number) => {
-    for (let n = 0; n < count; n += 1) {
-      const name = RSVP_NAME_POOL[i % RSVP_NAME_POOL.length]
-      // The first entries reuse roster ids so the Team tab can line up each
-      // player's answer with the seeded squad; the rest are filler.
-      const rosterMember = currentSession?.api.rosterOps?.squad[i]
-      out.push({
-        id: `rsvp-${eventId}-${i}`,
-        status,
-        updatedAt: new Date().toISOString(),
-        user: rosterMember
-          ? { id: rosterMember.userId, name: rosterMember.name, avatarUrl: null }
-          : { id: `user-rsvp-${i}`, name, avatarUrl: null },
-      })
-      i += 1
-    }
-  }
-  push('YES', yes)
-  push('MAYBE', maybe)
-  push('NO', no)
-  return out
-}
-
 function createChannelMembership(): E2EApiState['channelMembership'] {
   // Seeded membership for the default team channel. Other channels lazily
   // initialize from this roster via the GET handler — newly created
@@ -2558,75 +2062,6 @@ function createChannelMembership(): E2EApiState['channelMembership'] {
     },
   ]
   return { default: roster }
-}
-
-function createDuties(): E2EApiState['duties'] {
-  // Seeded rotation across the four typical German amateur-club duties.
-  // Assignments are spread across the seeded users so any logged-in
-  // scenario sees at least one row tagged as "you".
-  const members = [
-    { userId: 'user-player-1', name: 'Julian Becker' },
-    { userId: 'user-parent-1', name: 'Nina Becker' },
-    { userId: 'user-coach-1', name: 'Markus Hoffmann' },
-    { userId: 'user-admin-1', name: 'Franziska Vogel' },
-    { userId: 'user-player-2', name: 'Tim Weber' },
-    { userId: 'user-player-3', name: 'Lukas Hoffmann' },
-  ]
-  return {
-    members,
-    duties: [
-      {
-        id: 'duty-1',
-        kind: 'KUCHEN',
-        title: 'Kuchen-Dienst',
-        date: nowIso(2, 11, 0),
-        matchTitle: 'SV Albatros vs Hertha 03',
-        assignedUserId: 'user-parent-1',
-        assignedName: 'Nina Becker',
-        swappable: true,
-      },
-      {
-        id: 'duty-2',
-        kind: 'AUFBAU',
-        title: 'Pitch set-up',
-        date: nowIso(2, 9, 30),
-        matchTitle: 'SV Albatros vs Hertha 03',
-        assignedUserId: 'user-player-1',
-        assignedName: 'Julian Becker',
-        swappable: true,
-      },
-      {
-        id: 'duty-3',
-        kind: 'SCHIRI',
-        title: 'Referee escort',
-        date: nowIso(2, 14, 30),
-        matchTitle: 'SV Albatros vs Hertha 03',
-        assignedUserId: 'user-coach-1',
-        assignedName: 'Markus Hoffmann',
-        swappable: false,
-      },
-      {
-        id: 'duty-4',
-        kind: 'PLATZWART',
-        title: 'Platzwart',
-        date: nowIso(9, 8, 0),
-        matchTitle: 'SV Albatros vs FC Union 06',
-        assignedUserId: 'user-admin-1',
-        assignedName: 'Franziska Vogel',
-        swappable: true,
-      },
-      {
-        id: 'duty-5',
-        kind: 'KUCHEN',
-        title: 'Kuchen-Dienst',
-        date: nowIso(9, 11, 0),
-        matchTitle: 'SV Albatros vs FC Union 06',
-        assignedUserId: 'user-player-2',
-        assignedName: 'Tim Weber',
-        swappable: true,
-      },
-    ],
-  }
 }
 
 function createAdminContributions(): E2EApiState['adminContributions'] {
@@ -2794,30 +2229,20 @@ function createApiState(overrides?: Partial<E2EApiState>): E2EApiState {
     linkedTeams: [],
     clubStats: null,
     rosterOps: null,
-    trialInvites: [],
     joinRequests: createJoinRequests(),
     freeAgentProfile: null,
     myContributions: createMyContributions(),
     adminContributions: createAdminContributions(),
-    duties: createDuties(),
     channelMembership: createChannelMembership(),
     squadStats: createSquadStats(),
     childrenAgenda: createChildrenAgenda(),
-    carpool: createCarpool(),
     liveMatches: createLiveMatches(),
     motm: createMotmTallies(),
     photos: createPhotos(),
     compliance: createCompliance(),
-    ehrenamt: createEhrenamt(),
     pendingDuesPauses: createPendingDuesPauses(),
-    jerseys: createJerseys(),
-    pitchStatus: createPitchStatus(),
-    vereinsheim: createVereinsheim(),
-    trialScouts: createTrialScouts(),
-    exchange: createExchange(),
     streaks: createStreaks(),
     voiceMemos: createVoiceMemos(),
-    sportgericht: createSportgericht(),
     ...overrides,
   }
 }
@@ -2867,6 +2292,8 @@ function buildParentSession(): E2ESessionSnapshot {
     needsOnboarding: false,
     api: createApiState({
       parentEvents: createParentEvents(),
+      // Kader revamp: parents see the squad their child plays in.
+      rosterOps: createRosterOps(),
     }),
   }
 }
@@ -2920,7 +2347,33 @@ function buildClubAdminSession(): E2ESessionSnapshot {
       linkedTeams: createLinkedTeams(),
       clubStats: createClubStats(),
       rosterOps: createRosterOps(),
-      trialInvites: createTrialInvites(),
+      // club-admin revamp: 4 overdue dues totalling 150 € + a passive plan.
+      adminContributions: (() => {
+        const base = createAdminContributions()
+        const passivePlan = {
+          ...base.plans[0],
+          id: 'plan-passive',
+          name: 'Fördermitgliedschaft',
+          description: 'Passive Mitglieder und Förderer',
+          amount: 7500,
+          cadence: 'YEARLY' as const,
+          targetRole: 'CUSTOM' as const,
+          assignedMemberCount: 14,
+        }
+        return {
+          ...base,
+          plans: [...base.plans, passivePlan],
+          summary: {
+            assignedMembers: 118,
+            paidMembers: 102,
+            overdueMembers: 4,
+            outstandingMembers: 16,
+            expectedAmount: 40000,
+            collectedAmount: 255000,
+          },
+          members: createClubAdminContributionMembers(),
+        }
+      })(),
     }),
   }
 }
@@ -2949,7 +2402,6 @@ function buildFreeAgentSession(): E2ESessionSnapshot {
     },
     needsOnboarding: false,
     api: createApiState({
-      trialInvites: createTrialInvites(),
       freeAgentProfile: createFreeAgentProfile(),
     }),
   }
@@ -3080,25 +2532,16 @@ export async function hydrateStoredE2ESession() {
       myContributions: parsed.api?.myContributions ?? defaults.myContributions,
       joinRequests: parsed.api?.joinRequests ?? defaults.joinRequests,
       adminContributions: parsed.api?.adminContributions ?? defaults.adminContributions,
-      duties: parsed.api?.duties ?? defaults.duties,
       channelMembership: parsed.api?.channelMembership ?? defaults.channelMembership,
       squadStats: parsed.api?.squadStats ?? defaults.squadStats,
       childrenAgenda: parsed.api?.childrenAgenda ?? defaults.childrenAgenda,
-      carpool: parsed.api?.carpool ?? defaults.carpool,
       liveMatches: parsed.api?.liveMatches ?? defaults.liveMatches,
       motm: parsed.api?.motm ?? defaults.motm,
       photos: parsed.api?.photos ?? defaults.photos,
       compliance: parsed.api?.compliance ?? defaults.compliance,
-      ehrenamt: parsed.api?.ehrenamt ?? defaults.ehrenamt,
       pendingDuesPauses: parsed.api?.pendingDuesPauses ?? defaults.pendingDuesPauses,
-      jerseys: parsed.api?.jerseys ?? defaults.jerseys,
-      pitchStatus: parsed.api?.pitchStatus ?? defaults.pitchStatus,
-      vereinsheim: parsed.api?.vereinsheim ?? defaults.vereinsheim,
-      trialScouts: parsed.api?.trialScouts ?? defaults.trialScouts,
-      exchange: parsed.api?.exchange ?? defaults.exchange,
       streaks: parsed.api?.streaks ?? defaults.streaks,
       voiceMemos: parsed.api?.voiceMemos ?? defaults.voiceMemos,
-      sportgericht: parsed.api?.sportgericht ?? defaults.sportgericht,
     }
     currentSession = parsed
     // Re-seed scenario-scoped mock state that lives outside the snapshot so it
@@ -3119,6 +2562,8 @@ export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
   }
 
   const scenario = buildScenario(name)
+  resetClubAdminWorld() // club-admin revamp
+  e2eClaim = null // onboarding revamp: claims never leak across personas
   e2eTeamGroups = seedTeamGroupsFor(name)
   e2eRemovedMemberUserIds = new Set()
   e2eInviteCounter = 0
@@ -3133,6 +2578,7 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
   }
 
   const scenario = buildPostSignupSession(registrationRole)
+  e2eClaim = null // onboarding revamp
   e2eTeamGroups = seedTeamGroupsFor(scenario.scenario)
   e2eRemovedMemberUserIds = new Set()
   e2eInviteCounter = 0
@@ -3143,6 +2589,7 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
 
 export async function clearE2ESession() {
   await AsyncStorage.removeItem(E2E_SESSION_KEY).catch(() => {})
+  e2eClaim = null // onboarding revamp
   e2eTeamGroups = []
   e2eRemovedMemberUserIds = new Set()
   e2eInviteCounter = 0
@@ -3153,6 +2600,267 @@ function persistCurrentSession() {
   if (!currentSession) return
   void AsyncStorage.setItem(E2E_SESSION_KEY, JSON.stringify(currentSession)).catch(() => {})
 }
+
+// ── onboarding revamp ──────────────────────────────────────────────────────
+// Team code printed on the SV Albatros "Senior Team" poster in e2e flows.
+export const E2E_TEAM_JOIN_CODE = 'SVAB2345HX'
+
+/** Mirrors /me's pendingJoinRequest / pendingClubClaim for e2e personas. */
+export function getE2EPendingState(session: E2ESessionSnapshot | null): {
+  pendingJoinRequest: { id: string; clubId: string } | null
+  pendingClubClaim: { id: string; status: 'SUBMITTED' | 'NEEDS_INFO' } | null
+} {
+  if (!session) return { pendingJoinRequest: null, pendingClubClaim: null }
+  const request = (session.api?.joinRequests ?? []).find(
+    (row) => row.user.id === session.user.id && row.status === 'PENDING',
+  )
+  const claim =
+    e2eClaim && (e2eClaim.status === 'SUBMITTED' || e2eClaim.status === 'NEEDS_INFO')
+      ? { id: e2eClaim.id, status: e2eClaim.status }
+      : null
+  return {
+    pendingJoinRequest: request ? { id: request.id, clubId: CLUB_ID } : null,
+    pendingClubClaim: claim,
+  }
+}
+
+function createOnboardingJoinRequest(role: 'PLAYER' | 'PARENT') {
+  const session = currentSession
+  if (!session) return null
+  const existing = session.api.joinRequests.find((r) => r.user.id === session.user.id)
+  const request = {
+    id: existing?.id ?? `join-request-${session.user.id}`,
+    role,
+    message: null,
+    status: 'PENDING' as const,
+    revision: (existing?.revision ?? 0) + 1,
+    createdAt: new Date().toISOString(),
+    user: { id: session.user.id, name: session.user.name, email: session.user.email },
+  }
+  if (existing) Object.assign(existing, request)
+  else session.api.joinRequests.unshift(request)
+  persistCurrentSession()
+  emitSession(session)
+  return request
+}
+
+function createOnboardingStaffClaim() {
+  const club = createClub()
+  e2eClaim = {
+    id: 'claim-e2e-staff-1',
+    status: 'SUBMITTED',
+    reviewNote: null,
+    expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+    escalatesAt: null,
+    directoryEntry: { name: club.name, city: 'Berlin', badgeUrl: null },
+    kind: 'STAFF_CLAIM',
+    club: { id: CLUB_ID, name: club.name, badgeUrl: null },
+  }
+  if (currentSession) emitSession(currentSession)
+  return e2eClaim
+}
+
+function handleOnboardingRequest(
+  method: string,
+  pathname: string,
+  rawBody: unknown,
+): E2EApiResponse | null {
+  if (!currentSession) return null
+  const body = (rawBody || {}) as Record<string, unknown>
+
+  if (method === 'PATCH' && pathname === '/me') {
+    const user = currentSession.user
+    // onboarding review fixes: mirror the server's age rules (B1/M3). New
+    // accounts give a DOB; under 13 is refused, 13-15 go to the handoff.
+    if (body.confirmAdult === true && !user.adultConfirmedAt) {
+      return { handled: true, ok: false, status: 400, code: 'DOB_REQUIRED', message: 'A date of birth is required' }
+    }
+    if (typeof body.dateOfBirth === 'string' && !user.dateOfBirth) {
+      const age = e2eAgeFrom(body.dateOfBirth)
+      const isMember = (currentSession.memberships ?? []).length > 0
+      if (age < 13) {
+        return { handled: true, ok: false, status: 403, code: 'UNDER_13', message: 'Under 13' }
+      }
+      if (age < 16 && !isMember) {
+        return { handled: true, ok: false, status: 403, code: 'UNDER_16_HANDOFF', message: 'Under 16' }
+      }
+    }
+    if (typeof body.name === 'string') user.name = body.name
+    if (typeof body.dateOfBirth === 'string') user.dateOfBirth = body.dateOfBirth
+    if (typeof body.registrationRole === 'string') {
+      user.registrationRole = body.registrationRole as RegistrationRole
+    }
+    persistCurrentSession()
+    emitSession(currentSession)
+    return { handled: true, ok: true, status: 200, body: clone(user) }
+  }
+
+  const byCode = pathname.match(/^\/teams\/by-code\/([^/]+)$/)
+  if (method === 'GET' && byCode) {
+    if (byCode[1].toUpperCase() !== E2E_TEAM_JOIN_CODE) {
+      return { handled: true, ok: false, status: 404, message: 'Team not found for this code' }
+    }
+    const club = createClub()
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        team: { id: TEAM_ID, name: TEAM_DISPLAY_NAME, displayName: TEAM_DISPLAY_NAME, clubId: CLUB_ID },
+        club: { id: CLUB_ID, name: club.name, badgeUrl: null, primaryColor: CLUB_PRIMARY },
+      },
+    }
+  }
+
+  if (method === 'POST' && pathname === '/onboarding/join-team') {
+    if (String(body.joinCode ?? '').toUpperCase() !== E2E_TEAM_JOIN_CODE) {
+      return { handled: true, ok: false, status: 404, message: 'Team not found for this code' }
+    }
+    if (body.role === 'COACH') createOnboardingStaffClaim()
+    else createOnboardingJoinRequest('PLAYER')
+    return {
+      handled: true,
+      ok: true,
+      status: 201,
+      body: { ok: true, clubId: CLUB_ID, teamId: TEAM_ID, status: 'PENDING' },
+    }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/join-requests`) {
+    const role = body.role === 'PARENT' ? 'PARENT' : 'PLAYER'
+    const request = createOnboardingJoinRequest(role)
+    return {
+      handled: true,
+      ok: true,
+      status: 201,
+      body: { id: request?.id, clubId: CLUB_ID, status: 'PENDING' },
+    }
+  }
+
+  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/staff-access-requests`) {
+    const claim = createOnboardingStaffClaim()
+    return { handled: true, ok: true, status: 201, body: { id: claim.id } }
+  }
+
+  if (method === 'GET' && pathname === '/me/join-requests/active') {
+    const session = currentSession
+    const request = session.api.joinRequests.find(
+      (row) => row.user.id === session.user.id && row.status === 'PENDING',
+    )
+    const club = createClub()
+    // M2: the last decision once nothing is pending (declined with a reason).
+    const decided = request
+      ? null
+      : session.api.joinRequests.find(
+          (row) =>
+            row.user.id === session.user.id &&
+            (row.status === 'REJECTED' || row.status === 'APPROVED'),
+        )
+    const lastDecision = decided
+      ? {
+          id: decided.id,
+          clubId: CLUB_ID,
+          status: decided.status,
+          reason:
+            decided.status === 'REJECTED'
+              ? 'Der Kader der Herren ist gerade voll. Komm gern zum Probetraining im Sommer.'
+              : null,
+          decidedAt: new Date().toISOString(),
+          club: { id: CLUB_ID, name: club.name, badgeUrl: null, primaryColor: CLUB_PRIMARY },
+        }
+      : null
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        lastDecision,
+        request: request
+          ? {
+              id: request.id,
+              clubId: CLUB_ID,
+              status: request.status,
+              role: request.role,
+              createdAt: request.createdAt,
+              club: {
+                id: CLUB_ID,
+                name: club.name,
+                slug: club.slug,
+                badgeUrl: null,
+                primaryColor: CLUB_PRIMARY,
+              },
+            }
+          : null,
+      },
+    }
+  }
+
+  if (method === 'POST' && pathname === '/me/parent-handoff') {
+    const guardian = String(body.guardianEmail ?? '').trim().toLowerCase()
+    if (guardian && guardian === String(currentSession.user.email ?? '').toLowerCase()) {
+      return { handled: true, ok: false, status: 400, code: 'GUARDIAN_IS_CHILD', message: 'Own email' }
+    }
+    return { handled: true, ok: true, status: 201, body: { sent: true, code: null } }
+  }
+
+  // H5: a guardian's setup code (E2E code AB23CD45), with and without a team.
+  const handoffTeam = pathname.match(/^\/parent-handoff\/([^/]+)\/team\/([^/]+)$/)
+  const handoffPreview = pathname.match(/^\/parent-handoff\/([^/]+)$/)
+  if (method === 'GET' && (handoffTeam || handoffPreview)) {
+    const code = (handoffTeam ?? handoffPreview)![1].toUpperCase()
+    if (code !== 'AB23CD45') {
+      return { handled: true, ok: false, status: 404, message: 'Invalid setup code' }
+    }
+    const club = createClub()
+    const teamPreview = {
+      team: { id: TEAM_ID, clubId: CLUB_ID, name: TEAM_DISPLAY_NAME, displayName: TEAM_DISPLAY_NAME },
+      club: { id: CLUB_ID, name: club.name, badgeUrl: null, primaryColor: CLUB_PRIMARY },
+      rosterSlots: [{ id: 'slot-e2e-lena', fullName: 'Lena Weber', position: 'MID', jerseyNumber: 14 }],
+    }
+    if (handoffTeam) {
+      return handoffTeam[2].toUpperCase() === E2E_TEAM_JOIN_CODE
+        ? { handled: true, ok: true, status: 200, body: teamPreview }
+        : { handled: true, ok: false, status: 404, message: 'Team not found for this code' }
+    }
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: { childFirstName: 'Lena', childDateOfBirth: '2012-05-14T00:00:00.000Z', team: teamPreview },
+    }
+  }
+
+  if (method === 'GET' && pathname === '/clubs/lookup') {
+    const club = createClub()
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        id: CLUB_ID,
+        name: club.name,
+        slug: club.slug,
+        badgeUrl: null,
+        primaryColor: CLUB_PRIMARY,
+        teams: [
+          { id: TEAM_ID, name: TEAM_DISPLAY_NAME, displayName: TEAM_DISPLAY_NAME },
+          { id: 'team-e2e-u17', name: 'B-Jugend (U17)', displayName: 'B-Jugend (U17)' },
+        ],
+      },
+    }
+  }
+
+  return null
+}
+function e2eAgeFrom(iso: string): number {
+  const dob = new Date(iso)
+  const now = new Date()
+  let age = now.getFullYear() - dob.getFullYear()
+  const m = now.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age -= 1
+  return age
+}
+// ── end onboarding revamp ──────────────────────────────────────────────────
 
 function createClubSearchRows() {
   return [
@@ -3273,7 +2981,6 @@ function activateMembershipFromSetup(input: {
   currentSession.api.linkedTeams = createLinkedTeams()
   currentSession.api.clubStats = createClubStats()
   currentSession.api.rosterOps = createRosterOps()
-  currentSession.api.trialInvites = createTrialInvites()
   e2eTeamGroups = [
     {
       id: 'group-e2e-senior',
@@ -3320,6 +3027,745 @@ function activateMembershipFromInvite() {
   return { membership, teamAccess, club, team: teamAccess.team }
 }
 
+// ─── Events revamp mocks (2026-09) ──────────────────────────────────────────
+// One block owns the event flow: feed (with logistics), detail (EventDetail
+// contract), RSVP incl. reasons/notes/child answers, Kader, Aufstellung and
+// Fahrten keyed by event. Runs before the older generic handlers below.
+
+const E2E_REPLY_REASONS: Array<{ reason: string; note: string | null }> = [
+  { reason: 'injured', note: 'Knie zwickt noch' },
+  { reason: 'work', note: 'Spätschicht' },
+  { reason: 'vacation', note: null },
+  { reason: 'sick', note: null },
+  { reason: 'suspended', note: '5. Gelbe' },
+  { reason: 'personal', note: null },
+]
+
+function ensureEventFlow(): E2EEventFlowState {
+  const api = currentSession!.api
+  if (!api.eventFlow) {
+    api.eventFlow = { replies: {}, squadPublishedAt: {}, lineups: {}, rides: {} }
+    const away = api.events.find((event) => event.id === 'event-match-away')
+    if (away) {
+      const meetingMs = new Date(away.meetingAt ?? away.date).getTime()
+      api.eventFlow.rides[away.id] = [
+        {
+          id: 'e2e-ride-thomas',
+          driverId: 'user-driver-thomas',
+          driverName: 'Thomas Hoffmann',
+          seats: 3,
+          departFrom: 'Vereinsheim',
+          departAt: new Date(meetingMs - 15 * 60000).toISOString(),
+          note: 'Kombi, Platz für Taschen.',
+          passengers: [{ userId: 'user-player-2', name: 'Tim Weber' }],
+          createdAt: nowIso(-1, 18, 0),
+        },
+        {
+          id: 'e2e-ride-sabine',
+          driverId: 'user-driver-sabine',
+          driverName: 'Sabine Becker',
+          seats: 2,
+          departFrom: 'Kaufland-Parkplatz',
+          departAt: new Date(meetingMs - 20 * 60000).toISOString(),
+          note: null,
+          passengers: [],
+          createdAt: nowIso(-1, 19, 0),
+        },
+      ]
+    }
+  }
+  return api.eventFlow
+}
+
+function eventFlowMembers(): EventSquadMember[] {
+  const squad = currentSession!.api.squadStats.map((player) => ({
+    userId: player.userId,
+    name: player.name,
+    avatarUrl: null,
+    jerseyNumber: player.jerseyNumber,
+    position: player.position,
+  }))
+  if (currentSession!.scenario !== 'parent') return squad
+  return [
+    ...squad,
+    ...E2E_PARENT_KIDS.map((kid) => ({
+      userId: kid.userId,
+      name: kid.name,
+      avatarUrl: null,
+      jerseyNumber: null,
+      position: null,
+    })),
+  ]
+}
+
+function findFlowEvent(eventId: string): EventFeedItem | null {
+  const api = currentSession!.api
+  return (
+    api.events.find((event) => event.id === eventId) ??
+    (api.parentEvents.find((event) => event.id === eventId) as EventFeedItem | undefined) ??
+    null
+  )
+}
+
+/** Seed replies for an event from its feed counts; the persona's own answer wins. */
+function ensureReplies(event: EventFeedItem): E2EEventReply[] {
+  const flow = ensureEventFlow()
+  const existing = flow.replies[event.id]
+  if (existing) return existing
+
+  const selfId = currentSession!.user.id
+  const members = eventFlowMembers().filter(
+    (member) => member.userId !== selfId && !E2E_PARENT_KIDS.some((kid) => kid.userId === member.userId),
+  )
+  // Anna is injured all season: she leads the NO bucket when there is one.
+  const ordered = [...members].sort((a, b) =>
+    a.userId === 'user-player-4' ? 1 : b.userId === 'user-player-4' ? -1 : 0,
+  )
+  let yes = event.yesCount ?? 0
+  let maybe = event.maybeCount ?? 0
+  let no = event.noCount ?? 0
+  if (event.myRsvp && eventFlowMembers().some((member) => member.userId === selfId)) {
+    if (event.myRsvp === 'YES') yes = Math.max(0, yes - 1)
+    if (event.myRsvp === 'MAYBE') maybe = Math.max(0, maybe - 1)
+    if (event.myRsvp === 'NO') no = Math.max(0, no - 1)
+  }
+  const updatedAt = event.createdAt ?? nowIso(-1, 12, 0)
+  const replies: E2EEventReply[] = []
+  // Kader revamp: everyone the Kader marks verletzt / gesperrt / Urlaub
+  // leads the NO bucket, so RSVPs agree with the squad's availability.
+  const unavailable = new Set(e2eUnavailableSquadIds())
+  const noPool = ordered.filter((member) => unavailable.has(member.userId))
+  const rest = ordered.filter((member) => !unavailable.has(member.userId))
+  const noMembers = [...noPool, ...rest.slice(rest.length - Math.max(0, no - noPool.length))].slice(0, no)
+  const others = rest.filter((member) => !noMembers.includes(member))
+  others.slice(0, yes).forEach((member) =>
+    replies.push({ userId: member.userId, status: 'YES', reason: null, note: null, nominated: false, updatedAt }),
+  )
+  others.slice(yes, yes + maybe).forEach((member) =>
+    replies.push({
+      userId: member.userId,
+      status: 'MAYBE',
+      reason: null,
+      note: 'Komme evtl. später',
+      nominated: false,
+      updatedAt,
+    }),
+  )
+  noMembers.forEach((member, index) => {
+    const reason =
+      e2eKaderReplyReason(member.userId) ?? E2E_REPLY_REASONS[index % E2E_REPLY_REASONS.length]
+    replies.push({
+      userId: member.userId,
+      status: 'NO',
+      reason: reason.reason,
+      note: reason.note,
+      nominated: false,
+      updatedAt,
+    })
+  })
+  // The persona's own answer (players are on the squad list).
+  if (event.myRsvp && eventFlowMembers().some((member) => member.userId === selfId)) {
+    replies.push({ userId: selfId, status: event.myRsvp, reason: null, note: null, nominated: false, updatedAt })
+  }
+  // Parent persona children: take the seeded child answers from the parent feed.
+  for (const row of currentSession!.api.parentEvents) {
+    if (row.id === event.id && row.childUserId && row.childRsvp) {
+      replies.push({
+        userId: row.childUserId,
+        status: row.childRsvp,
+        reason: null,
+        note: null,
+        nominated: false,
+        updatedAt,
+      })
+    }
+  }
+  // A published Kader: every YES plus the persona player, capped at 16.
+  if (event.squadPublishedAt) {
+    flow.squadPublishedAt[event.id] = event.squadPublishedAt
+    replies
+      .filter((reply) => reply.status === 'YES')
+      .slice(0, 16)
+      .forEach((reply) => {
+        reply.nominated = true
+      })
+    const self = replies.find((reply) => reply.userId === selfId)
+    if (self) self.nominated = true
+  }
+  flow.replies[event.id] = replies
+  return replies
+}
+
+function syncFeedCounts(eventId: string) {
+  const api = currentSession!.api
+  const replies = ensureEventFlow().replies[eventId] ?? []
+  const selfId = currentSession!.user.id
+  const self = replies.find((reply) => reply.userId === selfId)
+  const apply = (event: EventFeedItem) => {
+    event.yesCount = replies.filter((reply) => reply.status === 'YES').length
+    event.maybeCount = replies.filter((reply) => reply.status === 'MAYBE').length
+    event.noCount = replies.filter((reply) => reply.status === 'NO').length
+    event.responseCount = replies.length
+    if (self) event.myRsvp = self.status
+    event.myNominated = Boolean(self?.nominated)
+    event.squadPublishedAt = ensureEventFlow().squadPublishedAt[eventId] ?? event.squadPublishedAt ?? null
+  }
+  api.events.filter((event) => event.id === eventId).forEach(apply)
+  api.parentEvents.filter((event) => event.id === eventId).forEach((row) => {
+    apply(row)
+    row.myRsvp = null
+    const child = replies.find((reply) => reply.userId === row.childUserId)
+    row.childRsvp = child?.status ?? null
+  })
+}
+
+function withEventLogistics<T extends EventFeedItem>(event: T): T {
+  return { ...EVENT_LOGISTICS_DEFAULTS, ...event }
+}
+
+function buildCarpoolBoard(eventId: string): CarpoolBoard {
+  const selfId = currentSession!.user.id
+  const rides = ensureEventFlow().rides[eventId] ?? []
+  return {
+    eventId,
+    rides: rides.map(
+      (ride): CarpoolRideItem => ({
+        id: ride.id,
+        eventId,
+        driver: { id: ride.driverId, name: ride.driverName, avatarUrl: null },
+        seats: ride.seats,
+        departFrom: ride.departFrom,
+        departAt: ride.departAt,
+        note: ride.note,
+        passengers: clone(ride.passengers),
+        isMine: ride.driverId === selfId,
+        createdAt: ride.createdAt,
+      }),
+    ),
+  }
+}
+
+function buildEventSquad(event: EventFeedItem): EventSquad {
+  const replies = ensureReplies(event)
+  const members = eventFlowMembers()
+  return {
+    eventId: event.id,
+    publishedAt: ensureEventFlow().squadPublishedAt[event.id] ?? null,
+    // Events review (H1): an Absage drops the nomination; the coach sees why.
+    nominatedUserIds: replies
+      .filter((reply) => reply.nominated && reply.status !== 'NO')
+      .map((reply) => reply.userId),
+    candidates: members.flatMap((member) => {
+      const reply = replies.find((entry) => entry.userId === member.userId)
+      return reply && (reply.status === 'YES' || reply.status === 'MAYBE')
+        ? [{ ...member, rsvp: reply.status, reason: reply.reason }]
+        : []
+    }),
+    dropouts: replies
+      .filter((reply) => reply.nominated && reply.status === 'NO')
+      .map((reply) => ({
+        userId: reply.userId,
+        name: members.find((member) => member.userId === reply.userId)?.name ?? '',
+        cause: 'declined' as const,
+        reason: reply.reason ?? null,
+        at: null,
+      })),
+  }
+}
+
+function buildEventDetail(event: EventFeedItem): EventDetail {
+  const session = currentSession!
+  const replies = ensureReplies(event)
+  syncFeedCounts(event.id)
+  const members = eventFlowMembers()
+  const selfId = session.user.id
+  const canManage = session.scenario === 'coach' || session.scenario === 'club-admin'
+  const isGuardian = session.scenario === 'parent'
+  const nameOf = (userId: string) =>
+    members.find((member) => member.userId === userId)?.name ??
+    (userId === selfId ? session.user.name : 'Spieler')
+  const kidIds = new Set<string>(E2E_PARENT_KIDS.map((kid) => kid.userId))
+  const rsvps: EventRsvpEntry[] = replies.map((reply) => {
+    const visible = canManage || reply.userId === selfId || (isGuardian && kidIds.has(reply.userId))
+    return {
+      id: `rsvp-${event.id}-${reply.userId}`,
+      userId: reply.userId,
+      status: reply.status,
+      reason: visible ? reply.reason : null,
+      note: visible ? reply.note : null,
+      nominated: reply.nominated,
+      updatedAt: reply.updatedAt,
+      user: { id: reply.userId, name: nameOf(reply.userId), avatarUrl: null },
+    }
+  })
+  const children: EventGuardedChild[] = isGuardian
+    ? session.api.parentEvents
+        .filter((row) => row.id === event.id && row.childUserId)
+        .map((row) => {
+          const reply = replies.find((entry) => entry.userId === row.childUserId)
+          return {
+            userId: row.childUserId!,
+            name: row.childName ?? '',
+            teamName: row.teamDisplayName || row.teamName || null,
+            rsvp: reply?.status ?? null,
+            reason: reply?.reason ?? null,
+            note: reply?.note ?? null,
+            nominated: reply?.nominated ?? false,
+          }
+        })
+    : []
+  const self = replies.find((reply) => reply.userId === selfId)
+  const feed = withEventLogistics(event)
+  return {
+    ...feed,
+    team: { id: event.teamId, name: TEAM_DISPLAY_NAME },
+    rsvps,
+    myRsvp: self?.status ?? (isGuardian ? null : event.myRsvp),
+    myRsvpReason: self?.reason ?? null,
+    myRsvpNote: self?.note ?? null,
+    myRsvpStale: Boolean(event.myRsvpStale),
+    myNominated: Boolean(self?.nominated),
+    myCheckInAt: null,
+    reminderEnabled: false,
+    lastRsvpReminderAt: null,
+    teamMemberCount: members.length,
+    readiness: event.readiness ?? null,
+    squadPublishedAt: ensureEventFlow().squadPublishedAt[event.id] ?? null,
+    members,
+    children,
+    viewer: {
+      canManage,
+      isPlayer: session.scenario === 'player',
+      isGuardian,
+    },
+    lineup: ensureEventFlow().lineups[event.id] ?? null,
+    carpoolRideCount: (ensureEventFlow().rides[event.id] ?? []).length,
+  }
+}
+
+type E2EEventLogisticsBody = {
+  title?: string | null
+  type?: EventFeedItem['type']
+  date?: string
+  teamId?: string
+  location?: string | null
+  notes?: string | null
+  meetingAt?: string | null
+  meetingPoint?: string | null
+  opponent?: string | null
+  homeAway?: 'HOME' | 'AWAY' | null
+  carpoolEnabled?: boolean
+  durationMin?: number | null
+  scope?: 'this' | 'following'
+  repeat?: { intervalWeeks?: number; until?: string; weekdays?: number[] }
+}
+
+function logisticsFromBody(body: E2EEventLogisticsBody) {
+  return {
+    meetingAt: body.meetingAt ?? null,
+    meetingPoint: body.meetingPoint ?? null,
+    opponent: body.opponent ?? null,
+    homeAway: body.homeAway ?? null,
+    carpoolEnabled: body.carpoolEnabled ?? false,
+    durationMin: body.durationMin ?? null,
+  }
+}
+
+function newFeedEvent(body: E2EEventLogisticsBody, id: string, date: string): EventFeedItem {
+  return {
+    ...EVENT_LOGISTICS_DEFAULTS,
+    id,
+    teamId: body.teamId ?? TEAM_ID,
+    clubId: CLUB_ID,
+    // Derived titles (events review L7/M6): no typed title = autoTitle.
+    title: body.title?.trim() || body.opponent?.trim() || 'Training',
+    autoTitle: !body.title?.trim(),
+    type: body.type ?? 'TRAINING',
+    date,
+    location: body.location ?? null,
+    notes: body.notes ?? null,
+    createdById: currentSession!.user.id,
+    createdAt: new Date().toISOString(),
+    archivedAt: null,
+    responseCount: 0,
+    yesCount: 0,
+    maybeCount: 0,
+    noCount: 0,
+    myRsvp: null,
+    ...logisticsFromBody(body),
+  }
+}
+
+function applyLogisticsPatch(target: EventFeedItem, body: E2EEventLogisticsBody, meetingOffsetMs: number | null) {
+  if (body.meetingPoint !== undefined) target.meetingPoint = body.meetingPoint
+  if (body.opponent !== undefined) target.opponent = body.opponent
+  if (body.homeAway !== undefined) target.homeAway = body.homeAway
+  if (body.carpoolEnabled !== undefined) target.carpoolEnabled = body.carpoolEnabled
+  if (body.durationMin !== undefined) target.durationMin = body.durationMin
+  if (body.meetingAt === null) target.meetingAt = null
+  else if (meetingOffsetMs !== null) {
+    target.meetingAt = new Date(new Date(target.date).getTime() - meetingOffsetMs).toISOString()
+  }
+}
+
+function handleEventFlowRequest(
+  method: string,
+  pathname: string,
+  query: URLSearchParams | null,
+  options: { method: string; body?: unknown },
+): E2EApiResponse | null {
+  const session = currentSession
+  if (!session) return null
+  const api = session.api
+  const base = `/clubs/${CLUB_ID}/events`
+
+  // Parent feed: one row per (event, child), childRsvp read from the replies.
+  if (method === 'GET' && pathname === '/me/children-events') {
+    const rows = api.parentEvents.map((row) => {
+      const flow = ensureEventFlow()
+      const replies = flow.replies[row.id]
+      const child = replies?.find((reply) => reply.userId === row.childUserId)
+      return withEventLogistics({ ...row, childRsvp: replies ? child?.status ?? null : row.childRsvp })
+    })
+    return { handled: true, ok: true, status: 200, body: clone(rows) }
+  }
+
+  // home revamp: parent home overview, same shape as GET /me/children-overview
+  // (ChildrenOverview). Leo plays U15 (and the senior team's event), Mia U11;
+  // duties are TeamDutyAssignment rows, one of them the parent's own.
+  if (method === 'GET' && pathname === '/me/children-overview') {
+    const stamp = nowIso(-2, 12, 0)
+    const dutyRow = (
+      id: string,
+      teamId: string,
+      teamName: string,
+      assigned: { id: string; name: string },
+      kind: 'JERSEY_CLEANUP' | 'LOCKER_ROOM' | 'BIB_CLEANUP',
+      dueDate: string,
+      childUserId: string | null,
+    ) => ({
+      id,
+      clubId: CLUB_ID,
+      teamId,
+      assignedUserId: assigned.id,
+      createdById: 'user-coach-1',
+      kind,
+      status: 'PENDING' as const,
+      dueDate,
+      notes: null,
+      completedAt: null,
+      createdAt: stamp,
+      updatedAt: stamp,
+      assignedUser: { id: assigned.id, name: assigned.name, avatarUrl: null },
+      teamName,
+      childUserId,
+    })
+    const [leo, mia] = E2E_PARENT_KIDS
+    const body = {
+      children: [
+        { userId: leo.userId, name: leo.name, teams: [{ id: TEAM_ID, name: 'U15', displayName: 'U15 I' }] },
+        { userId: mia.userId, name: mia.name, teams: [{ id: 'team-u11', name: 'U11', displayName: 'U11 I' }] },
+      ],
+      duties: [
+        dutyRow('duty-parent-kit', TEAM_ID, 'U15 I', { id: session.user.id, name: session.user.name }, 'JERSEY_CLEANUP', nowIso(3, 18, 0), null),
+        dutyRow('duty-mia-locker', 'team-u11', 'U11 I', { id: mia.userId, name: mia.name }, 'LOCKER_ROOM', nowIso(5, 19, 0), mia.userId),
+      ],
+      announcements: [
+        {
+          id: 'ann-parent-1',
+          title: 'Elternabend U15 am Donnerstag',
+          body: 'Wir besprechen die Fahrgemeinschaften für die Rückrunde. 19 Uhr im Vereinsheim.',
+          createdAt: nowIso(-1, 20, 0),
+          teamId: TEAM_ID,
+          teamName: 'U15 I',
+        },
+        {
+          id: 'ann-parent-2',
+          title: 'Sommerfest SV Albatros',
+          body: 'Samstag ab 14 Uhr, Kuchenspenden gern gesehen.',
+          createdAt: nowIso(-3, 10, 0),
+          teamId: null,
+          teamName: null,
+        },
+      ],
+    }
+    return { handled: true, ok: true, status: 200, body: clone(body) }
+  }
+
+  // Feed with type + limit (create-event prefills from the last training).
+  if (method === 'GET' && pathname === base) {
+    const scope = query?.get('scope') ?? 'upcoming'
+    const typeFilter = query?.get('type') ?? null
+    const limit = Number.parseInt(query?.get('limit') ?? '', 10)
+    const now = new Date()
+    const archiveCutoff = new Date(now)
+    archiveCutoff.setDate(archiveCutoff.getDate() - 3)
+    let filtered = api.events.filter((event) => {
+      const eventDate = new Date(event.date)
+      return scope === 'past' ? eventDate < now && eventDate >= archiveCutoff : eventDate >= now
+    })
+    if (typeFilter) filtered = filtered.filter((event) => event.type === typeFilter)
+    filtered.sort((a, b) =>
+      scope === 'past'
+        ? new Date(b.date).getTime() - new Date(a.date).getTime()
+        : new Date(a.date).getTime() - new Date(b.date).getTime(),
+    )
+    if (Number.isFinite(limit) && limit > 0) filtered = filtered.slice(0, limit)
+    filtered.forEach((event) => {
+      ensureReplies(event)
+      syncFeedCounts(event.id)
+    })
+    return { handled: true, ok: true, status: 200, body: clone(filtered.map(withEventLogistics)) }
+  }
+
+  // Recurring: one row per chosen weekday per week (Mon-based weeks).
+  if (method === 'POST' && pathname === `${base}/series`) {
+    const body = (options.body ?? {}) as E2EEventLogisticsBody
+    const seriesId = `series-e2e-${Date.now().toString(36)}`
+    const first = new Date(body.date ?? nowIso(1, 19, 0))
+    const until = new Date(body.repeat?.until ?? first.toISOString())
+    const interval = body.repeat?.intervalWeeks === 2 ? 2 : 1
+    const weekdays = Array.from(new Set(body.repeat?.weekdays?.length ? body.repeat.weekdays : [first.getDay()])).sort()
+    const meetingOffsetMs = body.meetingAt ? first.getTime() - new Date(body.meetingAt).getTime() : null
+    const weekStart = new Date(first)
+    weekStart.setDate(first.getDate() - ((first.getDay() + 6) % 7))
+    const created: EventFeedItem[] = []
+    for (let week = 0; created.length < 20 && week < 60; week += interval) {
+      for (const weekday of weekdays) {
+        const at = new Date(weekStart)
+        at.setDate(weekStart.getDate() + week * 7 + ((weekday + 6) % 7))
+        at.setHours(first.getHours(), first.getMinutes(), 0, 0)
+        if (at < first || at > until || created.length >= 20) continue
+        const event = newFeedEvent(body, `event-e2e-${seriesId}-${created.length}`, at.toISOString())
+        event.seriesId = seriesId
+        event.series = { id: seriesId, intervalWeeks: interval, until: until.toISOString(), weekdays }
+        event.meetingAt =
+          meetingOffsetMs !== null ? new Date(at.getTime() - meetingOffsetMs).toISOString() : null
+        created.push(event)
+      }
+      const nextWeek = new Date(weekStart)
+      nextWeek.setDate(weekStart.getDate() + (week + interval) * 7)
+      if (nextWeek > until) break
+    }
+    api.events.unshift(...created)
+    return { handled: true, ok: true, status: 201, body: { seriesId, events: clone(created) } }
+  }
+
+  if (method === 'POST' && pathname === base) {
+    const body = (options.body ?? {}) as E2EEventLogisticsBody
+    const created = newFeedEvent(body, `event-e2e-${Date.now().toString(36)}`, body.date ?? nowIso(1, 18, 0))
+    api.events.unshift(created)
+    return { handled: true, ok: true, status: 201, body: clone(created) }
+  }
+
+  const detailMatch = pathname.match(new RegExp(`^${base}/([^/]+)$`))
+  if (method === 'GET' && detailMatch) {
+    const event = findFlowEvent(detailMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found in mock data' }
+    return { handled: true, ok: true, status: 200, body: clone(buildEventDetail(event)) }
+  }
+
+  if (method === 'PATCH' && detailMatch) {
+    const event = api.events.find((entry) => entry.id === detailMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    const body = (options.body ?? {}) as E2EEventLogisticsBody
+    const nextDate = body.date ?? event.date
+    const meetingOffsetMs =
+      body.meetingAt ? new Date(nextDate).getTime() - new Date(body.meetingAt).getTime() : null
+    if (body.scope === 'following' && event.seriesId) {
+      const shift = body.date !== undefined ? new Date(body.date).getTime() - new Date(event.date).getTime() : 0
+      api.events
+        .filter((e) => e.seriesId === event.seriesId && e.id !== event.id && new Date(e.date) > new Date(event.date))
+        .forEach((e) => {
+          if (body.title !== undefined) {
+            e.title = body.title ?? e.opponent ?? 'Training'
+            e.autoTitle = body.title === null
+          }
+          if (body.location !== undefined) e.location = body.location
+          if (body.notes !== undefined) e.notes = body.notes
+          if (shift !== 0) {
+            e.date = new Date(new Date(e.date).getTime() + shift).toISOString()
+            e.rescheduledAt = new Date().toISOString()
+          }
+          applyLogisticsPatch(e, body, meetingOffsetMs)
+        })
+    }
+    if (body.title !== undefined) {
+      event.title = body.title ?? event.opponent ?? 'Training'
+      event.autoTitle = body.title === null
+    }
+    if (body.type !== undefined) event.type = body.type
+    if (body.date !== undefined && body.date !== event.date) {
+      event.date = body.date
+      event.rescheduledAt = new Date().toISOString()
+      event.myRsvpStale = Boolean(event.myRsvp)
+    }
+    if (body.location !== undefined) event.location = body.location ?? null
+    if (body.notes !== undefined) event.notes = body.notes ?? null
+    applyLogisticsPatch(event, body, meetingOffsetMs)
+    return { handled: true, ok: true, status: 200, body: clone(withEventLogistics(event)) }
+  }
+
+  // RSVP (self or a child) and the older rsvp-proxy route.
+  const rsvpMatch = pathname.match(new RegExp(`^${base}/([^/]+)/(rsvp|rsvp-proxy)$`))
+  if (method === 'PUT' && rsvpMatch) {
+    const event = findFlowEvent(rsvpMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    if (event.cancelledAt) {
+      return { handled: true, ok: false, status: 400, message: 'Cannot RSVP to a cancelled event' }
+    }
+    const body = (options.body ?? {}) as {
+      status?: 'YES' | 'MAYBE' | 'NO'
+      reason?: string
+      note?: string
+      childUserId?: string
+    }
+    if (!body.status) return { handled: true, ok: false, status: 400, message: 'status is required' }
+    const kids = session.scenario === 'parent' ? api.parentEvents.filter((row) => row.id === event.id) : []
+    if (session.scenario === 'parent' && !body.childUserId && kids.length > 1) {
+      return { handled: true, ok: false, status: 400, message: 'childUserId is required' }
+    }
+    const userId = body.childUserId ?? (kids.length === 1 ? kids[0].childUserId! : session.user.id)
+    const replies = ensureReplies(event)
+    const reason = body.status === 'NO' ? (body.reason === 'injury' ? 'injured' : body.reason ?? null) : null
+    const note = body.note?.trim() ? body.note.trim() : null
+    const existing = replies.find((reply) => reply.userId === userId)
+    if (existing) {
+      existing.status = body.status
+      existing.reason = reason
+      existing.note = note
+      existing.updatedAt = new Date().toISOString()
+    } else {
+      replies.push({ userId, status: body.status, reason, note, nominated: false, updatedAt: new Date().toISOString() })
+    }
+    if (userId === session.user.id) {
+      api.events.filter((e) => e.id === event.id).forEach((e) => {
+        e.myRsvp = body.status!
+        e.myRsvpStale = false
+      })
+    }
+    syncFeedCounts(event.id)
+    return { handled: true, ok: true, status: 200, body: { eventId: event.id, userId, status: body.status } }
+  }
+
+  // Kader: candidates are YES/MAYBE replies; publish stamps publishedAt.
+  const squadMatch = pathname.match(new RegExp(`^${base}/([^/]+)/squad$`))
+  if (squadMatch && (method === 'GET' || method === 'PUT')) {
+    const event = findFlowEvent(squadMatch[1])
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    if (method === 'PUT') {
+      const body = (options.body ?? {}) as { userIds?: string[]; publish?: boolean }
+      const ids = new Set(body.userIds ?? [])
+      const candidateIds = new Set(buildEventSquad(event).candidates.map((c) => c.userId))
+      const invalid = [...ids].filter((id) => !candidateIds.has(id))
+      if (invalid.length > 0) {
+        return { handled: true, ok: false, status: 400, message: 'Only players who replied yes or maybe can be nominated' }
+      }
+      ensureReplies(event).forEach((reply) => {
+        reply.nominated = ids.has(reply.userId)
+      })
+      if (body.publish) ensureEventFlow().squadPublishedAt[event.id] = new Date().toISOString()
+      syncFeedCounts(event.id)
+    }
+    return { handled: true, ok: true, status: 200, body: clone(buildEventSquad(event)) }
+  }
+
+  // Aufstellung keyed by event.
+  const lineupMatch = pathname.match(new RegExp(`^${base}/([^/]+)/lineup$`))
+  if (lineupMatch && (method === 'GET' || method === 'PUT')) {
+    const eventId = lineupMatch[1]
+    if (!findFlowEvent(eventId)) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    if (method === 'PUT') {
+      const body = (options.body ?? {}) as Partial<EventLineup>
+      ensureEventFlow().lineups[eventId] = {
+        formation: body.formation ?? '4-3-3',
+        starters: body.starters ?? [],
+        bench: body.bench ?? [],
+      }
+    }
+    return { handled: true, ok: true, status: 200, body: clone(ensureEventFlow().lineups[eventId] ?? null) }
+  }
+
+  // Fahrten keyed by event.
+  const carpoolMatch = pathname.match(new RegExp(`^${base}/([^/]+)/carpool(?:/([^/]+))?(?:/(seat))?$`))
+  if (carpoolMatch) {
+    const [, eventId, rideId, seat] = carpoolMatch
+    const event = findFlowEvent(eventId)
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    const flow = ensureEventFlow()
+    const rides = (flow.rides[eventId] ??= [])
+    const selfId = session.user.id
+
+    if (!rideId && method === 'GET') {
+      return { handled: true, ok: true, status: 200, body: clone(buildCarpoolBoard(eventId)) }
+    }
+    if (!rideId && method === 'POST') {
+      if (rides.some((ride) => ride.driverId === selfId)) {
+        return { handled: true, ok: false, status: 409, message: 'You already offer a ride for this event' }
+      }
+      const body = (options.body ?? {}) as {
+        seats?: number
+        departFrom?: string | null
+        departAt?: string | null
+        note?: string | null
+      }
+      const ride: E2EEventRide = {
+        id: `e2e-ride-${Date.now().toString(36)}`,
+        driverId: selfId,
+        driverName: session.user.name,
+        seats: Math.max(1, Math.min(8, body.seats ?? 3)),
+        departFrom: body.departFrom?.trim() || null,
+        departAt: body.departAt ?? null,
+        note: body.note?.trim() || null,
+        passengers: [],
+        createdAt: new Date().toISOString(),
+      }
+      rides.push(ride)
+      const item = buildCarpoolBoard(eventId).rides.find((entry) => entry.id === ride.id)
+      return { handled: true, ok: true, status: 201, body: clone(item) }
+    }
+    const ride = rideId ? rides.find((entry) => entry.id === rideId) : undefined
+    if (rideId && !ride) return { handled: true, ok: false, status: 404, message: 'Ride not found' }
+    if (ride && !seat && method === 'DELETE') {
+      const canManage = session.scenario === 'coach' || session.scenario === 'club-admin'
+      if (ride.driverId !== selfId && !canManage) {
+        return { handled: true, ok: false, status: 403, message: 'Only the driver can remove this ride' }
+      }
+      flow.rides[eventId] = rides.filter((entry) => entry.id !== ride.id)
+      return { handled: true, ok: true, status: 200, body: clone(buildCarpoolBoard(eventId)) }
+    }
+    if (ride && seat && (method === 'POST' || method === 'DELETE')) {
+      const body = (options.body ?? {}) as { childUserId?: string }
+      const riderId = body.childUserId ?? selfId
+      if (method === 'DELETE') {
+        ride.passengers = ride.passengers.filter((p) => p.userId !== riderId)
+        return { handled: true, ok: true, status: 200, body: clone(buildCarpoolBoard(eventId)) }
+      }
+      if (ride.driverId === riderId) {
+        return { handled: true, ok: false, status: 400, message: 'You drive this ride' }
+      }
+      if (ride.passengers.some((p) => p.userId === riderId)) {
+        return { handled: true, ok: true, status: 200, body: clone(buildCarpoolBoard(eventId)) }
+      }
+      if (ride.passengers.length >= ride.seats) {
+        return { handled: true, ok: false, status: 409, message: 'Ride is full' }
+      }
+      rides.forEach((entry) => {
+        entry.passengers = entry.passengers.filter((p) => p.userId !== riderId)
+      })
+      const riderName =
+        E2E_PARENT_KIDS.find((kid) => kid.userId === riderId)?.name ??
+        eventFlowMembers().find((member) => member.userId === riderId)?.name ??
+        session.user.name
+      ride.passengers.push({ userId: riderId, name: riderName })
+      return { handled: true, ok: true, status: 200, body: clone(buildCarpoolBoard(eventId)) }
+    }
+  }
+
+  return null
+}
+// ─── /Events revamp mocks ────────────────────────────────────────────────────
+
 export function handleE2EApiRequest(
   path: string,
   options: { method: string; body?: unknown },
@@ -3331,6 +3777,56 @@ export function handleE2EApiRequest(
   const pathname = path.split('?')[0]
   const method = options.method.toUpperCase()
   const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
+
+  // Wechselbörse revamp: trials, Gesuche, free agents, Aufnahmeantrag.
+  const session = currentSession
+  const wechsel = handleWechselMock({
+    scenario: session.scenario,
+    pathname,
+    method,
+    query,
+    body: options.body,
+    user: {
+      id: session.user.id,
+      name: session.user.name,
+      dateOfBirth: session.user.dateOfBirth ?? null,
+      avatarUrl: session.user.avatarUrl,
+    },
+    club: {
+      id: CLUB_ID,
+      name: 'SV Albatros',
+      primaryColor: CLUB_PRIMARY,
+      teamId: TEAM_ID,
+      teamName: TEAM_DISPLAY_NAME,
+    },
+    getProfile: () => session.api.freeAgentProfile,
+    setProfile: (profile) => {
+      session.api.freeAgentProfile = profile
+    },
+  })
+  if (wechsel.handled) return wechsel
+
+  // ── club-admin revamp: the club-admin world answers first (members,
+  // stats, team-groups, admin-inbox, compliance, ...) so every count agrees.
+  const clubAdminWorld = handleClubAdminWorldRequest(
+    currentSession as unknown as ClubAdminWorldSession,
+    { pathname, method, query, body: options.body, clubId: CLUB_ID },
+  )
+  if (clubAdminWorld) return clubAdminWorld
+  // ── end club-admin revamp ──
+
+  // ── privacy: guardian consent withdrawal ──
+  const guardianConsentResponse = handleGuardianConsentRequest(currentSession, method, pathname)
+  if (guardianConsentResponse) return guardianConsentResponse
+  // ── end privacy ──
+
+  // Events revamp: event flow mocks take precedence over the older handlers.
+  const eventFlowResponse = handleEventFlowRequest(method, pathname, query, options)
+  if (eventFlowResponse) return eventFlowResponse
+
+  // Onboarding revamp: profile, team-code, coach-request and pending mocks.
+  const onboardingResponse = handleOnboardingRequest(method, pathname, options.body)
+  if (onboardingResponse) return onboardingResponse
 
   if (method === 'GET' && pathname === '/me/export') {
     return {
@@ -3386,6 +3882,8 @@ export function handleE2EApiRequest(
   // two routes the response is undefined and "Create club" throws.
   if (method === 'POST' && pathname === '/club-claims/first') {
     const body = (options.body || {}) as { directoryEntryId?: string; teamName?: string }
+    // onboarding review fix (H3): the server sets CLUB_ADMIN with the claim.
+    if (currentSession) currentSession.user.registrationRole = 'CLUB_ADMIN' as RegistrationRole
     const directory = createClubSearchRows().find((row) => row.id === body.directoryEntryId)
     e2eClaim = {
       id: 'claim-e2e-1',
@@ -3443,103 +3941,18 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (method === 'GET' && pathname === '/me/children-events') {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.parentEvents),
-    }
+  // ── chat revamp: inbox + conversation mocks (see chatMocks.ts) ──
+  {
+    const chatResponse = handleE2EChatRequest(
+      currentSession,
+      CLUB_ID,
+      pathname,
+      method,
+      options.body,
+    )
+    if (chatResponse.handled) return chatResponse
   }
-
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/events`) {
-    const scope = query?.get('scope') ?? 'upcoming'
-    const typeFilter = query?.get('type') ?? null
-    const now = new Date()
-    // Mirror the server's 3-day archive window: past events older than 3 days
-    // are treated as archived and not returned.
-    const archiveCutoff = new Date(now)
-    archiveCutoff.setDate(archiveCutoff.getDate() - 3)
-
-    let filtered = clone(currentSession.api.events).filter((e: EventFeedItem) => {
-      const eventDate = new Date(e.date)
-      if (scope === 'past') {
-        return eventDate < now && eventDate >= archiveCutoff
-      }
-      return eventDate >= now
-    })
-
-    if (typeFilter) {
-      filtered = filtered.filter((e: EventFeedItem) => e.type === typeFilter)
-    }
-
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: filtered,
-    }
-  }
-
-  // Recurring event: one row per occurrence sharing a series id.
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/events/series`) {
-    const body = (options.body ?? {}) as Partial<EventFeedItem> & {
-      repeat?: { intervalWeeks: number; until: string }
-    }
-    const seriesId = `series-e2e-${Date.now().toString(36)}`
-    const step = (body.repeat?.intervalWeeks ?? 1) * 7 * 24 * 60 * 60 * 1000
-    const first = new Date(body.date ?? nowIso(1, 18, 0)).getTime()
-    const until = new Date(body.repeat?.until ?? body.date ?? nowIso(1, 18, 0)).getTime()
-    const created: EventFeedItem[] = []
-    for (let at = first, n = 0; at <= until && n < 52; at += step, n += 1) {
-      created.push({
-        id: `event-e2e-${seriesId}-${n}`,
-        teamId: body.teamId ?? TEAM_ID,
-        clubId: CLUB_ID,
-        title: body.title?.trim() || 'Training',
-        type: body.type ?? 'TRAINING',
-        date: new Date(at).toISOString(),
-        location: body.location ?? null,
-        notes: body.notes ?? null,
-        createdById: currentSession.user.id,
-        createdAt: new Date().toISOString(),
-        archivedAt: null,
-        seriesId,
-        series: { id: seriesId, intervalWeeks: body.repeat?.intervalWeeks ?? 1, until: new Date(until).toISOString() },
-        responseCount: 0,
-        yesCount: 0,
-        maybeCount: 0,
-        noCount: 0,
-        myRsvp: null,
-      })
-    }
-    currentSession.api.events.unshift(...created)
-    return { handled: true, ok: true, status: 201, body: { seriesId, events: clone(created) } }
-  }
-
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/events`) {
-    const body = (options.body ?? {}) as Partial<EventFeedItem>
-    const created: EventFeedItem = {
-      id: `event-e2e-${Date.now().toString(36)}`,
-      teamId: body.teamId ?? TEAM_ID,
-      clubId: CLUB_ID,
-      title: body.title?.trim() || 'Training',
-      type: body.type ?? 'TRAINING',
-      date: body.date ?? nowIso(1, 18, 0),
-      location: body.location ?? null,
-      notes: body.notes ?? null,
-      createdById: currentSession.user.id,
-      createdAt: new Date().toISOString(),
-      archivedAt: null,
-      responseCount: 0,
-      yesCount: 0,
-      maybeCount: 0,
-      noCount: 0,
-      myRsvp: null,
-    }
-    currentSession.api.events.unshift(created)
-    return { handled: true, ok: true, status: 201, body: clone(created) }
-  }
+  // ── end chat revamp ──
 
   if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/conversations`) {
     return {
@@ -3613,42 +4026,22 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (
-    method === 'PUT' &&
-    pathname.startsWith(`/clubs/${CLUB_ID}/events/`) &&
-    pathname.endsWith('/rsvp')
-  ) {
-    const eventId = pathname.split('/')[4]
-    const nextStatus =
-      options.body &&
-      typeof options.body === 'object' &&
-      'status' in options.body &&
-      typeof (options.body as { status?: unknown }).status === 'string'
-        ? (options.body as { status: EventFeedItem['myRsvp'] }).status
-        : null
-
-    currentSession.api.events = currentSession.api.events.map((event) =>
-      event.id === eventId ? { ...event, myRsvp: nextStatus } : event,
-    )
-
-    return {
-      handled: true,
-      ok: true,
-      status: 204,
-    }
-  }
-
   if (method === 'GET' && pathname === `/teams/${TEAM_ID}/fixtures`) {
     const limit = query?.get('limit')
     const fixtures = limit
       ? currentSession.api.fixtures.slice(0, Number.parseInt(limit, 10) || 1)
       : currentSession.api.fixtures
 
+    // Kader fix H3: the API resolves our side from the team link.
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: clone(fixtures),
+      body: clone(fixtures).map((fixture) => {
+        const isHome =
+          fixture.homeTeam === 'SV Albatros' ? true : fixture.awayTeam === 'SV Albatros' ? false : null
+        return { ...fixture, isHome, ownTeamName: isHome === null ? null : 'SV Albatros' }
+      }),
     }
   }
 
@@ -3754,12 +4147,57 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: { ok: true } }
   }
 
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/roster-ops`) {
+  // Kader revamp: Statistik reads the season and the MOTM archive.
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/season-stats`) {
     return {
       handled: true,
       ok: true,
       status: 200,
-      body: clone(currentSession.api.rosterOps),
+      body: {
+        played: 9,
+        wins: 5,
+        draws: 2,
+        losses: 2,
+        winRate: 55.6,
+        goalDifference: 7,
+        recentForm: ['W', 'W', 'D', 'L', 'W'],
+      },
+    }
+  }
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/motm/archive`) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        // Kader Statistik: echo the team scope like the API does.
+        ...(query?.get('teamId') === TEAM_ID ? { teamId: TEAM_ID } : {}),
+        season: '2026/27',
+        topByPlayer: [
+          { userId: 'user-player-12', name: 'David Köhler', avatarUrl: null, count: 3 },
+          { userId: 'user-player-8', name: 'Paul Schäfer', avatarUrl: null, count: 2 },
+          { userId: 'user-player-1', name: 'Julian Becker', avatarUrl: null, count: 1 },
+          { userId: 'user-player-3', name: 'Lukas Hoffmann', avatarUrl: null, count: 1 },
+        ],
+        byMatch: [
+          { matchId: 'fixture-past-1', kickoffAt: nowIso(-2, 14, 0), opponentName: 'FC Energie Cottbus II', motmUserId: 'user-player-12', motmName: 'David Köhler' },
+          { matchId: 'fixture-past-2', kickoffAt: nowIso(-9, 15, 0), opponentName: 'SV Babelsberg 03 II', motmUserId: 'user-player-8', motmName: 'Paul Schäfer' },
+          { matchId: 'fixture-past-3', kickoffAt: nowIso(-16, 14, 0), opponentName: 'Brandenburger SC Süd 05', motmUserId: 'user-player-1', motmName: 'Julian Becker' },
+          { matchId: 'fixture-past-4', kickoffAt: nowIso(-23, 13, 0), opponentName: 'FSV Luckenwalde', motmUserId: 'user-player-12', motmName: 'David Köhler' },
+        ],
+      },
+    }
+  }
+
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/roster-ops`) {
+    // Kader revamp: squadCount follows the buckets after any PATCH.
+    const ops = currentSession.api.rosterOps
+    if (ops) ops.squadCount = e2eRosterCount(ops)
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: clone(ops),
     }
   }
 
@@ -3770,54 +4208,6 @@ export function handleE2EApiRequest(
       status: 200,
       body: clone(currentSession.api.clubStats),
     }
-  }
-
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/trial-invites`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.trialInvites),
-    }
-  }
-
-  if (method === 'GET' && pathname === '/me/free-agent-profile') {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.freeAgentProfile),
-    }
-  }
-
-  // Save / update — both endpoints persist into the in-memory profile so
-  // a save round-trip works without a backend. Without this the JS code
-  // would attempt a real fetch which 401s during E2E (no Clerk token),
-  // returns undefined, and crashes hydrateFromProfile on `.id`.
-  if ((method === 'POST' || method === 'PATCH') && pathname === '/me/free-agent-profile') {
-    const profile = currentSession.api.freeAgentProfile
-    if (!profile) {
-      return { handled: true, ok: false, status: 404, message: 'No profile' }
-    }
-    const patch = (options.body || {}) as Partial<typeof profile>
-    if ('position' in patch) profile.position = patch.position ?? null
-    if ('preferredFoot' in patch) profile.preferredFoot = patch.preferredFoot ?? null
-    if ('city' in patch) profile.city = patch.city ?? null
-    if ('bio' in patch) profile.bio = patch.bio ?? null
-    if ('isOnTransferList' in patch) profile.isOnTransferList = !!patch.isOnTransferList
-    if ('visibility' in patch && patch.visibility) profile.visibility = patch.visibility
-    if ('experience' in patch && Array.isArray(patch.experience)) {
-      profile.experience = patch.experience.map((entry, idx) => ({
-        id: entry.id || `e2e-exp-${Date.now()}-${idx}`,
-        clubName: entry.clubName,
-        roleLabel: entry.roleLabel,
-        fromYear: entry.fromYear ?? null,
-        toYear: entry.toYear ?? null,
-        sortOrder: entry.sortOrder ?? idx,
-      }))
-    }
-    profile.updatedAt = new Date().toISOString()
-    return { handled: true, ok: true, status: 200, body: clone(profile) }
   }
 
   // Free-agent media endpoints — presign returns enabled:false in E2E so
@@ -4077,56 +4467,6 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 204 }
   }
 
-  if (method === 'GET' && pathname === '/me/trial-invites') {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.trialInvites),
-    }
-  }
-
-  // Mutate trial invite (Accept/Decline) — the real PATCH would require
-  // a Clerk-verified token; in E2E mode we update the in-memory mock so
-  // the UI flow works end-to-end without a real backend.
-  const trialInvitePatchMatch = pathname.match(/^\/trial-invites\/([^/]+)$/)
-  if (method === 'PATCH' && trialInvitePatchMatch) {
-    const inviteId = trialInvitePatchMatch[1]
-    const status = (options.body as { status?: string } | undefined)?.status
-    if (
-      !status ||
-      (status !== TrialInviteStatus.ACCEPTED && status !== TrialInviteStatus.DECLINED)
-    ) {
-      return {
-        handled: true,
-        ok: false,
-        status: 400,
-        message: 'Invalid trial invite status',
-      }
-    }
-    const idx = currentSession.api.trialInvites.findIndex((i) => i.id === inviteId)
-    if (idx === -1) {
-      return {
-        handled: true,
-        ok: false,
-        status: 404,
-        message: 'Trial invite not found',
-      }
-    }
-    const next: TrialInvite = {
-      ...currentSession.api.trialInvites[idx],
-      status: status as TrialInviteStatus,
-      respondedAt: new Date().toISOString(),
-    }
-    currentSession.api.trialInvites[idx] = next
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(next),
-    }
-  }
-
   // My contributions list (player view) — drives the More → My
   // contributions screen. Returns the seeded plans with running status.
   if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/contributions/my`) {
@@ -4202,25 +4542,39 @@ export function handleE2EApiRequest(
       { key: 'inactive', list: ops.operations.inactive },
       { key: 'trials', list: ops.operations.trials },
     ]
+    // Kader revamp: position, number and absence edits stay in place.
+    const patch = (options.body ?? {}) as {
+      position?: string | null
+      jerseyNumber?: number | null
+      absence?: 'NONE' | 'SUSPENDED' | 'AWAY'
+      absenceUntil?: string | null
+    }
     let found: (typeof ops.squad)[number] | null = null
     for (const b of buckets) {
       const idx = b.list.findIndex((m) => m.userId === targetUserId)
       if (idx >= 0) {
         found = {
           ...b.list[idx],
+          ...(patch.position !== undefined && { position: patch.position }),
+          ...(patch.jerseyNumber !== undefined && { jerseyNumber: patch.jerseyNumber }),
+          ...(patch.absence !== undefined && {
+            absence: patch.absence,
+            absenceUntil: patch.absence === 'NONE' ? null : (patch.absenceUntil ?? null),
+          }),
           operationalStatus:
             (nextStatus as 'ACTIVE' | 'NEW_PLAYER' | 'INACTIVE') ?? b.list[idx].operationalStatus,
         }
-        b.list.splice(idx, 1)
+        if (nextStatus) b.list.splice(idx, 1)
+        else b.list[idx] = found
         break
       }
     }
-    if (found) {
+    if (found && nextStatus) {
       if (nextStatus === 'ACTIVE') ops.squad.push(found)
       else if (nextStatus === 'NEW_PLAYER') ops.operations.newPlayers.push(found)
       else if (nextStatus === 'INACTIVE') ops.operations.inactive.push(found)
-      else ops.squad.push(found)
     }
+    ops.squadCount = e2eRosterCount(ops)
     return { handled: true, ok: true, status: 200, body: clone(found) }
   }
 
@@ -4272,7 +4626,9 @@ export function handleE2EApiRequest(
       title,
       notes: null,
       status,
-      expectedReturnAt: null,
+      // Kader revamp: the injury sheets send a real return date.
+      expectedReturnAt:
+        typeof body.expectedReturnAt === 'string' ? (body.expectedReturnAt as string) : null,
       expectedReturnLabel:
         typeof body.expectedReturnLabel === 'string' ? (body.expectedReturnLabel as string) : null,
       clearedAt: null,
@@ -4296,6 +4652,10 @@ export function handleE2EApiRequest(
     if (weekMatch) weeks = parseInt(weekMatch[1], 10)
     if (monthMatch) weeks = Math.max(weeks, parseInt(monthMatch[1], 10) * 4)
     if (/season|saison|long/.test(label)) weeks = Math.max(weeks, 12)
+    if (typeof body.expectedReturnAt === 'string') {
+      const days = (new Date(body.expectedReturnAt as string).getTime() - Date.now()) / 86_400_000
+      weeks = Math.max(weeks, Math.floor(days / 7))
+    }
     if (weeks >= 6 && member) {
       const exists = currentSession.api.pendingDuesPauses.find(
         (p) => p.memberUserId === userId && p.status === 'PENDING',
@@ -4338,7 +4698,40 @@ export function handleE2EApiRequest(
 
   // Duty rotate / update — POST .../duties/rotate, PATCH .../duties/:id
   if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/rotate`) {
-    return { handled: true, ok: true, status: 204 }
+    // Kader revamp (Aufgaben): mirror the server rota — next active player
+    // alphabetically after whoever had this duty last.
+    const ops = currentSession.api.rosterOps
+    const kind = ((options.body ?? {}) as { kind?: string }).kind ?? 'JERSEY_CLEANUP'
+    if (!ops) return { handled: true, ok: true, status: 204 }
+    const eligible = [...ops.squad, ...ops.operations.newPlayers]
+      .filter((m) => m.role === TeamRole.PLAYER)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+    const last = [...ops.kit.pending, ...ops.kit.recent]
+      .filter((d) => d.kind === kind)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+    const lastIndex = eligible.findIndex((m) => m.userId === last?.assignedUserId)
+    const next = eligible[(lastIndex + 1) % Math.max(1, eligible.length)]
+    if (!next) {
+      return { handled: true, ok: false, status: 400, message: 'No eligible active players' }
+    }
+    const now = new Date().toISOString()
+    const duty = {
+      id: `duty-mock-${Date.now().toString(36)}`,
+      clubId: CLUB_ID,
+      teamId: TEAM_ID,
+      assignedUserId: next.userId,
+      createdById: currentSession.user.id,
+      kind: kind as 'JERSEY_CLEANUP' | 'BIB_CLEANUP' | 'LOCKER_ROOM',
+      status: 'PENDING' as const,
+      dueDate: nowIso(3, 18, 0),
+      notes: null,
+      completedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      assignedUser: { id: next.userId, name: next.name, avatarUrl: null },
+    }
+    ops.kit.pending.push(duty)
+    return { handled: true, ok: true, status: 201, body: clone(duty) }
   }
   const dutyPatchMatch = pathname.match(
     new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/duties/([^/]+)$`),
@@ -4356,94 +4749,8 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 204 }
   }
 
-  // Event detail: synthesize a detail object from the events feed.
+  // Event detail GET/PATCH live in handleEventFlowRequest (events revamp).
   const eventDetailMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)$`))
-  if (method === 'GET' && eventDetailMatch) {
-    const eventId = eventDetailMatch[1]
-    const event = currentSession.api.events.find((e) => e.id === eventId)
-    if (!event) {
-      return {
-        handled: true,
-        ok: false,
-        status: 404,
-        message: 'Event not found in mock data',
-      }
-    }
-    // Synthesize a roster of RSVPs consistent with the feed aggregate so the
-    // detail/attendance screens match the home card (instead of showing 0/0/0).
-    const feedEvent = event as typeof event & {
-      yesCount?: number
-      maybeCount?: number
-      noCount?: number
-    }
-    const rsvps = synthesizeRsvps(
-      eventId,
-      feedEvent.yesCount ?? 0,
-      feedEvent.maybeCount ?? 0,
-      feedEvent.noCount ?? 0,
-    )
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone({
-        ...event,
-        // The real detail endpoint includes the team; manager gating on the
-        // detail screen keys off `event.team.id`, so without it no coach ever
-        // sees the manage menu in a demo session.
-        team: { id: event.teamId, name: TEAM_DISPLAY_NAME },
-        rsvps,
-        yesCount: feedEvent.yesCount ?? 0,
-        maybeCount: feedEvent.maybeCount ?? 0,
-        noCount: feedEvent.noCount ?? 0,
-        reminderEnabled: false,
-      }),
-    }
-  }
-
-  // Manager edits — PATCH /clubs/:clubId/events/:eventId. Mutates the same
-  // fixture the feeds read from, so the schedule reflects the change on the
-  // next fetch the way the real backend would.
-  if (method === 'PATCH' && eventDetailMatch) {
-    const event = currentSession.api.events.find((e) => e.id === eventDetailMatch[1])
-    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
-    const body = (options.body || {}) as Partial<{
-      title: string
-      type: string
-      date: string
-      location: string | null
-      notes: string | null
-    }>
-    const scoped = body as typeof body & { scope?: 'this' | 'following' }
-    if (scoped.scope === 'following' && event.seriesId) {
-      const shift =
-        body.date !== undefined ? new Date(body.date).getTime() - new Date(event.date).getTime() : 0
-      currentSession.api.events
-        .filter(
-          (e) => e.seriesId === event.seriesId && e.id !== event.id && new Date(e.date) > new Date(event.date),
-        )
-        .forEach((e) => {
-          if (body.title !== undefined) e.title = body.title
-          if (body.location !== undefined) e.location = body.location
-          if (body.notes !== undefined) e.notes = body.notes
-          if (shift !== 0) {
-            e.date = new Date(new Date(e.date).getTime() + shift).toISOString()
-            ;(e as { rescheduledAt?: string | null }).rescheduledAt = new Date().toISOString()
-          }
-        })
-    }
-    if (body.title !== undefined) event.title = body.title
-    if (body.type !== undefined) (event as { type: string }).type = body.type
-    if (body.date !== undefined && body.date !== event.date) {
-      event.date = body.date
-      const moved = event as typeof event & { rescheduledAt?: string | null; myRsvpStale?: boolean }
-      moved.rescheduledAt = new Date().toISOString()
-      moved.myRsvpStale = Boolean(event.myRsvp)
-    }
-    if (body.location !== undefined) event.location = body.location
-    if (body.notes !== undefined) event.notes = body.notes
-    return { handled: true, ok: true, status: 200, body: clone(event) }
-  }
 
   // Cancel — DELETE /clubs/:clubId/events/:eventId with an optional reason.
   // A soft cancel: the event stays in the upcoming feed, struck through.
@@ -4550,19 +4857,6 @@ export function handleE2EApiRequest(
         reactions: [],
       },
     }
-  }
-
-  // Parent replies on a child's behalf from home — PUT
-  // /clubs/:clubId/events/:eventId/rsvp-proxy { status, childUserId }.
-  const proxyMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/events/([^/]+)/rsvp-proxy$`))
-  if (method === 'PUT' && proxyMatch) {
-    const body = (options.body ?? {}) as { status?: string; childUserId?: string }
-    currentSession.api.parentEvents = currentSession.api.parentEvents.map((ev) =>
-      ev.id === proxyMatch[1] && ev.childUserId === body.childUserId
-        ? { ...ev, childRsvp: (body.status as 'YES' | 'MAYBE' | 'NO') ?? ev.childRsvp }
-        : ev,
-    )
-    return { handled: true, ok: true, status: 204 }
   }
 
   // Reminder toggle / RSVP write on event detail — succeed silently.
@@ -4819,120 +5113,6 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 200, body: null }
   }
 
-  // Carpool board — drives the carpool screen for a fixture. Returns
-  // fixture metadata + every offered ride and rider request, with the
-  // passenger list per ride so seat fill states render correctly.
-  const carpoolGet = pathname.match(/^\/fixtures\/([^/]+)\/carpool$/)
-  if (method === 'GET' && carpoolGet) {
-    const fixId = carpoolGet[1]
-    const fixture = currentSession.api.fixtures.find((f) => f.id === fixId)
-    const rides = currentSession.api.carpool[fixId] ?? []
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: {
-        fixture: fixture
-          ? {
-              id: fixture.id,
-              title: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
-              venueName: fixture.venueName,
-              pitchAddress: fixture.pitchAddress,
-              kickoffAt: fixture.kickoffAt,
-            }
-          : null,
-        rides: clone(rides),
-      },
-    }
-  }
-
-  // Offer a ride — POST /fixtures/:fixtureId/carpool/offer.
-  const carpoolOffer = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/offer$/)
-  if (method === 'POST' && carpoolOffer) {
-    const fixId = carpoolOffer[1]
-    const map = currentSession.api.carpool
-    if (!map[fixId]) map[fixId] = []
-    const body = (options.body ?? {}) as {
-      postcode?: string
-      seatsOffered?: number
-      parking?: string | null
-      notes?: string | null
-    }
-    const driver = currentSession.user
-    map[fixId].unshift({
-      id: `ride-${Math.random().toString(36).slice(2, 8)}`,
-      driverId: driver.id,
-      driverName: driver.name,
-      postcode: String(body.postcode ?? ''),
-      seatsOffered: typeof body.seatsOffered === 'number' ? body.seatsOffered : 3,
-      parking: body.parking ?? null,
-      notes: body.notes ?? null,
-      riders: [],
-    })
-    return { handled: true, ok: true, status: 201 }
-  }
-
-  // Request a ride — POST /fixtures/:fixtureId/carpool/request. Stored as
-  // a rider entry on a placeholder driver-less "ride" record so the
-  // board can list it under "looking" without modeling a separate type.
-  const carpoolRequest = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/request$/)
-  if (method === 'POST' && carpoolRequest) {
-    const fixId = carpoolRequest[1]
-    const map = currentSession.api.carpool
-    if (!map[fixId]) map[fixId] = []
-    const body = (options.body ?? {}) as {
-      postcode?: string
-      notes?: string | null
-    }
-    const me = currentSession.user
-    map[fixId].push({
-      id: `req-${Math.random().toString(36).slice(2, 8)}`,
-      driverId: null,
-      driverName: null,
-      postcode: String(body.postcode ?? ''),
-      seatsOffered: 0,
-      parking: null,
-      notes: body.notes ?? null,
-      riders: [{ userId: me.id, name: me.name }],
-    })
-    return { handled: true, ok: true, status: 201 }
-  }
-
-  // Claim / release a seat — POST or DELETE
-  // /fixtures/:fixtureId/carpool/:rideId/claim. Adds or removes the
-  // current user from the ride's riders list.
-  const carpoolClaim = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/([^/]+)\/claim$/)
-  if (carpoolClaim && (method === 'POST' || method === 'DELETE')) {
-    const [, fixId, rideId] = carpoolClaim
-    const ride = currentSession.api.carpool[fixId]?.find((r) => r.id === rideId)
-    const me = currentSession.user
-    if (ride) {
-      if (method === 'POST') {
-        if (
-          !ride.riders.some((r) => r.userId === me.id) &&
-          ride.riders.length < ride.seatsOffered
-        ) {
-          ride.riders.push({ userId: me.id, name: me.name })
-        }
-      } else {
-        ride.riders = ride.riders.filter((r) => r.userId !== me.id)
-      }
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Cancel a ride — DELETE /fixtures/:fixtureId/carpool/:rideId. Only
-  // the driver / requester is allowed; mock just removes the entry.
-  const carpoolDelete = pathname.match(/^\/fixtures\/([^/]+)\/carpool\/([^/]+)$/)
-  if (method === 'DELETE' && carpoolDelete) {
-    const [, fixId, rideId] = carpoolDelete
-    const list = currentSession.api.carpool[fixId]
-    if (list) {
-      currentSession.api.carpool[fixId] = list.filter((r) => r.id !== rideId)
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
   // Children agenda — drives the multi-kid conflict scanner. Returns
   // linked kids + their upcoming events (across teams). Conflict
   // detection is computed client-side from this payload.
@@ -5000,63 +5180,12 @@ export function handleE2EApiRequest(
     }
   }
 
-  // Add a member to a channel — POST /teams/:teamId/channels/:id/members
-  // { userId }. Flips the seed roster's isMember flag.
-  if (method === 'POST' && channelMembersGet) {
-    const channelId = channelMembersGet[1]
-    const body = (options.body ?? {}) as { userId?: string }
-    const map = currentSession.api.channelMembership
-    if (!map[channelId]) map[channelId] = clone(map['default'] ?? [])
-    const idx = map[channelId].findIndex((m) => m.userId === body.userId)
-    if (idx >= 0) map[channelId][idx].isMember = true
-    return { handled: true, ok: true, status: 204 }
-  }
+  // Chat revamp (H2): the legacy POST/DELETE /teams/:teamId/channels/:id/members
+  // routes are gone from the API; members change via /clubs/:clubId/channels
+  // (chatMocks.ts).
 
-  // Remove a member — DELETE /teams/:teamId/channels/:id/members/:userId.
-  const channelMemberDelete = pathname.match(
-    /^\/teams\/[^/]+\/channels\/([^/]+)\/members\/([^/]+)$/,
-  )
-  if (method === 'DELETE' && channelMemberDelete) {
-    const [, channelId, userId] = channelMemberDelete
-    const map = currentSession.api.channelMembership
-    if (!map[channelId]) map[channelId] = clone(map['default'] ?? [])
-    const idx = map[channelId].findIndex((m) => m.userId === userId)
-    if (idx >= 0) map[channelId][idx].isMember = false
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Team duties (Kuchen-Dienst / Aufbau / Platzwart / Schiri-Begleitung).
-  // Returns the rotation roster + each upcoming assignment so members can
-  // see who has the next duty and swap with a teammate.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/duties`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.duties),
-    }
-  }
-
-  // Duty swap — POST /clubs/:clubId/duties/:dutyId/swap { otherUserId }.
-  // Reassigns the duty to the chosen teammate so the row visibly flips on
-  // the next refetch.
-  const dutySwapMatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/duties/([^/]+)/swap$`))
-  if (method === 'POST' && dutySwapMatch) {
-    const dutyId = dutySwapMatch[1]
-    const body = (options.body ?? {}) as { otherUserId?: string }
-    const idx = currentSession.api.duties.duties.findIndex((d) => d.id === dutyId)
-    if (idx >= 0 && body.otherUserId) {
-      const member = currentSession.api.duties.members.find((m) => m.userId === body.otherUserId)
-      if (member) {
-        currentSession.api.duties.duties[idx] = {
-          ...currentSession.api.duties.duties[idx],
-          assignedUserId: member.userId,
-          assignedName: member.name,
-        }
-      }
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
+  // home revamp: /clubs/:clubId/duties (+ swap) removed. The API has no such
+  // route; the parent home reads team duties from /me/children-overview.
 
   // Admin contributions overview — drives admin-billing + the plan editor.
   // Returns settings, summary KPIs, the plan list, and per-member rows.
@@ -5268,159 +5397,6 @@ export function handleE2EApiRequest(
     return { handled: true, ok: true, status: 204 }
   }
 
-  // Sportgericht — GET /clubs/:clubId/sportgericht/reports returns
-  // every disciplinary report draft + submitted state.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/sportgericht/reports`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.sportgericht),
-    }
-  }
-
-  // Sportgericht — PATCH /clubs/:clubId/sportgericht/reports/:id with
-  // { coachNarrative? incidents? }. Mock-mode merges and bumps no
-  // status.
-  const sgPatch = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)$`))
-  if (method === 'PATCH' && sgPatch) {
-    const id = sgPatch[1]
-    const idx = currentSession.api.sportgericht.findIndex((r) => r.id === id)
-    if (idx >= 0) {
-      const body = (options.body ?? {}) as Record<string, unknown>
-      currentSession.api.sportgericht[idx] = {
-        ...currentSession.api.sportgericht[idx],
-        ...body,
-      } as E2EApiState['sportgericht'][number]
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Sportgericht — POST .../:id/submit flips status to SUBMITTED, sets
-  // submittedAt. The fake "verband" is the BFV; an Alert client-side
-  // surfaces the submission receipt.
-  const sgSubmit = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/sportgericht/reports/([^/]+)/submit$`),
-  )
-  if (method === 'POST' && sgSubmit) {
-    const id = sgSubmit[1]
-    const idx = currentSession.api.sportgericht.findIndex((r) => r.id === id)
-    if (idx >= 0) {
-      currentSession.api.sportgericht[idx].status = 'SUBMITTED'
-      currentSession.api.sportgericht[idx].submittedAt = new Date().toISOString()
-    }
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: { receipt: `BFV-${Date.now()}` },
-    }
-  }
-
-  // Trial scouting feed — GET /clubs/:clubId/scouting returns every
-  // free-agent listing the admin's club is allowed to see. Sort is by
-  // distance ASC, then postedAt DESC so closest + freshest shows first.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/scouting`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.trialScouts),
-    }
-  }
-
-  // Express interest — POST /clubs/:clubId/scouting/:id/interest. Marks
-  // the listing as contacted by this club so the badge updates.
-  const scoutInterest = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/scouting/([^/]+)/interest$`))
-  if (method === 'POST' && scoutInterest) {
-    const id = scoutInterest[1]
-    const idx = currentSession.api.trialScouts.findIndex((s) => s.id === id)
-    if (idx >= 0) {
-      currentSession.api.trialScouts[idx].contactedByThisClub = true
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Boot exchange — GET /clubs/:clubId/exchange + POST a new listing +
-  // POST claim + DELETE listing. Mocks per-status state transitions.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/exchange`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.exchange),
-    }
-  }
-
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/exchange`) {
-    const body = (options.body ?? {}) as {
-      title?: string
-      category?: 'BOOTS' | 'KIT' | 'GLOVES' | 'OTHER'
-      sizeLabel?: string
-      condition?: 'NEW' | 'GOOD' | 'WORN'
-      askCents?: number
-      note?: string | null
-      photoUrl?: string | null
-    }
-    const me = currentSession.user
-    currentSession.api.exchange.unshift({
-      id: `ex-${Math.random().toString(36).slice(2, 8)}`,
-      sellerUserId: me.id,
-      sellerName: me.name,
-      title: String(body.title ?? 'Untitled item'),
-      category: body.category ?? 'OTHER',
-      sizeLabel: body.sizeLabel ?? '—',
-      condition: body.condition ?? 'GOOD',
-      askCents: typeof body.askCents === 'number' ? body.askCents : 0,
-      note: body.note ?? null,
-      photoUrl:
-        body.photoUrl ||
-        `https://picsum.photos/seed/${Math.random().toString(36).slice(2, 8)}/600/600`,
-      postedAt: new Date().toISOString(),
-      status: 'AVAILABLE',
-      claimedByUserId: null,
-      claimedByName: null,
-    })
-    return { handled: true, ok: true, status: 201 }
-  }
-
-  // Claim / release a listing.
-  const exchangeClaim = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/claim$`))
-  if (exchangeClaim && (method === 'POST' || method === 'DELETE')) {
-    const id = exchangeClaim[1]
-    const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
-    if (idx >= 0) {
-      const me = currentSession.user
-      if (method === 'POST') {
-        currentSession.api.exchange[idx] = {
-          ...currentSession.api.exchange[idx],
-          status: 'CLAIMED',
-          claimedByUserId: me.id,
-          claimedByName: me.name,
-        }
-      } else {
-        currentSession.api.exchange[idx] = {
-          ...currentSession.api.exchange[idx],
-          status: 'AVAILABLE',
-          claimedByUserId: null,
-          claimedByName: null,
-        }
-      }
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Mark as gone (seller-only in real mode; mock allows).
-  const exchangeGone = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/exchange/([^/]+)/gone$`))
-  if (method === 'POST' && exchangeGone) {
-    const id = exchangeGone[1]
-    const idx = currentSession.api.exchange.findIndex((e) => e.id === id)
-    if (idx >= 0) {
-      currentSession.api.exchange[idx].status = 'GONE'
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
   // Streaks — GET /clubs/:clubId/streaks returns the caller's personal
   // streaks + the squad leaderboard.
   if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/streaks`) {
@@ -5428,103 +5404,12 @@ export function handleE2EApiRequest(
       handled: true,
       ok: true,
       status: 200,
-      body: clone(currentSession.api.streaks),
+      body: {
+        ...clone(currentSession.api.streaks),
+        // Kader Statistik: echo the team scope like the API does.
+        ...(query?.get('teamId') === TEAM_ID ? { teamId: TEAM_ID } : {}),
+      },
     }
-  }
-
-  // Jersey rotation — GET /clubs/:clubId/teams/:teamId/jerseys.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.jerseys),
-    }
-  }
-
-  // Reassign / mark washed — PATCH /clubs/:clubId/teams/:teamId/jerseys/:n
-  // { holderUserId? holderName? washed? note? }.
-  const jerseyPatch = pathname.match(
-    new RegExp(`^/clubs/${CLUB_ID}/teams/${TEAM_ID}/jerseys/(\\d+)$`),
-  )
-  if (method === 'PATCH' && jerseyPatch) {
-    const num = parseInt(jerseyPatch[1], 10)
-    const idx = currentSession.api.jerseys.findIndex((j) => j.number === num)
-    if (idx >= 0) {
-      const body = (options.body ?? {}) as Partial<E2EApiState['jerseys'][number]>
-      currentSession.api.jerseys[idx] = {
-        ...currentSession.api.jerseys[idx],
-        ...body,
-        assignedAt: new Date().toISOString(),
-      }
-    }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Pitch status — GET /clubs/:clubId/teams/:teamId/pitch-status.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.pitchStatus),
-    }
-  }
-
-  // Pitch confirm — POST /clubs/:clubId/teams/:teamId/pitch-status
-  // { state, photoUrl?, note? }.
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/teams/${TEAM_ID}/pitch-status`) {
-    const body = (options.body ?? {}) as {
-      state?: 'OK' | 'WET' | 'FROZEN' | 'CANCELLED'
-      photoUrl?: string | null
-      note?: string | null
-    }
-    const me = currentSession.user
-    currentSession.api.pitchStatus = {
-      ...currentSession.api.pitchStatus,
-      state: body.state ?? 'OK',
-      reportedById: me.id,
-      reportedByName: me.name,
-      reportedAt: new Date().toISOString(),
-      photoUrl:
-        body.photoUrl ??
-        `https://picsum.photos/seed/pitch-${Math.random().toString(36).slice(2, 6)}/800/500`,
-      note: body.note ?? null,
-    }
-    return { handled: true, ok: true, status: 200, body: clone(currentSession.api.pitchStatus) }
-  }
-
-  // Vereinsheim — GET /clubs/:clubId/vereinsheim returns menu + orders +
-  // the target. The menu screen rolls them up into "X € of Y € target".
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/vereinsheim`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.vereinsheim),
-    }
-  }
-
-  // Vereinsheim — POST /clubs/:clubId/vereinsheim/orders { itemId, qty }.
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/vereinsheim/orders`) {
-    const body = (options.body ?? {}) as { itemId?: string; qty?: number }
-    const item = currentSession.api.vereinsheim.menu.find((m) => m.id === body.itemId)
-    const qty = typeof body.qty === 'number' ? Math.max(1, body.qty) : 1
-    if (item) {
-      const me = currentSession.user
-      currentSession.api.vereinsheim.orders.unshift({
-        id: `o-${Date.now()}`,
-        buyerId: me.id,
-        buyerName: me.name,
-        itemId: item.id,
-        itemName: item.name,
-        priceCents: item.priceCents,
-        qty,
-        placedAt: new Date().toISOString(),
-        paid: true,
-      })
-    }
-    return { handled: true, ok: true, status: 201 }
   }
 
   // Compliance dashboard — GET /clubs/:clubId/compliance returns every
@@ -5584,51 +5469,6 @@ export function handleE2EApiRequest(
         list.splice(idx, 1)
       }
     }
-    return { handled: true, ok: true, status: 204 }
-  }
-
-  // Ehrenamt-Stunden — GET /clubs/:clubId/ehrenamt returns settings +
-  // every entry. The dashboard rolls them up by month / member.
-  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/ehrenamt`) {
-    return {
-      handled: true,
-      ok: true,
-      status: 200,
-      body: clone(currentSession.api.ehrenamt),
-    }
-  }
-
-  // POST /clubs/:clubId/ehrenamt/entries — log new volunteer hours.
-  if (method === 'POST' && pathname === `/clubs/${CLUB_ID}/ehrenamt/entries`) {
-    const body = (options.body ?? {}) as {
-      activity?: string
-      hours?: number
-      note?: string | null
-      memberUserId?: string
-      memberName?: string
-      role?: 'COACH' | 'PARENT' | 'ADMIN' | 'OWNER'
-    }
-    const me = currentSession.user
-    currentSession.api.ehrenamt.entries.unshift({
-      id: `ea-${Math.random().toString(36).slice(2, 8)}`,
-      memberUserId: body.memberUserId ?? me.id,
-      memberName: body.memberName ?? me.name,
-      role: body.role ?? 'PARENT',
-      activity: String(body.activity ?? 'Activity'),
-      hours: typeof body.hours === 'number' ? body.hours : 1,
-      occurredAt: new Date().toISOString(),
-      note: body.note ?? null,
-    })
-    return { handled: true, ok: true, status: 201 }
-  }
-
-  // DELETE /clubs/:clubId/ehrenamt/entries/:id.
-  const ehrenamtDelete = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/ehrenamt/entries/([^/]+)$`))
-  if (method === 'DELETE' && ehrenamtDelete) {
-    const id = ehrenamtDelete[1]
-    currentSession.api.ehrenamt.entries = currentSession.api.ehrenamt.entries.filter(
-      (e) => e.id !== id,
-    )
     return { handled: true, ok: true, status: 204 }
   }
 

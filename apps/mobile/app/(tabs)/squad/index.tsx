@@ -1,131 +1,157 @@
-import { useCallback, useMemo, useState } from 'react'
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native'
-import { useFocusEffect, router } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
+import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { RosterOpsSnapshot, RosterOpsMemberSummary } from '@anstoss/shared'
+import type { RosterOpsSnapshot } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
+import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
-  Text,
-  Avatar,
+  Badge,
+  BottomSheet,
+  Button,
   Icon,
-  FilterChipRow,
   ListRow,
-  type FilterChip,
+  SectionGroup,
+  SoftIcon,
+  Text,
   type IconName,
 } from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
+import { ErrorState } from '../../../src/components/ErrorState'
+import { RosterSkeleton } from '../../../src/components/Skeleton'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { elevation, fonts, hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
-import { getSquadEmptyCopy } from '../../../src/lib/squadEmptyCopy'
-
-type Bucket = 'ACTIVE' | 'TRIAL' | 'INACTIVE'
-type Availability = 'YES' | 'MAYBE' | 'NO'
-
-const BUCKETS: FilterChip<Bucket>[] = [
-  { key: 'ACTIVE', label: 'squad.bucket.active' },
-  { key: 'TRIAL', label: 'squad.bucket.trial' },
-  { key: 'INACTIVE', label: 'squad.bucket.inactive' },
-]
-
-const BUCKET_LABELS: Record<Bucket, { de: string; en: string }> = {
-  ACTIVE: { de: 'Aktiv', en: 'Active' },
-  TRIAL: { de: 'Probetraining', en: 'Trial' },
-  INACTIVE: { de: 'Inaktiv', en: 'Inactive' },
-}
-
-type NextEventSummary = {
-  id: string
-  title: string
-  date: string
-  byUser: Record<string, Availability>
-}
+import { hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { KaderRow } from '../../../src/components/squad/KaderRow'
+import { PlayerEditSheet } from '../../../src/components/squad/PlayerEditSheet'
+import { InjurySheet } from '../../../src/components/squad/InjurySheet'
+import { MEDIC_FEATURE_ENABLED } from '../../../src/components/squad/medicFeature'
+import { useIsTeamCoach } from '../../../src/components/squad/useIsTeamCoach'
+import { RequestsSheet } from '../../../src/components/squad/RequestsSheet'
+import { SelfStatusSheet } from '../../../src/components/squad/SelfStatusSheet'
+import { SheetHeader } from '../../../src/components/squad/SheetHeader'
+import { formatWeekdayDay, lineLabel, messageBlockedLabel } from '../../../src/components/squad/format'
+import {
+  buildKader,
+  canMessageMember,
+  groupKader,
+  jerseyHolders,
+  pendingDutyCount,
+  showSelfPin,
+  type AvailabilityKind,
+  type KaderFilter,
+  type KaderMember,
+  type KaderSectionKey,
+  type RsvpAnswer,
+} from '../../../src/components/squad/squadModel'
 
 type FeedEvent = { id: string; title: string; date: string; cancelledAt?: string | null }
 type DetailEvent = {
   id: string
   title: string
   date: string
-  rsvps?: Array<{ status: Availability; user: { id: string } }>
+  rsvps?: Array<{ status: RsvpAnswer; userId?: string; user?: { id: string } | null }>
 }
+type NextEvent = { id: string; title: string; date: string; byUser: Record<string, RsvpAnswer> }
+
+type Section = { key: KaderSectionKey | 'OFF_SQUAD'; data: KaderMember[] }
+
+const SUMMARY_ORDER: AvailabilityKind[] = ['FIT', 'INJURED', 'SUSPENDED', 'UNAVAILABLE', 'AWAY']
 
 /**
- * The Team tab: one surface for the people, their health, and the
- * operations around them.
- *
- * This used to be two doors. "Squad" showed a health card and a player
- * list; anything real (trials, injuries, kit, duties) lived behind a hidden
- * "roster" workspace with its own four tabs. Same team, two screens that
- * looked different and overlapped. Now the workspace is the detail and
- * this screen is the front: health, then operations as rows with the count
- * that matters, then people with their availability for the next event.
+ * Kader — the Team tab. One list of the people, grouped the way a coach
+ * thinks about them (TW, Abwehr, Mittelfeld, Sturm, Trainerteam), with each
+ * player's availability and answer for the next event on their row. Team
+ * tools sit below as three rows. Everything a coach changes about a player
+ * lives in PlayerEditSheet; players change their own Urlaub from the pinned
+ * "Du" row.
  */
-export default function SquadScreen() {
+export default function KaderScreen() {
   const { t } = useTranslation()
-  const { user, activeClub, activeTeamId, activeTeamAccess, activeRoleMode } = useAuth()
   const c = useClubColors()
-  const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
-  const [nextEvent, setNextEvent] = useState<NextEventSummary | null>(null)
-  const [bucket, setBucket] = useState<Bucket>('ACTIVE')
-  const [refreshing, setRefreshing] = useState(false)
+  const locale = getAppLocale(getAppLanguage())
+  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const clubId = activeClub?.club.id ?? null
+  const userId = user?.id ?? null
 
-  const resolvedRoleMode = activeRoleMode ?? (
-    activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
-      ? 'ADMIN'
-      : activeClub?.role === 'COACH'
-        ? 'COACH'
-        : activeClub?.role === 'PARENT'
-          ? 'PARENT'
-          : 'PLAYER'
-  )
-  const isCoach = resolvedRoleMode === 'ADMIN' || resolvedRoleMode === 'COACH'
+  const [snapshot, setSnapshot] = useState<RosterOpsSnapshot | null>(null)
+  const [nextEvent, setNextEvent] = useState<NextEvent | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [filter, setFilter] = useState<KaderFilter>('ALL')
+  const [offSquadOpen, setOffSquadOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editing, setEditing] = useState<KaderMember | null>(null)
+  const [injuryOpen, setInjuryOpen] = useState(false)
+  const [requestsOpen, setRequestsOpen] = useState(false)
+  const [selfOpen, setSelfOpen] = useState(false)
+
+  const isCoach = useIsTeamCoach()
+  // Ignore responses for a team the user has already switched away from.
+  const teamRef = useRef(activeTeamId)
+  teamRef.current = activeTeamId
+  // L3: a request sequence per load, so an older response that lands after
+  // a newer one (focus + pull-to-refresh + save reload) never overwrites it.
+  const snapshotSeq = useRef(0)
+  const eventSeq = useRef(0)
+  useEffect(() => {
+    setSnapshot(null)
+    setNextEvent(null)
+    setLoading(true)
+    setFilter('ALL')
+  }, [activeTeamId])
 
   const fetchSnapshot = useCallback(async () => {
-    if (!activeClub || !activeTeamId) return
-    try {
-      const data = await api<RosterOpsSnapshot>(
-        `/clubs/${activeClub.club.id}/teams/${activeTeamId}/roster-ops`,
-      )
-      setSnapshot(data)
-    } catch {
-      // stale-while-revalidate
+    if (!clubId || !activeTeamId) {
+      setLoading(false)
+      return
     }
-  }, [activeClub, activeTeamId])
-
-  // Availability for the next event rides on the roster. It is a second
-  // request on purpose: the roster answers "who is on the team", the event
-  // answers "who is coming", and either can fail without taking the other.
-  const fetchNextEvent = useCallback(async () => {
-    if (!activeClub || !activeTeamId) return
+    const requestedTeam = activeTeamId
+    const seq = ++snapshotSeq.current
+    const current = () => teamRef.current === requestedTeam && snapshotSeq.current === seq
     try {
-      const feed = await api<FeedEvent[]>(
-        `/clubs/${activeClub.club.id}/events?${new URLSearchParams({
-          teamId: activeTeamId,
-          scope: 'upcoming',
-        }).toString()}`,
-      )
-      const upcoming = (Array.isArray(feed) ? feed : []).find((e) => !e.cancelledAt)
+      const data = await api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${activeTeamId}/roster-ops`)
+      if (!current()) return
+      setSnapshot(data && Array.isArray(data.squad) ? data : null)
+      setError(false)
+    } catch {
+      if (current()) setError(true)
+    } finally {
+      if (current()) setLoading(false)
+    }
+  }, [clubId, activeTeamId])
+
+  // Answers for the next event ride on the roster. Separate request on
+  // purpose: the roster answers "who is on the team", the event "who is
+  // coming", and either can fail without taking the other down.
+  const fetchNextEvent = useCallback(async () => {
+    if (!clubId || !activeTeamId) return
+    const requestedTeam = activeTeamId
+    const seq = ++eventSeq.current
+    const current = () => teamRef.current === requestedTeam && eventSeq.current === seq
+    try {
+      const params = new URLSearchParams({ teamId: activeTeamId, scope: 'upcoming' })
+      const feed = await api<FeedEvent[]>(`/clubs/${clubId}/events?${params.toString()}`)
+      const upcoming = (Array.isArray(feed) ? feed : []).find((event) => !event.cancelledAt)
+      if (!current()) return
       if (!upcoming) {
         setNextEvent(null)
         return
       }
-      const detail = await api<DetailEvent>(`/clubs/${activeClub.club.id}/events/${upcoming.id}`)
-      const byUser: Record<string, Availability> = {}
-      for (const r of detail.rsvps ?? []) {
-        if (r?.user?.id) byUser[r.user.id] = r.status
+      const detail = await api<DetailEvent>(`/clubs/${clubId}/events/${upcoming.id}`)
+      const byUser: Record<string, RsvpAnswer> = {}
+      for (const rsvp of detail?.rsvps ?? []) {
+        const id = rsvp?.userId ?? rsvp?.user?.id
+        if (id) byUser[id] = rsvp.status
       }
-      setNextEvent({ id: detail.id, title: detail.title, date: detail.date, byUser })
+      if (!current()) return
+      setNextEvent({ id: upcoming.id, title: detail?.title ?? upcoming.title, date: detail?.date ?? upcoming.date, byUser })
     } catch {
-      // Availability is a garnish; the list stands without it.
+      if (current()) setNextEvent(null)
     }
-  }, [activeClub, activeTeamId])
+  }, [clubId, activeTeamId])
 
   useFocusEffect(
     useCallback(() => {
@@ -133,6 +159,11 @@ export default function SquadScreen() {
       void fetchNextEvent()
     }, [fetchSnapshot, fetchNextEvent]),
   )
+
+  const reload = useCallback(() => {
+    void fetchSnapshot()
+    void fetchNextEvent()
+  }, [fetchSnapshot, fetchNextEvent])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -143,547 +174,560 @@ export default function SquadScreen() {
     }
   }
 
-  const members = useMemo(() => {
-    if (!snapshot) return []
-    if (bucket === 'ACTIVE') return snapshot.squad
-    if (bucket === 'TRIAL') return snapshot.operations.trials
-    return snapshot.operations.inactive
-  }, [snapshot, bucket])
-
-  const chipOptions = useMemo(
+  const model = useMemo(
     () =>
-      BUCKETS.map((chip) => {
-        const list =
-          chip.key === 'ACTIVE'
-            ? snapshot?.squad
-            : chip.key === 'TRIAL'
-              ? snapshot?.operations.trials
-              : snapshot?.operations.inactive
-        const count = list?.length ?? 0
-        const label = t(chip.label, { defaultValue: BUCKET_LABELS[chip.key].en })
-        return {
-          ...chip,
-          label: count > 0 ? `${label} · ${count}` : label,
-        }
-      }),
-    [snapshot, t],
+      snapshot
+        ? buildKader(snapshot, { userId, rsvpByUser: nextEvent ? nextEvent.byUser : null })
+        : null,
+    [snapshot, userId, nextEvent],
   )
-  const emptyCopy = getSquadEmptyCopy(bucket, isCoach)
 
-  const teamName = activeTeamAccess?.team?.displayName ?? snapshot?.team.displayName
+  const sections = useMemo<Section[]>(() => {
+    if (!model) return []
+    const grouped: Section[] = groupKader(model, filter)
+    if (isCoach && filter === 'ALL') {
+      const offSquad = [...model.inactive, ...model.trials]
+      if (offSquad.length > 0) {
+        grouped.push({ key: 'OFF_SQUAD', data: offSquadOpen ? offSquad : [] })
+      }
+    }
+    return grouped
+  }, [model, filter, isCoach, offSquadOpen])
 
-  // No active team — surface a clear empty state so the tab doesn't look
-  // like it's broken/loading. Two distinct cases: no club at all, or a club
-  // with no team selected (e.g. free-agent membership).
+  const teamName = activeTeamAccess?.team?.displayName || snapshot?.team.displayName || ''
+  const dutyBadge = pendingDutyCount(snapshot, userId, isCoach)
+
+  const openMember = (member: KaderMember) => {
+    if (member.phase === 'TRIAL' || member.status === 'PENDING') {
+      setRequestsOpen(true)
+      return
+    }
+    if (isCoach && !member.isCoach) {
+      setEditing(member)
+      return
+    }
+    // H2: only offer a private chat the DM API will actually allow.
+    if (!canMessageMember(member)) return
+    openMessage(member)
+  }
+
+  const openMessage = (member: KaderMember) => {
+    if (!canMessageMember(member)) return
+    router.push({ pathname: '/dm-chat', params: { userId: member.userId, userName: member.name } })
+  }
+
+  /** Row press: nothing at all when there is nothing to do (H2). */
+  const rowPress = (member: KaderMember) => {
+    if (member.isSelf && !isCoach) return () => setSelfOpen(true)
+    if (member.phase === 'TRIAL' || member.status === 'PENDING') return () => openMember(member)
+    if (isCoach && !member.isCoach) return () => openMember(member)
+    return canMessageMember(member) ? () => openMember(member) : undefined
+  }
+
+  const rowHint = (member: KaderMember) => {
+    if (isCoach && !member.isCoach) return t('kader.row.editHint')
+    if (member.isSelf) return undefined
+    return canMessageMember(member)
+      ? t('kader.row.messageHint')
+      : (messageBlockedLabel(t, member.messageBlockedReason) ?? undefined)
+  }
+
   if (!activeClub || !activeTeamId) {
     return (
       <View style={[styles.root, { backgroundColor: c.background }]}>
-        <View style={styles.headerWrap}>
-          <TabScreenHeader title={t('tabs.team', { defaultValue: 'Team' })} />
-        </View>
-        <View style={styles.emptyWrap}>
+        <View style={styles.pad}>
+          <TabScreenHeader title={t('kader.title')} />
           <EmptyState
             icon="person.2.fill"
-            title={
-              !activeClub
-                ? t('squad.noClubTitle', { defaultValue: 'Join a club to see a squad' })
-                : t('squad.noTeamTitle', { defaultValue: 'No team selected' })
-            }
-            description={
-              !activeClub
-                ? t('squad.noClubBody', {
-                    defaultValue: 'Once you join or create a club, your team appears here.',
-                  })
-                : t('squad.noTeamBody', {
-                    defaultValue:
-                      "Pick a team from the club switcher to view its players. Free agents see this until they're added to a team.",
-                  })
-            }
+            title={!activeClub ? t('kader.empty.noClubTitle') : t('kader.empty.noTeamTitle')}
+            description={!activeClub ? t('kader.empty.noClubBody') : t('kader.empty.noTeamBody')}
           />
         </View>
       </View>
     )
   }
 
-  return (
-    <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+  const header = (
+    <View style={styles.headerBlock}>
+      <TabScreenHeader
+        title={t('kader.title')}
+        subtitle={
+          model
+            ? t('kader.subtitle', { team: teamName, count: model.squadCount })
+            : teamName || undefined
         }
-      >
-        <TabScreenHeader
-          title={t('tabs.team', { defaultValue: 'Team' })}
-          subtitle={teamName ?? activeClub?.club?.name ?? undefined}
-          actionIcon={isCoach ? 'person.badge.plus' : undefined}
-          actionAccessibilityLabel={
-            isCoach ? t('invite.screenTitle', { defaultValue: 'Invite players' }) : undefined
-          }
-          onActionPress={isCoach ? () => router.push('/invite') : undefined}
+        actionIcon={isCoach ? 'ellipsis' : undefined}
+        actionAccessibilityLabel={isCoach ? t('kader.menu.a11y') : undefined}
+        onActionPress={isCoach ? () => setMenuOpen(true) : undefined}
+      />
+
+      {model && model.players.length > 0 ? (
+        <SummaryLine
+          counts={model.counts}
+          filter={filter}
+          onFilter={(kind) => setFilter((prev) => (prev === kind ? 'ALL' : kind))}
         />
+      ) : null}
 
-        {isCoach && snapshot ? <SquadHealth snapshot={snapshot} /> : null}
-
-        <OperationsSection
-          snapshot={snapshot}
-          isCoach={isCoach}
-          userId={user?.id ?? null}
+      {model && model.players.length === 0 ? (
+        <EmptyState
+          icon="person.2.fill"
+          title={isCoach ? t('kader.empty.coachTitle') : t('kader.empty.memberTitle')}
+          description={isCoach ? t('kader.empty.coachBody') : t('kader.empty.memberBody')}
+          actionLabel={isCoach ? t('kader.menu.invite') : undefined}
+          onAction={isCoach ? () => router.push('/invite') : undefined}
+          compact
         />
+      ) : null}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-              {t('squad.people.title', { defaultValue: 'People' }).toUpperCase()}
-            </Text>
-            {nextEvent ? (
-              <Text variant="caption2" color="tertiary" numberOfLines={1} style={styles.sectionAside}>
-                {t('squad.people.availabilityFor', {
-                  defaultValue: 'Availability for {{title}}',
-                  title: nextEvent.title,
-                })}
-              </Text>
-            ) : null}
-          </View>
-
-          <FilterChipRow<Bucket>
-            chips={chipOptions}
-            selected={bucket}
-            onToggle={setBucket}
-            singleSelect
+      {isCoach && model && model.openRequests > 0 ? (
+        <View style={[styles.bannerCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+          <ListRow
+            compact
+            title={t('kader.requestsBanner', { count: model.openRequests })}
+            left={<SoftIcon name="person.badge.plus" size={28} />}
+            showChevron
+            onPress={() => setRequestsOpen(true)}
+            testID="kader-requests-banner"
           />
+        </View>
+      ) : null}
 
-          {members.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <EmptyState
-                icon="person.2.fill"
-                title={t(emptyCopy.titleKey, { defaultValue: emptyCopy.title })}
-                description={t(emptyCopy.bodyKey, { defaultValue: emptyCopy.body })}
-              />
-            </View>
+      {nextEvent && model && model.players.length > 0 ? (
+        <View style={styles.legend}>
+          <Icon name="checkmark.circle.fill" size={14} color="success" />
+          <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.legendText}>
+            {t('kader.rsvpLegend', {
+              title: nextEvent.title,
+              date: formatWeekdayDay(nextEvent.date, locale),
+            })}
+          </Text>
+        </View>
+      ) : null}
+
+      {model?.selfPlayer && showSelfPin(model, filter) ? (
+        <View style={styles.selfBlock}>
+          <Text variant="footnote" weight="semibold" color="secondary" style={styles.sectionTitle}>
+            {t('kader.self.section')}
+          </Text>
+          <View>
+            <KaderRow member={model.selfPlayer} isFirst isLast={false} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('kader.self.change')}
+              onPress={() => setSelfOpen(true)}
+              android_ripple={{ color: c.borderSubtle }}
+              testID="kader-self-status"
+              style={({ pressed }) => [
+                styles.selfAction,
+                {
+                  backgroundColor: pressed ? c.surfaceSunken : c.surface,
+                  borderColor: c.borderDefault,
+                },
+              ]}
+            >
+              <Text variant="body" color="tint" weight="medium">
+                {t('kader.self.change')}
+              </Text>
+              <Icon name="chevron.right" size="sm" color="tertiary" />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  )
+
+  const footer = model ? (
+    <View style={styles.footer}>
+      <SectionGroup header={t('kader.tools.title')}>
+        <ToolRow
+          icon="list.clipboard"
+          title={t('kader.tools.duties')}
+          subtitle={t('kader.tools.dutiesHint')}
+          count={dutyBadge}
+          onPress={() => router.push('/aufgaben')}
+          testID="kader-tool-duties"
+        />
+        <ToolRow
+          icon="calendar"
+          title={t('kader.tools.matches')}
+          subtitle={t('kader.tools.matchesHint')}
+          onPress={() => router.push('/team-spiele')}
+          testID="kader-tool-matches"
+        />
+        <ToolRow
+          icon="chart.bar"
+          title={t('kader.tools.stats')}
+          subtitle={t('kader.tools.statsHint')}
+          onPress={() => router.push('/team-stats')}
+          testID="kader-tool-stats"
+        />
+      </SectionGroup>
+    </View>
+  ) : null
+
+  const renderBody = () => {
+    if (loading && !snapshot) {
+      return (
+        <View style={styles.pad}>
+          {header}
+          <RosterSkeleton />
+        </View>
+      )
+    }
+    if (!snapshot || !model) {
+      return (
+        <View style={styles.pad}>
+          {header}
+          {error ? (
+            <ErrorState
+              message={t('kader.errors.loadTitle')}
+              hint={t('kader.errors.loadBody')}
+              onRetry={() => {
+                setLoading(true)
+                reload()
+              }}
+              retryLabel={t('kader.actions.retry')}
+            />
           ) : (
-            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-              {members.map((m: RosterOpsMemberSummary, index) => (
-                <PlayerRow
-                  key={m.userId}
-                  member={m}
-                  isSelf={m.userId === user?.id}
-                  availability={nextEvent ? (nextEvent.byUser[m.userId] ?? null) : undefined}
-                  showDivider={index > 0}
-                />
-              ))}
-            </View>
+            <EmptyState
+              icon="person.2.fill"
+              title={isCoach ? t('kader.empty.coachTitle') : t('kader.empty.memberTitle')}
+              description={isCoach ? t('kader.empty.coachBody') : t('kader.empty.memberBody')}
+              actionLabel={isCoach ? t('kader.menu.invite') : undefined}
+              onAction={isCoach ? () => router.push('/invite') : undefined}
+            />
           )}
         </View>
-      </ScrollView>
-    </View>
-  )
-}
-
-type OpRow = {
-  key: string
-  icon: IconName
-  title: string
-  subtitle?: string
-  count: number
-  onPress: () => void
-}
-
-/**
- * Operations as rows, each carrying the number that matters. This replaces
- * the "Manage roster" button and the health chips: a coach reaches any
- * operations screen in one tap, and sees whether it needs them before
- * tapping. Players get the two rows that are about them.
- */
-function OperationsSection({
-  snapshot,
-  isCoach,
-  userId,
-}: {
-  snapshot: RosterOpsSnapshot | null
-  isCoach: boolean
-  userId: string | null
-}) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  const rows = useMemo<OpRow[]>(() => {
-    const ops = snapshot?.operations
-    const attention =
-      (ops?.trials.length ?? 0) + (ops?.newPlayers.length ?? 0) + (ops?.pendingCoaches.length ?? 0)
-    const injured = snapshot?.medic.active.length ?? 0
-    const kitPending = snapshot?.kit.pending.length ?? 0
-    const myDuties = userId
-      ? (snapshot?.kit.pending ?? []).filter((d) => d.assignedUserId === userId).length
-      : 0
-
-    if (!isCoach) {
-      return [
-        {
-          key: 'my-duties',
-          icon: 'list.clipboard',
-          title: t('squad.ops.myDuties', { defaultValue: 'My duties' }),
-          subtitle: t('squad.ops.myDutiesHint', { defaultValue: 'Kit, wash, and match-day jobs' }),
-          count: myDuties,
-          onPress: () => router.push('/duty-roster' as never),
-        },
-        {
-          key: 'carpool',
-          icon: 'car',
-          title: t('squad.ops.carpool', { defaultValue: 'Carpool' }),
-          subtitle: t('squad.ops.carpoolHint', { defaultValue: 'Rides to the next away game' }),
-          count: 0,
-          onPress: () => router.push('/carpool' as never),
-        },
-      ]
+      )
     }
 
-    return [
-      {
-        key: 'roster',
-        icon: 'person.2',
-        title: t('squad.ops.roster', { defaultValue: 'Squad management' }),
-        subtitle: t('squad.ops.rosterHint', { defaultValue: 'Positions, numbers, activation' }),
-        count: 0,
-        onPress: () => router.push({ pathname: '/(tabs)/roster', params: { tab: 'squad' } }),
-      },
-      {
-        key: 'requests',
-        icon: 'person.badge.plus',
-        title: t('squad.ops.requests', { defaultValue: 'Trials and requests' }),
-        subtitle: t('squad.ops.requestsHint', { defaultValue: 'New players, trials, pending coaches' }),
-        count: attention,
-        onPress: () => router.push({ pathname: '/(tabs)/roster', params: { tab: 'operations' } }),
-      },
-      {
-        key: 'medic',
-        icon: 'heart',
-        title: t('squad.ops.medic', { defaultValue: 'Medic' }),
-        subtitle: t('squad.ops.medicHint', { defaultValue: 'Injuries and return dates' }),
-        count: injured,
-        onPress: () => router.push({ pathname: '/(tabs)/roster', params: { tab: 'medic' } }),
-      },
-      {
-        key: 'kit',
-        icon: 'list.clipboard',
-        title: t('squad.ops.kit', { defaultValue: 'Kit and duties' }),
-        subtitle: t('squad.ops.kitHint', { defaultValue: 'Who washes, who brings what' }),
-        count: kitPending,
-        onPress: () => router.push({ pathname: '/(tabs)/roster', params: { tab: 'kit' } }),
-      },
-      {
-        key: 'carpool',
-        icon: 'car',
-        title: t('squad.ops.carpool', { defaultValue: 'Carpool' }),
-        subtitle: t('squad.ops.carpoolHint', { defaultValue: 'Rides to the next away game' }),
-        count: 0,
-        onPress: () => router.push('/carpool' as never),
-      },
-    ]
-  }, [snapshot, isCoach, userId, t])
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-          {t('squad.ops.title', { defaultValue: 'Operations' }).toUpperCase()}
-        </Text>
-      </View>
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-        {rows.map((row, index) => (
-          <ListRow
-            key={row.key}
-            title={row.title}
-            subtitle={row.subtitle}
-            accessibilityLabel={row.count > 0 ? `${row.title}, ${row.count}` : row.title}
-            onPress={row.onPress}
-            left={
-              <View style={[styles.opIcon, { backgroundColor: c.surfaceSunken }]}>
-                <Icon name={row.icon} size={18} color="secondary" />
-              </View>
-            }
-            right={
-              row.count > 0 ? (
-                <View style={[styles.opBadge, { backgroundColor: c.primary }]}>
-                  <Text style={[styles.opBadgeText, { color: c.textInverse }]} tabular>
-                    {row.count}
-                  </Text>
-                </View>
-              ) : undefined
-            }
-            style={index > 0 ? { borderTopWidth: hairline, borderTopColor: c.borderSubtle } : undefined}
+    return (
+      <SectionList<KaderMember, Section>
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        // An amateur squad is 20-30 rows: render them all up front so a
+        // fast scroll never shows blank cells.
+        initialNumToRender={40}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        ListEmptyComponent={
+          model.players.length > 0 ? (
+            <View style={styles.filterEmpty}>
+              <Text variant="body" color="secondary">
+                {t('kader.filterEmpty')}
+              </Text>
+              <Button label={t('kader.showAll')} variant="plain" size="sm" onPress={() => setFilter('ALL')} />
+            </View>
+          ) : null
+        }
+        renderSectionHeader={({ section }) =>
+          section.key === 'OFF_SQUAD' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: offSquadOpen }}
+              accessibilityLabel={t('kader.offSquad.title', {
+                count: model.inactive.length + model.trials.length,
+              })}
+              onPress={() => setOffSquadOpen((open) => !open)}
+              android_ripple={{ color: c.borderSubtle }}
+              style={styles.sectionHeaderRow}
+              testID="kader-off-squad-toggle"
+            >
+              <Text variant="footnote" weight="semibold" color="secondary" style={styles.flex}>
+                {t('kader.offSquad.title', { count: model.inactive.length + model.trials.length })}
+              </Text>
+              <Icon name={offSquadOpen ? 'chevron.up' : 'chevron.down'} size="sm" color="tertiary" />
+            </Pressable>
+          ) : (
+            <View style={styles.sectionHeaderRow}>
+              <Text variant="footnote" weight="semibold" color="secondary" style={styles.flex}>
+                {lineLabel(t, section.key)}
+              </Text>
+              <Text variant="footnote" color="tertiary" tabular>
+                {section.data.length}
+              </Text>
+            </View>
+          )
+        }
+        renderSectionFooter={() => <View style={styles.sectionGap} />}
+        renderItem={({ item, index, section }) => (
+          <KaderRow
+            member={item}
+            isFirst={index === 0}
+            isLast={index === section.data.length - 1}
+            onPress={rowPress(item)}
+            actionHint={rowHint(item)}
+            testID={`kader-row-${item.userId}`}
           />
-        ))}
-      </View>
-    </View>
-  )
-}
-
-function SquadHealth({ snapshot }: { snapshot: RosterOpsSnapshot }) {
-  const { t } = useTranslation()
-  const c = useClubColors()
-
-  const squadCount = snapshot.squad.length
-  const target = snapshot.team.squadTarget || 0
-  const hasTarget = target > 0
-  const pct = hasTarget ? Math.min(1, squadCount / target) : 0
-  const full = hasTarget && squadCount >= target
-
-  return (
-    <View
-      style={[
-        styles.healthCard,
-        elevation.card,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-      ]}
-    >
-      <View style={styles.healthTopRow}>
-        <Text variant="caption2" tracking="wide" weight="bold" color="tertiary">
-          {t('squad.health.title', { defaultValue: 'Squad health' }).toUpperCase()}
-        </Text>
-        {hasTarget ? (
-          <Text style={styles.healthCount} color="primary" tabular>
-            {squadCount}
-            <Text variant="footnote" color="tertiary" tabular>
-              {` / ${target}`}
-            </Text>
-          </Text>
-        ) : (
-          <Text style={styles.healthCount} color="primary" tabular>
-            {squadCount}
-          </Text>
         )}
-      </View>
+      />
+    )
+  }
 
-      {hasTarget ? (
-        <View style={[styles.healthTrack, { backgroundColor: c.borderDefault }]}>
-          <View
-            style={[
-              styles.healthFill,
-              { backgroundColor: c.primary, width: `${Math.round(pct * 100)}%` },
-            ]}
+  return (
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      {renderBody()}
+
+      {clubId && activeTeamId ? (
+        <>
+          <PlayerEditSheet
+            visible={Boolean(editing)}
+            member={editing}
+            clubId={clubId}
+            teamId={activeTeamId}
+            onClose={() => setEditing(null)}
+            onSaved={reload}
+            onMessage={(member) => setTimeout(() => openMessage(member), 250)}
+            takenNumbers={jerseyHolders(model, editing?.userId ?? null)}
           />
-        </View>
-      ) : null}
-
-      {hasTarget ? (
-        <Text variant="caption1" color="secondary">
-          {full
-            ? t('squad.health.complete', { defaultValue: 'Full strength' })
-            : t('squad.health.fill', { defaultValue: 'Invite to fill the squad' })}
-        </Text>
+          {MEDIC_FEATURE_ENABLED ? (
+            <InjurySheet
+              visible={injuryOpen}
+              onClose={() => setInjuryOpen(false)}
+              onSaved={reload}
+              clubId={clubId}
+              teamId={activeTeamId}
+              players={model?.players ?? []}
+            />
+          ) : null}
+          <RequestsSheet
+            visible={requestsOpen}
+            onClose={() => setRequestsOpen(false)}
+            onChanged={reload}
+            onOpenExchange={() => router.push('/wechselboerse' as never)}
+            clubId={clubId}
+            requests={model?.trials ?? []}
+          />
+          <SelfStatusSheet
+            visible={selfOpen}
+            member={model?.selfPlayer ?? null}
+            clubId={clubId}
+            teamId={activeTeamId}
+            onClose={() => setSelfOpen(false)}
+            onSaved={reload}
+          />
+          <CoachMenuSheet
+            visible={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            openRequests={model?.trials.filter((m) => m.phase === 'TRIAL').length ?? 0}
+            onInjury={() => setInjuryOpen(true)}
+          />
+        </>
       ) : null}
     </View>
   )
 }
 
-function PlayerRow({
-  member,
-  isSelf,
-  availability,
-  showDivider,
+function SummaryLine({
+  counts,
+  filter,
+  onFilter,
 }: {
-  member: RosterOpsMemberSummary
-  isSelf: boolean
-  /** undefined = no upcoming event; null = event exists, no answer yet */
-  availability: Availability | null | undefined
-  showDivider: boolean
+  counts: Record<AvailabilityKind, number>
+  filter: KaderFilter
+  onFilter: (kind: AvailabilityKind) => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-
-  const availabilityLabel =
-    availability === 'YES'
-      ? t('event.rsvpYes', { defaultValue: 'Yes' })
-      : availability === 'MAYBE'
-        ? t('event.rsvpMaybe', { defaultValue: 'Maybe' })
-        : availability === 'NO'
-          ? t('event.rsvpNo', { defaultValue: 'No' })
-          : availability === null
-            ? t('squad.people.noReply', { defaultValue: 'No reply' })
-            : null
-
-  const availabilityColor =
-    availability === 'YES'
-      ? c.primary
-      : availability === 'MAYBE'
-        ? c.textSecondary
-        : availability === 'NO'
-          ? c.textTertiary
-          : c.borderDefault
-
-  const onPress = () => {
-    if (isSelf) return
-    router.push({
-      pathname: '/dm-chat',
-      params: { userId: member.userId, userName: member.name },
-    })
+  const parts = SUMMARY_ORDER.filter((kind) => kind === 'FIT' || counts[kind] > 0)
+  const labelKey: Record<AvailabilityKind, string> = {
+    FIT: 'kader.summary.fit',
+    INJURED: 'kader.summary.injured',
+    SUSPENDED: 'kader.summary.suspended',
+    UNAVAILABLE: 'kader.summary.unavailable',
+    AWAY: 'kader.summary.away',
   }
-
-  const label = [
-    member.name,
-    member.position,
-    availabilityLabel,
-    isSelf ? null : t('squad.people.message', { defaultValue: 'Message' }),
-  ]
-    .filter(Boolean)
-    .join(', ')
-
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isSelf}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.row,
-        showDivider && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
-        pressed && { backgroundColor: c.surfaceSunken },
-      ]}
-    >
-      <Avatar size="md" src={member.avatarUrl} fallbackText={member.name} />
-      <View style={styles.rowBody}>
-        <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
-          {member.name}
-          {member.jerseyNumber != null ? (
-            <Text variant="callout" color="tertiary" tabular>
-              {`  #${member.jerseyNumber}`}
-            </Text>
-          ) : null}
-        </Text>
-        {member.position || availabilityLabel ? (
-          <View style={styles.rowMeta}>
-            {availabilityLabel ? (
-              <View style={styles.availability}>
-                <View style={[styles.availabilityDot, { backgroundColor: availabilityColor }]} />
-                <Text variant="caption1" color="secondary" numberOfLines={1}>
-                  {availabilityLabel}
-                </Text>
-              </View>
-            ) : null}
-            {member.position ? (
-              <Text variant="caption1" color="tertiary" numberOfLines={1} style={styles.rowMetaText}>
-                {availabilityLabel ? ` · ${member.position}` : member.position}
+    <View style={styles.summary} accessibilityRole="tablist">
+      {parts.map((kind, index) => {
+        const selected = filter === kind
+        const label = t(labelKey[kind], { count: counts[kind] })
+        return (
+          <View key={kind} style={styles.summaryItem}>
+            {index > 0 ? (
+              <Text variant="subheadline" color="tertiary">
+                {'·'}
               </Text>
             ) : null}
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              accessibilityLabel={label}
+              accessibilityHint={t('kader.summary.filterHint')}
+              onPress={() => onFilter(kind)}
+              android_ripple={{ color: c.borderSubtle, borderless: false }}
+              hitSlop={{ top: 12, bottom: 12, left: 4, right: 4 }}
+              testID={`kader-summary-${kind}`}
+              style={[
+                styles.summaryChip,
+                selected && { backgroundColor: c.surfaceSunken, borderColor: c.primary },
+              ]}
+            >
+              <Text
+                variant="subheadline"
+                weight={selected ? 'semibold' : 'regular'}
+                color={selected ? 'tint' : 'secondary'}
+                tabular
+              >
+                {label}
+              </Text>
+            </Pressable>
           </View>
-        ) : null}
+        )
+      })}
+    </View>
+  )
+}
+
+function ToolRow({
+  icon,
+  title,
+  subtitle,
+  count = 0,
+  onPress,
+  testID,
+}: {
+  icon: IconName
+  title: string
+  subtitle: string
+  count?: number
+  onPress: () => void
+  testID?: string
+}) {
+  return (
+    <ListRow
+      title={title}
+      subtitle={subtitle}
+      left={<SoftIcon name={icon} size={32} />}
+      right={count > 0 ? <Badge label={String(count)} variant="club" /> : undefined}
+      showChevron
+      onPress={onPress}
+      accessibilityLabel={count > 0 ? `${title}, ${count}` : title}
+      testID={testID}
+    />
+  )
+}
+
+function CoachMenuSheet({
+  visible,
+  onClose,
+  openRequests,
+  onInjury,
+}: {
+  visible: boolean
+  onClose: () => void
+  openRequests: number
+  onInjury: () => void
+}) {
+  const { t } = useTranslation()
+  // Close first, then act: a push or a second sheet must not race the
+  // closing modal.
+  const go = (action: () => void) => {
+    onClose()
+    setTimeout(action, 250)
+  }
+  return (
+    <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
+      <SheetHeader title={t('kader.menu.title')} cancelLabel={t('kader.actions.close')} onCancel={onClose} />
+      <View style={styles.menuBody}>
+        <SectionGroup>
+          <ListRow
+            title={t('kader.menu.invite')}
+            left={<SoftIcon name="person.badge.plus" size={32} />}
+            showChevron
+            onPress={() => go(() => router.push('/invite'))}
+            testID="kader-menu-invite"
+          />
+          <ListRow
+            title={t('kader.menu.requests')}
+            left={<SoftIcon name="figure.soccer" size={32} />}
+            right={openRequests > 0 ? <Badge label={String(openRequests)} variant="club" /> : undefined}
+            accessibilityLabel={
+              openRequests > 0 ? `${t('kader.menu.requests')}, ${openRequests}` : t('kader.menu.requests')
+            }
+            showChevron
+            onPress={() => go(() => router.push('/wechselboerse' as never))}
+            testID="kader-menu-requests"
+          />
+          {MEDIC_FEATURE_ENABLED ? (
+            <ListRow
+              title={t('kader.menu.injury')}
+              left={<SoftIcon name="heart" size={32} />}
+              showChevron
+              onPress={() => go(onInjury)}
+              testID="kader-menu-injury"
+            />
+          ) : null}
+          <ListRow
+            title={t('kader.menu.parents')}
+            left={<SoftIcon name="figure.and.child.holdinghands" size={32} />}
+            showChevron
+            onPress={() => go(() => router.push('/team-families'))}
+            testID="kader-menu-parents"
+          />
+        </SectionGroup>
       </View>
-      {isSelf ? (
-        <Text variant="caption1" color="tertiary">
-          {t('squad.people.you', { defaultValue: 'You' })}
-        </Text>
-      ) : (
-        <Icon name="chatbubble" size={18} color="tertiary" />
-      )}
-    </Pressable>
+    </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  headerWrap: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-  },
-  scroll: {
+  flex: { flex: 1 },
+  pad: { paddingHorizontal: space.md, paddingTop: space.sm, gap: space.md },
+  list: {
     paddingHorizontal: space.md,
     paddingTop: space.sm,
     // Clear the floating tab bar so the last row isn't pinned under it.
-    paddingBottom: TAB_BAR_CLEARANCE + space.lg,
-    gap: space.lg,
+    paddingBottom: TAB_BAR_CLEARANCE + space['2xl'],
   },
-  section: { gap: space.sm },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
+  headerBlock: { gap: space.md, marginBottom: space.md },
+  summary: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: space.xs },
+  summaryItem: { flexDirection: 'row', alignItems: 'center' },
+  summaryChip: {
+    paddingHorizontal: space.xs + 2,
+    paddingVertical: space['2xs'] + 2,
+    borderRadius: radius.full,
+    borderWidth: hairline,
+    borderColor: 'transparent',
   },
-  sectionAside: { flexShrink: 1 },
-  card: {
+  bannerCard: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },
-  healthCard: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    padding: space.md,
-    gap: space.sm,
-  },
-  healthTopRow: {
+  legend: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  legendText: { flex: 1 },
+  selfBlock: { gap: space.sm },
+  selfAction: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  healthCount: {
-    fontFamily: fonts.data,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  healthTrack: {
-    height: 6,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  healthFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  opIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    borderWidth: hairline,
+    borderTopWidth: hairline,
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
     borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  opBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space['2xs'] + 2,
-  },
-  opBadgeText: {
-    fontFamily: fonts.data,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  row: {
+  sectionTitle: { paddingHorizontal: space.xs },
+  sectionHeaderRow: {
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + 2,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    minHeight: 60,
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    paddingBottom: space.sm,
   },
-  rowBody: {
-    flex: 1,
-    gap: space['2xs'],
-  },
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rowMetaText: { flexShrink: 1 },
-  availability: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space['2xs'] + 2,
-  },
-  availabilityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.full,
-  },
-  emptyWrap: {
-    paddingTop: space.xl,
-    paddingHorizontal: space.md,
-  },
+  sectionGap: { height: space.lg },
+  filterEmpty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },
+  footer: { marginTop: space.sm },
+  menuBody: { paddingHorizontal: space.md, paddingTop: space.md },
 })

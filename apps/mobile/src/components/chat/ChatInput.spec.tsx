@@ -45,7 +45,7 @@ describe('ChatInput', () => {
     const screen = render(
       <ChatInput
         onSend={onSend}
-        onSendAttachment={jest.fn()}
+        onVoiceRecorded={jest.fn()}
         onTyping={jest.fn()}
         primaryColor="#111111"
       />,
@@ -63,5 +63,36 @@ describe('ChatInput', () => {
 
     resolveSend(true)
     await waitFor(() => expect(screen.getByTestId('voice-recorder')).toBeTruthy())
+  })
+
+  it('restores and clears a per-conversation draft', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default
+    await AsyncStorage.setItem('chat:draft:dm:c-1', 'Treffpunkt 17:30?')
+    const onSend = jest.fn().mockResolvedValue(true)
+    const screen = render(
+      <ChatInput onSend={onSend} onTyping={jest.fn()} draftKey="dm:c-1" onVoiceRecorded={jest.fn()} />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('chat-message-input').props.value).toBe('Treffpunkt 17:30?'),
+    )
+    fireEvent.press(screen.getByTestId('chat-send-message'))
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('Treffpunkt 17:30?'))
+    await waitFor(
+      async () => expect(await AsyncStorage.getItem('chat:draft:dm:c-1')).toBeNull(),
+      { timeout: 1500 },
+    )
+  })
+
+  it('offers the + menu and the camera shortcut only while empty', () => {
+    const onOpenMenu = jest.fn()
+    const onCamera = jest.fn()
+    const screen = render(
+      <ChatInput onSend={jest.fn()} onTyping={jest.fn()} onOpenMenu={onOpenMenu} onCamera={onCamera} />,
+    )
+    fireEvent.press(screen.getByTestId('chat-attach-open'))
+    expect(onOpenMenu).toHaveBeenCalled()
+    expect(screen.getByTestId('chat-camera')).toBeTruthy()
+    fireEvent.changeText(screen.getByTestId('chat-message-input'), 'Hallo')
+    expect(screen.queryByTestId('chat-camera')).toBeNull()
   })
 })

@@ -51,7 +51,9 @@ export function ListRow({
   style,
   testID,
   compact,
-  titleNumberOfLines = 1,
+  // Two lines by default so long German labels wrap at small widths / large
+  // font scales instead of losing the key word to an ellipsis.
+  titleNumberOfLines = 2,
   subtitleNumberOfLines = 2,
   selected,
   accessibilityLabel,
@@ -133,5 +135,7 @@ const styles = StyleSheet.create({
   left: { alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
   subtitle: { marginTop: SPACING_XXS },
-  right: { alignItems: 'flex-end', justifyContent: 'center' },
+  // Trailing values (counts, € amounts, picker values) may shrink but never
+  // push the title off-screen on a 320pt phone.
+  right: { alignItems: 'flex-end', justifyContent: 'center', flexShrink: 1, maxWidth: '50%' },
 })

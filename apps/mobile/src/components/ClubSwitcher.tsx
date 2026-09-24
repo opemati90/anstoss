@@ -45,10 +45,10 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
 
   const handleNavigate = (
     path:
-      '/admin-dashboard' | '/(tabs)/more' | '/notification-settings' | '/find-club' | '/club-setup',
+      '/(tabs)/verein' | '/(tabs)/more' | '/notification-settings' | '/find-club' | '/club-setup',
   ) => {
     onClose()
-    router.push(path)
+    router.push(path as never)
   }
 
   // Rendered inside the shared BottomSheet so it sits flush against the device
@@ -152,7 +152,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
             <Pressable
               style={[styles.actionRow, { borderBottomColor: c.borderSubtle }]}
               testID="club-switcher-primary-action"
-              onPress={() => handleNavigate(canManageClub ? '/admin-dashboard' : '/(tabs)/more')}
+              onPress={() => handleNavigate(canManageClub ? '/(tabs)/verein' : '/(tabs)/more')}
               accessibilityRole="button"
               accessibilityLabel={canManageClub ? t('adminDashboard.title') : t('more.title')}
             >

@@ -55,9 +55,10 @@ describe('E2E API session shim', () => {
     const before = handleE2EApiRequest('/clubs/club-e2e-sv-albatros/team-groups', {
       method: 'GET',
     })
-    expect(before.handled && before.body).toEqual([
-      expect.objectContaining({ id: 'group-e2e-senior' }),
-    ])
+    // Club-admin world: Senioren, Junioren, Bambini & F-Jugend.
+    expect(before.handled && before.body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'group-e2e-senior' })]),
+    )
 
     await activateE2EPostSignupRole(RegistrationRole.PLAYER)
     const after = handleE2EApiRequest('/clubs/club-e2e-sv-albatros/team-groups', {
@@ -94,6 +95,7 @@ describe('E2E API session shim', () => {
     expect(active.handled).toBe(true)
     if (!active.handled) throw new Error('Expected active request to be handled')
     expect(active.body).toEqual({
+      lastDecision: null,
       request: expect.objectContaining({
         clubId: 'club-e2e-sv-albatros',
         status: 'PENDING',
@@ -119,7 +121,9 @@ describe('E2E API session shim', () => {
     )
 
     const active = handleE2EApiRequest('/me/join-requests/active', { method: 'GET' })
-    expect(active.handled && active.body).toEqual({ request: null })
+    expect(active.handled && active.body).toEqual(
+      expect.objectContaining({ request: null }),
+    )
   })
 
   it('turns post-signup club setup into an active owner membership', async () => {

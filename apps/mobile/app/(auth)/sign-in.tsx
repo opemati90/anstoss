@@ -1,101 +1,69 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { StyleSheet, TextInput, View } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { PublicInvitePayload } from '@anstoss/shared'
+import { api } from '../../src/api/client'
+import { setPendingInvite } from '../../src/auth/pendingInvite'
+import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
-import { usePendingInvite } from '../../src/auth/pendingInvite'
-import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
-import type { PolicyKind } from '../../src/content/policies'
-import {
-  classifyIdentifier,
-  normalizeIdentifier,
-  useOnboardingAuth,
-} from '../../src/auth/useOnboardingAuth'
-import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
-import { useClubColors } from '../../src/context/ClubThemeContext'
-import { Button, Icon, Text } from '../../src/components/ui'
+import { Button, Text } from '../../src/components/ui'
+import { useAuth } from '../../src/context/AuthContext'
+import { ClubThemeOverride } from '../../src/context/ClubThemeContext'
+import { sendCodeErrorKey, verifyCodeError } from '../../src/onboarding/errors'
+import { parseOnboardingIntent, setOnboardingIntent } from '../../src/onboarding/intent'
+import { onboardingProgress, pathForIntent } from '../../src/onboarding/steps'
+import { ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
-import { Sentry } from '../../src/utils/sentry'
-import { illustrations } from '../../src/illustrations'
-import { fontSize, fontWeight, fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
+const CODE_LENGTH = 6
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-// Phone OTP requires an SMS provider (e.g. Twilio) wired into the backend
-// email-OTP service. Until that's configured, the app ships EMAIL-only OTP.
-// Flip to true once SMS delivery is connected server-side.
-const PHONE_OTP_ENABLED = false
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
 
 /**
- * Sign-in entry — bare phone-then-OTP on a single screen. Used as the
- * default route for unsigned users (welcome.tsx is reserved for
- * first-time signup). Progressive disclosure: phone field, then on
- * "Send code" the OTP cells reveal inline below + the phone field
- * collapses to a tappable summary.
+ * Email + one-time code on one screen.
+ *  - From welcome the code is already on its way (`sent=1`): the screen opens
+ *    on the code cells.
+ *  - From an invite link the email field comes first, under the club's crest.
+ * After a valid code the account is live; `router.replace('/')` hands the
+ * user to index.tsx, which knows the next step. Nothing in the auth group is
+ * left behind, so back can never return here.
  */
 export default function SignIn() {
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { t } = useTranslation()
-  const colors = useClubColors()
-  // Carried through from an invite deep link (/join/<code> -> sign-in) so the
-  // user lands back on the invite to redeem it once authenticated. Prefer the
-  // route param; fall back to the persisted code after a cold relaunch.
-  // `intent` is set by the welcome screen so the same screen can greet a
-  // returning member and a brand-new one correctly. Both paths run the same
-  // email-OTP flow — only the words change.
-  const { inviteCode: inviteCodeParam, intent: intentParam } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
+    email?: string
+    sent?: string
     inviteCode?: string
     intent?: string
   }>()
-  const intent =
-    (Array.isArray(intentParam) ? intentParam[0] : intentParam) === 'login'
-      ? 'login'
-      : 'signup'
-  const storedInvite = usePendingInvite()
-  const inviteCode =
-    (Array.isArray(inviteCodeParam) ? inviteCodeParam[0] : inviteCodeParam) ??
-    storedInvite ??
-    undefined
-  const { startOtp, verifyOtp, completeSignUpIfReady, setBasicProfile } = useOnboardingAuth()
-  const { update } = useOnboardingFlow()
+  const initialEmail = first(params.email) ?? ''
+  const inviteCode = first(params.inviteCode)
+  const intent = parseOnboardingIntent(first(params.intent))
+  const cameFromWelcome = first(params.sent) === '1' && !!initialEmail
+  const { startOtp, verifyOtp } = useOnboardingAuth()
+  const { refreshUser } = useAuth()
 
-  const [identifier, setIdentifier] = useState('')
-  const [stage, setStage] = useState<'phone' | 'otp' | 'name'>('phone')
+  const [stage, setStage] = useState<'email' | 'code'>(cameFromWelcome ? 'code' : 'email')
+  const [email, setEmail] = useState(initialEmail)
   const [code, setCode] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [policyKind, setPolicyKind] = useState<PolicyKind | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [cooldown, setCooldown] = useState(0)
-  // Atomic in-flight guard (see phone.tsx): defeats a CTA tap racing the OTP
-  // auto-submit in the same tick before `submitting` state re-renders.
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [cooldown, setCooldown] = useState(cameFromWelcome ? RESEND_COOLDOWN_S : 0)
+  const [refocusKey, setRefocusKey] = useState(0)
+  const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
   const verifyingRef = useRef(false)
-  // Single source of truth for which OTP flow is live (signin vs the
-  // signup-fallback), set synchronously so resend can't read a stale value.
-  const modeRef = useRef<'signin' | 'signup'>('signin')
+  const emailRef = useRef<TextInput>(null)
 
-  // Smart identifier detection — single input accepts either an email
-  // (anything with @) or a phone number (anything starting with +).
-  // startOtp routes to the matching OTP strategy (email today; phone later).
-  const identifierKind = classifyIdentifier(identifier)
-  const normalizedIdentifier = normalizeIdentifier(identifier, identifierKind)
-  const identifierValid =
-    identifierKind === 'email'
-      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)
-      : identifierKind === 'phone'
-        ? /^\+\d{7,}$/.test(normalizedIdentifier)
-        : false
+  const normalizedEmail = email.trim().toLowerCase()
+  const emailValid = EMAIL_RE.test(normalizedEmail)
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -103,587 +71,226 @@ export default function SignIn() {
     return () => clearTimeout(id)
   }, [cooldown])
 
-  function isNoAccount(err: unknown) {
-    // Only the auth service's structured "no such identifier" code triggers the seamless
-    // signin->signup fallback. Matching free-form message text risks turning an
-    // unrelated network/proxy "not found" into an accidental signup.
-    const m = err as { errors?: Array<{ code?: string }> }
-    return m?.errors?.[0]?.code === 'form_identifier_not_found'
-  }
-
-  // Surface the auth service's actual reason instead of swallowing it — without this the
-  // generic "couldn't send a code" hides the real cause (e.g. dev-instance
-  // restrictions, rate limits, provider not configured) making it undebuggable.
-  function authErrorMessage(err: unknown): string | null {
-    const e = (err as { errors?: Array<{ longMessage?: string; message?: string }> })?.errors?.[0]
-    return e?.longMessage || e?.message || null
-  }
-
-  function revealOtp() {
-    setStage('otp')
-    setCooldown(RESEND_COOLDOWN_S)
-  }
-
-  async function handleSendCode() {
-    if (!identifierValid || submitting) return
-    if (!PHONE_OTP_ENABLED && identifierKind === 'phone') {
-      setError(
-        t('auth.signin.phoneSoon', {
-          defaultValue: 'Use your email to sign in.',
-        }),
-      )
-      return
+  // Invite context: show whose invitation this is, in the club's colour.
+  useEffect(() => {
+    if (!inviteCode) return
+    let alive = true
+    void setPendingInvite(inviteCode)
+    api<PublicInvitePayload>(`/public/invites/${encodeURIComponent(inviteCode)}`)
+      .then((payload) => {
+        if (alive) setInvite(payload)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
     }
-    setSubmitting(true)
+  }, [inviteCode])
+
+  async function sendCode() {
+    if (!emailValid || busy) return
+    setBusy(true)
     setError(null)
     try {
-      // Seamless: try sign-in first; if no account exists yet, transparently
-      // start a sign-up with the same code step. The user never has to choose
-      // "sign in vs sign up" and never hits a "no account" dead-end.
-      let resolvedMode: 'signin' | 'signup' = 'signin'
-      try {
-        await startOtp(normalizedIdentifier, 'signin', identifierKind ?? undefined)
-      } catch (err) {
-        if (!isNoAccount(err)) throw err
-        await startOtp(normalizedIdentifier, 'signup', identifierKind ?? undefined)
-        resolvedMode = 'signup'
-      }
-      modeRef.current = resolvedMode
-      revealOtp()
+      await startOtp(normalizedEmail, 'signin', 'email')
+      setStage('code')
+      setCode('')
+      setCooldown(RESEND_COOLDOWN_S)
     } catch (err) {
-      // Log the real auth error so prod failures are diagnosable (Sentry +
-      // dev console), and show the service reason when available.
-      Sentry.captureException(err, { tags: { flow: 'send-otp' } })
-      if (__DEV__) console.warn('[send-otp] failed:', err)
-      setError(
-        authErrorMessage(err) ??
-          t('onboarding.phone.sendFailed', {
-            defaultValue: "We couldn't send a code. Check the email and try again.",
-          }),
-      )
+      setError(t(sendCodeErrorKey(err)))
     } finally {
-      setSubmitting(false)
+      setBusy(false)
     }
   }
 
-  // Only navigate once an auth session is genuinely active.
-  //  - Returning sign-in → index.tsx routes by membership/role.
-  //  - New sign-up → the profile wizard (name + DOB → role → club), now entered
-  //    on an authenticated, durable account so it's fully resumable and still
-  //    captures the role + date-of-birth the age gate needs. We keep the
-  //    onboarding flow state (it carries the display name) — don't reset here.
-  function routeAfterAuth() {
-    if (modeRef.current === 'signup') {
-      // New user: collect name + DOB first (about). Forward the invite so about
-      // can redeem it after the profile step instead of going to role/club.
-      router.replace(
-        inviteCode ? { pathname: '/(auth)/about', params: { inviteCode } } : '/(auth)/about',
-      )
-    } else if (inviteCode) {
-      // Returning user already has a profile — go straight to redeem.
-      router.replace(`/join/${inviteCode}`)
-    } else {
-      router.replace('/')
-    }
-  }
-
-  async function handleVerify(submittedCode: string = code) {
-    if (submittedCode.length < 6 || submitting || verifyingRef.current) return
+  async function verify(submitted: string = code) {
+    if (submitted.length < CODE_LENGTH || verifyingRef.current) return
     verifyingRef.current = true
-    setSubmitting(true)
+    setBusy(true)
     setError(null)
+    setNotice(null)
     try {
-      await verifyOtp(submittedCode)
-      // Activate the moment the auth service has everything it needs — the account is now
-      // durable, so the rest of onboarding is resumable on a signed-in user.
-      const { activated, missingFields } = await completeSignUpIfReady()
-      if (activated) {
-        routeAfterAuth()
-        return
-      }
-      // New sign-ups may still owe a display name; collect it inline.
-      if (missingFields.includes('first_name')) {
-        setStage('name')
-        return
-      }
-      // Anything else the auth service needs can't be collected here — never navigate on an
-      // un-activated session (that would bounce back to this screen with the
-      // code already spent). Surface a recoverable error and stay put.
-      setError(
-        t('auth.signin.couldNotComplete', {
-          defaultValue: 'We couldn’t finish that. Please try again.',
-        }),
-      )
-    } catch {
-      setError(
-        t('onboarding.code.wrong', {
-          defaultValue: "That code didn't work. Check it and try again.",
-        }),
-      )
+      if (intent) await setOnboardingIntent(intent)
+      await verifyOtp(submitted, normalizedEmail)
+      // Load /me before leaving so index.tsx routes on the real account
+      // instead of flashing the signed-out welcome for a frame.
+      await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
+      router.replace('/')
+    } catch (err) {
+      // Wrong code: clear the cells and put the caret back, so the next try
+      // is just typing again.
+      // M1: wrong code, burned code (ask for a new one now), hourly cap (the
+      // real wait), rate limit and no connection each say what to do.
+      const copy = verifyCodeError(err)
+      setCode('')
+      setError(t(copy.key, copy.values))
+      if (copy.resendNow) setCooldown(0)
+      setRefocusKey((k) => k + 1)
     } finally {
       verifyingRef.current = false
-      setSubmitting(false)
+      setBusy(false)
     }
   }
 
-  async function handleSubmitName() {
-    const trimmed = firstName.trim()
-    if (trimmed.length < 2 || submitting) return
-    setSubmitting(true)
+  async function resend() {
+    if (cooldown > 0 || busy) return
     setError(null)
     try {
-      await setBasicProfile({ firstName: trimmed })
-      update({ firstName: trimmed })
-      const { activated } = await completeSignUpIfReady()
-      if (activated) {
-        routeAfterAuth()
-        return
-      }
-      // Still not complete after the name — don't strand the user mid-screen.
-      setError(
-        t('auth.signin.couldNotComplete', {
-          defaultValue: 'We couldn’t finish that. Please try again.',
-        }),
-      )
-    } catch {
-      setError(
-        t('auth.signin.couldNotComplete', {
-          defaultValue: 'We couldn’t finish that. Please try again.',
-        }),
-      )
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleResend() {
-    if (cooldown > 0 || !normalizedIdentifier) return
-    try {
-      await startOtp(normalizedIdentifier, modeRef.current, identifierKind ?? undefined)
+      await startOtp(normalizedEmail, 'signin', 'email')
       setCooldown(RESEND_COOLDOWN_S)
-    } catch {
-      // tolerated
+      setCode('')
+      setNotice(t('onboardingFlow.code.resent'))
+      setRefocusKey((k) => k + 1)
+    } catch (err) {
+      setError(t(sendCodeErrorKey(err)))
     }
   }
 
-  function editPhone() {
-    setStage('phone')
-    setCode('')
-    setError(null)
-  }
-
-  // Back: the OTP / name stages step back to the identifier within this screen;
-  // the identifier stage leaves sign-in for the welcome hero (or replaces to it
-  // when sign-in was the cold-launch entry and there's no back stack to pop).
-  function handleBack() {
-    if (stage !== 'phone') {
-      editPhone()
+  function changeEmail() {
+    if (cameFromWelcome) {
+      goBackOrReplace(router, inviteCode ? `/join/${inviteCode}` : '/(auth)/welcome')
       return
     }
-    goBackOrReplace(router, '/(auth)/welcome')
+    setStage('email')
+    setCode('')
+    setError(null)
+    setNotice(null)
+    setTimeout(() => emailRef.current?.focus(), 50)
   }
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      style={[styles.root, { backgroundColor: colors.background }]}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          {
-            paddingTop: insets.top + space.xl,
-            paddingBottom: insets.bottom + space.lg,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Pressable
-          onPress={handleBack}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <Icon name="chevron.left" size={24} color={colors.textPrimary} />
-        </Pressable>
+  function back() {
+    if (stage === 'code') {
+      changeEmail()
+      return
+    }
+    goBackOrReplace(router, inviteCode ? `/join/${inviteCode}` : '/(auth)/welcome')
+  }
 
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          {stage === 'phone'
-            ? intent === 'login'
-              ? t('auth.signin.titleLogin', { defaultValue: 'Welcome back' })
-              : t('auth.signin.titleSignup', { defaultValue: 'Create your account' })
-            : stage === 'otp'
-              ? t('auth.signin.titleOtp', { defaultValue: 'Enter the code' })
-              : t('auth.signin.titleName', { defaultValue: 'What’s your name?' })}
+  // Progress follows the traced path (steps.ts): the email step belongs to
+  // screen 1 (welcome or the invite), the code is always screen 2.
+  const progress = inviteCode
+    ? onboardingProgress('invite', stage === 'email' ? 'invitePreview' : 'code')
+    : onboardingProgress(pathForIntent(intent), stage === 'email' ? 'welcome' : 'code')
+
+  const lead = invite ? (
+    <View style={styles.inviteLead}>
+      <ClubCrest club={invite.club} size={48} />
+      <View style={styles.inviteCopy}>
+        <Text variant="footnote" color="secondary">
+          {t('onboardingFlow.code.invitedBy')}
         </Text>
-        <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          {stage === 'phone'
-            ? intent === 'login'
-              ? t('auth.signin.hintLogin', {
-                  defaultValue:
-                    'Enter your email and we’ll send a 6-digit code. No password to remember.',
-                })
-              : t('auth.signin.hintSignup', {
-                  defaultValue:
-                    'Enter your email and we’ll send a 6-digit code. No password to create.',
-                })
-            : stage === 'otp'
-              ? t('auth.signin.hintOtp', {
-                  defaultValue: 'Sent to {{identifier}}. Tap to edit.',
-                  identifier: identifier.trim(),
-                  phone: identifier.trim(),
-                })
-              : t('auth.signin.hintName', {
-                  defaultValue: 'Choose the name or username people will see.',
-                })}
+        <Text variant="headline" weight="semibold" numberOfLines={2}>
+          {invite.club.name}
         </Text>
+      </View>
+    </View>
+  ) : null
 
-        {/* Identifier field — accepts either phone (+…) or email (anything
-            with @). Keyboard type switches automatically based on what
-            the user has typed so far; falls back to `default` until we
-            can tell. Collapses to a tappable summary once the code is sent. */}
-        {stage === 'phone' ? (
-          <View style={styles.identifierWrap}>
-            <TextInput
-              value={identifier}
-              onChangeText={setIdentifier}
-              placeholder={
-                PHONE_OTP_ENABLED
-                  ? t('auth.signin.identifierPlaceholder', {
-                      defaultValue: 'Email or phone',
-                    })
-                  : t('auth.signin.emailPlaceholder', {
-                      defaultValue: 'Email address',
-                    })
-              }
-              placeholderTextColor={colors.textSecondary}
-              // Keep keyboardType STABLE. Switching it reactively as the user
-              // types (default -> phone-pad once "+" appears) remounts the input
-              // on iOS and drops/reorders characters mid-entry. The default
-              // keyboard handles both "+digits" and "name@host" fine for a
-              // dual phone-or-email field. Email-only mode uses the email keyboard.
-              keyboardType={PHONE_OTP_ENABLED ? 'default' : 'email-address'}
-              autoCapitalize="none"
-              autoComplete={identifierKind === 'email' ? 'email' : 'tel'}
-              autoCorrect={false}
-              autoFocus
-              style={[
-                styles.input,
-                {
-                  color: colors.textPrimary,
-                  borderColor: colors.borderDefault,
-                  backgroundColor: colors.surfaceSunken,
-                },
-              ]}
-            />
-          </View>
-        ) : stage === 'otp' ? (
-          <Pressable
-            onPress={editPhone}
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.signin.editIdentifier', {
-              defaultValue: 'Edit email',
-            })}
-            style={[
-              styles.phoneSummary,
-              { borderColor: colors.borderDefault, backgroundColor: colors.surfaceSunken },
-            ]}
-          >
-            <Text style={[styles.phoneSummaryText, { color: colors.textPrimary }]}>
-              {identifier.trim()}
-            </Text>
-            <Text style={[styles.phoneSummaryEdit, { color: colors.primary }]}>
-              {t('common.edit', { defaultValue: 'Edit' })}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {/* OTP cells — visible immediately once Send fires; auto-submit on the 6th digit. */}
-        {stage === 'otp' ? (
-          <View style={styles.otpWrap}>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-              {t('auth.signin.codeLabel', { defaultValue: '6-digit code' })}
-            </Text>
-            <OtpCellInput
-              value={code}
-              onChange={(v) => {
-                setCode(v)
-                setError(null)
-              }}
-              onComplete={(c) => handleVerify(c)}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleResend}
-              disabled={cooldown > 0}
-              style={styles.resend}
-            >
-              <Text
-                style={[
-                  styles.resendText,
-                  { color: cooldown > 0 ? colors.textSecondary : colors.primary },
-                ]}
-              >
-                {cooldown > 0
-                  ? t('onboarding.code.resendIn', {
-                      defaultValue: 'Resend in {{seconds}}s',
-                      seconds: cooldown,
-                    })
-                  : t('onboarding.code.resend', {
-                      defaultValue: 'Resend code',
-                    })}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* Display name — real name or username, shown to other members. */}
-        {stage === 'name' ? (
-          <View style={styles.identifierWrap}>
-            <TextInput
-              value={firstName}
-              onChangeText={(v) => {
-                setFirstName(v)
-                setError(null)
-              }}
-              placeholder={t('onboarding.name.placeholder', {
-                defaultValue: 'Your name or username',
-              })}
-              placeholderTextColor={colors.textSecondary}
-              autoCapitalize="words"
-              autoCorrect={false}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleSubmitName}
-              style={[
-                styles.input,
-                {
-                  color: colors.textPrimary,
-                  borderColor: colors.borderDefault,
-                  backgroundColor: colors.surfaceSunken,
-                },
-              ]}
-            />
-          </View>
-        ) : null}
-
-        {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-
-        {/* Warmth in the dead space between the field and the pinned action.
-            Hidden past the email step, where the OTP cells and the name field
-            need the room. */}
-        {stage === 'phone' ? (
-          <View style={styles.heroWrap} pointerEvents="none">
-            <Image
-              source={illustrations.onboardingHero}
-              style={styles.hero}
-              resizeMode="contain"
-              accessible={false}
-            />
-          </View>
-        ) : null}
-
-      </ScrollView>
-
-      {/* The action lives in a footer pinned above the keyboard, not in the
-          scroll flow. In the flow it floated in the middle of the screen with
-          a dead gap beneath it, and on a short phone it sat under the
-          keyboard entirely — the two things that made this screen feel
-          unfinished. KeyboardAvoidingView pushes this block, so it never
-          overdraws the OTP cells. */}
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: colors.background,
-            borderTopColor: colors.borderSubtle,
-            paddingBottom: insets.bottom + space.md,
-          },
-        ]}
+  const content =
+    stage === 'email' ? (
+      <OnboardingScreen
+        title={t('onboardingFlow.code.emailTitle')}
+        subtitle={
+          invite
+            ? t('onboardingFlow.code.inviteEmailSubtitle', { club: invite.club.name })
+            : t('onboardingFlow.code.emailSubtitle')
+        }
+        progress={progress}
+        onBack={back}
+        lead={lead}
+        primary={{
+          label: t('onboardingFlow.code.sendCta'),
+          onPress: () => void sendCode(),
+          disabled: !emailValid,
+          loading: busy,
+          testID: 'sign-in-send',
+        }}
+        testID="sign-in-email"
       >
-        <Button
-          label={
-            stage === 'phone'
-              ? t('auth.signin.sendCode', { defaultValue: 'Send code' })
-              : t('auth.signin.continue', { defaultValue: 'Continue' })
-          }
-          onPress={
-            stage === 'phone'
-              ? handleSendCode
-              : stage === 'otp'
-                ? () => handleVerify()
-                : handleSubmitName
-          }
-          loading={submitting}
-          disabled={
-            stage === 'phone'
-              ? !identifierValid
-              : stage === 'otp'
-                ? code.length < 6
-                : firstName.trim().length < 2
-          }
-          fullWidth
-          size="lg"
+        <OnboardingTextField
+          ref={emailRef}
+          label={t('onboardingFlow.welcome.emailLabel')}
+          value={email}
+          onChangeText={(next) => {
+            setEmail(next)
+            setError(null)
+          }}
+          placeholder={t('onboardingFlow.welcome.emailPlaceholder')}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
+          autoCorrect={false}
+          spellCheck={false}
+          autoFocus
+          returnKeyType="go"
+          onSubmitEditing={() => void sendCode()}
+          error={error}
+          testID="sign-in-email-input"
         />
-
-        {stage === 'phone' ? (
-          <Text variant="caption1" color="tertiary" style={styles.consent}>
-            {t('auth.signin.consentPrefix', {
-              defaultValue: 'By continuing you agree to our ',
-            })}
-            <Text
-              variant="caption1"
-              color="secondary"
-              onPress={() => setPolicyKind('terms')}
-              style={styles.consentLink}
-            >
-              {t('onboarding.welcome.policyTerms', { defaultValue: 'Terms' })}
-            </Text>
-            {t('onboarding.welcome.policyAnd', { defaultValue: ' and ' })}
-            <Text
-              variant="caption1"
-              color="secondary"
-              onPress={() => setPolicyKind('privacy')}
-              style={styles.consentLink}
-            >
-              {t('onboarding.welcome.policyPrivacy', { defaultValue: 'Privacy Policy' })}
-            </Text>
-            .
+      </OnboardingScreen>
+    ) : (
+      <OnboardingScreen
+        title={t('onboardingFlow.code.title')}
+        subtitle={t('onboardingFlow.code.subtitle', { email: normalizedEmail })}
+        progress={progress}
+        onBack={back}
+        lead={lead}
+        primary={{
+          label: t('onboardingFlow.code.verifyCta'),
+          onPress: () => void verify(),
+          disabled: code.length < CODE_LENGTH,
+          loading: busy,
+          testID: 'sign-in-verify',
+        }}
+        secondary={{
+          label: t('onboardingFlow.code.changeEmail'),
+          onPress: changeEmail,
+          testID: 'sign-in-change-email',
+        }}
+        testID="sign-in-code"
+      >
+        <OtpCellInput
+          value={code}
+          onChange={(next) => {
+            setCode(next)
+            if (error) setError(null)
+          }}
+          onComplete={(full) => void verify(full)}
+          hasError={!!error}
+          refocusKey={refocusKey}
+          accessibilityLabel={t('onboardingFlow.code.otpA11y')}
+        />
+        {error ? (
+          <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : notice ? (
+          <Text variant="footnote" color="success" align="center" accessibilityLiveRegion="polite">
+            {notice}
           </Text>
         ) : null}
-      </View>
+        <Button
+          label={
+            cooldown > 0
+              ? t('onboardingFlow.code.resendIn', { seconds: cooldown })
+              : t('onboardingFlow.code.resend')
+          }
+          variant="plain"
+          size="sm"
+          disabled={cooldown > 0}
+          onPress={() => void resend()}
+          testID="sign-in-resend"
+        />
+        <Text variant="footnote" color="tertiary" align="center">
+          {t('onboardingFlow.code.spamHint')}
+        </Text>
+      </OnboardingScreen>
+    )
 
-
-      <PolicyOverlay
-        visible={policyKind !== null}
-        kind={policyKind ?? 'terms'}
-        onClose={() => setPolicyKind(null)}
-      />
-    </KeyboardAvoidingView>
-  )
+  return <ClubThemeOverride club={invite?.club ?? null}>{content}</ClubThemeOverride>
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.xl,
-    gap: space.xs + 2,
-  },
-  heroWrap: {
-    flex: 1,
-    minHeight: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: space.lg,
-  },
-  hero: {
-    width: '82%',
-    height: 200,
-    opacity: 0.9,
-  },
-  footer: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    borderTopWidth: hairline,
-    gap: space.md,
-  },
-  identifierWrap: {
-    marginTop: space.lg,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: space.sm,
-    marginLeft: -(space.xs + 2),
-  },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize['3xl'],
-    lineHeight: 36,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.6,
-  },
-  hint: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.md,
-    lineHeight: 22,
-  },
-  input: {
-    height: 56,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.body,
-    fontSize: fontSize.lg,
-  },
-  phoneSummary: {
-    marginTop: space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-  },
-  phoneSummaryText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.medium,
-  },
-  phoneSummaryEdit: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-  },
-  otpWrap: {
-    marginTop: space.lg,
-    gap: space.sm,
-  },
-  fieldLabel: {
-    fontFamily: fonts.label,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    textTransform: 'uppercase',
-  },
-  resend: {
-    marginTop: space.lg,
-    alignItems: 'center',
-  },
-  resendText: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-  },
-  error: {
-    marginTop: space.md,
-    fontFamily: fonts.body,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-  },
-  consent: {
-    marginTop: space.md,
-    textAlign: 'center',
-    fontFamily: fonts.body,
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-  },
-  consentLink: {
-    // Nested <Text> from the custom ui component otherwise re-applies its
-    // default body size (16) and the links balloon next to the xs sentence —
-    // pin size + lineHeight so the whole line is uniform.
-    fontFamily: fonts.body,
-    fontSize: fontSize.xs,
-    lineHeight: 18,
-    fontWeight: fontWeight.bold,
-    textDecorationLine: 'underline',
-  },
+  inviteLead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  inviteCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
 })

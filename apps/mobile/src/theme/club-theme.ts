@@ -40,13 +40,16 @@ export function buildClubTheme(
   const base = isDark ? darkTheme : lightTheme
 
   // Hydrate the primary slot from the club if one is active; otherwise use
-  // the base theme's fallback (Renuir indigo). In dark mode a dark club
+  // the base theme's fallback (pitch green). In dark mode a dark club
   // colour (navy, bottle green, charcoal) vanishes against the surface, so
   // it is lifted until it can carry a filled button and a selected state.
+  // Club colours are corrected in BOTH modes: yellow/white Vereinsfarben are
+  // darkened on light backgrounds, navy/bottle-green lifted on dark ones, so
+  // the accent can always carry a filled button and a selected state.
   const primary = club?.primary
     ? isDark
       ? ensureDarkModeContrast(club.primary)
-      : club.primary
+      : ensureLightModeContrast(club.primary)
     : base.primary
   const primaryPressed = club?.primary
     ? darkenHex(club.primary, 0.15)
@@ -60,6 +63,7 @@ export function buildClubTheme(
     primary,
     primaryPressed,
     primary50,
+    onPrimary: onColor(primary),
     // Legacy aliases
     clubPrimary: primary,
     clubPrimaryLight: primary50,
@@ -98,6 +102,29 @@ function lightenHex(hex: string, amount: number): string {
  * roughly where a filled button with dark text stops looking like a
  * disabled one; iterate rather than jump so hue survives.
  */
+function contrastRatio(a: string, b: string): number {
+  const la = luminance(a)
+  const lb = luminance(b)
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la]
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/** Pick white or near-black text for a fill, whichever contrasts more. */
+export function onColor(hex: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return '#FFFFFF'
+  return contrastRatio(hex, '#FFFFFF') >= contrastRatio(hex, '#1A1A18')
+    ? '#FFFFFF'
+    : '#1A1A18'
+}
+
+/** Darken a club colour until it reaches 3:1 against the light background. */
+export function ensureLightModeContrast(hex: string): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
+  let out = hex
+  for (let i = 0; i < 8 && contrastRatio(out, '#FAFAF8') < 3; i += 1) out = darkenHex(out, 0.15)
+  return out
+}
+
 export function ensureDarkModeContrast(hex: string): string {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
   let out = hex
@@ -123,6 +150,63 @@ function darkenHex(hex: string, amount: number): string {
   )
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
 }
+
+// ── home revamp: text-safe accent ──
+/** Parse "#rrggbb" or "rgba(r, g, b, a)" into channels; null when unknown. */
+function parseColor(value: string): { r: number; g: number; b: number; a: number } | null {
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+    return {
+      r: parseInt(value.slice(1, 3), 16),
+      g: parseInt(value.slice(3, 5), 16),
+      b: parseInt(value.slice(5, 7), 16),
+      a: 1,
+    }
+  }
+  const m = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/)
+  if (!m) return null
+  return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: m[4] == null ? 1 : Number(m[4]) }
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+}
+
+/** A (possibly translucent) tint composited over an opaque surface. */
+function composite(tint: string, surface: string): string | null {
+  const top = parseColor(tint)
+  const base = parseColor(surface)
+  if (!top || !base) return null
+  const mix = (a: number, b: number) => a * top.a + b * (1 - top.a)
+  return toHex(mix(top.r, base.r), mix(top.g, base.g), mix(top.b, base.b))
+}
+
+/**
+ * The club colour adjusted so small text (12-15pt) reaches WCAG AA 4.5:1 on
+ * `background` (an opaque surface or a translucent tint such as primary50
+ * over that surface). Darkened on light surfaces, lifted on dark ones; hue is
+ * kept by stepping rather than jumping. Returns the input unchanged when it
+ * already passes or a colour cannot be parsed.
+ */
+export function textSafeAccent(accent: string, surface: string, background: string = surface): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(accent)) return accent
+  const bg = composite(background, surface)
+  if (!bg) return accent
+  const darkSurface = luminance(bg) < 0.2
+  let out = accent
+  for (let i = 0; i < 16 && contrastRatio(out, bg) < 4.5; i += 1) {
+    out = darkSurface ? lightenHex(out, 0.15) : darkenHex(out, 0.12)
+  }
+  return out
+}
+
+/** Contrast ratio between two colours (hex or rgba over white). Exposed for specs. */
+export function contrastBetween(fg: string, bg: string, surface = '#FFFFFF'): number {
+  const a = composite(fg, surface)
+  const b = composite(bg, surface)
+  if (!a || !b) return 0
+  return contrastRatio(a, b)
+}
+// ── end home revamp ──
 
 /**
  * Fallback theme — renders immediately while club config loads.

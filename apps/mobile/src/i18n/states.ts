@@ -9,17 +9,17 @@ export const statesEn = {
       title: 'Couldn\'t load your week',
       body: 'Check your connection and pull down to try again.',
     },
-    stale: 'Showing your last update — pull down to retry.',
+    stale: 'Showing the last saved version. Pull down to refresh.',
   },
   events: {
     empty: {
       title: 'No events yet',
-      body: 'Coaches will post training sessions and matches here.',
-      cta: 'Create the first event',
+      body: 'Training sessions and matches appear here once your coach adds them.',
+      cta: 'Add the first event',
     },
     error: {
       title: "Couldn't load events",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
   },
@@ -30,7 +30,7 @@ export const statesEn = {
     },
     error: {
       title: "Couldn't load requests",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
   },
@@ -42,19 +42,19 @@ export const statesEn = {
     },
     error: {
       title: "Couldn't load members",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       hint: 'Check your connection or sign out and back in.',
       retry: 'Try again',
     },
   },
   contributions: {
     empty: {
-      title: 'No contributions yet',
-      body: 'When your club sets up dues, they appear here.',
+      title: 'No fees yet',
+      body: 'Once your club sets up membership fees, they appear here.',
     },
     error: {
-      title: "Couldn't load contributions",
-      body: 'Pull to refresh or try again.',
+      title: "Couldn't load fees",
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
   },
@@ -65,34 +65,34 @@ export const statesEn = {
     },
     error: {
       title: "Couldn't load matches",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
     noTeam: {
       title: 'No team selected',
-      body: 'Join or select a team to see fixtures.',
+      body: 'Join or pick a team to see its fixtures.',
     },
   },
   transfers: {
     empty: {
       title: 'No transfer listings',
-      body: 'Clubs will post available or wanted players here.',
+      body: 'Clubs post the players they are looking for here, and free agents offer themselves.',
     },
     error: {
       title: "Couldn't load transfers",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
   },
   dm: {
     empty: {
       title: 'No conversations yet',
-      body: 'Start a direct message from a teammate or coach profile.',
+      body: 'Message a teammate or your coach directly from their profile.',
       cta: 'Start a conversation',
     },
     error: {
       title: "Couldn't load messages",
-      body: 'Pull to refresh or try again.',
+      body: 'Pull down to refresh or try again.',
       retry: 'Try again',
     },
   },
@@ -101,12 +101,12 @@ export const statesEn = {
       title: 'Something went wrong',
       network: 'Check your connection and try again.',
       offline: "You're offline. Reconnect and try again.",
-      timeout: 'The request took too long. Try again.',
+      timeout: 'That took too long. Please try again.',
       rateLimit: 'Too many requests. Wait a moment and try again.',
-      session: 'Your session expired. Please sign in again.',
+      session: 'Your session has expired. Please sign in again.',
       permission: "You don't have access to do that.",
-      unavailable: 'Service temporarily unavailable. Try again shortly.',
-      generic: 'Something went wrong. Try again.',
+      unavailable: 'The service is temporarily unavailable. Please try again shortly.',
+      generic: 'Something went wrong. Please try again.',
     },
   },
 } as const

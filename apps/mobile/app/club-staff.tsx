@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   ActionSheetIOS,
   Alert,
   Platform,
-  Pressable,
   RefreshControl,
   StyleSheet,
   View,
@@ -18,16 +16,15 @@ import { MultiSelectSheet } from '../src/components/MultiSelectSheet'
 import { SelectionSheet } from '../src/components/SelectionSheet'
 import {
   Avatar,
-  Badge,
   Banner,
+  Button,
   ListRow,
   Screen,
   SectionGroup,
-  SettingsIcon,
-  SettingsIconTint,
-  StatusPill,
+  SoftIcon,
   Text,
 } from '../src/components/ui'
+import { Skeleton } from '../src/components/Skeleton'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { space } from '../src/theme/tokens'
@@ -112,6 +109,7 @@ export default function ClubStaffScreen() {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [roleSheetMember, setRoleSheetMember] = useState<ClubMember | null>(null)
   const [operationsSheetMember, setOperationsSheetMember] = useState<ClubMember | null>(null)
+  const [officeSheet, setOfficeSheet] = useState<ClubOperationalRole | null>(null)
 
   const canManageStaff =
     activeClub?.role === MembershipRole.OWNER || activeClub?.role === MembershipRole.ADMIN
@@ -190,12 +188,23 @@ export default function ClubStaffScreen() {
     [sortedMembers],
   )
 
-  const operationalAssignmentsCount = useMemo(
-    () => sortedMembers.filter((m) => (m.operationalRoles ?? []).length > 0).length,
+  // The staff list is people with a function in the club — not all 126
+  // members (those live in the Mitgliederliste).
+  const staffMembers = useMemo(
+    () =>
+      sortedMembers.filter(
+        (m) => STAFF_ROLES.has(m.role) || (m.operationalRoles ?? []).length > 0,
+      ),
     [sortedMembers],
   )
+  const canAssignCriticalOffice = activeClub?.role === MembershipRole.OWNER
 
-  const criticalCoverageCount = operationalCoverage.filter((e) => e.count > 0).length
+  const assignOffice = async (office: ClubOperationalRole, userId: string) => {
+    const member = members.find((m) => m.userId === userId)
+    if (!member) return
+    const next = Array.from(new Set([...(member.operationalRoles ?? []), office]))
+    await submitOperationalRoles(member, next)
+  }
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -275,7 +284,13 @@ export default function ClubStaffScreen() {
     try {
       await api(`/clubs/${activeClub.club.id}/staff-access-requests/${claim.id}/decision`, {
         method: 'POST',
-        body: { decision },
+        body: {
+          decision,
+          note:
+            decision === 'APPROVE'
+              ? t('verein.offices.claimApprovedNote')
+              : t('verein.offices.claimRejectedNote'),
+        },
       })
       await fetchMembers()
     } catch (error) {
@@ -413,7 +428,7 @@ export default function ClubStaffScreen() {
   if (!activeClub) {
     return (
       <Screen
-        header={<ModalHeader title={t('clubStaff.screenTitle')} mode="back" />}
+        header={<ModalHeader title={t('verein.offices.title')} mode="back" />}
         padded={false}
         style={{ backgroundColor: c.surfaceSunken }}
       >
@@ -429,7 +444,7 @@ export default function ClubStaffScreen() {
   if (!canManageStaff) {
     return (
       <Screen
-        header={<ModalHeader title={t('clubStaff.screenTitle')} mode="back" />}
+        header={<ModalHeader title={t('verein.offices.title')} mode="back" />}
         padded={false}
         style={{ backgroundColor: c.surfaceSunken }}
       >
@@ -444,7 +459,7 @@ export default function ClubStaffScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={t('clubStaff.screenTitle')} mode="back" />}
+      header={<ModalHeader title={t('verein.offices.title')} mode="back" />}
       scroll
       padded={false}
       style={{ backgroundColor: c.surfaceSunken }}
@@ -464,61 +479,41 @@ export default function ClubStaffScreen() {
         />
       ) : null}
 
+      {/* Pflichtämter first: an unfilled Kassenwart is the thing to fix. */}
       <SectionGroup
-        header={t('clubStaff.addStaff', { defaultValue: 'Add staff' })}
-        footer={t('clubStaff.addStaffHelp', {
-          defaultValue:
-            'Invite a coach to one team. Coach access never grants club administration rights.',
-        })}
+        header={t('verein.offices.required')}
+        footer={
+          canAssignCriticalOffice
+            ? t('verein.offices.requiredHint')
+            : t('verein.offices.requiredOwnerOnly')
+        }
         style={styles.section}
       >
-        <ListRow
-          left={<SettingsIcon name="person.badge.plus" tint={SettingsIconTint.red} />}
-          title={t('clubStaff.inviteCoach', { defaultValue: 'Invite a coach' })}
-          subtitle={t('clubStaff.inviteCoachBody', {
-            defaultValue: 'Send an identity-bound email invitation and choose their team role.',
-          })}
-          subtitleNumberOfLines={2}
-          showChevron
-          onPress={() =>
-            router.push({ pathname: '/invite', params: { mode: 'coach', returnTo: '/club-staff' } })
-          }
-        />
-      </SectionGroup>
-
-      {/* Overview section — 3 stats as iOS Settings rows. */}
-      <SectionGroup
-        header={t('clubStaff.overview', { defaultValue: 'Overview' })}
-        style={styles.section}
-      >
-        <ListRow
-          left={<SettingsIcon name="person.2.fill" tint={SettingsIconTint.gray} />}
-          title={t('clubStaff.summaryMembers')}
-          right={
-            <Text variant="body" color="secondary" tabular>
-              {String(sortedMembers.length)}
-            </Text>
-          }
-        />
-        <ListRow
-          left={<SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />}
-          title={t('clubStaff.summaryOperational')}
-          right={
-            <Text variant="body" color="secondary" tabular>
-              {String(operationalAssignmentsCount)}
-            </Text>
-          }
-        />
-        <ListRow
-          left={<SettingsIcon name="checkmark.seal.fill" tint={SettingsIconTint.gray} />}
-          title={t('clubStaff.summaryCritical')}
-          right={
-            <StatusPill
-              label={`${criticalCoverageCount}/${CRITICAL_ROLE_ORDER.length}`}
-              tone={criticalCoverageCount === CRITICAL_ROLE_ORDER.length ? 'success' : 'warning'}
+        {loading ? (
+          <View style={styles.skeletonRows}>
+            <Skeleton shape="card" height={52} />
+            <Skeleton shape="card" height={52} />
+          </View>
+        ) : (
+          operationalCoverage.map((entry) => (
+            <ListRow
+              key={entry.role}
+              left={<SoftIcon name="person.badge.key" color={entry.count > 0 ? undefined : c.warning} />}
+              title={t(`verein.office.${entry.role}`)}
+              subtitle={entry.count > 0 ? entry.names.join(', ') : t('verein.offices.unfilled')}
+              subtitleNumberOfLines={2}
+              right={
+                entry.count === 0 && canAssignCriticalOffice ? (
+                  <Text variant="subheadline" weight="semibold" color="tint">
+                    {t('aufgaben.fill')}
+                  </Text>
+                ) : undefined
+              }
+              showChevron={canAssignCriticalOffice}
+              onPress={canAssignCriticalOffice ? () => setOfficeSheet(entry.role) : undefined}
             />
-          }
-        />
+          ))
+        )}
       </SectionGroup>
 
       {staffClaims.length > 0 ? (
@@ -536,115 +531,122 @@ export default function ClubStaffScreen() {
             const requestedRoles = claim.requestedTeamRoles
               .map((role) => t(`teamRoles.${role}`, { defaultValue: role }))
               .join(', ')
+            const busy = pendingAction?.userId === claim.claimant.id
             return (
-              <ListRow
-                key={claim.id}
-                left={
-                  <Avatar
-                    size="md"
-                    src={claim.claimant.avatarUrl}
-                    fallbackText={claim.claimant.name}
-                  />
-                }
-                title={claim.claimant.name}
-                subtitle={`${t(`roles.${claim.desiredRole}`, { defaultValue: claim.desiredRole })} · ${requestedRoles || t('clubStaff.noTeamRole', { defaultValue: 'No team role' })}${!canApproveClaim ? ` · ${t('clubStaff.ownerApprovalRequired', { defaultValue: 'Owner approval required' })}` : ''}`}
-                subtitleNumberOfLines={2}
-                right={
-                  <View style={styles.requestActions}>
-                    {canApproveClaim ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        style={styles.requestButton}
-                        onPress={() => void reviewStaffClaim(claim, 'APPROVE')}
-                      >
-                        <Text variant="footnote" weight="semibold" color="primary">
-                          {t('pendingRequests.approve')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    <Pressable
-                      accessibilityRole="button"
-                      style={styles.requestButton}
-                      onPress={() => void reviewStaffClaim(claim, 'REJECT')}
-                    >
-                      <Text variant="footnote" weight="semibold" color="error">
-                        {t('pendingRequests.reject')}
-                      </Text>
-                    </Pressable>
+              <View key={claim.id} style={styles.claimRow}>
+                <View style={styles.claimHead}>
+                  <Avatar size="md" src={claim.claimant.avatarUrl} fallbackText={claim.claimant.name} />
+                  <View style={styles.claimText}>
+                    <Text variant="body" weight="semibold" color="primary" numberOfLines={1}>
+                      {claim.claimant.name}
+                    </Text>
+                    <Text variant="footnote" color="secondary" numberOfLines={2}>
+                      {[
+                        t(`verein.roleLabel.${claim.desiredRole}`, { defaultValue: claim.desiredRole }),
+                        requestedRoles || t('clubStaff.noTeamRole', { defaultValue: 'No team role' }),
+                        !canApproveClaim
+                          ? t('clubStaff.ownerApprovalRequired', { defaultValue: 'Owner approval required' })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
                   </View>
-                }
-              />
+                </View>
+                <View style={styles.claimActions}>
+                  <Button
+                    label={t('pendingRequests.reject')}
+                    variant="plain"
+                    size="sm"
+                    disabled={busy}
+                    onPress={() => void reviewStaffClaim(claim, 'REJECT')}
+                  />
+                  {canApproveClaim ? (
+                    <Button
+                      label={t('pendingRequests.approve')}
+                      variant="filled"
+                      size="sm"
+                      loading={busy}
+                      disabled={busy}
+                      onPress={() => void reviewStaffClaim(claim, 'APPROVE')}
+                    />
+                  ) : null}
+                </View>
+              </View>
             )
           })}
         </SectionGroup>
       ) : null}
 
-      {/* Critical role coverage — each role as its own row. */}
+      {/* People with a function: Vorstand, Admins, Trainer, office holders. */}
       <SectionGroup
-        header={t('clubStaff.coverageTitle')}
-        footer={t('clubStaff.coverageBody')}
-        style={styles.section}
-      >
-        {operationalCoverage.map((entry) => (
-          <ListRow
-            key={entry.role}
-            left={<SettingsIcon name="shield.fill" tint={SettingsIconTint.gray} />}
-            title={t(`clubStaff.operationalRole.${entry.role}`)}
-            subtitle={entry.count > 0 ? entry.names.join(', ') : undefined}
-            subtitleNumberOfLines={2}
-            right={
-              entry.count > 0 ? (
-                <StatusPill label={String(entry.count)} tone="success" />
-              ) : (
-                <StatusPill label={t('clubStaff.coverageOpen')} tone="warning" />
-              )
-            }
-          />
-        ))}
-      </SectionGroup>
-
-      {/* Members — one row per member, tap → iOS action sheet. */}
-      <SectionGroup
-        header={t('clubStaff.membersSection', { defaultValue: 'Staff & members' })}
+        header={t('verein.offices.staff')}
+        footer={t('verein.offices.staffHint')}
         style={styles.section}
       >
         {loading ? (
-          <View style={styles.inlineLoader}>
-            <ActivityIndicator color={c.primary} />
+          <View style={styles.skeletonRows}>
+            <Skeleton shape="card" height={60} />
+            <Skeleton shape="card" height={60} />
+            <Skeleton shape="card" height={60} />
           </View>
-        ) : sortedMembers.length === 0 ? (
+        ) : staffMembers.length === 0 ? (
           <ListRow
-            left={<SettingsIcon name="info.circle.fill" tint={SettingsIconTint.gray} />}
+            left={<SoftIcon name="info.circle" />}
             title={t('clubStaff.emptyTitle', { defaultValue: 'No staff yet' })}
             subtitle={t('clubStaff.emptyBody')}
             subtitleNumberOfLines={3}
           />
         ) : (
-          sortedMembers.map((m) => {
+          staffMembers.map((m) => {
             const isPending = pendingAction?.userId === m.userId
-            const ops = m.operationalRoles ?? []
-            const opLabels = ops.map((r) => t(`clubStaff.operationalRole.${r}`)).join(', ')
-
+            const ops = (m.operationalRoles ?? []).map((r) =>
+              r === ClubOperationalRole.TREASURER || r === ClubOperationalRole.SECRETARY
+                ? t(`verein.office.${r}`)
+                : t(`clubStaff.operationalRole.${r}`),
+            )
+            const teams = (m.user.teamAccess ?? []).map((a) => a.team.displayName)
             return (
               <ListRow
                 key={m.id}
                 left={<Avatar size="md" src={m.user.avatarUrl} fallbackText={m.user.name} />}
                 title={m.user.name}
-                subtitle={opLabels || undefined}
-                right={
-                  isPending ? (
-                    <ActivityIndicator size="small" color={c.primary} />
-                  ) : (
-                    <Badge label={t(`roles.${m.role}`)} variant="neutral" />
-                  )
-                }
+                subtitle={[t(`verein.memberRole.${m.role}`), ...ops, ...teams].join(' · ')}
+                subtitleNumberOfLines={2}
                 showChevron={!isPending}
+                disabled={isPending}
                 onPress={() => openMemberActions(m)}
               />
             )
           })
         )}
+        <ListRow
+          left={<SoftIcon name="person.badge.plus" />}
+          title={t('clubStaff.inviteCoach', { defaultValue: 'Invite a coach' })}
+          subtitle={t('clubStaff.inviteCoachBody')}
+          subtitleNumberOfLines={2}
+          showChevron
+          onPress={() =>
+            router.push({ pathname: '/invite', params: { mode: 'coach', returnTo: '/club-staff' } })
+          }
+        />
       </SectionGroup>
+
+      <SelectionSheet
+        visible={officeSheet !== null}
+        title={officeSheet ? t('verein.offices.assignTitle', { office: t(`verein.office.${officeSheet}`) }) : ''}
+        description={t('verein.offices.assignHint')}
+        options={sortedMembers
+          .filter((m) => STAFF_ROLES.has(m.role))
+          .map((m) => ({ label: m.user.name, value: m.userId, description: t(`verein.memberRole.${m.role}`) }))}
+        selectedValue={''}
+        onSelect={(userId) => {
+          const office = officeSheet
+          setOfficeSheet(null)
+          if (office) void assignOffice(office, userId)
+        }}
+        onClose={() => setOfficeSheet(null)}
+      />
 
       <SelectionSheet
         visible={!!roleSheetMember}
@@ -776,18 +778,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.xl,
   },
-  inlineLoader: {
-    paddingVertical: space.xl,
-    alignItems: 'center',
-  },
-  requestActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-  },
-  requestButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: space.xs,
-  },
+  skeletonRows: { padding: space.md, gap: space.sm },
+  claimRow: { paddingHorizontal: space.md, paddingVertical: space.sm + space.xs, gap: space.sm },
+  claimHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  claimText: { flex: 1, minWidth: 0, gap: space['2xs'] },
+  claimActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: space.sm },
 })

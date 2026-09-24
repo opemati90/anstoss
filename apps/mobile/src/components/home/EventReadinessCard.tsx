@@ -8,6 +8,7 @@ import type {
 } from '@anstoss/shared'
 import { Icon, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { hexToRgba } from '../../theme/club-theme'
 import { fonts, hairline, radius, space } from '../../theme/tokens'
 import { formatEventReadinessBriefing } from '../../lib/eventReadinessBriefing'
 
@@ -65,12 +66,12 @@ export function EventReadinessCard({
     <>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
             {t('home.readiness.eyebrow', {
               defaultValue: compact ? 'READINESS' : 'EVENT READINESS',
             })}
           </Text>
-          <Text variant={compact ? 'callout' : 'title3'} color="primary" weight="semibold" numberOfLines={1}>
+          <Text variant={compact ? 'callout' : 'title3'} color="primary" weight="semibold" numberOfLines={2}>
             {eventTitle || t('home.readiness.nextEvent', { defaultValue: 'Next event readiness' })}
           </Text>
         </View>
@@ -80,7 +81,7 @@ export function EventReadinessCard({
             compact && styles.scoreRingCompact,
             {
               borderColor: toneColor,
-              backgroundColor: withAlpha(toneColor, 0.08),
+              backgroundColor: hexToRgba(toneColor, 0.08),
             },
           ]}
         >
@@ -93,14 +94,14 @@ export function EventReadinessCard({
         </View>
       </View>
 
-      <View style={[styles.statusRow, { backgroundColor: withAlpha(toneColor, 0.09) }]}>
+      <View style={[styles.statusRow, { backgroundColor: hexToRgba(toneColor, 0.09) }]}>
         <View style={[styles.statusDot, { backgroundColor: toneColor }]} />
         <Text style={[styles.statusText, { color: toneColor }]}>
           {t(`home.readiness.status.${readiness.status}`, {
             defaultValue: getStatusLabel(readiness.status),
           })}
         </Text>
-        <Text variant="caption2" color="secondary" style={styles.statusDetail} numberOfLines={1}>
+        <Text variant="caption2" color="secondary" style={styles.statusDetail} numberOfLines={2}>
           {tone}
         </Text>
       </View>
@@ -110,12 +111,12 @@ export function EventReadinessCard({
           style={[
             styles.briefingRow,
             {
-              backgroundColor: withAlpha(c.primary, 0.06),
-              borderColor: withAlpha(c.primary, 0.16),
+              backgroundColor: hexToRgba(c.primary, 0.06),
+              borderColor: hexToRgba(c.primary, 0.16),
             },
           ]}
         >
-          <View style={[styles.briefingIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+          <View style={[styles.briefingIcon, { backgroundColor: hexToRgba(c.primary, 0.12) }]}>
             <Icon name="sparkles" size={13} color={c.primary} />
           </View>
           <Text
@@ -163,7 +164,7 @@ export function EventReadinessCard({
           ))
         ) : (
           <View style={styles.signalRow}>
-            <View style={[styles.signalIcon, { backgroundColor: withAlpha(c.success, 0.12) }]}>
+            <View style={[styles.signalIcon, { backgroundColor: hexToRgba(c.success, 0.12) }]}>
               <Icon name="checkmark.circle.fill" size={13} color="success" />
             </View>
             <Text variant="caption1" color="secondary" style={styles.signalText}>
@@ -178,13 +179,13 @@ export function EventReadinessCard({
           style={[
             styles.nudgePanel,
             {
-              backgroundColor: withAlpha(toneColor, 0.08),
-              borderColor: withAlpha(toneColor, 0.32),
+              backgroundColor: hexToRgba(toneColor, 0.08),
+              borderColor: hexToRgba(toneColor, 0.32),
             },
           ]}
         >
           <View style={styles.nudgeCopy}>
-            <Text style={[styles.nudgeTitle, { color: toneColor }]} numberOfLines={1}>
+            <Text style={[styles.nudgeTitle, { color: toneColor }]} numberOfLines={2}>
               {t('home.readiness.nudgeTitle', {
                 defaultValue: 'Smart nudge recommended',
               })}
@@ -223,12 +224,12 @@ export function EventReadinessCard({
           style={[
             styles.nudgePanel,
             {
-              backgroundColor: withAlpha(c.primary, 0.06),
-              borderColor: withAlpha(c.primary, 0.18),
+              backgroundColor: hexToRgba(c.primary, 0.06),
+              borderColor: hexToRgba(c.primary, 0.18),
             },
           ]}
         >
-          <View style={[styles.nudgeStateIcon, { backgroundColor: withAlpha(c.primary, 0.12) }]}>
+          <View style={[styles.nudgeStateIcon, { backgroundColor: hexToRgba(c.primary, 0.12) }]}>
             <Icon name="clock" size={14} color={c.primary} />
           </View>
           <View style={styles.nudgeCopy}>
@@ -287,8 +288,8 @@ export function EventReadinessCard({
           style={({ pressed }: { pressed?: boolean }) => [
             styles.actionButton,
             {
-              borderColor: withAlpha(c.primary, 0.24),
-              backgroundColor: withAlpha(c.primary, 0.08),
+              borderColor: hexToRgba(c.primary, 0.24),
+              backgroundColor: hexToRgba(c.primary, 0.08),
             },
             pressed && { opacity: 0.86 },
           ]}
@@ -312,7 +313,7 @@ export function EventReadinessCard({
             styles.actionButton,
             {
               borderColor: c.borderDefault,
-              backgroundColor: withAlpha(toneColor, 0.08),
+              backgroundColor: hexToRgba(toneColor, 0.08),
             },
             pressed && { opacity: 0.86 },
           ]}
@@ -394,10 +395,10 @@ function SignalRow({ signal }: { signal: EventReadinessSignal }) {
 
   return (
     <View style={styles.signalRow}>
-      <View style={[styles.signalIcon, { backgroundColor: withAlpha(color, 0.12) }]}>
+      <View style={[styles.signalIcon, { backgroundColor: hexToRgba(color, 0.12) }]}>
         <Icon name={getSignalIcon(signal.key)} size={13} color={color} />
       </View>
-      <Text variant="caption1" color="secondary" style={styles.signalText} numberOfLines={1}>
+      <Text variant="caption1" color="secondary" style={styles.signalText} numberOfLines={2}>
         {t(`home.readiness.signal.${signal.key}`, {
           defaultValue: getSignalLabel(signal),
           count: signal.count,
@@ -502,22 +503,6 @@ function isAttendanceSignal(key: EventReadinessSignalKey): boolean {
   return key === 'check_in_gap' || key === 'no_show_risk'
 }
 
-function withAlpha(hex: string, alpha: number): string {
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body).split(',').map((p) => p.trim()).slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
 function formatNudgeTime(
   value: string | null | undefined,
   locale: string | undefined,
@@ -570,6 +555,7 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: hairline,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     padding: space.md,
     gap: space.sm,
   },
@@ -588,9 +574,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.3,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    letterSpacing: 0,
   },
   scoreRing: {
     width: 58,
@@ -606,7 +591,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   scoreUnit: {
-    fontSize: 9,
+    fontSize: 12,
     fontFamily: fonts.label,
     marginTop: -space.xs,
   },
@@ -624,11 +609,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   statusText: {
-    fontFamily: fonts.label,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+    fontFamily: fonts.heading,
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
   statusDetail: {
     flex: 1,
@@ -706,7 +689,7 @@ const styles = StyleSheet.create({
   },
   nudgeTitle: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   nudgeButton: {
@@ -718,7 +701,7 @@ const styles = StyleSheet.create({
   },
   nudgeButtonText: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   nudgeStateIcon: {
@@ -746,7 +729,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontFamily: fonts.label,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
 })

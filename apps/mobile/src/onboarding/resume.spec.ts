@@ -1,9 +1,6 @@
-import { RegistrationRole } from '@anstoss/shared'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { renderHook, waitFor } from '@testing-library/react-native'
-import {
-  ONBOARDING_FLOW_STORAGE_KEY,
-} from '../context/OnboardingFlowContext'
+import { ONBOARDING_FLOW_STORAGE_KEY } from './storageKeys'
 import {
   resolveOnboardingResumeTarget,
   shouldDiscardOnboardingResumeState,
@@ -11,43 +8,33 @@ import {
 } from './resume'
 
 describe('resolveOnboardingResumeTarget', () => {
-  it('resumes the final onboarding action screen after a cold start', () => {
+  it('resumes the club setup form for its owner', () => {
     expect(
       resolveOnboardingResumeTarget(
-        {
-          ownerUserId: 'clerk-1',
-          firstName: 'Mara',
-          dateOfBirth: '1997-04-12',
-          role: RegistrationRole.FREE_AGENT,
-          lastStep: '/(auth)/done',
-        },
-        'clerk-1',
+        { ownerUserId: 'user-1', clubName: 'SV Albatros', lastStep: '/(auth)/club-setup' },
+        'user-1',
       ),
-    ).toBe('/(auth)/done')
+    ).toBe('/(auth)/club-setup')
   })
 
-  it('ignores saved state from another Clerk user', () => {
-    const state = {
-      ownerUserId: 'other',
-      firstName: 'Mara',
-      lastStep: '/(auth)/done',
-    }
-
-    expect(resolveOnboardingResumeTarget(state, 'clerk-1')).toBeNull()
-    expect(shouldDiscardOnboardingResumeState(state, 'clerk-1')).toBe(true)
+  it.each([
+    '/(auth)/about',
+    '/(auth)/role',
+    '/(auth)/team-code',
+    '/(auth)/roster-build',
+    '/(auth)/roster-claim',
+    '/(auth)/done',
+    '/(auth)/welcome',
+  ])('never resumes into a removed or non-resumable step (%s) and discards it', (lastStep) => {
+    const state = { ownerUserId: 'user-1', lastStep }
+    expect(resolveOnboardingResumeTarget(state, 'user-1')).toBeNull()
+    expect(shouldDiscardOnboardingResumeState(state, 'user-1')).toBe(true)
   })
 
-  it('falls back by role when the saved path is not resumable', () => {
-    expect(
-      resolveOnboardingResumeTarget(
-        {
-          ownerUserId: 'clerk-1',
-          role: RegistrationRole.CLUB_ADMIN,
-          lastStep: '/(auth)/welcome',
-        },
-        'clerk-1',
-      ),
-    ).toBe('/(auth)/club-create')
+  it('ignores and discards a draft owned by another user', () => {
+    const state = { ownerUserId: 'other', lastStep: '/(auth)/club-setup' }
+    expect(resolveOnboardingResumeTarget(state, 'user-1')).toBeNull()
+    expect(shouldDiscardOnboardingResumeState(state, 'user-1')).toBe(true)
   })
 })
 
@@ -58,23 +45,18 @@ describe('useOnboardingResumeTarget', () => {
     jest.mocked(AsyncStorage.removeItem).mockResolvedValue()
   })
 
-  it('purges an onboarding draft owned by another Clerk user', async () => {
-    jest.mocked(AsyncStorage.getItem).mockResolvedValue(
-      JSON.stringify({
-        ownerUserId: 'other-clerk',
-        firstName: 'Mara',
-        role: RegistrationRole.CLUB_ADMIN,
-        lastStep: '/(auth)/club-create',
-      }),
-    )
-
-    const { result } = renderHook(() =>
-      useOnboardingResumeTarget(true, 'clerk-current'),
-    )
-
+  it('purges a stale draft that points at a deleted screen', async () => {
+    jest
+      .mocked(AsyncStorage.getItem)
+      .mockResolvedValue(JSON.stringify({ ownerUserId: 'user-1', lastStep: '/(auth)/roster-claim' }))
+    const { result } = renderHook(() => useOnboardingResumeTarget(true, 'user-1'))
     await waitFor(() => expect(result.current).toBeNull())
-    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
-      ONBOARDING_FLOW_STORAGE_KEY,
-    )
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(ONBOARDING_FLOW_STORAGE_KEY)
+  })
+
+  it('stays undefined until storage answered, so index never routes early', () => {
+    jest.mocked(AsyncStorage.getItem).mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useOnboardingResumeTarget(true, 'user-1'))
+    expect(result.current).toBeUndefined()
   })
 })

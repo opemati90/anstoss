@@ -31,7 +31,9 @@ const EMPTY: StreaksResponse = {
  * until a club is actually selected. A 403/404 is treated as "no data yet"
  * rather than an error so brand-new members see an empty state, not a crash.
  */
-export function useStreaks(): UseStreaksResult {
+export function useStreaks(options: { enabled?: boolean } = {}): UseStreaksResult {
+  // `enabled: false` skips the request (e.g. the Profile tab for non-players).
+  const enabled = options.enabled ?? true
   const { activeClub } = useAuth()
   const [data, setData] = useState<StreaksResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -39,7 +41,7 @@ export function useStreaks(): UseStreaksResult {
   const [error, setError] = useState<Error | null>(null)
 
   const fetchData = useCallback(async () => {
-    if (!activeClub) {
+    if (!activeClub || !enabled) {
       setData(EMPTY)
       setError(null)
       setLoading(false)
@@ -64,7 +66,7 @@ export function useStreaks(): UseStreaksResult {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeClub])
+  }, [activeClub, enabled])
 
   useFocusEffect(
     useCallback(() => {

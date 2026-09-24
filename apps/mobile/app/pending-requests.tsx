@@ -9,9 +9,11 @@ import {
   RefreshControl,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useAuth } from '../src/context/AuthContext'
-import { api, ApiError } from '../src/api/client'
+import { api } from '../src/api/client'
+import { adminActionErrorKey, shouldReloadAfterError } from '../src/components/admin/adminActions'
+import { formatDate, fromIsoDate } from '../src/features/wechsel/format'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { ErrorState } from '../src/components/ErrorState'
@@ -29,6 +31,8 @@ import {
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { fonts, fontSize, hairline, lineHeight, radius, space } from '../src/theme/tokens'
 
+type WechselReleaseStatus = 'PENDING' | 'GRANTED' | 'REFUSED' | 'NOT_NEEDED'
+
 type JoinRequestItem = {
   id: string
   role: string
@@ -36,7 +40,23 @@ type JoinRequestItem = {
   status: string
   revision: number
   createdAt: string
-  user: { id: string; name: string; email: string }
+  // Wechselbörse review M2: the API sends isMinor instead of email + DOB.
+  user: { id: string; name: string; email?: string; dateOfBirth?: string | null; isMinor?: boolean }
+  // Wechselbörse: Aufnahmeantrag fields, set when the request comes from a trial.
+  trialInviteId?: string | null
+  trialInvite?: { id: string; team: { id: string; displayName: string } | null } | null
+  street?: string | null
+  postalCode?: string | null
+  city?: string | null
+  phone?: string | null
+  nationality?: string | null
+  previousClubName?: string | null
+  lastMatchDate?: string | null
+  sepaConsentAt?: string | null
+  parentalConsentAt?: string | null
+  releaseStatus?: WechselReleaseStatus | null
+  passApplicationAt?: string | null
+  eligibleFrom?: string | null
 }
 
 export default function PendingRequestsScreen() {
@@ -90,9 +110,10 @@ export default function PendingRequestsScreen() {
       })
       setRequests((prev) => prev.filter((r) => r.id !== request.id))
     } catch (err) {
-      const msg =
-        err instanceof ApiError && err.message ? err.message : t('common.error')
-      Alert.alert(t('common.error'), msg)
+      // M3: translated message per status; a 409/404 means someone else
+      // already decided, so reload the list.
+      Alert.alert(t('common.error'), t(adminActionErrorKey(err)))
+      if (shouldReloadAfterError(err)) void fetchRequests()
     } finally {
       setProcessingId(null)
     }
@@ -197,8 +218,17 @@ export default function PendingRequestsScreen() {
                           </View>
                         }
                         title={item.user.name}
-                        subtitle={`${t(`roles.${item.role}`)} · ${dateStr}`}
+                        subtitle={[
+                          t(`roles.${item.role}`),
+                          dateStr,
+                          item.trialInvite?.team?.displayName
+                            ? t('joinReview.fromTrial', { team: item.trialInvite.team.displayName })
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       />
+                      {item.trialInviteId ? <AufnahmeantragDetails item={item} /> : null}
                       {item.message ? (
                         <View style={styles.messageBlock}>
                           <Text
@@ -293,6 +323,128 @@ export default function PendingRequestsScreen() {
   )
 }
 
+/**
+ * Aufnahmeantrag from a trial (Wechselbörse): the facts the admin needs to
+ * decide, plus the Vereinswechsel checklist. Address and phone stay behind a
+ * "Details" disclosure (data minimisation); nationality only when given.
+ */
+function AufnahmeantragDetails({ item }: { item: JoinRequestItem }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const [expanded, setExpanded] = useState(false)
+  const dateOnly = (value?: string | null) => (value ? formatDate(fromIsoDate(value)) : null)
+  const timestamp = (value?: string | null) => (value ? formatDate(value) : null)
+  const consent = (value?: string | null) =>
+    value
+      ? t('joinReview.consentGivenOn', { date: timestamp(value) })
+      : t('joinReview.consentMissing')
+  const isMinor = (() => {
+    if (typeof item.user.isMinor === 'boolean') return item.user.isMinor
+    if (!item.user.dateOfBirth) return false
+    const dob = new Date(item.user.dateOfBirth)
+    const adult = new Date(dob)
+    adult.setFullYear(dob.getFullYear() + 18)
+    return adult.getTime() > Date.now()
+  })()
+  const address = [item.street, [item.postalCode, item.city].filter(Boolean).join(' ')]
+    .filter((part) => part && part.trim().length > 0)
+    .join(', ')
+  const hasContactDetails = Boolean(address || item.phone)
+  const tracksWechsel = Boolean(item.previousClubName || item.releaseStatus)
+
+  return (
+    <View style={styles.details}>
+      <View style={[styles.factList, { borderColor: c.borderSubtle }]}>
+        {item.previousClubName ? (
+          <Fact label={t('aufnahme.previousClub')} value={item.previousClubName} />
+        ) : null}
+        {item.lastMatchDate ? (
+          <Fact label={t('aufnahme.lastMatch')} value={dateOnly(item.lastMatchDate)} tabular />
+        ) : null}
+        {item.nationality ? (
+          <Fact label={t('aufnahme.nationality')} value={item.nationality} />
+        ) : null}
+        <Fact label={t('joinReview.sepa')} value={consent(item.sepaConsentAt)} tabular />
+        {isMinor || item.parentalConsentAt ? (
+          <Fact label={t('joinReview.parental')} value={consent(item.parentalConsentAt)} tabular />
+        ) : null}
+        {hasContactDetails && expanded ? (
+          <>
+            {address ? <Fact label={t('joinReview.address')} value={address} /> : null}
+            {item.phone ? <Fact label={t('joinReview.phone')} value={item.phone} tabular /> : null}
+          </>
+        ) : null}
+        {hasContactDetails ? (
+          <Pressable
+            onPress={() => setExpanded((value) => !value)}
+            style={({ pressed }) => [styles.disclosure, pressed && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={expanded ? t('joinReview.hideDetails') : t('joinReview.details')}
+            hitSlop={8}
+          >
+            <Text variant="footnote" weight="semibold" color="tint">
+              {expanded ? t('joinReview.hideDetails') : t('joinReview.details')}
+            </Text>
+            <Icon name={expanded ? 'chevron.up' : 'chevron.down'} size="sm" color="tint" />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {tracksWechsel ? (
+        <View style={[styles.factList, { borderColor: c.borderSubtle }]}>
+          <Text variant="footnote" weight="semibold" color="secondary">
+            {t('joinReview.wechselHeader')}
+          </Text>
+          <Fact
+            label={t('wechsel.stepRelease')}
+            value={
+              item.releaseStatus ? t(`wechsel.release.${item.releaseStatus}`) : t('joinReview.open')
+            }
+          />
+          <Fact
+            label={t('wechsel.stepPass')}
+            value={dateOnly(item.passApplicationAt) ?? t('joinReview.open')}
+            tabular
+          />
+          <Fact
+            label={t('wechsel.stepEligible')}
+            value={dateOnly(item.eligibleFrom) ?? t('joinReview.open')}
+            tabular
+          />
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/wechselboerse', params: { tab: 'wechsel' } } as never)
+            }
+            style={({ pressed }) => [styles.disclosure, pressed && { opacity: 0.6 }]}
+            accessibilityRole="link"
+            accessibilityLabel={t('joinReview.openWechsel')}
+            hitSlop={8}
+          >
+            <Text variant="footnote" weight="semibold" color="tint">
+              {t('joinReview.openWechsel')}
+            </Text>
+            <Icon name="chevron.right" size="sm" color="tint" />
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function Fact({ label, value, tabular }: { label: string; value: string | null; tabular?: boolean }) {
+  return (
+    <View style={styles.fact}>
+      <Text variant="footnote" color="secondary" style={styles.factLabel}>
+        {label}
+      </Text>
+      <Text variant="footnote" color="primary" tabular={tabular} style={styles.factValue}>
+        {value ?? ''}
+      </Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   content: {
     paddingTop: space.md,
@@ -312,6 +464,32 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: fontSize.md,
     fontFamily: fonts.heading,
+  },
+  details: {
+    paddingHorizontal: space.md,
+    paddingBottom: space.sm,
+    gap: space.sm,
+  },
+  factList: {
+    borderTopWidth: hairline,
+    paddingTop: space.sm,
+    gap: space.xs,
+  },
+  fact: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    columnGap: space.sm,
+    rowGap: space['2xs'],
+  },
+  factLabel: { flexShrink: 1, minWidth: 0 },
+  factValue: { flexShrink: 1, minWidth: 0, textAlign: 'right' },
+  disclosure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    minHeight: 44,
+    alignSelf: 'flex-start',
   },
   messageBlock: {
     paddingHorizontal: space.md,

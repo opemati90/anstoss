@@ -10,7 +10,7 @@ import { Haptics } from '../../utils/haptics'
 import type { ChatMessage } from '../../hooks/useChat'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
-import { RsvpControl, type RsvpStatus } from '../home/RsvpControl'
+import { RsvpControl, type AbsenceDetail, type RsvpStatus } from '../events/RsvpControl'
 
 type EventMeta = {
   eventId?: string
@@ -87,7 +87,7 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
   }, [clubId, eventId])
 
   const onRsvp = useCallback(
-    async (status: RsvpStatus) => {
+    async (status: RsvpStatus, absence?: AbsenceDetail) => {
       if (!eventId || pending) return
       const previous = detail?.myRsvp ?? null
       setPending(true)
@@ -96,7 +96,7 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
         await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
         await api(`/clubs/${clubId}/events/${eventId}/rsvp`, {
           method: 'PUT',
-          body: { status },
+          body: { status, ...(status === 'NO' ? absence : {}) },
         })
         Haptics.success()
       } catch {
@@ -175,7 +175,7 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
         <View style={[styles.reply, { borderTopColor: c.borderSubtle }]}>
           <RsvpControl
             value={detail?.myRsvp ?? null}
-            onChange={(status) => void onRsvp(status)}
+            onChange={(status, absence) => void onRsvp(status, absence)}
             disabled={pending}
             size="compact"
           />

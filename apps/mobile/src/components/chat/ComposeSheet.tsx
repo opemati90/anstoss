@@ -9,7 +9,7 @@ import { FormInput } from '../FormInput'
 import { BottomSheet, Button, Icon, ListRow, Text, type IconName } from '../ui'
 import type { ChatMessage } from '../../hooks/useChat'
 
-export type ComposeAction = 'announcement' | 'poll' | 'event' | 'lineup'
+export type ComposeAction = 'photo' | 'poll' | 'event' | 'lineup'
 
 type UpcomingEvent = {
   id: string
@@ -27,8 +27,8 @@ type Props = {
   channelId: string | null
   locale: string
   onClose: () => void
-  /** Announcement and lineup are handled by the caller (sheet / route). */
-  onAction: (action: 'announcement' | 'lineup') => void
+  /** Photo and lineup are handled by the caller (picker / route). */
+  onAction: (action: 'photo' | 'lineup') => void
   /** A message this sheet created through REST, for the caller to append. */
   onPosted: (message: ChatMessage) => void
 }
@@ -36,11 +36,10 @@ type Props = {
 type Step = 'menu' | 'event' | 'poll'
 
 /**
- * What a manager can put into the channel besides text.
- *
- * Announcement, poll, event card and lineup all existed, but each lived
- * behind a different door (home sheet, lineup builder, nowhere at all for
- * polls). One menu on the composer is where people expect to find them.
+ * What a manager can put into the conversation besides text: a photo, a
+ * poll, an event card people answer inline, or the lineup. Announcements
+ * are not in here any more: in an Ankündigungen channel the plain send is
+ * the announcement.
  */
 export function ComposeSheet({
   visible,
@@ -126,16 +125,10 @@ export function ComposeSheet({
 
   const menu: Array<{ key: ComposeAction; icon: IconName; title: string; subtitle: string }> = [
     {
-      key: 'announcement',
-      icon: 'megaphone',
-      title: t('chat.compose.announcement', { defaultValue: 'Announcement' }),
-      subtitle: t('chat.compose.announcementHint', { defaultValue: 'Pinned for the whole team' }),
-    },
-    {
-      key: 'event',
-      icon: 'calendar',
-      title: t('chat.compose.shareEvent', { defaultValue: 'Share event' }),
-      subtitle: t('chat.compose.shareEventHint', { defaultValue: 'A card people can reply to' }),
+      key: 'photo',
+      icon: 'photo',
+      title: t('chatHub.compose.photo'),
+      subtitle: t('chatHub.compose.photoHint'),
     },
     {
       key: 'poll',
@@ -144,9 +137,15 @@ export function ComposeSheet({
       subtitle: t('chat.compose.pollHint', { defaultValue: 'Ask the team a question' }),
     },
     {
+      key: 'event',
+      icon: 'calendar',
+      title: t('chat.compose.shareEvent', { defaultValue: 'Share event' }),
+      subtitle: t('chat.compose.shareEventHint', { defaultValue: 'A card people can reply to' }),
+    },
+    {
       key: 'lineup',
       icon: 'figure.soccer',
-      title: t('chat.compose.shareLineup', { defaultValue: 'Share lineup' }),
+      title: t('chatHub.compose.lineup'),
       subtitle: t('chat.compose.shareLineupHint', { defaultValue: 'From the lineup builder' }),
     },
   ]

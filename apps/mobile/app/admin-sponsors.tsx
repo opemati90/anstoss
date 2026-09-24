@@ -24,10 +24,11 @@ import {
   ListRow,
   Screen,
   SectionGroup,
-  SettingsIcon,
-  SettingsIconTint,
+  SoftIcon,
   Text,
 } from '../src/components/ui'
+import { ErrorState } from '../src/components/ErrorState'
+import { Skeleton } from '../src/components/Skeleton'
 import { FormInput } from '../src/components/FormInput'
 import { useEntitlements } from '../src/hooks/useEntitlements'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
@@ -56,6 +57,7 @@ export default function AdminSponsorsScreen() {
 
   const [sponsors, setSponsors] = useState<SponsorRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [editing, setEditing] = useState<SponsorRow | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [paywallVisible, setPaywallVisible] = useState(false)
@@ -66,8 +68,10 @@ export default function AdminSponsorsScreen() {
     try {
       const rows = await api<SponsorRow[]>(`/clubs/${clubId}/sponsors`)
       setSponsors(Array.isArray(rows) ? rows : [])
+      setLoadError(false)
     } catch {
       setSponsors([])
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -162,35 +166,37 @@ export default function AdminSponsorsScreen() {
       style={{ backgroundColor: c.surfaceSunken }}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        <SectionGroup style={styles.section}>
-          <ListRow
-            left={<SettingsIcon name="plus.circle.fill" tint={SettingsIconTint.blue} />}
-            title={t('sponsors.add')}
-            showChevron
-            onPress={openAdd}
-          />
-        </SectionGroup>
-
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={c.primary} />
+          <View style={[styles.section, styles.skeleton]} testID="sponsors-loading">
+            <Skeleton shape="card" height={60} />
+            <Skeleton shape="card" height={60} />
+          </View>
+        ) : loadError ? (
+          <View style={styles.section}>
+            <ErrorState message={t('verein.sponsors.loadError')} onRetry={() => void load()} />
           </View>
         ) : sponsors.length === 0 ? (
           <View style={styles.section}>
             <EmptyState
-              icon="photo.fill"
-              title={t('sponsors.title')}
+              icon="star"
+              title={t('verein.sponsors.emptyTitle')}
               description={t('sponsors.empty')}
+              actionLabel={t('sponsors.add')}
+              onAction={openAdd}
             />
           </View>
         ) : (
           <SectionGroup
             header={t('sponsors.activeHeader', { defaultValue: 'Active sponsors' })}
-            footer={t('sponsors.activeFooter', {
-              defaultValue: 'Tap to edit. Long-press to remove.',
-            })}
+            footer={t('verein.sponsors.footer')}
             style={styles.section}
           >
+            <ListRow
+              left={<SoftIcon name="plus" />}
+              title={t('sponsors.add')}
+              showChevron
+              onPress={openAdd}
+            />
             {sponsors.map((sponsor) => (
               <ListRow
                 key={sponsor.id}
@@ -368,7 +374,13 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
 
   return (
     <Screen
-      header={<ModalHeader title={t('sponsors.title')} mode="back" />}
+      header={
+        <ModalHeader
+          title={sponsor ? t('verein.sponsors.editTitle') : t('sponsors.add')}
+          mode="back"
+          onClose={onCancel}
+        />
+      }
       scroll={false}
       padded={false}
     >
@@ -446,7 +458,7 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: space.md,
   },
-  center: { padding: space.xl, alignItems: 'center' },
+  skeleton: { gap: space.sm },
   thumb: {
     width: 44,
     height: 44,

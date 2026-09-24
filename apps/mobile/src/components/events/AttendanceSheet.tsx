@@ -7,6 +7,7 @@ import { Icon, Text } from '../ui'
 import { Avatar } from '../ui/Avatar'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { card, hairline, radius, space } from '../../theme/tokens'
+import { reasonLabel } from './eventFormat'
 
 type CheckInEntry = {
   userId: string
@@ -220,7 +221,7 @@ export function AttendanceSheet({
                       {canManageAttendance && st === 'NO' && entry.reason ? (
                         <View style={[styles.statusBadge, { backgroundColor: `${c.error}1f` }]}>
                           <Text variant="caption1" weight="semibold" color={c.error} numberOfLines={1}>
-                            {t(`event.rsvpReasons.${entry.reason}`, { defaultValue: entry.reason })}
+                            {reasonLabel(entry.reason, t) ?? entry.reason}
                           </Text>
                         </View>
                       ) : null}
@@ -320,7 +321,7 @@ export function AttendanceSheet({
                           ]}
                         >
                           <Text variant="caption1" weight="semibold" color="tertiary" numberOfLines={1}>
-                            {t(`event.rsvpReasons.${entry.reason}`, { defaultValue: entry.reason })}
+                            {reasonLabel(entry.reason, t) ?? entry.reason}
                           </Text>
                         </View>
                       ) : entry.status ? (

@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
 import { useAuth } from '../../src/context/AuthContext'
+import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Button, Icon, Text } from '../../src/components/ui'
 import { FormInput } from '../../src/components/FormInput'
@@ -25,6 +26,8 @@ export default function ClaimPendingScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ claimId?: string }>()
   const { refreshUser } = useAuth()
+  // M7: an expired session goes back to sign-in instead of an endless error.
+  const onExpired = useSessionExpiryHandler()
   const [checking, setChecking] = useState(false)
   const [claim, setClaim] = useState<Claim | null>(null)
   const [response, setResponse] = useState('')
@@ -66,15 +69,13 @@ export default function ClaimPendingScreen() {
         }
         if (notify) Alert.alert(t('claimPending.reviewingTitle'), t('claimPending.reviewingBody'))
       } catch (error) {
-        Alert.alert(
-          t('common.error'),
-          error instanceof Error ? error.message : t('claimPending.checkFailed'),
-        )
+        if (onExpired(error)) return
+        Alert.alert(t('common.error'), t('claimPending.checkFailed'))
       } finally {
         setChecking(false)
       }
     },
-    [claimId, refreshUser, router, t],
+    [claimId, onExpired, refreshUser, router, t],
   )
 
   useEffect(() => {
@@ -93,10 +94,8 @@ export default function ClaimPendingScreen() {
       setClaim({ ...claim, status: 'SUBMITTED' })
       Alert.alert(t('claimPending.responseSentTitle'), t('claimPending.responseSentBody'))
     } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : t('claimPending.responseFailed'),
-      )
+      if (onExpired(error)) return
+      Alert.alert(t('common.error'), t('claimPending.responseFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -110,10 +109,8 @@ export default function ClaimPendingScreen() {
       setClaim({ ...claim, status: 'WITHDRAWN' })
       router.replace('/find-club')
     } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : t('claimPending.withdrawFailed'),
-      )
+      if (onExpired(error)) return
+      Alert.alert(t('common.error'), t('claimPending.withdrawFailed'))
     } finally {
       setWithdrawing(false)
     }

@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text, Icon, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { fonts, fontSize, hairline, radius, space } from '../../theme/tokens'
+import * as Haptics from '../../utils/haptics'
 
-/** WhatsApp-style quick-react bar shown above the action list. */
-export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const
+/** Quick-react bar shown above the action list (reactions are content). */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '⚽', '👏'] as const
 
 type Action = {
   key: string
@@ -21,12 +22,15 @@ export type MessageMenuProps = {
   visible: boolean
   onClose: () => void
   /** Quick-react from the emoji bar. Toggles off if already reacted. */
-  onReactEmoji: (emoji: string) => void
+  /** Omitted where reactions are not supported (direct messages). */
+  onReactEmoji?: (emoji: string) => void
   /** Set of emojis the current user has already reacted with (for the
    * filled/active pill state in the quick-react bar). */
   myReactions?: ReadonlySet<string>
-  onReply: () => void
+  onReply?: () => void
   onCopy: () => void
+  /** Label for the copy action: "Kopieren", or "Teilen" without a clipboard. */
+  copyLabel?: string
   onEdit?: () => void
   onDelete?: () => void
   onPin?: () => void
@@ -48,6 +52,7 @@ export function MessageMenu({
   myReactions,
   onReply,
   onCopy,
+  copyLabel,
   onEdit,
   onDelete,
   onPin,
@@ -59,8 +64,9 @@ export function MessageMenu({
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
 
-  const actions: Action[] = [
-    {
+  const actions: Action[] = []
+  if (onReply) {
+    actions.push({
       key: 'reply',
       label: t('chat.menuReply'),
       icon: 'arrowshape.turn.up.left',
@@ -68,17 +74,19 @@ export function MessageMenu({
         onClose()
         onReply()
       },
-    },
+    })
+  }
+  actions.push(
     {
       key: 'copy',
-      label: t('chat.menuCopy'),
+      label: copyLabel ?? t('chat.menuCopy'),
       icon: 'doc.on.doc',
       onPress: () => {
         onClose()
         onCopy()
       },
     },
-  ]
+  )
   if (onPin) {
     actions.push({
       key: 'pin',
@@ -153,6 +161,7 @@ export function MessageMenu({
         ]}
       >
         {/* WhatsApp-style quick-react emoji bar */}
+        {onReactEmoji ? (
         <View
           style={[
             styles.reactBar,
@@ -167,6 +176,7 @@ export function MessageMenu({
                 accessibilityRole="button"
                 accessibilityLabel={t('chat.reactWith', { emoji })}
                 onPress={() => {
+                  Haptics.select()
                   onClose()
                   onReactEmoji(emoji)
                 }}
@@ -182,6 +192,7 @@ export function MessageMenu({
             )
           })}
         </View>
+        ) : null}
 
         <View
           style={[
@@ -246,10 +257,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: hairline,
     gap: space.xs,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
   },
   reactBtn: {
     width: 44,
@@ -269,6 +276,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
     overflow: 'hidden',
   },

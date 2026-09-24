@@ -1,11 +1,11 @@
-/* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useCallback, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
-import { Text } from '../ui'
+import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { hairline, radius, space } from '../../theme/tokens'
+import { HomeSection } from './HomeKit'
 
 type SeasonStats = {
   played: number
@@ -20,6 +20,11 @@ type SeasonStats = {
 type Props = {
   clubId: string
   teamId: string
+  /**
+   * Coach home: render as a section that starts folded to one summary row
+   * ("10 Spiele · 6 S · 2 U · 2 N") and expands in place.
+   */
+  collapsible?: boolean
 }
 
 /**
@@ -32,11 +37,12 @@ type Props = {
  *
  * Hidden when played === 0 (no results yet).
  */
-export function SeasonStatsCard({ clubId, teamId }: Props) {
+export function SeasonStatsCard({ clubId, teamId, collapsible = false }: Props) {
   const c = useClubColors()
   const { t } = useTranslation()
   const [stats, setStats] = useState<SeasonStats | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -71,18 +77,8 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       ? `+${stats.goalDifference}`
       : String(stats.goalDifference)
 
-  return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
-      ]}
-    >
-      {/* Eyebrow */}
-      <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-        {t('stats.season', { defaultValue: 'This Season' }).toUpperCase()}
-      </Text>
-
+  const details = (
+    <>
       {/* Row 1: Played + Win Rate */}
       <View style={styles.row}>
         <StatCell
@@ -99,9 +95,9 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       {/* Row 2: W / D / L + Goal Diff */}
       <View style={styles.row}>
         <View style={styles.wdlGroup}>
-          <WdlPill label="W" count={stats.wins} color={c.success} />
-          <WdlPill label="D" count={stats.draws} color={c.textTertiary} />
-          <WdlPill label="L" count={stats.losses} color={c.error} />
+          <WdlPill label={t('home.player.form.W', { defaultValue: 'W' })} count={stats.wins} color={c.success} />
+          <WdlPill label={t('home.player.form.D', { defaultValue: 'D' })} count={stats.draws} color={c.textSecondary} />
+          <WdlPill label={t('home.player.form.L', { defaultValue: 'L' })} count={stats.losses} color={c.error} />
         </View>
         <Divider color={c.borderDefault} />
         <StatCell
@@ -113,8 +109,8 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
       {/* Row 3: Recent Form */}
       {(stats.recentForm ?? []).length > 0 ? (
         <View style={styles.formRow}>
-          <Text style={[styles.formLabel, { color: c.textTertiary }]}>
-            {t('stats.recentForm', { defaultValue: 'Recent Form' }).toUpperCase()}
+          <Text variant="caption1" color="secondary">
+            {t('stats.recentForm', { defaultValue: 'Recent Form' })}
           </Text>
           <View style={styles.formDots}>
             {(stats.recentForm ?? []).map((result, i) => (
@@ -129,6 +125,55 @@ export function SeasonStatsCard({ clubId, teamId }: Props) {
           </View>
         </View>
       ) : null}
+    </>
+  )
+
+  if (collapsible) {
+    const summary = t('homeHub.seasonSummary', {
+      defaultValue: '{{played}} played · {{wins}} W · {{draws}} D · {{losses}} L',
+      played: stats.played,
+      wins: stats.wins,
+      draws: stats.draws,
+      losses: stats.losses,
+    })
+    return (
+      <HomeSection title={t('stats.season', { defaultValue: 'This Season' })}>
+        <View
+          style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+        >
+          <PressableScale
+            onPress={() => setExpanded((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={summary}
+            accessibilityState={{ expanded }}
+            haptic="tapLight"
+            style={styles.summaryRow}
+          >
+            <Text variant="callout" weight="semibold" color="primary" tabular style={styles.flex}>
+              {summary}
+            </Text>
+            <Icon name={expanded ? 'chevron.up' : 'chevron.down'} size={14} color="tertiary" />
+          </PressableScale>
+          {expanded ? (
+            <View style={[styles.expanded, { borderTopColor: c.borderSubtle }]}>{details}</View>
+          ) : null}
+        </View>
+      </HomeSection>
+    )
+  }
+
+  return (
+    <View
+      style={[
+        styles.card,
+        styles.cardPadded,
+        { backgroundColor: c.surface, borderColor: c.borderDefault },
+      ]}
+    >
+      <Text variant="caption1" color="secondary">
+        {t('stats.season', { defaultValue: 'This Season' })}
+      </Text>
+      {details}
     </View>
   )
 }
@@ -146,14 +191,16 @@ function StatCell({
   return (
     <View style={styles.statCell}>
       <Text
-        style={[
-          styles.statValue,
-          { color: valueColor ?? c.textPrimary },
-        ]}
+        variant="title2"
+        weight="bold"
+        tabular
+        style={{ color: valueColor ?? c.textPrimary }}
       >
         {value}
       </Text>
-      <Text style={[styles.statLabel, { color: c.textTertiary }]}>{label}</Text>
+      <Text variant="caption1" color="secondary">
+        {label}
+      </Text>
     </View>
   )
 }
@@ -169,8 +216,12 @@ function WdlPill({
 }) {
   return (
     <View style={styles.wdlPill}>
-      <Text style={[styles.wdlValue, { color }]}>{String(count)}</Text>
-      <Text style={[styles.wdlLabel, { color }]}>{label}</Text>
+      <Text variant="title2" weight="bold" tabular style={{ color }}>
+        {String(count)}
+      </Text>
+      <Text variant="caption1" weight="semibold" style={{ color }}>
+        {label}
+      </Text>
     </View>
   )
 }
@@ -203,17 +254,25 @@ function FormDot({
 
 const styles = StyleSheet.create({
   card: {
-    padding: space.md,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     borderWidth: hairline,
-    gap: 12,
+    overflow: 'hidden',
   },
-  eyebrow: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  cardPadded: { padding: space.md, gap: space.sm + 4 },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 52,
+    paddingHorizontal: space.md,
   },
+  expanded: {
+    borderTopWidth: hairline,
+    padding: space.md,
+    gap: space.sm + 4,
+  },
+  flex: { flex: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,23 +280,11 @@ const styles = StyleSheet.create({
   },
   statCell: {
     flex: 1,
-    gap: 2,
-  },
-  statValue: {
-    fontFamily: fonts.data,
-    fontSize: 22,
-    letterSpacing: -0.5,
-    lineHeight: 26,
-  },
-  statLabel: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    letterSpacing: 0.2,
+    gap: space['2xs'],
   },
   divider: {
-    width: 1,
+    width: hairline,
     height: 36,
-    opacity: 0.5,
   },
   wdlGroup: {
     flex: 1,
@@ -247,18 +294,7 @@ const styles = StyleSheet.create({
   },
   wdlPill: {
     alignItems: 'center',
-    gap: 2,
-  },
-  wdlValue: {
-    fontFamily: fonts.data,
-    fontSize: 22,
-    letterSpacing: -0.5,
-    lineHeight: 26,
-  },
-  wdlLabel: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    letterSpacing: 0.2,
+    gap: space['2xs'],
   },
   formRow: {
     flexDirection: 'row',
@@ -266,19 +302,14 @@ const styles = StyleSheet.create({
     gap: space.sm,
     flexWrap: 'wrap',
   },
-  formLabel: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    letterSpacing: 1.1,
-  },
   formDots: {
     flexDirection: 'row',
-    gap: 6,
+    gap: space.xs + space['2xs'],
     alignItems: 'center',
   },
   formDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: radius.full,
   },
 })

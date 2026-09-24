@@ -29,6 +29,9 @@ import {
   suggestLineup,
 } from '../src/lib/lineupFairness'
 import { buildLineupShareText } from '../src/lib/lineupShareText'
+import type { EventDetail, EventFeedItem, EventLineup, EventSquad } from '@anstoss/shared'
+import { eventDisplayTitle } from '../src/components/events/eventFormat'
+import { getAppLanguage, getAppLocale } from '../src/i18n'
 
 const FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2'] as const
 type FormationKey = (typeof FORMATION_OPTIONS)[number]
@@ -51,13 +54,17 @@ export default function LineupBuilderScreen() {
   const matchTokens = useMatchTokens()
   const insets = useSafeAreaInsetsSafe()
   const params = useLocalSearchParams<{
-    fixtureId?: string | string[]
+    eventId?: string | string[]
     teamId?: string | string[]
   }>()
-  const fixtureId = typeof params.fixtureId === 'string' ? params.fixtureId : null
+  const routeEventId = typeof params.eventId === 'string' ? params.eventId : null
   const routeTeamId = typeof params.teamId === 'string' ? params.teamId : null
   const clubId = activeClub?.club.id
-  const teamId = routeTeamId ?? activeTeamId
+  // The lineup belongs to a match event. Older entry points pass only a team;
+  // they get that team's next match.
+  const [event, setEvent] = useState<EventDetail | null>(null)
+  const eventId = event?.id ?? routeEventId
+  const teamId = event?.teamId ?? routeTeamId ?? activeTeamId
 
   const [squad, setSquad] = useState<SquadPlayer[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,20 +91,77 @@ export default function LineupBuilderScreen() {
     }
   }, [hint, hintDismissed, hintScale])
 
+  const [savedLineup, setSavedLineup] = useState<EventLineup | null>(null)
+
   const fetchSquad = useCallback(async () => {
-    if (!clubId || !teamId) {
+    if (!clubId) {
       setLoading(false)
       return
     }
     try {
-      const data = await api<SquadPlayer[]>(`/clubs/${clubId}/teams/${teamId}/squad-stats`)
-      setSquad(data ?? [])
+      // 1. Resolve the match event.
+      let resolvedId = routeEventId
+      if (!resolvedId && (routeTeamId ?? activeTeamId)) {
+        const next = await api<EventFeedItem[]>(
+          `/clubs/${clubId}/events?teamId=${routeTeamId ?? activeTeamId}&type=MATCH&scope=upcoming&limit=1`,
+        ).catch(() => [] as EventFeedItem[])
+        resolvedId = next[0]?.id ?? null
+      }
+      const detail = resolvedId
+        ? await api<EventDetail>(`/clubs/${clubId}/events/${resolvedId}`).catch(() => null)
+        : null
+      setEvent(detail)
+      const squadTeamId = detail?.teamId ?? routeTeamId ?? activeTeamId
+      if (!squadTeamId) {
+        setSquad([])
+        return
+      }
+      // 2. Fairness stats for the whole team, then narrow to the Kader
+      //    (nominated players; before publishing, everyone who said yes).
+      const [stats, kader, lineup] = await Promise.all([
+        api<SquadPlayer[]>(`/clubs/${clubId}/teams/${squadTeamId}/squad-stats`).catch(
+          () => [] as SquadPlayer[],
+        ),
+        detail
+          ? api<EventSquad>(`/clubs/${clubId}/events/${detail.id}/squad`).catch(() => null)
+          : Promise.resolve(null),
+        detail
+          ? api<EventLineup | null>(`/clubs/${clubId}/events/${detail.id}/lineup`).catch(() => null)
+          : Promise.resolve(null),
+      ])
+      const poolIds = kader
+        ? kader.nominatedUserIds.length
+          ? new Set(kader.nominatedUserIds)
+          : new Set(kader.candidates.filter((m) => m.rsvp === 'YES').map((m) => m.userId))
+        : null
+      const statsById = new Map((stats ?? []).map((player) => [player.userId, player]))
+      const pool: SquadPlayer[] =
+        poolIds && poolIds.size > 0
+          ? Array.from(poolIds).map(
+              (userId) =>
+                statsById.get(userId) ?? {
+                  userId,
+                  name:
+                    kader?.candidates.find((m) => m.userId === userId)?.name ??
+                    detail?.members.find((m) => m.userId === userId)?.name ??
+                    '',
+                  jerseyNumber:
+                    kader?.candidates.find((m) => m.userId === userId)?.jerseyNumber ?? null,
+                  position: 'MID',
+                  attendance: 0.5,
+                  minutesShare: 0.5,
+                  unavailable: false,
+                },
+            )
+          : (stats ?? [])
+      setSquad(pool.filter((player) => player.name))
+      setSavedLineup(lineup ?? null)
     } catch {
       setSquad([])
     } finally {
       setLoading(false)
     }
-  }, [clubId, teamId])
+  }, [activeTeamId, clubId, routeEventId, routeTeamId])
 
   useEffect(() => {
     void fetchSquad()
@@ -116,14 +180,32 @@ export default function LineupBuilderScreen() {
     setHintDismissed(false)
   }, [formation, squad])
 
-  // Auto-fill XI on first squad load. Subsequent formation changes are
-  // handled by the user (or via the explicit "Suggest XI" button).
+  // Auto-fill on first load: a saved lineup wins, otherwise the fair
+  // suggestion. Later formation changes are the coach's call.
   useEffect(() => {
-    if (squad.length > 0 && Object.keys(xi).length === 0) {
-      applySuggestion()
+    if (squad.length === 0 || Object.keys(xi).length > 0) return
+    if (savedLineup && (FORMATION_OPTIONS as readonly string[]).includes(savedLineup.formation)) {
+      const key = savedLineup.formation as FormationKey
+      const restored: Record<string, string> = {}
+      for (const player of savedLineup.starters) {
+        if (player.slotId && player.userId && squad.some((p) => p.userId === player.userId)) {
+          restored[player.slotId] = player.userId
+        }
+      }
+      if (Object.keys(restored).length > 0) {
+        setFormation(key)
+        setXi(restored)
+        setBench(
+          savedLineup.bench
+            .map((player) => player.userId)
+            .filter((id): id is string => Boolean(id) && squad.some((p) => p.userId === id)),
+        )
+        return
+      }
     }
+    applySuggestion()
     // intentional partial deps
-  }, [squad.length])
+  }, [squad.length, savedLineup])
 
   // When formation changes, drop slots that don't exist in the new
   // formation but keep the player assignments where slot ids match.
@@ -193,8 +275,16 @@ export default function LineupBuilderScreen() {
   const buildShareText = useCallback(() => {
     return buildLineupShareText(
       {
-        fixtureTitle: null,
-        whenLabel: null,
+        fixtureTitle: event ? eventDisplayTitle(event, t) : null,
+        whenLabel: event
+          ? new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).format(new Date(event.date))
+          : null,
         formation,
         xi,
         bench,
@@ -216,7 +306,7 @@ export default function LineupBuilderScreen() {
         }),
       },
     )
-  }, [formation, xi, bench, squad, t])
+  }, [formation, xi, bench, squad, t, event])
 
   const handleShare = useCallback(async () => {
     try {
@@ -239,20 +329,21 @@ export default function LineupBuilderScreen() {
     }
     setSaving(true)
     try {
-      // Persist the lineup per-fixture so it shows on the match-detail Lineup
-      // tab (the linked public source has no structured amateur lineups → coach-built is the
-      // source). Starters are emitted in formation-slot order so the server can
-      // place them on the pitch.
-      if (fixtureId) {
+      // Persist the lineup on the match event (manual matches included); the
+      // API mirrors it onto the imported fixture when the event has one, so
+      // the match-detail Lineup tab keeps showing it.
+      if (eventId) {
         const starters = slots.flatMap((slot) => {
           const userId = xi[slot.id]
           const player = userId ? playersById.get(userId) : undefined
           return player
             ? [
                 {
+                  userId: player.userId,
                   number: player.jerseyNumber,
                   name: player.name,
                   position: slot.position,
+                  slotId: slot.id,
                 },
               ]
             : []
@@ -262,6 +353,7 @@ export default function LineupBuilderScreen() {
           return player
             ? [
                 {
+                  userId: player.userId,
                   number: player.jerseyNumber,
                   name: player.name,
                   position: player.position,
@@ -269,7 +361,7 @@ export default function LineupBuilderScreen() {
               ]
             : []
         })
-        await api(`/fixtures/${fixtureId}/lineup`, {
+        await api(`/clubs/${clubId}/events/${eventId}/lineup`, {
           method: 'PUT',
           body: { formation, starters, bench: benchPayload },
         })
@@ -290,7 +382,7 @@ export default function LineupBuilderScreen() {
         formation,
         xi: JSON.stringify({ xi, bench }),
       }
-      if (fixtureId) messageBody.fixtureId = fixtureId
+      if (event?.fixtureId) messageBody.fixtureId = event.fixtureId
       await api(`/teams/${teamId}/messages/lineup`, {
         method: 'POST',
         body: messageBody,
@@ -364,7 +456,16 @@ export default function LineupBuilderScreen() {
           {t('lineup.eyebrow', { defaultValue: 'LINEUP · COACH' })}
         </Text>
         <Text variant="title1" color="primary" weight="semibold" style={styles.title}>
-          {t('lineup.headline', { defaultValue: "Saturday's starting XI" })}
+          {event
+            ? t('eventFlow.lineup.headline', {
+                title: eventDisplayTitle(event, t),
+                date: new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                }).format(new Date(event.date)),
+              })
+            : t('eventFlow.lineup.headlineFallback')}
         </Text>
         <Text variant="footnote" color="secondary" style={styles.subtitle}>
           {t('lineup.body', {
@@ -1117,7 +1218,7 @@ const styles = StyleSheet.create({
   tokenName: {
     position: 'absolute',
     top: TOKEN_SIZE,
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -1205,7 +1306,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   posBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.label,
     fontWeight: '700',
     letterSpacing: 0.5,

@@ -16,6 +16,7 @@ export type ChatReactionAggregate = {
 export type ChatMessage = {
   id: string
   teamId: string
+  channelId?: string | null
   clientMessageId?: string | null
   senderId: string | null
   senderName: string | null
@@ -125,6 +126,9 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [messagesOwnerKey, setMessagesOwnerKey] = useState(cacheKey)
+  // True once the first history response (or error) for this scope landed,
+  // so screens can tell "still loading" from "genuinely empty".
+  const [historyLoaded, setHistoryLoaded] = useState(() => chatMessagesCache.has(cacheKey))
 
   const socketRef = useRef<Socket | null>(null)
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -176,6 +180,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     const cached = chatMessagesCache.get(cacheKey)
     setMessages(cached ?? [])
     setMessagesOwnerKey(cacheKey)
+    setHistoryLoaded(Boolean(cached))
   }, [cacheKey])
 
   useEffect(() => {
@@ -186,13 +191,22 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const loadHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
+    // L3: the legacy channel-less team stream is gone server-side; every
+    // history/send/typing call names its channel.
+    if (!channelId) {
+      setHistoryLoaded(true)
+      setLastError('channel_required')
+      return
+    }
 
     socket.emit(
       'history',
-      { teamId, channelId: channelId ?? null },
+      { teamId, channelId },
       (response: ChatHistoryResponse) => {
+        setHistoryLoaded(true)
         if (response?.event === 'error') {
           if (__DEV__) console.warn('Chat history error:', response.data?.message)
+          setLastError('history_error')
           return
         }
         if (response?.data?.messages) {
@@ -217,6 +231,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setMessages(buildE2EChatMessages(teamId, channelId ?? null, userId ?? null))
       setHasMore(false)
       setLoadingHistory(false)
+      setHistoryLoaded(true)
       return
     }
 
@@ -234,6 +249,9 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setConnectionState('connected')
       setLastError(null)
       socket.emit('join', { teamId })
+      // Channel-scoped room: authorised by the channel itself, so groups
+      // spanning teams and club-level channels receive live messages too.
+      if (channelId) socket.emit('channel:join', { channelId })
       loadHistory()
     })
 
@@ -266,6 +284,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
     // Incoming message
     socket.on('message', (msg: ChatMessage) => {
+      // One socket per thread; ignore rows of another channel it still hears.
+      if (msg.channelId && channelId && msg.channelId !== channelId) return
       // Dedupe by id: the gateway echoes the sender's own message back to the
       // whole room (no sender exclusion), and reconnect can replay; without
       // this guard the same message could render twice.
@@ -324,9 +344,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       },
     )
 
-    // Typing indicator
-    socket.on('typing', (data: { userId: string; userName: string }) => {
+    // Typing indicator (L4: the server scopes it to the channel room; the
+    // channelId check also drops strays from other channels on this socket).
+    socket.on('typing', (data: { userId: string; userName: string; channelId?: string | null }) => {
       if (data.userId === userId) return
+      if (data.channelId && data.channelId !== channelId) return
 
       setTypingUsers((prev) => (prev.includes(data.userName) ? prev : [...prev, data.userName]))
 
@@ -356,13 +378,23 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     // changes through the existing connected socket.
   }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered])
 
+  // M5: pins are per channel. Without a channel there is nothing to show
+  // (never fall back to a team-wide pin from another channel).
   useEffect(() => {
-    if (!token || !clubId || !teamId) return
+    if (!token || !clubId || !teamId || !channelId) {
+      setPinnedMessage(null)
+      return
+    }
+    if (getE2ESession()) {
+      setPinnedMessage(null)
+      return
+    }
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 12000)
 
-    fetch(`${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/pinned`, {
+    const pinnedQuery = `?channelId=${encodeURIComponent(channelId)}`
+    fetch(`${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/pinned${pinnedQuery}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
     })
@@ -371,18 +403,25 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         if (!response.ok) return null
         return response.json()
       })
-      .then((message) => {
-        setPinnedMessage(message ?? null)
+      .then((message: PinnedMessage | null) => {
+        // Defence in depth: only a pin of THIS channel is shown.
+        setPinnedMessage(message && message.channelId === channelId ? message : null)
       })
       .catch(() => {
         clearTimeout(timeoutId)
         setPinnedMessage(null)
       })
-  }, [apiUrl, clubId, teamId, token])
+  }, [apiUrl, clubId, teamId, token, channelId])
 
   // Send message
   const sendMessage = useCallback(
-    (content: string, clubId: string, replyToId?: string | null): Promise<boolean> => {
+    (
+      content: string,
+      clubId: string,
+      replyToId?: string | null,
+      options?: { isAnnouncement?: boolean },
+    ): Promise<boolean> => {
+      const isAnnouncement = options?.isAnnouncement === true
       const socket = socketRef.current
       const trimmed = content.trim()
 
@@ -412,7 +451,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             reactions: [],
             readByMe: true,
             readCount: 1,
-            isAnnouncement: false,
+            isAnnouncement,
             isPinned: false,
             editedAt: null,
             deletedAt: null,
@@ -424,6 +463,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
       if (!socket?.connected) {
         setLastError('offline')
+        return Promise.resolve(false)
+      }
+      if (!channelId) {
+        setLastError('channel_required')
         return Promise.resolve(false)
       }
 
@@ -458,7 +501,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             reactions: [],
             readByMe: true,
             readCount: 0,
-            isAnnouncement: false,
+            isAnnouncement,
             isPinned: false,
             editedAt: null,
             deletedAt: null,
@@ -472,7 +515,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             clubId,
             content: trimmed,
             clientMessageId,
-            channelId: channelId ?? null,
+            channelId,
+            ...(isAnnouncement ? { isAnnouncement: true } : {}),
             ...(replyToId ? { replyToId } : {}),
           },
           (...args: unknown[]) => {
@@ -483,7 +527,12 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             }
 
             if (response?.event === 'error') {
-              resolve(completePendingOutgoing(pendingKey, false, response))
+              const ok = completePendingOutgoing(pendingKey, false, response)
+              const reason = response.data?.message ?? ''
+              if (/channel required/i.test(reason)) setLastError('channel_required')
+              else if (/forbidden/i.test(reason)) setLastError('forbidden')
+              else if (/too fast/i.test(reason)) setLastError('too_fast')
+              resolve(ok)
               return
             }
 
@@ -497,13 +546,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
   // Send typing indicator
   const sendTyping = useCallback(() => {
-    socketRef.current?.emit('typing', { teamId })
-  }, [teamId])
+    if (!channelId) return
+    socketRef.current?.emit('typing', { teamId, channelId })
+  }, [teamId, channelId])
 
   // Load more history
   const loadMore = useCallback(() => {
     const socket = socketRef.current
-    if (!socket?.connected || !hasMore || loadingHistory) return
+    if (!socket?.connected || !hasMore || loadingHistory || !channelId) return
 
     setLoadingHistory(true)
     const oldest = messages[0]
@@ -511,7 +561,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
     socket.emit(
       'history',
-      { teamId, channelId: channelId ?? null, cursor },
+      { teamId, channelId, cursor },
       (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
         if (response?.data) {
           setMessages((prev) => [...response.data.messages, ...prev])
@@ -545,8 +595,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         socket.emit(
           'search',
           { teamId, query: query.trim() },
-          (response: { data?: ChatMessage[] }) => {
-            resolve(response?.data || [])
+          (response: { data?: ChatMessage[] | { messages?: ChatMessage[] } }) => {
+            // The gateway answers { event, data: { messages } }; older builds
+            // returned the array directly. Accept both.
+            const data = response?.data
+            resolve(Array.isArray(data) ? data : (data?.messages ?? []))
           },
         )
       })
@@ -637,7 +690,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       content?: string
       replyToId?: string
     }): Promise<boolean> => {
-      if (!token) return false
+      if (!token || !channelId) return false
       try {
         const res = await fetch(`${apiUrl}/teams/${teamId}/messages/media`, {
           method: 'POST',
@@ -648,14 +701,12 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
           // Include the active channelId so media lands in the selected
           // channel (and broadcasts to its channel room). Without it the
           // post is saved null-channel and leaks to the whole team.
-          body: JSON.stringify({ ...input, channelId: channelId ?? null }),
+          body: JSON.stringify({ ...input, channelId }),
         })
         if (!res.ok) return false
         const created = (await res.json()) as ChatMessage
-        // Append locally; Socket gateway has no broadcast hook for REST-posted
-        // messages yet (see follow-up commit), so other clients refresh on
-        // next history fetch.
-        setMessages((prev) => [...prev, created])
+        // The gateway also broadcasts it as chat:event 'media'; dedupe by id.
+        setMessages((prev) => (prev.some((m) => m.id === created.id) ? prev : [...prev, created]))
         return true
       } catch {
         return false
@@ -748,20 +799,24 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       )
       if (!response.ok) throw new Error(`Could not ${action} message`)
       const updated = (await response.json()) as ChatMessage
-      setPinnedMessage(message.isPinned ? null : ({ ...updated, isPinned: true } as PinnedMessage))
+      setPinnedMessage(
+        message.isPinned
+          ? null
+          : ({ ...updated, isPinned: true, channelId: channelId ?? null } as unknown as PinnedMessage),
+      )
       setMessages((current) =>
         current.map((item) => ({ ...item, isPinned: item.id === (message.isPinned ? null : message.id) })),
       )
     },
-    [apiUrl, clubId, teamId, token],
+    [apiUrl, clubId, teamId, token, channelId],
   )
 
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
-    if (!socket?.connected) return
+    if (!socket?.connected || !channelId) return
     socket.emit(
       'history',
-      { teamId, channelId: channelId ?? null },
+      { teamId, channelId },
       (response: {
         event?: string
         data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
@@ -773,13 +828,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         }
       },
     )
-  }, [teamId, channelId])
+  }, [cacheKey, teamId, channelId])
 
   return {
     messages,
     pinnedMessage,
     connectionState,
     lastError,
+    historyLoaded,
     typingUsers,
     hasMore,
     loadingHistory,

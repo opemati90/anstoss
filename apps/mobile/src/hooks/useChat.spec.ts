@@ -28,6 +28,7 @@ jest.mock('socket.io-client', () => ({
 const makeMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   id: overrides.id ?? 'msg-1',
   teamId: overrides.teamId ?? 'team-1',
+  channelId: overrides.channelId ?? null,
   clientMessageId: overrides.clientMessageId ?? null,
   senderId: overrides.senderId ?? 'user-2',
   senderName: overrides.senderName ?? 'Mina',
@@ -97,7 +98,7 @@ describe('useChat', () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(makeMessage({ id: 'pinned', isPinned: true })),
+        json: () => Promise.resolve(makeMessage({ id: 'pinned', isPinned: true, channelId: 'ch-1' })),
       }),
     ) as jest.Mock
   })
@@ -113,6 +114,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -141,11 +143,12 @@ describe('useChat', () => {
     expect(socket.emitted).toEqual(
       expect.arrayContaining([
         { event: 'join', payload: { teamId: 'team-1' } },
-        { event: 'history', payload: { teamId: 'team-1', channelId: null } },
+        { event: 'history', payload: { teamId: 'team-1', channelId: 'ch-1' } },
       ]),
     )
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://api.test/clubs/club-1/teams/team-1/messages/pinned',
+      // M5: the pin is asked for one channel.
+      'http://api.test/clubs/club-1/teams/team-1/messages/pinned?channelId=ch-1',
       expect.objectContaining({
         headers: { Authorization: 'Bearer token-1' },
       }),
@@ -164,6 +167,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -197,6 +201,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -236,6 +241,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -276,6 +282,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -311,7 +318,7 @@ describe('useChat', () => {
             teamId: 'team-1',
             clubId: 'club-1',
             content: 'Hi team',
-            channelId: null,
+            channelId: 'ch-1',
             clientMessageId: expect.any(String),
           }),
         },
@@ -344,6 +351,7 @@ describe('useChat', () => {
       useChat({
         clubId: 'club-1',
         teamId: 'team-1',
+        channelId: 'ch-1',
         token: 'token-1',
         userId: 'user-1',
         apiUrl: 'http://api.test',
@@ -382,5 +390,28 @@ describe('useChat', () => {
     expect(result.current.lastError).toBe('send_error')
     expect(result.current.messages.some((message) => message.content === 'hello')).toBe(false)
     warnSpy.mockRestore()
+  })
+
+  it('L3: never sends or loads the legacy channel-less stream', async () => {
+    const { result } = renderHook(() =>
+      useChat({
+        clubId: 'club-1',
+        teamId: 'team-1',
+        token: 'token-1',
+        userId: 'user-1',
+        apiUrl: 'http://api.test',
+      }),
+    )
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+    })
+    let sent = true
+    await act(async () => {
+      sent = await result.current.sendMessage('hello', 'club-1')
+    })
+    expect(sent).toBe(false)
+    expect(socket.emitted.some((e: { event: string }) => e.event === 'message')).toBe(false)
+    expect(socket.emitted.some((e: { event: string }) => e.event === 'history')).toBe(false)
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Stack, router } from 'expo-router'
 import { Linking, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
@@ -10,7 +10,10 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans'
 import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono'
-import { AuthProvider } from '../src/context/AuthContext'
+import { AuthProvider, useAuth } from '../src/context/AuthContext'
+// Chat revamp: gestures (swipe-to-reply, swipe actions) + native keyboard tracking.
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { ClubThemeProvider } from '../src/context/ClubThemeContext'
 import {
   PushNotificationProvider,
@@ -23,6 +26,7 @@ import { getRuntimeConfigIssues, type RuntimeConfigIssue } from '../src/config/r
 import { useUpdateCheck } from '../src/hooks/useUpdateCheck'
 import { initSentry } from '../src/utils/sentry'
 import { initializeI18n } from '../src/i18n'
+import { restoreAppearancePreference } from '../src/lib/appearance' // club-admin revamp: Darstellung
 import { fonts, fontSize, lineHeight, radius, space } from '../src/theme/tokens'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
@@ -40,6 +44,9 @@ export default function RootLayout() {
   })
   const [i18nReady, setI18nReady] = useState(false)
   const [startupTimedOut, setStartupTimedOut] = useState(false)
+  // club-admin review fixes (L1): the saved light/dark choice is applied
+  // before the splash hides, so the first frame is never the wrong theme.
+  const [appearanceReady, setAppearanceReady] = useState(false)
   const {
     forceUpdate,
     forceUpdateMessage,
@@ -53,27 +60,39 @@ export default function RootLayout() {
   const isDark = useColorScheme() === 'dark'
   const palette = isDark ? darkTheme : lightTheme
   const startupReady =
-    (fontsLoaded || !!fontError || startupTimedOut) && (i18nReady || startupTimedOut)
+    (fontsLoaded || !!fontError || startupTimedOut) &&
+    (i18nReady || startupTimedOut) &&
+    (appearanceReady || startupTimedOut)
 
   useEffect(() => {
+    // club-admin revamp: saved light/dark choice (L1: gates the splash)
+    restoreAppearancePreference()
+      .catch(() => undefined)
+      .finally(() => setAppearanceReady(true))
     initializeI18n()
       .then(() => setI18nReady(true))
       .catch(() => setI18nReady(true))
   }, [])
 
   useEffect(() => {
-    const firstPaintTimeout = setTimeout(() => {
-      void SplashScreen.hideAsync().catch(() => {})
-    }, 750)
     const startupTimeout = setTimeout(() => {
       setStartupTimedOut(true)
       void SplashScreen.hideAsync().catch(() => {})
     }, 3500)
     return () => {
-      clearTimeout(firstPaintTimeout)
       clearTimeout(startupTimeout)
     }
   }, [])
+
+  // L1: the early "first paint" hide waits for the appearance restore, so the
+  // loading screen underneath already has the right palette.
+  useEffect(() => {
+    if (!appearanceReady) return
+    const firstPaintTimeout = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => {})
+    }, 750)
+    return () => clearTimeout(firstPaintTimeout)
+  }, [appearanceReady])
 
   useEffect(() => {
     if (startupReady) {
@@ -96,6 +115,8 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={styles.root}>
+    <KeyboardProvider>
     <AuthProvider>
       <ClubThemeProvider>
         <ReleaseNotices
@@ -120,7 +141,8 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
               <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
               {/* Full-screen setup/onboarding flows */}
-              <Stack.Screen name="club-setup" options={{ presentation: 'fullScreenModal' }} />
+              {/* onboarding revamp: club-setup, find-club and account-next-step are
+                  redirects into the (auth) onboarding group now. */}
               <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="join/[...code]" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
@@ -136,72 +158,74 @@ export default function RootLayout() {
                       frame changes -> KAV recalculates -> ...), which FROZE the JS
                       thread and OOM-crashed the app on any text-field focus. A
                       standard large form sheet (like edit-profile) avoids it. */}
+              {/* Events revamp: create/edit is a self-contained task, so a page
+                  modal with Cancel + one sticky CTA (no KAV, no detents). */}
               <Stack.Screen
                 name="create-event"
-                options={{
-                  presentation: 'formSheet',
-                  gestureEnabled: true,
-                  sheetGrabberVisible: true,
-                }}
+                options={{ presentation: 'modal', gestureEnabled: true }}
               />
               <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
               <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
               <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
               <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
               <Stack.Screen name="legal" options={{ presentation: 'card' }} />
-              <Stack.Screen name="dm-new" options={{ presentation: 'formSheet' }} />
+              {/* privacy: guardian consent overview + withdrawal (parents, from Profil) */}
+              <Stack.Screen name="child-consent" options={{ presentation: 'card' }} />
+              {/* ── chat revamp: inbox → conversation → info; new chat is a modal.
+                   dm-new / dm-chat are redirect-only routes for old deep links. ── */}
+              <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="chat/[id]/info" options={{ presentation: 'card' }} />
+              <Stack.Screen name="chat/new" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="dm-new" options={{ animation: 'none' }} />
               {/* Detail views — card presentation for stacked feel */}
               <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
-              <Stack.Screen name="event-attendance" options={{ presentation: 'card' }} />
               <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
               <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
+              {/* Kader revamp (team agent): team tools reached from the Kader tab. */}
+              <Stack.Screen name="aufgaben" options={{ presentation: 'card' }} />
+              <Stack.Screen name="team-spiele" options={{ presentation: 'card' }} />
+              <Stack.Screen name="team-stats" options={{ presentation: 'card' }} />
               <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="dm-list" options={{ presentation: 'card' }} />
-              <Stack.Screen name="dm-chat" options={{ presentation: 'card' }} />
+              <Stack.Screen name="dm-chat" options={{ animation: 'none' }} />
               <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
-              <Stack.Screen name="duty-roster" options={{ presentation: 'card' }} />
-              <Stack.Screen name="lineup-builder" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="lineup-builder" options={{ presentation: 'card' }} />
               <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
               <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
               <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
-              <Stack.Screen name="compliance" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="ehrenamt" options={{ presentation: 'card' }} />
-              <Stack.Screen name="trikotwart" options={{ presentation: 'card' }} />
-              <Stack.Screen name="pitch-status" options={{ presentation: 'card' }} />
-              <Stack.Screen name="vereinsheim" options={{ presentation: 'card' }} />
-              <Stack.Screen name="scouting" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="exchange" options={{ presentation: 'card' }} />
-              <Stack.Screen name="streaks" options={{ presentation: 'card' }} />
-              <Stack.Screen name="voice-memos" options={{ presentation: 'card' }} />
-              <Stack.Screen name="sportgericht" options={{ presentation: 'fullScreenModal' }} />
-              {/* Admin/management modals */}
-              <Stack.Screen name="admin-dashboard" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="admin-members" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="admin-billing" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="admin-chat-retention" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="compliance" options={{ presentation: 'card' }} />
+              {/* club-admin revamp: admin workspace screens are ordinary pushes
+                  from the Verein tab (back button, no stacked fullScreenModals).
+                  /admin-dashboard is now a redirect to the Verein tab. */}
+              <Stack.Screen name="admin-dashboard" options={{ animation: 'none' }} />
+              <Stack.Screen name="admin-members" options={{ presentation: 'card' }} />
+              <Stack.Screen name="admin-billing" options={{ presentation: 'card' }} />
+              <Stack.Screen name="admin-club-profile" options={{ presentation: 'card' }} />
+              <Stack.Screen name="admin-reports" options={{ presentation: 'card' }} />
+              <Stack.Screen name="admin-sponsors" options={{ presentation: 'card' }} />
+              <Stack.Screen name="admin-contribution-bank" options={{ presentation: 'card' }} />
               <Stack.Screen
                 name="admin-contribution-plan"
-                options={{ presentation: 'fullScreenModal' }}
+                options={{ presentation: 'card' }}
               />
               <Stack.Screen
                 name="admin-contribution-reconciliation"
-                options={{ presentation: 'fullScreenModal' }}
+                options={{ presentation: 'card' }}
               />
-              <Stack.Screen name="club-staff" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="club-stats" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="team-management" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="team-matches" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="team-families" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="club-staff" options={{ presentation: 'card' }} />
+              <Stack.Screen name="me" options={{ animation: 'none' }} />
+              <Stack.Screen name="admin-chat-retention" options={{ animation: 'none' }} />
+              <Stack.Screen name="club-stats" options={{ presentation: 'card' }} /> {/* club-admin revamp: pushed from Verein */}
+              <Stack.Screen name="team-management" options={{ presentation: 'card' }} />
+              <Stack.Screen name="team-families" options={{ presentation: 'card' }} /> {/* club-admin revamp: pushed from Verein */}
               <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="official-team-page" options={{ presentation: 'card' }} />
               <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="parent-schedule" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="pending-requests" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen
-                name="ownership-transfers"
-                options={{ presentation: 'fullScreenModal' }}
-              />
-              <Stack.Screen name="transfer-list" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="pending-requests" options={{ presentation: 'card' }} />
+              <Stack.Screen name="ownership-transfers" options={{ presentation: 'card' }} />
+              {/* Wechselbörse: club recruiting desk, trial detail, Aufnahmeantrag */}
+              <Stack.Screen name="wechselboerse/index" options={{ presentation: 'card' }} />
+              <Stack.Screen name="trial/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="aufnahmeantrag/[trialId]" options={{ presentation: 'modal' }} />
               <Stack.Screen
                 name="free-agent/profile"
                 options={{ presentation: 'fullScreenModal' }}
@@ -211,6 +235,8 @@ export default function RootLayout() {
         </PushNotificationProvider>
       </ClubThemeProvider>
     </AuthProvider>
+    </KeyboardProvider>
+    </GestureHandlerRootView>
   )
 }
 
@@ -241,6 +267,13 @@ export function URLDeepLinkHandler() {
 
 export function PushDeepLinkHandler() {
   const { lastNotification } = usePushContext()
+  // Chat revamp (M3): chat pushes carry clubId. A tap on a push from another
+  // club must switch the active club before opening the conversation, or the
+  // screen loads under the wrong tenant. Refs keep the effect keyed on the
+  // notification alone.
+  const auth = useAuth()
+  const authRef = useRef(auth)
+  authRef.current = auth
 
   useEffect(() => {
     if (!lastNotification) return
@@ -259,21 +292,36 @@ export function PushDeepLinkHandler() {
           messageId?: string
           fixtureId?: string
           trialInviteId?: string
+          clubId?: string
         }
       | undefined
 
     if (!data) return
+    const ensureClub = () => {
+      const { memberships, activeClub, setActiveClub } = authRef.current ?? {}
+      if (!data.clubId || !memberships || !setActiveClub) return
+      if (activeClub?.club?.id === data.clubId) return
+      const target = memberships.find((m) => m.club?.id === data.clubId)
+      if (target) setActiveClub(target)
+    }
     const action = data.type ?? data.kind
     if (!action) {
-      // Some pushes (trial invites) carry only an entity id, no type/kind.
-      if (data.trialInviteId) router.push('/(tabs)/invites' as never)
+      // Trial pushes carry only an entity id; the trial detail serves the
+      // player and the club staff alike.
+      if (data.trialInviteId) {
+        router.push({ pathname: '/trial/[id]', params: { id: data.trialInviteId } })
+      }
       return
     }
 
     switch (action) {
       case 'dm':
         if (data.conversationId) {
-          router.push({ pathname: '/dm-chat', params: { conversationId: data.conversationId } })
+          ensureClub()
+          router.push({
+            pathname: '/chat/[id]',
+            params: { id: data.conversationId, kind: 'dm' },
+          } as never)
         }
         break
       case 'event':
@@ -306,9 +354,18 @@ export function PushDeepLinkHandler() {
           })
         }
         break
+      // club-admin revamp: a new chat report lands admins on the Meldungen queue.
+      case 'moderation_report':
+        router.push('/admin-reports' as never)
+        break
       case 'TRIAL_INVITE':
       case 'TRIAL_RESPONSE':
         router.push('/(tabs)/invites' as never)
+        break
+      // Kader fix M2 (team agent): "you're up for Trikotwäsche" opens Aufgaben.
+      case 'TEAM_DUTY_ASSIGNED':
+        ensureClub()
+        router.push('/aufgaben')
         break
       case 'CONTRIBUTION_PAID':
       case 'contribution':
@@ -320,14 +377,24 @@ export function PushDeepLinkHandler() {
       case 'MEDIA_MESSAGE':
       case 'MESSAGE_REPLY':
       case 'MENTION':
+      case 'CHAT_MESSAGE':
       case 'announcement':
       case 'LINEUP_POSTED':
-        // Land on the team chat. Channel rail will pick up the right
-        // channel once it sees the channelId hint.
-        router.push({
-          pathname: '/(tabs)/chat' as never,
-          params: data.channelId ? { channelId: data.channelId } : undefined,
-        })
+        // Open the conversation itself when the push names its channel;
+        // otherwise land on the inbox, which lists it on top.
+        ensureClub()
+        if (data.channelId) {
+          router.push({
+            pathname: '/chat/[id]',
+            params: {
+              id: data.channelId,
+              kind: 'channel',
+              ...(data.teamId ? { teamId: data.teamId } : {}),
+            },
+          } as never)
+        } else {
+          router.push('/(tabs)/chat' as never)
+        }
         break
       default:
         // Unknown payload — drop the deep-link, the tap still
@@ -385,6 +452,7 @@ function StartupLoadingScreen({ palette }: { palette: typeof lightTheme | typeof
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   container: {
     flex: 1,
     alignItems: 'center',

@@ -285,7 +285,10 @@ describe('AdminBillingScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('THIS PERIOD')).toBeTruthy()
       expect(screen.getByText('Track contributions')).toBeTruthy()
-      expect(screen.getByText('Club payment setup')).toBeTruthy()
+      // Plan section uses a real header, and tracking uses native switches.
+      expect(screen.getByText('verein.settings.plan')).toBeTruthy()
+      expect(screen.getByLabelText('Track contributions')).toBeTruthy()
+      expect(screen.queryByText(/store build/i)).toBeNull()
       expect(screen.getByText('Launch access included')).toBeTruthy()
       expect(screen.getByText('Annual youth fee')).toBeTruthy()
       expect(screen.getByText('Max Mustermann')).toBeTruthy()

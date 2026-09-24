@@ -20,7 +20,22 @@ jest.mock('react-i18next', () => {
   return { useTranslation: () => ({ t, i18n: { language: 'en' } }) }
 })
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+  // The real useFocusEffect runs its callback on mount (and on refocus).
+  useFocusEffect: (cb: () => void) => require('react').useEffect(cb, [cb]),
+}))
+
+// home revamp: CoachHome reads the auth token (events socket) and roles.
+jest.mock('../../../context/AuthContext', () => ({
+  useAuth: () => ({
+    token: null,
+    activeClub: { role: 'COACH', club: { id: 'c1' } },
+    activeTeamAccess: { role: 'HEAD_COACH' },
+  }),
+}))
+jest.mock('../../../i18n', () => ({ getAppLanguage: () => 'en', getAppLocale: () => 'en-GB' }))
+jest.mock('../../../hooks/useEventsSocket', () => ({ useEventsSocket: jest.fn() }))
 
 jest.mock('../../../context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../../theme/club-theme')
@@ -62,13 +77,10 @@ describe('CoachHome — cold-start empty-state nudge', () => {
 
   it('shows empty-state nudge when no upcoming events exist', async () => {
     const { findByText } = render(wrap(<CoachHome clubId="club-1" teamId="team-1" />))
-    expect(
-      await findByText(/No upcoming events yet/),
-    ).toBeTruthy()
-    // The nudge text includes the full CTA hint
-    expect(
-      await findByText(/schedule your first training or match/),
-    ).toBeTruthy()
+    // Composed empty state: what is missing, what happens next, one action.
+    expect(await findByText('Nothing planned yet')).toBeTruthy()
+    expect(await findByText(/Add a training or a match/)).toBeTruthy()
+    expect(await findByText('Create event')).toBeTruthy()
   })
 
   it('hides empty-state nudge when upcoming events exist', async () => {
@@ -106,6 +118,8 @@ describe('CoachHome — cold-start empty-state nudge', () => {
     // Match should be visible (may appear in text + accessibilityLabel)
     expect(await findAllByText('vs FC Nord')).toBeTruthy()
     // Nudge should not be shown
-    expect(queryByText(/No upcoming events yet/)).toBeNull()
+    expect(queryByText('Nothing planned yet')).toBeNull()
+    // The season folds to a one-line summary on coach home.
+    expect(await findAllByText('5 played · 3 W · 1 D · 1 L')).toBeTruthy()
   })
 })

@@ -960,7 +960,7 @@ export default function InviteScreen() {
               <Text variant="footnote" color="secondary" style={styles.summaryBodySpaced}>
                 {recipientEmails.length > 0
                   ? t('invite.summaryRecipients', {
-                      defaultValue: '{{count}} recipient(s)',
+                      defaultValue: 'Recipients: {{count}}',
                       count: recipientEmails.length,
                     })
                   : t('invite.summaryNoRecipients', {

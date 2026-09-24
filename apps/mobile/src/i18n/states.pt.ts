@@ -11,12 +11,12 @@ export const statesPt: StatesCopy = {
       title: 'Não foi possível carregar a tua semana',
       body: 'Verifica a ligação e puxa para baixo para tentar de novo.',
     },
-    stale: 'A mostrar a última atualização — puxa para baixo para repetir.',
+    stale: 'A mostrar os últimos dados guardados. Puxa para baixo para atualizar.',
   },
   events: {
     empty: {
       title: 'Ainda sem eventos',
-      body: 'Treinos e jogos aparecerão aqui assim que o treinador os criar.',
+      body: 'Os treinos e os jogos aparecem aqui assim que o treinador os criar.',
       cta: 'Criar o primeiro evento',
     },
     error: {
@@ -28,7 +28,7 @@ export const statesPt: StatesCopy = {
   pending_requests: {
     empty: {
       title: 'Sem pedidos pendentes',
-      body: 'Novos pedidos de adesão aparecerão aqui.',
+      body: 'Os novos pedidos de admissão aparecem aqui.',
     },
     error: {
       title: 'Não foi possível carregar os pedidos',
@@ -38,12 +38,12 @@ export const statesPt: StatesCopy = {
   },
   admin_members: {
     empty: {
-      title: 'Ainda sem membros',
-      body: 'Convida o primeiro membro para começar.',
-      cta: 'Convidar um membro',
+      title: 'Ainda sem sócios',
+      body: 'Convida o primeiro sócio para começar.',
+      cta: 'Convidar sócio',
     },
     error: {
-      title: 'Não foi possível carregar os membros',
+      title: 'Não foi possível carregar os sócios',
       body: 'Desliza para atualizar ou tenta novamente.',
       hint: 'Verifica a ligação ou sai e volta a entrar.',
       retry: 'Tentar novamente',
@@ -51,11 +51,11 @@ export const statesPt: StatesCopy = {
   },
   contributions: {
     empty: {
-      title: 'Ainda sem contribuições',
-      body: 'Quando o teu clube configurar as quotas, elas aparecerão aqui.',
+      title: 'Ainda sem quotas',
+      body: 'Quando o teu clube configurar as quotas, aparecem aqui.',
     },
     error: {
-      title: 'Não foi possível carregar as contribuições',
+      title: 'Não foi possível carregar as quotas',
       body: 'Desliza para atualizar ou tenta novamente.',
       retry: 'Tentar novamente',
     },
@@ -63,7 +63,7 @@ export const statesPt: StatesCopy = {
   team_matches: {
     empty: {
       title: 'Nenhum jogo agendado',
-      body: 'Os próximos e recentes jogos aparecerão aqui.',
+      body: 'Os próximos jogos e os já realizados aparecem aqui.',
     },
     error: {
       title: 'Não foi possível carregar os jogos',
