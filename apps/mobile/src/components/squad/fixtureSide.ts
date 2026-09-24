@@ -27,3 +27,23 @@ export function isOwnTableRow(rowTeam: string, ownTeamName: string | null): bool
   const own = normalizeTeamName(ownTeamName)
   return own.length > 0 && normalizeTeamName(rowTeam) === own
 }
+
+/**
+ * Split fixtures from the "upcoming" and "recent" API scopes into two lists
+ * without duplicates. Around kick-off the same match comes back from both
+ * scopes; each fixture appears once — finished under results (newest first),
+ * everything else (scheduled, live, postponed) under upcoming (soonest first).
+ */
+export function splitFixtures<T extends Pick<ImportedFixture, 'id' | 'status' | 'kickoffAt'>>(
+  upcoming: T[],
+  recent: T[],
+): { upcoming: T[]; results: T[] } {
+  const byId = new Map<string, T>()
+  for (const fixture of [...upcoming, ...recent]) byId.set(fixture.id, fixture)
+  const unique = [...byId.values()]
+  const time = (f: T) => new Date(f.kickoffAt).getTime()
+  return {
+    upcoming: unique.filter((f) => f.status !== 'finished').sort((a, b) => time(a) - time(b)),
+    results: unique.filter((f) => f.status === 'finished').sort((a, b) => time(b) - time(a)),
+  }
+}

@@ -237,7 +237,6 @@ export default function ConversationInfoScreen() {
   const header = (
     <Stack.Screen
       options={{
-        headerShown: true,
         title: kind === 'dm' ? t('chatHub.info.dmTitle') : t('chatHub.info.title'),
         headerBackButtonDisplayMode: 'minimal',
         headerTintColor: c.primary,

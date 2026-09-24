@@ -201,12 +201,12 @@ export default function TeamStatsScreen() {
                 value={season.goalDifference > 0 ? `+${season.goalDifference}` : String(season.goalDifference)}
               />
             </StatGrid>
-            {season.recentForm.length > 0 ? (
+            {(season.recentForm ?? []).length > 0 ? (
               <View style={styles.formRow}>
                 <Text variant="footnote" color="secondary">
                   {t('matches.form')}
                 </Text>
-                {season.recentForm.slice(0, 5).map((result, i) => (
+                {(season.recentForm ?? []).slice(0, 5).map((result, i) => (
                   <StatusPill
                     key={i}
                     label={t(result === 'W' ? 'matches.colW' : result === 'L' ? 'matches.colL' : 'matches.colD')}

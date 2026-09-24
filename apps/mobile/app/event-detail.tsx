@@ -477,7 +477,7 @@ export default function EventDetailScreen() {
               {checkedInAt
                 ? t('eventFlow.checkIn.done', {
                     time: new Intl.DateTimeFormat(locale, {
-                      hour: '2-digit',
+                      hour: '2-digit', hourCycle: 'h23',
                       minute: '2-digit',
                     }).format(new Date(checkedInAt)),
                   })

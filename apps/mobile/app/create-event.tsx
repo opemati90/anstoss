@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Switch,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import {
@@ -59,6 +60,7 @@ const MINUTE_INTERVAL = 5
 export default function CreateEventScreen() {
   const { t } = useTranslation()
   const c = useClubColors()
+  const { fontScale } = useWindowDimensions()
   const isDark = useIsDark()
   const insets = useSafeAreaInsetsSafe()
   const locale = getAppLocale(getAppLanguage())
@@ -551,12 +553,22 @@ export default function CreateEventScreen() {
                       onPress={() => toggleWeekday(day)}
                       style={[
                         styles.dayChip,
+                        // Seven chips share one row; at large text sizes they
+                        // widen and wrap to two even rows instead of squeezing.
+                        { flexBasis: 40 * Math.min(Math.max(fontScale, 1), 2) },
                         selected
                           ? { backgroundColor: c.primary, borderColor: c.primary }
                           : { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },
                       ]}
                     >
-                      <Text variant="subheadline" weight="semibold" color={selected ? c.textInverse : c.textPrimary}>
+                      <Text
+                        variant="subheadline"
+                        weight="semibold"
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
+                        color={selected ? c.onPrimary : c.textPrimary}
+                      >
                         {label}
                       </Text>
                     </Pressable>

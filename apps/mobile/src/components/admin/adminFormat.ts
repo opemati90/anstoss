@@ -35,7 +35,7 @@ export function formatEventWhen(iso: string | null | undefined, locale = adminLo
     day: '2-digit',
     month: '2-digit',
   }).format(date)
-  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(date)
   return `${day} · ${time}`
 }
 

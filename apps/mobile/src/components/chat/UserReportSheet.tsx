@@ -87,7 +87,7 @@ export function UserReportSheet({ visible, onClose, clubId, conversationId, peer
     return new Intl.DateTimeFormat(i18n.language, {
       day: 'numeric',
       month: 'short',
-      hour: '2-digit',
+      hour: '2-digit', hourCycle: 'h23',
       minute: '2-digit',
     }).format(date)
   }

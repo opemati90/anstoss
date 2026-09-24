@@ -171,7 +171,7 @@ export function formatInboxTime(
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
   const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
   if (dayDiff <= 0) {
-    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+    return new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(date)
   }
   if (dayDiff === 1) return t('chatHub.time.yesterday')
   if (dayDiff < 7) return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date)

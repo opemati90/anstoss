@@ -21,7 +21,7 @@ import { ErrorState } from '../src/components/ErrorState'
 import { DashboardSkeleton } from '../src/components/Skeleton'
 import { Screen, SegmentedControl, StatusPill, Text } from '../src/components/ui'
 import { hairline, radius, space } from '../src/theme/tokens'
-import { isOwnTableRow, ownTeamNameOf } from '../src/components/squad/fixtureSide'
+import { isOwnTableRow, ownTeamNameOf, splitFixtures } from '../src/components/squad/fixtureSide'
 import { resolveIsTeamCoach } from '../src/components/squad/useIsTeamCoach'
 
 type Tab = 'spiele' | 'tabelle'
@@ -73,8 +73,12 @@ export default function TeamSpieleScreen() {
         api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=20`),
         api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=recent&limit=10`),
       ])
-      setUpcoming(Array.isArray(next) ? next : [])
-      setRecent(Array.isArray(past) ? past : [])
+      const split = splitFixtures(
+        Array.isArray(next) ? next : [],
+        Array.isArray(past) ? past : [],
+      )
+      setUpcoming(split.upcoming)
+      setRecent(split.results)
       setError(false)
     } catch {
       setError(true)
@@ -366,7 +370,7 @@ function FixtureGroup({
             day: '2-digit',
             month: '2-digit',
           }).format(kickoff)
-          const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(kickoff)
+          const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(kickoff)
           const hasResult = fixture.resultHome != null && fixture.resultAway != null
           // Unknown side: show both names and no Heim/Auswärts claim.
           const side = typeof fixture.isHome === 'boolean' ? fixture.isHome : null

@@ -677,18 +677,16 @@ function handleSharedMissingRoutes(
     return ok({ children: [], duties: [], announcements: [] })
   }
   if (method === 'GET' && /^\/clubs\/[^/]+\/teams\/[^/]+\/season-stats$/.test(pathname)) {
+    // Same shape as TeamsService.getTeamSeasonStats (the old shape here
+    // crashed team-stats for every persona because this handler runs first).
     return ok({
       played: 9,
-      won: 5,
-      drawn: 2,
-      lost: 2,
-      goalsFor: 21,
-      goalsAgainst: 13,
-      attendanceRate: 84,
-      topScorers: [
-        { userId: 'user-player-2', name: 'Tim Weber', goals: 7 },
-        { userId: 'user-player-3', name: 'Lukas Hoffmann', goals: 4 },
-      ],
+      wins: 5,
+      draws: 2,
+      losses: 2,
+      winRate: 55.6,
+      goalDifference: 8,
+      recentForm: ['W', 'W', 'D', 'L', 'W'],
     })
   }
   return null

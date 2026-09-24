@@ -44,7 +44,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, {
-    hour: '2-digit',
+    hour: '2-digit', hourCycle: 'h23',
     minute: '2-digit',
   })
 }

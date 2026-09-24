@@ -40,6 +40,14 @@ appId: com.renuirug.anstoss
     when:
       visible: '.*developer menu.*'
     commands:
+      # At large Dynamic Type sizes the sheet grows and Continue sits below
+      # the fold: scroll it into view first.
+      - scrollUntilVisible:
+          element:
+            text: 'Continue'
+          direction: DOWN
+          timeout: 10000
+          optional: true
       - tapOn: 'Continue'
 
 # Dismissing the onboarding leaves the main dev-menu sheet (Reload / Go home)

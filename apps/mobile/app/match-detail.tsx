@@ -239,7 +239,7 @@ export default function MatchDetailScreen() {
   }).format(kickoff)
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(kickoff)
   const timeStr = new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
+    hour: '2-digit', hourCycle: 'h23',
     minute: '2-digit',
   }).format(kickoff)
   const hasResult = fixture.resultHome != null && fixture.resultAway != null

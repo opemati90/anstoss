@@ -155,7 +155,7 @@ export function ComposeSheet({
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-      hour: '2-digit',
+      hour: '2-digit', hourCycle: 'h23',
       minute: '2-digit',
     }).format(new Date(iso))
 

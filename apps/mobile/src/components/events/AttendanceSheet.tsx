@@ -123,7 +123,7 @@ export function AttendanceSheet({
   const formatTime = (iso: string) => {
     try {
       return new Intl.DateTimeFormat(undefined, {
-        hour: '2-digit',
+        hour: '2-digit', hourCycle: 'h23',
         minute: '2-digit',
       }).format(new Date(iso))
     } catch {

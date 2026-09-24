@@ -114,128 +114,153 @@ export default function RootLayout() {
     return <StartupConfigurationErrorScreen issues={runtimeConfigIssues} />
   }
 
+  // Navigation notes (kept out of the <Stack> children: JSX comments there
+  // surfaced as unknown children and warned on every render).
+  // Full-screen setup/onboarding flows
+  // onboarding revamp: club-setup, find-club and account-next-step are
+  // redirects into the (auth) onboarding group now.
+  // Form sheets — iOS 15+ pageSheet with swipe-to-dismiss
+  // NOTE: do NOT add sheetAllowedDetents:'fitToContents' here.
+  // A fit-to-contents detent + the screen's KeyboardAvoidingView
+  // form a native<->JS layout feedback loop when the software
+  // keyboard opens (KAV grows content -> sheet refits -> keyboard
+  // frame changes -> KAV recalculates -> ...), which FROZE the JS
+  // thread and OOM-crashed the app on any text-field focus. A
+  // standard large form sheet (like edit-profile) avoids it.
+  // Events revamp: create/edit is a self-contained task, so a page
+  // modal with Cancel + one sticky CTA (no KAV, no detents).
+  // privacy: guardian consent overview + withdrawal (parents, from Profil)
+  // ── chat revamp: inbox → conversation → info; new chat is a modal.
+  // dm-new / dm-chat are redirect-only routes for old deep links. ──
+  // Header visibility is fixed here, never toggled from inside the screen:
+  // react-native-screens remounts a modal whose header visibility
+  // changes, which looped forever on chat/new.
+  // Detail views — card presentation for stacked feel
+  // Kader revamp (team agent): team tools reached from the Kader tab.
+  // club-admin revamp: admin workspace screens are ordinary pushes
+  // from the Verein tab (back button, no stacked fullScreenModals).
+  // /admin-dashboard is now a redirect to the Verein tab.
+  // club-admin revamp: pushed from Verein
+  // club-admin revamp: pushed from Verein
+  // Wechselbörse: club recruiting desk, trial detail, Aufnahmeantrag
   return (
     <GestureHandlerRootView style={styles.root}>
-    <KeyboardProvider>
-    <AuthProvider>
-      <ClubThemeProvider>
-        <ReleaseNotices
-          announcement={announcement}
-          softUpdate={softUpdate}
-          recommendedVersion={recommendedVersion}
-          onOpenStore={openStore}
-          onDismissAnnouncement={dismissAnnouncement}
-          onDismissSoftUpdate={dismissSoftUpdate}
-        />
-        <PushNotificationProvider>
-          <URLDeepLinkHandler />
-          <PushDeepLinkHandler />
-          <AppErrorBoundary>
-            <StatusBar
-              barStyle={isDark ? 'light-content' : 'dark-content'}
-              backgroundColor={palette.background}
+      <KeyboardProvider>
+        <AuthProvider>
+          <ClubThemeProvider>
+            <ReleaseNotices
+              announcement={announcement}
+              softUpdate={softUpdate}
+              recommendedVersion={recommendedVersion}
+              onOpenStore={openStore}
+              onDismissAnnouncement={dismissAnnouncement}
+              onDismissSoftUpdate={dismissSoftUpdate}
             />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-              {/* Full-screen setup/onboarding flows */}
-              {/* onboarding revamp: club-setup, find-club and account-next-step are
-                  redirects into the (auth) onboarding group now. */}
-              <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="join/[...code]" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
-              <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
-              <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
-              <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
-              {/* Form sheets — iOS 15+ pageSheet with swipe-to-dismiss */}
-              {/* NOTE: do NOT add sheetAllowedDetents:'fitToContents' here.
-                      A fit-to-contents detent + the screen's KeyboardAvoidingView
-                      form a native<->JS layout feedback loop when the software
-                      keyboard opens (KAV grows content -> sheet refits -> keyboard
-                      frame changes -> KAV recalculates -> ...), which FROZE the JS
-                      thread and OOM-crashed the app on any text-field focus. A
-                      standard large form sheet (like edit-profile) avoids it. */}
-              {/* Events revamp: create/edit is a self-contained task, so a page
-                  modal with Cancel + one sticky CTA (no KAV, no detents). */}
-              <Stack.Screen
-                name="create-event"
-                options={{ presentation: 'modal', gestureEnabled: true }}
-              />
-              <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
-              <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
-              <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
-              <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="legal" options={{ presentation: 'card' }} />
-              {/* privacy: guardian consent overview + withdrawal (parents, from Profil) */}
-              <Stack.Screen name="child-consent" options={{ presentation: 'card' }} />
-              {/* ── chat revamp: inbox → conversation → info; new chat is a modal.
-                   dm-new / dm-chat are redirect-only routes for old deep links. ── */}
-              <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="chat/[id]/info" options={{ presentation: 'card' }} />
-              <Stack.Screen name="chat/new" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="dm-new" options={{ animation: 'none' }} />
-              {/* Detail views — card presentation for stacked feel */}
-              <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
-              <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
-              <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
-              {/* Kader revamp (team agent): team tools reached from the Kader tab. */}
-              <Stack.Screen name="aufgaben" options={{ presentation: 'card' }} />
-              <Stack.Screen name="team-spiele" options={{ presentation: 'card' }} />
-              <Stack.Screen name="team-stats" options={{ presentation: 'card' }} />
-              <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="dm-chat" options={{ animation: 'none' }} />
-              <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
-              <Stack.Screen name="lineup-builder" options={{ presentation: 'card' }} />
-              <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
-              <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
-              <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
-              <Stack.Screen name="compliance" options={{ presentation: 'card' }} />
-              {/* club-admin revamp: admin workspace screens are ordinary pushes
-                  from the Verein tab (back button, no stacked fullScreenModals).
-                  /admin-dashboard is now a redirect to the Verein tab. */}
-              <Stack.Screen name="admin-dashboard" options={{ animation: 'none' }} />
-              <Stack.Screen name="admin-members" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin-billing" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin-club-profile" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin-reports" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin-sponsors" options={{ presentation: 'card' }} />
-              <Stack.Screen name="admin-contribution-bank" options={{ presentation: 'card' }} />
-              <Stack.Screen
-                name="admin-contribution-plan"
-                options={{ presentation: 'card' }}
-              />
-              <Stack.Screen
-                name="admin-contribution-reconciliation"
-                options={{ presentation: 'card' }}
-              />
-              <Stack.Screen name="club-staff" options={{ presentation: 'card' }} />
-              <Stack.Screen name="me" options={{ animation: 'none' }} />
-              <Stack.Screen name="admin-chat-retention" options={{ animation: 'none' }} />
-              <Stack.Screen name="club-stats" options={{ presentation: 'card' }} /> {/* club-admin revamp: pushed from Verein */}
-              <Stack.Screen name="team-management" options={{ presentation: 'card' }} />
-              <Stack.Screen name="team-families" options={{ presentation: 'card' }} /> {/* club-admin revamp: pushed from Verein */}
-              <Stack.Screen name="fussball-link" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="official-team-page" options={{ presentation: 'card' }} />
-              <Stack.Screen name="roster-aggregate" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="pending-requests" options={{ presentation: 'card' }} />
-              <Stack.Screen name="ownership-transfers" options={{ presentation: 'card' }} />
-              {/* Wechselbörse: club recruiting desk, trial detail, Aufnahmeantrag */}
-              <Stack.Screen name="wechselboerse/index" options={{ presentation: 'card' }} />
-              <Stack.Screen name="trial/[id]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="aufnahmeantrag/[trialId]" options={{ presentation: 'modal' }} />
-              <Stack.Screen
-                name="free-agent/profile"
-                options={{ presentation: 'fullScreenModal' }}
-              />
-            </Stack>
-          </AppErrorBoundary>
-        </PushNotificationProvider>
-      </ClubThemeProvider>
-    </AuthProvider>
-    </KeyboardProvider>
+            <PushNotificationProvider>
+              <URLDeepLinkHandler />
+              <PushDeepLinkHandler />
+              <AppErrorBoundary>
+                <StatusBar
+                  barStyle={isDark ? 'light-content' : 'dark-content'}
+                  backgroundColor={palette.background}
+                />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen
+                    name="join/[...code]"
+                    options={{ presentation: 'fullScreenModal' }}
+                  />
+                  <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="pending-approval" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="access-blocked" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="account-next-step" options={{ animation: 'fade' }} />
+                  <Stack.Screen
+                    name="create-event"
+                    options={{ presentation: 'modal', gestureEnabled: true }}
+                  />
+                  <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="legal" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="child-consent" options={{ presentation: 'card' }} />
+                  <Stack.Screen
+                    name="chat/[id]"
+                    options={{ presentation: 'card', headerShown: true }}
+                  />
+                  <Stack.Screen
+                    name="chat/[id]/info"
+                    options={{ presentation: 'card', headerShown: true }}
+                  />
+                  <Stack.Screen
+                    name="chat/new"
+                    options={{ presentation: 'modal', headerShown: true }}
+                  />
+                  <Stack.Screen name="dm-new" options={{ animation: 'none' }} />
+                  <Stack.Screen name="event-detail" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="match-detail" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="league-table" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="aufgaben" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="team-spiele" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="team-stats" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="free-agent/[id]" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="dm-chat" options={{ animation: 'none' }} />
+                  <Stack.Screen name="my-contributions" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="lineup-builder" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="conflicts" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="carpool" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="photo-wall" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="compliance" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-dashboard" options={{ animation: 'none' }} />
+                  <Stack.Screen name="admin-members" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-billing" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-club-profile" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-reports" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-sponsors" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-contribution-bank" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="admin-contribution-plan" options={{ presentation: 'card' }} />
+                  <Stack.Screen
+                    name="admin-contribution-reconciliation"
+                    options={{ presentation: 'card' }}
+                  />
+                  <Stack.Screen name="club-staff" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="me" options={{ animation: 'none' }} />
+                  <Stack.Screen name="admin-chat-retention" options={{ animation: 'none' }} />
+                  <Stack.Screen name="club-stats" options={{ presentation: 'card' }} />{' '}
+                  <Stack.Screen name="team-management" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="team-families" options={{ presentation: 'card' }} />{' '}
+                  <Stack.Screen
+                    name="fussball-link"
+                    options={{ presentation: 'fullScreenModal' }}
+                  />
+                  <Stack.Screen name="official-team-page" options={{ presentation: 'card' }} />
+                  <Stack.Screen
+                    name="roster-aggregate"
+                    options={{ presentation: 'fullScreenModal' }}
+                  />
+                  <Stack.Screen name="pending-requests" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="ownership-transfers" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="wechselboerse/index" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="trial/[id]" options={{ presentation: 'card' }} />
+                  <Stack.Screen
+                    name="aufnahmeantrag/[trialId]"
+                    options={{ presentation: 'modal' }}
+                  />
+                  <Stack.Screen
+                    name="free-agent/profile"
+                    options={{ presentation: 'fullScreenModal' }}
+                  />
+                </Stack>
+              </AppErrorBoundary>
+            </PushNotificationProvider>
+          </ClubThemeProvider>
+        </AuthProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   )
 }

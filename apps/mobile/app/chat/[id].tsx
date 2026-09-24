@@ -106,7 +106,6 @@ export default function ConversationScreen() {
   const header = (
     <Stack.Screen
       options={{
-        headerShown: true,
         headerTitleAlign: 'left',
         headerBackButtonDisplayMode: 'minimal',
         headerTintColor: c.primary,

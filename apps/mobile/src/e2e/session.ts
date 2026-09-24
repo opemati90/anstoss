@@ -2368,7 +2368,7 @@ function buildClubAdminSession(): E2ESessionSnapshot {
             paidMembers: 102,
             overdueMembers: 4,
             outstandingMembers: 16,
-            expectedAmount: 40000,
+            expectedAmount: 295000,
             collectedAmount: 255000,
           },
           members: createClubAdminContributionMembers(),

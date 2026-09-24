@@ -123,7 +123,7 @@ export function senderColor(senderId: string | null | undefined, isDark: boolean
 export function clockTime(iso: string, locale: string): string {
   const date = new Date(iso)
   if (!Number.isFinite(date.getTime())) return ''
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(date)
 }
 
 /** Human file size with locale-aware decimals ("2,4 MB"). */

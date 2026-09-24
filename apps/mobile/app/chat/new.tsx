@@ -179,7 +179,6 @@ export default function NewChatScreen() {
   const header = (
     <Stack.Screen
       options={{
-        headerShown: true,
         title: headerTitle,
         headerStyle: { backgroundColor: c.background },
         headerTitleStyle: { color: c.textPrimary },

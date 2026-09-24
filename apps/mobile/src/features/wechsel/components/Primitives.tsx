@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { TrialStage } from '@anstoss/shared'
 import { useClubColors } from '../../../context/ClubThemeContext'
@@ -79,11 +79,14 @@ export function StageStrip({
   value: TrialStage
   onChange: (stage: TrialStage) => void
 }) {
+  const { fontScale } = useWindowDimensions()
   const { t } = useTranslation()
   const c = useClubColors()
   return (
     <View style={styles.strip} accessibilityRole="tablist">
       {STAGES.map((stage) => {
+        // Tiles widen with the user's text size so labels never truncate;
+        // at large sizes the strip wraps to fewer columns instead.
         const selected = stage === value
         const label = stageLabel(t, stage)
         return (
@@ -96,6 +99,7 @@ export function StageStrip({
             android_ripple={{ color: c.borderSubtle, foreground: true }}
             style={({ pressed }) => [
               styles.stageTile,
+              { flexBasis: 96 * Math.min(Math.max(fontScale, 1), 2) },
               {
                 backgroundColor: selected ? c.primary50 : c.surface,
                 borderColor: selected ? c.primary : c.borderDefault,
@@ -114,7 +118,7 @@ export function StageStrip({
               variant="footnote"
               weight={selected ? 'semibold' : 'medium'}
               color={selected ? c.primary : 'secondary'}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {label}
             </Text>

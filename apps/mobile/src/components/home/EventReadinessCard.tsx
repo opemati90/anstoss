@@ -516,7 +516,7 @@ function formatNudgeTime(
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
   return new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
+    hour: '2-digit', hourCycle: 'h23',
     minute: '2-digit',
   }).format(date)
     .replace(/^/, `${getNudgeDatePrefix(date, now, tomorrow, locale, t)} `)

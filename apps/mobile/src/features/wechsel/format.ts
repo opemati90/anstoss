@@ -40,7 +40,7 @@ export function formatSessionDay(value: string | Date) {
 
 export function formatTime(value: string | Date) {
   return new Intl.DateTimeFormat(currentLocale(), {
-    hour: '2-digit',
+    hour: '2-digit', hourCycle: 'h23',
     minute: '2-digit',
   }).format(toDate(value))
 }

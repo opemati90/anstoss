@@ -176,7 +176,7 @@ function SquadEditor({ clubId, event, locale, onOpenLineup, onPublished }: Squad
           weekday: 'short',
           day: 'numeric',
           month: 'short',
-          hour: '2-digit',
+          hour: '2-digit', hourCycle: 'h23',
           minute: '2-digit',
         }).format(new Date(squad.publishedAt)),
       })

@@ -296,7 +296,7 @@ export default function KaderScreen() {
       {nextEvent && model && model.players.length > 0 ? (
         <View style={styles.legend}>
           <Icon name="checkmark.circle.fill" size={14} color="success" />
-          <Text variant="footnote" color="secondary" numberOfLines={1} style={styles.legendText}>
+          <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.legendText}>
             {t('kader.rsvpLegend', {
               title: nextEvent.title,
               date: formatWeekdayDay(nextEvent.date, locale),

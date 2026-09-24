@@ -277,7 +277,7 @@ export default function EventsScreen() {
           ]}
         >
           <LiveStatusPill status="live" />
-          <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1} style={styles.liveText}>
+          <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.liveText}>
             {`${liveFixture.homeTeam} `}
             <Text variant="subheadline" weight="semibold" color="primary" tabular style={styles.liveScore}>
               {`${liveFixture.resultHome ?? 0}:${liveFixture.resultAway ?? 0}`}
@@ -466,9 +466,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingVertical: space.sm,
     gap: space.sm,
   },
-  liveText: { flex: 1 },
+  liveText: { flex: 1, minWidth: 0 },
   liveScore: { fontFamily: fonts.data },
   bannerWrap: { paddingHorizontal: space.md, paddingTop: space.sm },
   empty: { paddingTop: space.xl, paddingHorizontal: space.md },

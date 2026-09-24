@@ -65,10 +65,12 @@ export function StatCard({
         color="primary"
         tabular
         numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
       >
         {value}
       </Text>
-      <Text variant="caption1" color="secondary" numberOfLines={1}>
+      <Text variant="caption1" color="secondary" numberOfLines={2}>
         {label}
       </Text>
       {trend ? (
@@ -157,13 +159,16 @@ const styles = StyleSheet.create({
 })
 
 const gridStyles = StyleSheet.create({
+  // Wraps into real columns: `columns` sets the basis and cells never shrink
+  // below it, so 4 tiles in a 2-column grid become 2 rows instead of 4
+  // squeezed, truncated tiles.
   row: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     gap: SPACING_SM,
   },
   cell: {
     flexGrow: 1,
-    flexShrink: 1,
+    flexShrink: 0,
   },
 })
