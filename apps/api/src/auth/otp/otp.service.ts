@@ -106,7 +106,12 @@ export class OtpService {
     const email = this.normalizeEmail(rawEmail)
     const now = new Date()
 
-    const code = this.generateCode()
+    // App Store / Play review accounts (REVIEW_LOGIN_EMAILS + REVIEW_LOGIN_CODE)
+    // get the fixed review code instead of a random one and no email. The code
+    // is stored and verified exactly like any other: expiry, attempt caps and
+    // the hourly lockout all still apply. Nothing changes for other emails.
+    const reviewCode = reviewLoginCodeFor(email)
+    const code = reviewCode ?? this.generateCode()
     const codeHash = this.hashCode(email, code)
     const expiresAt = new Date(now.getTime() + OTP_TTL_MINUTES * 60 * 1000)
 
@@ -119,6 +124,11 @@ export class OtpService {
     if (!inserted) {
       // Cap reached — silently stop. Same outward response, no leak of volume.
       this.logger.warn('OTP request cap reached for email hash')
+      return
+    }
+
+    if (reviewCode) {
+      this.logger.log('Review login code issued (store review account)')
       return
     }
 
@@ -336,4 +346,20 @@ export class OtpService {
       throw error
     }
   }
+}
+
+
+/**
+ * The fixed sign-in code for a store-review account, or null. Only active when
+ * both REVIEW_LOGIN_EMAILS (comma-separated) and a 6-digit REVIEW_LOGIN_CODE
+ * are set; emails are compared case-insensitively after trimming.
+ */
+export function reviewLoginCodeFor(email: string): string | null {
+  const code = (process.env.REVIEW_LOGIN_CODE ?? '').trim()
+  if (!/^\d{6}$/.test(code)) return null
+  const allowed = (process.env.REVIEW_LOGIN_EMAILS ?? '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+  return allowed.includes(email.trim().toLowerCase()) ? code : null
 }
