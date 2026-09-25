@@ -555,7 +555,7 @@ export default function CreateEventScreen() {
                         styles.dayChip,
                         // Seven chips share one row; at large text sizes they
                         // widen and wrap to two even rows instead of squeezing.
-                        { flexBasis: 40 * Math.min(Math.max(fontScale, 1), 2) },
+                        { flexBasis: fontScale > 1.3 ? 40 * Math.min(fontScale, 2) : 36 },
                         selected
                           ? { backgroundColor: c.primary, borderColor: c.primary }
                           : { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },

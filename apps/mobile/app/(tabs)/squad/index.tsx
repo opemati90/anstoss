@@ -1,3 +1,4 @@
+import { eventDisplayTitle } from '../../../src/components/events/eventFormat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
@@ -147,11 +148,18 @@ export default function KaderScreen() {
         if (id) byUser[id] = rsvp.status
       }
       if (!current()) return
-      setNextEvent({ id: upcoming.id, title: detail?.title ?? upcoming.title, date: detail?.date ?? upcoming.date, byUser })
+      setNextEvent({
+        id: upcoming.id,
+        // Reader-language title ("Auswärtsspiel bei X"), never the stored
+        // fallback or a legacy "@ X".
+        title: eventDisplayTitle({ ...upcoming, ...(detail ?? {}) } as never, t),
+        date: detail?.date ?? upcoming.date,
+        byUser,
+      })
     } catch {
       if (current()) setNextEvent(null)
     }
-  }, [clubId, activeTeamId])
+  }, [clubId, activeTeamId, t])
 
   useFocusEffect(
     useCallback(() => {

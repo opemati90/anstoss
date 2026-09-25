@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Image,
   Modal,
@@ -65,12 +65,9 @@ export default function Welcome() {
   const trimmed = email.trim().toLowerCase()
   const valid = EMAIL_RE.test(trimmed)
 
-  // Autofocus once the hero has painted, so the first frame is calm and the
-  // keyboard follows a beat later instead of covering the welcome.
-  useEffect(() => {
-    const id = setTimeout(() => inputRef.current?.focus(), 450)
-    return () => clearTimeout(id)
-  }, [])
+  // No autofocus here: on Android (and iOS with the software keyboard) it
+  // opened the keyboard over the hero on a new user's very first screen.
+  // The field focuses when tapped; later onboarding steps keep autofocus.
 
   async function send(intent?: OnboardingIntent) {
     if (!valid || sending) return
