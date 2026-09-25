@@ -1,14 +1,16 @@
 # Anstoss Store Submission Checklist
 
-Last updated: 2026-08-21
+Last updated: 2026-09-24
 
 This checklist exists to keep App Store Connect, Play Console, the binary, and
 the legal copy aligned. Run `npm run audit:store` before every store submission.
+Use the current [store privacy and reviewer-access worksheet](store-privacy-answers-2026-09-24.md)
+for draft console answers; it is not approval to publish them.
 
 ## Review Access
 
-- Apple App Review notes must provide either a real reviewer account or fully
-  seeded E2E/demo credentials with access to player, coach, and admin paths.
+- Apple App Review notes must provide a real, least-privilege reviewer account
+  with synthetic club data. The local E2E mode is not a production reviewer login.
 - Google Play Console > App content > App access must describe the email OTP
   login flow and include reviewer instructions for restricted areas.
 - Backend services must be live for the submitted build. `/health` must return
@@ -96,8 +98,9 @@ the legal copy aligned. Run `npm run audit:store` before every store submission.
     purchase flow.
   - Do not add in-app purchase links for digital features without store billing.
 - Target audience/content rating:
-  - Do not mark as Kids category / Families unless a separate compliance pass is
-    completed.
+- Declare the actual target age groups. The current under-16 guardian path and
+  youth teams mean an adult-only answer cannot be assumed. Any child audience
+  requires the relevant Families compliance pass before submission.
   - Content rating questionnaire must disclose UGC/chat and account creation.
 
 ## App Privacy Labels
@@ -157,6 +160,11 @@ the web at https://anstoss.io/account-deletion.
   must be deployed and reachable.
 - Android App Links must have the production signing certificate fingerprint in
   the API/web asset links before Play submission.
+- The published 30-day account-erasure and 90-day log-retention promises need
+  production/supplier evidence; see [retention evidence](deletion-retention-evidence-2026-09-24.md).
+- A signed club AVV and verified third-country-transfer mechanisms are needed
+  before claiming those safeguards are in force. The current
+  [AVV draft](../legal/club-avv-draft-de.md) is not signed.
 
 ## Android internal testing and Play Console
 

@@ -235,6 +235,7 @@ const privacyManifest = read('apps/mobile/ios/Anstoss/PrivacyInfo.xcprivacy')
 expectIncludes(privacyManifest, '<key>NSPrivacyTracking</key>', 'iOS privacy manifest')
 expectIncludes(privacyManifest, '<false/>', 'iOS privacy manifest tracking flag')
 for (const dataType of [
+  'NSPrivacyCollectedDataTypeHealth',
   'NSPrivacyCollectedDataTypeName',
   'NSPrivacyCollectedDataTypeEmailAddress',
   'NSPrivacyCollectedDataTypeUserID',

@@ -4,7 +4,7 @@ This operational matrix defines the product defaults implemented by scheduled wo
 
 | Data class | Product retention | Disposal | Reason / override |
 | --- | --- | --- | --- |
-| Raw bank import file | Maximum 24 hours | Automatic object deletion | Reconciliation processing; never retained as the ledger |
+| Raw bank import request bytes | Parsed in memory; not persisted by the import service | Discarded after request processing | Verify API/proxy/APM request-body logging; do not claim an object-store purge when no object is written |
 | Normalized bank transactions and confirmed/reversed matches | While the club needs its contribution ledger, then the applicable accounting/limitation period | Club export followed by deletion or anonymization under the controller workflow | Accounting evidence and correction history |
 | Unaccepted expired or revoked individual invitations | 90 days after terminal state | Hourly automatic row deletion | Abuse investigation and delivery troubleshooting |
 | Expired or revoked invite campaign recipient and live code | 90 days after terminal state | Recipient cleared and code irreversibly retired; redemption audit retained | Abuse investigation without retaining reusable credentials or recipient PII |
@@ -17,4 +17,10 @@ This operational matrix defines the product defaults implemented by scheduled wo
 | Security audit events | Applicable security limitation period | Actor identity anonymized on account deletion | Cross-tenant access investigation and compliance evidence |
 | Anstoss subscription and invoice references | Statutory bookkeeping period | Automatic deletion after the legal period | Anstoss software billing only; never player dues |
 
-Workers must emit metrics and structured logs for every failed sweep. Operators verify the governance-retention, bank-file-retention, and entitlement-compliance workers during the release canary. Any legal hold must be scoped, documented, reviewed, and removed when no longer required.
+The governance and chat workers log failures, but their production execution,
+alerting, supplier log retention and backup expiry still require evidence.
+The chat worker is disabled unless `CHAT_RETENTION_SWEEP_ENABLED=true` and a club
+has enabled retention. Operators must verify these settings and actual object
+deletion during the release canary. Any legal hold must be scoped, documented,
+reviewed, and removed when no longer required. See the
+[deletion/retention evidence ledger](deletion-retention-evidence-2026-09-24.md).
