@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 
@@ -185,13 +186,28 @@ export class GovernanceRetentionWorker implements OnModuleInit, OnModuleDestroy 
     const inviteCutoff = new Date(
       now.getTime() - UNACCEPTED_INVITE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     )
-    const purgedInvites = await this.prisma.invite.deleteMany({
-      where: {
-        acceptedByUserId: null,
-        status: { in: ['EXPIRED', 'REVOKED'] },
-        updatedAt: { lte: inviteCutoff },
-      },
+    // Invite is tenant-scoped, so the purge runs per club inside a tenant
+    // context (an unscoped deleteMany is rejected by the tenant middleware and
+    // failed this whole sweep every hour).
+    const inviteWhere: Prisma.InviteWhereInput = {
+      acceptedByUserId: null,
+      status: { in: ['EXPIRED' as const, 'REVOKED' as const] },
+      updatedAt: { lte: inviteCutoff },
+    }
+    const inviteClubs = await this.prisma.invite.findMany({
+      where: inviteWhere,
+      select: { clubId: true },
+      distinct: ['clubId'],
     })
+    let purgedInviteCount = 0
+    for (const { clubId } of inviteClubs) {
+      const result = await tenantContext.run(
+        { clubId, userId: 'system:governance-retention' },
+        () => this.prisma.invite.deleteMany({ where: { ...inviteWhere, clubId } }),
+      )
+      purgedInviteCount += result.count
+    }
+    const purgedInvites = { count: purgedInviteCount }
     const campaignCutoff = new Date(
       now.getTime() - CAMPAIGN_IDENTITY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     )

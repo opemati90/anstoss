@@ -1,3 +1,4 @@
+import { getClubId } from '../prisma/tenant.context'
 import { GovernanceRetentionWorker } from './governance-retention.worker'
 
 describe('GovernanceRetentionWorker', () => {
@@ -28,7 +29,10 @@ describe('GovernanceRetentionWorker', () => {
       club: { findMany: jest.fn().mockResolvedValue([]) },
       clubClaimEvidence: { deleteMany: jest.fn() },
       ownershipTransferChallenge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      invite: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      invite: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       inviteCampaign: {
         findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
@@ -68,7 +72,15 @@ describe('GovernanceRetentionWorker', () => {
       club: { findMany: jest.fn().mockResolvedValue([]) },
       clubClaimEvidence: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       ownershipTransferChallenge: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      invite: { deleteMany: jest.fn().mockResolvedValue({ count: 2 }) },
+      invite: {
+        findMany: jest.fn().mockResolvedValue([{ clubId: 'club-a' }, { clubId: 'club-b' }]),
+        // The purge runs once per club inside a tenant context (the middleware
+        // rejects an unscoped Invite.deleteMany); assert the scoping here.
+        deleteMany: jest.fn(async ({ where }: { where: { clubId?: string } }) => {
+          if (!where.clubId || getClubId() !== where.clubId) throw new Error('unscoped invite purge')
+          return { count: 1 }
+        }),
+      },
       inviteCampaign: {
         findMany: jest.fn().mockResolvedValue([{ id: 'campaign-old' }]),
         update: jest.fn().mockResolvedValue({}),
@@ -85,13 +97,17 @@ describe('GovernanceRetentionWorker', () => {
     expect(prisma.clubClaimEvidence.deleteMany).toHaveBeenCalledWith({
       where: { id: { in: ['purge-me'] } },
     })
-    expect(prisma.invite.deleteMany).toHaveBeenCalledWith({
-      where: {
-        acceptedByUserId: null,
-        status: { in: ['EXPIRED', 'REVOKED'] },
-        updatedAt: { lte: new Date('2026-05-30T12:00:00.000Z') },
-      },
-    })
+    expect(prisma.invite.deleteMany).toHaveBeenCalledTimes(2)
+    for (const clubId of ['club-a', 'club-b']) {
+      expect(prisma.invite.deleteMany).toHaveBeenCalledWith({
+        where: {
+          clubId,
+          acceptedByUserId: null,
+          status: { in: ['EXPIRED', 'REVOKED'] },
+          updatedAt: { lte: new Date('2026-05-30T12:00:00.000Z') },
+        },
+      })
+    }
     expect(prisma.inviteCampaign.update).toHaveBeenCalledWith({
       where: { id: 'campaign-old' },
       data: {
