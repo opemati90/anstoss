@@ -14,7 +14,9 @@ import { Injectable, Logger } from '@nestjs/common'
 export class R2Provider {
   private readonly logger = new Logger(R2Provider.name)
   private readonly client: S3Client | null
+  private readonly quarantineClient: S3Client | null
   private readonly bucket: string
+  private readonly quarantineBucket: string | null
   private readonly publicBaseUrl: string | null
 
   constructor() {
@@ -22,6 +24,7 @@ export class R2Provider {
     const accessKeyId = process.env.R2_ACCESS_KEY_ID
     const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
     this.bucket = process.env.R2_BUCKET_NAME || 'anstoss-assets'
+    this.quarantineBucket = process.env.R2_QUARANTINE_BUCKET || null
     this.publicBaseUrl = process.env.R2_PUBLIC_BASE_URL || null
 
     if (accountId && accessKeyId && secretAccessKey) {
@@ -33,6 +36,25 @@ export class R2Provider {
     } else {
       this.logger.warn('R2 credentials not configured — uploads disabled')
       this.client = null
+    }
+
+    const quarantineAccessKeyId = process.env.R2_QUARANTINE_ACCESS_KEY_ID
+    const quarantineSecretAccessKey = process.env.R2_QUARANTINE_SECRET_ACCESS_KEY
+    const jurisdiction = process.env.R2_QUARANTINE_JURISDICTION
+    if (this.quarantineBucket && accountId && quarantineAccessKeyId && quarantineSecretAccessKey && jurisdiction) {
+      this.quarantineClient = new S3Client({
+        region: 'auto',
+        endpoint: `https://${accountId}.${jurisdiction}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: quarantineAccessKeyId,
+          secretAccessKey: quarantineSecretAccessKey,
+        },
+      })
+    } else {
+      this.quarantineClient = null
+      if (this.quarantineBucket) {
+        this.logger.error('R2 quarantine bucket is set but its endpoint or credentials are missing')
+      }
     }
   }
 
@@ -103,39 +125,60 @@ export class R2Provider {
 
   /**
    * Safeguarding: move a removed chat attachment out of its public path.
-   * The object is copied to `quarantine/<uuid>/<name>` (in
-   * R2_QUARANTINE_BUCKET when set, else the same bucket under an unguessable
-   * prefix that must not be publicly routed) and the original is deleted.
+   * The object is moved to `quarantine/<uuid>/<name>` in a separate private
+   * jurisdictional bucket when configured. The original is deleted only after
+   * the private copy succeeds. The legacy same-bucket path remains until the
+   * private bucket credentials are activated; it must not be considered private
+   * if the media bucket has a public domain.
    * Returns the quarantine key for moderator evidence, or null when R2 is
    * not configured.
    */
   async quarantineObject(objectKey: string): Promise<{ bucket: string; key: string } | null> {
     if (!this.client) return null
-    const bucket = process.env.R2_QUARANTINE_BUCKET || this.bucket
+    const bucket = this.quarantineBucket || this.bucket
     const name = objectKey.split('/').pop() || 'object'
     const key = `quarantine/${randomUUID()}/${name}`
-    await this.client.send(
-      new CopyObjectCommand({
+    if (this.quarantineBucket) {
+      if (!this.quarantineClient) throw new Error('R2 quarantine storage is not configured')
+      // CopyObject cannot cross R2 jurisdiction endpoints. Stream the source
+      // through the API into the private EU bucket, then remove the public copy.
+      const source = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }))
+      if (!source.Body || source.ContentLength === undefined) {
+        throw new Error('R2 source object could not be read for quarantine')
+      }
+      await this.quarantineClient.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: source.Body,
+        ContentLength: source.ContentLength,
+        ContentType: source.ContentType,
+      }))
+    } else {
+      await this.client.send(new CopyObjectCommand({
         Bucket: bucket,
         Key: key,
         CopySource: `${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`,
-      }),
-    )
+      }))
+    }
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }))
     return { bucket, key }
   }
 
+  private clientForBucket(bucket: string): S3Client {
+    if (bucket === this.bucket && this.client) return this.client
+    if (bucket === this.quarantineBucket && this.quarantineClient) return this.quarantineClient
+    throw new Error('R2 bucket is not configured for evidence access')
+  }
+
   /** Short-lived signed GET for an object in a given bucket (quarantine). */
   async presignGetIn(bucket: string, objectKey: string, expiresIn = 300): Promise<string> {
-    if (!this.client) throw new Error('R2 not configured')
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: bucket, Key: objectKey }), {
+    return getSignedUrl(this.clientForBucket(bucket), new GetObjectCommand({ Bucket: bucket, Key: objectKey }), {
       expiresIn,
     })
   }
 
   async deleteObjectIn(bucket: string, objectKey: string): Promise<void> {
-    if (!this.client) return
-    await this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
+    await this.clientForBucket(bucket).send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
   }
 
   /**

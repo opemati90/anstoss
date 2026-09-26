@@ -1,6 +1,6 @@
 # Anstoss Store Submission Checklist
 
-Last updated: 2026-09-24
+Last updated: 2026-09-26
 
 This checklist exists to keep App Store Connect, Play Console, the binary, and
 the legal copy aligned. Run `npm run audit:store` before every store submission.
@@ -11,12 +11,14 @@ for draft console answers; it is not approval to publish them.
 
 - Apple App Review notes must provide a real, least-privilege reviewer account
   with synthetic club data. The local E2E mode is not a production reviewer login.
-- Google Play Console > App content > App access must describe the email OTP
-  login flow and include reviewer instructions for restricted areas.
+- Google Play Console > App content > App access must provide one of the
+  allowlisted `@demo.anstoss.app` review emails and the fixed code in its
+  private reviewer field. Request a code in-app first; no email is sent for
+  these demo addresses. Never put the code in Git or public listing text.
 - Backend services must be live for the submitted build. `/health` must return
   healthy status before submission.
-- Include a join code or demo club path if reviewer accounts are not preloaded
-  in production.
+- The `FC Musterstadt — Store Review` fixture is preloaded in production;
+  verify it and the review login on a clean install before submission.
 
 ## Public URLs
 
@@ -116,13 +118,23 @@ match these non-tracking categories:
   Stripe subscription references for the club's Anstoss software plan.
 - Usage/diagnostics: product interaction, crash data, performance data.
 - Other data: date of birth, role, membership, team access, RSVP and lineup data.
+- Health information: player-selected `sick`/`injured` RSVP reasons and optional
+  notes remain enabled even though the separate Medic and compliance modules are
+  disabled. Declare this in both stores and resolve the Article 9 basis before
+  publishing a minor-facing release.
+- User-entered city/postal-code and carpool pickup text may map to location or
+  address categories; confirm the exact console classification for the binary.
 
-Do not declare:
+Do not claim collection of the following without evidence; also do not answer
+their broader store questions “No” merely because a device permission is absent:
 
-- Ads or ad tracking.
-- Precise/coarse device location.
-- Contacts/phonebook access.
-- Health/Fitness APIs.
+- Behavioral ad tracking. Club-controlled sponsor placements and clickable links
+  still require a separate Ads/Families classification review.
+- Device GPS location (none found in the current app); user-entered locations
+  are a separate classification question.
+- Device phonebook access (none found); team/DM relationships may still count as
+  contacts or social-graph data.
+- Health/Fitness device APIs (none found); RSVP health information is collected.
 - SMS/call log access.
 
 ## Release Notes Template

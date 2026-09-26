@@ -55,6 +55,20 @@ export function collectProductionEnvErrors(env: NodeJS.ProcessEnv = process.env)
     requireValue(name)
   }
 
+  if ((env.R2_QUARANTINE_BUCKET ?? '').trim()) {
+    for (const name of [
+      'R2_QUARANTINE_ACCESS_KEY_ID',
+      'R2_QUARANTINE_SECRET_ACCESS_KEY',
+      'R2_QUARANTINE_JURISDICTION',
+    ]) requireValue(name)
+    if (env.R2_QUARANTINE_BUCKET === env.R2_BUCKET_NAME) {
+      errors.push('R2_QUARANTINE_BUCKET must differ from the public media bucket')
+    }
+    if (env.R2_QUARANTINE_JURISDICTION && !['eu', 'us', 'fedramp'].includes(env.R2_QUARANTINE_JURISDICTION)) {
+      errors.push('R2_QUARANTINE_JURISDICTION must be eu, us, or fedramp')
+    }
+  }
+
   const fingerprints = (env.ANDROID_CERT_FINGERPRINTS ?? '')
     .split(',')
     .map((value) => value.trim())
@@ -101,6 +115,10 @@ export function collectProductionEnvWarnings(env: NodeJS.ProcessEnv = process.en
     )
   } else if (adminApiKey.length < 32) {
     warnings.push('ADMIN_API_KEY should be at least 32 characters')
+  }
+
+  if (!(env.R2_QUARANTINE_BUCKET ?? '').trim()) {
+    warnings.push('R2_QUARANTINE_BUCKET is not set — removed attachments may remain reachable via the public media bucket')
   }
 
   return warnings

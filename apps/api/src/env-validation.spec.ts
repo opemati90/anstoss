@@ -92,6 +92,30 @@ describe('collectProductionEnvErrors', () => {
     )
   })
 
+  it('requires an isolated credential and valid jurisdiction when private quarantine is enabled', () => {
+    const env = validEnv()
+    env.R2_QUARANTINE_BUCKET = 'anstoss-quarantine'
+    expect(collectProductionEnvErrors(env)).toEqual(expect.arrayContaining([
+      'R2_QUARANTINE_ACCESS_KEY_ID is required in production',
+      'R2_QUARANTINE_SECRET_ACCESS_KEY is required in production',
+      'R2_QUARANTINE_JURISDICTION is required in production',
+    ]))
+
+    env.R2_QUARANTINE_ACCESS_KEY_ID = 'review-key'
+    env.R2_QUARANTINE_SECRET_ACCESS_KEY = 'review-secret'
+    env.R2_QUARANTINE_JURISDICTION = 'eu'
+    expect(collectProductionEnvErrors(env)).toEqual([])
+    env.R2_QUARANTINE_BUCKET = env.R2_BUCKET_NAME
+    expect(collectProductionEnvErrors(env)).toContain(
+      'R2_QUARANTINE_BUCKET must differ from the public media bucket',
+    )
+    env.R2_QUARANTINE_BUCKET = 'anstoss-quarantine'
+    env.R2_QUARANTINE_JURISDICTION = 'invalid'
+    expect(collectProductionEnvErrors(env)).toContain(
+      'R2_QUARANTINE_JURISDICTION must be eu, us, or fedramp',
+    )
+  })
+
   it('validates Android app-link fingerprints when configured', () => {
     const env = validEnv()
     env.ANDROID_CERT_FINGERPRINTS = 'not-a-fingerprint'
