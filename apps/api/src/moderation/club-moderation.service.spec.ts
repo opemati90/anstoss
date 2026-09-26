@@ -168,6 +168,86 @@ describe('ClubModerationService.resolveReport', () => {
 })
 
 describe('ModerationSafetyWorker', () => {
+  it.each(['channel', 'direct'] as const)('retries beyond 200 unprocessable %s reports', async (kind) => {
+    const prisma = world()
+    const direct = kind === 'direct'
+    const reports = direct ? prisma.tables.directMessageReport : prisma.tables.messageReport
+    const messages = direct ? prisma.tables.directMessage : prisma.tables.message
+    const field = direct ? 'directMessageId' : 'messageId'
+    messages[0].deletedAt = new Date()
+    const original = { ...reports[0] }
+    reports.splice(0, reports.length, ...Array.from({ length: 201 }, (_, i) => ({
+      ...original, id: `page-${String(i).padStart(4, '0')}`, [field]: `message-${i}`,
+      evidencePurgedAt: null, evidenceAttachmentUrl: i === 200 ? IMG : 'https://external.invalid/file',
+    })))
+    messages.splice(0, messages.length, ...reports.map((r) => ({ id: r[field], deletedAt: new Date() })))
+    const storage = r2()
+    storage.objectKeyFromUrl.mockImplementation((url) => url.startsWith('https://assets.anstoss.io/') ? url.replace('https://assets.anstoss.io/', '') : '')
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, storage as never)
+    await expect(worker.retryPendingQuarantines()).resolves.toBe(1)
+    expect(reports[200].evidenceAttachmentUrl).toBeNull()
+    expect(reports[0].evidenceAttachmentUrl).toBe('https://external.invalid/file')
+  })
+
+  it.each(['channel', 'direct'] as const)('purges beyond 500 pending %s moves without losing their pointers', async (kind) => {
+    const prisma = world()
+    const direct = kind === 'direct'
+    const reports = direct ? prisma.tables.directMessageReport : prisma.tables.messageReport
+    const messages = direct ? prisma.tables.directMessage : prisma.tables.message
+    messages[0].deletedAt = new Date()
+    const original = { ...reports[0] }
+    reports.splice(0, reports.length, ...Array.from({ length: 501 }, (_, i) => ({
+      ...original, id: `page-${String(i).padStart(4, '0')}`, resolvedAt: ago(91 * 24),
+      evidencePurgedAt: null, evidenceAttachmentMeta: null, evidenceAttachmentUrl: i === 500 ? null : IMG,
+    })))
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, r2() as never)
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(1)
+    expect(reports[500].evidencePurgedAt).toBeInstanceOf(Date)
+    expect(reports[0].evidenceAttachmentUrl).toBe(IMG)
+  })
+
+  it('retries failed moves from persisted report URLs after the message is removed', async () => {
+    const { prisma, storage, service, alerter } = build()
+    storage.quarantineObject.mockRejectedValueOnce(new Error('temporary storage outage'))
+    await service.resolveReport('albatros', 'r-1', 'admin-1', { action: 'remove' })
+    const report = prisma.tables.messageReport.find((r) => r.id === 'r-1')!
+    expect(report.evidenceAttachmentUrl).toBe(IMG)
+    expect(prisma.tables.message[0].attachmentUrl).toBeNull()
+    const worker = new ModerationSafetyWorker(prisma as never, alerter as never, storage as never)
+    await expect(worker.retryPendingQuarantines()).resolves.toBe(1)
+    expect(report.evidenceAttachmentUrl).toBeNull()
+    expect(report.evidenceAttachmentMeta.quarantine).toBeDefined()
+    await expect(worker.retryPendingQuarantines()).resolves.toBe(0)
+  })
+
+  it('retries a report DB-update failure after storage succeeds', async () => {
+    const { prisma, storage, service, alerter } = build()
+    const update = prisma.messageReport.updateMany.getMockImplementation()!
+    let fail = true
+    prisma.messageReport.updateMany.mockImplementation(async (args: any) => {
+      if (args.data.evidenceAttachmentMeta?.quarantine && fail) {
+        fail = false
+        throw new Error('database temporarily unavailable')
+      }
+      return update(args)
+    })
+    await service.resolveReport('albatros', 'r-1', 'admin-1', { action: 'remove' })
+    const worker = new ModerationSafetyWorker(prisma as never, alerter as never, storage as never)
+    await expect(worker.retryPendingQuarantines()).resolves.toBe(1)
+    expect(storage.quarantineObject).toHaveBeenCalledTimes(2)
+    expect(prisma.tables.messageReport[0].evidenceAttachmentUrl).toBeNull()
+  })
+
+  it('retries removed direct-message attachments too', async () => {
+    const prisma = world()
+    prisma.tables.directMessage[0].deletedAt = new Date()
+    prisma.tables.directMessageReport[0].evidenceAttachmentUrl = IMG
+    const storage = r2()
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, storage as never)
+    await expect(worker.retryPendingQuarantines()).resolves.toBe(1)
+    expect(prisma.tables.directMessageReport[0].evidenceAttachmentUrl).toBeNull()
+  })
+
   it('alerts the platform once per report open longer than 24h and flags it escalated', async () => {
     const prisma = world()
     const alerter = { alert: jest.fn().mockResolvedValue(undefined) }
@@ -203,5 +283,46 @@ describe('ModerationSafetyWorker', () => {
       }),
     )
     expect(recent.evidenceContent).toBe('original text')
+  })
+
+  it('retains a shared object until every report referencing it expires', async () => {
+    const prisma = world()
+    const old = prisma.tables.messageReport[0]
+    const active = prisma.tables.directMessageReport[0]
+    old.resolvedAt = new Date(Date.now() - 91 * 24 * HOUR)
+    old.evidenceAttachmentMeta = { quarantine: { bucket: 'q', key: 'quarantine/shared/a.png' } }
+    active.evidenceAttachmentMeta = old.evidenceAttachmentMeta
+    const storage = r2()
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, storage as never)
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(1)
+    expect(storage.deleteObjectIn).not.toHaveBeenCalled()
+    expect(active.evidenceAttachmentMeta.quarantine).toBeDefined()
+    active.resolvedAt = new Date(Date.now() - 91 * 24 * HOUR)
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(1)
+    expect(storage.deleteObjectIn).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the private object pointer when deletion fails and retries later', async () => {
+    const prisma = world()
+    const old = prisma.tables.messageReport[0]
+    old.resolvedAt = new Date(Date.now() - 91 * 24 * HOUR)
+    old.evidenceAttachmentMeta = { quarantine: { bucket: 'q', key: 'quarantine/retry/a.png' } }
+    const storage = r2()
+    storage.deleteObjectIn.mockRejectedValueOnce(new Error('storage outage'))
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, storage as never)
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(0)
+    expect(old.evidencePurgedAt).toBeNull()
+    expect(old.evidenceAttachmentMeta.quarantine).toBeDefined()
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(1)
+    expect(old.evidencePurgedAt).toBeInstanceOf(Date)
+  })
+
+  it('does not purge a pending move and lose its durable source pointer', async () => {
+    const prisma = world()
+    prisma.tables.message[0].deletedAt = new Date()
+    prisma.tables.messageReport[0].resolvedAt = new Date(Date.now() - 91 * 24 * HOUR)
+    const worker = new ModerationSafetyWorker(prisma as never, { alert: jest.fn() } as never, r2() as never)
+    await expect(worker.purgeExpiredEvidence()).resolves.toBe(0)
+    expect(prisma.tables.messageReport[0].evidenceAttachmentUrl).toBe(IMG)
   })
 })

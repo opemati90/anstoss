@@ -4,9 +4,8 @@ import {
   HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
-  CopyObjectCommand,
 } from '@aws-sdk/client-s3'
-import { randomUUID } from 'crypto'
+import { createHash } from 'crypto'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Injectable, Logger } from '@nestjs/common'
 
@@ -125,40 +124,55 @@ export class R2Provider {
 
   /**
    * Safeguarding: move a removed chat attachment out of its public path.
-   * The object is moved to `quarantine/<uuid>/<name>` in a separate private
-   * jurisdictional bucket when configured. The original is deleted only after
-   * the private copy succeeds. The legacy same-bucket path remains until the
-   * private bucket credentials are activated; it must not be considered private
-   * if the media bucket has a public domain.
-   * Returns the quarantine key for moderator evidence, or null when R2 is
-   * not configured.
+   * Uses a deterministic private key so a retry after a delete/database failure
+   * recovers the same evidence. This retains the first copied version. Never
+   * falls back to the public bucket. Null means the source and private copy are
+   * both already absent; missing configuration is an error, not a success.
    */
   async quarantineObject(objectKey: string): Promise<{ bucket: string; key: string } | null> {
-    if (!this.client) return null
-    const bucket = this.quarantineBucket || this.bucket
+    if (!this.client || !this.quarantineClient || !this.quarantineBucket || this.quarantineBucket === this.bucket) {
+      throw new Error('Private R2 quarantine storage is not configured')
+    }
+    const bucket = this.quarantineBucket
     const name = objectKey.split('/').pop() || 'object'
-    const key = `quarantine/${randomUUID()}/${name}`
-    if (this.quarantineBucket) {
-      if (!this.quarantineClient) throw new Error('R2 quarantine storage is not configured')
-      // CopyObject cannot cross R2 jurisdiction endpoints. Stream the source
-      // through the API into the private EU bucket, then remove the public copy.
-      const source = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }))
-      if (!source.Body || source.ContentLength === undefined) {
-        throw new Error('R2 source object could not be read for quarantine')
+    const digest = createHash('sha256').update(`${this.bucket}/${objectKey}`).digest('hex')
+    const key = `quarantine/${digest}/${name}`
+    const privateCopyExists = async () => {
+      try {
+        await this.quarantineClient!.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+        return true
+      } catch (error) {
+        if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) return false
+        throw error
       }
-      await this.quarantineClient.send(new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: source.Body,
-        ContentLength: source.ContentLength,
-        ContentType: source.ContentType,
-      }))
-    } else {
-      await this.client.send(new CopyObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        CopySource: `${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`,
-      }))
+    }
+    if (!(await privateCopyExists())) {
+      const source = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }))
+        .catch(async (error) => {
+          if (error.$metadata?.httpStatusCode !== 404) throw error
+          // Another worker may have finished moving the object while
+          // this worker was checking. Recheck before declaring evidence absent.
+          if (await privateCopyExists()) return null
+          return undefined
+        })
+      if (source === undefined) return null
+      if (source !== null) {
+        try {
+          if (!source.Body || source.ContentLength === undefined) {
+            throw new Error('R2 source object could not be read for quarantine')
+          }
+          // R2 CopyObject cannot cross jurisdiction endpoints.
+          await this.quarantineClient.send(new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: source.Body,
+            ContentLength: source.ContentLength,
+            ContentType: source.ContentType,
+          }))
+        } finally {
+          (source.Body as { destroy?: () => void } | undefined)?.destroy?.()
+        }
+      }
     }
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }))
     return { bucket, key }

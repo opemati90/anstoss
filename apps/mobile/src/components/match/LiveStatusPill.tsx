@@ -52,8 +52,8 @@ export function LiveStatusPill({
         : tokens.statusUpcoming
   // Inverse sits on a club-coloured card: always a white pill with dark text,
   // independent of theme (in dark mode both theme tokens are near-white).
-  const inverseBg = inverse ? '#FFFFFF' : bg
-  const inverseText = inverse ? '#1A1A18' : tokens.statusLiveText
+  const inverseBg = inverse ? tokens.statusInverseBg : bg
+  const inverseText = inverse ? tokens.statusInverseText : tokens.statusLiveText
   const dotColor = inverse ? tokens.statusLive : tokens.statusLiveText
 
   const label =

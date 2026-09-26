@@ -17,6 +17,7 @@
       }
     },
     "preview": {
+      "autoIncrement": true,
       "credentialsSource": "remote",
       "distribution": "internal",
       "channel": "preview",

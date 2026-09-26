@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -64,6 +65,7 @@ describe('R2Provider private quarantine', () => {
       commands.push(command.constructor.name)
       const endpoint = await this.config.endpoint()
       endpoints.push(endpoint.hostname)
+      if (command instanceof HeadObjectCommand) throw Object.assign(new Error('Not found'), { $metadata: { httpStatusCode: 404 } })
       if (command instanceof GetObjectCommand) {
         return {
           Body: Readable.from(['sample']),
@@ -78,9 +80,10 @@ describe('R2Provider private quarantine', () => {
 
     expect(result).toMatchObject({ bucket: 'anstoss-quarantine' })
     expect(commands).toEqual([
-      GetObjectCommand.name, PutObjectCommand.name, DeleteObjectCommand.name,
+      HeadObjectCommand.name, GetObjectCommand.name, PutObjectCommand.name, DeleteObjectCommand.name,
     ])
     expect(endpoints).toEqual([
+      'example-account.eu.r2.cloudflarestorage.com',
       'example-account.r2.cloudflarestorage.com',
       'example-account.eu.r2.cloudflarestorage.com',
       'example-account.r2.cloudflarestorage.com',
@@ -91,6 +94,7 @@ describe('R2Provider private quarantine', () => {
     const commands: string[] = []
     jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command: { constructor: { name: string } }) => {
       commands.push(command.constructor.name)
+      if (command instanceof HeadObjectCommand) throw Object.assign(new Error('Not found'), { $metadata: { httpStatusCode: 404 } })
       if (command instanceof GetObjectCommand) {
         return { Body: Readable.from(['sample']), ContentLength: 6 }
       }
@@ -100,7 +104,39 @@ describe('R2Provider private quarantine', () => {
 
     await expect(new R2Provider().quarantineObject('chat/sample.png'))
       .rejects.toThrow('private write failed')
-    expect(commands).toEqual([GetObjectCommand.name, PutObjectCommand.name])
+    expect(commands).toEqual([HeadObjectCommand.name, GetObjectCommand.name, PutObjectCommand.name])
+  })
+
+  it('recovers the same private object after source deletion fails', async () => {
+    let privateExists = false
+    let deleteAttempts = 0
+    const privateKeys: string[] = []
+    const send = jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command: { constructor: { name: string } }) => {
+      if (command instanceof HeadObjectCommand) {
+        if (!privateExists) throw Object.assign(new Error('Not found'), { $metadata: { httpStatusCode: 404 } })
+        return {}
+      }
+      if (command instanceof GetObjectCommand) return { Body: Readable.from(['sample']), ContentLength: 6 }
+      if (command instanceof PutObjectCommand) {
+        privateExists = true
+        privateKeys.push(command.input.Key!)
+      }
+      if (command instanceof DeleteObjectCommand && ++deleteAttempts === 1) throw new Error('temporary delete failure')
+      return {}
+    }) as S3Client['send'])
+    const provider = new R2Provider()
+    await expect(provider.quarantineObject('chat/sample.png')).rejects.toThrow('temporary delete failure')
+    const retried = await provider.quarantineObject('chat/sample.png')
+    expect(retried?.key).toBe(privateKeys[0])
+    expect(privateKeys).toHaveLength(1)
+    expect(send.mock.calls.filter(([command]) => command instanceof GetObjectCommand)).toHaveLength(1)
+  })
+
+  it('never falls back to the public bucket when quarantine is unconfigured', async () => {
+    delete process.env.R2_QUARANTINE_BUCKET
+    const send = jest.spyOn(S3Client.prototype, 'send')
+    await expect(new R2Provider().quarantineObject('chat/sample.png')).rejects.toThrow('Private R2 quarantine')
+    expect(send).not.toHaveBeenCalled()
   })
 
   it('refuses an unconfigured evidence bucket', async () => {

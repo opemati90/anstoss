@@ -82,7 +82,7 @@ type EasJson = {
 
 const appJson = json<AppJson>('apps/mobile/app.json')
 expect(
-  appJson.expo?.runtimeVersion === '57.0.0',
+  appJson.expo?.runtimeVersion === '57.0.1',
   'app.json must use the explicit Expo 57 runtime; increment it whenever native code changes',
 )
 const splashPlugin = appJson.expo?.plugins?.find(
@@ -218,15 +218,15 @@ expectNotIncludes(infoPlist, 'NSAllowsLocalNetworking', 'iOS Release plist')
 
 const expoPlist = read('apps/mobile/ios/Anstoss/Supporting/Expo.plist')
 expect(
-  /<key>EXUpdatesRuntimeVersion<\/key>\s*<string>57\.0\.0<\/string>/.test(expoPlist),
-  'iOS Expo Updates runtime must set EXUpdatesRuntimeVersion to 57.0.0',
+  /<key>EXUpdatesRuntimeVersion<\/key>\s*<string>57\.0\.1<\/string>/.test(expoPlist),
+  'iOS Expo Updates runtime must set EXUpdatesRuntimeVersion to 57.0.1',
 )
 expectNotIncludes(expoPlist, 'file:fingerprint', 'iOS Expo Updates runtime')
 
 const androidStrings = read('apps/mobile/android/app/src/main/res/values/strings.xml')
 expectIncludes(
   androidStrings,
-  '<string name="expo_runtime_version">57.0.0</string>',
+  '<string name="expo_runtime_version">57.0.1</string>',
   'Android Expo Updates runtime',
 )
 expectNotIncludes(androidStrings, 'file:fingerprint', 'Android Expo Updates runtime')

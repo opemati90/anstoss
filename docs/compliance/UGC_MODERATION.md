@@ -46,7 +46,7 @@ Platform alerts are emails to `SAFEGUARDING_ALERT_EMAILS` (comma-separated; fall
 1. Open the queue: club admins in the app or via `GET /clubs/:clubId/moderation/reports?status=open`; platform admins via the admin console.
 2. Read the evidence. Each report stores a copy of the message text and, for channel and direct messages, the attachment reference as it was when reported, so later edits cannot hide what was said. The queue returns a signed URL for the attachment that is valid for **5 minutes** (`message.attachment.url` in the club queue, `evidenceAttachmentSignedUrl` in the platform queue). Reload the queue for a fresh link.
 3. Decide:
-   - **Remove**: `POST /clubs/:clubId/moderation/reports/:reportId/resolve` with `{"action":"remove","resolution":"..."}`. The message is soft-deleted and blanked for everyone (text and attachment, channel and direct), cached translations are deleted, and all other open reports on the same message are closed. The stored media object is moved out of its public path into quarantine (`quarantine/<random>/<name>`, in `R2_QUARANTINE_BUCKET` when set) and the reports point at the quarantined copy.
+   - **Remove**: `POST /clubs/:clubId/moderation/reports/:reportId/resolve` with `{"action":"remove","resolution":"..."}`. The message is soft-deleted and blanked for everyone (text and attachment, channel and direct), cached translations are deleted, and all other open reports on the same message are closed. The stored media object is moved out of its public path into the private `R2_QUARANTINE_BUCKET` (`quarantine/<source-key-hash>/<name>`) and the reports point at the quarantined copy. Storage or database failures retain the report's source pointer for the worker to retry.
    - **Dismiss**: same endpoint with `{"action":"dismiss"}`. The message and its media stay.
 4. If the sender keeps breaking the rules, the club admin removes them from the club or team. The admin console has no account-suspension action yet; until it does, the platform team removes the user from the affected clubs and, for serious cases, deletes the account after preserving the evidence.
 5. Every decision writes an `AuditLog` entry (`moderation.report_resolved`, or `admin.moderation_report.resolved` for platform staff) with who acted, when, and what.
@@ -72,7 +72,15 @@ A safeguarding case or legal hold that needs evidence longer than 90 days must b
 ## Operations checklist
 
 - Set `SAFEGUARDING_ALERT_EMAILS` in production and test that an alert arrives.
-- If R2 is served through a public domain, either set `R2_QUARANTINE_BUCKET` to a private bucket or block the `quarantine/` prefix on the public domain.
+- Configure a separate private `R2_QUARANTINE_BUCKET`, `R2_QUARANTINE_JURISDICTION`, `R2_QUARANTINE_ACCESS_KEY_ID`, and `R2_QUARANTINE_SECRET_ACCESS_KEY`. Set credentials first and bucket last. There is no public-bucket fallback. The production bucket `anstoss-quarantine` uses EU jurisdiction, no r2.dev URL, and no custom domain; its key is scoped only to that bucket.
+- Verify private Put/Get/Delete plus the provider's complete move before activation: source becomes 404, evidence is readable with a signed URL, unsigned requests fail, and evidence deletion returns 404. This storage canary passed on 26 September 2026.
+- Failed quarantine transfers retain the original report URL as a durable retry pointer. The hourly safety worker retries removed-message attachments; deterministic private keys also recover after source deletion or report update failures. Monitor `quarantine failed` logs while storage is unavailable.
+- Evidence retention checks references across channel and direct-message reports. Shared objects survive until all references expire; failed object deletion preserves the pointer for retry. Pending transfers are not purged.
+- Retry and purge sweeps use ID-keyset pages, so unprocessable or pending rows do not starve later records. Boundary regressions cover more than 200 retry records and more than 500 retention records in both channel and direct messages.
+
+### Public-release limitations (26 September 2026)
+
+The private-storage canary is not a complete safeguarding sign-off. Existing chat uploads use reusable, ten-minute presigned PUT URLs into a public media bucket; a sender could recreate a removed public object while that URL remains valid. Timestamp-based upload keys also need collision protection. A private origin with authorized delivery, or durable public-edge tombstones, is required before public release. Failed moderation moves currently retry hourly and may leave the original URL accessible meanwhile. Internal testing may proceed, but public submission remains blocked on closing these access-control gaps and validating the failure paths.
 - Apply migration `apps/api/prisma/migrations/20260924213000_moderation_safeguarding` before deploying this API.
 
 ## Still open

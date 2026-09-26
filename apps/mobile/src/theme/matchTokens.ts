@@ -28,6 +28,8 @@ export const lightMatchTokens = {
   // Status pill backgrounds + text.
   statusLive: STATUS_LIVE,
   statusLiveText: '#FFFFFF',
+  statusInverseBg: '#FFFFFF',
+  statusInverseText: '#1A1A18',
   statusUpcoming: '#5F626C',
   statusUpcomingText: '#FFFFFF',
   statusFinal: '#3F4453',
@@ -56,6 +58,8 @@ export const darkMatchTokens = {
   heroStripeTint: 'rgba(255, 255, 255, 0.03)',
   statusLive: STATUS_LIVE_DARK,
   statusLiveText: '#FFFFFF',
+  statusInverseBg: '#FFFFFF',
+  statusInverseText: '#1A1A18',
   statusUpcoming: '#9C9C96',
   statusUpcomingText: '#0F0F0E',
   statusFinal: '#6B6B66',

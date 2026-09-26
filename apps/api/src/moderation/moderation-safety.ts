@@ -108,27 +108,32 @@ export async function quarantineRemovedAttachment(
   r2: R2Provider | undefined,
   input: { kind: 'channel' | 'direct'; messageId: string; attachmentUrl: string | null },
   logger: Logger,
-): Promise<void> {
-  if (!input.attachmentUrl || !r2?.enabled) return
+): Promise<boolean> {
+  if (!input.attachmentUrl || !r2?.enabled) return false
   const key = r2.objectKeyFromUrl(input.attachmentUrl)
-  if (!key) return
+  if (!key) return false
   try {
     const moved = await r2.quarantineObject(key)
-    if (!moved) return
     const data = {
       evidenceAttachmentUrl: null,
-      evidenceAttachmentMeta: { quarantine: moved, originalKey: key } as Prisma.InputJsonValue,
+      evidenceAttachmentMeta: moved
+        ? { quarantine: moved, originalKey: key } as Prisma.InputJsonValue
+        : { unavailable: true, originalKey: key } as Prisma.InputJsonValue,
     }
     if (input.kind === 'channel') {
-      await prisma.messageReport.updateMany({ where: { messageId: input.messageId }, data })
+      await prisma.messageReport.updateMany({ where: { messageId: input.messageId, evidencePurgedAt: null }, data })
     } else {
       await prisma.directMessageReport.updateMany({
-        where: { directMessageId: input.messageId },
+        where: { directMessageId: input.messageId, evidencePurgedAt: null },
         data,
       })
     }
+    return true
   } catch (err) {
     logger.error(`quarantine failed for ${input.kind} message ${input.messageId}: ${(err as Error).message}`)
+    // The report's original evidenceAttachmentUrl remains persisted. The
+    // worker retries it after restarts until both storage and DB update succeed.
+    return false
   }
 }
 
@@ -212,11 +217,52 @@ export class ModerationSafetyWorker implements OnModuleInit, OnModuleDestroy {
 
   private async tick() {
     try {
+      await this.retryPendingQuarantines()
       await this.alertOverdue()
       await this.purgeExpiredEvidence()
     } catch (err) {
       this.logger.warn(`moderation sweep failed: ${(err as Error).message}`)
     }
+  }
+
+  /** Persisted report URLs are the retry queue; no user request needs to retry. */
+  async retryPendingQuarantines(): Promise<number> {
+    if (!this.r2?.enabled) return 0
+    const evidence = { evidencePurgedAt: null, evidenceAttachmentUrl: { not: null } }
+    let channelCursor: string | undefined
+    let directCursor: string | undefined
+    let completed = 0
+    const seen = new Set<string>()
+    for (;;) {
+      const [channel, direct] = await Promise.all([
+        this.prisma.messageReport.findMany({
+          where: { ...evidence, ...(channelCursor ? { id: { gt: channelCursor } } : {}), message: { is: { deletedAt: { not: null } } } },
+          select: { id: true, messageId: true, evidenceAttachmentUrl: true },
+          orderBy: { id: 'asc' }, take: 200,
+        }),
+        this.prisma.directMessageReport.findMany({
+          where: { ...evidence, ...(directCursor ? { id: { gt: directCursor } } : {}), directMessage: { is: { deletedAt: { not: null } } } },
+          select: { id: true, directMessageId: true, evidenceAttachmentUrl: true },
+          orderBy: { id: 'asc' }, take: 200,
+        }),
+      ])
+      if (!channel.length && !direct.length) break
+      channelCursor = channel.at(-1)?.id ?? channelCursor
+      directCursor = direct.at(-1)?.id ?? directCursor
+      const tasks = new Map<string, { kind: 'channel' | 'direct'; messageId: string; attachmentUrl: string | null }>()
+      for (const row of channel) tasks.set(`channel:${row.messageId}`, {
+        kind: 'channel', messageId: row.messageId, attachmentUrl: row.evidenceAttachmentUrl,
+      })
+      for (const row of direct) tasks.set(`direct:${row.directMessageId}`, {
+        kind: 'direct', messageId: row.directMessageId, attachmentUrl: row.evidenceAttachmentUrl,
+      })
+      for (const [key, input] of tasks) {
+        if (seen.has(key)) continue
+        seen.add(key)
+        if (await quarantineRemovedAttachment(this.prisma, this.r2, input, this.logger)) completed++
+      }
+    }
+    return completed
   }
 
   /** Alert once per open report older than the response target. */
@@ -288,36 +334,61 @@ export class ModerationSafetyWorker implements OnModuleInit, OnModuleDestroy {
   async purgeExpiredEvidence(now = new Date()): Promise<number> {
     const cutoff = new Date(now.getTime() - EVIDENCE_RETENTION_DAYS * DAY_MS)
     const where = { resolvedAt: { lt: cutoff }, evidencePurgedAt: null }
-    const select = { id: true, evidenceAttachmentMeta: true }
-    const [channel, direct] = await Promise.all([
-      this.prisma.messageReport.findMany({ where, select, take: 500 }),
-      this.prisma.directMessageReport.findMany({ where, select, take: 500 }),
-    ])
-    const data = {
-      evidenceContent: null,
-      evidenceAttachmentUrl: null,
-      evidenceAttachmentMeta: Prisma.DbNull,
-      evidencePurgedAt: now,
-    }
-    for (const r of [...channel, ...direct]) {
-      const q = readQuarantine(r.evidenceAttachmentMeta)
-      if (q && this.r2) {
-        // Other reports on the same message share the object; deleting twice is harmless.
-        await this.r2.deleteObjectIn(q.bucket, q.key).catch(() => undefined)
+    const select = { id: true, evidenceAttachmentMeta: true, evidenceAttachmentUrl: true }
+    let channelCursor: string | undefined
+    let directCursor: string | undefined
+    let purged = 0
+    for (;;) {
+      const [channel, direct] = await Promise.all([
+        this.prisma.messageReport.findMany({ where: { ...where, ...(channelCursor ? { id: { gt: channelCursor } } : {}) }, select: { ...select, message: { select: { deletedAt: true } } }, orderBy: { id: 'asc' }, take: 500 }),
+        this.prisma.directMessageReport.findMany({ where: { ...where, ...(directCursor ? { id: { gt: directCursor } } : {}) }, select: { ...select, directMessage: { select: { deletedAt: true } } }, orderBy: { id: 'asc' }, take: 500 }),
+      ])
+      if (!channel.length && !direct.length) break
+      channelCursor = channel.at(-1)?.id ?? channelCursor
+      directCursor = direct.at(-1)?.id ?? directCursor
+      const data = {
+        evidenceContent: null,
+        evidenceAttachmentUrl: null,
+        evidenceAttachmentMeta: Prisma.DbNull,
+        evidencePurgedAt: now,
+      }
+      const rows = [
+        ...channel.map((r) => ({ ...r, kind: 'channel' as const, removed: Boolean(r.message.deletedAt) })),
+        ...direct.map((r) => ({ ...r, kind: 'direct' as const, removed: Boolean(r.directMessage.deletedAt) })),
+      ]
+      for (const r of rows) {
+        // Do not erase the only durable retry pointer to removed public media.
+        if (r.removed && r.evidenceAttachmentUrl) continue
+        const q = readQuarantine(r.evidenceAttachmentMeta)
+        if (q) {
+          const referenceWhere = {
+            evidencePurgedAt: null,
+            OR: [{ resolvedAt: null }, { resolvedAt: { gte: cutoff } }],
+            AND: [
+              { evidenceAttachmentMeta: { path: ['quarantine', 'bucket'], equals: q.bucket } },
+              { evidenceAttachmentMeta: { path: ['quarantine', 'key'], equals: q.key } },
+            ],
+          }
+          const references = await Promise.all([
+            this.prisma.messageReport.findFirst({ where: referenceWhere, select: { id: true } }),
+            this.prisma.directMessageReport.findFirst({ where: referenceWhere, select: { id: true } }),
+          ])
+          if (!references.some(Boolean)) {
+            if (!this.r2?.enabled) continue
+            try { await this.r2.deleteObjectIn(q.bucket, q.key) }
+            catch {
+              this.logger.error(`Evidence deletion failed for report ${r.id}; retained for retry`)
+              continue
+            }
+          }
+        }
+        const args = { where: { ...where, id: r.id }, data }
+        const result = r.kind === 'channel'
+          ? await this.prisma.messageReport.updateMany(args)
+          : await this.prisma.directMessageReport.updateMany(args)
+        purged += result.count
       }
     }
-    if (channel.length > 0) {
-      await this.prisma.messageReport.updateMany({
-        where: { id: { in: channel.map((r) => r.id) } },
-        data,
-      })
-    }
-    if (direct.length > 0) {
-      await this.prisma.directMessageReport.updateMany({
-        where: { id: { in: direct.map((r) => r.id) } },
-        data,
-      })
-    }
-    return channel.length + direct.length
+    return purged
   }
 }

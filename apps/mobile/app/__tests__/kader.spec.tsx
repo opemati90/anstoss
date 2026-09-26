@@ -38,12 +38,13 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker')
 
 // Keys come back as "key|count" so assertions stay independent of copy.
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, options?: Record<string, unknown>) =>
-      options && 'count' in options ? `${key}|${options.count}` : key,
-  }),
-}))
+jest.mock('react-i18next', () => {
+  // Match react-i18next's stable translator identity. Recreating t on each
+  // render spuriously reruns useFocusEffect and invents extra network calls.
+  const t = (key: string, options?: Record<string, unknown>) =>
+    options && 'count' in options ? `${key}|${options.count}` : key
+  return { useTranslation: () => ({ t }) }
+})
 
 jest.mock('../../src/i18n', () => ({
   getAppLanguage: () => 'de',

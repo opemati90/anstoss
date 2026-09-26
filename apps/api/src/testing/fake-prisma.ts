@@ -34,6 +34,11 @@ export function createFakePrisma(seed: Record<string, Row[]>, relations: Relatio
       return value instanceof Date && cond instanceof Date ? value.getTime() === cond.getTime() : value === cond
     }
     const insensitive = cond.mode === 'insensitive'
+    if (Array.isArray(cond.path)) {
+      value = cond.path.reduce((current: any, key: string) => current?.[key], value)
+      const { path: _path, ...rest } = cond
+      return cmp(value, rest)
+    }
     const norm = (v: any) => (insensitive && typeof v === 'string' ? v.toLowerCase() : v)
     const time = (v: any) => (v instanceof Date ? v.getTime() : v)
     for (const [op, arg] of Object.entries(cond)) {
