@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth, type RoleMode } from '../../context/AuthContext'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
 import { ClubSwitcher } from '../ClubSwitcher'
-import { BottomSheet, Icon, ListRow, Text } from '../ui'
+import { BottomSheet, Icon, ListRow, SectionGroup, Text } from '../ui'
 import { hairline, radius, space } from '../../theme/tokens'
 import { formatChildrenSummary, useChildrenSummary } from './childrenSummary'
 
@@ -165,10 +165,7 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
             {t('homeHub.header.sheetTitle', { defaultValue: 'Team and role' })}
           </Text>
           {canSwitchTeam ? (
-            <View style={styles.sheetGroup}>
-              <Text variant="caption1" color="secondary" style={styles.sheetLabel}>
-                {t('homeHub.header.team', { defaultValue: 'Team' })}
-              </Text>
+            <SectionGroup header={t('homeHub.header.team', { defaultValue: 'Team' })}>
               {teams.map((access) => {
                 const selected = access.team.id === activeTeamAccess?.team?.id
                 return (
@@ -187,13 +184,15 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
                   />
                 )
               })}
-            </View>
+            </SectionGroup>
           ) : null}
           {canSwitchRole ? (
-            <View style={styles.sheetGroup}>
-              <Text variant="caption1" color="secondary" style={styles.sheetLabel}>
-                {t('more.roleModeTitle', { defaultValue: 'Use Anstoss as' })}
-              </Text>
+            <SectionGroup
+              header={t('more.roleModeTitle', { defaultValue: 'Use Anstoss as' })}
+              footer={t('more.roleModeHint', {
+                defaultValue: 'Switch views without changing any club permissions.',
+              })}
+            >
               {availableRoleModes.map((option) => (
                 <ListRow
                   key={option}
@@ -210,12 +209,7 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
                   }}
                 />
               ))}
-              <Text variant="footnote" color="secondary" style={styles.sheetLabel}>
-                {t('more.roleModeHint', {
-                  defaultValue: 'Switch views without changing any club permissions.',
-                })}
-              </Text>
-            </View>
+            </SectionGroup>
           ) : null}
         </View>
       </BottomSheet>
@@ -287,7 +281,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.full,
   },
-  sheet: { gap: space.md },
-  sheetGroup: { gap: space.xs },
-  sheetLabel: { paddingHorizontal: space.xs },
+  sheet: { gap: space.sm },
 })

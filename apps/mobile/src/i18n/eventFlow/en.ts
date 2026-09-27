@@ -263,6 +263,12 @@ export const eventFlowEn = {
     noTeamBody: 'Create a team first, then you can plan events.',
     loadFailedTitle: "The event couldn't be loaded",
     loadFailedBody: 'Please try again.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'When',
+    sectionRepeat: 'Repeat',
+    sectionWhere: 'Where',
+    sectionDetails: 'Details',
+    durationUntil: '{{minutes}} · until {{time}}',
   },
   lineup: {
     headline: 'Starting XI {{title}}, {{date}}',

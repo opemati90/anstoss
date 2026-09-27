@@ -737,5 +737,5 @@ const styles = StyleSheet.create({
   sectionGap: { height: space.lg },
   filterEmpty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },
   footer: { marginTop: space.sm },
-  menuBody: { paddingHorizontal: space.md, paddingTop: space.md },
+  menuBody: { paddingTop: space.md },
 })

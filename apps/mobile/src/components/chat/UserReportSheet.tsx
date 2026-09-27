@@ -95,7 +95,7 @@ export function UserReportSheet({ visible, onClose, clubId, conversationId, peer
   return (
     <BottomSheet visible={visible} onClose={sending ? () => undefined : onClose} heightPct="auto">
       <ScrollView contentContainerStyle={styles.body} testID="chat-info-report-sheet" keyboardShouldPersistTaps="handled">
-        <Text variant="title3" color="primary" accessibilityRole="header">
+        <Text variant="title3" weight="bold" color="primary" accessibilityRole="header">
           {t('chatInbox.report.title', { name: peer.name })}
         </Text>
 
@@ -206,7 +206,7 @@ export function UserReportSheet({ visible, onClose, clubId, conversationId, peer
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: space.md, gap: space.md, paddingBottom: space.md },
+  body: { gap: space.md, paddingBottom: space.md },
   flex: { flex: 1, minWidth: 0, gap: space['2xs'] },
   center: { alignItems: 'center', gap: space.sm, paddingVertical: space.lg },
   card: {

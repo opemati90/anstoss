@@ -183,7 +183,6 @@ export function InjurySheet({ visible, onClose, onSaved, clubId, teamId, players
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.xl,
     gap: space.sm,

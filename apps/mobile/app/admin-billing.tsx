@@ -33,7 +33,7 @@ import {
   Text,
 } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { card, fontSize, fonts, hairline, lineHeight, radius, space } from '../src/theme/tokens'
+import { hairline, radius, space } from '../src/theme/tokens'
 
 /**
  * Admin Billing — "Editorial Calm" doctrine.
@@ -670,10 +670,10 @@ function ContributionMemberActionSheet({
       paddingBottom={space.xl + insets.bottom}
     >
       <View style={styles.actionSheetBody}>
-        <Text style={[styles.actionSheetTitle, { color: c.textPrimary }]}>
+        <Text variant="title3" weight="bold" color="primary">
           {t('contributions.memberActionTitle', { name: member.name })}
         </Text>
-        <Text style={[styles.actionSheetSubtitle, { color: c.textSecondary }]}>
+        <Text variant="subheadline" color="secondary" style={styles.actionSheetSubtitle}>
           {member.planName ?? ''}
         </Text>
 
@@ -844,19 +844,10 @@ const styles = StyleSheet.create({
   countStat: { gap: space['2xs'] },
 
   actionSheetBody: {
-    paddingHorizontal: card.paddingHero,
     gap: space.sm,
   },
-  actionSheetTitle: {
-    fontSize: fontSize.lg,
-    fontFamily: fonts.heading,
-    lineHeight: lineHeight.lg,
-  },
   actionSheetSubtitle: {
-    fontSize: fontSize.sm,
-    fontFamily: fonts.body,
-    // color resolved inline via c.textSecondary
-    marginBottom: space.md,
+    marginBottom: space.sm,
   },
   actionStatusGrid: {
     gap: space.xs,

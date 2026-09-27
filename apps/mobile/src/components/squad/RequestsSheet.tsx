@@ -173,7 +173,6 @@ export function RequestsSheet({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.xl,
     gap: space.md,

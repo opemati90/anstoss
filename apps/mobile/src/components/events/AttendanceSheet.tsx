@@ -139,7 +139,7 @@ export function AttendanceSheet({
       contentStyle={{ flex: 1 }}
     >
       <View style={styles.header}>
-        <Text variant="title2" weight="semibold" color="primary" style={{ flex: 1 }}>
+        <Text variant="title3" weight="bold" color="primary" style={{ flex: 1 }}>
           {t('event.checkIn.attendanceTitle')}
         </Text>
         <Pressable
@@ -358,8 +358,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
+    paddingTop: space.sm,
     paddingBottom: space.md,
   },
   closeBtn: {
@@ -375,7 +374,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: space.md,
     paddingBottom: space['2xl'],
   },
   sectionHeader: {

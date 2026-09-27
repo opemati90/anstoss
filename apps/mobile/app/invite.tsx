@@ -1036,16 +1036,18 @@ export default function InviteScreen() {
             showsVerticalScrollIndicator={false}
             bounces={false}
           >
-            <Text variant="title2" weight="bold" color="primary" style={styles.qrTitle}>
-              {t('invite.qrTitle', { defaultValue: 'Scan to request a place' })}
-            </Text>
-            <Text variant="footnote" color="secondary" style={styles.qrSubtitle}>
-              {t('invite.qrSubtitle', {
-                defaultValue:
-                  'Players scan this code, complete their details, and send an approval request to {{team}}.',
-                team: qrCampaign.team.displayName,
-              })}
-            </Text>
+            <View style={styles.qrTitleBlock}>
+              <Text variant="title3" weight="bold" color="primary" style={styles.qrTitle}>
+                {t('invite.qrTitle', { defaultValue: 'Scan to request a place' })}
+              </Text>
+              <Text variant="footnote" color="secondary" style={styles.qrSubtitle}>
+                {t('invite.qrSubtitle', {
+                  defaultValue:
+                    'Players scan this code, complete their details, and send an approval request to {{team}}.',
+                  team: qrCampaign.team.displayName,
+                })}
+              </Text>
+            </View>
             <View
               style={[
                 styles.qrCodeFrame,
@@ -1264,13 +1266,13 @@ const styles = StyleSheet.create({
   },
   campaignCopy: { flex: 1, minWidth: 0 },
   qrSheet: {
-    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.xl,
     alignItems: 'center',
     gap: space.md,
   },
-  qrTitle: { marginTop: space.sm, textAlign: 'center' },
+  qrTitleBlock: { alignItems: 'center', gap: space.sm, paddingTop: space.sm },
+  qrTitle: { textAlign: 'center' },
   qrSubtitle: { textAlign: 'center', maxWidth: 320 },
   qrCodeFrame: {
     width: 228,

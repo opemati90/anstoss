@@ -152,10 +152,9 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingTop: space.sm,
-    paddingHorizontal: space.md,
   },
   head: {
-    paddingBottom: space.sm,
+    paddingBottom: space.md,
     gap: space.xs,
   },
   closeBtn: {

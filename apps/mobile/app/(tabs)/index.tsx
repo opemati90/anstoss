@@ -177,8 +177,9 @@ function RoleAwareHome() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   crash: { paddingHorizontal: space.md, paddingTop: space.md },
-  // 16pt screen gutters, 24pt between sections (set by each role home).
-  content: { paddingHorizontal: space.md, paddingTop: space.sm },
+  // 16pt screen gutters, 24pt between sections (set by each role home). The
+  // header already ends 12pt above, so 4pt here keeps 16pt to the first section.
+  content: { paddingHorizontal: space.md, paddingTop: space.xs },
   body: { gap: space.lg },
   fallback: { paddingTop: space['2xl'], gap: space.lg },
 })

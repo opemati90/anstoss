@@ -179,7 +179,7 @@ export function ComposeSheet({
               <Icon name="chevron.left" size={18} color="secondary" />
             </Pressable>
           ) : null}
-          <Text variant="headline" weight="semibold" color="primary" style={styles.title}>
+          <Text variant="title3" weight="bold" color="primary" style={styles.title}>
             {step === 'event'
               ? t('chat.compose.pickEvent', { defaultValue: 'Which event?' })
               : step === 'poll'
@@ -312,7 +312,7 @@ export function ComposeSheet({
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.md, paddingHorizontal: space.md },
+  body: { gap: space.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   backBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1 },

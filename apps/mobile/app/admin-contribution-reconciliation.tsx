@@ -402,10 +402,14 @@ export default function AdminContributionReconciliationScreen() {
         heightPct="auto"
       >
         <View style={styles.sheet}>
-          <Text variant="title2">{t('contributions.reconciliation.reverseTitle')}</Text>
-          <Text variant="body" color="secondary">
-            {t('contributions.reconciliation.reverseBody')}
-          </Text>
+          <View style={styles.sheetTitle}>
+            <Text variant="title3" weight="bold" color="primary">
+              {t('contributions.reconciliation.reverseTitle')}
+            </Text>
+            <Text variant="subheadline" color="secondary">
+              {t('contributions.reconciliation.reverseBody')}
+            </Text>
+          </View>
           <FormInput
             label={t('contributions.reconciliation.reason')}
             value={reversalReason}
@@ -428,10 +432,14 @@ export default function AdminContributionReconciliationScreen() {
         heightPct="auto"
       >
         <View style={styles.sheet}>
-          <Text variant="title2">{t('contributions.reconciliation.manualSheetTitle')}</Text>
-          <Text variant="body" color="secondary">
-            {t('contributions.reconciliation.manualSheetBody')}
-          </Text>
+          <View style={styles.sheetTitle}>
+            <Text variant="title3" weight="bold" color="primary">
+              {t('contributions.reconciliation.manualSheetTitle')}
+            </Text>
+            <Text variant="subheadline" color="secondary">
+              {t('contributions.reconciliation.manualSheetBody')}
+            </Text>
+          </View>
           <ScrollView
             style={styles.recordList}
             contentContainerStyle={styles.recordListContent}
@@ -478,6 +486,7 @@ const styles = StyleSheet.create({
   loader: { marginTop: space.xl },
   section: { marginHorizontal: 0 },
   sheet: { gap: space.md },
+  sheetTitle: { gap: space.sm },
   recordList: { maxHeight: 280 },
   recordListContent: { paddingBottom: space.xs },
 })

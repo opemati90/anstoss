@@ -117,7 +117,7 @@ export function LineupShareSheet({ visible, clubId, conversationId, locale, onCl
             <Icon name="chevron.left" size={20} color={c.textSecondary} />
           </Pressable>
         ) : null}
-        <Text variant="headline" weight="semibold" color="primary" style={styles.flex}>
+        <Text variant="title3" weight="bold" color="primary" style={styles.flex}>
           {step === 'pick' ? t('chatThread.lineup.shareTitle') : t('chatThread.lineup.drawTitle')}
         </Text>
         <Pressable
@@ -311,11 +311,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
+    paddingBottom: space.md,
   },
   headerBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  body: { gap: space.md, paddingHorizontal: space.md, paddingBottom: space.lg },
+  body: { gap: space.md, paddingBottom: space.lg },
   card: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',

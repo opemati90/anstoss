@@ -61,7 +61,7 @@ export function DatePickerSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.body}>
-        <Text variant="title2" color="primary">
+        <Text variant="title3" weight="bold" color="primary">
           {title}
         </Text>
         <DateTimePicker

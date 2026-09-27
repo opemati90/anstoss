@@ -56,7 +56,7 @@ export function EditMessageSheet({
     >
       <View style={styles.body}>
         <View style={styles.headerRow}>
-          <Text variant="headline" weight="semibold" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('chat.editMessageTitle')}
           </Text>
           <Pressable onPress={onClose} accessibilityLabel={t('chat.createGroupCancel')} hitSlop={8}>
@@ -112,8 +112,7 @@ export function EditMessageSheet({
 const styles = StyleSheet.create({
   body: {
     paddingTop: space.sm,
-    paddingHorizontal: space.md,
-    gap: space.sm,
+    gap: space.md,
   },
   headerRow: {
     flexDirection: 'row',

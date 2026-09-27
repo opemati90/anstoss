@@ -225,7 +225,7 @@ function fzTone(status: FzInfo['status']): StatusPillTone {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: space.xs, paddingBottom: space.md },
+  header: { gap: space.sm, paddingBottom: space.md },
   body: { gap: space.md, paddingBottom: space.md },
   footer: { paddingTop: space.sm },
   row: {

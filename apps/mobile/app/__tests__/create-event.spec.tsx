@@ -37,6 +37,9 @@ const labels: Record<string, string> = {
 const mockT = (key: string, options?: Record<string, unknown>) => {
   if (key === 'eventFlow.create.createSeries') return `Add ${options?.count} events`
   if (key === 'eventFlow.create.meetingValue') return `${options?.time} · ${options?.count} min before`
+  if (key === 'eventFlow.detail.minutesBefore') return `${options?.count} min before`
+  if (key === 'eventFlow.create.durationUntil') return `${options?.minutes} · until ${options?.time}`
+  if (key === 'eventFlow.create.minutes') return `${options?.count} min`
   return labels[key] ?? key
 }
 
@@ -286,6 +289,33 @@ describe('CreateEventScreen', () => {
     )
     expect(checked).toHaveLength(4)
     expect(screen.getByTestId('event-days-capped')).toBeTruthy()
+  })
+
+  it('picks the training length from the Dauer row instead of loose chips', async () => {
+    mockApi.mockImplementation((path: string, init?: { method?: string }) => {
+      if (init?.method === 'POST') return Promise.resolve({})
+      return Promise.resolve(path.endsWith('/team-groups') ? teamGroups() : [])
+    })
+    const screen = render(<CreateEventScreen />)
+    await screen.findByText('New event')
+
+    // Section labels give the form its hierarchy.
+    expect(screen.getByText('eventFlow.create.sectionWhen')).toBeTruthy()
+    expect(screen.getByText('eventFlow.create.sectionRepeat')).toBeTruthy()
+    expect(screen.getByText('eventFlow.create.sectionWhere')).toBeTruthy()
+    expect(screen.getByText('eventFlow.create.sectionDetails')).toBeTruthy()
+
+    fireEvent.press(screen.getByTestId('event-duration-row'))
+    fireEvent.press(screen.getByTestId('event-duration-60'))
+    expect(screen.getByLabelText(/^eventFlow.create.duration: 60 min · until/)).toBeTruthy()
+    fireEvent.press(screen.getByTestId('event-create-submit'))
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/events/series',
+        expect.objectContaining({ body: expect.objectContaining({ durationMin: 60 }) }),
+      ),
+    )
   })
 
   it('shows an empty state when the club has no teams', async () => {

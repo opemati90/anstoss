@@ -1,0 +1,799 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="6800" height="5600" viewBox="0 0 6800 5600">
+<rect x="0" y="0" width="6800" height="5600" rx="0" fill="#D8DCD7" stroke="none" stroke-width="1"/>
+<defs><style>text{dominant-baseline:auto} .focus{stroke:#245A86;stroke-width:3}</style></defs>
+<g id="00_STORY_AND_APPROACH">
+<rect x="80" y="80" width="1580" height="5440" rx="16" fill="#F8F8F4" stroke="none" stroke-width="1"/>
+<rect x="136" y="123" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="147" y="142" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">00</text>
+<text x="214" y="145" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">Story and approach</text>
+<text x="214" y="171" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Source-grounded reasoning and explicit assumptions</text>
+<rect x="136" y="206" width="1468" height="264" rx="12" fill="#20352A" stroke="none" stroke-width="1"/>
+<rect x="168" y="238" width="187.6" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="179" y="257" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">CLOUDFACTORY CASE STUDY</text>
+<text x="168" y="306" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="750" fill="#FFFFFF" text-anchor="start">Smart Exception Hub</text>
+<text x="168" y="347" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="450" fill="#DCE6DF" text-anchor="start">Opeyemi Ajimati  /  Senior Product Designer take-home</text>
+<text x="168" y="404" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="start">Not every exception is a review task.</text>
+<text x="168" y="432" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="start">First ask whether the source can support a safe decision; then route by cause,</text>
+<text x="168" y="460" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="start">repeatability, risk and SLA.</text>
+<rect x="1300" y="406" width="130" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="1311" y="425" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">START PROTOTYPE</text>
+<text x="136" y="528" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Brief-derived operating picture</text>
+<rect x="136" y="556" width="270" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="586" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Daily volume</text>
+<text x="156" y="628" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">120,000</text>
+<text x="388" y="628" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">brief</text>
+<rect x="422" y="556" width="270" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="442" y="586" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Auto-approved</text>
+<text x="442" y="628" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#2F6B4F" text-anchor="start">86,400</text>
+<text x="674" y="628" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">72%</text>
+<rect x="708" y="556" width="270" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="728" y="586" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Borderline</text>
+<text x="728" y="628" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">25,200</text>
+<text x="960" y="628" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">21%</text>
+<rect x="994" y="556" width="270" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1014" y="586" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Critical</text>
+<text x="1014" y="628" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#9B3A32" text-anchor="start">8,400</text>
+<text x="1246" y="628" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">7%</text>
+<rect x="1280" y="556" width="292" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1300" y="586" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Human review</text>
+<text x="1300" y="628" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">33,600</text>
+<text x="1554" y="628" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">28%</text>
+<rect x="136" y="676" width="350" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="706" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Current workload</text>
+<text x="156" y="748" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">2,352 h/day</text>
+<text x="468" y="748" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Calculated from the brief</text>
+<rect x="502" y="676" width="350" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="522" y="706" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">At 1.5 min target</text>
+<text x="522" y="748" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#2F6B4F" text-anchor="start">840 h/day</text>
+<text x="834" y="748" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Not a measured outcome</text>
+<rect x="868" y="676" width="704" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="888" y="706" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Plain-language implication</text>
+<text x="888" y="730" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">The target requires prevention, controlled batches and faster</text>
+<text x="888" y="750" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">individual review together. No single root cause proves the target.</text>
+<text x="136" y="850" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Evidence-sufficiency routing model</text>
+<rect x="136" y="882" width="310" height="166" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="912" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Gate 1  /  Enough evidence?</text>
+<text x="156" y="933" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Never ask a reviewer to guess.</text>
+<rect x="156" y="960" width="74" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="167" y="979" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">NO</text>
+<text x="218" y="978" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Use alternate source</text>
+<text x="218" y="998" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Request clearer source</text>
+<text x="218" y="1018" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Escalate upstream</text>
+<rect x="156" y="1018" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="167" y="1037" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">YES</text>
+<line x1="446" y1="965" x2="496" y2="965" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 488 960 L 496 965 L 488 970" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="496" y="882" width="310" height="166" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="516" y="912" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Gate 2  /  Repeated pattern?</text>
+<text x="516" y="933" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Check homogeneity and outliers.</text>
+<rect x="516" y="960" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="527" y="979" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">YES</text>
+<text x="578" y="978" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Representative samples</text>
+<text x="578" y="998" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Staged batch</text>
+<text x="578" y="1018" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Audit + rollback</text>
+<rect x="516" y="1018" width="74" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="527" y="1037" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">NO</text>
+<line x1="806" y1="965" x2="856" y2="965" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 848 960 L 856 965 L 848 970" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="856" y="882" width="350" height="166" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="876" y="912" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Gate 3  /  Uncertainty + consequence</text>
+<text x="876" y="933" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Confidence is not business risk.</text>
+<text x="876" y="964" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Borderline: suggestion + quick verification</text>
+<text x="876" y="987" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Critical/readable: independent review hypothesis</text>
+<text x="876" y="1010" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Critical/unreadable: source return</text>
+<line x1="1206" y1="965" x2="1256" y2="965" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 1248 960 L 1256 965 L 1248 970" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="1256" y="882" width="316" height="166" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1276" y="912" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Governed learning loop</text>
+<text x="1276" y="933" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">No automatic production retraining.</text>
+<text x="1276" y="964" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Human resolution -&gt; QA</text>
+<text x="1276" y="987" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Pattern analysis -&gt; action</text>
+<text x="1276" y="1010" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Controlled release -&gt; monitor</text>
+<text x="136" y="1120" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Root cause -&gt; safest next action</text>
+<rect x="136" y="1148" width="1436" height="260" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="1178" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Cause-aware action map</text>
+<text x="156" y="1199" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">All volumes are calculated from the brief.</text>
+<rect x="152" y="1192" width="1404" height="38" rx="4" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="168" y="1218" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Ambiguous formatting</text>
+<text x="440" y="1218" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#5E6A63" text-anchor="start">41%</text>
+<text x="520" y="1218" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">13,776/day</text>
+<text x="730" y="1218" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#245A86" text-anchor="start">Open recurring cluster</text>
+<text x="1080" y="1218" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Batch only when samples support it</text>
+<text x="168" y="1261" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Low-resolution input</text>
+<text x="440" y="1261" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#5E6A63" text-anchor="start">28%</text>
+<text x="520" y="1261" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">9,408/day</text>
+<text x="730" y="1261" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#245A86" text-anchor="start">Inspect source-quality issue</text>
+<text x="1080" y="1261" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Recover or return if evidence is insufficient</text>
+<rect x="152" y="1278" width="1404" height="38" rx="4" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="168" y="1304" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Threshold sensitivity</text>
+<text x="440" y="1304" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#5E6A63" text-anchor="start">18%</text>
+<text x="520" y="1304" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">6,048/day</text>
+<text x="730" y="1304" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#245A86" text-anchor="start">Request calibration review</text>
+<text x="1080" y="1304" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Production approval remains separate</text>
+<text x="168" y="1347" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Multi-entity labels</text>
+<text x="440" y="1347" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#5E6A63" text-anchor="start">13%</text>
+<text x="520" y="1347" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">4,368/day</text>
+<text x="730" y="1347" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#245A86" text-anchor="start">Review guideline ambiguity</text>
+<text x="1080" y="1347" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Review + structured guideline feedback</text>
+<text x="136" y="1470" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Directional sensitivity model - not a forecast</text>
+<rect x="136" y="1498" width="1436" height="342" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="1528" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Blended human handling minutes per original flagged item</text>
+<text x="156" y="1549" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Excludes QA, rework, replacement-source latency and governance overhead.</text>
+<text x="168" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Scenario</text>
+<text x="400" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Formatting batchable</text>
+<text x="640" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Low-res recovered</text>
+<text x="870" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Threshold prevented</text>
+<text x="1130" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Blended time</text>
+<text x="1330" y="1572" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#5E6A63" text-anchor="start">Human h/day</text>
+<rect x="152" y="1593" width="1404" height="42" rx="5" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="168" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Conservative</text>
+<text x="400" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">70%</text>
+<text x="640" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">70%</text>
+<text x="870" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">60%</text>
+<text x="1130" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">2.05 min</text>
+<text x="1330" y="1620" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">1,148 h</text>
+<rect x="152" y="1645" width="1404" height="42" rx="5" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="168" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Target case</text>
+<text x="400" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">85%</text>
+<text x="640" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">90%</text>
+<text x="870" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">85%</text>
+<text x="1130" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#2F6B4F" text-anchor="start">1.45 min</text>
+<text x="1330" y="1672" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#2F6B4F" text-anchor="start">811 h</text>
+<rect x="152" y="1697" width="1404" height="42" rx="5" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="168" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Optimistic</text>
+<text x="400" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">90%</text>
+<text x="640" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">100%</text>
+<text x="870" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">100%</text>
+<text x="1130" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">1.17 min</text>
+<text x="1330" y="1724" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">654 h</text>
+<text x="168" y="1800" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">Target case clears 1.5 minutes only under ambitious, testable assumptions.</text>
+<text x="168" y="1820" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">Business-case hypothesis, not measured impact.</text>
+<rect x="1060" y="1782" width="216.4" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="1071" y="1801" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">CALCULATED ASSUMPTION CHECK</text>
+<text x="1060" y="1832" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Above 1.5 min if formatting eligibility &lt; ~82%</text>
+<text x="1060" y="1850" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">or low-res recover/return &lt; ~84%</text>
+<text x="1060" y="1868" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">or safe threshold prevention &lt; ~78%</text>
+<text x="136" y="1905" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Metric definitions and quality guardrails</text>
+<rect x="136" y="1933" width="1436" height="182" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="1963" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Three denominators - do not mix them</text>
+<text x="168" y="1992" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">1. Blended human handling minutes per flagged item - sensitivity model</text>
+<text x="168" y="2017" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">2. Active review time per individually reviewed item - Reviewer efficiency</text>
+<text x="168" y="2042" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">3. End-to-end exception resolution time - includes source replacement and escalation</text>
+<text x="920" y="1992" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Guardrails: QA agreement, rework, critical escape,</text>
+<text x="920" y="2014" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">batch rollback, disagreement detection, explanation comprehension</text>
+<text x="136" y="2180" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">People, principles and scope</text>
+<rect x="136" y="2208" width="690" height="230" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="2238" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Reviewer job</text>
+<text x="156" y="2259" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Make a defensible decision without guessing or blindly following the model.</text>
+<text x="160" y="2275" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Needs: fast orientation, exact evidence, flag reason,</text>
+<text x="160" y="2299" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">keyboard acceleration, autosave, undo, escalation,</text>
+<text x="160" y="2323" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">low cognitive fatigue.</text>
+<rect x="842" y="2208" width="730" height="230" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="862" y="2238" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Operations Lead job</text>
+<text x="862" y="2259" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">See cause, workflow impact and the safest next action before backlog grows.</text>
+<text x="866" y="2275" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Needs: normalised rates, root-cause impact, SLA risk,</text>
+<text x="866" y="2299" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">source/model patterns, team quality signals, governed</text>
+<text x="866" y="2323" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">intervention paths.</text>
+<rect x="136" y="2454" width="690" height="274" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="2484" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Five design principles</text>
+<text x="160" y="2515" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">1. Explain before asking for action.</text>
+<text x="160" y="2547" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">2. Never infer evidence that is not present.</text>
+<text x="160" y="2579" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">3. Confidence is not consequence.</text>
+<text x="160" y="2611" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">4. Batch with evidence, holdbacks, audit and rollback.</text>
+<text x="160" y="2643" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">5. Preserve control and work through failure.</text>
+<rect x="842" y="2454" width="730" height="274" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="862" y="2484" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Deliberate cuts</text>
+<text x="866" y="2515" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Mobile / dark mode / onboarding / full RBAC</text>
+<text x="866" y="2543" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Workforce scheduling / direct threshold deployment</text>
+<text x="866" y="2571" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Automatic retraining / broad design system</text>
+<text x="866" y="2599" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Large coded prototype / polished competitive teardown</text>
+<text x="136" y="2790" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">What I would validate next</text>
+<rect x="136" y="2818" width="1436" height="260" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="2848" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Decision-oriented questions and measures</text>
+<text x="160" y="2878" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Does cause-first routing reduce search time?</text>
+<text x="160" y="2908" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">What cluster threshold is safe enough for batching?</text>
+<text x="160" y="2938" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Does independent review reduce anchoring without unacceptable delay?</text>
+<text x="160" y="2968" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Do reviewers understand provenance and field confidence?</text>
+<text x="160" y="2998" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Which fatigue intervention helps without feeling punitive?</text>
+<text x="870" y="2878" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Measure: time to understand, time to decision, QA agreement</text>
+<text x="870" y="2908" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Escalation rate, batch false-positive rate, rollback rate</text>
+<text x="870" y="2938" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Explanation comprehension, disagreement detection</text>
+<text x="870" y="2968" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Error rate by continuous session duration</text>
+<rect x="136" y="3130" width="94" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="147" y="3149" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">ASSUMPTION</text>
+<rect x="250" y="3130" width="144.4" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="261" y="3149" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">DESIGN HYPOTHESIS</text>
+<rect x="424" y="3130" width="173.20000000000002" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="435" y="3149" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">CALCULATED FROM BRIEF</text>
+<rect x="642" y="3130" width="158.8" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="653" y="3149" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">ILLUSTRATIVE SAMPLE</text>
+<rect x="136" y="3180" width="1436" height="224" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="156" y="3210" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Assumptions used</text>
+<text x="160" y="3240" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Enterprise multi-project environment with role-based access.</text>
+<text x="160" y="3265" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Source documents and extracted fields can be shown side-by-side.</text>
+<text x="160" y="3290" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Confidence exists at item and field level.</text>
+<text x="160" y="3315" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Operations Leads request changes; production deployment has separate approval.</text>
+<text x="160" y="3340" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Batching requires a consistent cluster and authorised sample verification.</text>
+<text x="160" y="3365" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Corrections can be stored as structured feedback and audit events.</text>
+</g>
+<g id="01_CORE_EXPERIENCE">
+<rect x="1700" y="80" width="5020" height="3460" rx="16" fill="#F8F8F4" stroke="none" stroke-width="1"/>
+<rect x="1756" y="123" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="1767" y="142" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">01</text>
+<text x="1834" y="145" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">Core experience</text>
+<text x="1834" y="171" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Four editable 1440 x 1024 hero screens</text>
+<rect x="2130" y="123" width="526" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2141" y="142" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">LOCAL COMPONENTS: BUTTON / BADGE / BANNER / TABLE ROW / DIALOG / TOAST</text>
+<g id="Screen-1-Operations-Lead-Dashboard">
+<rect x="1756" y="210" width="1440" height="1024" rx="14" fill="#F8F8F4" stroke="#CCD2CC" stroke-width="2"/>
+<rect x="1756" y="210" width="220" height="1024" rx="14" fill="#20352A" stroke="none" stroke-width="1"/>
+<text x="1788" y="268" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">EXCEPTION HUB</text>
+<text x="1788" y="332" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Operations</text>
+<text x="1788" y="380" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Queues</text>
+<text x="1788" y="428" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Clusters</text>
+<text x="1788" y="476" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Feedback</text>
+<text x="1788" y="524" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Audit</text>
+<rect x="1772" y="305" width="188" height="44" rx="7" fill="#2C4939" stroke="none" stroke-width="1"/>
+<text x="1788" y="333" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#FFFFFF" text-anchor="start">Operations</text>
+<text x="2016" y="268" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700" fill="#17201B" text-anchor="start">Exception operations</text>
+<text x="2016" y="294" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Today - Invoice extraction</text>
+<rect x="2936" y="244" width="151.6" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2947" y="263" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice extraction</text>
+<line x1="1976" y1="320" x2="3196" y2="320" stroke="#CCD2CC" stroke-width="1" />
+<rect x="2016" y="352" width="250" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2036" y="382" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Exceptions today</text>
+<text x="2036" y="424" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">33,600</text>
+<text x="2248" y="424" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Calculated</text>
+<rect x="2282" y="352" width="220" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2302" y="382" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Current average</text>
+<text x="2302" y="424" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">4.2 min</text>
+<text x="2484" y="424" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Target &lt; 1.5</text>
+<rect x="2518" y="352" width="250" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2538" y="382" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Review workload</text>
+<text x="2538" y="424" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">2,352 h/day</text>
+<text x="2750" y="424" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Calculated</text>
+<rect x="2784" y="352" width="372" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2804" y="382" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Confidence distribution</text>
+<text x="2806" y="387" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Auto-approved 72%</text>
+<text x="3124" y="387" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="end">86,400</text>
+<rect x="2806" y="397" width="318" height="10" rx="5" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<rect x="2806" y="397" width="228.95999999999998" height="10" rx="5" fill="#2F6B4F" stroke="none" stroke-width="1"/>
+<text x="2806" y="417" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Borderline 21%</text>
+<text x="3124" y="417" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="end">25,200</text>
+<rect x="2806" y="427" width="318" height="10" rx="5" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<rect x="2806" y="427" width="66.78" height="10" rx="5" fill="#9A641C" stroke="none" stroke-width="1"/>
+<text x="2806" y="447" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Critical 7%</text>
+<text x="3124" y="447" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="end">8,400</text>
+<rect x="2806" y="457" width="318" height="10" rx="5" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<rect x="2806" y="457" width="22.26" height="10" rx="5" fill="#9B3A32" stroke="none" stroke-width="1"/>
+<text x="2016" y="500" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" fill="#17201B" text-anchor="start">What should I investigate or change today?</text>
+<rect x="2016" y="524" width="820" height="510" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2036" y="554" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Root causes and next actions</text>
+<text x="2036" y="575" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Counts are calculated from the brief.</text>
+<rect x="2034" y="571" width="784" height="76" rx="6" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2048" y="602" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650" fill="#17201B" text-anchor="start">Ambiguous formatting</text>
+<text x="2326" y="602" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">41%  /  13,776</text>
+<rect x="2561" y="578" width="180.4" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="2572" y="597" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">Open recurring cluster</text>
+<text x="2048" y="694" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650" fill="#17201B" text-anchor="start">Low-resolution input</text>
+<text x="2326" y="694" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">28%  /  9,408</text>
+<rect x="2561" y="670" width="223.6" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="2572" y="689" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">Inspect source-quality issue</text>
+<rect x="2034" y="755" width="784" height="76" rx="6" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2048" y="786" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650" fill="#17201B" text-anchor="start">Threshold sensitivity</text>
+<text x="2326" y="786" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">18%  /  6,048</text>
+<rect x="2561" y="762" width="209.20000000000002" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="2572" y="781" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">Request calibration review</text>
+<text x="2048" y="878" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650" fill="#17201B" text-anchor="start">Multi-entity labels</text>
+<text x="2326" y="878" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">13%  /  4,368</text>
+<rect x="2561" y="854" width="209.20000000000002" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2572" y="873" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Review guideline ambiguity</text>
+<rect x="2852" y="524" width="304" height="230" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2872" y="554" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">SLA / backlog risk</text>
+<text x="2872" y="575" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Illustrative sample</text>
+<rect x="2872" y="582" width="264" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2892" y="612" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Backlog at risk</text>
+<text x="2892" y="654" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#9B3A32" text-anchor="start">4,280</text>
+<text x="3118" y="654" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">Illustrative</text>
+<text x="2872" y="712" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">No historical validated</text>
+<text x="2872" y="732" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">model-accuracy data was</text>
+<text x="2872" y="752" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">provided in the brief.</text>
+<rect x="2852" y="770" width="304" height="264" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2872" y="800" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Team fatigue signal</text>
+<rect x="2872" y="822" width="151.6" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="2883" y="841" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">34% ERROR INCREASE</text>
+<text x="2872" y="880" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">After two continuous hours.</text>
+<text x="2872" y="903" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Team-level signal only.</text>
+<text x="2872" y="926" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">No individual speed ranking.</text>
+<rect x="2872" y="960" width="260" height="44" rx="7" fill="#DCE9F3" stroke="#245A86" stroke-width="1"/>
+<text x="3002" y="988" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#245A86" text-anchor="middle">Review break coverage</text>
+</g>
+<g id="Screen-2-Cluster-Review">
+<rect x="3252" y="210" width="1440" height="1024" rx="14" fill="#F8F8F4" stroke="#CCD2CC" stroke-width="2"/>
+<rect x="3252" y="210" width="220" height="1024" rx="14" fill="#20352A" stroke="none" stroke-width="1"/>
+<text x="3284" y="268" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">EXCEPTION HUB</text>
+<text x="3284" y="332" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Operations</text>
+<text x="3284" y="380" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Queues</text>
+<text x="3284" y="428" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Clusters</text>
+<text x="3284" y="476" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Feedback</text>
+<text x="3284" y="524" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Audit</text>
+<rect x="3268" y="305" width="188" height="44" rx="7" fill="#2C4939" stroke="none" stroke-width="1"/>
+<text x="3284" y="333" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#FFFFFF" text-anchor="start">Operations</text>
+<text x="3512" y="268" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700" fill="#17201B" text-anchor="start">Recurring invoice date pattern</text>
+<text x="3512" y="294" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Illustrative cluster - 324 affected invoices</text>
+<rect x="4432" y="244" width="151.6" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4443" y="263" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice extraction</text>
+<line x1="3472" y1="320" x2="4692" y2="320" stroke="#CCD2CC" stroke-width="1" />
+<rect x="3512" y="352" width="274" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="3523" y="371" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">PATTERN: DD/MM INTERPRETED AS MM/DD</text>
+<text x="3512" y="414" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" fill="#17201B" text-anchor="start">Why these items were grouped</text>
+<text x="3512" y="443" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Same supplier template, same date position, same extraction conflict.</text>
+<text x="3512" y="465" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#5E6A63" text-anchor="start">Cluster confidence supports review - not automatic correction.</text>
+<rect x="3512" y="492" width="760" height="366" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3532" y="522" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Representative samples</text>
+<text x="3532" y="543" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">12 reviewed  /  highlighted source evidence</text>
+<rect x="3532" y="557" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3544" y="580" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1842</text>
+<rect x="3546" y="595" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="3555" y="612" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">12/09/2026</text>
+<text x="3546" y="643" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier: Nordlicht GmbH</text>
+<rect x="3776" y="557" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3788" y="580" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1843</text>
+<rect x="3790" y="595" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="3799" y="612" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">09/12/2026</text>
+<text x="3790" y="643" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier: Nordlicht GmbH</text>
+<rect x="4020" y="557" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4032" y="580" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1844</text>
+<rect x="4034" y="595" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="4043" y="612" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">14/09/2026</text>
+<text x="4034" y="643" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier: Nordlicht GmbH</text>
+<rect x="3532" y="689" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3544" y="712" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1845</text>
+<rect x="3546" y="727" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="3555" y="744" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">18/09/2026</text>
+<text x="3546" y="775" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier: Nordlicht GmbH</text>
+<rect x="3776" y="689" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3788" y="712" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1846</text>
+<rect x="3790" y="727" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="3799" y="744" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">21/09/2026</text>
+<text x="3790" y="775" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier: Nordlicht GmbH</text>
+<rect x="4020" y="689" width="224" height="108" rx="6" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4032" y="712" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="650" fill="#5E6A63" text-anchor="start">INV-26-1847</text>
+<rect x="4034" y="727" width="118" height="24" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="1"/>
+<text x="4043" y="744" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#17201B" text-anchor="start">27/09/2026</text>
+<text x="4034" y="775" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#9B3A32" text-anchor="start">OUTLIER - stamp overlap</text>
+<rect x="4292" y="492" width="360" height="366" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4312" y="522" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Proposed normalisation rule</text>
+<text x="4312" y="543" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Human verified before any batch.</text>
+<text x="4312" y="557" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">If supplier template = Nordlicht-v4</text>
+<text x="4312" y="582" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">and date region uses DD/MM/YYYY,</text>
+<text x="4312" y="607" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">normalise to ISO YYYY-MM-DD.</text>
+<rect x="4312" y="652" width="194.8" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="4323" y="671" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">12 / 12 SAMPLES REVIEWED</text>
+<rect x="4312" y="698" width="150" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4332" y="728" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Expected</text>
+<text x="4332" y="770" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#2F6B4F" text-anchor="start">309</text>
+<text x="4444" y="770" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">resolve</text>
+<rect x="4472" y="698" width="160" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4492" y="728" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Held</text>
+<text x="4492" y="770" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#9B3A32" text-anchor="start">15</text>
+<text x="4614" y="770" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">outliers</text>
+<rect x="3512" y="882" width="1140" height="170" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3532" y="912" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Apply as staged batch</text>
+<text x="3532" y="933" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Canary 10% first; stop on unexpected disagreement.</text>
+<rect x="3532" y="958" width="151.6" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="3543" y="977" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">APPLY STAGED BATCH</text>
+<rect x="3717" y="958" width="101.2" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="3728" y="977" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">ADJUST RULE</text>
+<rect x="3837" y="958" width="151.6" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="3848" y="977" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">SEND ALL TO REVIEW</text>
+<text x="4152" y="955" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Audit event created before application.</text>
+<text x="4152" y="976" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Rollback remains available after completion.</text>
+<rect x="4252" y="1076" width="400" height="170" rx="10" fill="#FFFFFF" stroke="#20352A" stroke-width="2"/>
+<text x="4276" y="1112" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700" fill="#17201B" text-anchor="start">Confirm staged batch</text>
+<text x="4276" y="1147" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">31 invoices apply in the first canary.</text>
+<text x="4276" y="1168" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">293 remain paused. 15 outliers stay in review.</text>
+<rect x="4276" y="1194" width="74" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4287" y="1213" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">CANCEL</text>
+<rect x="4374" y="1194" width="122.8" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="4385" y="1213" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">CONFIRM CANARY</text>
+</g>
+<g id="Screen-3-Reviewer-Borderline">
+<rect x="1756" y="1290" width="1440" height="1024" rx="14" fill="#F8F8F4" stroke="#CCD2CC" stroke-width="2"/>
+<rect x="1756" y="1290" width="220" height="1024" rx="14" fill="#20352A" stroke="none" stroke-width="1"/>
+<text x="1788" y="1348" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">EXCEPTION HUB</text>
+<text x="1788" y="1412" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Operations</text>
+<text x="1788" y="1460" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Queues</text>
+<text x="1788" y="1508" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Clusters</text>
+<text x="1788" y="1556" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Feedback</text>
+<text x="1788" y="1604" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Audit</text>
+<rect x="1772" y="1385" width="188" height="44" rx="7" fill="#2C4939" stroke="none" stroke-width="1"/>
+<text x="1788" y="1413" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#FFFFFF" text-anchor="start">Operations</text>
+<text x="2016" y="1348" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700" fill="#17201B" text-anchor="start">Invoice review</text>
+<text x="2016" y="1374" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Held items  3 of 15  /  Autosaved  /  Session 1h 47m</text>
+<rect x="2936" y="1324" width="151.6" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2947" y="1343" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice extraction</text>
+<line x1="1976" y1="1400" x2="3196" y2="1400" stroke="#CCD2CC" stroke-width="1" />
+<rect x="2016" y="1432" width="640" height="742" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2036" y="1462" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Source evidence</text>
+<text x="2036" y="1483" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Invoice INV-26-1847 - Nordlicht GmbH</text>
+<rect x="2038" y="1508" width="596" height="610" rx="4" fill="#F3F0E8" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2072" y="1558" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="750" fill="#20352A" text-anchor="start">NORDLICHT GMBH</text>
+<text x="2072" y="1590" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="500" fill="#5E6A63" text-anchor="start">Rechnung / Invoice</text>
+<text x="2072" y="1652" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Invoice no.  INV-26-1847</text>
+<text x="2072" y="1688" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Supplier ID  NL-04419</text>
+<text x="2072" y="1724" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Subtotal     EUR 12,440.00</text>
+<text x="2072" y="1760" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">VAT          EUR 2,363.60</text>
+<text x="2072" y="1796" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Total        EUR 14,803.60</text>
+<rect x="2066" y="1830" width="300" height="74" rx="3" fill="#F4E7CF" stroke="#9A641C" stroke-width="2"/>
+<text x="2082" y="1859" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice date</text>
+<text x="2082" y="1886" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="750" fill="#17201B" text-anchor="start">12/09/2026</text>
+<text x="2396" y="1864" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#9B3A32" text-anchor="start">SUPPLIER STAMP</text>
+<circle cx="2466" cy="1862" r="56" fill="none" stroke="#9B3A32" stroke-width="2"/>
+<rect x="2680" y="1432" width="476" height="742" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2700" y="1462" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Decision workspace</text>
+<text x="2700" y="1483" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Borderline - model suggestion available</text>
+<text x="2702" y="1510" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" fill="#17201B" text-anchor="start">Why this was flagged</text>
+<text x="2702" y="1540" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Two possible invoice dates were found.</text>
+<text x="2702" y="1563" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">The date overlaps a supplier stamp.</text>
+<rect x="2702" y="1600" width="158.8" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="2713" y="1619" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">ITEM CONFIDENCE 68%</text>
+<rect x="2886" y="1600" width="122.8" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="2897" y="1619" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">DATE FIELD 72%</text>
+<text x="2702" y="1670" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">Model suggestion</text>
+<rect x="2702" y="1688" width="430" height="92" rx="7" fill="#DCE9F3" stroke="#245A86" stroke-width="2"/>
+<text x="2722" y="1719" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">12 Sep 2026</text>
+<text x="2722" y="1750" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">72% confidence - source region highlighted</text>
+<text x="2702" y="1822" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Check the highlighted source before accepting.</text>
+<rect x="2702" y="1858" width="101.2" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="2713" y="1877" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">ACCEPT  [1]</text>
+<rect x="2828" y="1858" width="86.8" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="2839" y="1877" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">EDIT  [2]</text>
+<rect x="2938" y="1858" width="115.60000000000001" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2949" y="1877" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">ESCALATE  [3]</text>
+<line x1="2702" y1="1918" x2="3134" y2="1918" stroke="#CCD2CC" stroke-width="1" />
+<text x="2702" y="1958" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Resolution reason after edit</text>
+<rect x="2702" y="1977" width="430" height="48" rx="6" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2718" y="2007" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Select a structured reason</text>
+<rect x="2702" y="2056" width="86.8" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2713" y="2075" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">UNDO  [U]</text>
+<rect x="2826" y="2056" width="86.8" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="2837" y="2075" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">NEXT  [J]</text>
+<rect x="2702" y="2112" width="430" height="44" rx="6" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="2718" y="2139" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">13 minutes to two hours - reset when practical.</text>
+</g>
+<g id="Screen-4-Reviewer-Critical">
+<rect x="3252" y="1290" width="1440" height="1024" rx="14" fill="#F8F8F4" stroke="#CCD2CC" stroke-width="2"/>
+<rect x="3252" y="1290" width="220" height="1024" rx="14" fill="#20352A" stroke="none" stroke-width="1"/>
+<text x="3284" y="1348" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="start">EXCEPTION HUB</text>
+<text x="3284" y="1412" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Operations</text>
+<text x="3284" y="1460" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Queues</text>
+<text x="3284" y="1508" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Clusters</text>
+<text x="3284" y="1556" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Feedback</text>
+<text x="3284" y="1604" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#C9D7CE" text-anchor="start">Audit</text>
+<rect x="3268" y="1385" width="188" height="44" rx="7" fill="#2C4939" stroke="none" stroke-width="1"/>
+<text x="3284" y="1413" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#FFFFFF" text-anchor="start">Operations</text>
+<text x="3512" y="1348" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="700" fill="#17201B" text-anchor="start">Independent review</text>
+<text x="3512" y="1374" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Held items  4 of 15  /  Human decision first</text>
+<rect x="4432" y="1324" width="151.6" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4443" y="1343" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice extraction</text>
+<line x1="3472" y1="1400" x2="4692" y2="1400" stroke="#CCD2CC" stroke-width="1" />
+<rect x="3512" y="1432" width="640" height="742" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3532" y="1462" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Readable source - unreliable model</text>
+<text x="3532" y="1483" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Invoice INV-26-1851 - Atelier West</text>
+<rect x="3534" y="1508" width="596" height="610" rx="4" fill="#F4F1E8" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3568" y="1558" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="750" fill="#20352A" text-anchor="start">ATELIER WEST KG</text>
+<text x="3568" y="1590" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="500" fill="#5E6A63" text-anchor="start">Supplier invoice</text>
+<text x="3568" y="1652" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Invoice no.  AW-90817</text>
+<text x="3568" y="1690" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Purchase ref. PO-51109</text>
+<text x="3568" y="1728" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" fill="#17201B" text-anchor="start">Total        EUR 8,120.40</text>
+<rect x="3562" y="1802" width="340" height="82" rx="3" fill="#DCE9F3" stroke="#245A86" stroke-width="2"/>
+<text x="3578" y="1834" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Invoice date / Lieferdatum</text>
+<text x="3578" y="1865" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="750" fill="#17201B" text-anchor="start">18.09.2026 / 20.09.2026</text>
+<text x="3568" y="1944" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">Both dates are readable; the label is ambiguous.</text>
+<rect x="4176" y="1432" width="476" height="742" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4196" y="1462" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">No reliable suggestion</text>
+<text x="4196" y="1483" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Model confidence below 50%</text>
+<rect x="4198" y="1508" width="144.4" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="4209" y="1527" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">DESIGN HYPOTHESIS</text>
+<text x="4198" y="1564" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">The model could not determine the invoice date safely.</text>
+<text x="4198" y="1587" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Enter your decision from the source. You can compare</text>
+<text x="4198" y="1610" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">with the model afterwards.</text>
+<text x="4198" y="1664" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#5E6A63" text-anchor="start">Your invoice-date decision</text>
+<rect x="4198" y="1684" width="430" height="54" rx="6" fill="#FFFFFF" stroke="#245A86" stroke-width="2"/>
+<text x="4216" y="1718" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="600" fill="#17201B" text-anchor="start">18 Sep 2026</text>
+<rect x="4198" y="1762" width="158.8" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="4209" y="1781" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">SAVE HUMAN DECISION</text>
+<rect x="4198" y="1820" width="430" height="104" rx="7" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4216" y="1852" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650" fill="#5E6A63" text-anchor="start">Compare with model</text>
+<text x="4216" y="1883" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Available only after your decision is saved.</text>
+<rect x="4442" y="1852" width="74" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4453" y="1871" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">LOCKED</text>
+<text x="4198" y="1972" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#17201B" text-anchor="start">Feedback classification</text>
+<text x="4198" y="2006" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Model extraction error</text>
+<text x="4198" y="2030" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Ambiguous guideline</text>
+<text x="4198" y="2054" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">New or unsupported pattern</text>
+<rect x="4198" y="2098" width="79.6" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4209" y="2117" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">ESCALATE</text>
+<rect x="4312" y="2098" width="74" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4323" y="2117" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">UNDO</text>
+</g>
+<rect x="3252" y="2334" width="1440" height="72" rx="6" fill="#DCE9F3" stroke="#245A86" stroke-width="2"/>
+<text x="3276" y="2378" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#245A86" text-anchor="start">Design hypothesis: test whether independent review reduces anchoring on critical items without causing unacceptable delay.</text>
+<rect x="4748" y="210" width="1870" height="420" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4768" y="240" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Partial batch result overlay</text>
+<text x="4768" y="261" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Illustrative result - no silent failures</text>
+<rect x="4780" y="290" width="360" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4800" y="320" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Resolved</text>
+<text x="4800" y="362" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#2F6B4F" text-anchor="start">309</text>
+<text x="5122" y="362" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">audit recorded</text>
+<rect x="5156" y="290" width="360" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5176" y="320" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Held for review</text>
+<text x="5176" y="362" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#9B3A32" text-anchor="start">15</text>
+<text x="5498" y="362" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="500" fill="#5E6A63" text-anchor="end">inconsistent pattern</text>
+<rect x="5532" y="290" width="1054" height="104" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5552" y="320" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Reason held</text>
+<text x="5552" y="341" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Date labels or stamp overlap did not match the verified rule.</text>
+<rect x="4780" y="426" width="144.4" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="4791" y="445" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">REVIEW HELD ITEMS</text>
+<rect x="4960" y="426" width="122.8" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="4971" y="445" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">VIEW AUDIT LOG</text>
+<rect x="5120" y="426" width="94" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="5131" y="445" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">UNDO BATCH</text>
+<text x="4748" y="700" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Connected prototype path</text>
+<rect x="4748" y="750" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4768" y="780" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">1. Dashboard</text>
+<line x1="5268" y1="795" x2="5318" y2="795" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5310 790 L 5318 795 L 5310 800" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5338" y="750" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5358" y="780" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">2. Formatting cluster</text>
+<line x1="5858" y1="795" x2="5908" y2="795" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5900 790 L 5908 795 L 5900 800" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5928" y="750" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5948" y="780" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">3. Confirm staged batch</text>
+<line x1="6448" y1="795" x2="6498" y2="795" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 6490 790 L 6498 795 L 6490 800" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="4748" y="892" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4768" y="922" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">4. Partial result</text>
+<line x1="5268" y1="937" x2="5318" y2="937" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5310 932 L 5318 937 L 5310 942" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5338" y="892" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5358" y="922" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">5. Held critical item</text>
+<line x1="5858" y1="937" x2="5908" y2="937" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5900 932 L 5908 937 L 5900 942" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5928" y="892" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5948" y="922" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">6. Save human decision</text>
+<line x1="6448" y1="937" x2="6498" y2="937" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 6490 932 L 6498 937 L 6490 942" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="4748" y="1034" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4768" y="1064" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">7. Compare with model</text>
+<line x1="5268" y1="1079" x2="5318" y2="1079" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5310 1074 L 5318 1079 L 5310 1084" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5338" y="1034" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5358" y="1064" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">8. Classify feedback</text>
+<line x1="5858" y1="1079" x2="5908" y2="1079" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 5900 1074 L 5908 1079 L 5900 1084" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="5928" y="1034" width="520" height="90" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5948" y="1064" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">9. Complete</text>
+<text x="4748" y="1215" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Local component inventory</text>
+<rect x="4748" y="1245" width="1870" height="430" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4768" y="1275" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Components used by hero screens</text>
+<text x="4768" y="1296" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Editable grouped patterns; no broad design system.</text>
+<rect x="4780" y="1320" width="840" height="54" rx="5" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4796" y="1342" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Button</text>
+<text x="5010" y="1342" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Primary / secondary / danger / disabled / loading</text>
+<rect x="5680" y="1320" width="840" height="54" rx="5" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5696" y="1342" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Status badge</text>
+<text x="5910" y="1342" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Text + numeric value + icon slot</text>
+<rect x="4780" y="1392" width="840" height="54" rx="5" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4796" y="1414" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Field row</text>
+<text x="5010" y="1414" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Untouched / suggestion / edited / conflict / saved</text>
+<rect x="5680" y="1392" width="840" height="54" rx="5" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5696" y="1414" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Status banner</text>
+<text x="5910" y="1414" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Information / warning / error / success</text>
+<rect x="4780" y="1464" width="840" height="54" rx="5" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4796" y="1486" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Action table row</text>
+<text x="5010" y="1486" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Cause / volume / consequence / next action</text>
+<rect x="5680" y="1464" width="840" height="54" rx="5" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5696" y="1486" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Dialog + toast</text>
+<text x="5910" y="1486" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Exact consequence / Undo</text>
+<rect x="4780" y="1536" width="840" height="54" rx="5" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4796" y="1558" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Sample card</text>
+<text x="5010" y="1558" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Source snippet / highlight / outlier state</text>
+<rect x="5680" y="1536" width="840" height="54" rx="5" fill="#EEF0EB" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5696" y="1558" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" fill="#17201B" text-anchor="start">Keyboard hint</text>
+<text x="5910" y="1558" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="450" fill="#5E6A63" text-anchor="start">Optional accelerator, never the only action</text>
+</g>
+<g id="02_STATES_AND_TRUST">
+<rect x="1700" y="3600" width="3200" height="1920" rx="16" fill="#F8F8F4" stroke="none" stroke-width="1"/>
+<rect x="1756" y="3643" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="1767" y="3662" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">02</text>
+<text x="1834" y="3665" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">States and trust</text>
+<text x="1834" y="3691" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Compact recovery map - work is preserved</text>
+<rect x="1756" y="3732" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="3762" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">1. Suggestion loading</text>
+<text x="1776" y="3783" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Manual review remains available</text>
+<rect x="1776" y="3802" width="94" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="1787" y="3821" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">Work saved</text>
+<text x="1776" y="3858" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="1888" y="3858" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Wait or continue</text>
+<text x="1776" y="3898" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="1888" y="3898" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">suggestion_requested</text>
+<rect x="3294" y="3732" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3314" y="3762" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">2. Suggestion ready</text>
+<text x="3314" y="3783" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Accept / edit / escalate</text>
+<rect x="3314" y="3802" width="94" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="3325" y="3821" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">Work saved</text>
+<text x="3314" y="3858" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="3426" y="3858" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Check evidence</text>
+<text x="3314" y="3898" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="3426" y="3898" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">suggestion_shown</text>
+<rect x="1756" y="3982" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="4012" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">3. Wrong suggestion</text>
+<text x="1776" y="4033" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Human override</text>
+<rect x="1776" y="4052" width="94" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="1787" y="4071" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">Work saved</text>
+<text x="1776" y="4108" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="1888" y="4108" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Classify reason</text>
+<text x="1776" y="4148" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="1888" y="4148" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">human_override</text>
+<rect x="3294" y="3982" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3314" y="4012" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">4. Model timeout</text>
+<text x="3314" y="4033" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Continue manually or escalate</text>
+<rect x="3314" y="4052" width="94" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="3325" y="4071" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">Work saved</text>
+<text x="3314" y="4108" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="3426" y="4108" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Retry later</text>
+<text x="3314" y="4148" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="3426" y="4148" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">model_timeout</text>
+<rect x="1756" y="4232" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="4262" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">5. Human-model disagreement</text>
+<text x="1776" y="4283" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Compare evidence</text>
+<rect x="1776" y="4302" width="94" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="1787" y="4321" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">Work saved</text>
+<text x="1776" y="4358" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="1888" y="4358" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Escalate if needed</text>
+<text x="1776" y="4398" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="1888" y="4398" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">disagreement_logged</text>
+<rect x="3294" y="4232" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3314" y="4262" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">6. Source insufficient</text>
+<text x="3314" y="4283" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">No forced answer</text>
+<rect x="3314" y="4302" width="94" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="3325" y="4321" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">Work saved</text>
+<text x="3314" y="4358" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="3426" y="4358" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Use alternate / request source</text>
+<text x="3314" y="4398" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="3426" y="4398" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">source_returned</text>
+<rect x="1756" y="4482" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="4512" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">7. Batch applying</text>
+<text x="1776" y="4533" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">View progress</text>
+<rect x="1776" y="4552" width="151.6" height="28" rx="14" fill="#DCE9F3" stroke="none" stroke-width="1"/>
+<text x="1787" y="4571" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#245A86" text-anchor="start">Rule + audit saved</text>
+<text x="1776" y="4608" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="1888" y="4608" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Pause if anomaly</text>
+<text x="1776" y="4648" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="1888" y="4648" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">batch_started</text>
+<rect x="3294" y="4482" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3314" y="4512" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">8. Partial batch failure</text>
+<text x="3314" y="4533" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Resolved items identified</text>
+<rect x="3314" y="4552" width="151.6" height="28" rx="14" fill="#F3DDDA" stroke="none" stroke-width="1"/>
+<text x="3325" y="4571" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9B3A32" text-anchor="start">All outcomes saved</text>
+<text x="3314" y="4608" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="3426" y="4608" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Hold failures</text>
+<text x="3314" y="4648" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="3426" y="4648" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">partial_failure</text>
+<rect x="1756" y="4732" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="4762" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">9. Rollback</text>
+<text x="1776" y="4783" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Audit remains visible</text>
+<rect x="1776" y="4802" width="173.20000000000002" height="28" rx="14" fill="#F4E7CF" stroke="none" stroke-width="1"/>
+<text x="1787" y="4821" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#9A641C" text-anchor="start">Prior values restored</text>
+<text x="1776" y="4858" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="1888" y="4858" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Review cause</text>
+<text x="1776" y="4898" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="1888" y="4898" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">batch_rolled_back</text>
+<rect x="3294" y="4732" width="1480" height="220" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3314" y="4762" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">10. Escalation</text>
+<text x="3314" y="4783" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Manual context retained</text>
+<rect x="3314" y="4802" width="94" height="28" rx="14" fill="#EEF0EB" stroke="none" stroke-width="1"/>
+<text x="3325" y="4821" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#5E6A63" text-anchor="start">Work saved</text>
+<text x="3314" y="4858" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Recovery</text>
+<text x="3426" y="4858" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">Route to expert / owner</text>
+<text x="3314" y="4898" font-family="Inter, Arial, sans-serif" font-size="11" font-weight="600" fill="#5E6A63" text-anchor="start">Audit event</text>
+<text x="3426" y="4898" font-family="Geist Mono, monospace" font-size="12" font-weight="600" fill="#17201B" text-anchor="start">escalated</text>
+<rect x="1756" y="5000" width="3020" height="86" rx="8" fill="#F3DDDA" stroke="#9B3A32" stroke-width="2"/>
+<text x="1784" y="5035" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650" fill="#9B3A32" text-anchor="start">Fallback service copy</text>
+<text x="1784" y="5065" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700" fill="#17201B" text-anchor="start">Suggestion unavailable. Continue manually or escalate. Your work is saved.</text>
+<text x="1756" y="5150" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">AI trust model</text>
+<rect x="1756" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="1776" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Provenance</text>
+<text x="1776" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Where did it come from?</text>
+<line x1="2206" y1="5250" x2="2234" y2="5250" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 2226 5245 L 2234 5250 L 2226 5255" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="2246" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2266" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Explanation</text>
+<text x="2266" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Why was it flagged?</text>
+<line x1="2696" y1="5250" x2="2724" y2="5250" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 2716 5245 L 2724 5250 L 2716 5255" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="2736" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="2756" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Uncertainty</text>
+<text x="2756" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Estimate, not truth</text>
+<line x1="3186" y1="5250" x2="3214" y2="5250" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 3206 5245 L 3214 5250 L 3206 5255" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="3226" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3246" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Human control</text>
+<text x="3246" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">Accept / edit / reject</text>
+<line x1="3676" y1="5250" x2="3704" y2="5250" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 3696 5245 L 3704 5250 L 3696 5255" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="3716" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="3736" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Audit</text>
+<text x="3736" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">What changed and when?</text>
+<line x1="4166" y1="5250" x2="4194" y2="5250" stroke="#2F6B4F" stroke-width="2" />
+<path d="M 4186 5245 L 4194 5250 L 4186 5255" fill="none" stroke="#2F6B4F" stroke-width="2"/>
+<rect x="4206" y="5182" width="450" height="140" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="4226" y="5212" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Governed feedback</text>
+<text x="4226" y="5260" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#5E6A63" text-anchor="start">QA before production action</text>
+</g>
+<g id="03_PRESENTATION">
+<rect x="4940" y="3600" width="1780" height="1920" rx="16" fill="#F8F8F4" stroke="none" stroke-width="1"/>
+<rect x="4996" y="3643" width="74" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="5007" y="3662" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">03</text>
+<text x="5074" y="3665" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#17201B" text-anchor="start">Presentation</text>
+<text x="5074" y="3691" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="450" fill="#5E6A63" text-anchor="start">Decision log, honest AI use and walkthrough</text>
+<rect x="4996" y="3732" width="1668" height="150" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5016" y="3762" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Prototype start</text>
+<text x="5016" y="3783" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" fill="#5E6A63" text-anchor="start">Start at Screen 1 - Exception operations</text>
+<rect x="5020" y="3808" width="569.2" height="28" rx="14" fill="#DCEBE2" stroke="none" stroke-width="1"/>
+<text x="5031" y="3827" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F" text-anchor="start">DASHBOARD -&gt; CLUSTER -&gt; STAGED BATCH -&gt; PARTIAL RESULT -&gt; HELD CRITICAL ITEM</text>
+<text x="4996" y="3942" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Decision log</text>
+<rect x="4996" y="3970" width="1668" height="300" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5016" y="4000" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">What I chose - and what I did not claim</text>
+<text x="5022" y="4026" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Cause- and evidence-aware routing over a faster generic queue.</text>
+<text x="5022" y="4066" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Low-resolution evidence becomes recover/return when a safe decision is impossible.</text>
+<text x="5022" y="4106" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Production threshold deployment remains outside direct Operations Lead control.</text>
+<text x="5022" y="4146" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Independent review is a hypothesis, not a universal rule.</text>
+<text x="5022" y="4186" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Sensitivity model replaces a promised throughput number.</text>
+<text x="5022" y="4226" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#17201B" text-anchor="start">Four hero screens and state coverage over a broad visual system.</text>
+<text x="4996" y="4328" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">AI-tool-use reflection - draft for owner review</text>
+<rect x="4996" y="4360" width="520" height="276" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5016" y="4390" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">AI accelerated</text>
+<text x="5018" y="4416" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Brief synthesis</text>
+<text x="5018" y="4448" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Arithmetic scaffolding</text>
+<text x="5018" y="4480" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Layout alternatives</text>
+<text x="5018" y="4512" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Illustrative sample data</text>
+<text x="5018" y="4544" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Component scaffolding</text>
+<text x="5018" y="4576" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Initial state enumeration</text>
+<rect x="5548" y="4360" width="520" height="276" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5568" y="4390" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">Human judgment</text>
+<text x="5570" y="4416" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Correcting unsupported claims</text>
+<text x="5570" y="4448" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Evidence-sufficiency gate</text>
+<text x="5570" y="4480" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Routing and governance</text>
+<text x="5570" y="4512" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Scope and hierarchy</text>
+<text x="5570" y="4544" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">Copy and interaction review</text>
+<rect x="6100" y="4360" width="520" height="276" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="6120" y="4390" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">AI was not used to</text>
+<text x="6122" y="4416" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#9B3A32" text-anchor="start">Fabricate research</text>
+<text x="6122" y="4448" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#9B3A32" text-anchor="start">Invent measured impact</text>
+<text x="6122" y="4480" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#9B3A32" text-anchor="start">Claim production success</text>
+<text x="6122" y="4512" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#9B3A32" text-anchor="start">Make unsupervised policy</text>
+<text x="6122" y="4544" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#9B3A32" text-anchor="start">Hide AI involvement</text>
+<text x="4996" y="4698" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Five-minute walkthrough spine</text>
+<rect x="4996" y="4726" width="1668" height="520" rx="10" fill="#FFFFFF" stroke="#CCD2CC" stroke-width="1"/>
+<text x="5016" y="4756" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#17201B" text-anchor="start">First-person narrative</text>
+<text x="5022" y="4782" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">1. At first this looks like a queue-speed problem. I asked whether every flag should reach a reviewer.</text>
+<text x="5022" y="4821" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">2. I do not ask reviewers to guess when the source cannot support a safe decision.</text>
+<text x="5022" y="4860" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">3. Routing uses evidence sufficiency, repeatability, risk and SLA.</text>
+<text x="5022" y="4899" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">4. The sensitivity model is a testable business case, not promised impact.</text>
+<text x="5022" y="4938" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">5. Operations Leads start with causes and concrete actions.</text>
+<text x="5022" y="4977" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">6. Repeated patterns use samples, outliers, staged application, audit and rollback.</text>
+<text x="5022" y="5016" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">7. Ambiguous items stay in an evidence-first Reviewer workspace.</text>
+<text x="5022" y="5055" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">8. Critical readable items test independent review; unreadable items request better evidence.</text>
+<text x="5022" y="5094" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">9. Corrections become governed feedback, not automatic retraining.</text>
+<text x="5022" y="5133" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="#17201B" text-anchor="start">10. Next I would test time, QA agreement, comprehension, source return and rollback.</text>
+<text x="4996" y="5310" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#17201B" text-anchor="start">Owner review before submission</text>
+<text x="5022" y="5360" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">Sensitivity assumptions and arithmetic</text>
+<text x="5022" y="5390" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">Prototype path and overlay behaviour</text>
+<text x="5022" y="5420" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">Invoice example realism</text>
+<text x="5022" y="5450" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">Keyboard flow and focus order</text>
+<text x="5022" y="5480" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" fill="#9B3A32" text-anchor="start">AI-use reflection matches the actual process</text>
+</g>
+</svg>

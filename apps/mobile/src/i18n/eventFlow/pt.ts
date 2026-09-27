@@ -264,6 +264,12 @@ export const eventFlowPt = {
     noTeamBody: 'Cria primeiro uma equipa para depois marcares eventos.',
     loadFailedTitle: 'Não foi possível carregar o evento',
     loadFailedBody: 'Tenta novamente.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'Quando',
+    sectionRepeat: 'Repetição',
+    sectionWhere: 'Onde',
+    sectionDetails: 'Detalhes',
+    durationUntil: '{{minutes}} · até às {{time}}',
   },
   lineup: {
     headline: 'Onze inicial {{title}}, {{date}}',

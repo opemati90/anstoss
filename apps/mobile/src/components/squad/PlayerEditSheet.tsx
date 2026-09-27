@@ -395,7 +395,6 @@ function Section({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space['2xl'],
     gap: space.lg,

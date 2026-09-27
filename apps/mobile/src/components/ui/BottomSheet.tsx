@@ -24,6 +24,11 @@ export type BottomSheetProps = {
   heightPct?: number | 'auto'
   /** Optional override for inner padding-bottom (default: space['2xl']). */
   paddingBottom?: number
+  /**
+   * Sheets keep a 20pt side gutter so text never touches the screen edge.
+   * Set `flush` only for content that manages its own horizontal padding.
+   */
+  flush?: boolean
   /** Whether tapping the dimmed overlay closes the sheet. Default true. */
   dismissOnBackdrop?: boolean
   /** Inner content. */
@@ -51,6 +56,7 @@ export function BottomSheet({
   heightPct = 88,
   paddingBottom,
   dismissOnBackdrop = true,
+  flush = false,
   children,
   contentStyle,
 }: BottomSheetProps) {
@@ -187,6 +193,7 @@ export function BottomSheet({
           <View
             style={[
               heightPct === 'auto' ? styles.contentAuto : styles.content,
+              !flush && styles.gutter,
               contentStyle,
             ]}
           >
@@ -216,6 +223,9 @@ const styles = StyleSheet.create({
   // wrapper collapsing the whole sheet.
   contentAuto: {
     flexShrink: 1,
+  },
+  gutter: {
+    paddingHorizontal: 20,
   },
   dragHandle: {
     width: '100%',

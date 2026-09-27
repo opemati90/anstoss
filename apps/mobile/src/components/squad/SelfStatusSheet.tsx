@@ -132,7 +132,6 @@ export function SelfStatusSheet({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
     paddingTop: space.md,
     gap: space.md,
   },

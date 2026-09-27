@@ -52,7 +52,7 @@ export function RosterEditSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.body}>
-        <Text variant="title3" color="primary">
+        <Text variant="title3" weight="bold" color="primary">
           {t('roster.editTitle')}
         </Text>
         <Text variant="footnote" color="secondary" style={styles.subtitle}>
@@ -121,11 +121,10 @@ export function RosterEditSheet({
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: SPACING_LG,
     paddingTop: SPACING_SM,
   },
   subtitle: {
-    marginTop: SPACING_XS,
+    marginTop: SPACING_SM,
     marginBottom: SPACING_LG,
   },
   label: {

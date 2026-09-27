@@ -263,6 +263,12 @@ export const eventFlowIt = {
     noTeamBody: 'Crea prima una squadra, poi potrai pianificare gli eventi.',
     loadFailedTitle: 'Impossibile caricare l’evento',
     loadFailedBody: 'Riprova.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'Quando',
+    sectionRepeat: 'Ripetizione',
+    sectionWhere: 'Dove',
+    sectionDetails: 'Dettagli',
+    durationUntil: '{{minutes}} · fino alle {{time}}',
   },
   lineup: {
     headline: 'Formazione titolare {{title}}, {{date}}',

@@ -63,7 +63,7 @@ export function ClubSwitcher({ visible, onClose }: ClubSwitcherProps) {
           contentContainerStyle={styles.sheetContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text variant="title3" color="primary" style={styles.title}>
+          <Text variant="title3" weight="bold" color="primary" style={styles.title}>
             {t('clubSwitcher.title')}
           </Text>
           <Text variant="footnote" color="secondary" style={styles.subtitle}>
@@ -267,11 +267,10 @@ const styles = StyleSheet.create({
     paddingTop: SPACING_SM,
   },
   sheetContent: {
-    paddingHorizontal: SPACING_LG,
     paddingBottom: SPACING_SM,
   },
   title: {
-    marginBottom: SPACING_XS,
+    marginBottom: SPACING_SM,
   },
   subtitle: {
     marginBottom: SPACING_LG,

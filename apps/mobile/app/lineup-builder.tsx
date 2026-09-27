@@ -841,7 +841,7 @@ export default function LineupBuilderScreen() {
                 defaultValue: 'PICK A PLAYER',
               })}
             </Text>
-            <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
+            <Text variant="title3" color="primary" weight="bold" style={styles.title}>
               {pickerSlot?.id} ·{' '}
               {pickerSlot
                 ? t(`lineup.position.${pickerSlot.position}`, {
@@ -973,7 +973,7 @@ export default function LineupBuilderScreen() {
           <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
             {t('lineup.shareSheetEyebrow', { defaultValue: 'LINEUP POSTED' })}
           </Text>
-          <Text variant="title2" color="primary" weight="semibold" style={styles.title}>
+          <Text variant="title3" color="primary" weight="bold" style={styles.title}>
             {t('lineup.shareSheetTitle', {
               defaultValue: 'Pinned in #team · share anywhere?',
             })}
@@ -1344,7 +1344,6 @@ const styles = StyleSheet.create({
   },
 
   shareSheetBody: {
-    paddingHorizontal: space.md,
     paddingTop: space.sm,
     paddingBottom: space.md,
     gap: space.sm,
@@ -1363,7 +1362,6 @@ const styles = StyleSheet.create({
 
   pickerInner: { flex: 1 },
   pickerContent: {
-    paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.md,
   },

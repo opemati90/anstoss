@@ -174,7 +174,6 @@ export function PaywallSheet({ visible, onClose, triggerFeature }: PaywallSheetP
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.xl,
   },
@@ -241,7 +240,6 @@ const styles = StyleSheet.create({
   },
   complianceFinePrint: {
     marginTop: space.sm,
-    paddingHorizontal: space.md,
     lineHeight: 16,
   },
   skipBtn: {

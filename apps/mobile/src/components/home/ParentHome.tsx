@@ -316,20 +316,22 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
     <View style={styles.root}>
       {socketListeners}
       {conflicts.length > 0 ? (
-        <HomeCard>
-          <HomeRow
-            icon="exclamationmark.triangle"
-            tone="warning"
-            title={t('homeHub.parent.conflicts', {
-              defaultValue: '{{count}} schedule clashes',
-              count: conflicts.length,
-            })}
-            detail={t('homeHub.parent.conflictsBody', {
-              defaultValue: 'Two of your children are due at the same time. Decide who goes.',
-            })}
-            onPress={() => router.push('/conflicts' as never)}
-          />
-        </HomeCard>
+        <HomeSection title={t('homeHub.coach.attention', { defaultValue: 'Needs attention' })}>
+          <HomeCard>
+            <HomeRow
+              icon="exclamationmark.triangle"
+              tone="warning"
+              title={t('homeHub.parent.conflicts', {
+                defaultValue: '{{count}} schedule clashes',
+                count: conflicts.length,
+              })}
+              detail={t('homeHub.parent.conflictsBody', {
+                defaultValue: 'Two of your children are due at the same time. Decide who goes.',
+              })}
+              onPress={() => router.push('/conflicts' as never)}
+            />
+          </HomeCard>
+        </HomeSection>
       ) : null}
 
       {noLinkedChild ? (
@@ -344,16 +346,20 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           onAction={() => router.push(LINK_CHILD_ROUTE as never)}
         />
       ) : childCards.length > 0 ? (
-        childCards.map(({ next, more }) => (
-          <ChildCard
-            key={`${next.childUserId ?? next.teamName}-${next.id}`}
-            event={next}
-            more={more}
-            locale={locale}
-            pending={Boolean(pendingIds[`${next.childUserId}-${next.id}`])}
-            onRsvp={(status, absence) => void onChildRsvp(next, status, absence)}
-          />
-        ))
+        <HomeSection title={t('homeHub.nextUp', { defaultValue: 'Next up' })}>
+          <View style={styles.childCards}>
+            {childCards.map(({ next, more }) => (
+              <ChildCard
+                key={`${next.childUserId ?? next.teamName}-${next.id}`}
+                event={next}
+                more={more}
+                locale={locale}
+                pending={Boolean(pendingIds[`${next.childUserId}-${next.id}`])}
+                onRsvp={(status, absence) => void onChildRsvp(next, status, absence)}
+              />
+            ))}
+          </View>
+        </HomeSection>
       ) : (
         <EmptyCard
           icon="calendar"
@@ -558,6 +564,7 @@ function TeamEventsListener({
 
 const styles = StyleSheet.create({
   root: { gap: space.lg },
+  childCards: { gap: space.sm + space.xs },
   flex: { flex: 1 },
   card: {
     borderRadius: radius.lg,

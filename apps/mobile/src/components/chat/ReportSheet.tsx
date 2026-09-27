@@ -99,12 +99,14 @@ export function ReportSheet({ target, onClose, onBlocked }: Props) {
           </View>
         ) : mode === 'report' ? (
           <>
-            <Text variant="headline" weight="semibold" color="primary">
-              {t('chatThread.report.title')}
-            </Text>
-            <Text variant="subheadline" color="secondary">
-              {t('chatThread.report.body', { name })}
-            </Text>
+            <View style={styles.titleBlock}>
+              <Text variant="title3" weight="bold" color="primary">
+                {t('chatThread.report.title')}
+              </Text>
+              <Text variant="subheadline" color="secondary">
+                {t('chatThread.report.body', { name })}
+              </Text>
+            </View>
             <ReportReasonList value={reason} onChange={setReason} />
             {status === 'error' ? (
               <Text variant="footnote" style={{ color: c.error }} accessibilityLiveRegion="polite">
@@ -124,12 +126,14 @@ export function ReportSheet({ target, onClose, onBlocked }: Props) {
           </>
         ) : (
           <>
-            <Text variant="headline" weight="semibold" color="primary">
-              {t('chatThread.block.title', { name })}
-            </Text>
-            <Text variant="subheadline" color="secondary">
-              {t('chatThread.block.body')}
-            </Text>
+            <View style={styles.titleBlock}>
+              <Text variant="title3" weight="bold" color="primary">
+                {t('chatThread.block.title', { name })}
+              </Text>
+              <Text variant="subheadline" color="secondary">
+                {t('chatThread.block.body')}
+              </Text>
+            </View>
             {status === 'error' ? (
               <Text variant="footnote" style={{ color: c.error }} accessibilityLiveRegion="polite">
                 {t('chatThread.block.failed')}
@@ -153,7 +157,8 @@ export function ReportSheet({ target, onClose, onBlocked }: Props) {
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.md, paddingHorizontal: space.md },
+  body: { gap: space.md },
+  titleBlock: { gap: space.sm },
   done: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   center: { textAlign: 'center' },
 })

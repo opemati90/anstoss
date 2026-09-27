@@ -36,7 +36,7 @@ export function SheetHeader({
           {cancelLabel}
         </Text>
       </Pressable>
-      <Text variant="headline" weight="semibold" color="primary" numberOfLines={1} style={styles.title}>
+      <Text variant="title3" weight="bold" color="primary" numberOfLines={1} style={styles.title}>
         {title}
       </Text>
       {doneLabel && onDone ? (
@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.md,
     paddingBottom: space.sm,
     borderBottomWidth: hairline,
   },

@@ -265,6 +265,12 @@ export const eventFlowDe = {
     noTeamBody: 'Leg zuerst ein Team an, dann kannst du Termine planen.',
     loadFailedTitle: 'Der Termin konnte nicht geladen werden',
     loadFailedBody: 'Versuch es bitte noch mal.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'Wann',
+    sectionRepeat: 'Wiederholung',
+    sectionWhere: 'Wo',
+    sectionDetails: 'Details',
+    durationUntil: '{{minutes}} · bis {{time}}',
   },
   lineup: {
     headline: 'Startelf {{title}}, {{date}}',

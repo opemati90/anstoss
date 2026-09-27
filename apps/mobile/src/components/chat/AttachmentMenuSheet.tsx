@@ -41,7 +41,7 @@ export function AttachmentMenuSheet({ visible, onClose, onSelect, showLineup = f
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.body} testID="chat-attach-menu">
-        <Text variant="headline" color="primary" accessibilityRole="header">
+        <Text variant="title3" weight="bold" color="primary" accessibilityRole="header">
           {t('chatThread.attach.title')}
         </Text>
         <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
@@ -80,7 +80,7 @@ export function AttachmentMenuSheet({ visible, onClose, onSelect, showLineup = f
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: space.md, gap: space.md },
+  body: { gap: space.md },
   group: {
     borderRadius: radius.lg,
     borderCurve: 'continuous',

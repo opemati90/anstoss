@@ -376,7 +376,7 @@ function OfferSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.sheet}>
-        <Text variant="title3" color="primary">
+        <Text variant="title3" weight="bold" color="primary">
           {t('eventFlow.carpool.offerTitle')}
         </Text>
 
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   seatBadge: { alignItems: 'flex-end' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   deleteRow: { minHeight: 44, justifyContent: 'center' },
-  sheet: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.md },
+  sheet: { paddingBottom: space.lg, gap: space.md },
   field: { gap: space.sm },
   seatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   seatChip: {

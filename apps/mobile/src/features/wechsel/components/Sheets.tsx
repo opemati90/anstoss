@@ -25,7 +25,7 @@ const MAX_SESSIONS = 3
 function SheetTitle({ title, hint }: { title: string; hint?: string }) {
   return (
     <View style={styles.sheetTitle}>
-      <Text variant="title2" color="primary">
+      <Text variant="title3" weight="bold" color="primary">
         {title}
       </Text>
       {hint ? (
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     gap: SPACING_LG,
     paddingBottom: SPACING_LG,
   },
-  sheetTitle: { gap: SPACING_XS },
+  sheetTitle: { gap: SPACING_SM },
   field: { gap: SPACING_SM },
   fieldHeader: {
     flexDirection: 'row',

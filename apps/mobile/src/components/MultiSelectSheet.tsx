@@ -15,7 +15,7 @@ import {
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
-  SPACING_XS,
+  RADIUS_CARD,
   SPACING_XXS,
 } from '../theme/tokens'
 
@@ -59,7 +59,7 @@ export function MultiSelectSheet<T extends string>({
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.body}>
-        <Text variant="title3" color="primary">
+        <Text variant="title3" weight="bold" color="primary">
           {title}
         </Text>
         {description ? (
@@ -69,7 +69,10 @@ export function MultiSelectSheet<T extends string>({
         ) : null}
 
         <ScrollView
-          style={{ maxHeight: SCREEN_HEIGHT * 0.5 }}
+          style={[
+            styles.card,
+            { maxHeight: SCREEN_HEIGHT * 0.5, backgroundColor: c.surface, borderColor: c.borderSubtle },
+          ]}
           bounces={false}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.options}
@@ -83,11 +86,7 @@ export function MultiSelectSheet<T extends string>({
                 accessibilityRole="button"
                 style={[
                   styles.option,
-                  { borderTopColor: c.borderSubtle },
-                  index === options.length - 1 && [
-                    styles.optionLast,
-                    { borderBottomColor: c.borderSubtle },
-                  ],
+                  index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
                   isSelected && { backgroundColor: c.surfaceSunken },
                   option.disabled && styles.optionDisabled,
                 ]}
@@ -156,27 +155,27 @@ export function MultiSelectSheet<T extends string>({
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: SPACING_LG,
     paddingTop: SPACING_SM,
-  },
-  description: {
-    marginTop: SPACING_XS,
-    marginBottom: SPACING_LG,
-  },
-  options: {
     paddingBottom: SPACING_SM,
   },
+  description: {
+    marginTop: SPACING_SM,
+  },
+  card: {
+    marginTop: SPACING_LG,
+    borderWidth: hairline,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
+  options: {},
   option: {
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_MD,
-    borderTopWidth: hairline,
     paddingVertical: SPACING_MD,
-    paddingHorizontal: SPACING_SM,
-  },
-  optionLast: {
-    borderBottomWidth: hairline,
+    paddingHorizontal: SPACING_LG,
   },
   optionDisabled: {
     opacity: 0.65,
@@ -186,7 +185,7 @@ const styles = StyleSheet.create({
     gap: SPACING_XXS,
   },
   saveButton: {
-    marginTop: SPACING_MD,
+    marginTop: SPACING_LG,
     minHeight: 48,
     borderRadius: RADIUS_LG,
     alignItems: 'center',

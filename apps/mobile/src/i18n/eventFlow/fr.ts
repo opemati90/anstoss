@@ -275,6 +275,12 @@ export const eventFlowFr = {
     noTeamBody: 'Crée d’abord une équipe pour pouvoir planifier des événements.',
     loadFailedTitle: 'Impossible de charger l’événement',
     loadFailedBody: 'Réessaie.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'Quand',
+    sectionRepeat: 'Répétition',
+    sectionWhere: 'Où',
+    sectionDetails: 'Détails',
+    durationUntil: "{{minutes}} · jusqu'à {{time}}",
   },
   lineup: {
     headline: 'Onze de départ : {{title}}, {{date}}',

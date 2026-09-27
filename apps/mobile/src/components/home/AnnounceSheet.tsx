@@ -99,7 +99,7 @@ export function AnnounceSheet({ clubId, teamId, visible, onClose }: AnnounceShee
       <View style={styles.body}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <Text variant="headline" weight="semibold" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('announcements.sheetTitle')}
           </Text>
           <Pressable
@@ -215,7 +215,6 @@ export function AnnounceSheet({ clubId, teamId, visible, onClose }: AnnounceShee
 const styles = StyleSheet.create({
   body: {
     paddingTop: space.sm,
-    paddingHorizontal: space.md,
     gap: space.md,
   },
   headerRow: {

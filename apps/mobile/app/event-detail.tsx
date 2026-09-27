@@ -16,7 +16,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { BottomSheet, Button, Icon, ListRow, SegmentedControl, Text } from '../src/components/ui'
+import { BottomSheet, Button, Icon, ListRow, SectionGroup, SegmentedControl, Text } from '../src/components/ui'
 import { Skeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { FormInput } from '../src/components/FormInput'
@@ -372,21 +372,16 @@ export default function EventDetailScreen() {
         <EventHeaderCard event={event} locale={locale} />
 
         {!cancelled && !started && answersForSelf ? (
-          <View
-            style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
-            testID="event-self-answer"
-          >
-            <>
-              <View style={styles.cardHead}>
-                <Text variant="headline" weight="semibold" color="primary">
-                  {t('eventFlow.detail.yourAnswer')}
-                </Text>
-                {nominatedPublished && event.myNominated ? (
+          <SectionGroup header={t('eventFlow.detail.yourAnswer')}>
+            <View style={styles.cardBody} testID="event-self-answer">
+              {nominatedPublished && event.myNominated ? (
+                <View style={styles.inlineTag}>
+                  <Icon name="checkmark.circle.fill" size={16} color={c.primary} />
                   <Text variant="footnote" weight="semibold" color="tint">
                     {t('eventFlow.detail.inSquad')}
                   </Text>
-                ) : null}
-              </View>
+                </View>
+              ) : null}
               {event.myRsvpStale ? (
                 <Text variant="footnote" color="tint">
                   {t('eventFlow.detail.rescheduled')}
@@ -417,21 +412,15 @@ export default function EventDetailScreen() {
                   accessibilityLabel={t('eventFlow.detail.remindMe')}
                 />
               </View>
-            </>
-          </View>
+            </View>
+          </SectionGroup>
         ) : null}
 
         {!cancelled && !started && answersForChildren ? (
-          <View
-            style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
-            testID="event-child-answers"
-          >
-            <>
-              <Text variant="headline" weight="semibold" color="primary">
-                {t('eventFlow.detail.childAnswers')}
-              </Text>
+          <View testID="event-child-answers">
+            <SectionGroup header={t('eventFlow.detail.childAnswers')}>
               {event.children.map((child) => (
-                <View key={child.userId} style={styles.childRow}>
+                <View key={child.userId} style={[styles.cardBody, styles.childRow]}>
                   <View style={styles.childHead}>
                     <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
                       {[firstName(child.name), child.teamName].filter(Boolean).join(' · ')}
@@ -456,7 +445,7 @@ export default function EventDetailScreen() {
                   ) : null}
                 </View>
               ))}
-            </>
+            </SectionGroup>
           </View>
         ) : null}
 
@@ -497,13 +486,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {event.fixtureId && event.team ? (
-          <View
-            style={[
-              styles.card,
-              styles.flush,
-              { backgroundColor: c.surface, borderColor: c.borderSubtle },
-            ]}
-          >
+          <SectionGroup>
             <ListRow
               title={t('eventFlow.detail.liveTitle')}
               subtitle={t('eventFlow.detail.liveSubtitle')}
@@ -517,7 +500,7 @@ export default function EventDetailScreen() {
               }
               testID="event-open-match"
             />
-          </View>
+          </SectionGroup>
         ) : null}
 
         {segments.length > 1 ? (
@@ -528,7 +511,7 @@ export default function EventDetailScreen() {
             testID="event-segments"
           />
         ) : (
-          <Text variant="title3" color="primary" style={styles.sectionTitle}>
+          <Text variant="footnote" weight="semibold" color="secondary" style={styles.sectionLabel}>
             {t('eventFlow.detail.tabResponses')}
           </Text>
         )}
@@ -709,7 +692,8 @@ function firstName(name: string | null | undefined): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.md },
+  // 16pt gutters, 24pt between sections.
+  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.lg },
   menuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   card: {
     padding: space.md,
@@ -718,15 +702,9 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
-  flush: { padding: 0, overflow: 'hidden' },
+  cardBody: { padding: space.md, gap: space.sm + space.xs },
   inline: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-  cardHead: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
+  inlineTag: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   flex: { flex: 1, minWidth: 0 },
   switchRow: {
     flexDirection: 'row',
@@ -744,7 +722,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: space.sm,
   },
-  sectionTitle: { marginTop: space.xs },
+  sectionLabel: { paddingHorizontal: space.sm },
   sheet: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.md },
   menu: {
     borderRadius: radius.lg,

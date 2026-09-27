@@ -55,7 +55,7 @@ export function UnavailableReasonSheet({
     <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text variant="title3" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {subjectName
               ? t('eventFlow.absence.titleFor', { name: subjectName })
               : t('eventFlow.absence.title')}
@@ -146,11 +146,10 @@ export function UnavailableReasonSheet({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: space.md,
     paddingBottom: space.lg,
     gap: space.md,
   },
-  header: { gap: space.xs },
+  header: { gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
     minHeight: 44,

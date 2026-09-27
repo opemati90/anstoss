@@ -711,7 +711,7 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
 
       <BottomSheet visible={sheet === 'league'} onClose={() => setSheet(null)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title2" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('spielerprofil.fieldLeague')}
           </Text>
           <FilterChipRow

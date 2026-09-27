@@ -161,7 +161,7 @@ export function SpielersucheTab() {
 
       <BottomSheet visible={sheet === 'area'} onClose={() => setSheet(null)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title2" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('wechsel.areaTitle')}
           </Text>
           <Text variant="subheadline" color="secondary">
@@ -208,7 +208,7 @@ export function SpielersucheTab() {
 
       <BottomSheet visible={sheet === 'league'} onClose={() => setSheet(null)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title2" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('wechsel.leagueTitle')}
           </Text>
           <FilterChipRow

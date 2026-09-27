@@ -122,7 +122,7 @@ export function WechselTab({
 
       <BottomSheet visible={Boolean(releaseFor)} onClose={() => setReleaseFor(null)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title2" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('wechsel.releaseTitle')}
           </Text>
           <Text variant="subheadline" color="secondary">

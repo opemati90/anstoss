@@ -263,6 +263,12 @@ export const eventFlowTr = {
     noTeamBody: 'Önce bir takım oluştur, sonra etkinlik planlayabilirsin.',
     loadFailedTitle: 'Etkinlik yüklenemedi',
     loadFailedBody: 'Lütfen tekrar dene.',
+    // Section labels of the create/edit form (iOS-Settings style groups).
+    sectionWhen: 'Ne zaman',
+    sectionRepeat: 'Tekrar',
+    sectionWhere: 'Nerede',
+    sectionDetails: 'Ayrıntılar',
+    durationUntil: '{{minutes}} · bitiş {{time}}',
   },
   lineup: {
     headline: 'İlk 11: {{title}}, {{date}}',

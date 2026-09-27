@@ -119,12 +119,14 @@ export function ChatRetentionRow({ clubId }: { clubId: string }) {
       />
       <BottomSheet visible={open} onClose={() => setOpen(false)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title3" weight="bold" color="primary">
-            {t('verein.retention.title')}
-          </Text>
-          <Text variant="subheadline" color="secondary">
-            {t('verein.retention.hint')}
-          </Text>
+          <View style={styles.sheetTitle}>
+            <Text variant="title3" weight="bold" color="primary">
+              {t('verein.retention.title')}
+            </Text>
+            <Text variant="subheadline" color="secondary">
+              {t('verein.retention.hint')}
+            </Text>
+          </View>
           <SectionGroup>
             {CHAT_RETENTION_OPTIONS.map((option) => (
               <ListRow
@@ -147,4 +149,5 @@ export function ChatRetentionRow({ clubId }: { clubId: string }) {
 
 const styles = StyleSheet.create({
   sheet: { gap: space.md, paddingBottom: space.md },
+  sheetTitle: { gap: space.sm },
 })
