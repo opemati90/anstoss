@@ -231,7 +231,6 @@ export class ModerationSafetyWorker implements OnModuleInit, OnModuleDestroy {
     this.quarantineRunning = true
     try {
       await this.retryPendingQuarantines()
-      await this.r2?.purgeRetiredChatObjects()
     } catch (err) {
       this.logger.error(`moderation quarantine retry failed: ${(err as Error).message}`)
     } finally {

@@ -57,6 +57,11 @@ This remains local evidence, not a production erasure certificate. Verify
 provider retention, failed-job operational alerting, final release audit and the
 disposable-account end-to-end protocol below. The slow-presigned-upload versus
 tombstone-cleanup gate in the operations runbook is separate and still open.
+Subsequent local hardening removes time-based tombstone deletion: an in-flight
+conditional upload must not regain an absent key after ten minutes. Zero-byte
+barriers and retirement receipts now remain, including their identifying key
+metadata. This prevents that content-resurrection path but is explicitly not
+complete metadata erasure; the upload-lifecycle redesign remains required.
 
 ## Historical baseline: public promise versus implementation (24 September)
 

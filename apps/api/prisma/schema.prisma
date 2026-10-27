@@ -33,6 +33,43 @@ model AccountMediaDeletion {
   @@index([availableAt])
 }
 
+// Internal multipart lifecycle. No cascading FK: storage reconciliation must
+// survive deletion of its owner/club. Only the authorized lifecycle service may
+// access this ledger; never return provider upload IDs to directory/profile APIs.
+model PrivateMediaUpload {
+  id                String   @id
+  clubId            String
+  ownerId           String
+  targetId          String
+  targetType        String
+  objectKey         String   @unique
+  contentType       String
+  expectedBytes     Int
+  state             PrivateMediaUploadState @default(RESERVED)
+  uploadId          String?
+  operationId       String?
+  messageId         String?  @unique
+  cancelRequestedAt DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clubId, ownerId])
+  @@index([state, expiresAt])
+}
+
+enum PrivateMediaUploadState {
+  RESERVED
+  INITIATING
+  UPLOADING
+  FINALIZING
+  READY
+  ATTACHED
+  ABORTING
+  REMOVING
+  REMOVED
+}
+
 model User {
   id                 String           @id @default(cuid())
   clerkId            String?          @unique

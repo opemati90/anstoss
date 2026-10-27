@@ -4,7 +4,6 @@ import {
   HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
-  ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { createHash } from 'crypto'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -107,11 +106,9 @@ export class R2Provider {
   }
 
   /**
-   * Mint a short-lived signed GET URL for an object. Used for chat
-   * media so the URL stored on Message.attachmentUrl (which may be
-   * publicly fetchable depending on bucket policy) isn't the canonical
-   * read path — every render rotates a fresh URL with a 1h TTL.
-   * Throws if R2 isn't configured.
+   * Mint a signed GET after the caller checks access. Private chat references
+   * are non-resolving; their signed reads are capped at five minutes. Other
+   * object types retain the supplied TTL. Throws if storage isn't configured.
    */
   async presignGet(
     objectKey: string,
@@ -230,46 +227,21 @@ export class R2Provider {
     return { bucket, key }
   }
 
-  /** Keep an empty object until every issued PUT has expired, preventing replay. */
+  /** Retain a zero-byte barrier: URL expiry does not terminate an in-flight PUT. */
   private async retirePrivateChatObject(objectKey: string, abortSignal: AbortSignal): Promise<void> {
     const storage = this.objectStorage(objectKey)
     const marker = `retired-chat/${createHash('sha256').update(objectKey).digest('hex')}`
-    // Durable cleanup pointer is written first; failed replacement remains retryable.
+    // Durable retirement receipt is written first; failed replacement remains retryable.
+    // No time-based purge: conditional writes are checked at commit, so removing
+    // the barrier would admit an arbitrarily slow previously authorized upload.
     await storage.client.send(new PutObjectCommand({
       Bucket: storage.bucket, Key: marker, Body: '', ContentLength: 0,
-      Metadata: { source: Buffer.from(objectKey).toString('base64'), expires: String(Date.now() + 10 * 60_000) },
+      Metadata: { source: Buffer.from(objectKey).toString('base64'), retiredat: String(Date.now()) },
     }), { abortSignal })
     await storage.client.send(new PutObjectCommand({
       Bucket: storage.bucket, Key: objectKey, Body: '', ContentLength: 0,
       ContentType: 'application/x-anstoss-removed',
     }), { abortSignal })
-  }
-
-  /** Cleanup is restart-safe and never deletes a tombstone during PUT validity. */
-  async purgeRetiredChatObjects(now = Date.now()): Promise<void> {
-    if (!this.quarantineClient || !this.quarantineBucket) return
-    const client = this.quarantineClient
-    const Bucket = this.quarantineBucket
-    let ContinuationToken: string | undefined
-    do {
-      const page = await this.withStorageDeadline((abortSignal) => client.send(new ListObjectsV2Command({
-        Bucket, Prefix: 'retired-chat/', MaxKeys: 200, ContinuationToken,
-      }), { abortSignal }))
-      for (const row of page.Contents ?? []) {
-        if (!row.Key) continue
-        const Key = row.Key
-        await this.withStorageDeadline(async (abortSignal) => {
-          const info = await client.send(new HeadObjectCommand({ Bucket, Key }), { abortSignal })
-          const expires = Number(info.Metadata?.expires)
-          const source = Buffer.from(info.Metadata?.source ?? '', 'base64').toString()
-          if (!Number.isFinite(expires) || expires <= 0 || expires > now || !this.isPrivateChatKey(source)) return
-          if (Key !== `retired-chat/${createHash('sha256').update(source).digest('hex')}`) return
-          await client.send(new DeleteObjectCommand({ Bucket, Key: source }), { abortSignal })
-          await client.send(new DeleteObjectCommand({ Bucket, Key }), { abortSignal })
-        })
-      }
-      ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined
-    } while (ContinuationToken)
   }
 
   private clientForBucket(bucket: string): S3Client {

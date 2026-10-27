@@ -4,10 +4,10 @@ import {
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
-  ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { Readable } from 'stream'
 import { R2Provider } from './r2.provider'
+import { ModerationSafetyWorker } from '../moderation/moderation-safety'
 
 describe('R2Provider public URL parsing', () => {
   const previous = process.env.R2_PUBLIC_BASE_URL
@@ -201,16 +201,18 @@ describe('R2Provider private quarantine', () => {
     expect(send.mock.calls.some(([command]) => command instanceof DeleteObjectCommand)).toBe(false)
   })
 
-  it('keeps a tombstone until PUT expiry and durably cleans up after restart', async () => {
+  it('keeps the upload barrier after restart and rejects a delayed commit beyond the former purge deadline', async () => {
     const objects = new Map<string, { Body?: unknown; Metadata?: Record<string, string> }>()
     const key = 'chat/club/team/image/private-v1-123.png'
     objects.set(key, { Body: 'private image' })
-    jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command) => {
+    const send = jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command) => {
       if (command instanceof PutObjectCommand) {
+        if (command.input.IfNoneMatch === '*' && objects.has(command.input.Key!)) {
+          throw Object.assign(new Error('PreconditionFailed'), { $metadata: { httpStatusCode: 412 } })
+        }
         objects.set(command.input.Key!, { Body: command.input.Body, Metadata: command.input.Metadata })
         return {}
       }
-      if (command instanceof ListObjectsV2Command) return { Contents: [...objects.keys()].filter((k) => k.startsWith('retired-chat/')).map((Key) => ({ Key })) }
       if (command instanceof HeadObjectCommand) return objects.get(command.input.Key!) ?? {}
       if (command instanceof DeleteObjectCommand) { objects.delete(command.input.Key!); return {} }
       return {}
@@ -218,12 +220,35 @@ describe('R2Provider private quarantine', () => {
     await new R2Provider().deleteObjects([key])
     expect(objects.get(key)?.Body).toBe('')
     const marker = [...objects.keys()].find((k) => k.startsWith('retired-chat/'))!
-    const deadline = Number(objects.get(marker)?.Metadata?.expires)
-    const restarted = new R2Provider()
-    await restarted.purgeRetiredChatObjects(deadline - 1)
-    expect(objects.has(key)).toBe(true)
-    await restarted.purgeRetiredChatObjects(deadline)
-    expect(objects.size).toBe(0)
+    expect(objects.get(marker)?.Metadata?.expires).toBeUndefined()
+    // Exercise the real scheduler entry point after a provider/process restart.
+    // Storage models R2's documented atomic condition-at-commit semantics.
+    jest.useFakeTimers()
+    const previousEnv = process.env.NODE_ENV
+    const previousSwitch = process.env.MODERATION_SAFETY_SWEEP_ENABLED
+    process.env.NODE_ENV = 'production'
+    delete process.env.MODERATION_SAFETY_SWEEP_ENABLED
+    const worker = new ModerationSafetyWorker({} as never, {} as never, new R2Provider())
+    jest.spyOn(worker, 'retryPendingQuarantines').mockResolvedValue(0)
+    jest.spyOn(worker, 'alertOverdue').mockResolvedValue([])
+    jest.spyOn(worker, 'purgeExpiredEvidence').mockResolvedValue(0)
+    try {
+      worker.onModuleInit()
+      await jest.advanceTimersByTimeAsync(24 * 60 * 60_000)
+      expect(objects.get(key)?.Body).toBe('')
+      expect(send.mock.calls.some(([command]) => command instanceof DeleteObjectCommand)).toBe(false)
+      await expect(new S3Client({ region: 'auto' }).send(new PutObjectCommand({
+        Bucket: 'anstoss-quarantine', Key: key, Body: 'delayed private image', IfNoneMatch: '*',
+      }))).rejects.toMatchObject({ $metadata: { httpStatusCode: 412 } })
+      expect(objects.get(key)?.Body).toBe('')
+    } finally {
+      worker.onModuleDestroy()
+      jest.useRealTimers()
+      if (previousEnv === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = previousEnv
+      if (previousSwitch === undefined) delete process.env.MODERATION_SAFETY_SWEEP_ENABLED
+      else process.env.MODERATION_SAFETY_SWEEP_ENABLED = previousSwitch
+    }
   })
 
   it('fails closed instead of uploading private chat into public storage', async () => {

@@ -26,10 +26,13 @@ Do not deploy this API change alone:
    Include a chat left open past URL expiry and app background/foreground.
 5. Exercise two simultaneous moderation workers. Evidence writes are create-only;
    a zero-byte removal marker must never overwrite the preserved evidence.
-6. Test conditional PUT replay after removal, restart-safe cleanup, R2 outages,
-   and slow uploads started before signature expiry. The ten-minute empty-object
-   cleanup horizon has not yet been verified against R2's in-flight request
-   lifetime; do not certify absolute replay prevention until this is resolved.
+6. Test conditional PUT replay after removal, restart safety, R2 outages,
+   and slow uploads started before signature expiry. Time-based source-barrier
+   deletion has been removed locally: signature expiry does not end in-flight
+   uploads. Retained zero-byte barriers prevent conditional writes from restoring
+   content, but their keys and retirement receipts retain metadata. Complete
+   metadata erasure requires a verified upload/finalization lifecycle; do not
+   certify full erasure or enable bucket lifecycle rules that delete barriers.
 7. Keep `MODERATION_SAFETY_SWEEP_ENABLED` enabled. The worker retries on startup
    and every minute; storage operations abort after thirty seconds. Database
    latency and storage outages mean this is not a guaranteed one-minute SLA.
@@ -73,10 +76,65 @@ not the deployed API or released mobile clients.
 
 Cloudflare's [consistency documentation](https://developers.cloudflare.com/r2/reference/consistency/)
 states that conditional writes are checked atomically at commit, but an
-in-flight write can still commit after a negative read. Thus the ten-minute
-tombstone cleanup horizon remains a release gate: URL expiry alone is not
-evidence that every previously started upload has terminated. Do not remove
-that gate based on this immediate-replay canary.
+in-flight write can still commit after a negative read. The unsafe ten-minute
+tombstone cleanup has therefore been removed locally, including its periodic
+bucket scan. The source zero-byte object and retirement receipt remain; this
+is content-resurrection hardening, not complete metadata erasure. Keys contain
+club/team/conversation identifiers and may contain filenames, and receipts
+duplicate the source key. The metadata-retention gate remains open until a
+durable upload/finalization lifecycle can prove old writes terminal before
+removing these records. The scheduler regression advances 24 hours after a
+provider restart and models R2's atomic conditional commit; it is not a live
+slow-upload canary. Existing live-canary results above predate this change.
+
+Replacement protocol groundwork (local only): `private-upload-storage.ts`
+implements opaque-key multipart initiation, a five-minute single-part upload
+capability, server-verified size/ETag completion, and abort. It is deliberately
+not registered or called by live routes. A dedicated single-attempt SDK client
+prevents hidden retries from creating extra sessions after ambiguous initiation;
+transport-level tests cover HTTP 503 and lost responses. This is not a complete
+upload lifecycle. Before activation, implement durable intent before initiation,
+reconciliation of lost upload IDs, serialized completion/cancellation, account
+and membership revocation, orphan-part cleanup, client completion handshake,
+and provider-level concurrent-part/abort tests. Completion timeouts remain
+unknown outcomes, never proof of absence. Existing v1 barriers must not be
+removed merely because the replacement protocol ships.
+
+The next local slice adds `PrivateMediaUpload` and a transaction-only ledger.
+An operation token survives restart; neither expiry nor cancellation steals an
+in-flight initiation/completion. A successful completion after cancellation is
+eligible for removal, never message attachment. Attaching the object inside the
+message transaction moves it to `ATTACHED`, so upload expiry cannot delete live
+message media. Reservation fields are allowlisted and tenant/owner scope is
+checked in addition to Prisma tenant middleware. The ledger is still unwired:
+it is not caller authorization, a background reconciler or a deployed protocol.
+
+Local PostgreSQL evidence (27 Oct): migration 75 applied to the isolated
+Unix-socket test database only. `verify-private-upload-ledger.ts` verified one
+winner among eight concurrent initiation claims, tenant/owner isolation with
+the actual middleware, cancellation across ledger restart, transaction rollback
+and synthetic fixture cleanup (exit 0). The initial verifier failed its fixture
+cleanup due to lazy Prisma execution outside tenant context; corrected to await
+inside that context and rerun successfully. Unit/schema tests: 17 passed;
+API lint/typecheck passed. These checks use no R2 and do not prove external
+request reconciliation. Test database was stopped after verification.
+
+Local recovery now uses bounded, exact-key multipart discovery and positive
+object observations to reconcile `INITIATING` and `FINALIZING` ledger states.
+It settles only the original operation token; late observations cannot overwrite
+newer state, and cancellation flags survive settlement. Empty observations,
+truncated listings and conflicting sessions/metadata never prove completion or
+deletion. Tests exercise the actual ledger with a mock transaction/store; there
+has been no live multipart canary. Abort/removal recovery, finalization identity
+proof, route authorization, scheduling and mobile integration remain required.
+The [S3 pagination contract](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
+uses both key and upload-ID markers; the adapter carries both and rejects
+repeated/incomplete cursors rather than silently returning an exhaustive result.
+Verification of this local checkpoint: full API 134 suites / 1,401 tests passed;
+API lint and typecheck passed. Independent recovery audit reran three suites /
+54 tests and passed the scoped change. Positive recovery requires unique,
+never-reused object keys and single-attempt initiation; preserve both invariants
+when connecting authenticated orchestration. This does not approve deployment.
 
 Read-only production check, 2026-10-27: API service
 `373adb45-3ab1-4076-b2b9-72f1590ba1b3`, environment

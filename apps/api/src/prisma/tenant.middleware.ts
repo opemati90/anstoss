@@ -55,6 +55,7 @@ export const TENANT_SCOPED_MODELS = new Set([
   'EventSeries',
   'Message',
   'ClubChatRetentionSettings',
+  'PrivateMediaUpload',
   'Invite',
   'InviteCampaign',
   'InviteRedemption',
