@@ -33,9 +33,9 @@ const GRID_GAP = 2
 // Photo viewers are theme-independent (like Photos / WhatsApp): media on black.
 const MEDIA_BACKDROP = 'black'
 const MEDIA_CONTROL = 'white'
-const SIGNED_URL_TTL_MS = 50 * 60 * 1000
+const SIGNED_URL_TTL_MS = 4 * 60 * 1000
 
-// Signed URLs live 1h server-side; reuse them for 50 min across tiles and
+// Private signed URLs live five minutes; reuse them for four across tiles and
 // tab switches instead of re-signing every render.
 const signedCache = new Map<string, { url: string | null; at: number }>()
 
@@ -51,7 +51,8 @@ async function resolveUrl(
     .then((res) => res?.url ?? null)
     .catch(() => null)
   // Dev without R2: the API returns null and the stored URL is the read path.
-  const resolved = url ?? item.attachmentUrl ?? null
+  const fallback = item.attachmentUrl?.startsWith('https://private-media.anstoss.invalid/') ? null : item.attachmentUrl
+  const resolved = url ?? fallback ?? null
   signedCache.set(item.id, { url: resolved, at: Date.now() })
   return resolved
 }

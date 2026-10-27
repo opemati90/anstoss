@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
+import { randomUUID } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TranslationService } from '../translation/translation.service'
 import { R2Provider } from '../assets/r2.provider'
@@ -471,6 +472,7 @@ export class DmService {
     objectKey: string
     uploadUrl: string | null
     publicUrl: string | null
+    uploadHeaders?: Record<string, string>
   }> {
     const { clubId: conversationClubId } = await this.assertConversationAccess(
       userId,
@@ -486,7 +488,7 @@ export class DmService {
     if (input.sizeBytes > CHAT_UPLOAD_MAX_BYTES[input.kind]) {
       throw new BadRequestException('File exceeds the allowed size')
     }
-    const objectKey = `dm/${clubId}/${conversationId}/${input.kind}/${Date.now()}-${userId.slice(0, 8)}-${safeUploadName(input.filename)}`
+    const objectKey = `dm/${clubId}/${conversationId}/${input.kind}/private-v1-${randomUUID()}-${safeUploadName(input.filename)}`
     if (!this.r2?.enabled) {
       return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
     }
@@ -495,7 +497,7 @@ export class DmService {
       input.contentType,
       input.sizeBytes,
     )
-    return { enabled: true, objectKey, uploadUrl, publicUrl }
+    return { enabled: true, objectKey, uploadUrl, publicUrl, uploadHeaders: { 'If-None-Match': '*' } }
   }
 
   /**

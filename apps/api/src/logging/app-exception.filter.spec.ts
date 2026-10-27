@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common'
 import { ZodError } from 'zod'
 import { AppExceptionFilter } from './app-exception.filter'
 import { LoggerService } from './logger.service'
+import { requirePrivateMediaCapability } from '../media/private-media-capability'
 import {
   ClerkTokenExpiredError,
   RateLimitExceededError,
@@ -64,6 +65,17 @@ describe('AppExceptionFilter', () => {
       requestId: 'req-123',
     })
     expect(mockLogger.error).toHaveBeenCalled()
+  })
+
+  it('preserves the private-media upgrade code through the HTTP error envelope', () => {
+    let error: unknown
+    try { requirePrivateMediaCapability(undefined) } catch (caught) { error = caught }
+    filter.catch(error, mockHost)
+    expect(mockResponse.status).toHaveBeenCalledWith(426)
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      error: { code: 'UPGRADE_REQUIRED', message: 'Update Anstoss to send private chat attachments.' },
+      requestId: 'req-123',
+    })
   })
 
   it('handles operational AppError without Sentry', () => {

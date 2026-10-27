@@ -79,6 +79,40 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
     return { messagesDeleted, attachmentsPurged }
   }
 
+  /** Read-only, advisory counts; execution rechecks eligibility under row locks. */
+  async previewExpired(now = new Date()) {
+    const clubs = await this.prisma.club.findMany({
+      select: { id: true, chatRetentionSettings: true },
+    })
+    const rows = []
+    for (const club of clubs) {
+      const settings = club.chatRetentionSettings
+      if (!settings?.enabled) continue
+      const messageCutoff = daysAgo(now, settings.messageRetentionDays)
+      const attachmentCutoff = daysAgo(now, settings.attachmentRetentionDays)
+      const unreported = { reports: { none: { resolvedAt: null } } }
+      const messages = { ...unreported, deletedAt: null, createdAt: { lte: messageCutoff } }
+      const attachments = {
+        ...unreported, attachmentUrl: { not: null },
+        OR: [
+          { createdAt: { lte: attachmentCutoff } },
+          { createdAt: { lte: messageCutoff }, deletedAt: null },
+        ],
+      }
+      const counts = await tenantContext.run({ clubId: club.id, userId: 'system:chat-retention-preview' }, async () => {
+        const [channelMessages, directMessages, channelAttachments, directAttachments] = await Promise.all([
+          this.prisma.message.count({ where: { clubId: club.id, ...messages } }),
+          this.prisma.directMessage.count({ where: { conversation: { clubId: club.id }, ...messages } }),
+          this.prisma.message.count({ where: { clubId: club.id, ...attachments } }),
+          this.prisma.directMessage.count({ where: { conversation: { clubId: club.id }, ...attachments } }),
+        ])
+        return { channelMessages, directMessages, channelAttachments, directAttachments }
+      })
+      rows.push({ clubId: club.id, messageCutoff, attachmentCutoff, ...counts })
+    }
+    return { asOf: now, advisory: true, clubsScanned: clubs.length, enabledClubs: rows }
+  }
+
   private async purgeClub(settings: RetentionSettings, now: Date) {
     const messageCutoff = daysAgo(now, settings.messageRetentionDays)
     const attachmentCutoff = daysAgo(now, settings.attachmentRetentionDays)

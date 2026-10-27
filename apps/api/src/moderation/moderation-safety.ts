@@ -34,6 +34,7 @@ export const EVIDENCE_URL_TTL_SECONDS = 300
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const SWEEP_INTERVAL_MS = 60 * 60 * 1000
+const QUARANTINE_RETRY_INTERVAL_MS = 60 * 1000
 
 type Db = Pick<PrismaService, 'membership' | 'teamAccess'>
 
@@ -197,6 +198,9 @@ function escapeHtml(value: string) {
 export class ModerationSafetyWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ModerationSafetyWorker.name)
   private timer: NodeJS.Timeout | null = null
+  private quarantineTimer: NodeJS.Timeout | null = null
+  private quarantineRunning = false
+  private sweepRunning = false
 
   constructor(
     private readonly prisma: PrismaService,
@@ -209,19 +213,42 @@ export class ModerationSafetyWorker implements OnModuleInit, OnModuleDestroy {
     if (process.env.MODERATION_SAFETY_SWEEP_ENABLED === 'false') return
     this.timer = setInterval(() => void this.tick(), SWEEP_INTERVAL_MS)
     this.timer.unref?.()
+    // Storage removal is urgent and must not wait for the hourly retention job.
+    this.quarantineTimer = setInterval(() => void this.retryQuarantineTick(), QUARANTINE_RETRY_INTERVAL_MS)
+    this.quarantineTimer.unref?.()
+    void this.retryQuarantineTick()
   }
 
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer)
+    if (this.quarantineTimer) clearInterval(this.quarantineTimer)
+    this.timer = null
+    this.quarantineTimer = null
+  }
+
+  private async retryQuarantineTick() {
+    if (this.quarantineRunning) return
+    this.quarantineRunning = true
+    try {
+      await this.retryPendingQuarantines()
+      await this.r2?.purgeRetiredChatObjects()
+    } catch (err) {
+      this.logger.error(`moderation quarantine retry failed: ${(err as Error).message}`)
+    } finally {
+      this.quarantineRunning = false
+    }
   }
 
   private async tick() {
+    if (this.sweepRunning) return
+    this.sweepRunning = true
     try {
-      await this.retryPendingQuarantines()
       await this.alertOverdue()
       await this.purgeExpiredEvidence()
     } catch (err) {
       this.logger.warn(`moderation sweep failed: ${(err as Error).message}`)
+    } finally {
+      this.sweepRunning = false
     }
   }
 

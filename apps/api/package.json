@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
+    "retention:preview": "ts-node scripts/preview-chat-retention.ts",
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main",

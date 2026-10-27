@@ -4,6 +4,7 @@ import {
   HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { createHash } from 'crypto'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -61,6 +62,21 @@ export class R2Provider {
     return !!this.client
   }
 
+  private isPrivateChatKey(key: string): boolean {
+    return /^(chat|dm)\/[^/]+\/[^/]+\/(voice|image|video|file)\/private-v1-[^/]+$/.test(key)
+  }
+
+  private objectStorage(key: string): { client: S3Client; bucket: string } {
+    if (this.isPrivateChatKey(key)) {
+      if (!this.quarantineClient || !this.quarantineBucket || this.quarantineBucket === this.bucket) {
+        throw new Error('Private chat storage is not configured')
+      }
+      return { client: this.quarantineClient, bucket: this.quarantineBucket }
+    }
+    if (!this.client) throw new Error('R2 not configured')
+    return { client: this.client, bucket: this.bucket }
+  }
+
   async presignPut(
     objectKey: string,
     contentType: string,
@@ -71,15 +87,19 @@ export class R2Provider {
       throw new Error('R2 not configured')
     }
 
+    const storage = this.objectStorage(objectKey)
+    const privateChat = this.isPrivateChatKey(objectKey)
     const command = new PutObjectCommand({
-      Bucket: this.bucket,
+      Bucket: storage.bucket,
       Key: objectKey,
       ContentType: contentType,
+      ...(privateChat ? { IfNoneMatch: '*' } : {}),
       ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
     })
 
-    const uploadUrl = await getSignedUrl(this.client, command, { expiresIn })
-    const publicUrl = this.publicBaseUrl
+    const uploadUrl = await getSignedUrl(storage.client, command, { expiresIn: privateChat ? Math.min(expiresIn, 300) : expiresIn })
+    // Compatibility field name: this is a non-resolving reference, not a public URL.
+    const publicUrl = privateChat ? `https://private-media.anstoss.invalid/${objectKey}` : this.publicBaseUrl
       ? `${this.publicBaseUrl}/${objectKey}`
       : null
 
@@ -100,25 +120,28 @@ export class R2Provider {
     if (!this.client) {
       throw new Error('R2 not configured')
     }
+    const storage = this.objectStorage(objectKey)
     const command = new GetObjectCommand({
-      Bucket: this.bucket,
+      Bucket: storage.bucket,
       Key: objectKey,
     })
-    return getSignedUrl(this.client, command, { expiresIn })
+    return getSignedUrl(storage.client, command, { expiresIn: this.isPrivateChatKey(objectKey) ? Math.min(expiresIn, 300) : expiresIn })
   }
 
   async deleteObjects(objectKeys: string[]): Promise<void> {
     if (!this.client || objectKeys.length === 0) return
 
     await Promise.all(
-      Array.from(new Set(objectKeys)).map((objectKey) =>
-        this.client!.send(
+      Array.from(new Set(objectKeys)).map((objectKey) => {
+        if (this.isPrivateChatKey(objectKey)) return this.withStorageDeadline((signal) => this.retirePrivateChatObject(objectKey, signal))
+        const storage = this.objectStorage(objectKey)
+        return storage.client.send(
           new DeleteObjectCommand({
-            Bucket: this.bucket,
+            Bucket: storage.bucket,
             Key: objectKey,
           }),
-        ),
-      ),
+        )
+      }),
     )
   }
 
@@ -130,16 +153,33 @@ export class R2Provider {
    * both already absent; missing configuration is an error, not a success.
    */
   async quarantineObject(objectKey: string): Promise<{ bucket: string; key: string } | null> {
+    return this.withStorageDeadline((signal) => this.moveToQuarantine(objectKey, signal))
+  }
+
+  /** Abort the actual SDK requests, not just the promise awaiting them. */
+  private async withStorageDeadline<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 30_000)
+    timer.unref?.()
+    try {
+      return await operation(controller.signal)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  private async moveToQuarantine(objectKey: string, abortSignal: AbortSignal): Promise<{ bucket: string; key: string } | null> {
     if (!this.client || !this.quarantineClient || !this.quarantineBucket || this.quarantineBucket === this.bucket) {
       throw new Error('Private R2 quarantine storage is not configured')
     }
     const bucket = this.quarantineBucket
+    const sourceStorage = this.objectStorage(objectKey)
     const name = objectKey.split('/').pop() || 'object'
-    const digest = createHash('sha256').update(`${this.bucket}/${objectKey}`).digest('hex')
+    const digest = createHash('sha256').update(`${sourceStorage.bucket}/${objectKey}`).digest('hex')
     const key = `quarantine/${digest}/${name}`
     const privateCopyExists = async () => {
       try {
-        await this.quarantineClient!.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+        await this.quarantineClient!.send(new HeadObjectCommand({ Bucket: bucket, Key: key }), { abortSignal })
         return true
       } catch (error) {
         if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) return false
@@ -147,7 +187,7 @@ export class R2Provider {
       }
     }
     if (!(await privateCopyExists())) {
-      const source = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }))
+      const source = await sourceStorage.client.send(new GetObjectCommand({ Bucket: sourceStorage.bucket, Key: objectKey }), { abortSignal })
         .catch(async (error) => {
           if (error.$metadata?.httpStatusCode !== 404) throw error
           // Another worker may have finished moving the object while
@@ -158,24 +198,76 @@ export class R2Provider {
       if (source === undefined) return null
       if (source !== null) {
         try {
-          if (!source.Body || source.ContentLength === undefined) {
-            throw new Error('R2 source object could not be read for quarantine')
+          if (source.ContentLength === 0 || source.ContentType === 'application/x-anstoss-removed') {
+            // A competing worker may already have preserved the original.
+            // Never overwrite it with the source's removal marker.
+            if (!(await privateCopyExists())) throw new Error('Removed source has no preserved evidence')
+          } else {
+            if (!source.Body || source.ContentLength === undefined) {
+              throw new Error('R2 source object could not be read for quarantine')
+            }
+            // R2 CopyObject cannot cross jurisdiction endpoints.
+            await this.quarantineClient.send(new PutObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              Body: source.Body,
+              ContentLength: source.ContentLength,
+              ContentType: source.ContentType,
+              IfNoneMatch: '*',
+            }), { abortSignal }).catch(async (error) => {
+              if (error.$metadata?.httpStatusCode !== 412 || !(await privateCopyExists())) throw error
+            })
           }
-          // R2 CopyObject cannot cross jurisdiction endpoints.
-          await this.quarantineClient.send(new PutObjectCommand({
-            Bucket: bucket,
-            Key: key,
-            Body: source.Body,
-            ContentLength: source.ContentLength,
-            ContentType: source.ContentType,
-          }))
         } finally {
           (source.Body as { destroy?: () => void } | undefined)?.destroy?.()
         }
       }
     }
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }))
+    if (this.isPrivateChatKey(objectKey)) await this.retirePrivateChatObject(objectKey, abortSignal)
+    else await sourceStorage.client.send(new DeleteObjectCommand({ Bucket: sourceStorage.bucket, Key: objectKey }), { abortSignal })
     return { bucket, key }
+  }
+
+  /** Keep an empty object until every issued PUT has expired, preventing replay. */
+  private async retirePrivateChatObject(objectKey: string, abortSignal: AbortSignal): Promise<void> {
+    const storage = this.objectStorage(objectKey)
+    const marker = `retired-chat/${createHash('sha256').update(objectKey).digest('hex')}`
+    // Durable cleanup pointer is written first; failed replacement remains retryable.
+    await storage.client.send(new PutObjectCommand({
+      Bucket: storage.bucket, Key: marker, Body: '', ContentLength: 0,
+      Metadata: { source: Buffer.from(objectKey).toString('base64'), expires: String(Date.now() + 10 * 60_000) },
+    }), { abortSignal })
+    await storage.client.send(new PutObjectCommand({
+      Bucket: storage.bucket, Key: objectKey, Body: '', ContentLength: 0,
+      ContentType: 'application/x-anstoss-removed',
+    }), { abortSignal })
+  }
+
+  /** Cleanup is restart-safe and never deletes a tombstone during PUT validity. */
+  async purgeRetiredChatObjects(now = Date.now()): Promise<void> {
+    if (!this.quarantineClient || !this.quarantineBucket) return
+    const client = this.quarantineClient
+    const Bucket = this.quarantineBucket
+    let ContinuationToken: string | undefined
+    do {
+      const page = await this.withStorageDeadline((abortSignal) => client.send(new ListObjectsV2Command({
+        Bucket, Prefix: 'retired-chat/', MaxKeys: 200, ContinuationToken,
+      }), { abortSignal }))
+      for (const row of page.Contents ?? []) {
+        if (!row.Key) continue
+        const Key = row.Key
+        await this.withStorageDeadline(async (abortSignal) => {
+          const info = await client.send(new HeadObjectCommand({ Bucket, Key }), { abortSignal })
+          const expires = Number(info.Metadata?.expires)
+          const source = Buffer.from(info.Metadata?.source ?? '', 'base64').toString()
+          if (!Number.isFinite(expires) || expires <= 0 || expires > now || !this.isPrivateChatKey(source)) return
+          if (Key !== `retired-chat/${createHash('sha256').update(source).digest('hex')}`) return
+          await client.send(new DeleteObjectCommand({ Bucket, Key: source }), { abortSignal })
+          await client.send(new DeleteObjectCommand({ Bucket, Key }), { abortSignal })
+        })
+      }
+      ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined
+    } while (ContinuationToken)
   }
 
   private clientForBucket(bucket: string): S3Client {
@@ -192,7 +284,9 @@ export class R2Provider {
   }
 
   async deleteObjectIn(bucket: string, objectKey: string): Promise<void> {
-    await this.clientForBucket(bucket).send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
+    await this.withStorageDeadline((abortSignal) =>
+      this.clientForBucket(bucket).send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }), { abortSignal }),
+    )
   }
 
   /**
@@ -202,15 +296,20 @@ export class R2Provider {
    * external avatar URL).
    */
   objectKeyFromUrl(url: string): string | null {
-    if (!this.publicBaseUrl) return null
     try {
       const candidate = new URL(url)
+      if (candidate.origin === 'https://private-media.anstoss.invalid') {
+        const key = decodeURIComponent(candidate.pathname.slice(1))
+        return this.isPrivateChatKey(key) && !key.includes('..') && !candidate.search && !candidate.hash
+          && !candidate.username && !candidate.password ? key : null
+      }
+      if (!this.publicBaseUrl) return null
       const base = new URL(this.publicBaseUrl)
       if (candidate.origin !== base.origin) return null
       const basePath = base.pathname.replace(/\/$/, '')
       if (!candidate.pathname.startsWith(`${basePath}/`)) return null
       const key = decodeURIComponent(candidate.pathname.slice(basePath.length + 1))
-      if (!key || key.includes('..') || candidate.search || candidate.hash) return null
+      if (!key || key.includes('..') || candidate.search || candidate.hash || this.isPrivateChatKey(key)) return null
       return key
     } catch {
       return null
@@ -222,8 +321,9 @@ export class R2Provider {
     options: { maxBytes: number; allowedContentTypes: ReadonlySet<string> },
   ): Promise<void> {
     if (!this.client) throw new Error('R2 not configured')
-    const result = await this.client.send(
-      new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+    const storage = this.objectStorage(objectKey)
+    const result = await storage.client.send(
+      new HeadObjectCommand({ Bucket: storage.bucket, Key: objectKey }),
     )
     if (!result.ContentLength || result.ContentLength > options.maxBytes) {
       throw new Error('Uploaded file exceeds the allowed size')

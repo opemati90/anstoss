@@ -5,6 +5,7 @@ export type PresignResponse = {
   objectKey: string
   uploadUrl: string | null
   publicUrl: string | null
+  uploadHeaders?: Record<string, string>
 }
 
 export type MediaKind = 'voice' | 'image' | 'video' | 'file'
@@ -36,6 +37,7 @@ export async function uploadMedia({
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      'X-Anstoss-Private-Media': '1',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ contentType, kind, filename, sizeBytes: blob.size }),
@@ -46,7 +48,7 @@ export async function uploadMedia({
 
   const putResp = await fetch(presign.uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': contentType },
+    headers: { 'Content-Type': contentType, ...presign.uploadHeaders },
     body: blob,
   })
   if (!putResp.ok) return null

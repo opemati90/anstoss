@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Headers,
   Param,
   Patch,
   Post,
@@ -24,6 +25,7 @@ import {
 import { z } from 'zod'
 import { parseBody } from '../channels/parse-body'
 import { parseChatMediaTab } from '../channels/chat-media'
+import { requirePrivateMediaCapability } from '../media/private-media-capability'
 
 const reactionSchema = z.object({ emoji: z.string().min(1).max(16) })
 
@@ -101,7 +103,9 @@ export class DmController {
     @Param('clubId') clubId: string,
     @Param('conversationId') conversationId: string,
     @Body() body: unknown,
+    @Headers('x-anstoss-private-media') capability?: string,
   ) {
+    requirePrivateMediaCapability(capability)
     const input = parseBody(presignDmMediaSchema, body)
     return this.dmService.presignMedia(user.id, clubId, conversationId, input)
   }

@@ -245,7 +245,7 @@ describe('DM attachments', () => {
       sizeBytes: 1000,
       filename: 'Aufstellung Samstag.jpg',
     })
-    expect(ok.objectKey).toMatch(/^dm\/club-1\/c1\/image\/\d+-coach-Aufstellung-Samstag\.jpg$/)
+    expect(ok.objectKey).toMatch(/^dm\/club-1\/c1\/image\/private-v1-[a-f0-9-]+-Aufstellung-Samstag\.jpg$/)
     expect(r2!.presignPut).toHaveBeenCalledWith(ok.objectKey, 'image/jpeg', 1000)
     await expect(
       service.presignMedia('coach', CLUB, 'c1', { kind: 'image', contentType: 'application/pdf', sizeBytes: 1000 }),

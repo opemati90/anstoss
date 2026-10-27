@@ -1,5 +1,98 @@
 # Anstoss launch operations runbook
 
+## Private chat-media rollout (not yet production-verified)
+
+The pending implementation routes new `chat/.../private-v1-*` and
+`dm/.../private-v1-*` objects to the private EU bucket configured by
+`R2_QUARANTINE_*`. Normal private chat objects, preserved evidence under
+`quarantine/`, and cleanup records under `retired-chat/` have separate prefixes.
+The `publicUrl` response field is retained for wire compatibility but contains
+a non-resolving `https://private-media.anstoss.invalid/...` reference. Playback
+must use the authorized signed-media endpoint, never that reference directly.
+
+Do not deploy this API change alone:
+
+1. Confirm private bucket public access is disabled, EU jurisdiction is correct,
+   and the scoped credentials can PUT/GET/HEAD/DELETE and LIST these prefixes.
+2. Release compatible clients that forward the supplied `uploadHeaders`
+   (`If-None-Match: *`) and renew five-minute signed URLs before expiry.
+   Older clients omit this signed header and cannot upload successfully.
+3. Presign endpoints require `X-Anstoss-Private-Media: 1`; unsupported clients
+   receive HTTP 426 with `UPGRADE_REQUIRED` before any upload URL is minted.
+   Distribute compatible clients before deployment. Older channel clients use
+   raw fetch and may show a generic upload failure rather than the update screen.
+   No public-storage fallback is allowed.
+4. Test channel and DM upload/playback with two accounts, then revoke access.
+   Include a chat left open past URL expiry and app background/foreground.
+5. Exercise two simultaneous moderation workers. Evidence writes are create-only;
+   a zero-byte removal marker must never overwrite the preserved evidence.
+6. Test conditional PUT replay after removal, restart-safe cleanup, R2 outages,
+   and slow uploads started before signature expiry. The ten-minute empty-object
+   cleanup horizon has not yet been verified against R2's in-flight request
+   lifetime; do not certify absolute replay prevention until this is resolved.
+7. Keep `MODERATION_SAFETY_SWEEP_ENABLED` enabled. The worker retries on startup
+   and every minute; storage operations abort after thirty seconds. Database
+   latency and storage outages mean this is not a guaranteed one-minute SLA.
+8. Inventory and migrate legacy public attachments separately. New private
+   upload routing does not make existing public objects private retroactively.
+
+Do not give the private bucket a public domain or apply blanket short retention
+to it: active chat media and safeguarding evidence have different lifetimes.
+
+Read-only production check, 2026-10-27: API service
+`373adb45-3ab1-4076-b2b9-72f1590ba1b3`, environment
+`c6651cfe-f78d-4c06-aefd-634f5933cc22`, has the public R2 and separate quarantine
+credential variables present; quarantine bucket is `anstoss-quarantine` with
+jurisdiction `eu`. Presence does not prove permissions or public-access policy.
+`MODERATION_SAFETY_SWEEP_ENABLED` is unset (enabled by default in source).
+`CHAT_RETENTION_SWEEP_ENABLED` is also unset: the operational chat-retention
+worker requires explicit `true`, so automated retention is not enabled by this
+configuration. Inspect affected clubs and dry-run deletion counts before
+enabling it; do not treat retention as production-proven.
+
+Use `npm run retention:preview --workspace=@anstoss/api` with a securely supplied,
+reachable `DATABASE_URL` to obtain per-club message and attachment candidate
+counts. The command uses a repeatable-read, read-only database transaction and
+does not bootstrap the app or storage clients. Disabled clubs and unresolved
+reports are excluded. Counts are advisory (the purge rechecks under locks), do
+not represent distinct storage objects, and do not include the separate cleanup
+of translations and poll children on previously deleted messages. Do not paste credentials into
+chat or commit them. Review this output before approving retention activation.
+
+Production preview verified at `2026-10-27T13:10:00.173Z`: seven clubs scanned,
+zero clubs with retention enabled (`enabledClubs: []`). This proves the current
+eligibility scope is empty, not that the production deletion lifecycle works.
+No settings or data were changed. API connection host, database, username and
+password were compared in memory against the database service before running
+the read-only preview; credentials were neither printed nor persisted.
+
+The API's actual database is service `a04d6695-4b78-42c2-947c-0713337a7762`
+(`Postgres`), not the separately named `PostgresEU-*` service. Railway reports
+its active deployment `85f83e13-6b55-49c6-9bd1-f7e4c3cb4347` as `SUCCESS` in
+`europe-west4-drams3a`. API deployment
+`48885721-28d2-46a2-bf9e-8b4197af3809` is also `SUCCESS` in that region. Do not
+infer a database target or region from a service's display name alone.
+
+Read-only R2 checks on 2026-10-27: the configured EU quarantine credentials
+returned HTTP 200 for HeadBucket and ListObjectsV2 on `anstoss-quarantine`.
+Listing was complete with zero objects. This verifies read/list access only;
+write/delete permission and public-domain/r2.dev settings are not yet proven.
+Complete metadata-only listings of the configured public asset bucket found
+zero objects and zero bytes under both `chat/` and `dm/` (one page each, not
+truncated). No contents were fetched. Reconcile database attachment references
+and recheck at rollout before declaring the legacy migration unnecessary:
+this snapshot covers those two prefixes, not all possible external URLs or
+future uploads.
+
+Production database reconciliation at `2026-10-27T13:35:05.688Z`, using a
+repeatable-read/read-only transaction against the verified API database:
+channel attachment references = 0; DM attachment references = 0; channel report
+evidence URLs = 0; DM report evidence URLs = 0. Combined with the complete empty
+storage-prefix inventory, no legacy chat-media migration is currently required.
+Re-run both checks immediately before rollout because existing clients can
+still create new uploads in the meantime. This does not certify the new upload,
+moderation, or deletion paths in production.
+
 ## Fixture/reference failure
 
 1. Check the saved official Fussball.de, DFB.de, or FuPa URL still opens over HTTPS.

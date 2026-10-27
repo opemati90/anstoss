@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Controller,
   Get,
+  Headers,
   NotFoundException,
   Param,
   Post,
@@ -15,6 +16,8 @@ import { TeamsService } from '../teams/teams.service'
 import { R2Provider } from '../assets/r2.provider'
 import { ChannelsService } from '../channels/channels.service'
 import { PrismaService } from '../prisma/prisma.service'
+import { randomUUID } from 'crypto'
+import { requirePrivateMediaCapability } from './private-media-capability'
 
 import {
   ALL_CHAT_UPLOAD_CONTENT_TYPES,
@@ -51,7 +54,9 @@ export class MediaController {
       filename?: string
       sizeBytes: number
     },
+    @Headers('x-anstoss-private-media') capability?: string,
   ) {
+    requirePrivateMediaCapability(capability)
     const access = await this.teamsService.assertReadableAccess(user.id, teamId)
     if (!Object.prototype.hasOwnProperty.call(CHAT_UPLOAD_MAX_BYTES, body.kind)) {
       throw new BadRequestException('Unsupported media kind')
@@ -72,7 +77,7 @@ export class MediaController {
     }
 
     const safeName = safeUploadName(body.filename)
-    const objectKey = `chat/${access.team.clubId}/${teamId}/${body.kind}/${Date.now()}-${user.id.slice(0, 8)}-${safeName}`
+    const objectKey = `chat/${access.team.clubId}/${teamId}/${body.kind}/private-v1-${randomUUID()}-${safeName}`
 
     if (!this.r2.enabled) {
       return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
@@ -82,7 +87,7 @@ export class MediaController {
       body.contentType,
       body.sizeBytes,
     )
-    return { enabled: true, objectKey, uploadUrl, publicUrl }
+    return { enabled: true, objectKey, uploadUrl, publicUrl, uploadHeaders: { 'If-None-Match': '*' } }
   }
 
   /**

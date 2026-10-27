@@ -4,6 +4,7 @@ import {
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { Readable } from 'stream'
 import { R2Provider } from './r2.provider'
@@ -51,6 +52,7 @@ describe('R2Provider private quarantine', () => {
   })
 
   afterEach(() => {
+    jest.useRealTimers()
     jest.restoreAllMocks()
     for (const key of keys) {
       if (previous[key] === undefined) delete process.env[key]
@@ -144,5 +146,146 @@ describe('R2Provider private quarantine', () => {
     await expect(provider.presignGetIn('unrelated-bucket', 'anything')).rejects.toThrow(
       'R2 bucket is not configured for evidence access',
     )
+  })
+
+  it('stores new chat uploads privately and only resolves private references', async () => {
+    const provider = new R2Provider()
+    const key = 'chat/club/team/image/private-v1-123-image.png'
+    const upload = await provider.presignPut(key, 'image/png', 6)
+    const put = new URL(upload.uploadUrl)
+    expect(put.hostname).toBe('anstoss-quarantine.example-account.eu.r2.cloudflarestorage.com')
+    expect(put.pathname).toBe(`/${key}`)
+    expect(put.searchParams.get('X-Amz-Expires')).toBe('300')
+    expect(put.searchParams.get('X-Amz-SignedHeaders')).toContain('if-none-match')
+    expect(upload.publicUrl).toBe(`https://private-media.anstoss.invalid/${key}`)
+    expect(provider.objectKeyFromUrl(upload.publicUrl!)).toBe(key)
+    expect(provider.objectKeyFromUrl(`${upload.publicUrl}?x=1`)).toBeNull()
+    expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/chat/legacy.png')).toBeNull()
+    const get = new URL(await provider.presignGet(key))
+    expect(get.hostname).toBe('anstoss-quarantine.example-account.eu.r2.cloudflarestorage.com')
+    expect(get.pathname).toBe(`/${key}`)
+    expect(get.searchParams.get('X-Amz-Expires')).toBe('300')
+  })
+
+  it('validates and retires private attachments without reopening the PUT key', async () => {
+    const send = jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({ ContentLength: 6, ContentType: 'image/png' } as never)
+    const provider = new R2Provider()
+    const key = 'dm/club/conversation/image/private-v1-123-image.png'
+    await provider.assertStoredObject(key, { maxBytes: 100, allowedContentTypes: new Set(['image/png']) })
+    await provider.deleteObjects([key])
+    expect(send.mock.calls[0][0].input).toEqual({ Bucket: 'anstoss-quarantine', Key: key })
+    expect(send.mock.calls[1][0].input).toMatchObject({ Bucket: 'anstoss-quarantine', Body: '', Metadata: { source: Buffer.from(key).toString('base64') } })
+    expect(send.mock.calls[2][0].input).toMatchObject({ Bucket: 'anstoss-quarantine', Key: key, Body: '', ContentLength: 0 })
+    expect(send.mock.calls.some(([command]) => command instanceof DeleteObjectCommand)).toBe(false)
+  })
+
+  it('keeps a tombstone until PUT expiry and durably cleans up after restart', async () => {
+    const objects = new Map<string, { Body?: unknown; Metadata?: Record<string, string> }>()
+    const key = 'chat/club/team/image/private-v1-123.png'
+    objects.set(key, { Body: 'private image' })
+    jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command) => {
+      if (command instanceof PutObjectCommand) {
+        objects.set(command.input.Key!, { Body: command.input.Body, Metadata: command.input.Metadata })
+        return {}
+      }
+      if (command instanceof ListObjectsV2Command) return { Contents: [...objects.keys()].filter((k) => k.startsWith('retired-chat/')).map((Key) => ({ Key })) }
+      if (command instanceof HeadObjectCommand) return objects.get(command.input.Key!) ?? {}
+      if (command instanceof DeleteObjectCommand) { objects.delete(command.input.Key!); return {} }
+      return {}
+    }) as S3Client['send'])
+    await new R2Provider().deleteObjects([key])
+    expect(objects.get(key)?.Body).toBe('')
+    const marker = [...objects.keys()].find((k) => k.startsWith('retired-chat/'))!
+    const deadline = Number(objects.get(marker)?.Metadata?.expires)
+    const restarted = new R2Provider()
+    await restarted.purgeRetiredChatObjects(deadline - 1)
+    expect(objects.has(key)).toBe(true)
+    await restarted.purgeRetiredChatObjects(deadline)
+    expect(objects.size).toBe(0)
+  })
+
+  it('fails closed instead of uploading private chat into public storage', async () => {
+    delete process.env.R2_QUARANTINE_BUCKET
+    const provider = new R2Provider()
+    await expect(provider.presignPut('chat/club/team/image/private-v1-123.png', 'image/png', 6))
+      .rejects.toThrow('Private chat storage is not configured')
+  })
+
+  it.each(['tombstone', 'copy-race'])('preserves existing evidence during a concurrent %s', async (race) => {
+    let checks = 0
+    const source = Readable.from(race === 'tombstone' ? [] : ['original'])
+    const writes: PutObjectCommand[] = []
+    jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command) => {
+      if (command instanceof HeadObjectCommand) {
+        if (++checks === 1) throw Object.assign(new Error('missing'), { $metadata: { httpStatusCode: 404 } })
+        return { ContentLength: 8 }
+      }
+      if (command instanceof GetObjectCommand) return {
+        Body: source, ContentLength: race === 'tombstone' ? 0 : 8,
+        ContentType: race === 'tombstone' ? 'application/x-anstoss-removed' : 'image/png',
+      }
+      if (command instanceof PutObjectCommand) {
+        writes.push(command)
+        if (command.input.Key?.startsWith('quarantine/')) {
+          expect(command.input.IfNoneMatch).toBe('*')
+          throw Object.assign(new Error('already preserved'), { $metadata: { httpStatusCode: 412 } })
+        }
+      }
+      return {}
+    }) as S3Client['send'])
+    await expect(new R2Provider().quarantineObject('chat/club/team/image/private-v1-test.png'))
+      .resolves.toMatchObject({ bucket: 'anstoss-quarantine' })
+    expect(writes.filter((command) => command.input.Key?.startsWith('quarantine/'))).toHaveLength(race === 'tombstone' ? 0 : 1)
+    expect(source.destroyed).toBe(true)
+  })
+
+  it.each(['head', 'get', 'copy', 'delete'])('aborts stalled %s work and leaves it retryable', async (stage) => {
+    jest.useFakeTimers()
+    const body = Readable.from(['sample'])
+    const signals: AbortSignal[] = []
+    const send = jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (command, options) => {
+      const signal = (options as { abortSignal: AbortSignal }).abortSignal
+      signals.push(signal)
+      const stall = (stage === 'head' && command instanceof HeadObjectCommand)
+        || (stage === 'get' && command instanceof GetObjectCommand)
+        || (stage === 'copy' && command instanceof PutObjectCommand)
+        || (stage === 'delete' && command instanceof DeleteObjectCommand)
+      if (stall) return new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('request aborted')), { once: true })
+      })
+      if (command instanceof HeadObjectCommand) {
+        throw Object.assign(new Error('Not found'), { $metadata: { httpStatusCode: 404 } })
+      }
+      if (command instanceof GetObjectCommand) return { Body: body, ContentLength: 6 }
+      return {}
+    }) as S3Client['send'])
+    const provider = new R2Provider()
+    const assertion = expect(provider.quarantineObject('chat/sample.png')).rejects.toThrow('request aborted')
+    await jest.advanceTimersByTimeAsync(30_000)
+    await assertion
+    expect(signals.every((signal) => signal === signals[0] && signal.aborted)).toBe(true)
+    if (stage === 'copy') {
+      expect(body.destroyed).toBe(true)
+      expect(send.mock.calls.some(([command]) => command instanceof DeleteObjectCommand)).toBe(false)
+    }
+    expect(jest.getTimerCount()).toBe(0)
+    send.mockResolvedValue({} as never)
+    await expect(provider.quarantineObject('chat/sample.png')).resolves.toMatchObject({ bucket: 'anstoss-quarantine' })
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('bounds retention deletion and clears its timer on success', async () => {
+    jest.useFakeTimers()
+    const send = jest.spyOn(S3Client.prototype, 'send').mockImplementation((async (_command, options) =>
+      new Promise((_, reject) => (options as { abortSignal: AbortSignal }).abortSignal.addEventListener('abort', () => reject(new Error('request aborted'))))
+    ) as S3Client['send'])
+    const provider = new R2Provider()
+    const assertion = expect(provider.deleteObjectIn('anstoss-quarantine', 'quarantine/test')).rejects.toThrow('request aborted')
+    await jest.advanceTimersByTimeAsync(30_000)
+    await assertion
+    expect(jest.getTimerCount()).toBe(0)
+    send.mockResolvedValue({} as never)
+    await provider.deleteObjectIn('anstoss-quarantine', 'quarantine/test')
+    expect(jest.getTimerCount()).toBe(0)
   })
 })

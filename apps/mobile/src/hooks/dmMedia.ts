@@ -60,10 +60,11 @@ export async function uploadDmMedia(input: {
   } catch {
     return { ok: false, reason: 'failed' }
   }
-  let presign: { enabled: boolean; uploadUrl: string | null; publicUrl: string | null } | undefined
+  let presign: { enabled: boolean; uploadUrl: string | null; publicUrl: string | null; uploadHeaders?: Record<string, string> } | undefined
   try {
     presign = await api(`${conversationPath(input.clubId, input.conversationId)}/media/presign`, {
       method: 'POST',
+      headers: { 'X-Anstoss-Private-Media': '1' },
       body: {
         kind: input.kind,
         contentType: input.contentType,
@@ -81,7 +82,7 @@ export async function uploadDmMedia(input: {
   try {
     const put = await fetch(presign.uploadUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': input.contentType },
+      headers: { 'Content-Type': input.contentType, ...presign.uploadHeaders },
       body: blob,
     })
     if (!put.ok) return { ok: false, reason: 'failed' }
