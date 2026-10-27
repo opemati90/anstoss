@@ -21,6 +21,18 @@ datasource db {
 
 // ─── Global Models ──────────────────────────────────────
 
+// Internal erasure outbox, never exposed through member APIs. No user FK:
+// cleanup must survive account anonymization/deletion. Remove jobs on success.
+model AccountMediaDeletion {
+  objectKey     String   @id
+  attempts      Int      @default(0)
+  availableAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  lastFailureAt DateTime?
+
+  @@index([availableAt])
+}
+
 model User {
   id                 String           @id @default(cuid())
   clerkId            String?          @unique

@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TranslationService } from '../translation/translation.service'
 import { R2Provider } from '../assets/r2.provider'
+import { lockMediaObject } from '../assets/media-object-lock'
 import type {
   ChatContactGroup,
   ChatContactIneligibleReason,
@@ -351,6 +352,18 @@ export class DmService {
       // Re-check after the locks. Club removal takes the same per-member lock,
       // so a completed revocation cannot race a final persisted message.
       await this.assertCanMessageConversation(userId, conversationId, tx)
+      if (data.attachmentUrl) {
+        if (!this.r2?.enabled) throw new BadRequestException('Attachment storage is unavailable')
+        const key = this.r2.objectKeyFromUrl(data.attachmentUrl)
+        if (!key || !['VOICE', 'IMAGE', 'VIDEO', 'FILE'].includes(data.messageType)) {
+          throw new BadRequestException('Invalid attachment')
+        }
+        await lockMediaObject(tx, key)
+        if (await tx.accountMediaDeletion.findUnique({ where: { objectKey: key }, select: { objectKey: true } })) {
+          throw new BadRequestException('Attachment is being removed; upload it again')
+        }
+        await this.assertDmUpload(initial.clubId, conversationId, data.messageType as ChatAttachmentType, data.attachmentUrl)
+      }
       if (data.replyToId) {
         const parent = await tx.directMessage.findFirst({
           where: { id: data.replyToId, conversationId },
@@ -375,7 +388,7 @@ export class DmService {
         data: { updatedAt: new Date() },
       })
       return created as DmRow
-    })
+    }, { timeout: 45_000 })
 
     if (data.messageType === 'TEXT' && data.content) {
       void this.translation

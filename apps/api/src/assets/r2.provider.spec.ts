@@ -29,6 +29,28 @@ describe('R2Provider public URL parsing', () => {
       .toBeNull()
     expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/chat/a.png?override=1'))
       .toBeNull()
+    expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/%63hat/a.png')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/chat/a.png ')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/ch\tat/a.png')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/%66ile/private-v1-a.pdf')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/file/%70rivate-v1-a.pdf')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/file/private-v1-a.pdf'))
+      .toBe('dm/club/conversation/file/private-v1-a.pdf')
+  })
+})
+
+describe('R2Provider deletion configuration', () => {
+  it('fails nonempty cleanup when credentials are unavailable instead of acknowledging erasure', async () => {
+    const original = process.env.R2_ACCESS_KEY_ID
+    delete process.env.R2_ACCESS_KEY_ID
+    try {
+      const provider = new R2Provider()
+      await expect(provider.deleteObjects(['users/synthetic/avatar.png'])).rejects.toThrow('R2 not configured')
+      await expect(provider.deleteObjects([])).resolves.toBeUndefined()
+    } finally {
+      if (original === undefined) delete process.env.R2_ACCESS_KEY_ID
+      else process.env.R2_ACCESS_KEY_ID = original
+    }
   })
 })
 

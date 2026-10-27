@@ -1,9 +1,12 @@
 # Anstoss Store Submission Checklist
 
-Last updated: 2026-09-26
+Last updated: 2026-10-27
 
 This checklist exists to keep App Store Connect, Play Console, the binary, and
 the legal copy aligned. Run `npm run audit:store` before every store submission.
+That command verifies static source/configuration only. A pass does not verify
+store-console answers, the Play app-signing certificate, real device journeys,
+production deployment, legal approval or pilot outcomes.
 Use the current [store privacy and reviewer-access worksheet](store-privacy-answers-2026-09-24.md)
 for draft console answers; it is not approval to publish them.
 
@@ -80,7 +83,9 @@ for draft console answers; it is not approval to publish them.
     crash/performance data, and product interaction diagnostics.
   - Declare no sale of personal or sensitive data and no tracking/ads.
 - Account deletion:
-  - In-app path: `More -> Data -> Delete account`.
+  - In-app path: `Profile -> Data & account -> Delete account` for club members;
+    `More -> Data & account -> Delete account` in free-agent mode.
+  - Club owners must transfer ownership before account deletion can succeed.
   - Outside app URL: `https://anstoss.io/account-deletion`.
   - Retention exceptions: legal/tax/payment/security records only where required.
 - Permissions:
@@ -146,7 +151,8 @@ Anstoss is a club/team operations app for amateur football clubs.
 
 Login uses Anstoss-owned email one-time codes. No third-party/social login is
 used. If you need a pre-seeded reviewer account, use the credentials supplied in
-App Review / App access notes, then open More -> Data for export/delete account
+App Review / App access notes, then open Profile -> Data & account (More -> Data & account in
+free-agent mode) for export/delete account
 controls.
 
 User-generated chat content includes in-app report and block actions. Severe
@@ -157,7 +163,8 @@ manually by club admins. Stripe is used only for Anstoss software subscriptions
 outside the mobile purchase flow. There are no paid digital premium features in
 this submission.
 
-Account deletion is available in-app at More -> Data -> Delete account and on
+Account deletion is available in-app at Profile -> Data & account -> Delete account
+(More -> Data & account -> Delete account in free-agent mode) and on
 the web at https://anstoss.io/account-deletion.
 ```
 

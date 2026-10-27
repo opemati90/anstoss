@@ -19,6 +19,7 @@ function user(id: string, dob: Date | null, extra: Record<string, unknown> = {})
 
 function baseSeed(): Seed {
   return {
+    accountMediaDeletion: [],
     user: [
       user('coach', yearsAgo(40), { name: 'Tim Weber' }),
       user('player', yearsAgo(24), { name: 'Lukas Hoffmann' }),
@@ -280,6 +281,30 @@ describe('DM attachments', () => {
     await expect(
       service.sendMessage('coach', CLUB, 'c1', { messageType: 'VIDEO', attachmentUrl: url('c1', 'video') }),
     ).rejects.toThrow('Attachment upload is invalid or incomplete')
+  })
+
+  it('revalidates after the object lock and rejects an attachment retired after preflight', async () => {
+    const validate = jest.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('retired'))
+    const { service, prisma } = withConversation(undefined, { r2: { assertStoredObject: validate } })
+    const lock = jest.spyOn(prisma, '$executeRaw')
+    await expect(service.sendMessage('coach', CLUB, 'c1', {
+      messageType: 'IMAGE', attachmentUrl: url('c1'),
+    })).rejects.toThrow('Attachment upload is invalid or incomplete')
+    expect(prisma.rows('directMessage')).toHaveLength(0)
+    const index = lock.mock.calls.findIndex((args) => (args as unknown[]).includes('media-object:dm/club-1/c1/image/1-coach-aufstellung.jpg'))
+    expect(index).toBeGreaterThanOrEqual(0)
+    expect(validate.mock.invocationCallOrder[1]).toBeGreaterThan(lock.mock.invocationCallOrder[index])
+  })
+
+  it('rejects durable retirement intent even when storage still validates', async () => {
+    const { service, prisma, r2 } = withConversation((seed) => {
+      seed.accountMediaDeletion.push({ objectKey: 'dm/club-1/c1/image/1-coach-aufstellung.jpg' })
+    })
+    await expect(service.sendMessage('coach', CLUB, 'c1', {
+      messageType: 'IMAGE', attachmentUrl: url('c1'),
+    })).rejects.toThrow('Attachment is being removed; upload it again')
+    expect(r2!.assertStoredObject).toHaveBeenCalledTimes(1)
+    expect(prisma.rows('directMessage')).toHaveLength(0)
   })
 
   describe('signed media URL', () => {

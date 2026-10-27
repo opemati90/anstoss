@@ -1730,6 +1730,7 @@ export default {
     deleteAccountConfirm: 'Kalıcı olarak sil',
     deleteAccountSuccess: 'Hesap silindi',
     deleteAccountError: 'Hesap silinemedi. Lütfen tekrar dene.',
+    deleteAccountSignOutError: 'Hesabın silindi ancak çıkış işlemi tamamlanmadı. Tekrar çıkış yap veya uygulamayı yeniden başlat.',
     messages: 'Mesajlar',
     messagesSubtitle: 'Takım arkadaşlarınla özel mesajlar',
     adminMembers: 'Üyeleri yönet',

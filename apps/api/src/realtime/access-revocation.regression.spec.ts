@@ -1,9 +1,11 @@
 import { EventsGateway } from '../events/events.gateway'
 import { LiveGateway } from '../live/live.gateway'
+import { ChatGateway } from '../chat/chat.gateway'
 
 // Regression: adversarial re-audit — revocation disconnected chat only.
 describe('realtime access revocation across namespaces', () => {
   it.each([
+    ['chat', new ChatGateway({} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never)],
     ['events', new EventsGateway({} as never, {} as never)],
     ['live', new LiveGateway({} as never, {} as never)],
   ])('disconnects the removed user from %s sockets', async (_name, gateway) => {

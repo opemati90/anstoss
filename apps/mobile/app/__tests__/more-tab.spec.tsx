@@ -14,6 +14,7 @@ const mockWriteAsStringAsync = jest.fn((..._args: unknown[]) => Promise.resolve(
 const mockShareAsync = jest.fn((..._args: unknown[]) => Promise.resolve())
 
 type MockAuth = {
+  userId: string
   role: string
   mode: string | null
   modes: string[]
@@ -43,7 +44,7 @@ jest.mock('react-i18next', () => ({
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: {
-      id: 'u-1',
+      id: mockAuth.userId,
       name: 'Mara Schulte',
       email: 'mara@sv-albatros.example',
       avatarUrl: null,
@@ -112,6 +113,7 @@ jest.mock('../../src/i18n', () => ({
 
 function renderMore(overrides: Partial<MockAuth> = {}) {
   mockAuth = {
+    userId: 'u-1',
     role: 'PLAYER',
     mode: null,
     modes: [],
@@ -137,6 +139,8 @@ describe('Profile tab', () => {
   let alertSpy: jest.SpyInstance
   beforeEach(() => {
     jest.clearAllMocks()
+    mockApi.mockReset()
+    mockSignOut.mockReset().mockResolvedValue(undefined)
     mockChildren = []
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true)
@@ -224,5 +228,65 @@ describe('Profile tab', () => {
     await waitFor(() => expect(mockShareAsync).toHaveBeenCalled())
     expect(mockApi).toHaveBeenCalledWith('/me/export')
     expect(mockWriteAsStringAsync).toHaveBeenCalled()
+  })
+
+  it('sends only one deletion while repeated confirmations are pending', async () => {
+    let resolve!: () => void
+    mockApi.mockReturnValue(new Promise<void>((done) => { resolve = done }))
+    const screen = renderMore()
+    fireEvent.press(screen.getByText('more.deleteAccount'))
+    const confirm = alertSpy.mock.calls[0][2].find((button: { style: string }) => button.style === 'destructive').onPress
+    const first = confirm()
+    await confirm()
+    expect(mockApi).toHaveBeenCalledTimes(1)
+    expect(mockSignOut).not.toHaveBeenCalled()
+    resolve()
+    await first
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).toHaveBeenCalledWith('/(auth)/welcome')
+  })
+
+  it('distinguishes committed deletion from failed logout and never repeats DELETE', async () => {
+    mockApi.mockResolvedValue({ success: true })
+    mockSignOut.mockRejectedValueOnce(new Error('local cleanup failed'))
+    const screen = renderMore()
+    fireEvent.press(screen.getByText('more.deleteAccount'))
+    const confirm = alertSpy.mock.calls[0][2].find((button: { style: string }) => button.style === 'destructive').onPress
+    await confirm()
+    expect(alertSpy).toHaveBeenLastCalledWith('more.deleteAccountSuccess', 'more.deleteAccountSignOutError')
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    await confirm()
+    expect(mockApi).toHaveBeenCalledTimes(1)
+    expect(mockSignOut).toHaveBeenCalledTimes(2)
+  })
+
+  it('allows retry after API rejection without signing out or claiming deletion', async () => {
+    mockApi.mockRejectedValueOnce(new Error('ownership transfer required')).mockResolvedValueOnce({ success: true })
+    const screen = renderMore()
+    fireEvent.press(screen.getByText('more.deleteAccount'))
+    const confirm = alertSpy.mock.calls[0][2].find((button: { style: string }) => button.style === 'destructive').onPress
+    await confirm()
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(alertSpy).toHaveBeenLastCalledWith('common.error', 'more.deleteAccountError')
+    await confirm()
+    expect(mockApi).toHaveBeenCalledTimes(2)
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not sign out a new account when an old deletion response arrives', async () => {
+    let resolve!: () => void
+    mockApi.mockReturnValueOnce(new Promise<void>((done) => { resolve = done }))
+    const screen = renderMore()
+    fireEvent.press(screen.getByText('more.deleteAccount'))
+    const confirm = alertSpy.mock.calls[0][2].find((button: { style: string }) => button.style === 'destructive').onPress
+    const deleting = confirm()
+    mockAuth.userId = 'u-2'
+    screen.rerender(<SafeAreaProvider><MoreScreen /></SafeAreaProvider>)
+    resolve()
+    await deleting
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    await confirm()
+    expect(mockApi).toHaveBeenCalledTimes(1)
   })
 })

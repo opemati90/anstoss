@@ -1599,6 +1599,7 @@ const base = {
     deleteAccountConfirm: 'Eliminar permanentemente',
     deleteAccountSuccess: 'Conta eliminada',
     deleteAccountError: 'Não foi possível eliminar a conta. Tenta novamente.',
+    deleteAccountSignOutError: 'A tua conta foi eliminada, mas a sessão não terminou. Tenta terminar a sessão novamente ou reinicia a aplicação.',
     messages: 'Mensagens',
     messagesSubtitle: 'Mensagens diretas com membros da equipa',
   },

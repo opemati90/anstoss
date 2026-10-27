@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking, Share } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -68,6 +68,10 @@ export default function MoreScreen() {
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearancePreference>('system')
+  const deletionBusy = useRef(false)
+  const deletionCommittedFor = useRef<string | null>(null)
+  const currentUserId = useRef(user?.id)
+  currentUserId.current = user?.id
 
   useEffect(() => {
     void getAppearancePreference().then(setAppearance)
@@ -153,12 +157,25 @@ export default function MoreScreen() {
         text: t('more.deleteAccountConfirm'),
         style: 'destructive',
         onPress: async () => {
+          const accountId = user?.id
+          if (!accountId || currentUserId.current !== accountId || deletionBusy.current) return
+          deletionBusy.current = true
           try {
-            await api('/me', { method: 'DELETE' })
+            if (deletionCommittedFor.current !== accountId) {
+              await api('/me', { method: 'DELETE' })
+              deletionCommittedFor.current = accountId
+            }
+            if (currentUserId.current !== accountId) return
             await signOut()
             router.replace('/(auth)/welcome')
           } catch {
-            Alert.alert(t('common.error'), t('more.deleteAccountError'))
+            if (currentUserId.current !== accountId) return
+            Alert.alert(
+              t(deletionCommittedFor.current === accountId ? 'more.deleteAccountSuccess' : 'common.error'),
+              t(deletionCommittedFor.current === accountId ? 'more.deleteAccountSignOutError' : 'more.deleteAccountError'),
+            )
+          } finally {
+            deletionBusy.current = false
           }
         },
       },

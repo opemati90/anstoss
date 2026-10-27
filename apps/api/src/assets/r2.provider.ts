@@ -129,18 +129,20 @@ export class R2Provider {
   }
 
   async deleteObjects(objectKeys: string[]): Promise<void> {
-    if (!this.client || objectKeys.length === 0) return
+    if (objectKeys.length === 0) return
+    if (!this.client) throw new Error('R2 not configured')
 
     await Promise.all(
       Array.from(new Set(objectKeys)).map((objectKey) => {
         if (this.isPrivateChatKey(objectKey)) return this.withStorageDeadline((signal) => this.retirePrivateChatObject(objectKey, signal))
         const storage = this.objectStorage(objectKey)
-        return storage.client.send(
+        return this.withStorageDeadline((abortSignal) => storage.client.send(
           new DeleteObjectCommand({
             Bucket: storage.bucket,
             Key: objectKey,
           }),
-        )
+          { abortSignal },
+        ))
       }),
     )
   }
@@ -298,9 +300,14 @@ export class R2Provider {
   objectKeyFromUrl(url: string): string | null {
     try {
       const candidate = new URL(url)
+      // Reject URL-parser normalization aliases (surrounding whitespace,
+      // embedded tabs/newlines, backslashes) that would evade suffix-based
+      // reference checks. Canonical encoded or ordinary Unicode URLs are valid.
+      if (url !== candidate.href && url !== decodeURI(candidate.href)) return null
       if (candidate.origin === 'https://private-media.anstoss.invalid') {
         const key = decodeURIComponent(candidate.pathname.slice(1))
         return this.isPrivateChatKey(key) && !key.includes('..') && !candidate.search && !candidate.hash
+          && candidate.pathname === new URL(`https://canonical.invalid/${key}`).pathname
           && !candidate.username && !candidate.password ? key : null
       }
       if (!this.publicBaseUrl) return null
@@ -310,6 +317,7 @@ export class R2Provider {
       if (!candidate.pathname.startsWith(`${basePath}/`)) return null
       const key = decodeURIComponent(candidate.pathname.slice(basePath.length + 1))
       if (!key || key.includes('..') || candidate.search || candidate.hash || this.isPrivateChatKey(key)) return null
+      if (candidate.username || candidate.password || candidate.pathname !== new URL(`${base.origin}${basePath}/${key}`).pathname) return null
       return key
     } catch {
       return null

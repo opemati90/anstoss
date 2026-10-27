@@ -1615,6 +1615,7 @@ const base = {
     deleteAccountConfirm: 'Elimina definitivamente',
     deleteAccountSuccess: 'Account eliminato',
     deleteAccountError: "Impossibile eliminare l'account. Riprova.",
+    deleteAccountSignOutError: 'Il tuo account è stato eliminato, ma la disconnessione non è stata completata. Esci di nuovo o riavvia l’app.',
     messages: 'Messaggi',
     messagesSubtitle: 'Messaggi diretti con i membri della squadra',
   },

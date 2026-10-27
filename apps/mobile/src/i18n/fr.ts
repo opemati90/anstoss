@@ -1620,6 +1620,7 @@ const base = {
     deleteAccountConfirm: 'Supprimer définitivement',
     deleteAccountSuccess: 'Compte supprimé',
     deleteAccountError: 'Impossible de supprimer le compte. Réessaie.',
+    deleteAccountSignOutError: 'Ton compte a été supprimé, mais la déconnexion n’a pas abouti. Réessaie de te déconnecter ou redémarre l’application.',
     messages: 'Messages',
     messagesSubtitle: 'Messages directs avec les membres de l’équipe',
   },

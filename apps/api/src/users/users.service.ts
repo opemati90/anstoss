@@ -2110,11 +2110,6 @@ export class UsersService {
       emailCandidates,
       user.freeAgentProfile?.id ?? null,
     )
-    const mediaObjectKeys = await this.collectDeletionObjectKeys({
-      userId,
-      avatarUrl: user.avatarUrl,
-      freeAgentProfileId: user.freeAgentProfile?.id ?? null,
-    })
 
     // Privacy: consents withdrawn because this user was a child's guardian.
     const withdrawnConsentEffects: ConsentWithdrawalEffect[] = []
@@ -2163,6 +2158,29 @@ export class UsersService {
         throw new BadRequestException(
           'Transfer club ownership before deleting your account',
         )
+      }
+      // Match moderation's locks before snapshotting evidence or removing
+      // content. Reports that win the lock retain evidence; reports that lose
+      // see deletedAt and cannot snapshot a disappearing attachment.
+      const [channelRows, directRows] = await Promise.all([
+        tx.message.findMany({ where: { senderId: userId }, select: { id: true } }),
+        tx.directMessage.findMany({ where: { senderId: userId }, select: { id: true } }),
+      ])
+      const messageLocks = [
+        ...channelRows.map((row: { id: string }) => `chat-message:${row.id}`),
+        ...directRows.map((row: { id: string }) => `dm-message:${row.id}`),
+      ].sort()
+      for (const key of messageLocks) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`
+      const mediaObjectKeys = await this.collectDeletionObjectKeys({
+        userId, avatarUrl: user.avatarUrl,
+        freeAgentProfileId: user.freeAgentProfile?.id ?? null,
+      }, tx)
+      if (mediaObjectKeys.length) {
+        // Commit the cleanup intent alongside erasure. Queue failure rolls back
+        // erasure; storage outages after commit cannot lose the object inventory.
+        await tx.accountMediaDeletion.createMany({
+          data: mediaObjectKeys.map((objectKey) => ({ objectKey })), skipDuplicates: true,
+        })
       }
       // Block legacy Clerk subjects from being linked back to this row if an
       // old client/auth path is ever re-enabled. Custom JWTs are still blocked
@@ -2232,7 +2250,7 @@ export class UsersService {
       })
       await tx.directMessage.updateMany({
         where: { senderId: userId },
-        data: { content: '[deleted]' },
+        data: { content: '[deleted]', attachmentUrl: null, attachmentMeta: Prisma.DbNull, deletedAt } satisfies Prisma.DirectMessageUpdateManyMutationInput,
       })
 
       // 4. Remove private profile, notification, auth, child/guardian, invite,
@@ -2308,6 +2326,7 @@ export class UsersService {
               content: '[deleted]',
               attachmentUrl: null,
               attachmentMeta: Prisma.JsonNull,
+              deletedAt,
             },
           })
           await tx.guardianRelationship.deleteMany({
@@ -2464,7 +2483,9 @@ export class UsersService {
       })
     })
 
-    await this.deleteR2ObjectsForAccountDeletion(mediaObjectKeys)
+    // Terminate the deleted user's existing rooms across all namespaces too;
+    // rejecting future JWT requests alone does not stop passive socket delivery.
+    this.eventEmitter?.emit('realtime.access.changed', { userId })
 
     // Privacy: after commit, notify club admins and drop revoked sockets.
     if (withdrawnConsentEffects.length > 0 && this.eventEmitter) {
@@ -2651,24 +2672,29 @@ export class UsersService {
     userId: string
     avatarUrl: string | null
     freeAgentProfileId: string | null
-  }) {
+  }, client: Prisma.TransactionClient = this.prisma) {
     if (!this.r2) return []
 
-    const [messages, freeAgentMedia, complianceDocuments] = await Promise.all([
-      this.prisma.message.findMany({
+    const [messages, directMessages, freeAgentMedia, complianceDocuments] = await Promise.all([
+      client.message.findMany({
         where: {
           senderId: input.userId,
           attachmentUrl: { not: null },
+          reports: { none: { evidencePurgedAt: null } },
         },
         select: { attachmentUrl: true },
       }),
+      client.directMessage.findMany({
+        where: { senderId: input.userId, attachmentUrl: { not: null }, reports: { none: { evidencePurgedAt: null } } },
+        select: { attachmentUrl: true },
+      }),
       input.freeAgentProfileId
-        ? this.prisma.freeAgentMedia.findMany({
+        ? client.freeAgentMedia.findMany({
             where: { profileId: input.freeAgentProfileId },
             select: { url: true, thumbnailUrl: true },
           })
         : Promise.resolve([]),
-      this.prisma.complianceRecord.findMany({
+      client.complianceRecord.findMany({
         where: { memberUserId: input.userId, documentUrl: { not: null } },
         select: { documentUrl: true },
       }),
@@ -2677,6 +2703,7 @@ export class UsersService {
     const urls = [
       input.avatarUrl,
       ...messages.map((message: any) => message.attachmentUrl),
+      ...directMessages.map((message: any) => message.attachmentUrl),
       ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]),
       ...complianceDocuments.map((record: any) => record.documentUrl),
     ].filter((url): url is string => typeof url === 'string' && url.length > 0)
@@ -2686,18 +2713,6 @@ export class UsersService {
         .map((url) => this.r2?.objectKeyFromUrl(url) ?? null)
         .filter((objectKey): objectKey is string => !!objectKey),
     )
-  }
-
-  private async deleteR2ObjectsForAccountDeletion(objectKeys: string[]) {
-    if (!this.r2 || objectKeys.length === 0) return
-    try {
-      await this.r2.deleteObjects(objectKeys)
-    } catch (error) {
-      this.logger.error(
-        `Account deletion committed, but R2 object deletion failed for ${objectKeys.length} object(s)`,
-        error instanceof Error ? error.stack : String(error),
-      )
-    }
   }
 
   /**

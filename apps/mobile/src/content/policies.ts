@@ -92,7 +92,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         },
         {
           kind: 'p',
-          text: 'Anfragen richte bitte an kontakt@anstoss.io. Dein Konto kannst Du in der App unter Mehr → Daten → Konto löschen oder ohne App-Zugriff unter https://anstoss.io/account-deletion löschen lassen. Beschwerden kannst Du zudem bei der zuständigen Aufsichtsbehörde einreichen.',
+          text: 'Anfragen richte bitte an kontakt@anstoss.io. Dein Konto kannst Du in der App unter Profil → Daten und Konto → Konto löschen (im vereinslosen Modus: Mehr statt Profil) oder ohne App-Zugriff unter https://anstoss.io/account-deletion löschen lassen. Beschwerden kannst Du zudem bei der zuständigen Aufsichtsbehörde einreichen.',
         },
         { kind: 'h', text: 'Auftragsverarbeiter' },
         {
@@ -234,7 +234,7 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         },
         {
           kind: 'p',
-          text: 'Send requests to kontakt@anstoss.io. You can delete your account in the app under More → Data → Delete account, or without app access at https://anstoss.io/account-deletion. You may also lodge a complaint with the competent supervisory authority.',
+          text: 'Send requests to kontakt@anstoss.io. You can delete your account in the app under Profile → Data & account → Delete account (in free-agent mode: More instead of Profile), or without app access at https://anstoss.io/account-deletion. You may also lodge a complaint with the competent supervisory authority.',
         },
         { kind: 'h', text: 'Processors' },
         {

@@ -72,6 +72,7 @@ type EasJson = {
     string,
     {
       credentialsSource?: string
+      channel?: string
       environment?: string
       env?: Record<string, string>
       ios?: { image?: string }
@@ -257,12 +258,17 @@ for (const dataType of [
 const accountDeletionRel = 'apps/web/src/account-deletion.html'
 expect(existsSync(path(accountDeletionRel)), 'Public account-deletion page must exist')
 const accountDeletion = existsSync(path(accountDeletionRel)) ? read(accountDeletionRel) : ''
-for (const needle of ['privacy@anstoss.io', 'within 30 days', 'More', 'Data', 'Delete account']) {
+for (const needle of ['privacy@anstoss.io', 'within 30 days', 'Profile', 'Data &amp; account', 'Delete account', 'free-agent mode', 'More']) {
   expectIncludes(accountDeletion, needle, 'Account deletion page')
 }
 expectIncludes(read('apps/web/src/legal.html'), 'account-deletion', 'Web legal page')
 expectIncludes(read('apps/mobile/src/content/policies.ts'), 'account-deletion', 'In-app policies')
 expectIncludes(read('apps/web/src/i18n.js'), 'account-deletion', 'Web FAQ i18n')
+for (const file of ['apps/mobile/src/content/policies.ts', 'apps/web/src/i18n.js']) {
+  for (const label of ['Profile', 'Data & account', 'More', 'Profil', 'Daten und Konto', 'Mehr']) {
+    expectIncludes(read(file), label, `${file} deletion guidance for both personas`)
+  }
+}
 
 const assetLinks = read('apps/web/src/.well-known/assetlinks.json')
 expectIncludes(assetLinks, 'com.renuirug.anstoss', 'Android App Links association')
@@ -363,4 +369,5 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log('Store readiness audit passed')
+console.log('Static store source/configuration audit passed (not launch approval).')
+console.log('Unverified here: store-console disclosures, Play app-signing certificate, production/device journeys, legal sign-off and pilot outcomes.')

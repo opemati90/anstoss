@@ -2,7 +2,68 @@
 
 Date: 24 September 2026. Status: **partial code-level evidence; production claim not proven**. Do not use this document as a certificate of legal compliance. No real account was deleted and no production log was purged to make this record.
 
-## Public promise versus implementation
+## Revalidation — 27 October 2026
+
+The previously deployed `UsersService.deleteR2ObjectsForAccountDeletion`
+caught and logged storage failures without a durable retry record. The pending
+local implementation replaces it with `AccountMediaDeletion`, enqueued in the
+account-erasure transaction and retried by a leased, restart-safe worker.
+It includes DM attachments, clears their metadata, and fails cleanup when R2
+credentials are unavailable. Report evidence and existing live references are
+held rather than deleted. These changes are **not deployed**.
+The complete API unit/service suite passes (130 suites, 1,329 tests), but that
+does not establish retry recovery. The live synthetic private-media canary
+passed its 11 storage checks and cleanup; see `operations-runbook.md`. It did
+not exercise account deletion or supplier log retention, so neither the
+30-day account-erasure nor 90-day log-retention claim is certified by it.
+
+Local PostgreSQL verification: all 74 migrations applied to an isolated
+temporary database, then `scripts/verify-account-erasure-outbox.ts` exercised
+the real account-erasure service, confirmed the anonymized user and queued
+object, simulated a storage outage, and verified a new worker could retry and
+acknowledge the job without restoring account access. Storage was mocked;
+this is not an HTTP/device or production erasure test.
+
+The pending implementation now coordinates channel/DM attachment persistence
+and cleanup with the same per-object transaction lock. Sends revalidate storage
+under that lock and reject pending `AccountMediaDeletion` jobs, including when
+storage still validates. That durable intent protects against database lock
+expiry while a storage operation is in flight. Channel media also rechecks
+account/access state under lifecycle locks. Noncanonical URL aliases are
+rejected so reference checks cannot miss an alternative spelling of a key.
+Separate real PostgreSQL transactions verified mutual exclusion and subsequent
+acquisition of the shared lock. Unit regressions cover stale preflight,
+deleted-account sends, pending retirement and URL aliases.
+
+Latest full-workspace verification on 27 Oct: API 131 suites / 1,347 tests,
+mobile 121 suites / 841 tests (one skipped), and shared 9 suites / 157 tests
+passed; workspace typecheck and lint passed. The web and standalone worker
+test scripts are no-ops and provide no behavioral coverage. Independent adversarial review passed the scoped
+account-media outbox fix after rerunning five suites / 101 tests. This does not
+approve the entire erasure lifecycle or rollout.
+
+Subsequent access-revocation check: the local PostgreSQL verifier now signs a
+token with a random process-only test secret and calls the real
+`ClerkAuthGuard`. It accepts the token before erasure and returns 401 for the
+same token after erasure. The secret is restored/removed in `finally` and is
+never printed. This is direct guard execution, not HTTP or device E2E.
+Account deletion now emits `realtime.access.changed` for the deleted user
+after commit, in addition to consent-related notifications. Tests cover all
+three gateway handlers (chat/events/live), transaction rollback, and a deferred
+commit that must not emit early. Independent review passed this narrow delta;
+live socket delivery under Redis/listener/process failure is not established.
+
+This remains local evidence, not a production erasure certificate. Verify
+provider retention, failed-job operational alerting, final release audit and the
+disposable-account end-to-end protocol below. The slow-presigned-upload versus
+tombstone-cleanup gate in the operations runbook is separate and still open.
+
+## Historical baseline: public promise versus implementation (24 September)
+
+The following inventory records the original September findings, not a fresh
+description of the working tree. The October section above supersedes its
+catch-and-log R2 cleanup description with the locally tested durable outbox.
+That change is not yet deployed, and the production proof requirements remain.
 
 The current `apps/web/src/legal.html` says **all personal account data is irrevocably deleted within 30 days** and **logs are automatically deleted after 90 days** (German and English). These are stronger than what current source and provider evidence establish. The account deletion service (`apps/api/src/users/users.service.ts`, `deleteAccount`) immediately removes access and some rows, anonymizes the user row, message text and audit actors, and attempts R2 object deletion after the database transaction. It deliberately retains some pseudonymized/ledger/audit records. It cannot by itself prove removal from backups, Sentry, infrastructure logs, Expo, transactional email, or all supplier systems. **The R2 cleanup currently catches/logs an object-deletion error and still returns account-deletion success.** This needs a durable retry/reconciliation path and test evidence.
 

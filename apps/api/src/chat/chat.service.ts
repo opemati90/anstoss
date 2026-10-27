@@ -26,6 +26,7 @@ import { PushService } from '../push/push.service'
 import { ChannelsService } from '../channels/channels.service'
 import { BillingService } from '../billing/billing.service'
 import { R2Provider } from '../assets/r2.provider'
+import { lockMediaObject } from '../assets/media-object-lock'
 import {
   CHAT_UPLOAD_CONTENT_TYPES,
   CHAT_UPLOAD_MAX_BYTES,
@@ -194,7 +195,27 @@ export class ChatService {
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     await this.assertReplyInChannel(input.replyToId, input.channelId)
-    const message = await this.prisma.message.create({
+    const message = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${access.team.clubId}`}))`
+      const activeUser = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } })
+      if (!activeUser || activeUser.deletedAt) throw new ForbiddenException('Account unavailable')
+      await this.teamsService.assertReadableAccess(userId, input.teamId)
+      await this.channelsService.assertWritable(userId, input.channelId!)
+      if (!this.r2?.enabled) throw new BadRequestException('Attachment storage is unavailable')
+      const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
+      if (!objectKey) throw new BadRequestException('Invalid attachment')
+      await lockMediaObject(tx, objectKey)
+      if (await tx.accountMediaDeletion.findUnique({ where: { objectKey }, select: { objectKey: true } })) {
+        throw new BadRequestException('Attachment is being removed; upload it again')
+      }
+      const kind = uploadKindFor(input.messageType)
+      try {
+        await this.r2.assertStoredObject(objectKey, {
+          maxBytes: CHAT_UPLOAD_MAX_BYTES[kind], allowedContentTypes: CHAT_UPLOAD_CONTENT_TYPES[kind],
+        })
+      } catch { throw new BadRequestException('Attachment upload is invalid or incomplete') }
+      return tx.message.create({
       data: {
         teamId: input.teamId,
         clubId: access.team.clubId,
@@ -206,7 +227,8 @@ export class ChatService {
         attachmentMeta: (input.attachmentMeta as never) ?? undefined,
         replyToId: input.replyToId,
       },
-    })
+      })
+    }, { timeout: 45_000 })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       input.teamId,

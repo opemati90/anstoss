@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import {
   FreeAgentVisibility,
   MembershipRole,
@@ -533,6 +534,7 @@ describe('UsersService.deleteAccount', () => {
     const tx = {
       $queryRaw: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(0),
+      accountMediaDeletion: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
       authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       teamMember: { deleteMany: deleteMany() },
@@ -558,11 +560,11 @@ describe('UsersService.deleteAccount', () => {
       eventCheckIn: { deleteMany: deleteMany() },
       carpoolSeat: { deleteMany: deleteMany() },
       carpoolRide: { deleteMany: deleteMany() },
-      complianceRecord: { deleteMany: deleteMany(), updateMany: updateMany() },
+      complianceRecord: { deleteMany: deleteMany(), updateMany: updateMany(), findMany: jest.fn().mockResolvedValue([]) },
       messageTranslation: { deleteMany: deleteMany() },
-      message: { updateMany: updateMany() },
+      message: { updateMany: updateMany(), findMany: jest.fn().mockResolvedValue([]) },
       directMessageTranslation: { deleteMany: deleteMany() },
-      directMessage: { updateMany: updateMany() },
+      directMessage: { updateMany: updateMany(), findMany: jest.fn().mockResolvedValue([]) },
       pushToken: { deleteMany: deleteMany() },
       notificationPreference: { deleteMany: deleteMany() },
       otpCode: { deleteMany: deleteMany() },
@@ -585,7 +587,7 @@ describe('UsersService.deleteAccount', () => {
         updateMany: updateMany(),
         update: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
-      freeAgentMedia: { deleteMany: deleteMany() },
+      freeAgentMedia: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       freeAgentExperience: { deleteMany: deleteMany() },
       freeAgentProfile: { delete: jest.fn().mockResolvedValue({}) },
       contributionAssignment: { updateMany: updateMany() },
@@ -792,10 +794,33 @@ describe('UsersService.deleteAccount', () => {
     })
   })
 
+  it('does not notify socket revocation until the deletion transaction commits', async () => {
+    const { prisma, tx, service, events } = createService()
+    let ready!: () => void
+    let commit!: () => void
+    const reachedCommit = new Promise<void>((resolve) => { ready = resolve })
+    const committed = new Promise<void>((resolve) => { commit = resolve })
+    prisma.$transaction.mockImplementation(async (callback) => {
+      const result = await callback(tx)
+      ready()
+      await committed
+      return result
+    })
+    const deleting = service.deleteAccount('user-1')
+    await reachedCommit
+    expect(tx.user.update).toHaveBeenCalled()
+    expect(events.emit).not.toHaveBeenCalled()
+    commit()
+    await deleting
+    expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', { userId: 'user-1' })
+  })
+
   it('removes cached translations, direct-message content, and live participation rows before anonymizing the user', async () => {
-    const { tx, service } = createService()
+    const { tx, service, events } = createService()
 
     await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+    expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', { userId: 'user-1' })
+    expect(events.emit.mock.invocationCallOrder[0]).toBeGreaterThan(tx.user.update.mock.invocationCallOrder[0])
 
     expect(tx.messageTranslation.deleteMany).toHaveBeenCalledWith({
       where: { message: { is: { senderId: 'user-1' } } },
@@ -812,7 +837,7 @@ describe('UsersService.deleteAccount', () => {
     })
     expect(tx.directMessage.updateMany).toHaveBeenCalledWith({
       where: { senderId: 'user-1' },
-      data: { content: '[deleted]' },
+      data: { content: '[deleted]', attachmentUrl: null, attachmentMeta: Prisma.DbNull, deletedAt: expect.any(Date) },
     })
     expect(tx.rsvp.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } })
     expect(tx.eventCheckIn.deleteMany).toHaveBeenCalledWith({
@@ -909,8 +934,8 @@ describe('UsersService.deleteAccount', () => {
     )
   })
 
-  it('deletes R2 objects referenced by account-owned media after the DB cleanup commits', async () => {
-    const { prisma, service } = createService()
+  it('enqueues channel, DM and profile media atomically without calling storage', async () => {
+    const { prisma, tx, service } = createService()
     const r2 = {
       objectKeyFromUrl: jest.fn((url: string) =>
         url.startsWith('https://assets.example/')
@@ -927,27 +952,32 @@ describe('UsersService.deleteAccount', () => {
       avatarUrl: 'https://assets.example/users/user-1/avatar.png',
       freeAgentProfile: { id: 'profile-1' },
     })
-    prisma.message.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ attachmentUrl: 'https://assets.example/chat/club-1/file.png' }])
-    prisma.freeAgentMedia.findMany.mockResolvedValue([
+    tx.message.findMany.mockResolvedValueOnce([{ id: 'channel-message' }]).mockResolvedValue([{ attachmentUrl: 'https://assets.example/chat/club-1/file.png' }])
+    tx.directMessage.findMany.mockResolvedValueOnce([{ id: 'direct-message' }]).mockResolvedValue([{ attachmentUrl: 'https://assets.example/dm/conversation/file.png' }])
+    tx.freeAgentMedia.findMany.mockResolvedValue([
       {
         url: 'https://assets.example/users/user-1/free-agent/photo.png',
         thumbnailUrl: null,
       },
     ])
-    prisma.complianceRecord.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ documentUrl: 'https://assets.example/compliance/club-1/private.pdf' }])
+    tx.complianceRecord.findMany.mockResolvedValue([{ documentUrl: 'https://assets.example/compliance/club-1/private.pdf' }])
 
     await service.deleteAccount('user-1')
 
-    expect(r2.deleteObjects).toHaveBeenCalledWith([
+    expect(tx.accountMediaDeletion.createMany).toHaveBeenCalledWith({ data: [
       'users/user-1/avatar.png',
       'chat/club-1/file.png',
+      'dm/conversation/file.png',
       'users/user-1/free-agent/photo.png',
       'compliance/club-1/private.pdf',
-    ])
+    ].map((objectKey) => ({ objectKey })), skipDuplicates: true })
+    expect(r2.deleteObjects).not.toHaveBeenCalled()
+    expect(tx.message.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ reports: { none: { evidencePurgedAt: null } } }),
+    }))
+    expect(tx.directMessage.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ reports: { none: { evidencePurgedAt: null } } }),
+    }))
   })
 })
 

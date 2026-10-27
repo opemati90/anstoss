@@ -1606,6 +1606,7 @@ const base = {
     deleteAccountConfirm: 'Delete permanently',
     deleteAccountSuccess: 'Account deleted',
     deleteAccountError: 'Couldn’t delete your account. Please try again.',
+    deleteAccountSignOutError: 'Your account was deleted, but logging out did not finish. Please log out again or restart the app.',
     messages: 'Messages',
     messagesSubtitle: 'Direct messages with team members',
   },

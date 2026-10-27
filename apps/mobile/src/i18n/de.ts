@@ -1615,6 +1615,7 @@ const base = {
     deleteAccountConfirm: 'Endgültig löschen',
     deleteAccountSuccess: 'Konto gelöscht',
     deleteAccountError: 'Konto konnte nicht gelöscht werden. Versuch es noch einmal.',
+    deleteAccountSignOutError: 'Dein Konto wurde gelöscht, aber die Abmeldung wurde nicht abgeschlossen. Melde dich erneut ab oder starte die App neu.',
     messages: 'Nachrichten',
     messagesSubtitle: 'Direktnachrichten im Team',
   },

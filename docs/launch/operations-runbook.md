@@ -39,6 +39,45 @@ Do not deploy this API change alone:
 Do not give the private bucket a public domain or apply blanket short retention
 to it: active chat media and safeguarding evidence have different lifetimes.
 
+### Synthetic storage verification
+
+From `apps/api`, with the existing R2 variables securely injected into the
+process environment, run `RUN_PRIVATE_MEDIA_CANARY=1 npx ts-node scripts/verify-private-media.ts`.
+This is an explicitly enabled **storage write test**, not a read-only preview.
+It accepts only `anstoss-quarantine` in the EU jurisdiction. It uses a new UUID
+for a synthetic attachment, its evidence copy and its cleanup marker; it never
+enumerates or deletes user objects. The final JSON reports checks and cleanup
+status without credentials or signed URLs. A failed check or unverified cleanup
+returns a nonzero exit code. Do not treat partial checks as a pass.
+
+The test covers conditional upload, signed reads, evidence preservation,
+removal, immediate replay rejection and authenticated absence after cleanup.
+Unsigned S3 rejection does **not** prove public-domain/r2.dev settings, and an
+immediate absence check does not rule out a delayed in-flight write. It does
+not cover API authorization, member revocation or device playback. Those
+remain separate rollout gates above. Local mocked tests verify the canary's
+guards, successful sequence, evidence/replay failures and cleanup reporting;
+they are not proof of live R2 behavior.
+
+Live synthetic verification on 2026-10-27 using the API service's configured
+EU bucket credentials: **11/11 checks passed**, process exit 0, and
+`cleanupComplete: true`. Verified non-public reference, conditional upload,
+stored-object validation, signed read, unsigned S3 request rejection (HTTP
+400), overwrite rejection (412), quarantine destination, preserved evidence
+bytes, original bytes removed, immediate post-removal replay rejection (412),
+and provider validation rejection of the removed object (not an API attachment
+request). All three synthetic keys were deleted
+and authenticated reads returned 404. No user objects or database rows changed.
+This exercises the local pending provider implementation against live storage,
+not the deployed API or released mobile clients.
+
+Cloudflare's [consistency documentation](https://developers.cloudflare.com/r2/reference/consistency/)
+states that conditional writes are checked atomically at commit, but an
+in-flight write can still commit after a negative read. Thus the ten-minute
+tombstone cleanup horizon remains a release gate: URL expiry alone is not
+evidence that every previously started upload has terminated. Do not remove
+that gate based on this immediate-replay canary.
+
 Read-only production check, 2026-10-27: API service
 `373adb45-3ab1-4076-b2b9-72f1590ba1b3`, environment
 `c6651cfe-f78d-4c06-aefd-634f5933cc22`, has the public R2 and separate quarantine
@@ -76,7 +115,9 @@ infer a database target or region from a service's display name alone.
 Read-only R2 checks on 2026-10-27: the configured EU quarantine credentials
 returned HTTP 200 for HeadBucket and ListObjectsV2 on `anstoss-quarantine`.
 Listing was complete with zero objects. This verifies read/list access only;
-write/delete permission and public-domain/r2.dev settings are not yet proven.
+write/delete permission and public-domain/r2.dev settings were not proven by
+that read-only check. The later synthetic canary above verifies write/delete
+permission; public-domain/r2.dev policy remains unverified.
 Complete metadata-only listings of the configured public asset bucket found
 zero objects and zero bytes under both `chat/` and `dm/` (one page each, not
 truncated). No contents were fetched. Reconcile database attachment references
