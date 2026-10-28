@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
+import { uploadPublicAsset } from '../src/api/uploadPublicAsset'
 import { ensurePickerMediaAccess } from '../src/utils/mediaPermissions'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
@@ -69,18 +70,14 @@ export default function EditProfileScreen() {
       })
 
       if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-        await fetch(presign.uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'image/png' },
-          body: blob,
-        })
+        const avatarUrl = await uploadPublicAsset(presign, blob, 'image/png')
 
         await api('/me', {
           method: 'PATCH',
-          body: { avatarUrl: presign.publicUrl },
+          body: { avatarUrl },
         })
 
-        setAvatarUri(presign.publicUrl)
+        setAvatarUri(avatarUrl)
         await refreshUser()
       } else {
         Alert.alert(t('common.error'), t('editProfile.uploadNotAvailable'))

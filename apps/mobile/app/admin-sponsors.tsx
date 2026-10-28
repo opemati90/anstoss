@@ -16,6 +16,7 @@ import { MembershipRole } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
+import { uploadPublicAsset } from '../src/api/uploadPublicAsset'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import {
@@ -326,19 +327,7 @@ function SponsorForm({ clubId, sponsor, onCancel, onSaved }: SponsorFormProps) {
             sizeBytes: blob.size,
           },
         })
-        if (presign.enabled && presign.uploadUrl && presign.publicUrl) {
-          await fetch(presign.uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'image/png' },
-            body: blob,
-          })
-          finalLogoUrl = presign.publicUrl
-        } else if (!sponsor) {
-          // R2 disabled in dev — fall back to the local URI so the row
-          // still appears. Logo won't survive a restart, but the flow
-          // round-trips end-to-end for testing.
-          finalLogoUrl = logoUri
-        }
+        finalLogoUrl = await uploadPublicAsset(presign, blob, 'image/png')
       }
 
       const body = {

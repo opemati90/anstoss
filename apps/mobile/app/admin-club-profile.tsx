@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import type { AssetPresignResponse } from '@anstoss/shared'
 import { MembershipRole } from '@anstoss/shared'
 import { api, ApiError } from '../src/api/client'
+import { uploadPublicAsset } from '../src/api/uploadPublicAsset'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -85,7 +86,7 @@ export default function AdminClubProfileScreen() {
     }
   }
 
-  const uploadBadge = async (uri: string): Promise<string | null> => {
+  const uploadBadge = async (uri: string): Promise<string> => {
     const blob = await (await fetch(uri)).blob()
     const presign = await api<AssetPresignResponse>(`/clubs/${club.id}/assets/presign`, {
       method: 'POST',
@@ -96,13 +97,7 @@ export default function AdminClubProfileScreen() {
         sizeBytes: blob.size,
       },
     })
-    if (!presign.enabled || !presign.uploadUrl || !presign.publicUrl) return null
-    await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'image/png' },
-      body: blob,
-    })
-    return presign.publicUrl
+    return uploadPublicAsset(presign, blob, 'image/png')
   }
 
   const save = async () => {
@@ -113,8 +108,7 @@ export default function AdminClubProfileScreen() {
       if (name.trim() !== club.name) body.name = name.trim()
       if (color.toLowerCase() !== (club.primaryColor ?? '').toLowerCase()) body.primaryColor = color
       if (badgeDirty && badgeUri) {
-        const url = await uploadBadge(badgeUri)
-        if (url) body.badgeUrl = url
+        body.badgeUrl = await uploadBadge(badgeUri)
       }
       if (Object.keys(body).length > 0) {
         await api(`/clubs/${club.id}`, { method: 'PATCH', body })
