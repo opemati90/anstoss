@@ -109,6 +109,22 @@ describe('useChat', () => {
     global.fetch = originalFetch
   })
 
+  it('preserves messages and pagination when loading older history fails', async () => {
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'error-page', token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    await waitFor(() => expect(result.current.messages).toHaveLength(1))
+    const before = result.current.messages
+    socket.emit.mockImplementation((event: string, _data: unknown, ack?: AckHandler) => {
+      if (event === 'history') ack?.({ event: 'error', data: { message: 'Unavailable' } })
+      return socket
+    })
+    act(() => { result.current.loadMore() })
+    expect(result.current.messages).toEqual(before)
+    expect(result.current.hasMore).toBe(true)
+    expect(result.current.loadingHistory).toBe(false)
+    expect(result.current.lastError).toBe('history_error')
+  })
+
   it('connects, loads history, fetches pinned message, and cleans up', async () => {
     const { result, unmount } = renderHook(() =>
       useChat({

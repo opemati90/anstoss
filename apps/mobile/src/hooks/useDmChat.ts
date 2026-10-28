@@ -126,7 +126,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     if (!socket?.connected) return
     socket.emit('dm:history', { conversationId }, (response: DmHistoryResponse) => {
       setHistoryLoaded(true)
-      if (response?.data) {
+      if (Array.isArray(response?.data?.messages)) {
         setMessages((response.data.messages ?? []).map(normalizeDmMessage))
         setMessagesOwnerKey(cacheKey)
         setHasMore(response.data.hasMore ?? false)
@@ -450,7 +450,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       { conversationId, cursor: oldest.createdAt },
       (response: DmHistoryResponse) => {
         const data = response?.data
-        if (data) {
+        if (Array.isArray(data?.messages)) {
           setMessages((prev) => [...(data.messages ?? []).map(normalizeDmMessage), ...prev])
           setHasMore(data.hasMore ?? false)
         }

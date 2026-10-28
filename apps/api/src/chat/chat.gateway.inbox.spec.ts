@@ -1,4 +1,9 @@
 import { ChatGateway } from './chat.gateway'
+import { IoAdapter } from '@nestjs/platform-socket.io'
+import { io } from 'socket.io-client'
+import { from } from 'rxjs'
+import { GatewayMetadataExplorer } from '@nestjs/websockets/gateway-metadata-explorer'
+import { MetadataScanner } from '@nestjs/core/metadata-scanner'
 
 /**
  * Chat revamp: channel-authorized join/history/send, inbox:update fan-out to
@@ -57,34 +62,38 @@ function makeGateway(overrides: {
       },
     ),
     isManagerAccess: jest.fn().mockReturnValue(false),
-    listReadersForChannel: jest.fn().mockImplementation((_id: string, opts?: any) =>
-      Promise.resolve(
-        opts?.excludeMuted
-          ? overrides.unmutedReaders ?? overrides.readers ?? []
-          : overrides.readers ?? [],
+    listReadersForChannel: jest
+      .fn()
+      .mockImplementation((_id: string, opts?: any) =>
+        Promise.resolve(
+          opts?.excludeMuted
+            ? (overrides.unmutedReaders ?? overrides.readers ?? [])
+            : (overrides.readers ?? []),
+        ),
       ),
-    ),
   }
   const dm = {
-    saveMessage: jest.fn().mockImplementation((senderId: string, conversationId: string, input: any) =>
-      Promise.resolve({
-        id: 'dm-msg-1',
-        conversationId,
-        senderId,
-        content: input.content,
-        messageType: input.messageType,
-        attachmentUrl: null,
-        attachmentMeta: null,
-        replyToId: input.replyToId ?? null,
-        replyTo: null,
-        sourceLanguage: null,
-        translation: null,
-        deletedAt: null,
-        createdAt: '2026-09-23T10:00:00.000Z',
-        sender: { id: senderId, name: 'Lukas Hoffmann', avatarUrl: null },
-        reactions: [],
-      }),
-    ),
+    saveMessage: jest
+      .fn()
+      .mockImplementation((senderId: string, conversationId: string, input: any) =>
+        Promise.resolve({
+          id: 'dm-msg-1',
+          conversationId,
+          senderId,
+          content: input.content,
+          messageType: input.messageType,
+          attachmentUrl: null,
+          attachmentMeta: null,
+          replyToId: input.replyToId ?? null,
+          replyTo: null,
+          sourceLanguage: null,
+          translation: null,
+          deletedAt: null,
+          createdAt: '2026-09-23T10:00:00.000Z',
+          sender: { id: senderId, name: 'Lukas Hoffmann', avatarUrl: null },
+          reactions: [],
+        }),
+      ),
     getConversationClubId: jest.fn().mockResolvedValue('club-1'),
     listParticipantIds: jest.fn().mockResolvedValue(overrides.dmParticipants ?? []),
     getOtherParticipant: jest.fn().mockResolvedValue({ id: 'peer', name: 'Tim Weber' }),
@@ -280,6 +289,78 @@ describe('ChatGateway send fan-out', () => {
 })
 
 describe('ChatGateway DM fan-out', () => {
+  it('acknowledges history and send over the real Nest Socket.IO adapter', async () => {
+    const { gateway, client, dm } = makeGateway({ dmParticipants: ['sender', 'peer'] })
+    ;(gateway as any).isChatRateLimited = jest.fn().mockResolvedValue(false)
+    ;(dm as any).getMessages = jest.fn().mockResolvedValue({ messages: [], hasMore: false })
+    const adapter = new IoAdapter()
+    const server = adapter.createIOServer(0)
+    const mappings = new GatewayMetadataExplorer(new MetadataScanner()).explore(gateway)
+      .filter((handler) => ['history', 'message', 'dm:history', 'dm:message'].includes(handler.message))
+    expect(mappings).toHaveLength(4)
+    expect(mappings.every((handler) => handler.isAckHandledManually)).toBe(true)
+    server.on('connection', (socket: any) => {
+      socket.data = client.data
+      adapter.bindMessageHandlers(
+        socket,
+        mappings.map((handler) => ({ ...handler, callback: (data: any, ack: any) => handler.callback.call(gateway, socket, data, ack) })),
+        (result: any) => from(Promise.resolve(result)),
+      )
+    })
+    const socket = io(`http://127.0.0.1:${server.httpServer.address().port}`, {
+      transports: ['websocket'],
+      reconnection: false,
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once('connect', resolve)
+        socket.once('connect_error', reject)
+      })
+      const history = await socket
+        .timeout(2000)
+        .emitWithAck('dm:history', { conversationId: 'conv-1' })
+      expect(history).toMatchObject({ event: 'dm:history', data: { messages: [], hasMore: false } })
+      const sent = await socket
+        .timeout(2000)
+        .emitWithAck('dm:message', {
+          conversationId: 'conv-1',
+          content: 'Hallo',
+          clientMessageId: 'client-1',
+        })
+      expect(sent).toMatchObject({ ok: true, id: 'dm-msg-1', clientMessageId: 'client-1' })
+      const denied = await socket
+        .timeout(2000)
+        .emitWithAck('dm:message', { conversationId: 'conv-1', content: '' })
+      expect(denied).toMatchObject({ event: 'error', data: { message: 'Invalid message' } })
+      ;(dm as any).getMessages.mockRejectedValueOnce(new Error('sensitive database details'))
+      const failedHistory = await socket
+        .timeout(2000)
+        .emitWithAck('dm:history', { conversationId: 'conv-1' })
+      expect(failedHistory).toMatchObject({
+        ok: false,
+        data: { message: 'Message history is temporarily unavailable' },
+      })
+      expect(JSON.stringify(failedHistory)).not.toContain('sensitive')
+      ;(gateway as any).fanOutDirectMessage = jest
+        .fn()
+        .mockRejectedValue(new Error('provider down'))
+      const saved = await socket
+        .timeout(2000)
+        .emitWithAck('dm:message', {
+          conversationId: 'conv-1',
+          content: 'Saved despite notification failure',
+        })
+      expect(saved).toMatchObject({ ok: true, id: 'dm-msg-1' })
+      const channelHistory = await socket.timeout(2000).emitWithAck('history', { teamId: 'team-1', channelId: 'ch-1' })
+      expect(channelHistory).toMatchObject({ event: 'history', data: { messages: [] } })
+      const channelSent = await socket.timeout(2000).emitWithAck('message', { teamId: 'team-1', channelId: 'ch-1', content: 'Channel ack' })
+      expect(channelSent).toMatchObject({ ok: true, id: 'msg-1' })
+    } finally {
+      socket.disconnect()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+
   it('updates both inboxes and skips the push when the peer muted the chat', async () => {
     const { gateway, client, emitted, push, dm } = makeGateway({
       dmParticipants: ['sender', 'peer'],
@@ -303,7 +384,13 @@ describe('ChatGateway DM fan-out', () => {
       'peer',
       'Lukas Hoffmann',
       'Hallo',
-      { type: 'dm', kind: 'DM_MESSAGE', conversationId: 'conv-1', messageId: 'dm-msg-1', clubId: 'club-1' },
+      {
+        type: 'dm',
+        kind: 'DM_MESSAGE',
+        conversationId: 'conv-1',
+        messageId: 'dm-msg-1',
+        clubId: 'club-1',
+      },
       { clubId: 'club-1', category: 'chat' },
     )
   })
@@ -420,7 +507,11 @@ describe('Chat review fixes on the socket', () => {
     ;(gateway as any).isChatRateLimited = jest.fn().mockResolvedValue(false)
     dm.saveMessage.mockRejectedValueOnce(new Error('Invalid reply target'))
     await expect(
-      gateway.handleDmMessage(client, { conversationId: 'conv-1', content: 'Ja', replyToId: 'dm-other' }),
+      gateway.handleDmMessage(client, {
+        conversationId: 'conv-1',
+        content: 'Ja',
+        replyToId: 'dm-other',
+      }),
     ).resolves.toEqual({ event: 'error', data: { message: 'Invalid reply target' } })
     expect(dm.saveMessage).toHaveBeenCalledWith('sender', 'conv-1', {
       messageType: 'TEXT',
@@ -435,7 +526,9 @@ describe('Chat review fixes on the socket', () => {
       findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1', teamId: 'team-1' }),
     }
     const ageGate = {
-      filterAllowedUserIds: jest.fn(async (ids: string[]) => ids.filter((id) => id !== 'kid-no-consent')),
+      filterAllowedUserIds: jest.fn(async (ids: string[]) =>
+        ids.filter((id) => id !== 'kid-no-consent'),
+      ),
     }
     ;(gateway as any).ageGate = ageGate
     await gateway.flushInboxUpdate('ch-1')
@@ -443,7 +536,9 @@ describe('Chat review fixes on the socket', () => {
       clubId: 'club-1',
       teamId: 'team-1',
     })
-    expect(emitted.filter((e) => e.event === 'inbox:update').map((e) => e.room)).toEqual(['user:adult'])
+    expect(emitted.filter((e) => e.event === 'inbox:update').map((e) => e.room)).toEqual([
+      'user:adult',
+    ])
   })
 
   it('H5: dm events are gated for the conversation club', async () => {

@@ -563,9 +563,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       'history',
       { teamId, channelId, cursor },
       (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
-        if (response?.data) {
+        if (Array.isArray(response?.data?.messages)) {
           setMessages((prev) => [...response.data.messages, ...prev])
           setHasMore(response.data.hasMore)
+        } else {
+          setLastError('history_error')
         }
         setLoadingHistory(false)
       },

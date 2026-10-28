@@ -84,6 +84,24 @@ function createSocket(): MockSocket {
 describe('useDmChat', () => {
   let socket: MockSocket
 
+  it('preserves loaded messages and pagination after error acknowledgements', async () => {
+    const { result } = renderHook(() => useDmChat({ token: 'token', userId: 'user-1', conversationId: 'error-history-conversation', apiUrl: 'https://api.example.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    await waitFor(() => expect(result.current.messages).toHaveLength(1))
+    const before = result.current.messages
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'dm:history') ack?.({ event: 'error', data: { message: 'Unavailable' } })
+      return socket
+    })
+    act(() => { socket.trigger('connect') })
+    expect(result.current.messages).toEqual(before)
+    expect(result.current.hasMore).toBe(true)
+    act(() => { result.current.loadMore() })
+    expect(result.current.messages).toEqual(before)
+    expect(result.current.hasMore).toBe(true)
+    expect(result.current.loadingHistory).toBe(false)
+  })
+
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()

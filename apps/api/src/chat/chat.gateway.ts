@@ -1,4 +1,5 @@
 import {
+  Ack,
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
@@ -75,16 +76,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
    * already reading the channel, using the same `message` event and payload
    * shape a user-sent message uses so the client renders it identically.
    */
-  emitServerMessage(
-    teamId: string,
-    channelId: string | null,
-    payload: Record<string, unknown>,
-  ) {
+  emitServerMessage(teamId: string, channelId: string | null, payload: Record<string, unknown>) {
     // L3: the legacy team-wide stream is gone; a notice without a channel
     // has no audience room.
     if (!channelId) return
     this.server.to(`channel:${channelId}`).emit('message', payload)
-    void this.emitInboxUpdateForChannel(channelId)
+    void this.emitInboxUpdateForChannel(channelId).catch(() =>
+      this.logger.warn('Saved channel-message inbox update failed'),
+    )
   }
 
   broadcastChatEvent(
@@ -149,7 +148,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const readers = await this.channelsService.listReadersForChannel(channelId)
       const scope = await this.channelScope(channelId)
-      this.emitInboxUpdate(await this.allowedIds(readers, scope), { type: 'CHANNEL', id: channelId })
+      this.emitInboxUpdate(await this.allowedIds(readers, scope), {
+        type: 'CHANNEL',
+        id: channelId,
+      })
     } catch (err) {
       this.logger.warn(`inbox:update fan-out failed for ${channelId}: ${String(err)}`)
     }
@@ -312,9 +314,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const now = Date.now()
     const current = this.localRateLimits.get(key)
-    const next = !current || current.resetAt <= now
-      ? { count: 1, resetAt: now + ttlMs }
-      : { count: current.count + 1, resetAt: current.resetAt }
+    const next =
+      !current || current.resetAt <= now
+        ? { count: 1, resetAt: now + ttlMs }
+        : { count: current.count + 1, resetAt: current.resetAt }
     this.localRateLimits.set(key, next)
     // Keep the emergency map bounded during prolonged Redis outages.
     if (this.localRateLimits.size > 10_000) {
@@ -464,7 +467,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const teamAccess = await this.teamsService.assertReadableAccess(userId, data.teamId)
     // H5: consent is per club/team.
-    if (!(await this.ensureAgeGate(client, { clubId: teamAccess.team.clubId, teamId: data.teamId }))) {
+    if (
+      !(await this.ensureAgeGate(client, { clubId: teamAccess.team.clubId, teamId: data.teamId }))
+    ) {
       return this.ageGateError()
     }
     const room = `team:${data.teamId}`
@@ -576,6 +581,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       channelId?: string | null
       replyToId?: string | null
     },
+    @Ack() acknowledge?: (response: unknown) => void,
+  ) {
+    let response
+    try {
+      response = await this.processMessage(client, data)
+    } catch {
+      response = { ok: false, event: 'error', data: { message: 'Message could not be sent' } }
+    }
+    acknowledge?.(response)
+    return response
+  }
+
+  private async processMessage(
+    client: Socket,
+    data: {
+      teamId?: string
+      clubId?: string
+      content: string
+      clientMessageId?: string | null
+      isAnnouncement?: boolean
+      channelId?: string | null
+      replyToId?: string | null
+    },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
@@ -665,106 +693,108 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       },
     })
 
-    // Sockets only join `channel:{id}` after the channel authorized them.
-    const room = `channel:${channelId}`
+    // Saved-message acknowledgment must not wait on delivery side effects.
+    void (async () => {
+      // Sockets only join `channel:{id}` after the channel authorized them.
+      const room = `channel:${channelId}`
 
-    // Detect source language eagerly; after detection broadcast the result so
-    // clients can show translated content without waiting for history reload.
-    void this.translation
-      .detectAndPersistSource('channel', message.id, content)
-      .then((sourceLanguage) => {
-        if (sourceLanguage) {
-          this.server.to(room).emit('message:source', {
-            messageId: message.id,
-            sourceLanguage,
-          })
+      // Detect source language eagerly; after detection broadcast the result so
+      // clients can show translated content without waiting for history reload.
+      void this.translation
+        .detectAndPersistSource('channel', message.id, content)
+        .then((sourceLanguage) => {
+          if (sourceLanguage) {
+            this.server.to(room).emit('message:source', {
+              messageId: message.id,
+              sourceLanguage,
+            })
+          }
+        })
+        .catch(() => undefined)
+
+      this.server.to(room).emit('message', {
+        id: message.id,
+        teamId: message.teamId,
+        clubId,
+        channelId: message.channelId,
+        clientMessageId: data.clientMessageId ?? null,
+        senderId: userId,
+        senderName: client.data.userName,
+        content: message.content,
+        messageType: 'TEXT',
+        sourceLanguage: null,
+        translation: null,
+        isAnnouncement: message.isAnnouncement,
+        replyToId: message.replyToId,
+        createdAt: message.createdAt,
+      })
+
+      const senderName = (client.data.userName as string) || ''
+      const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
+
+      // Every reader's inbox row changed (muted readers too — only the buzz is
+      // suppressed for them).
+      void this.emitInboxUpdateForChannel(channelId)
+
+      // Resolve @firstname mentions to readers of this channel.
+      const mentionedNames = parseMentions(content)
+      const mentioned = new Set<string>()
+      if (mentionedNames.length > 0) {
+        const readerIds = await this.channelsService.listReadersForChannel(channelId)
+        const readers = await this.prisma.user.findMany({
+          where: { id: { in: readerIds } },
+          select: { id: true, name: true },
+        })
+        for (const u of readers as Array<{ id: string; name: string }>) {
+          if (u.id === userId) continue
+          const first = u.name?.split(/\s+/)[0]?.toLowerCase()
+          if (first && mentionedNames.includes(first)) mentioned.add(u.id)
         }
-      })
-      .catch(() => undefined)
-
-    this.server.to(room).emit('message', {
-      id: message.id,
-      teamId: message.teamId,
-      clubId,
-      channelId: message.channelId,
-      clientMessageId: data.clientMessageId ?? null,
-      senderId: userId,
-      senderName: client.data.userName,
-      content: message.content,
-      messageType: 'TEXT',
-      sourceLanguage: null,
-      translation: null,
-      isAnnouncement: message.isAnnouncement,
-      replyToId: message.replyToId,
-      createdAt: message.createdAt,
-    })
-
-    const senderName = (client.data.userName as string) || ''
-    const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
-
-    // Every reader's inbox row changed (muted readers too — only the buzz is
-    // suppressed for them).
-    void this.emitInboxUpdateForChannel(channelId)
-
-    // Resolve @firstname mentions to readers of this channel.
-    const mentionedNames = parseMentions(content)
-    const mentioned = new Set<string>()
-    if (mentionedNames.length > 0) {
-      const readerIds = await this.channelsService.listReadersForChannel(channelId)
-      const readers = await this.prisma.user.findMany({
-        where: { id: { in: readerIds } },
-        select: { id: true, name: true },
-      })
-      for (const u of readers as Array<{ id: string; name: string }>) {
-        if (u.id === userId) continue
-        const first = u.name?.split(/\s+/)[0]?.toLowerCase()
-        if (first && mentionedNames.includes(first)) mentioned.add(u.id)
       }
-    }
 
-    // WhatsApp-style fan-out to every reader except the sender and anyone who
-    // muted the channel, picking the most specific reason (reply > mention >
-    // message) so nobody gets two buzzes for one message. L2: titles are
-    // localized per recipient; M3: data carries clubId so a tap from another
-    // club switches the active club first.
-    this.channelsService
-      .listReadersForChannel(channelId, { excludeMuted: true })
-      .then((readerIds) =>
-        Promise.all(
-          readerIds
-            .filter((rid) => rid !== userId)
-            .map((rid) => {
-              if (message.isAnnouncement) {
-                return this.pushService.sendToUserLocalized(
-                  rid,
-                  'ANNOUNCEMENT',
-                  { senderName, messagePreview: preview },
-                  { kind: 'announcement', clubId, teamId, channelId, messageId: message.id },
-                  { clubId, category: 'announcements' },
-                )
-              }
-              const isReply = rid === replyParentId
-              const isMention = mentioned.has(rid)
-              const kind = isReply ? 'MESSAGE_REPLY' : isMention ? 'MENTION' : 'CHAT_MESSAGE'
-              const pushData = { kind, clubId, messageId: message.id, teamId, channelId }
-              if (isReply || isMention) {
-                return this.pushService.sendToUserLocalized(
-                  rid,
-                  isReply ? 'CHAT_REPLY' : 'CHAT_MENTION',
-                  { senderName, messagePreview: preview },
-                  pushData,
-                  { clubId, category: 'chat' },
-                )
-              }
-              return this.pushService.sendToUser(rid, senderName, preview, pushData, {
-                clubId,
-                category: 'chat',
-              })
-            }),
-        ),
-      )
-      .catch(() => undefined)
-
+      // WhatsApp-style fan-out to every reader except the sender and anyone who
+      // muted the channel, picking the most specific reason (reply > mention >
+      // message) so nobody gets two buzzes for one message. L2: titles are
+      // localized per recipient; M3: data carries clubId so a tap from another
+      // club switches the active club first.
+      this.channelsService
+        .listReadersForChannel(channelId, { excludeMuted: true })
+        .then((readerIds) =>
+          Promise.all(
+            readerIds
+              .filter((rid) => rid !== userId)
+              .map((rid) => {
+                if (message.isAnnouncement) {
+                  return this.pushService.sendToUserLocalized(
+                    rid,
+                    'ANNOUNCEMENT',
+                    { senderName, messagePreview: preview },
+                    { kind: 'announcement', clubId, teamId, channelId, messageId: message.id },
+                    { clubId, category: 'announcements' },
+                  )
+                }
+                const isReply = rid === replyParentId
+                const isMention = mentioned.has(rid)
+                const kind = isReply ? 'MESSAGE_REPLY' : isMention ? 'MENTION' : 'CHAT_MESSAGE'
+                const pushData = { kind, clubId, messageId: message.id, teamId, channelId }
+                if (isReply || isMention) {
+                  return this.pushService.sendToUserLocalized(
+                    rid,
+                    isReply ? 'CHAT_REPLY' : 'CHAT_MENTION',
+                    { senderName, messagePreview: preview },
+                    pushData,
+                    { clubId, category: 'chat' },
+                  )
+                }
+                return this.pushService.sendToUser(rid, senderName, preview, pushData, {
+                  clubId,
+                  category: 'chat',
+                })
+              }),
+          ),
+        )
+        .catch(() => undefined)
+    })().catch(() => this.logger.warn('Saved channel-message fan-out failed'))
     return {
       ok: true,
       id: message.id,
@@ -896,6 +926,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async handleHistory(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { teamId?: string; cursor?: string; channelId?: string | null },
+    @Ack() acknowledge?: (response: unknown) => void,
+  ) {
+    let response
+    try {
+      response = await this.processHistory(client, data)
+    } catch {
+      response = {
+        ok: false,
+        event: 'error',
+        data: { message: 'Message history is temporarily unavailable' },
+      }
+    }
+    acknowledge?.(response)
+    return response
+  }
+
+  private async processHistory(
+    client: Socket,
+    data: { teamId?: string; cursor?: string; channelId?: string | null },
   ) {
     const userId = client.data.userId as string | undefined
     if (!userId) {
@@ -1081,6 +1130,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       clientMessageId?: string | null
       replyToId?: string | null
     },
+    @Ack() acknowledge?: (response: unknown) => void,
+  ) {
+    let response
+    try {
+      response = await this.processDmMessage(client, data)
+    } catch {
+      response = { ok: false, event: 'error', data: { message: 'Message could not be sent' } }
+    }
+    // Nest emits responses containing `event` instead of invoking Socket.IO's
+    // callback. Explicitly acknowledge while retaining legacy event listeners.
+    acknowledge?.(response)
+    return response
+  }
+
+  private async processDmMessage(
+    client: Socket,
+    data: {
+      conversationId: string
+      content: string
+      clientMessageId?: string | null
+      replyToId?: string | null
+    },
   ) {
     const userId = client.data.userId as string
     if (!userId) return
@@ -1105,17 +1176,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       item = await this.dmService.saveMessage(userId, data.conversationId, {
         messageType: 'TEXT',
         content,
-        ...(typeof data.replyToId === 'string' && data.replyToId ? { replyToId: data.replyToId } : {}),
+        ...(typeof data.replyToId === 'string' && data.replyToId
+          ? { replyToId: data.replyToId }
+          : {}),
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Forbidden for this conversation'
       return { event: 'error', data: { message } }
     }
 
-    await this.fanOutDirectMessage({
+    // Persistence succeeded. Notification/room failures must not turn that
+    // saved message into a failed send, or encourage a duplicate retry.
+    void this.fanOutDirectMessage({
       message: item,
       clientMessageId: data.clientMessageId ?? null,
-    })
+    }).catch(() => this.logger.warn('Saved direct-message fan-out failed'))
 
     // Ack shape matches the mobile useDmChat hook expectation: { ok: true, id }.
     return {
@@ -1139,10 +1214,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
   /** Reaction / delete on a DM: patch both participants' open threads. */
   @OnEvent('dm.message.updated')
-  onDirectMessageUpdated(payload: {
-    kind: 'reaction' | 'deleted'
-    message: DirectMessageItem
-  }) {
+  onDirectMessageUpdated(payload: { kind: 'reaction' | 'deleted'; message: DirectMessageItem }) {
     if (!this.server) return
     this.server
       .to(`dm:${payload.message.conversationId}`)
@@ -1177,7 +1249,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     try {
       const participantIds = await this.dmService.listParticipantIds(conversationId)
-      const dmClubId = await this.dmService.getConversationClubId?.(conversationId).catch(() => null)
+      const dmClubId = await this.dmService
+        .getConversationClubId?.(conversationId)
+        .catch(() => null)
       this.emitInboxUpdate(
         await this.allowedIds(participantIds, dmClubId ? { clubId: dmClubId } : {}),
         { type: 'DM', id: conversationId },
@@ -1380,6 +1454,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async handleDmHistory(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { conversationId: string; cursor?: string },
+    @Ack() acknowledge?: (response: unknown) => void,
+  ) {
+    let response
+    try {
+      response = await this.processDmHistory(client, data)
+    } catch {
+      response = {
+        ok: false,
+        event: 'error',
+        data: { message: 'Message history is temporarily unavailable' },
+      }
+    }
+    acknowledge?.(response)
+    return response
+  }
+
+  private async processDmHistory(
+    client: Socket,
+    data: { conversationId: string; cursor?: string },
   ) {
     const userId = client.data.userId as string | undefined
     if (!userId) {
