@@ -9,11 +9,14 @@ describe('isHttpOriginAllowed', () => {
     expect(isHttpOriginAllowed('https://anstoss.io', 'production')).toBe(true)
     expect(isHttpOriginAllowed('https://app.anstoss.io', 'production')).toBe(true)
     expect(isHttpOriginAllowed('https://admin.anstoss.io', 'production')).toBe(true)
+    expect(isHttpOriginAllowed('https://api.anstoss.io', 'production')).toBe(true)
     expect(isHttpOriginAllowed('https://preview.anstoss.app', 'production')).toBe(true)
   })
 
   it('rejects lookalike and untrusted browser origins in production', () => {
     expect(isHttpOriginAllowed('https://admin.anstoss.io.evil.example', 'production')).toBe(false)
+    expect(isHttpOriginAllowed('https://api.anstoss.io.evil.example', 'production')).toBe(false)
+    expect(isHttpOriginAllowed('http://api.anstoss.io', 'production')).toBe(false)
     expect(isHttpOriginAllowed('https://evil-anstoss.app', 'production')).toBe(false)
     expect(isHttpOriginAllowed('https://evil.example', 'production')).toBe(false)
     expect(isHttpOriginAllowed('http://admin.anstoss.io', 'production')).toBe(false)

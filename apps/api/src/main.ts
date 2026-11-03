@@ -6,6 +6,7 @@ import { initSentry } from './logging/sentry'
 import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
 import { isHttpOriginAllowed } from './http-cors'
 import { defaultHttpBodyParsers, httpBodyParsers } from './http-body-parsers'
+import { mediaCutoverFreeze } from './media/media-cutover-freeze'
 
 // Sentry must init before NestJS bootstrap
 initSentry()
@@ -33,6 +34,8 @@ async function bootstrap() {
   // than the immediate hop. The rate-limit guard keys anonymous requests on
   // `req.ip`; without this, every request looks like it comes from the proxy.
   express.set('trust proxy', 1)
+
+  app.use(mediaCutoverFreeze)
 
   // Only the bank-statement import accepts a large JSON envelope. Mount this
   // parser first so uploads up to the service's strict 10 MB decoded-file
