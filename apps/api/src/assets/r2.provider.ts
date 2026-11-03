@@ -65,7 +65,16 @@ export class R2Provider {
     return /^(chat|dm)\/[^/]+\/[^/]+\/(voice|image|video|file)\/private-v1-[^/]+$/.test(key)
   }
 
+  private assertLegacyKey(key: string): void {
+    // V2 has its own durable multipart lifecycle. Never mint a final PUT or
+    // bypass its message/evidence holds through this legacy storage adapter.
+    if (key === 'private-chat' || key.startsWith('private-chat/')) {
+      throw new Error('Private upload requires the lifecycle storage adapter')
+    }
+  }
+
   private objectStorage(key: string): { client: S3Client; bucket: string } {
+    this.assertLegacyKey(key)
     if (this.isPrivateChatKey(key)) {
       if (!this.quarantineClient || !this.quarantineBucket || this.quarantineBucket === this.bucket) {
         throw new Error('Private chat storage is not configured')
@@ -81,6 +90,7 @@ export class R2Provider {
     contentType: string,
     contentLength?: number,
     expiresIn = 600,
+    signingDate?: Date,
   ): Promise<{ uploadUrl: string; publicUrl: string | null }> {
     if (!this.client) {
       throw new Error('R2 not configured')
@@ -96,7 +106,10 @@ export class R2Provider {
       ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
     })
 
-    const uploadUrl = await getSignedUrl(storage.client, command, { expiresIn: privateChat ? Math.min(expiresIn, 300) : expiresIn })
+    const uploadUrl = await getSignedUrl(storage.client, command, {
+      expiresIn: privateChat ? Math.min(expiresIn, 300) : expiresIn,
+      ...(signingDate ? { signingDate } : {}),
+    })
     // Compatibility field name: this is a non-resolving reference, not a public URL.
     const publicUrl = privateChat ? `https://private-media.anstoss.invalid/${objectKey}` : this.publicBaseUrl
       ? `${this.publicBaseUrl}/${objectKey}`
@@ -127,6 +140,8 @@ export class R2Provider {
 
   async deleteObjects(objectKeys: string[]): Promise<void> {
     if (objectKeys.length === 0) return
+    // Validate the whole batch before any concurrent deletion starts.
+    for (const key of objectKeys) this.assertLegacyKey(key)
     if (!this.client) throw new Error('R2 not configured')
 
     await Promise.all(
@@ -252,12 +267,14 @@ export class R2Provider {
 
   /** Short-lived signed GET for an object in a given bucket (quarantine). */
   async presignGetIn(bucket: string, objectKey: string, expiresIn = 300): Promise<string> {
+    this.assertLegacyKey(objectKey)
     return getSignedUrl(this.clientForBucket(bucket), new GetObjectCommand({ Bucket: bucket, Key: objectKey }), {
       expiresIn,
     })
   }
 
   async deleteObjectIn(bucket: string, objectKey: string): Promise<void> {
+    this.assertLegacyKey(objectKey)
     await this.withStorageDeadline((abortSignal) =>
       this.clientForBucket(bucket).send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }), { abortSignal }),
     )
@@ -288,7 +305,8 @@ export class R2Provider {
       const basePath = base.pathname.replace(/\/$/, '')
       if (!candidate.pathname.startsWith(`${basePath}/`)) return null
       const key = decodeURIComponent(candidate.pathname.slice(basePath.length + 1))
-      if (!key || key.includes('..') || candidate.search || candidate.hash || this.isPrivateChatKey(key)) return null
+      if (!key || key.includes('..') || candidate.search || candidate.hash || this.isPrivateChatKey(key)
+        || key === 'private-chat' || key.startsWith('private-chat/')) return null
       if (candidate.username || candidate.password || candidate.pathname !== new URL(`${base.origin}${basePath}/${key}`).pathname) return null
       return key
     } catch {

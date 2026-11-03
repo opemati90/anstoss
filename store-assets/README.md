@@ -1,6 +1,12 @@
 # Anstoss store media
 
-Ready-to-upload English store artwork built from the real seeded Anstoss UI.
+**Do not upload the current bundles.** An independent release audit found that
+five source captures show retired screens, and the squad capture shows an
+injury feature disabled for the adult-only launch. The current Play feature
+graphic also contains outdated app screens. Recapture the current app in the
+simulator and review every output against the release build before publishing.
+
+English store artwork originally built from the seeded Anstoss UI.
 The visual system uses restrained European football-editorial art direction:
 bottle green, warm ivory, tactile photography, and clear product-led typography.
 
@@ -9,7 +15,8 @@ bottle green, warm ivory, tactile photography, and clear product-led typography.
 - `app-store-upload.zip` — six App Store screenshots plus the 1024 px icon
 - `play-store-upload.zip` — six Play screenshots, the feature graphic, and the 512 px icon
 
-The ZIP entries are byte-verified against the rendered files after generation.
+The readiness check compares each ZIP's entry names and bytes with the reviewed
+rendered files; it does not establish that the artwork itself is accurate.
 
 ## App Store
 

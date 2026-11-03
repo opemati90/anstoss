@@ -12,6 +12,7 @@ import { AGE_GATE, ParentalConsentStatus } from '@anstoss/shared'
 import { JoinRequestsService } from '../clubs/join-requests.service'
 import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
 import { ClubActivationService } from '../club-activation/club-activation.service'
+import { assertLaunchBirthDate, assertLaunchParticipant } from '../auth/launch-access-policy'
 
 export type PendingClaim = {
   slotId: string
@@ -108,6 +109,7 @@ export class OnboardingService {
     rawPhone: string | null | undefined,
     slotId: string,
   ): Promise<{ clubId: string; teamId: string; consentRequired?: boolean }> {
+    await assertLaunchParticipant(this.prisma, userId)
     this.assertLegacyPhoneClaimIsTestOnly()
     const phone = this.resolvePhone(rawPhone)
     if (!phone) throw new ConflictException('Could not verify phone number')
@@ -117,6 +119,7 @@ export class OnboardingService {
         include: { team: { select: { id: true, clubId: true } } },
       })
       if (!slot) throw new NotFoundException('Slot not found')
+      if (slot.dateOfBirth) assertLaunchBirthDate(slot.dateOfBirth)
       if (slot.phone !== phone) throw new ConflictException('Phone does not match this slot')
       if (slot.claimedByUserId) throw new ConflictException('Slot already claimed')
 
@@ -213,6 +216,7 @@ export class OnboardingService {
       teamRole?: 'HEAD_COACH' | 'ASSISTANT_COACH'
     },
   ): Promise<{ clubId: string; teamId: string; status: 'ACTIVE' | 'PENDING' }> {
+    await assertLaunchParticipant(this.prisma, userId)
     const code = input.joinCode.trim().toUpperCase()
     if (code.length !== JOIN_CODE_LENGTH) {
       throw new NotFoundException('Team not found for this code')

@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { AdultLaunchScreen } from '../../src/onboarding/AdultLaunchScreen'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
@@ -12,7 +14,6 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
-import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Button } from '../../src/components/ui'
 // onboarding revamp: verification banner, "Kind hinzufügen" to-do, welcome notice.
@@ -47,7 +48,7 @@ function HomeCrashFallback({ onRetry }: { onRetry: () => void }) {
 }
 
 function RoleAwareHome() {
-  const { user, activeClub, activeTeamId, activeTeamAccess, activeRoleMode, pendingClubClaim } =
+  const { user, signOut, activeClub, activeTeamId, activeTeamAccess, activeRoleMode, pendingClubClaim } =
     useAuth()
   const c = useClubColors()
   const { t } = useTranslation()
@@ -107,7 +108,8 @@ function RoleAwareHome() {
         />
       )
     if (role === 'PARENT')
-      return <ParentHome key={sectionKey} onRefreshStateChange={handleRefreshState} />
+      return LAUNCH_FEATURES.youthParticipation ? <ParentHome key={sectionKey} onRefreshStateChange={handleRefreshState} />
+        : <AdultLaunchScreen onDone={() => { void signOut().then(() => router.replace('/(auth)/welcome')).catch(() => undefined) }} />
     if (role === 'FREE_AGENT') return <FreeAgentHome />
     return null
   }, [role, clubId, activeTeamId, handleRefreshState, sectionKey])
@@ -135,7 +137,6 @@ function RoleAwareHome() {
       {roleSection ? (
         <View style={styles.body}>
           {roleSection}
-          {clubId ? <SponsorStrip clubId={clubId} /> : null}
         </View>
       ) : pendingClubClaim && !activeClub ? null /* onboarding revamp: the verification banner says it all */ : (
         <View style={styles.fallback}>

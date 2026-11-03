@@ -251,7 +251,7 @@ export class PushService {
     body: string,
     data?: Record<string, string>,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
-  ) {
+  ): Promise<'accepted' | 'skipped' | 'rejected' | 'unknown'> {
     // Privacy: skip users who fail the age gate for this club (or, with no
     // club context, who have no consented club at all).
     if (this.ageGate) {
@@ -261,7 +261,7 @@ export class PushService {
       })
       if (!allowed) {
         this.logger.debug(`Skipping push to ${userId} — age gate`)
-        return
+        return 'skipped'
       }
     }
     // Skip if user is in quiet hours
@@ -269,7 +269,7 @@ export class PushService {
       const inQuiet = await this.notificationsService.isInQuietHours(userId, options.clubId)
       if (inQuiet) {
         this.logger.debug(`Skipping push to ${userId} — in quiet hours`)
-        return
+        return 'skipped'
       }
       // Skip if the user muted this category for the club. Per-user sends had
       // no mute check before — only the team fan-out did.
@@ -281,7 +281,7 @@ export class PushService {
         )
         if (muted) {
           this.logger.debug(`Skipping push to ${userId} — muted ${options.category}`)
-          return
+          return 'skipped'
         }
       }
     }
@@ -290,14 +290,15 @@ export class PushService {
       select: { token: true },
     })
 
-    if (tokens.length === 0) return
+    if (tokens.length === 0) return 'skipped'
 
-    await this.sendPush(
+    const result = await this.sendPush(
       tokens.map((t: { token: string }) => t.token),
       title,
       body,
       data,
     )
+    return result.accepted > 0 ? 'accepted' : result.unknown ? 'unknown' : 'rejected'
   }
 
   /**
@@ -427,36 +428,54 @@ export class PushService {
     // receipts by ticket id; we keep the originating token so a deferred
     // DeviceNotRegistered receipt can prune the right row.
     const ticketTokens = new Map<string, string>()
+    let unknown = false
 
     // Batch into groups of PUSH.BATCH_SIZE
     for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
       const batch = messages.slice(i, i + PUSH.BATCH_SIZE)
-
+      const controller = new AbortController()
+      let deadline: NodeJS.Timeout | undefined
       try {
-        const response = await fetch(this.EXPO_PUSH_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify(batch),
-        })
+        // Bound both connection and body parsing. A lost response is unknown,
+        // not proof Expo rejected a notification it may already have queued.
+        const response = await Promise.race([
+          (async () => {
+            const received = await fetch(this.EXPO_PUSH_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify(batch), signal: controller.signal,
+            })
+            return { ok: received.ok, status: received.status,
+              payload: received.ok ? await received.json() as { data?: ExpoPushTicket[] } : null }
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => {
+              controller.abort()
+              reject(new Error('Push acceptance deadline exceeded'))
+            }, 10_000)
+          }),
+        ])
 
         if (!response.ok) {
           this.logger.error(`Expo Push API error: ${response.status}`)
+          if (response.status >= 500) unknown = true
           continue
         }
 
-        const result = (await response.json()) as { data: ExpoPushTicket[] }
+        const tickets = response.payload?.data
+        if (!Array.isArray(tickets) || tickets.length !== batch.length) {
+          unknown = true
+          continue
+        }
 
         // Clean up invalid tokens
         const invalidTokens: string[] = []
-        result.data.forEach((ticket, index) => {
-          if (ticket.status === 'ok') {
+        tickets.forEach((ticket, index) => {
+          if (ticket?.status === 'ok' && typeof ticket.id === 'string' && ticket.id) {
             ticketTokens.set(ticket.id, batch[index].to)
-          } else if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+          } else if (ticket?.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
             invalidTokens.push(batch[index].to)
-          }
+          } else if (ticket?.status !== 'error') unknown = true
         })
 
         if (invalidTokens.length > 0) {
@@ -465,8 +484,11 @@ export class PushService {
           })
           this.logger.log(`Cleaned up ${invalidTokens.length} invalid push tokens`)
         }
-      } catch (err) {
-        this.logger.error('Failed to send push notifications', err)
+      } catch {
+        unknown = true
+        this.logger.error('Push notification acceptance is unconfirmed')
+      } finally {
+        if (deadline) clearTimeout(deadline)
       }
     }
 
@@ -474,6 +496,9 @@ export class PushService {
     // receipt. Schedule a deferred receipt check to catch them and prune dead
     // tokens. Fire-and-forget — never block or fail the send.
     this.scheduleReceiptCheck(ticketTokens)
+    // Acceptance is not device delivery. Callers can distinguish a queued
+    // notification from quiet hours, no token, or an Expo rejection.
+    return { accepted: ticketTokens.size, unknown }
   }
 
   /**

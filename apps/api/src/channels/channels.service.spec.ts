@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { ChannelsService, isMuteActive } from './channels.service'
 
@@ -8,12 +10,19 @@ function makeService(
     callerMember?: { id: string } | null
     roster?: Array<{ userId: string; role: string }>
     memberships?: Array<{ userId: string; role: string }>
-    access?: { membership?: { role: string } | null; activeTeamAccess: Array<{ role: string }> }
+    access?: {
+      membership?: { role: string } | null
+      activeTeamAccess: Array<{ role: string; phase?: string }>
+    }
   } = {},
 ) {
-  const access = overrides.access ?? {
+  const accessInput = overrides.access ?? {
     membership: { role: 'COACH' },
     activeTeamAccess: [],
+  }
+  const access = {
+    ...accessInput,
+    activeTeamAccess: accessInput.activeTeamAccess.map((row) => ({ phase: 'FULL', ...row })),
   }
   const rosterAccess = overrides.roster ?? [
     { userId: 'u-1', role: 'PLAYER' },
@@ -43,6 +52,7 @@ function makeService(
           rosterAccess.map((r) => ({
             userId: r.userId,
             role: r.role,
+            phase: 'FULL',
             user: { name: r.userId, email: `${r.userId}@x.de`, avatarUrl: null },
           })),
         )
@@ -95,6 +105,7 @@ describe('ChannelsService.listMembers', () => {
       channel: CUSTOM,
       callerMember: { id: 'cm-0' },
       channelMembers: [{ userId: 'u-2' }],
+      access: { membership: { role: 'COACH' }, activeTeamAccess: [{ role: 'HEAD_COACH' }] },
       roster: [
         { userId: 'u-1', role: 'PLAYER' },
         { userId: 'u-2', role: 'HEAD_COACH' },
@@ -184,7 +195,7 @@ describe('ChannelsService CUSTOM access control', () => {
         status: 'ACTIVE',
         OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
       },
-      select: { userId: true, role: true, clubId: true },
+      select: { userId: true, role: true, phase: true, clubId: true },
     })
   })
 
@@ -222,6 +233,20 @@ describe('ChannelsService CUSTOM access control', () => {
     )
     const readers = await service.listChannelReaderIds('team-1', 'ch-staff')
     expect(readers).not.toContain('player-1')
+  })
+
+  it('does not treat a TRIAL coach row as staff authority', async () => {
+    const trialCoach = makeService({
+      channel: { ...TEAM, kind: 'COACHES', visibility: 'COACHES_ONLY' },
+      access: {
+        membership: { role: 'COACH' },
+        activeTeamAccess: [{ role: 'HEAD_COACH', phase: 'TRIAL' }],
+      },
+    })
+
+    await expect(trialCoach.service.assertWritable('trial-coach', 'ch-team')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
   })
 })
 

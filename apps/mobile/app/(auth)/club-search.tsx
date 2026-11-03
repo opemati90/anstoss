@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult, PublicInvitePayload } from '@anstoss/shared'
-import { FreeAgentVisibility } from '@anstoss/shared'
+import { FreeAgentVisibility, LAUNCH_FEATURES } from '@anstoss/shared'
 import { api } from '../../src/api/client'
 import { Button, FilterChipRow, Icon, SegmentedControl, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
@@ -257,6 +257,7 @@ export default function ClubSearchScreen() {
           coachRole,
         },
         user?.registrationRole,
+        isMember,
       )
       await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
       router.replace('/')
@@ -611,12 +612,12 @@ export default function ClubSearchScreen() {
             onPostalCode={setPostalCode}
           />
         ) : null}
-        <MoreLink
+        {LAUNCH_FEATURES.youthParticipation ? <MoreLink
           icon="figure.and.child.holdinghands"
           label={t('onboardingFlow.club.setupCode')}
           onPress={() => router.push('/(auth)/parent-handoff')}
           testID="club-setup-code-link"
-        />
+        /> : null}
       </View>
     </OnboardingScreen>
   )
@@ -667,7 +668,7 @@ function JoinChoice({
         onToggle={onRole}
         chips={[
           { key: 'PLAYER', label: t('onboardingFlow.club.rolePlayerShort'), icon: 'football.fill', testID: 'club-role-player' },
-          { key: 'PARENT', label: t('onboardingFlow.club.roleParentShort'), icon: 'figure.and.child.holdinghands', testID: 'club-role-parent' },
+          ...(LAUNCH_FEATURES.youthParticipation ? [{ key: 'PARENT' as const, label: t('onboardingFlow.club.roleParentShort'), icon: 'figure.and.child.holdinghands' as const, testID: 'club-role-parent' }] : []),
           { key: 'COACH', label: t('onboardingFlow.club.roleCoachShort'), icon: 'list.clipboard.fill', testID: 'club-role-coach' },
         ]}
       />

@@ -32,6 +32,8 @@ describe('R2Provider public URL parsing', () => {
     expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/%63hat/a.png')).toBeNull()
     expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/chat/a.png ')).toBeNull()
     expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/ch\tat/a.png')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/private-chat/v2/opaque')).toBeNull()
+    expect(provider.objectKeyFromUrl('https://assets.anstoss.app/public/private-chat')).toBeNull()
     expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/%66ile/private-v1-a.pdf')).toBeNull()
     expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/file/%70rivate-v1-a.pdf')).toBeNull()
     expect(provider.objectKeyFromUrl('https://private-media.anstoss.invalid/dm/club/conversation/file/private-v1-a.pdf'))
@@ -81,6 +83,23 @@ describe('R2Provider private quarantine', () => {
       else process.env[key] = previous[key]
     }
   })
+
+  it.each(['private-chat', 'private-chat/v2/7cbda286-645a-42df-a5c5-aec128baf355', 'private-chat/future/key'])(
+    'refuses lifecycle-managed keys in every legacy storage operation: %s', async (key) => {
+      const send = jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({} as never)
+      const provider = new R2Provider()
+      const reason = 'lifecycle storage adapter'
+      await expect(provider.presignPut(key, 'image/png', 42)).rejects.toThrow(reason)
+      await expect(provider.presignGet(key)).rejects.toThrow(reason)
+      await expect(provider.assertStoredObject(key, { maxBytes: 42, allowedContentTypes: new Set(['image/png']) })).rejects.toThrow(reason)
+      await expect(provider.quarantineObject(key)).rejects.toThrow(reason)
+      await expect(provider.presignGetIn('anstoss-quarantine', key)).rejects.toThrow(reason)
+      await expect(provider.deleteObjectIn('anstoss-quarantine', key)).rejects.toThrow(reason)
+      // No partial public deletion when a mixed batch contains a v2 key.
+      await expect(provider.deleteObjects(['users/example/avatar.png', key])).rejects.toThrow(reason)
+      expect(send).not.toHaveBeenCalled()
+    },
+  )
 
   it('streams to the private EU endpoint before deleting the public original', async () => {
     const commands: string[] = []

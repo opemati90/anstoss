@@ -146,7 +146,7 @@ export default function AdminBillingScreen() {
 
     setActionLoading(true)
     try {
-      const result = await api<{ requested: number; sent: number; skipped: number }>(
+      const result = await api<{ requested: number; sent: number; skipped: number; uncertain?: number }>(
         `/clubs/${clubId}/contributions/reminders/send`,
         {
           method: 'POST',
@@ -158,7 +158,9 @@ export default function AdminBillingScreen() {
 
       Alert.alert(
         t('contributions.reminderSuccessTitle'),
-        t('contributions.reminderSuccess', { count: result.sent }),
+        [t('contributions.reminderSuccess', { count: result.sent }),
+          result.uncertain ? t('contributions.reminderUnconfirmed', { count: result.uncertain }) : null,
+        ].filter(Boolean).join('\n\n'),
       )
       setSelectedMember(null)
       await fetchScreenData()

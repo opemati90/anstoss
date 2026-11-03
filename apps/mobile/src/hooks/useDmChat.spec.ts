@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { useDmChat, type DmMessage } from './useDmChat'
+import * as dmMedia from './dmMedia'
 
 type Handler = (...args: any[]) => void
 type AckHandler = (response: any) => void
@@ -112,6 +113,130 @@ describe('useDmChat', () => {
   afterEach(() => {
     jest.runOnlyPendingTimers()
     jest.useRealTimers()
+    jest.restoreAllMocks()
+  })
+
+  it('keeps a live DM arriving before the history response', () => {
+    let ack!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, callback?: AckHandler) => {
+      if (event === 'dm:history' && callback) ack = callback
+      return socket
+    })
+    const { result } = renderHook(() => useDmChat({ conversationId: 'race-dm', token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      socket.trigger('dm:message', makeDm({ id: 'live-dm', conversationId: 'race-dm' }))
+      ack({ data: { messages: [makeDm({ id: 'history-dm', conversationId: 'race-dm' })], hasMore: false } })
+    })
+    expect(result.current.messages.map((message) => message.id)).toEqual(['history-dm', 'live-dm'])
+  })
+
+  it('keeps an acknowledged DM and newer read receipt when older history arrives', async () => {
+    let historyAck!: AckHandler
+    socket.emit.mockImplementation((event: string, payload: any, callback?: AckHandler) => {
+      if (event === 'dm:history' && callback) historyAck = callback
+      if (event === 'dm:message' && callback) callback({ ok: true, id: 'acked-dm', clientMessageId: payload.clientMessageId })
+      return socket
+    })
+    const { result } = renderHook(() => useDmChat({ conversationId: 'ack-race-dm', token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    await act(async () => { expect(await result.current.sendMessage('hello')).toBe(true) })
+    act(() => {
+      socket.trigger('dm:read', { userId: 'user-2', readAt: '2026-04-18T10:00:00.000Z' })
+      historyAck({ data: { messages: [], hasMore: false, peerLastReadAt: '2026-04-17T10:00:00.000Z' } })
+    })
+    expect(result.current.messages.map((message) => message.id)).toContain('acked-dm')
+    expect(result.current.peerLastReadAt).toBe('2026-04-18T10:00:00.000Z')
+  })
+
+  it('does not resurrect a deleted DM when older history arrives', async () => {
+    let staleAck!: AckHandler
+    let requests = 0
+    const original = makeDm({ id: 'dm-delete-race', conversationId: 'dm-delete-conversation', content: 'old private content' })
+    socket.emit.mockImplementation((event: string, _payload: unknown, callback?: AckHandler) => {
+      if (event === 'dm:history' && callback) {
+        requests++
+        if (requests === 1) callback({ data: { messages: [original], hasMore: false } })
+        else staleAck = callback
+      }
+      return socket
+    })
+    jest.spyOn(dmMedia, 'deleteDirectMessage').mockResolvedValue({ ...original, sender: null,
+      content: '', deletedAt: '2026-04-20T00:00:00.000Z' } as any)
+    const { result } = renderHook(() => useDmChat({ conversationId: 'dm-delete-conversation', clubId: 'club-1',
+      token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect'); socket.trigger('connect') })
+    await act(async () => { await result.current.deleteMessage(original.id) })
+    act(() => staleAck({ data: { messages: [original], hasMore: false } }))
+    expect(result.current.messages[0]).toMatchObject({ id: original.id, content: '', deletedAt: '2026-04-20T00:00:00.000Z' })
+  })
+
+  it('isolates delayed history, typing and read state after changing conversations', () => {
+    let ack!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, callback?: AckHandler) => {
+      if (event === 'dm:history' && callback) ack = callback
+      return socket
+    })
+    const next = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(next)
+    const { result, rerender } = renderHook(({ conversationId }: { conversationId: string }) => useDmChat({
+      conversationId, token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { conversationId: 'old-dm' } })
+    act(() => {
+      socket.connected = true; socket.trigger('connect')
+      socket.trigger('dm:typing', { userId: 'user-2', userName: 'Mina', conversationId: 'old-dm' })
+      socket.trigger('dm:read', { userId: 'user-2', readAt: '2026-01-01T00:00:00.000Z' })
+    })
+    expect(result.current.typingUsers).toEqual(['Mina'])
+    rerender({ conversationId: 'new-dm' })
+    act(() => {
+      ack({ data: { messages: [makeDm({ id: 'old-secret', conversationId: 'old-dm' })], hasMore: false } })
+      socket.trigger('dm:read', { userId: 'user-2', readAt: '2026-01-02T00:00:00.000Z' })
+    })
+    expect(result.current.messages.some((message) => message.id === 'old-secret')).toBe(false)
+    expect(result.current.typingUsers).toEqual([])
+    expect(result.current.peerLastReadAt).toBeNull()
+    expect(result.current.hasMore).toBe(true)
+  })
+
+  it('returns success for an old DM send without exposing it in the new conversation', async () => {
+    let resolve!: (value: any) => void
+    jest.spyOn(dmMedia, 'postDirectMessage').mockImplementation(() => new Promise((done) => { resolve = done }))
+    const next = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(next)
+    const { result, rerender } = renderHook(({ conversationId }: { conversationId: string }) => useDmChat({
+      conversationId, clubId: 'club-1', token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { conversationId: 'send-old-dm' } })
+    let sent!: Promise<string>
+    act(() => { sent = result.current.sendAttachment({ messageType: 'IMAGE', attachmentUrl: 'https://example.invalid/image' }) })
+    rerender({ conversationId: 'send-new-dm' })
+    let status = ''
+    await act(async () => {
+      resolve({ ok: true, message: { id: 'old-secret', conversationId: 'send-old-dm', senderId: 'user-1', content: '', createdAt: '2026-01-01T00:00:00.000Z' } })
+      status = await sent
+    })
+    expect(status).toBe('ok')
+    expect(result.current.messages.some((message) => message.id === 'old-secret')).toBe(false)
+  })
+
+  it('does not apply an old send failure to the newly opened conversation', async () => {
+    let ack!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, callback?: AckHandler) => {
+      if (event === 'dm:message' && callback) ack = callback
+      return socket
+    })
+    const next = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(next)
+    const { result, rerender } = renderHook(({ conversationId }: { conversationId: string }) => useDmChat({
+      conversationId, token: 'token', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { conversationId: 'pending-old-dm' } })
+    socket.connected = true
+    let sent!: Promise<boolean>
+    act(() => { sent = result.current.sendMessage('hello') })
+    rerender({ conversationId: 'pending-new-dm' })
+    await act(async () => { ack({ ok: false }); await sent })
+    expect(result.current.lastError).toBeNull()
   })
 
   it('connects, joins the conversation, and loads initial history', async () => {

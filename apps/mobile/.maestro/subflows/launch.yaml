@@ -30,7 +30,15 @@ appId: com.renuirug.anstoss
     when:
       visible: '(?i).*(DEVELOPMENT SERVERS|Development servers).*'
     commands:
-      - tapOn: '.*:8123.*'
+      - runFlow:
+          when:
+            visible: '.*:8123.*'
+          commands:
+            - tapOn: '.*:8123.*'
+      - runFlow:
+          when:
+            visible: 'Enter URL manually'
+          file: manual-local-connect.yaml
       - extendedWaitUntil:
           visible: '(?i).*(developer menu|Send code|Welcome to Anstoss|Home|Welcome).*'
           timeout: 180000

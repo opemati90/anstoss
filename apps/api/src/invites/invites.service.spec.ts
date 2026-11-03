@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException } from '@nestjs/common'
 import {
   InviteDeliveryChannel,

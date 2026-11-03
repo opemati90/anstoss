@@ -22,7 +22,6 @@ import { DashboardSkeleton } from '../src/components/Skeleton'
 import { Screen, SegmentedControl, StatusPill, Text } from '../src/components/ui'
 import { hairline, radius, space } from '../src/theme/tokens'
 import { isOwnTableRow, ownTeamNameOf, splitFixtures } from '../src/components/squad/fixtureSide'
-import { resolveIsTeamCoach } from '../src/components/squad/useIsTeamCoach'
 
 type Tab = 'spiele' | 'tabelle'
 type FormResult = 'W' | 'D' | 'L'
@@ -37,16 +36,12 @@ export default function TeamSpieleScreen() {
   const { t } = useTranslation()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
-  const { activeClub, activeTeamId, activeTeamAccess, activeRoleMode } = useAuth()
+  const { activeClub, activeTeamId } = useAuth()
   const params = useLocalSearchParams<{ tab?: string; teamId?: string }>()
   const teamId = (typeof params.teamId === 'string' && params.teamId) || activeTeamId
-  // M1: the team role only counts for the team shown here (params.teamId may
-  // name another team); otherwise only club owners/admins may link.
-  const canLink = resolveIsTeamCoach({
-    roleMode: activeRoleMode,
-    clubRole: activeClub?.role,
-    teamRole: teamId === activeTeamId ? activeTeamAccess?.role : null,
-  })
+  // The setup screen manages the active team and the API restricts writes to club managers.
+  const canLink = teamId === activeTeamId &&
+    (activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN')
   const [tab, setTab] = useState<Tab>(params.tab === 'tabelle' ? 'tabelle' : 'spiele')
   // Narrow phone or large text: drop the S/U/N columns so the team name
   // keeps its room; numeric columns grow with the font scale so digits
@@ -291,8 +286,6 @@ export default function TeamSpieleScreen() {
           icon="figure.soccer"
           title={t('states.team_matches.empty.title')}
           description={canLink ? t('kader.matches.emptyCoachBody') : t('kader.matches.emptyBody')}
-          actionLabel={canLink ? t('kader.matches.linkCta') : undefined}
-          onAction={canLink ? () => router.push('/fussball-link') : undefined}
         />
       )
     }
@@ -341,6 +334,17 @@ export default function TeamSpieleScreen() {
           onChange={setTab}
         />
         {body()}
+        {teamId && teamId === activeTeamId ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/fussball-link')}
+            style={{ minHeight: 44, justifyContent: 'center', paddingVertical: space.sm }}
+          >
+            <Text variant="subheadline" weight="semibold" color="tint">
+              {canLink ? t('kader.matches.linkCta') : t('fussball.officialPage')}
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   )

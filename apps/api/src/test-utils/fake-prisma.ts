@@ -69,7 +69,8 @@ export class FakePrisma {
     return Promise.all(arg as Array<Promise<unknown>>)
   }
   $executeRaw = async () => 0
-  $queryRaw = async () => this.queryRawResult
+  $queryRaw = async (query?: TemplateStringsArray) =>
+    query?.join('').includes('clock_timestamp() AS now') ? [{ now: new Date() }] : this.queryRawResult
 
   rows(model: string): Row[] {
     return this.tables[model] ?? []
@@ -171,6 +172,9 @@ export class FakePrisma {
           }
           break
         }
+        case 'startsWith':
+          if (typeof value !== 'string' || typeof arg !== 'string' || !value.startsWith(arg)) return false
+          break
         case 'mode':
           break
         default:
@@ -300,9 +304,10 @@ export class FakePrisma {
 /** Relations of the chat models used by the channel / DM specs. */
 export const CHAT_FAKE_SCHEMA: FakeSchema = {
   user: {
+    memberships: { kind: 'many', model: 'membership', to: 'userId' },
     teamAccess: { kind: 'many', model: 'teamAccess', to: 'userId' },
   },
-  membership: {},
+  membership: { user: { kind: 'one', model: 'user', from: 'userId' } },
   team: {},
   teamAccess: {
     user: { kind: 'one', model: 'user', from: 'userId' },

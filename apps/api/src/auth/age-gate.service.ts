@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { AGE_GATE, AgeGateError, ParentalConsentStatus, TeamAccessStatus } from '@anstoss/shared'
+import { AGE_GATE, AgeGateError, LAUNCH_FEATURES, ParentalConsentStatus, TeamAccessStatus } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 
@@ -34,6 +34,8 @@ export type AgeGateBlockCode =
   | 'unknown_user'
   | 'dob_required'
   | 'under_13'
+  | 'adult_launch_only'
+  | 'guardian_launch_disabled'
   | 'consent_required'
   | 'consent_pending'
   | 'consent_withdrawn'
@@ -47,6 +49,8 @@ type GateUser = { dateOfBirth: Date | null; adultConfirmedAt: Date | null }
 type ConsentRow = { teamId: string; clubId: string; status: string }
 
 const MESSAGES: Record<AgeGateBlockCode, string> = {
+  adult_launch_only: 'Anstoss currently supports adults aged 18 and over. Youth participation is coming soon.',
+  guardian_launch_disabled: 'Guardian participation is coming soon. Use an independently approved adult player or staff role.',
   unknown_user: 'Account not found',
   dob_required: 'Date of birth required',
   under_13: 'Children under 13 must use a guardian-managed account',
@@ -106,6 +110,25 @@ export class AgeGateService {
     scope: AgeGateScope,
   ): Promise<AgeGateDecision> {
     if (!user) return block('unknown_user')
+    if (!LAUNCH_FEATURES.youthParticipation) {
+      if (!user.dateOfBirth || !Number.isFinite(user.dateOfBirth.getTime())) return block('dob_required')
+      if (getAge(user.dateOfBirth) < LAUNCH_FEATURES.minimumAccountAge) return block('adult_launch_only')
+      if (scope.clubId) {
+        const clubId = scope.clubId
+        const membership = await this.inClub(clubId, () => this.prisma.membership.findUnique({
+          where: { userId_clubId: { userId, clubId } }, select: { role: true },
+        }))
+        if (membership?.role === 'PARENT') {
+          const independent = await this.inClub(clubId, () => this.prisma.teamAccess.findFirst({
+            where: { userId, clubId, ...(scope.teamId ? { teamId: scope.teamId } : {}),
+              role: { not: 'PARENT' }, status: 'ACTIVE', phase: 'FULL',
+              OR: [{ loanEndDate: null }, { loanEndDate: { gt: new Date() } }] }, select: { id: true },
+          }))
+          if (!independent) return block('guardian_launch_disabled')
+        }
+      }
+      return { allowed: true, minor: false }
+    }
     if (!user.dateOfBirth) {
       // Legacy accounts only: the 16+ declaration can no longer be made
       // (onboarding review fix B1, UsersService.updateProfile refuses it), so

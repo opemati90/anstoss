@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import EventsScreen from '../(tabs)/events/index'
@@ -170,7 +172,7 @@ describe('EventsScreen', () => {
     )
     const screen = render(<EventsScreen />)
 
-    const row = await screen.findByLabelText(/Away at SV Babelsberg 03.*Meet .*Kick-off/)
+    const row = await screen.findByRole('button', { name: /Away at SV Babelsberg 03.*Meet .*Kick-off/ })
     fireEvent.press(row)
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/event-detail',
@@ -254,7 +256,7 @@ describe('EventsScreen', () => {
     })
     const screen = render(<EventsScreen />)
 
-    expect(await screen.findByText("Your children's schedule")).toBeTruthy()
+    expect(await screen.findByText('Schedule')).toBeTruthy()
     expect(screen.getByText('Mia Weber · U11')).toBeTruthy()
     expect(screen.getByText('Ben Weber · U11')).toBeTruthy()
     expect(screen.queryByLabelText('Add event')).toBeNull()

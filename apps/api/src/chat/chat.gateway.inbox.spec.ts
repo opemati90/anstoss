@@ -394,6 +394,17 @@ describe('ChatGateway DM fan-out', () => {
       { clubId: 'club-1', category: 'chat' },
     )
   })
+
+  it('replays a saved DM to connected participants without a duplicate push', async () => {
+    const { gateway, emitted, push } = makeGateway({ dmParticipants: ['sender', 'peer'] })
+    const message = { id: 'dm-msg-1', conversationId: 'conv-1', senderId: 'sender', messageType: 'IMAGE',
+      content: '', sender: { id: 'sender', name: 'Lukas', avatarUrl: null } } as any
+    await gateway.onDirectMessageRecovered({ message, clientMessageId: 'retry' })
+    expect(emitted).toContainEqual(expect.objectContaining({ room: 'dm:conv-1', event: 'dm:message',
+      payload: expect.objectContaining({ id: 'dm-msg-1', clientMessageId: 'retry' }) }))
+    expect(push.sendToUser).not.toHaveBeenCalled()
+    expect(push.sendToUserLocalized).not.toHaveBeenCalled()
+  })
 })
 
 describe('Chat review fixes on the socket', () => {

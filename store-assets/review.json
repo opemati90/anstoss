@@ -1,0 +1,10 @@
+{
+  "approved": false,
+  "reason": "Existing screenshots depict retired screens and disabled health features; recapture and independently review the release candidate.",
+  "releaseCommit": null,
+  "runtimeVersion": null,
+  "launchScope": "adult-only",
+  "reviewedAt": null,
+  "reviewer": null,
+  "sha256": {}
+}

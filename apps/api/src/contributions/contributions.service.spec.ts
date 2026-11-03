@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -263,7 +265,7 @@ describe('ContributionsService', () => {
       )
     prisma.contributionReminder.update.mockResolvedValue({})
     prisma.contributionRecord.update.mockResolvedValue({})
-    pushService.sendToUser.mockResolvedValue({ sent: 1 })
+    pushService.sendToUser.mockResolvedValue('accepted')
     const item = {
       assignment: {
         id: 'assignment-1',
@@ -331,7 +333,7 @@ describe('ContributionsService', () => {
         },
       },
     ])
-    pushService.sendToUser.mockResolvedValue({ sent: 1 })
+    pushService.sendToUser.mockResolvedValue('accepted')
     const item = {
       assignment: {
         id: 'assignment-minor',

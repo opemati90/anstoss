@@ -37,6 +37,7 @@ import { tenantContext } from '../prisma/tenant.context'
 import { sendEmail } from '../email/mailer'
 import { buildOwnershipTransferCodeEmail } from '../email/email-content'
 import { resolveLocale } from '../i18n/translations'
+import { assertLaunchParticipant } from '../auth/launch-access-policy'
 
 const CLAIM_TTL_DAYS = 14
 const STAFF_CLAIM_ESCALATION_DAYS = 7
@@ -59,6 +60,7 @@ export class ClubActivationService {
     userEmail: string | null,
     input: SubmitFirstClubClaimInput,
   ) {
+    await assertLaunchParticipant(this.prisma, userId)
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { registrationRole: true },
@@ -179,6 +181,7 @@ export class ClubActivationService {
   }
 
   async submitStaffRequest(userId: string, clubId: string, input: SubmitStaffAccessRequestInput) {
+    await assertLaunchParticipant(this.prisma, userId)
     const directoryEntry = await this.prisma.clubDirectoryEntry.findFirst({
       where: { activeClubId: clubId },
       select: { id: true },
@@ -366,6 +369,7 @@ export class ClubActivationService {
         select: { id: true },
       })
       if (!claimant) throw new ConflictException('The claimant account is no longer active')
+      await assertLaunchParticipant(tx, claim.claimantUserId)
       if (claim.desiredRole === MembershipRole.OWNER) {
         throw new ConflictException('Club ownership requires the ownership transfer workflow')
       }
@@ -459,6 +463,7 @@ export class ClubActivationService {
       if (!claimant) {
         throw new ConflictException('The claimant account is no longer active')
       }
+      await assertLaunchParticipant(tx, claim.claimantUserId)
       if (claim.directoryEntry.activeClubId) {
         throw new ConflictException('This directory club has already been activated')
       }
@@ -671,6 +676,7 @@ export class ClubActivationService {
       if (!claimant) {
         throw new ConflictException('The claimant account is no longer active')
       }
+      await assertLaunchParticipant(tx, claim.claimantUserId)
 
       const requestedTeams = await tx.team.findMany({
         where: { clubId, id: { in: claim.requestedTeamIds } },
@@ -865,6 +871,7 @@ export class ClubActivationService {
     })
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.toUserId}))`
+      await assertLaunchParticipant(tx, input.toUserId)
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       const currentOwner = await tx.membership.findFirst({
         where: { clubId, role: MembershipRole.OWNER },
@@ -937,6 +944,7 @@ export class ClubActivationService {
         throw new NotFoundException('Pending ownership transfer not found')
       }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${actor.id}))`
+      await assertLaunchParticipant(tx, actor.id)
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${initial.clubId}`}))`
       const transfer = await tx.ownershipTransfer.findUnique({ where: { id: transferId } })
       if (!transfer || transfer.status !== 'PENDING' || transfer.expiresAt <= new Date()) {
@@ -1222,6 +1230,12 @@ export class ClubActivationService {
     return this.prisma.$transaction(async (tx) => {
       const dispute = await tx.clubDispute.findUnique({ where: { id: disputeId } })
       if (!dispute) throw new NotFoundException('Open dispute not found')
+      // Same user-before-club lock order as normal ownership acceptance and
+      // account deletion. Recovery is not an exemption from launch scope.
+      if (input.newOwnerUserId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.newOwnerUserId}))`
+        await assertLaunchParticipant(tx, input.newOwnerUserId)
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${dispute.clubId}`}))`
 
       let formerOwnerIds: string[] = []

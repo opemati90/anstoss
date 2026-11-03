@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { ConsentService } from './consent.service'
 import { getClubId } from '../prisma/tenant.context'

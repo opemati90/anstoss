@@ -5,6 +5,8 @@ import {
   ListPartsCommand,
   ListMultipartUploadsCommand,
   HeadObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
   S3Client,
   S3ClientConfig,
   UploadPartCommand,
@@ -39,7 +41,7 @@ export class PrivateUploadStorage {
   private key(key: string) {
     // No club/user IDs or original filenames in provider object metadata.
     if (
-      !/^private-chat\/v2\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      !/^private-chat\/v2\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![\s\S])/.test(
         key,
       )
     ) {
@@ -79,8 +81,12 @@ export class PrivateUploadStorage {
     return result.UploadId
   }
 
-  async signPart(key: string, uploadId: string, bytes: number): Promise<string> {
+  async signPart(key: string, uploadId: string, bytes: number, expiresIn = 300, signingDate = new Date()): Promise<string> {
     this.size(bytes)
+    if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 300) {
+      throw new Error('Invalid private upload capability lifetime')
+    }
+    if (!Number.isFinite(signingDate.getTime())) throw new Error('Invalid private upload signing time')
     return getSignedUrl(
       this.client,
       new UploadPartCommand({
@@ -88,11 +94,26 @@ export class PrivateUploadStorage {
         PartNumber: 1,
         ContentLength: bytes,
       }),
-      { expiresIn: 300 },
+      { expiresIn, signingDate },
     )
   }
 
-  async complete(key: string, uploadId: string, expectedBytes: number): Promise<void> {
+  /** Internal read capability. The caller must verify the live message binding
+   * and current reader authorization under lifecycle locks before signing. */
+  async signGet(key: string, expiresIn = 300, signingDate = new Date()): Promise<string> {
+    if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 300) {
+      throw new Error('Invalid private read capability lifetime')
+    }
+    if (!Number.isFinite(signingDate.getTime())) throw new Error('Invalid private read signing time')
+    return getSignedUrl(
+      this.client,
+      new GetObjectCommand({ ...this.key(key), ResponseCacheControl: 'private, no-store' }),
+      { expiresIn, signingDate },
+    )
+  }
+
+  /** Read-only readiness check. No completion claim is needed until this succeeds. */
+  async prepareComplete(key: string, uploadId: string, expectedBytes: number): Promise<string> {
     this.size(expectedBytes)
     const location = this.upload(key, uploadId)
     // Never trust a client-supplied ETag or completion manifest. Unexpected
@@ -114,13 +135,24 @@ export class PrivateUploadStorage {
     ) {
       throw new Error('Private upload part is incomplete or invalid')
     }
+    return part.ETag
+  }
+
+  /** Call only after the durable completion claim has committed. */
+  async completePrepared(key: string, uploadId: string, etag: string): Promise<void> {
+    if (!etag || etag.length > 1024 || /[\r\n]/.test(etag)) throw new Error('Invalid private upload ETag')
     await this.client.send(
       new CompleteMultipartUploadCommand({
-        ...location,
-        MultipartUpload: { Parts: [{ PartNumber: 1, ETag: part.ETag }] },
+        ...this.upload(key, uploadId),
+        MultipartUpload: { Parts: [{ PartNumber: 1, ETag: etag }] },
       }),
       { abortSignal: AbortSignal.timeout(30_000) },
     )
+  }
+
+  async complete(key: string, uploadId: string, expectedBytes: number): Promise<void> {
+    const etag = await this.prepareComplete(key, uploadId, expectedBytes)
+    await this.completePrepared(key, uploadId, etag)
   }
 
   /** Observation only: even an empty listing is not a terminal receipt. */
@@ -192,6 +224,31 @@ export class PrivateUploadStorage {
       }
       throw error
     }
+  }
+
+  async observeMultipart(key: string, uploadId: string): Promise<
+    { kind: 'present'; hasParts: boolean } | { kind: 'not_observed' }
+  > {
+    const location = this.upload(key, uploadId)
+    try {
+      const result = await this.client.send(new ListPartsCommand({ ...location, MaxParts: 1 }), {
+        abortSignal: AbortSignal.timeout(30_000),
+      })
+      return { kind: 'present', hasParts: Boolean(result.Parts?.length || result.IsTruncated) }
+    } catch (error) {
+      const failure = error as { name?: string; $metadata?: { httpStatusCode?: number } }
+      if (failure?.name === 'NoSuchUpload' && failure?.$metadata?.httpStatusCode === 404) {
+        return { kind: 'not_observed' }
+      }
+      throw error
+    }
+  }
+
+  /** Only after finalized publication is terminal and evidence/live-reference holds are checked. */
+  async remove(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand(this.key(key)), {
+      abortSignal: AbortSignal.timeout(30_000),
+    })
   }
 
   async abort(key: string, uploadId: string): Promise<void> {

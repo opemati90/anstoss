@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { UsersService } from './users.service'
 import { hashUnderageEmail, UNDERAGE_EMAIL_PROVIDER } from '../auth/underage-email-tombstone'

@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
 import { OnEvent } from '@nestjs/event-emitter'
+import { assertLaunchBirthDate, assertLaunchParticipant } from '../auth/launch-access-policy'
 
 /**
  * Socket.io gateway for live match streaming.
@@ -80,12 +81,13 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
       }
       const user = await this.prisma.user.findFirst({
         where: { id: userId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, dateOfBirth: true },
       })
       if (!user) {
         client.disconnect()
         return
       }
+      assertLaunchBirthDate(user.dateOfBirth ?? new Date(NaN))
       client.data.userId = user.id
       if (typeof client.join === 'function') {
         await client.join(`user:${user.id}`)
@@ -113,7 +115,10 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
     })
     if (!fixture) return { event: 'error', data: { message: 'Fixture not found' } }
 
-    await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+    try {
+      await assertLaunchParticipant(this.prisma, userId)
+      await this.teamsService.assertReadableAccess(userId, fixture.teamId)
+    } catch { return { event: 'error', data: { message: 'Forbidden' } } }
     const room = `live:${fixture.id}`
     await client.join(room)
 

@@ -159,6 +159,8 @@ export interface Event {
    * only holds a language-neutral fallback (the opponent, "Training").
    */
   autoTitle?: boolean
+  rsvpDeadline?: string | null
+  rsvpLocked?: boolean
 }
 
 export interface EventSeries {
@@ -477,6 +479,8 @@ export interface EventDetail extends Event {
   readiness?: EventReadiness | null
   /** Active players on the team; lets every viewer see who hasn't replied. */
   members: EventSquadMember[]
+  /** Managers only: full-squad users targeted by the manual reminder endpoint. */
+  reminderEligibleUserIds?: string[]
   /** Children the viewer guards on this team (parents). */
   children: EventGuardedChild[]
   viewer: {

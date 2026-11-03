@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { AdultLaunchScreen } from '../../src/onboarding/AdultLaunchScreen'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -46,6 +48,14 @@ type HandoffPreview = {
  * child's spot; otherwise they add the team code from the coach.
  */
 export default function ParentHandoff() {
+  const router = useRouter()
+  const { signOut } = useAuth()
+  return LAUNCH_FEATURES.youthParticipation ? <EnabledParentHandoff /> : <AdultLaunchScreen onDone={() => {
+    void signOut().then(() => router.replace('/(auth)/welcome')).catch(() => undefined)
+  }} />
+}
+
+function EnabledParentHandoff() {
   const router = useRouter()
   const { t } = useTranslation()
   // The lookups below run on code changes only, not on a new `t` identity.

@@ -96,4 +96,14 @@ describe('getUpdateStateFromResponse', () => {
     expect(result.current.softUpdate).toBe(false)
     expect(result.current.recommendedVersion).toBeUndefined()
   })
+
+  it('ignores an asynchronous update response after unmount', async () => {
+    let resolve!: (body: unknown) => void
+    const response = { status: 426, json: () => new Promise((done) => { resolve = done }) } as Response
+    const { result, unmount } = renderHook(() => useUpdateCheck())
+    act(() => result.current.checkResponse(response))
+    unmount()
+    await act(async () => { resolve({ error: { minVersion: '99' } }); await Promise.resolve() })
+    expect(result.current.forceUpdate).toBe(false)
+  })
 })

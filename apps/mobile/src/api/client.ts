@@ -124,7 +124,7 @@ export async function api<T = unknown>(
 
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
-  const e2eResponse = handleE2EApiRequest(path, { method, body })
+  const e2eResponse = handleE2EApiRequest(path, { method, body, headers })
 
   if (e2eResponse.handled) {
     if (!e2eResponse.ok) {

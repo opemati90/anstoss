@@ -12,7 +12,15 @@ import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { ChatService } from './chat.service'
-import { updateChatRetentionSettingsSchema } from '@anstoss/shared'
+import { privateMediaPublishSchema, updateChatRetentionSettingsSchema } from '@anstoss/shared'
+import { RateLimit } from '../rate-limit/rate-limit.guard'
+import { parseBody } from '../channels/parse-body'
+import { z } from 'zod'
+
+const postMediaSchema = privateMediaPublishSchema.extend({
+  channelId: z.string().min(1).max(200),
+  attachmentUrl: z.string().url().max(2048),
+}).strict()
 
 @Controller()
 @UseGuards(ClerkAuthGuard, AgeGateGuard)
@@ -67,19 +75,13 @@ export class ChatController {
   }
 
   @Post('teams/:teamId/messages/media')
+  @RateLimit('channel-message')
   async postMedia(
     @CurrentUser() user: { id: string },
     @Param('teamId') teamId: string,
-    @Body() body: {
-      channelId?: string
-      messageType: 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE'
-      attachmentUrl: string
-      attachmentMeta?: Record<string, unknown>
-      content?: string
-      replyToId?: string
-    },
+    @Body() body: unknown,
   ) {
-    return this.chatService.postMedia(user.id, { teamId, ...body })
+    return this.chatService.postMedia(user.id, { ...parseBody(postMediaSchema, body), teamId })
   }
 
   @Get('clubs/:clubId/chat/retention')

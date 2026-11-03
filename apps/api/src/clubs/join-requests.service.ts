@@ -28,6 +28,7 @@ import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { assertTeamInScope, resolveTrialScope } from '../marketplace/trial-scope'
 import { JOIN_REQUEST_PII_ERASURE } from '../marketplace/trial-access'
 import { lockPlayerTeamAccess } from '../teams/guardian-team-access'
+import { assertLaunchParticipant, requireYouthParticipation } from '../auth/launch-access-policy'
 import { tenantContext } from '../prisma/tenant.context'
 import { resolveLocale } from '../i18n/translations'
 import { sendEmail } from '../email/mailer'
@@ -44,6 +45,8 @@ export class JoinRequestsService {
   ) {}
 
   async create(userId: string, clubId: string, input: CreateJoinRequestInput) {
+    if (input.role === 'PARENT') requireYouthParticipation()
+    await assertLaunchParticipant(this.prisma, userId)
     // Club-search join requests are PLAYER or PARENT. Coaches go through staff
     // access requests. A parent request was previously stored as PLAYER, so an
     // approval turned the parent into a squad player; the role is now kept.
@@ -347,7 +350,9 @@ export class JoinRequestsService {
         },
       })
       if (!request) throw new NotFoundException('Join request not found or already reviewed')
+      if (request.role === 'PARENT') requireYouthParticipation()
       await this.lockActiveUser(tx, request.userId)
+      await assertLaunchParticipant(tx, request.userId)
       await this.lockJoinRequest(tx, requestId)
       request = await tx.joinRequest.findFirst({
         where: {

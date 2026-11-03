@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import { Text } from 'react-native'

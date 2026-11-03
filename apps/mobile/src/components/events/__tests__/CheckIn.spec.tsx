@@ -220,6 +220,7 @@ describe('AttendanceSheet', () => {
       rsvps: [],
       checkIns: [],
       noShows: [{ userId: 'u2', user: { name: 'Carol' }, status: 'YES' }],
+      missingCheckInsReady: true,
     })
 
     render(
@@ -261,6 +262,31 @@ describe('AttendanceSheet', () => {
       // Dave should not appear since event hasn't ended
       expect(screen.queryByText('Dave')).toBeNull()
     })
+  })
+
+  it('does not show a misleading zero before the three-hour reporting window closes', async () => {
+    mockApi.mockResolvedValueOnce({ rsvps: [], checkIns: [], noShows: [] })
+    render(
+      <AttendanceSheet
+        visible
+        onClose={() => {}}
+        clubId="club-1"
+        eventId="event-1"
+        eventDate={new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('0 checked in')).toBeOnTheScreen())
+    expect(screen.queryByText('0 no-shows')).toBeNull()
+  })
+
+  it('trusts server readiness instead of a device clock that is ahead', async () => {
+    mockApi.mockResolvedValueOnce({ rsvps: [], checkIns: [], noShows: [], missingCheckInsReady: false })
+    render(
+      <AttendanceSheet visible onClose={() => {}} clubId="club-1" eventId="event-1"
+        eventDate={new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()} />,
+    )
+    await waitFor(() => expect(screen.getByText('0 checked in')).toBeOnTheScreen())
+    expect(screen.queryByText('0 no-shows')).toBeNull()
   })
 
   it('shows error state when fetch fails', async () => {

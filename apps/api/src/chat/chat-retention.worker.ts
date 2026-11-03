@@ -3,9 +3,20 @@ import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { R2Provider } from '../assets/r2.provider'
+import { isPrivateUploadMarker, PrivateUploadBindingError, retireMessageUpload } from '../assets/private-upload-retirement'
+import { isProvenOwnedLegacyMedia, retireLegacyChatMedia } from '../assets/legacy-chat-media-retirement'
 
 const RETENTION_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000
 const RETENTION_BATCH_SIZE = 500
+
+class LegacyRetentionNeedsReview extends Error {}
+export class RetentionSweepError extends Error {
+  constructor(readonly summary: { messagesDeleted: number; attachmentsPurged: number; blockedClubIds: string[]; failedClubIds: string[] }) {
+    super(summary.failedClubIds.length
+      ? 'Chat retention failed for one or more clubs; some attachments may require provenance review'
+      : 'Chat attachment retention requires provenance review; other clubs may have completed')
+  }
+}
 
 type RetentionSettings = {
   clubId: string
@@ -57,6 +68,8 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
 
     let messagesDeleted = 0
     let attachmentsPurged = 0
+    const blockedClubIds: string[] = []
+    const failedClubIds: string[] = []
     for (const club of clubs) {
       const settings =
         club.chatRetentionSettings ??
@@ -68,12 +81,28 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
         } satisfies RetentionSettings)
       if (!settings.enabled) continue
 
-      const result = await tenantContext.run(
-        { clubId: club.id, userId: 'system:chat-retention' },
-        () => this.purgeClub(settings, now),
-      )
-      messagesDeleted += result.messagesDeleted
-      attachmentsPurged += result.attachmentsPurged
+      try {
+        const result = await tenantContext.run({ clubId: club.id, userId: 'system:chat-retention' },
+          () => this.purgeClubWithRetry(settings, now))
+        messagesDeleted += result.messagesDeleted
+        attachmentsPurged += result.attachmentsPurged
+      } catch (error) {
+        if (error instanceof LegacyRetentionNeedsReview || error instanceof PrivateUploadBindingError) {
+          blockedClubIds.push(club.id)
+          this.logger.warn(`Chat retention rolled back for club ${JSON.stringify(club.id)}; attachment review required`)
+        } else {
+          failedClubIds.push(club.id)
+          const candidate = error as { code?: unknown; name?: unknown; meta?: { code?: unknown } }
+          const code = typeof candidate?.code === 'string' && /^P\d{4}$/.test(candidate.code) ? candidate.code : 'unknown'
+          const name = typeof candidate?.name === 'string' && /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(candidate.name) ? candidate.name : 'Error'
+          const sqlstate = ['40001', '40P01'].includes(String(candidate?.meta?.code)) ? String(candidate?.meta?.code) : 'unknown'
+          this.logger.error(`Chat retention failed for club ${JSON.stringify(club.id)}; transaction rolled back (class=${name}, code=${code}, sqlstate=${sqlstate})`)
+        }
+      }
+    }
+
+    if (blockedClubIds.length || failedClubIds.length) {
+      throw new RetentionSweepError({ messagesDeleted, attachmentsPurged, blockedClubIds, failedClubIds })
     }
 
     return { messagesDeleted, attachmentsPurged }
@@ -100,26 +129,83 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
         ],
       }
       const counts = await tenantContext.run({ clubId: club.id, userId: 'system:chat-retention-preview' }, async () => {
-        const [channelMessages, directMessages, channelAttachments, directAttachments] = await Promise.all([
+        // A tagged v1 reference is a candidate, not proof of ownership. The
+        // preview explicitly reports bindingStatus:not_checked; the sweep
+        // validates the full sender/scope binding inside its transaction.
+        const legacy = { NOT: [
+          { attachmentUrl: { startsWith: 'https://private-media.anstoss.invalid/private-chat/v2/' } },
+          { attachmentUrl: { contains: '/private-v1-u' } },
+        ] }
+        const [channelMessages, directMessages, channelAttachments, directAttachments, channelLegacyBlocked, directLegacyBlocked] = await Promise.all([
           this.prisma.message.count({ where: { clubId: club.id, ...messages } }),
           this.prisma.directMessage.count({ where: { conversation: { clubId: club.id }, ...messages } }),
           this.prisma.message.count({ where: { clubId: club.id, ...attachments } }),
           this.prisma.directMessage.count({ where: { conversation: { clubId: club.id }, ...attachments } }),
+          this.prisma.message.count({ where: { clubId: club.id, ...attachments, ...legacy } }),
+          this.prisma.directMessage.count({ where: { conversation: { clubId: club.id }, ...attachments, ...legacy } }),
         ])
-        return { channelMessages, directMessages, channelAttachments, directAttachments }
+        return { channelMessages, directMessages, channelAttachments, directAttachments, channelLegacyBlocked, directLegacyBlocked,
+          legacyAttachmentsRequireReview: channelLegacyBlocked > 0 || directLegacyBlocked > 0,
+          bindingStatus: 'not_checked' as const }
       })
       rows.push({ clubId: club.id, messageCutoff, attachmentCutoff, ...counts })
     }
     return { asOf: now, advisory: true, clubsScanned: clubs.length, enabledClubs: rows }
   }
 
-  private async purgeClub(settings: RetentionSettings, now: Date) {
+  private async purgeClubWithRetry(settings: RetentionSettings, now: Date) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          // Settings mutations take the same club lock. FOR UPDATE also forces
+          // a Serializable conflict/retry if a concurrent update committed
+          // while this transaction was waiting on that advisory lock.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`chat-retention-settings:${settings.clubId}`}))`
+          const rows = await tx.$queryRaw<RetentionSettings[]>`
+            SELECT "clubId", "enabled", "messageRetentionDays", "attachmentRetentionDays"
+            FROM "ClubChatRetentionSettings" WHERE "clubId" = ${settings.clubId} FOR UPDATE
+          `
+          const fresh = rows[0]
+          if (!fresh?.enabled) return { messagesDeleted: 0, attachmentsPurged: 0 }
+          return this.purgeClub(fresh, now, tx)
+        },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60_000, maxWait: 10_000 })
+      } catch (error) {
+        const failure = error as { code?: string; meta?: { code?: string } }
+        const retryable = failure?.code === 'P2034'
+          || (failure?.code === 'P2010' && ['40001', '40P01'].includes(failure.meta?.code ?? ''))
+        if (!retryable || attempt >= 2) throw error
+      }
+    }
+  }
+
+  private async purgeClub(settings: RetentionSettings, now: Date, db: Prisma.TransactionClient) {
     const messageCutoff = daysAgo(now, settings.messageRetentionDays)
     const attachmentCutoff = daysAgo(now, settings.attachmentRetentionDays)
 
+    // Both streams and all batches share one serializable transaction: an
+    // unprovable binding anywhere rolls back every change to this club.
+    const dueLegacy = {
+      attachmentUrl: { not: null },
+      NOT: [
+        { attachmentUrl: { startsWith: 'https://private-media.anstoss.invalid/private-chat/v2/' } },
+        { attachmentUrl: { contains: '/private-v1-u' } },
+      ],
+      reports: { none: { resolvedAt: null } },
+      OR: [
+        { createdAt: { lte: attachmentCutoff } },
+        { createdAt: { lte: messageCutoff }, deletedAt: null },
+      ],
+    }
+    const [channelLegacy, directLegacy] = await Promise.all([
+      db.message.count({ where: { clubId: settings.clubId, ...dueLegacy } }),
+      db.directMessage.count({ where: { conversation: { clubId: settings.clubId }, ...dueLegacy } }),
+    ])
+    if (channelLegacy || directLegacy) throw new LegacyRetentionNeedsReview('Legacy chat attachment retention requires provenance review')
+
     let attachmentsPurged = 0
     for (;;) {
-      const candidates = await this.prisma.message.findMany({
+      const candidates = await db.message.findMany({
         where: {
           clubId: settings.clubId,
           attachmentUrl: { not: null },
@@ -135,7 +221,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
 
       if (candidates.length === 0) break
 
-      const attachmentResult = await this.prisma.$transaction(async (tx) => {
+      const attachmentResult = await (async (tx: Prisma.TransactionClient) => {
         await lockChannelMessages(tx, candidates.map((m) => m.id))
         const lockedAttachments = await tx.message.findMany({
           where: {
@@ -148,18 +234,31 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
               { createdAt: { lte: messageCutoff }, deletedAt: null },
             ],
           },
-          select: { id: true, attachmentUrl: true },
+          select: { id: true, attachmentUrl: true, channelId: true, teamId: true, senderId: true, messageType: true },
         })
 
-        const objectKeys = lockedAttachments
-          .map((m) => (m.attachmentUrl ? this.r2.objectKeyFromUrl(m.attachmentUrl) : null))
-          .filter((key): key is string => !!key)
-
-        if (objectKeys.length > 0) {
-          if (!this.r2.enabled) {
-            throw new Error('R2 is not configured; chat attachment retention cannot safely delete objects')
+        if (lockedAttachments.some((message) => !isPrivateUploadMarker(message.attachmentUrl)
+          && !isProvenOwnedLegacyMedia(this.r2, message.attachmentUrl, { kind: 'chat', clubId: settings.clubId,
+            targetId: message.teamId, senderId: message.senderId, messageType: message.messageType }))) {
+          throw new LegacyRetentionNeedsReview('Legacy chat attachment retention requires provenance review')
+        }
+        for (const message of lockedAttachments) {
+          if (isPrivateUploadMarker(message.attachmentUrl)) {
+            const retired = await retireMessageUpload(tx, {
+              clubId: settings.clubId, messageId: message.id, targetType: 'CHANNEL', targetId: message.channelId,
+            })
+            if (!retired) throw new PrivateUploadBindingError('Private upload message binding is unavailable')
+          } else {
+            try {
+              await retireLegacyChatMedia(tx, this.r2, message.attachmentUrl, { kind: 'chat', clubId: settings.clubId,
+                targetId: message.teamId, senderId: message.senderId, messageType: message.messageType })
+            } catch (error) {
+              if (error instanceof Error && error.name === 'ServiceUnavailableException') {
+                throw new LegacyRetentionNeedsReview('Legacy chat attachment retention requires provenance review')
+              }
+              throw error
+            }
           }
-          await this.r2.deleteObjects(objectKeys)
         }
 
         return tx.message.updateMany({
@@ -171,16 +270,17 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
           },
           data: { attachmentUrl: null, attachmentMeta: null as never },
         })
-      })
+      })(db)
       attachmentsPurged += attachmentResult.count
     }
 
     let channelMessagesDeleted = 0
     for (;;) {
-      const candidates = await this.prisma.message.findMany({
+      const candidates = await db.message.findMany({
         where: {
           clubId: settings.clubId,
           deletedAt: null,
+          attachmentUrl: null,
           createdAt: { lte: messageCutoff },
           reports: { none: { resolvedAt: null } },
         },
@@ -190,13 +290,14 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
       if (candidates.length === 0) break
 
       const messageIds = candidates.map((m) => m.id)
-      const messageResult = await this.prisma.$transaction(async (tx) => {
+      const messageResult = await (async (tx: Prisma.TransactionClient) => {
         await lockChannelMessages(tx, messageIds)
         const updateResult = await tx.message.updateMany({
           where: {
             clubId: settings.clubId,
             id: { in: messageIds },
             deletedAt: null,
+            attachmentUrl: null,
             createdAt: { lte: messageCutoff },
             reports: { none: { resolvedAt: null } },
           },
@@ -239,12 +340,12 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
           },
         })
         return updateResult
-      })
+      })(db)
       channelMessagesDeleted += messageResult.count
     }
 
     for (;;) {
-      const candidates = await this.prisma.message.findMany({
+      const candidates = await db.message.findMany({
         where: {
           clubId: settings.clubId,
           deletedAt: { not: null },
@@ -258,7 +359,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
       if (candidates.length === 0) break
 
       const messageIds = candidates.map((m) => m.id)
-      await this.prisma.$transaction(async (tx) => {
+      await (async (tx: Prisma.TransactionClient) => {
         await lockChannelMessages(tx, messageIds)
         await tx.messageTranslation.deleteMany({
           where: {
@@ -308,7 +409,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
             },
           },
         })
-      })
+      })(db)
     }
 
     // Chat revamp: DM attachments (photo/video/PDF/voice) follow the same
@@ -324,27 +425,41 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
           { createdAt: { lte: messageCutoff }, deletedAt: null },
         ],
       }
-      const candidates = await this.prisma.directMessage.findMany({
+      const candidates = await db.directMessage.findMany({
         where: dmAttachmentWhere,
         select: { id: true, attachmentUrl: true },
         take: RETENTION_BATCH_SIZE,
       })
       if (!candidates || candidates.length === 0) break
 
-      const result = await this.prisma.$transaction(async (tx) => {
+      const result = await (async (tx: Prisma.TransactionClient) => {
         await lockDirectMessages(tx, candidates.map((m) => m.id))
         const locked = await tx.directMessage.findMany({
           where: { id: { in: candidates.map((m) => m.id) }, ...dmAttachmentWhere },
-          select: { id: true, attachmentUrl: true },
+          select: { id: true, attachmentUrl: true, conversationId: true, senderId: true, messageType: true },
         })
-        const objectKeys = locked
-          .map((m) => (m.attachmentUrl ? this.r2.objectKeyFromUrl(m.attachmentUrl) : null))
-          .filter((key): key is string => !!key)
-        if (objectKeys.length > 0) {
-          if (!this.r2.enabled) {
-            throw new Error('R2 is not configured; DM attachment retention cannot safely delete objects')
+        if (locked.some((message) => !isPrivateUploadMarker(message.attachmentUrl)
+          && !isProvenOwnedLegacyMedia(this.r2, message.attachmentUrl, { kind: 'dm', clubId: settings.clubId,
+            targetId: message.conversationId, senderId: message.senderId, messageType: message.messageType }))) {
+          throw new LegacyRetentionNeedsReview('Legacy DM attachment retention requires provenance review')
+        }
+        for (const message of locked) {
+          if (isPrivateUploadMarker(message.attachmentUrl)) {
+            const retired = await retireMessageUpload(tx, {
+              clubId: settings.clubId, messageId: message.id, targetType: 'DM', targetId: message.conversationId,
+            })
+            if (!retired) throw new PrivateUploadBindingError('Private upload message binding is unavailable')
+          } else {
+            try {
+              await retireLegacyChatMedia(tx, this.r2, message.attachmentUrl, { kind: 'dm', clubId: settings.clubId,
+                targetId: message.conversationId, senderId: message.senderId, messageType: message.messageType })
+            } catch (error) {
+              if (error instanceof Error && error.name === 'ServiceUnavailableException') {
+                throw new LegacyRetentionNeedsReview('Legacy DM attachment retention requires provenance review')
+              }
+              throw error
+            }
           }
-          await this.r2.deleteObjects(objectKeys)
         }
         return tx.directMessage.updateMany({
           where: {
@@ -355,16 +470,17 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
           },
           data: { attachmentUrl: null, attachmentMeta: Prisma.DbNull },
         })
-      })
+      })(db)
       attachmentsPurged += result.count
       if (result.count === 0) break
     }
 
     let directMessagesDeleted = 0
     for (;;) {
-      const candidates = await this.prisma.directMessage.findMany({
+      const candidates = await db.directMessage.findMany({
         where: {
           deletedAt: null,
+          attachmentUrl: null,
           createdAt: { lte: messageCutoff },
           reports: { none: { resolvedAt: null } },
           conversation: { clubId: settings.clubId },
@@ -375,12 +491,13 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
       if (candidates.length === 0) break
 
       const messageIds = candidates.map((m) => m.id)
-      const directMessageResult = await this.prisma.$transaction(async (tx) => {
+      const directMessageResult = await (async (tx: Prisma.TransactionClient) => {
         await lockDirectMessages(tx, messageIds)
         const updateResult = await tx.directMessage.updateMany({
           where: {
             id: { in: messageIds },
             deletedAt: null,
+            attachmentUrl: null,
             createdAt: { lte: messageCutoff },
             reports: { none: { resolvedAt: null } },
             conversation: { clubId: settings.clubId },
@@ -397,12 +514,12 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
           },
         })
         return updateResult
-      })
+      })(db)
       directMessagesDeleted += directMessageResult.count
     }
 
     for (;;) {
-      const candidates = await this.prisma.directMessage.findMany({
+      const candidates = await db.directMessage.findMany({
         where: {
           deletedAt: { not: null },
           createdAt: { lte: messageCutoff },
@@ -416,7 +533,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
       if (candidates.length === 0) break
 
       const messageIds = candidates.map((m) => m.id)
-      await this.prisma.$transaction(async (tx) => {
+      await (async (tx: Prisma.TransactionClient) => {
         await lockDirectMessages(tx, messageIds)
         await tx.directMessageTranslation.deleteMany({
           where: {
@@ -429,7 +546,7 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
             },
           },
         })
-      })
+      })(db)
     }
 
     return {
@@ -449,6 +566,9 @@ export class ChatRetentionWorker implements OnModuleInit, OnModuleDestroy {
         )
       }
     } catch (error) {
+      if (error instanceof RetentionSweepError) {
+        this.logger.error(`Chat retention partial result: ${JSON.stringify(error.summary)}`)
+      }
       this.logger.error(
         `Chat retention sweep failed: ${error instanceof Error ? error.message : 'unknown error'}`,
       )

@@ -57,6 +57,11 @@ export function useKeyboardInset(): number {
   return computeKeyboardInset(keyboardHeight, baseline.current, windowHeight)
 }
 
+/** Visibility is separate from overlap: Android may resize the window fully. */
+export function useKeyboardVisible(): boolean {
+  return useKeyboardState((state) => state.isVisible)
+}
+
 /**
  * Hardware back on Android. `handler` returns true when it consumed the press.
  * A one-way door passes no handler: the press falls through to the navigator,

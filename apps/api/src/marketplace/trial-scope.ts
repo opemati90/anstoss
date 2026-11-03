@@ -37,6 +37,7 @@ export async function resolveTrialScope(
       userId,
       role: { in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH] },
       ...activeTeamAccessWhere(),
+      phase: 'FULL',
     },
     select: { teamId: true },
   })

@@ -1,0 +1,13 @@
+appId: com.renuirug.anstoss
+---
+- scrollUntilVisible:
+    element:
+      text: 'Replies'
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/responses-list-review
+- swipe:
+    start: '50%,85%'
+    end: '50%,35%'
+    duration: 500
+- takeScreenshot: /Users/yemi/anstoss/output/responses-list-detail-review

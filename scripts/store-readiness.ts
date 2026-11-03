@@ -1,5 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import { LAUNCH_FEATURES } from '../packages/shared/src/constants/launch-features'
+import { verifyStoreZip } from './store-zip-integrity'
 
 const root = process.cwd()
 const failures: string[] = []
@@ -30,6 +34,55 @@ function expectIncludes(haystack: string, needle: string, context: string) {
 
 function expectNotIncludes(haystack: string, needle: string, context: string) {
   expect(!haystack.includes(needle), `${context} must not include ${needle}`)
+}
+
+// Approval is explicit and bound to the reviewed files and source revision.
+const reviewPath = 'store-assets/review.json'
+const storeScreenshotNames = [
+  '01-anstoss.png', '02-club-home.png', '03-events-rsvp.png',
+  '04-team-chat.png', '05-squad.png', '06-contributions.png',
+]
+const reviewedFiles = [
+  ...['launch', 'current-after-user', 'events', 'chat', 'squad', 'contributions'].map((name) => `store-assets/source/${name}.png`),
+  'store-assets/source/amateur-pitch-editorial-v2.png',
+  ...['app-store', 'play-store'].flatMap((store) => storeScreenshotNames.map((name) => `store-assets/${store}/en-US/${name}`)),
+  'store-assets/app-store/en-US/app-icon-1024.png',
+  'store-assets/play-store/en-US/play-icon-512.png',
+  'store-assets/play-store/en-US/feature-graphic-1024x500.png',
+  'store-assets/app-store-upload.zip', 'store-assets/play-store-upload.zip',
+  'store-assets/generate-store-assets-v2.js',
+]
+if (!existsSync(path(reviewPath))) fail('Store asset review manifest is missing')
+else {
+  const review = json<{ approved: boolean; releaseCommit: string | null; runtimeVersion: string | null;
+    launchScope: string; reviewedAt: string | null; reviewer: string | null; sha256: Record<string, string> }>(reviewPath)
+  expect(review.approved === true, 'Store artwork is withdrawn: capture and review current adult-launch screens before submission')
+  if (review.approved === true) {
+    try {
+      if (!review.releaseCommit || !/^[a-f0-9]{40}$/.test(review.releaseCommit)) throw new Error('Invalid reviewed commit')
+      execFileSync('git', ['merge-base', '--is-ancestor', review.releaseCommit, 'HEAD'], { cwd: root, stdio: 'ignore' })
+      const changed = execFileSync('git', ['diff', '--name-only', review.releaseCommit, 'HEAD'], { cwd: root, encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+      expect(changed.every((file) => file === reviewPath), 'Only the approval manifest may change after the reviewed commit')
+      const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim()
+      expect(!dirty, 'Store approval requires a clean working tree')
+    } catch { fail('Cannot verify the reviewed store release commit') }
+    expect(review.runtimeVersion === '57.0.1' && review.launchScope === 'adult-only', 'Store artwork review must match runtime and launch scope')
+    expect(LAUNCH_FEATURES.minimumAccountAge === 18 && !LAUNCH_FEATURES.youthParticipation && !LAUNCH_FEATURES.healthReporting,
+      'Store artwork review requires the adult-only launch feature scope')
+    expect(!!review.reviewer?.trim() && !!review.reviewedAt && !Number.isNaN(Date.parse(review.reviewedAt)), 'Store artwork needs a named reviewer and review date')
+    for (const file of reviewedFiles) {
+      if (!existsSync(path(file))) { fail(`Reviewed store asset missing: ${file}`); continue }
+      const actual = createHash('sha256').update(readFileSync(path(file))).digest('hex')
+      expect(review.sha256?.[file] === actual, `Store asset changed or was not reviewed: ${file}`)
+    }
+    for (const store of ['app-store', 'play-store'] as const) {
+      const names = [...storeScreenshotNames, ...(store === 'app-store'
+        ? ['app-icon-1024.png'] : ['feature-graphic-1024x500.png', 'play-icon-512.png'])].sort()
+      try {
+        verifyStoreZip(path(`store-assets/${store}-upload.zip`), path(`store-assets/${store}/en-US`), names)
+      } catch { fail(`Could not verify ${store} ZIP contents`) }
+    }
+  }
 }
 
 function walk(rel: string): string[] {
@@ -277,6 +330,9 @@ expectIncludes(
   '92:FC:95:00:C7:B8:D6:55:9B:82:E4:15:53:9A:6D:D8:97:B4:74:4D:F3:89:EC:99:F5:CD:B3:40:9A:81:A1:CE',
   'Android EAS signing fingerprint',
 )
+expectIncludes(assetLinks,
+  '77:59:FA:F6:E2:90:91:92:AC:DE:B0:2B:4E:E6:82:48:01:8F:9B:6B:97:F2:BD:99:30:C0:0D:B1:03:E2:7B:45',
+  'Android Play app-signing fingerprint supplied by operator on 2026-10-28')
 expectIncludes(
   read('apps/web/nginx.conf'),
   '/.well-known/assetlinks.json',

@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { JoinRequestStatus, MembershipRole, TeamRole } from '@anstoss/shared'
 import { JoinRequestsService } from './join-requests.service'

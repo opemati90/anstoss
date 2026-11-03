@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -28,7 +30,7 @@ import {
 export default function EnterDobScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { refreshUser } = useAuth()
+  const { refreshUser, signOut } = useAuth()
   const c = useClubColors()
 
   const [dobText, setDobText] = useState('')
@@ -57,6 +59,10 @@ export default function EnterDobScreen() {
       setDobError(t('auth.dateOfBirthInvalidBody'))
       return
     }
+    if (!LAUNCH_FEATURES.youthParticipation && age < LAUNCH_FEATURES.minimumAccountAge) {
+      setDobError(t('onboardingFlow.launch.adultsHint'))
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -78,7 +84,7 @@ export default function EnterDobScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View
             style={[
               styles.iconTile,
@@ -111,6 +117,7 @@ export default function EnterDobScreen() {
             keyboardType="number-pad"
             maxLength={10}
             autoFocus
+            testID="required-dob-input"
           />
           <InlineError message={dobError} />
 
@@ -133,7 +140,12 @@ export default function EnterDobScreen() {
           >
             {t('enterDob.privacyHint')}
           </Text>
-        </View>
+          <Button label={t('onboardingFlow.launch.privacyActions')} variant="bordered" fullWidth
+            onPress={() => router.push('/account-privacy')} testID="required-dob-privacy" />
+          <Button label={t('onboardingFlow.common.signOut')} variant="plain" fullWidth
+            onPress={() => { void signOut().then(() => router.replace('/(auth)/welcome')).catch(() => setDobError(t('common.error'))) }}
+            testID="required-dob-sign-out" />
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   )
@@ -150,7 +162,7 @@ function hexWithAlpha(color: string, alpha: number): string {
 
 const styles = StyleSheet.create({
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: space.lg,

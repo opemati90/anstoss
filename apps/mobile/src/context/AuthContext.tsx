@@ -7,8 +7,9 @@ import React, {
   useCallback,
   useMemo,
 } from 'react'
-import { AppState, type AppStateStatus } from 'react-native'
+import { Alert, AppState, type AppStateStatus } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 import {
   clearSessionToken,
   getSessionToken,
@@ -28,6 +29,7 @@ import {
   API_URL,
 } from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
+import { acknowledgeAttendanceRejections, listAttendanceRejections, recoverAttendanceJournals, resumeConfirmedAttendanceCleanup } from '../components/events/coachAttendanceRecovery'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
 import {
   clearE2ESession,
@@ -48,7 +50,7 @@ import {
   TEAM_PREF_PREFIX,
   roleModePreferenceKey,
 } from '../onboarding/storageKeys'
-import { noteServerLanguage } from '../i18n'
+import i18n, { noteServerLanguage } from '../i18n'
 
 type User = {
   id: string
@@ -242,6 +244,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // When set, the token-driven load effect skips its redundant fetchUser() to
   // avoid a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
+  const attendanceNoticeActor = useRef<{ actorId: string } | null>(null)
+
+  useEffect(() => {
+    void resumeConfirmedAttendanceCleanup().catch(() => {})
+  }, [])
 
   useEffect(() => {
     activeClubRef.current = activeClub
@@ -250,6 +257,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     activeTeamIdRef.current = activeTeamId
   }, [activeTeamId])
+
+  useEffect(() => {
+    if (!user?.id || !sessionToken || e2eSession) return
+    const actorId = user.id
+    let active = true
+    let acknowledgementFailures = 0
+    let displayedNotice: { actorId: string } | null = null
+    const showNotices = async () => {
+      const notices = await listAttendanceRejections(actorId)
+      if (!active || notices.length === 0 || attendanceNoticeActor.current?.actorId === actorId) return
+      const notice = { actorId }
+      displayedNotice = notice
+      attendanceNoticeActor.current = notice
+      Alert.alert(i18n.t('event.coachAttendance.title'), i18n.t('event.coachAttendanceRejected'), [{
+        text: i18n.t('common.done'), onPress: () => {
+          if (!active) return
+          void acknowledgeAttendanceRejections(notices).then(() => {
+            if (attendanceNoticeActor.current === notice) attendanceNoticeActor.current = null
+            if (active) void showNotices().catch(() => {})
+          }).catch(() => {
+            acknowledgementFailures += 1
+            if (attendanceNoticeActor.current === notice) attendanceNoticeActor.current = null
+          })
+        },
+      }])
+    }
+    const recover = async () => {
+      const failuresAtStart = acknowledgementFailures
+      await showNotices()
+      await recoverAttendanceJournals(actorId)
+      if (active && failuresAtStart === acknowledgementFailures) await showNotices()
+    }
+    void recover().catch(() => {})
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void recover().catch(() => {})
+    })
+    return () => {
+      active = false
+      subscription.remove()
+      if (attendanceNoticeActor.current === displayedNotice) attendanceNoticeActor.current = null
+    }
+  }, [user?.id, sessionToken, e2eSession])
 
   const resetLocalAuthState = useCallback(() => {
     clearMemoryCache()
@@ -509,6 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (user?.registrationRole === 'FREE_AGENT') {
       modes.add('FREE_AGENT')
     }
+    if (!LAUNCH_FEATURES.youthParticipation) modes.delete('PARENT')
     return Array.from(modes)
   }, [activeClub, teamMembers, user?.registrationRole])
 

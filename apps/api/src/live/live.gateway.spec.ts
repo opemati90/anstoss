@@ -68,7 +68,7 @@ describe('LiveGateway.handleConnection (auth)', () => {
 
     expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
       where: { id: 'user-123', deletedAt: null },
-      select: { id: true },
+      select: { id: true, dateOfBirth: true },
     })
     expect(client.disconnect).toHaveBeenCalled()
     expect(client.data.userId).toBeUndefined()
@@ -76,7 +76,7 @@ describe('LiveGateway.handleConnection (auth)', () => {
 
   it('attaches the user id to the socket on a valid token', async () => {
     mockedVerify.mockReturnValue({ sub: 'user-1' })
-    mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' })
+    mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1', dateOfBirth: new Date('1990-01-01') })
     const client = makeClient('good-token')
     await gateway.handleConnection(client)
 
@@ -86,7 +86,7 @@ describe('LiveGateway.handleConnection (auth)', () => {
 
   it('reads the token from the handshake query when auth is absent', async () => {
     mockedVerify.mockReturnValue({ sub: 'user-1' })
-    mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1' })
+    mockPrisma.user.findFirst.mockResolvedValue({ id: 'user-1', dateOfBirth: new Date('1990-01-01') })
     const client = {
       handshake: { auth: {}, query: { token: 'query-token' } },
       data: {} as Record<string, unknown>,
@@ -118,7 +118,7 @@ describe('LiveGateway.handleConnection (real OTP-issued token)', () => {
   it('accepts a valid OTP-issued session token and attaches the user', async () => {
     const token = realJwt.signSessionToken('user-77', { secret: SECRET })
     const prisma = {
-      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-77' }) },
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'user-77', dateOfBirth: new Date('1990-01-01') }) },
     }
     const gateway = new LiveGateway(prisma as any, {} as any)
     const client = {
@@ -132,7 +132,7 @@ describe('LiveGateway.handleConnection (real OTP-issued token)', () => {
     expect(client.disconnect).not.toHaveBeenCalled()
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: { id: 'user-77', deletedAt: null },
-      select: { id: true },
+      select: { id: true, dateOfBirth: true },
     })
     expect(client.data.userId).toBe('user-77')
   })

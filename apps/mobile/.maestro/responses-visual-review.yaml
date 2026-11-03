@@ -1,0 +1,47 @@
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    clearState: true
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A18347'
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: '(?i).*(DEVELOPMENT SERVERS|Development servers|developer menu|Send code|Welcome to Anstoss).*'
+    timeout: 180000
+- runFlow:
+    when:
+      visible: 'Enter URL manually'
+    commands:
+      - tapOn: 'Enter URL manually'
+      - tapOn: 'http://'
+      - inputText: 'http://127.0.0.1:18347'
+      - tapOn: 'Connect'
+- runFlow:
+    when:
+      visible: '.*developer menu.*'
+    commands:
+      - tapOn: 'Continue'
+- runFlow:
+    when:
+      visible: 'Go home'
+    commands:
+      - tapOn:
+          point: '50%,10%'
+- extendedWaitUntil:
+    visible: '(?i).*(Send code|Welcome to Anstoss|Home|Events).*'
+    timeout: 180000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=coach'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://event-detail?eventId=event-match-next'
+- extendedWaitUntil:
+    visible: '.*(Responses|Replies|Availability|Zusagen).*'
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/responses-visual-review

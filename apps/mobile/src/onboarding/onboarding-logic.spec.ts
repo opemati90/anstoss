@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { RegistrationRole } from '@anstoss/shared'
 import { validateDob } from './DateOfBirthInput'
 import { buildJoinProfilePatch, joinErrorKey } from './joinClub'

@@ -30,6 +30,8 @@ import {
   type RsvpStatus,
 } from '../src/components/events/RsvpControl'
 import { SquadPanel } from '../src/components/events/SquadPanel'
+import { AvailabilityPolicySection } from '../src/components/events/AvailabilityPolicySection'
+import { useAvailabilityClosed } from '../src/hooks/useAvailabilityClosed'
 import { eventDisplayTitle, eventTimeLine, reasonLabel } from '../src/components/events/eventFormat'
 import { Haptics } from '../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
@@ -59,14 +61,21 @@ export default function EventDetailScreen() {
   const eventId = first(params.eventId)
   const { activeClub, user } = useAuth()
   const clubId = activeClub?.club.id ?? null
+  const currentScope = useRef({ key: '', generation: 0 })
+  if (currentScope.current.key !== `${clubId}:${eventId}`) {
+    currentScope.current = { key: `${clubId}:${eventId}`, generation: currentScope.current.generation + 1 }
+  }
 
-  const [event, setEvent] = useState<EventDetail | null>(null)
+  const [event, setEvent] = useState<(EventDetail & { rsvpDeadline?: string | null; rsvpLocked?: boolean }) | null>(null)
+  const availabilityIsClosed = useAvailabilityClosed(event)
   const [error, setError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [segment, setSegment] = useState<Segment>(() =>
     first(params.tab) === 'rides' ? 'rides' : first(params.tab) === 'squad' ? 'squad' : 'responses',
   )
   const [pendingRsvp, setPendingRsvp] = useState<string | null>(null)
+  const rsvpRequestId = useRef(0)
+  const rsvpInFlight = useRef(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
@@ -74,8 +83,10 @@ export default function EventDetailScreen() {
   const [cancelling, setCancelling] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [reminding, setReminding] = useState(false)
+  const reminderAttempt = useRef<object | null>(null)
   const [remindCooldown, setRemindCooldown] = useState<string | null>(null)
   const [remindSent, setRemindSent] = useState<number | null>(null)
+  const [remindUncertain, setRemindUncertain] = useState(0)
   const [checkingIn, setCheckingIn] = useState(false)
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
   const [reminderOn, setReminderOn] = useState(false)
@@ -95,11 +106,9 @@ export default function EventDetailScreen() {
       setError(false)
       setCheckedInAt(data.myCheckInAt ?? null)
       setReminderOn(Boolean(data.reminderEnabled))
-      if (data.lastRsvpReminderAt) {
-        setRemindCooldown(
-          new Date(new Date(data.lastRsvpReminderAt).getTime() + 24 * 60 * 60 * 1000).toISOString(),
-        )
-      }
+      setRemindCooldown(data.lastRsvpReminderAt
+        ? new Date(new Date(data.lastRsvpReminderAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+        : null)
     } catch {
       if (seq.current !== request) return
       setError(true)
@@ -107,7 +116,18 @@ export default function EventDetailScreen() {
   }, [clubId, eventId])
 
   useEffect(() => {
+    setEvent(null)
+    setError(false)
+    setPendingRsvp(null)
+    ++rsvpRequestId.current
+    rsvpInFlight.current = false
+    reminderAttempt.current = null
+    setReminding(false)
+    setRemindCooldown(null)
+    setRemindSent(null)
+    setRemindUncertain(0)
     void fetchEvent()
+    return () => { ++seq.current }
   }, [fetchEvent])
 
   // Deep links from home / pushes: ?attendance=1 opens the attendance sheet,
@@ -135,7 +155,9 @@ export default function EventDetailScreen() {
   ) => {
     if (!clubId || !event) return
     const key = childUserId ?? 'self'
-    if (pendingRsvp) return
+    if (rsvpInFlight.current || availabilityIsClosed) return
+    rsvpInFlight.current = true
+    const requestId = ++rsvpRequestId.current
     setPendingRsvp(key)
     Haptics.tap()
     const snapshot = event
@@ -166,6 +188,7 @@ export default function EventDetailScreen() {
     )
     try {
       await new Promise((resolve) => setTimeout(resolve, RSVP.DEBOUNCE_MS))
+      if (rsvpRequestId.current !== requestId || currentScope.current.key !== `${clubId}:${snapshot.id}`) return
       await api(`/clubs/${clubId}/events/${event.id}/rsvp`, {
         method: 'PUT',
         body: {
@@ -174,34 +197,61 @@ export default function EventDetailScreen() {
           ...(childUserId ? { childUserId } : {}),
         },
       })
+      if (rsvpRequestId.current !== requestId || currentScope.current.key !== `${clubId}:${snapshot.id}`) return
       Haptics.success()
       void fetchEvent()
-    } catch {
-      setEvent(snapshot)
+    } catch (error) {
+      if (rsvpRequestId.current !== requestId || currentScope.current.key !== `${clubId}:${snapshot.id}`) return
+      setEvent((current) => {
+        if (!current || current.id !== snapshot.id || current.clubId !== snapshot.clubId) return current
+        if (childUserId) return { ...current, children: current.children.map((child) => child.userId === childUserId
+          ? (snapshot.children.find((before) => before.userId === childUserId) ?? child) : child) }
+        return { ...current, myRsvp: snapshot.myRsvp, myRsvpStale: snapshot.myRsvpStale,
+          myRsvpReason: snapshot.myRsvpReason, myRsvpNote: snapshot.myRsvpNote }
+      })
       Haptics.fail()
-      Alert.alert(t('eventFlow.rsvp.failedTitle'), t('eventFlow.rsvp.failedBody'))
+      if (error instanceof ApiError && error.code === 'RSVP_LOCKED') {
+        Alert.alert(t('eventFlow.availability.closed'), t('eventFlow.availability.closedHint'))
+        void fetchEvent()
+      } else Alert.alert(t('eventFlow.rsvp.failedTitle'), t('eventFlow.rsvp.failedBody'))
     } finally {
-      setPendingRsvp(null)
+      if (rsvpRequestId.current === requestId) {
+        rsvpInFlight.current = false
+        setPendingRsvp(null)
+      }
     }
   }
 
   const remind = async () => {
-    if (!clubId || !event || reminding) return
+    if (!clubId || !event || reminderAttempt.current || availabilityIsClosed) return
+    const scope = currentScope.current
+    const attempt = {}
+    reminderAttempt.current = attempt
     setReminding(true)
     try {
-      const res = await api<{ sent: number; nextAvailableAt: string }>(
+      const res = await api<{ sent: number; uncertain?: number; nextAvailableAt: string | null }>(
         `/clubs/${clubId}/events/${event.id}/remind-rsvp`,
         { method: 'POST' },
       )
+      if (currentScope.current !== scope) return
+      ++seq.current
+      // A zero-delivery attempt can still encounter a previous real cooldown.
+      // The server returns null when none is active.
       setRemindCooldown(res.nextAvailableAt)
       setRemindSent(res.sent)
-      Haptics.success()
+      setRemindUncertain(res.uncertain ?? 0)
+      if (res.sent > 0) Haptics.success()
     } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        const body = err.data as { retryAfter?: string } | null | undefined
-        setRemindCooldown(
-          body?.retryAfter ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        )
+      if (currentScope.current !== scope) return
+      if (err instanceof ApiError && err.status === 429 && err.code === 'RSVP_REMINDER_COOLDOWN'
+          && reminderCooldownFromError(err.data)) {
+        // Prevent an older GET from removing the newer, server-confirmed limit.
+        ++seq.current
+        setRemindCooldown(reminderCooldownFromError(err.data))
+        setRemindSent(null)
+        setRemindUncertain(0)
+      } else if (err instanceof ApiError && err.code === 'RSVP_LOCKED') {
+        void fetchEvent()
       } else {
         Alert.alert(
           t('eventFlow.responses.remindFailedTitle'),
@@ -209,7 +259,10 @@ export default function EventDetailScreen() {
         )
       }
     } finally {
-      setReminding(false)
+      if (reminderAttempt.current === attempt) {
+        reminderAttempt.current = null
+        setReminding(false)
+      }
     }
   }
 
@@ -333,7 +386,7 @@ export default function EventDetailScreen() {
   const startMs = new Date(event.date).getTime()
   const cancelled = Boolean(event.cancelledAt)
   const started = nowMs >= startMs
-  const canManage = event.viewer.canManage
+  const canManage = event.viewer.canManage && !event.archivedAt
   // Everyone who plays answers for themselves, including a Spielertrainer or
   // a board member who plays; a parent who also plays gets both their own
   // answer and one per child.
@@ -371,6 +424,19 @@ export default function EventDetailScreen() {
       >
         <EventHeaderCard event={event} locale={locale} />
 
+        {!cancelled && !started && !event.archivedAt ? <AvailabilityPolicySection key={`${clubId}:${event.id}`}
+          policy={event} closed={availabilityIsClosed} canManage={canManage}
+          onChange={async (change) => {
+            const visit = currentScope.current
+            const updated = await api<{ deadline: string | null; locked: boolean }>(`/clubs/${clubId}/events/${event.id}/availability-policy`, { method: 'PATCH', body: change })
+            if (typeof updated.locked !== 'boolean' || (updated.deadline !== null && !Number.isFinite(Date.parse(updated.deadline)))) throw new Error('Invalid availability policy')
+            if (currentScope.current !== visit || visit.key !== `${clubId}:${event.id}`) return
+            // A GET started before this commit must not reopen availability.
+            ++seq.current
+            setEvent((current) => current?.id === event.id && current.clubId === clubId
+              ? { ...current, rsvpDeadline: updated.deadline, rsvpLocked: updated.locked } : current)
+          }} /> : null}
+
         {!cancelled && !started && answersForSelf ? (
           <SectionGroup header={t('eventFlow.detail.yourAnswer')}>
             <View style={styles.cardBody} testID="event-self-answer">
@@ -390,7 +456,7 @@ export default function EventDetailScreen() {
               <RsvpControl
                 value={event.myRsvpStale ? null : event.myRsvp}
                 onChange={(status, absence) => void submitRsvp(status, absence, null)}
-                disabled={pendingRsvp != null}
+                disabled={pendingRsvp != null || availabilityIsClosed}
                 testID="event-rsvp"
               />
               {event.myRsvp === 'NO' && (event.myRsvpReason || event.myRsvpNote) ? (
@@ -435,7 +501,7 @@ export default function EventDetailScreen() {
                     value={child.rsvp}
                     subjectName={firstName(child.name)}
                     onChange={(status, absence) => void submitRsvp(status, absence, child.userId)}
-                    disabled={pendingRsvp != null}
+                    disabled={pendingRsvp != null || availabilityIsClosed}
                     testID={`event-rsvp-child-${child.userId}`}
                   />
                   {child.rsvp === 'NO' && (child.reason || child.note) ? (
@@ -521,13 +587,16 @@ export default function EventDetailScreen() {
             rsvps={event.rsvps}
             members={event.members}
             canManage={canManage}
+            viewerUserId={user?.id}
+            reminderEligibleUserIds={event.reminderEligibleUserIds}
             remind={
-              canManage && !started && !cancelled
+              canManage && !started && !cancelled && !availabilityIsClosed
                 ? {
                     onPress: () => void remind(),
                     pending: reminding,
                     cooldownUntil: remindCooldown,
                     sentCount: remindSent,
+                    uncertainCount: remindUncertain,
                   }
                 : null
             }
@@ -568,6 +637,9 @@ export default function EventDetailScreen() {
           eventId={event.id}
           eventDate={event.date}
           canManageAttendance={canManage}
+          canRecordAttendance={!cancelled && !event.archivedAt}
+          actorId={user?.id}
+          members={event.members}
           rsvps={event.rsvps.map((entry) => ({
             userId: entry.userId,
             user: entry.user,
@@ -675,6 +747,15 @@ export default function EventDetailScreen() {
       </BottomSheet>
     </View>
   )
+}
+
+function reminderCooldownFromError(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const body = data as { retryAfter?: unknown; error?: { retryAfter?: unknown } }
+  const timestamp = body.error?.retryAfter ?? body.retryAfter
+  if (typeof timestamp !== 'string') return null
+  const parsed = Date.parse(timestamp)
+  return Number.isFinite(parsed) && parsed > Date.now() ? timestamp : null
 }
 
 function first(value: string | string[] | undefined): string | undefined {

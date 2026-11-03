@@ -1,4 +1,5 @@
-import { classifyPrivateMessaging, isUnder16 } from '../dm/private-messaging'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { classifyPrivateMessaging, isUnderAge, isUnder16 } from '../dm/private-messaging'
 
 /**
  * Safeguarding rule for CUSTOM chat groups (chat revamp, finding B1), as a
@@ -29,12 +30,13 @@ export type GroupSafeguardContext = {
   guardianPairs: ReadonlySet<string>
 }
 
-export type GroupSafeguardCode = 'GROUP_MINOR_NEEDS_STAFF' | 'GROUP_PRIVATE_PAIR_NOT_ALLOWED'
+export type GroupSafeguardCode = 'GROUP_MINOR_NEEDS_STAFF' | 'GROUP_PRIVATE_PAIR_NOT_ALLOWED' | 'GROUP_ADULT_LAUNCH_ONLY'
 
 export type GroupSafeguardDecision = { ok: true } | { ok: false; code: GroupSafeguardCode }
 
 export function isKnownAdult(user: GroupSafeguardUser | undefined, now = new Date()): boolean {
   if (!user) return false
+  if (!LAUNCH_FEATURES.youthParticipation) return Boolean(user.dateOfBirth && Number.isFinite(user.dateOfBirth.getTime()) && !isUnderAge(user.dateOfBirth, LAUNCH_FEATURES.minimumAccountAge, now))
   if (user.dateOfBirth) return !isUnder16(user.dateOfBirth, now)
   return !!user.adultConfirmedAt
 }
@@ -45,8 +47,11 @@ export function evaluateGroupSafeguarding(
   now = new Date(),
 ): GroupSafeguardDecision {
   const ids = Array.from(new Set(memberIds))
-  if (ids.length < 2) return { ok: true }
   const byId = new Map(ctx.users.map((u) => [u.id, u]))
+  if (!LAUNCH_FEATURES.youthParticipation && ids.some((id) => !isKnownAdult(byId.get(id), now))) {
+    return { ok: false, code: 'GROUP_ADULT_LAUNCH_ONLY' }
+  }
+  if (ids.length < 2) return { ok: true }
   const isGuardian = (adultId: string, minorId: string) =>
     isKnownAdult(byId.get(adultId), now) &&
     (ctx.guardianPairs.has(`${adultId}:${minorId}`) || byId.get(minorId)?.managedById === adultId)

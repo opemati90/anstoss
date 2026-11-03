@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
-import { Alert, Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { Redirect, router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { MemberExportResult } from '@anstoss/shared'
-import { COMPLIANCE_FEATURE_ENABLED } from '../../../src/launchFeatures'
+import { LAUNCH_FEATURES, type MemberExportResult } from '@anstoss/shared'
+import { COMPLIANCE_FEATURE_ENABLED, OPTIONAL_CLUB_FEATURES } from '../../../src/launchFeatures'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { api } from '../../../src/api/client'
@@ -18,9 +18,8 @@ import {
   SectionGroup,
   SoftIcon,
   Text,
-  getInitials,
 } from '../../../src/components/ui'
-import { Skeleton } from '../../../src/components/Skeleton'
+import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
 import { useAdminInbox } from '../../../src/components/admin/useAdminInbox'
 import { ChatRetentionRow } from '../../../src/components/admin/ChatRetentionRow'
 import { useOpenReportsSummary } from '../../../src/components/admin/useModerationReports'
@@ -29,7 +28,7 @@ import {
   clubCountsLabel,
   formatMoney,
 } from '../../../src/components/admin/adminFormat'
-import { hairline, RADIUS_CARD, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 /**
  * Verein — the club admin's workspace (OWNER / ADMIN only). An iOS
@@ -46,7 +45,7 @@ export default function VereinScreen() {
   const role = activeClub?.role
   const isOwner = role === 'OWNER'
   const isAdmin = role === 'OWNER' || role === 'ADMIN'
-  const { inbox, status, refreshing, refresh, reload } = useAdminInbox(isAdmin ? clubId : null)
+  const { inbox, refreshing, refresh, reload } = useAdminInbox(isAdmin ? clubId : null)
   const reports = useOpenReportsSummary(isAdmin ? clubId : null)
   const reloadReports = reports.reload
   const [announceVisible, setAnnounceVisible] = useState(false)
@@ -70,7 +69,6 @@ export default function VereinScreen() {
     return <Redirect href="/(tabs)" />
   }
 
-  const club = activeClub.club
   const roleLabel = t(adminRoleLabelKey(role, activeClub.operationalRoles))
   const counts = inbox
     ? clubCountsLabel(t, inbox.memberCount, inbox.teamCount)
@@ -146,33 +144,10 @@ export default function VereinScreen() {
         }
         testID="verein-tab"
       >
-        {/* Club identity card */}
-        <View style={[styles.headerCard, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-          {club.badgeUrl ? (
-            <Image source={{ uri: club.badgeUrl }} style={[styles.crest, { borderColor: c.borderSubtle }]} />
-          ) : (
-            <View style={[styles.crest, styles.crestFallback, { backgroundColor: c.primary }]}>
-              <Text variant="title3" weight="bold" color="inverse">
-                {getInitials(club.name)}
-              </Text>
-            </View>
-          )}
-          <View style={styles.headerText}>
-            <Text variant="title3" weight="bold" color="primary" numberOfLines={2}>
-              {club.name}
-            </Text>
-            <Text variant="subheadline" color="secondary" numberOfLines={1}>
-              {roleLabel}
-            </Text>
-            {counts ? (
-              <Text variant="footnote" color="tertiary" tabular numberOfLines={1}>
-                {counts}
-              </Text>
-            ) : status === 'loading' ? (
-              <Skeleton shape="line" width="70%" height={12} />
-            ) : null}
-          </View>
-        </View>
+        <TabScreenHeader
+          title={t('verein.tabTitle')}
+          subtitle={[roleLabel, counts].filter(Boolean).join(' · ')}
+        />
 
         {/* Mitglieder */}
         <SectionGroup header={t('verein.sections.members')}>
@@ -192,19 +167,19 @@ export default function VereinScreen() {
             onPress={() => router.push('/pending-requests' as never)}
           />
           {/* Wechselbörse: Gesuche, Spielersuche, Probetraining, Vereinswechsel */}
-          <ListRow
+          {OPTIONAL_CLUB_FEATURES.marketplace ? <ListRow
             left={<SoftIcon name="arrow.left.arrow.right" />}
             title={t('wechsel.title')}
             subtitle={t('wechsel.entryHint')}
             showChevron
             onPress={() => router.push('/wechselboerse' as never)}
-          />
-          <ListRow
+          /> : null}
+          {LAUNCH_FEATURES.youthParticipation ? <ListRow
             left={<SoftIcon name="figure.and.child.holdinghands" />}
             title={t('verein.members.families')}
             showChevron
             onPress={() => router.push('/team-families' as never)}
-          />
+          /> : null}
           <ListRow
             left={<SoftIcon name="person.badge.plus" />}
             title={t('verein.members.invite')}
@@ -236,12 +211,12 @@ export default function VereinScreen() {
             showChevron
             onPress={() => router.push('/team-management' as never)}
           />
-          <ListRow
+          {OPTIONAL_CLUB_FEATURES.statistics ? <ListRow
             left={<SoftIcon name="chart.bar.fill" />}
             title={t('verein.teams.stats')}
             showChevron
             onPress={() => router.push('/club-stats' as never)}
-          />
+          /> : null}
         </SectionGroup>
 
         {/* Finanzen */}
@@ -273,12 +248,12 @@ export default function VereinScreen() {
             showChevron
             onPress={() => router.push('/admin-contribution-reconciliation' as never)}
           />
-          <ListRow
+          {OPTIONAL_CLUB_FEATURES.sponsorship ? <ListRow
             left={<SoftIcon name="star" />}
             title={t('verein.finance.sponsors')}
             showChevron
             onPress={() => router.push('/admin-sponsors' as never)}
-          />
+          /> : null}
         </SectionGroup>
 
         {/* Ehrenamt & Kinderschutz */}
@@ -425,26 +400,4 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_CLEARANCE + space.xl,
     gap: space.md,
   },
-  headerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
-    borderRadius: RADIUS_CARD,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  crest: {
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS_CARD,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  crestFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 0,
-  },
-  headerText: { flex: 1, minWidth: 0, gap: space['2xs'] },
 })

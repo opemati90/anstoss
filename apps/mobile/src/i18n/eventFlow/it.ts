@@ -1,4 +1,13 @@
 export const eventFlowIt = {
+  availability: {
+    title: 'Disponibilità', open: 'Risposte aperte', closed: 'Risposte chiuse',
+    closedHint: 'Contatta il tuo allenatore se la tua disponibilità cambia.',
+    noDeadline: 'Nessuna scadenza', deadlineValue: 'Scadenza risposte: {{value}}',
+    lock: 'Blocca le risposte', lockHint: 'Impedisci a giocatori e tutori di modificare le risposte.',
+    chooseDeadline: 'Scadenza risposte', deadlineHint: 'Le risposte si chiudono a quest’ora. Il blocco manuale resta attivo finché non lo disattivi.',
+    hoursBefore: '{{count}} ore prima dell’evento', atStart: 'All’inizio dell’evento',
+    saveFailed: 'Salvataggio non confermato. Aggiorna per verificare le impostazioni attuali.',
+  },
   type: { TRAINING: 'Allenamento', MATCH: 'Partita', OTHER: 'Altro' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: { home: 'In casa contro {{opponent}}', away: 'In trasferta contro {{opponent}}', neutral: 'Partita contro {{opponent}}' },
@@ -112,8 +121,11 @@ export const eventFlowIt = {
     empty: 'Nessuno ha ancora risposto.',
     remindOpen_one: 'Sollecita {{count}} giocatore',
     remindOpen_other: 'Sollecita {{count}} giocatori',
-    remindSent_one: 'Promemoria inviato a {{count}} giocatore',
-    remindSent_other: 'Promemoria inviato a {{count}} giocatori',
+    remindSent_one: 'Promemoria in coda per {{count}} giocatore',
+    remindSent_other: 'Promemoria in coda per {{count}} giocatori',
+    remindNoneAccepted: 'Nessun promemoria push in coda. Le notifiche potrebbero essere disattivate o non c’è un dispositivo registrato. Puoi riprovare.',
+    remindUnconfirmed: 'Stato dei promemoria non confermato',
+    remindUnconfirmedHint: 'Il servizio notifiche non ha confermato tutti i promemoria. Alcuni potrebbero ancora arrivare. I nuovi tentativi sono sospesi per evitare duplicati.',
     remindCooldown: 'Già sollecitati oggi',
     remindFailedTitle: 'Promemoria non inviato',
     remindFailedBody: 'Riprova tra un momento.',

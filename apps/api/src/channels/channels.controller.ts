@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
+  ForbiddenException,
   HttpCode,
   Param,
   Patch,
@@ -163,7 +165,9 @@ export class ChannelsController {
     @Param('clubId') clubId: string,
     @Param('channelId') channelId: string,
     @Query('tab') tab?: string,
+    @Headers('x-expected-actor-id') expectedActorId?: string,
   ) {
+    if (expectedActorId && expectedActorId !== user.id) throw new ForbiddenException('Account changed')
     return this.channelsService.listChannelMedia(user.id, clubId, channelId, parseChatMediaTab(tab))
   }
 

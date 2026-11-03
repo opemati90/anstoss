@@ -27,6 +27,10 @@ RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 # Build shared + API
 RUN npx turbo run build --filter=@anstoss/api
 
+# npm may place workspace-specific dependencies under each workspace rather
+# than the root. Preserve both layouts in the runtime image.
+RUN mkdir -p /app/apps/api/node_modules /app/packages/shared/node_modules
+
 # --- Production ---
 FROM node:22-alpine AS runner
 
@@ -36,11 +40,16 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/package.json ./apps/api/
+
+# Detect a wrong hoisted copy before publishing an image.
+RUN node -e "const {createRequire}=require('module'); for (const p of ['/app/apps/api/package.json','/app/packages/shared/package.json']) { const v=createRequire(p)('zod/package.json').version; if (!v.startsWith('4.')) throw new Error('Unsafe Zod version for '+p+': '+v) } const apiRequire=createRequire('/app/apps/api/package.json'); const result=require('/app/packages/shared/dist/index.js').presignDmMediaSchema.safeParse({kind:'image',contentType:'image/png',sizeBytes:-1}); if (result.success || !(result.error instanceof apiRequire('zod').ZodError)) throw new Error('Shared validation error mismatch')"
 
 ENV NODE_ENV=production
 EXPOSE 3000

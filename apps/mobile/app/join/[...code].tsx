@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { AdultLaunchScreen } from '../../src/onboarding/AdultLaunchScreen'
 import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -312,7 +314,7 @@ function InvitePreview({
   )
 }
 
-type ConfirmStage = { kind: 'form' } | { kind: 'under13' } | { kind: 'handoff'; dob: string }
+type ConfirmStage = { kind: 'form' } | { kind: 'adult-launch' } | { kind: 'under13' } | { kind: 'handoff'; dob: string }
 
 /**
  * Invite, signed in — screen 3 of 3: "Beitreten bei SV Albatros als Spieler
@@ -382,6 +384,10 @@ function InviteConfirm({
 
   async function redeem() {
     if (busy || !ready) return
+    if (!LAUNCH_FEATURES.youthParticipation && (guardianRole || (typedAge !== null && typedAge < LAUNCH_FEATURES.minimumAccountAge) || (knownAge !== null && knownAge < LAUNCH_FEATURES.minimumAccountAge))) {
+      setStage({ kind: 'adult-launch' })
+      return
+    }
     if (typedAge !== null && typedAge >= 13 && typedAge < 16) {
       setStage({ kind: 'handoff', dob: (dobCheck as { iso: string }).iso })
       return
@@ -441,6 +447,7 @@ function InviteConfirm({
   }
 
   if (stage.kind === 'under13') return <Under13Screen onDone={finishSignedOut} />
+  if (stage.kind === 'adult-launch') return <AdultLaunchScreen onDone={finishSignedOut} onBack={() => setStage({ kind: 'form' })} />
   if (stage.kind === 'handoff') {
     return (
       <GuardianHandoffScreen

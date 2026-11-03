@@ -14,16 +14,16 @@ const LABELS = {
 }
 
 describe('decidePillLayout', () => {
-  it('keeps German "Vielleicht" on one row (icon above label) at 375pt instead of stacking pills', () => {
+  it('keeps German labels in a tall row where they fit without shrinking', () => {
     // The old estimate (10 chars * 16 * 0.5) sent this to 'column'.
     expect(decidePillLayout({ trackWidth: track(375), labelWidths: LABELS.de })).toBe('tall')
     expect(decidePillLayout({ trackWidth: track(393), labelWidths: LABELS.de })).toBe('tall')
-    expect(decidePillLayout({ trackWidth: track(320), labelWidths: LABELS.de })).toBe('tall')
+    expect(decidePillLayout({ trackWidth: track(320), labelWidths: LABELS.de })).toBe('column')
   })
 
-  it('fits Turkish "Gelemiyorum" in the tall layout on 375/393pt and stacks only at 320pt', () => {
-    expect(decidePillLayout({ trackWidth: track(393), labelWidths: LABELS.tr })).toBe('tall')
-    expect(decidePillLayout({ trackWidth: track(375), labelWidths: LABELS.tr })).toBe('tall')
+  it('stacks longer Turkish labels rather than shrinking them', () => {
+    expect(decidePillLayout({ trackWidth: track(393), labelWidths: LABELS.tr })).toBe('column')
+    expect(decidePillLayout({ trackWidth: track(375), labelWidths: LABELS.tr })).toBe('column')
     expect(decidePillLayout({ trackWidth: track(320), labelWidths: LABELS.tr })).toBe('column')
   })
 
@@ -40,7 +40,7 @@ describe('decidePillLayout', () => {
   })
 
   it('uses the scaled measurement: at 2x text German stacks on a small phone', () => {
-    const doubled = LABELS.de.map((w) => w * 1.8)
+    const doubled = LABELS.de.map((w) => w * 2)
     expect(decidePillLayout({ trackWidth: track(320), labelWidths: doubled })).toBe('column')
   })
 

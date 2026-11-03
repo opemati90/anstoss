@@ -2,6 +2,13 @@ import type { OnboardingFlowStrings } from './de'
 
 // Informal "sen", as in the rest of tr.ts.
 export const onboardingFlowTr: OnboardingFlowStrings = {
+  launch: {
+    adultsTitle: 'Şimdilik yalnızca yetişkinler için',
+    adultsBody: 'Bu sürüm, 18 yaş ve üzeri kulüp üyeleri içindir. Gençler, veliler ve sağlık özellikleri daha sonra sunulacak. Mevcut kayıtlar silinmedi.',
+    adultsHint: 'Yalnızca 18 yaş ve üzeri. Genç ve veli özellikleri daha sonra sunulacak.',
+    privacyActions: 'Veriler ve hesap',
+    privacyBody: 'Verilerini dışa aktarabilir, mevcut onaylarını geri çekebilir veya hesabını silebilirsin.',
+  },
   progressA11y: 'Adım {{current}}/{{total}}',
   common: {
     continue: 'Devam',
@@ -200,7 +207,7 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
     groupYouth: 'Altyapı',
     linkLabel: 'fussball.de’deki takım bağlantısı',
     linkPlaceholder: 'https://www.fussball.de/mannschaft/…',
-    linkHint: 'Kontrolde işimize yarar. dfb.de veya fupa.net de olur.',
+    linkHint: 'Takımınızı FUSSBALL.DE sitesinde bulun ve sayfa adresini kopyalayın. Bu, doğrulamaya yardımcı olur; maçlar otomatik aktarılmaz. DFB.de ve FuPa da kullanılabilir.',
     linkInvalid: 'Lütfen fussball.de, dfb.de veya fupa.net’ten bir https bağlantısı yapıştır.',
     participation: 'Takımda sen de var mısın? (isteğe bağlı)',
     participationCoach: 'Antrenörlük yapıyorum',

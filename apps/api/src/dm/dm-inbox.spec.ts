@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { ForbiddenException } from '@nestjs/common'
 import { DmService } from './dm.service'
 import { classifyPrivateMessaging } from './private-messaging'

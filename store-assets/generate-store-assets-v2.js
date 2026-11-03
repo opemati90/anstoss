@@ -71,7 +71,7 @@ const slides = [
     source: 'squad.png',
     kicker: 'SQUAD',
     title: ['Know your', 'squad.'],
-    note: 'Invites, availability and roster health at a glance.',
+    note: 'Invites, availability and your roster at a glance.',
     background: colors.silver,
     foreground: colors.ink,
     accent: '#536F5D',

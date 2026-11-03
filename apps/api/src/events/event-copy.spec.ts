@@ -97,5 +97,10 @@ describe('event-copy', () => {
         }).body,
     )
     expect(new Set(reminders).size).toBe(6)
+    const guardianReminders = EVENT_LOCALES.map((locale) => rsvpReminderCopy(locale, {
+      event: { title: 'Training', type: 'TRAINING' }, date: new Date('2026-10-10T17:00:00Z'), childName: 'Mia',
+    }).body)
+    expect(new Set(guardianReminders).size).toBe(6)
+    guardianReminders.forEach((body) => expect(body).toContain('Mia'))
   })
 })

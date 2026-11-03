@@ -18,7 +18,8 @@ describe('ClubActivationService.submitFirstClaim role handling', () => {
       clubClaimEvidence: { create: jest.fn() },
     }
     const prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue({ registrationRole: opts.role }) },
+      user: { findUnique: jest.fn().mockResolvedValue({ registrationRole: opts.role }),
+        findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
       membership: { findFirst: jest.fn().mockResolvedValue(opts.membership ? { id: 'm' } : null) },
       clubDirectoryEntry: {
         findUnique: jest.fn().mockResolvedValue({ id: 'dir-1', activeClubId: null }),

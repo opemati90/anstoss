@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 /**
  * DmService against an in-memory Prisma that evaluates where clauses (L9):
  * guardian links only count for the right adult, child AND club; a stale
@@ -7,6 +9,8 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { DmService } from './dm.service'
 import { CHAT_FAKE_SCHEMA, FakePrisma, yearsAgo } from '../test-utils/fake-prisma'
+import { newOwnedPrivateV1Key } from '../media/private-v1-owner'
+import type { ChatUploadKind } from '../media/chat-media-limits'
 
 const CLUB = 'club-1'
 const OTHER_CLUB = 'club-2'
@@ -36,8 +40,8 @@ function baseSeed(): Seed {
       role: userId === 'coach' ? 'COACH' : userId === 'mum' ? 'PARENT' : 'PLAYER',
     })),
     teamAccess: [
-      { id: 'ta1', userId: 'coach', clubId: CLUB, teamId: 'team-1', role: 'HEAD_COACH', status: 'ACTIVE', loanEndDate: null },
-      { id: 'ta2', userId: 'player', clubId: CLUB, teamId: 'team-1', role: 'PLAYER', status: 'ACTIVE', loanEndDate: null },
+      { id: 'ta1', userId: 'coach', clubId: CLUB, teamId: 'team-1', role: 'HEAD_COACH', phase: 'FULL', status: 'ACTIVE', loanEndDate: null },
+      { id: 'ta2', userId: 'player', clubId: CLUB, teamId: 'team-1', role: 'PLAYER', phase: 'FULL', status: 'ACTIVE', loanEndDate: null },
     ],
     team: [{ id: 'team-1', clubId: CLUB, displayName: 'Herren I', name: 'Herren I' }],
     guardianRelationship: [],
@@ -195,6 +199,94 @@ describe('DmService private-message safeguarding (where-matching)', () => {
   })
 })
 
+describe('transaction-bound private upload authorization', () => {
+  it('returns only the authorized target after deterministic lifecycle locks', async () => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    const locks: string[] = []
+    prisma.$executeRaw = async (...values: unknown[]) => { locks.push(String(values[1])); return 0 }
+    await expect(service.authorizePrivateUpload('coach', CLUB, 'c1', prisma as never)).resolves.toEqual({
+      userId: 'coach', clubId: CLUB, targetType: 'DM', targetId: 'c1',
+    })
+    expect(locks).toEqual(['dm-user:coach', 'dm-user:player', 'dm-access:club-1:coach', 'dm-access:club-1:player'])
+  })
+
+  it('rejects a club mismatch before acquiring upload-related locks', async () => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    const lock = jest.spyOn(prisma, '$executeRaw')
+    await expect(service.authorizePrivateUpload('coach', OTHER_CLUB, 'c1', prisma as never)).rejects.toThrow('does not belong')
+    expect(lock).not.toHaveBeenCalled()
+  })
+
+  it.each(['removed', 'blocked', 'deleted', 'changed-peer'])('rechecks %s after waiting for locks', async (change) => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    jest.spyOn(prisma, '$executeRaw').mockImplementationOnce(async () => {
+      if (change === 'removed') {
+        const memberships = prisma.rows('membership')
+        memberships.splice(memberships.findIndex((m) => m.userId === 'player'), 1)
+      }
+      if (change === 'blocked') prisma.rows('userBlock').push({ id: 'blocked', blockerUserId: 'player', blockedUserId: 'coach' })
+      if (change === 'deleted') prisma.rows('user').find((u) => u.id === 'player')!.deletedAt = new Date()
+      if (change === 'changed-peer') prisma.rows('conversationParticipant').find((p) => p.userId === 'player')!.userId = 'mum'
+      return 0
+    })
+    await expect(service.authorizePrivateUpload('coach', CLUB, 'c1', prisma as never)).rejects.toThrow(ForbiddenException)
+    expect(prisma.rows('directMessage')).toHaveLength(0)
+  })
+
+  it.each(['kid', 'nodob', 'outsider'])('does not bypass safeguarding/membership for %s', async (peer) => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', peer))
+    await expect(service.authorizePrivateUpload('coach', CLUB, 'c1', prisma as never)).rejects.toThrow(ForbiddenException)
+  })
+})
+
+describe('transaction-bound private DM media read authorization', () => {
+  it('allows the remaining member to read history after the peer leaves or blocks', async () => {
+    const { service, prisma } = build((s) => {
+      conversation(s, 'c1', 'coach', 'player')
+      s.membership = s.membership.filter((row) => row.userId !== 'player')
+      s.userBlock.push({ id: 'block', blockerUserId: 'player', blockedUserId: 'coach' })
+    })
+    const locks: string[] = []
+    prisma.$executeRaw = async (...values: unknown[]) => { locks.push(String(values[1])); return 0 }
+    await expect(service.authorizePrivateMediaRead('coach', CLUB, 'c1', prisma as never)).resolves.toEqual({
+      userId: 'coach', clubId: CLUB, targetType: 'DM', targetId: 'c1',
+    })
+    expect(locks).toEqual(['dm-user:coach', 'dm-user:player', 'dm-access:club-1:coach'])
+  })
+
+  it('locks the scope rows in team-access-before-membership order', async () => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    const rows: string[] = []
+    jest.spyOn(prisma, '$queryRaw').mockImplementation(async (query?: unknown) => {
+      rows.push((query as TemplateStringsArray).join(''))
+      return []
+    })
+    await service.authorizePrivateMediaRead('coach', CLUB, 'c1', prisma as never)
+    expect(rows).toEqual([
+      expect.stringContaining('FROM "TeamAccess"'), expect.stringContaining('FROM "Membership"'),
+      expect.stringContaining('FROM "Conversation"'), expect.stringContaining('FROM "ConversationParticipant"'),
+    ])
+  })
+
+  it.each(['reader-removed', 'reader-deleted', 'peer-changed'])('rechecks %s after acquiring locks', async (change) => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    jest.spyOn(prisma, '$executeRaw').mockImplementationOnce(async () => {
+      if (change === 'reader-removed') prisma.tables.membership = prisma.rows('membership').filter((row) => row.userId !== 'coach')
+      if (change === 'reader-deleted') prisma.rows('user').find((row) => row.id === 'coach')!.deletedAt = new Date()
+      if (change === 'peer-changed') prisma.rows('conversationParticipant').find((row) => row.userId === 'player')!.userId = 'mum'
+      return 0
+    })
+    await expect(service.authorizePrivateMediaRead('coach', CLUB, 'c1', prisma as never)).rejects.toThrow(ForbiddenException)
+  })
+
+  it('rejects an incorrect club before acquiring locks', async () => {
+    const { service, prisma } = build((s) => conversation(s, 'c1', 'coach', 'player'))
+    const lock = jest.spyOn(prisma, '$executeRaw')
+    await expect(service.authorizePrivateMediaRead('coach', OTHER_CLUB, 'c1', prisma as never)).rejects.toThrow('does not belong')
+    expect(lock).not.toHaveBeenCalled()
+  })
+})
+
 describe('M1: a member removed from the club', () => {
   function removed() {
     return build((s) => {
@@ -225,7 +317,14 @@ describe('M1: a member removed from the club', () => {
 })
 
 describe('DM attachments', () => {
-  const url = (cid: string, kind = 'image', club = CLUB) => `https://cdn.example/dm/${club}/${cid}/${kind}/1-coach-aufstellung.jpg`
+  const keys = new Map<string, string>()
+  const key = (cid: string, kind = 'image', club = CLUB) => {
+    const id = JSON.stringify([cid, kind, club])
+    if (!keys.has(id)) keys.set(id, newOwnedPrivateV1Key({ targetType: 'dm', clubId: club, targetId: cid,
+      ownerId: 'coach', kind: kind as ChatUploadKind }, 'aufstellung.jpg'))
+    return keys.get(id)!
+  }
+  const url = (cid: string, kind = 'image', club = CLUB) => `https://cdn.example/${key(cid, kind, club)}`
 
   function withConversation(mutate?: (s: Seed) => void, opts?: { r2?: Record<string, unknown> | null }) {
     return build((s) => {
@@ -246,8 +345,8 @@ describe('DM attachments', () => {
       sizeBytes: 1000,
       filename: 'Aufstellung Samstag.jpg',
     })
-    expect(ok.objectKey).toMatch(/^dm\/club-1\/c1\/image\/private-v1-[a-f0-9-]+-Aufstellung-Samstag\.jpg$/)
-    expect(r2!.presignPut).toHaveBeenCalledWith(ok.objectKey, 'image/jpeg', 1000)
+    expect(ok.objectKey).toMatch(/^dm\/club-1\/c1\/image\/private-v1-u[a-f0-9]{64}-[a-f0-9-]+-Aufstellung-Samstag\.jpg$/)
+    expect(r2!.presignPut).toHaveBeenCalledWith(ok.objectKey, 'image/jpeg', 1000, 300, expect.any(Date))
     await expect(
       service.presignMedia('coach', CLUB, 'c1', { kind: 'image', contentType: 'application/pdf', sizeBytes: 1000 }),
     ).rejects.toThrow(BadRequestException)
@@ -257,7 +356,10 @@ describe('DM attachments', () => {
   })
 
   it('sends a validated photo and rejects an upload of another conversation', async () => {
-    const { service, prisma, r2, events } = withConversation()
+    const { service, prisma, r2, events } = withConversation((seed) => {
+      seed.accountMediaDeletion.push({ objectKey: key('c1'), uploadOwnerId: 'coach', uploadState: 'PENDING',
+        uploadExpiresAt: new Date(Date.now() + 900_000) })
+    })
     await expect(
       service.sendMessage('coach', CLUB, 'c1', { messageType: 'IMAGE', attachmentUrl: url('c-other') }),
     ).rejects.toThrow('Attachment does not belong to this conversation upload')
@@ -269,9 +371,33 @@ describe('DM attachments', () => {
       attachmentMeta: { width: 1200, height: 900 },
       clientMessageId: 'tmp-1',
     })
-    expect(r2!.assertStoredObject).toHaveBeenCalledWith('dm/club-1/c1/image/1-coach-aufstellung.jpg', expect.objectContaining({ maxBytes: 10 * 1024 * 1024 }))
+    expect(r2!.assertStoredObject).toHaveBeenCalledWith(key('c1'), expect.objectContaining({ maxBytes: 10 * 1024 * 1024 }))
     expect(item).toMatchObject({ messageType: 'IMAGE', attachmentMeta: { width: 1200, height: 900 } })
     expect(events.emit).toHaveBeenCalledWith('dm.message.created', { message: item, clientMessageId: 'tmp-1' })
+  })
+
+  it('rejects the other participant reposting the sender’s attachment', async () => {
+    const { service, prisma } = withConversation()
+    await expect(service.sendMessage('player', CLUB, 'c1', {
+      messageType: 'IMAGE', attachmentUrl: url('c1'),
+    })).rejects.toThrow('Attachment does not belong to this conversation upload')
+    expect(prisma.rows('directMessage')).toHaveLength(0)
+  })
+
+  it('returns the original attachment after a lost response without sending twice', async () => {
+    const { service, prisma, events } = withConversation((seed) => {
+      seed.accountMediaDeletion.push({ objectKey: key('c1'), uploadOwnerId: 'coach', uploadState: 'PENDING',
+        uploadExpiresAt: new Date(Date.now() + 900_000) })
+    })
+    const input = { messageType: 'IMAGE' as const, attachmentUrl: url('c1') }
+    const original = await service.sendMessage('coach', CLUB, 'c1', input)
+    const replay = await service.sendMessage('coach', CLUB, 'c1', input)
+    expect(replay.id).toBe(original.id)
+    expect(prisma.rows('directMessage')).toHaveLength(1)
+    expect(events.emit).toHaveBeenCalledTimes(2)
+    expect(events.emit.mock.calls.map((call: any[]) => call[0])).toEqual(['dm.message.created', 'dm.message.recovered'])
+    await expect(service.sendMessage('coach', CLUB, 'c1', { ...input, content: 'different' }))
+      .rejects.toThrow('Attachment has already been used')
   })
 
   it('refuses a stored object that fails inspection', async () => {
@@ -291,14 +417,14 @@ describe('DM attachments', () => {
       messageType: 'IMAGE', attachmentUrl: url('c1'),
     })).rejects.toThrow('Attachment upload is invalid or incomplete')
     expect(prisma.rows('directMessage')).toHaveLength(0)
-    const index = lock.mock.calls.findIndex((args) => (args as unknown[]).includes('media-object:dm/club-1/c1/image/1-coach-aufstellung.jpg'))
+    const index = lock.mock.calls.findIndex((args) => (args as unknown[]).includes(`media-object:${key('c1')}`))
     expect(index).toBeGreaterThanOrEqual(0)
     expect(validate.mock.invocationCallOrder[1]).toBeGreaterThan(lock.mock.invocationCallOrder[index])
   })
 
   it('rejects durable retirement intent even when storage still validates', async () => {
     const { service, prisma, r2 } = withConversation((seed) => {
-      seed.accountMediaDeletion.push({ objectKey: 'dm/club-1/c1/image/1-coach-aufstellung.jpg' })
+      seed.accountMediaDeletion.push({ objectKey: key('c1') })
     })
     await expect(service.sendMessage('coach', CLUB, 'c1', {
       messageType: 'IMAGE', attachmentUrl: url('c1'),
@@ -318,7 +444,7 @@ describe('DM attachments', () => {
     it('signs for a current participant', async () => {
       const { service, r2 } = withPhoto()
       await expect(service.getMediaUrl('player', CLUB, 'c1', 'photo')).resolves.toEqual({ url: 'https://signed.example/get' })
-      expect(r2!.presignGet).toHaveBeenCalledWith('dm/club-1/c1/image/1-coach-aufstellung.jpg', 3600)
+      expect(r2!.presignGet).toHaveBeenCalledWith(key('c1'), 3600)
     })
 
     it('403s a non-participant (even a club member)', async () => {
@@ -397,6 +523,49 @@ describe('DM attachments', () => {
         lineup: { source: 'FORMATION', formation: '4-3-3', slots: [{ position: 'ST', playerName: 'Lukas' }] },
       })
       expect(card.attachmentMeta).toMatchObject({ lineupSource: 'FORMATION', formation: '4-3-3' })
+    })
+
+    it('does not let a TRIAL coach list or share a saved event lineup', async () => {
+      const { service, prisma } = withEvent()
+      const coachAccess = prisma.rows('teamAccess').find((row) => row.userId === 'coach')!
+      coachAccess.phase = 'TRIAL'
+
+      expect(await service.listLineupOptions('coach', CLUB, 'c1')).toEqual([])
+      await expect(
+        service.sendMessage('coach', CLUB, 'c1', {
+          messageType: 'LINEUP',
+          lineup: { source: 'EVENT', eventId: 'ev-1' },
+        }),
+      ).rejects.toThrow(ForbiddenException)
+    })
+
+    it('rechecks saved-lineup authority after the coach-assignment lock', async () => {
+      const { service, prisma } = withEvent()
+      const locks: string[] = []
+      jest.spyOn(prisma, '$executeRaw').mockImplementation(async (...query: unknown[]) => {
+        const lockKey = String(query[1])
+        locks.push(lockKey)
+        if (lockKey.includes('coach-assignments:team-1')) {
+          prisma.rows('teamAccess').find((row) => row.userId === 'coach')!.phase = 'TRIAL'
+        }
+        return 0
+      })
+
+      await expect(
+        service.sendMessage('coach', CLUB, 'c1', {
+          messageType: 'LINEUP',
+          lineup: { source: 'EVENT', eventId: 'ev-1' },
+        }),
+      ).rejects.toThrow('Only the team’s coaches can share its lineup')
+      expect(locks.slice(0, 5)).toEqual([
+        'dm-user:coach',
+        'dm-user:player',
+        `owner:${CLUB}`,
+        `dm-access:${CLUB}:coach`,
+        `dm-access:${CLUB}:player`,
+      ])
+      expect(locks[5]).toBe('coach-assignments:team-1')
+      expect(prisma.rows('directMessage')).toHaveLength(0)
     })
   })
 

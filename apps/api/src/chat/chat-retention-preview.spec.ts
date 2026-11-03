@@ -22,11 +22,12 @@ describe('read-only retention preview', () => {
     const result = await worker.previewExpired(now)
     expect(result).toMatchObject({ advisory: true, clubsScanned: 3, enabledClubs: [{
       clubId: 'club-1', channelMessages: 3, directMessages: 2, channelAttachments: 3, directAttachments: 2,
+      channelLegacyBlocked: 3, directLegacyBlocked: 2, legacyAttachmentsRequireReview: true, bindingStatus: 'not_checked',
     }] })
     const messageCutoff = new Date('2026-09-27T12:00:00Z')
     const attachmentCutoff = new Date('2026-10-20T12:00:00Z')
-    expect(messageCount.mock.calls).toHaveLength(2)
-    expect(directCount.mock.calls).toHaveLength(2)
+    expect(messageCount.mock.calls).toHaveLength(3)
+    expect(directCount.mock.calls).toHaveLength(3)
     expect(messageCount).toHaveBeenNthCalledWith(1, { where: {
       clubId: 'club-1', deletedAt: null, createdAt: { lte: messageCutoff }, reports: { none: { resolvedAt: null } },
     } })
@@ -34,5 +35,11 @@ describe('read-only retention preview', () => {
       conversation: { clubId: 'club-1' }, attachmentUrl: { not: null }, reports: { none: { resolvedAt: null } },
       OR: [{ createdAt: { lte: attachmentCutoff } }, { createdAt: { lte: messageCutoff }, deletedAt: null }],
     } })
+    expect(messageCount).toHaveBeenNthCalledWith(3, { where: expect.objectContaining({
+      NOT: [
+        { attachmentUrl: { startsWith: 'https://private-media.anstoss.invalid/private-chat/v2/' } },
+        { attachmentUrl: { contains: '/private-v1-u' } },
+      ],
+    }) })
   })
 })

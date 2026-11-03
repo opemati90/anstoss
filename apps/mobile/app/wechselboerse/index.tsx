@@ -87,7 +87,6 @@ export default function WechselboerseScreen() {
       contentStyle={styles.content}
     >
       <FilterChipRow
-        wrap
         singleSelect
         chips={[
           { key: 'gesuche' as const, label: t('wechsel.tabGesuche'), count: counts.gesuche || undefined },

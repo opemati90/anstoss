@@ -1,6 +1,13 @@
 import type { OnboardingFlowStrings } from './de'
 
 export const onboardingFlowIt: OnboardingFlowStrings = {
+  launch: {
+    adultsTitle: 'Per ora, solo per adulti',
+    adultsBody: 'Questa versione è per i membri dei club dai 18 anni in su. Le funzioni per minori, tutori e salute arriveranno in seguito. I dati esistenti non sono stati eliminati.',
+    adultsHint: 'Solo dai 18 anni. Le funzioni per minori e tutori arriveranno in seguito.',
+    privacyActions: 'Dati e account',
+    privacyBody: 'Puoi ancora esportare i tuoi dati, revocare i consensi esistenti o eliminare il tuo account.',
+  },
   progressA11y: 'Passo {{current}} di {{total}}',
   common: {
     continue: 'Continua',
@@ -199,7 +206,7 @@ export const onboardingFlowIt: OnboardingFlowStrings = {
     groupYouth: 'Giovanili',
     linkLabel: 'Link alla squadra su fussball.de',
     linkPlaceholder: 'https://www.fussball.de/mannschaft/…',
-    linkHint: 'Ci aiuta nella verifica. Vanno bene anche dfb.de o fupa.net.',
+    linkHint: 'Cerca la squadra su FUSSBALL.DE e copia l’indirizzo della sua pagina. Serve per la verifica; le partite non vengono importate automaticamente. Vanno bene anche DFB.de e FuPa.',
     linkInvalid: 'Incolla un link https di fussball.de, dfb.de o fupa.net.',
     participation: 'Fai parte anche tu della squadra? (facoltativo)',
     participationCoach: 'Alleno',

@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 /**
  * Traced onboarding paths (owner's caps). Each test walks one persona through
  * the REAL screens: it renders the screen for the current route, does what a
@@ -73,6 +75,10 @@ jest.mock('../../src/i18n', () => ({
 }))
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
+jest.mock('../../src/launchFeatures', () => ({
+  ...jest.requireActual('../../src/launchFeatures'),
+  OPTIONAL_CLUB_FEATURES: { marketplace: true, statistics: false, sponsorship: false },
+}))
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker')
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),

@@ -1,6 +1,13 @@
 import type { OnboardingFlowStrings } from './de'
 
 export const onboardingFlowFr: OnboardingFlowStrings = {
+  launch: {
+    adultsTitle: 'Pour les adultes uniquement, pour le moment',
+    adultsBody: 'Cette version est destinée aux membres de club de 18 ans et plus. Les fonctions jeunesse, responsables légaux et santé viendront plus tard. Les données existantes n’ont pas été supprimées.',
+    adultsHint: '18 ans et plus. Les fonctions jeunesse et responsables légaux viendront plus tard.',
+    privacyActions: 'Données et compte',
+    privacyBody: 'Tu peux toujours exporter tes données, retirer un consentement existant ou supprimer ton compte.',
+  },
   progressA11y: 'Étape {{current}} sur {{total}}',
   common: {
     continue: 'Continuer',
@@ -199,7 +206,7 @@ export const onboardingFlowFr: OnboardingFlowStrings = {
     groupYouth: 'Jeunes',
     linkLabel: 'Lien vers l’équipe sur fussball.de',
     linkPlaceholder: 'https://www.fussball.de/mannschaft/…',
-    linkHint: 'Ça nous aide pour la vérification. dfb.de ou fupa.net fonctionnent aussi.',
+    linkHint: 'Recherchez votre équipe sur FUSSBALL.DE et copiez l’adresse de sa page. Elle aide à la vérification ; les matchs ne sont pas importés automatiquement. DFB.de et FuPa fonctionnent aussi.',
     linkInvalid: 'Colle un lien https de fussball.de, dfb.de ou fupa.net.',
     participation: 'Fais-tu toi-même partie de l’équipe ? (facultatif)',
     participationCoach: 'J’entraîne',

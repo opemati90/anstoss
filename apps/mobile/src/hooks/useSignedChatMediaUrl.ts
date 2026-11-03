@@ -1,25 +1,18 @@
 import { useEffect, useState } from 'react'
 import { AppState } from 'react-native'
 import { api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 /**
  * Fresh signed-GET URL for a chat attachment, channel or DM. The stored
  * attachmentUrl is never the canonical read path: the API re-verifies the
  * reader (channel read access, or DM participant with current club
- * membership) and mints a short-lived URL. Cached for at most four minutes.
- * Falls back to the stored URL when the endpoint returns null (R2 not
- * configured in dev); a 403 resolves to null so revoked access never shows
- * the old object.
+ * membership) and mints a short-lived URL. Persisted remote references are
+ * never used as a fallback when authorization or signing fails.
  */
-type CacheEntry = { url: string | null; expiresAt: number }
-const cache = new Map<string, CacheEntry>()
-const inflight = new Map<string, Promise<string | null | 'forbidden'>>()
 const CACHE_TTL_MS = 4 * 60 * 1000
 
-export function __resetSignedChatMediaUrlCache() {
-  cache.clear()
-  inflight.clear()
-}
+export function __resetSignedChatMediaUrlCache() { /* No shared capability cache. */ }
 
 /** Endpoint for a message's signed URL. DMs pass their conversation. */
 export function chatMediaEndpoint(
@@ -31,76 +24,60 @@ export function chatMediaEndpoint(
     : `/messages/${messageId}/media-url`
 }
 
-function resolve(endpoint: string): Promise<string | null | 'forbidden'> {
-  const existing = inflight.get(endpoint)
-  if (existing) return existing
-  const request = api<{ url: string | null }>(endpoint)
-    .then((res) => res?.url ?? null)
-    .catch((err: { status?: number }) => (err?.status === 403 ? ('forbidden' as const) : null))
-    .then((url) => {
-      if (url !== 'forbidden') cache.set(endpoint, { url, expiresAt: Date.now() + CACHE_TTL_MS })
-      else cache.delete(endpoint)
-      inflight.delete(endpoint)
-      return url
-    })
-  inflight.set(endpoint, request)
-  return request
-}
-
 export function useSignedChatMediaUrl(
   messageId: string | undefined,
   fallbackUrl: string | null | undefined,
   dm?: { clubId: string; conversationId: string } | null,
 ): string | null {
+  const { user } = useAuth()
+  const actorId = user?.id
   const endpoint = messageId ? chatMediaEndpoint(messageId, dm) : null
-  const safeFallback = fallbackUrl?.startsWith('https://private-media.anstoss.invalid/') ? null : fallbackUrl ?? null
-  const [resolved, setResolved] = useState<string | null>(() => {
-    if (endpoint) {
-      const cached = cache.get(endpoint)
-      if (cached && cached.expiresAt > Date.now()) return cached.url ?? safeFallback
-    }
-    return safeFallback
-  })
+  const local = !messageId || messageId.startsWith('pending:') || (__DEV__ && messageId.startsWith('e2e-'))
+  const safeFallback = local && fallbackUrl && (/^(file|content):\/\//.test(fallbackUrl) || (__DEV__ && messageId?.startsWith('e2e-'))) ? fallbackUrl : null
+  const scope = `${actorId ?? ''}:${endpoint ?? ''}:${fallbackUrl ?? ''}`
+  const [resolved, setResolved] = useState<{ scope: string; url: string | null }>({ scope, url: safeFallback })
 
   useEffect(() => {
-    const local =
-      !messageId || messageId.startsWith('pending:') || messageId.startsWith('e2e-')
-    if (!endpoint || !fallbackUrl || local) {
-      setResolved(safeFallback)
+    if (!endpoint || !fallbackUrl || local || !actorId) {
+      setResolved({ scope, url: safeFallback })
       return
     }
     let cancelled = false
+    let revision = 0
+    let retryCount = 0
     let timer: ReturnType<typeof setTimeout> | undefined
-    const schedule = (expiresAt: number) => {
-      if (cancelled) return
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(refresh, Math.max(1000, expiresAt - Date.now()))
-    }
     const refresh = () => {
-      const cached = cache.get(endpoint)
-      if (cached && cached.expiresAt > Date.now()) {
-        setResolved(cached.url ?? safeFallback)
-        schedule(cached.expiresAt)
-        return
-      }
-      setResolved(safeFallback)
-      void resolve(endpoint).then((url) => {
-        if (!cancelled) {
-          setResolved(url === 'forbidden' ? null : (url ?? safeFallback))
-          schedule(cache.get(endpoint)?.expiresAt ?? Date.now() + CACHE_TTL_MS)
+      const current = ++revision
+      if (timer) clearTimeout(timer)
+      setResolved({ scope, url: null })
+      void api<{ url: string | null }>(endpoint, { headers: { 'x-expected-actor-id': actorId } }).then((result) => {
+        if (!cancelled && current === revision) {
+          retryCount = 0
+          setResolved({ scope, url: result?.url ?? null })
+          timer = setTimeout(refresh, CACHE_TTL_MS)
+        }
+      }).catch((error: { status?: number }) => {
+        if (!cancelled && current === revision) {
+          setResolved({ scope, url: null })
+          const status = error?.status
+          const retryable = status == null || status === 0 || status === 408 || status === 429 || status >= 500
+          if (retryable && retryCount < 3) {
+            const delay = 30_000 * 2 ** retryCount++
+            timer = setTimeout(refresh, delay)
+          }
         }
       })
     }
     refresh()
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refresh()
+      if (state === 'active') { retryCount = 0; refresh() }
     })
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
       subscription.remove()
     }
-  }, [endpoint, fallbackUrl, safeFallback, messageId])
+  }, [actorId, endpoint, fallbackUrl, local, safeFallback, scope])
 
-  return resolved
+  return resolved.scope === scope ? resolved.url : safeFallback
 }

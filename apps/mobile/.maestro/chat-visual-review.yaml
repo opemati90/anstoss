@@ -1,0 +1,9 @@
+appId: com.renuirug.anstoss
+---
+- tapOn:
+    point: "50%,94%"
+- extendedWaitUntil:
+    visible:
+      id: "chat-inbox-search"
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/chat-visual-review

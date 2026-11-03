@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import {
   NotFoundException,
   ForbiddenException,
@@ -19,6 +21,8 @@ describe('EventsService', () => {
   beforeEach(() => {
     createdRows = []
     mockPrisma = {
+      $executeRaw: jest.fn(),
+      $queryRaw: jest.fn(async () => [await mockPrisma.event.findUnique()]),
       event: {
         create: jest.fn(),
         // Series rows go in with createMany and are read back by seriesId.
@@ -116,7 +120,7 @@ describe('EventsService', () => {
       }),
     }
     mockPushService = {
-      sendToUser: jest.fn().mockResolvedValue(undefined),
+      sendToUser: jest.fn().mockResolvedValue('accepted'),
       sendToTeamLocalized: jest.fn().mockResolvedValue(undefined),
       sendToUserLocalized: jest.fn().mockResolvedValue(undefined),
       sendToTeamRendered: jest.fn().mockResolvedValue(undefined),
@@ -449,6 +453,7 @@ describe('EventsService', () => {
         status: 'ACTIVE',
         role: 'PLAYER',
         phase: 'FULL',
+        user: { deletedAt: null },
       })
     })
 
@@ -572,6 +577,7 @@ describe('EventsService', () => {
                         status: 'ACTIVE',
                         role: 'PLAYER',
                         phase: 'FULL',
+                        user: { deletedAt: null },
                       },
                     },
                   },
@@ -619,7 +625,7 @@ describe('EventsService', () => {
       const [event] = await service.listUpcoming('team-1', 'coach-1')
       const signalKeys = event.readiness?.signals.map((signal) => signal.key) ?? []
 
-      expect(signalKeys).toContain('no_show_risk')
+      expect(signalKeys).not.toContain('no_show_risk')
       expect(signalKeys).toContain('injury_risks')
       expect(signalKeys).toHaveLength(4)
     })
@@ -729,9 +735,8 @@ describe('EventsService', () => {
 
       expect(event.readiness?.briefing).toEqual(
         expect.objectContaining({
-          key: 'no_show_review',
-          params: expect.objectContaining({ count: 3 }),
-          fallback: 'Review attendance: 3 confirmed players were not checked in.',
+          key: 'event_closed',
+          fallback: 'Event has ended. Review attendance before follow-up.',
         }),
       )
     })
@@ -878,6 +883,7 @@ describe('EventsService', () => {
                         status: 'ACTIVE',
                         role: 'PLAYER',
                         phase: 'FULL',
+                        user: { deletedAt: null },
                       },
                     },
                   },
@@ -929,6 +935,16 @@ describe('EventsService', () => {
   })
 
   describe('upsertRsvp', () => {
+    beforeEach(() => {
+      mockPrisma.teamAccess.findMany.mockResolvedValue([{ phase: 'FULL' }])
+    })
+
+    it('rejects a staff-only or revoked participant at the locked write check', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ id: 'evt-1', clubId: 'club-1', teamId: 'team-1', cancelledAt: null, date: new Date(Date.now() + 3600000) })
+      mockPrisma.teamAccess.findMany.mockResolvedValue([])
+      await expect(service.upsertRsvp('evt-1', 'user-1', 'NO')).rejects.toThrow('Only an active player')
+      expect(mockPrisma.rsvp.upsert).not.toHaveBeenCalled()
+    })
     it('throws NotFoundException when event does not exist', async () => {
       mockPrisma.event.findUnique.mockResolvedValue(null)
 
@@ -966,8 +982,8 @@ describe('EventsService', () => {
       expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user-1', 'team-1', expect.anything())
       expect(mockPrisma.rsvp.upsert).toHaveBeenCalledWith({
         where: { eventId_userId: { eventId: 'evt-1', userId: 'user-1' } },
-        update: { status: 'YES', reason: null, note: null, squadDroppedAt: null },
-        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null, note: null },
+        update: { status: 'YES', reason: null, note: null, squadDroppedAt: null, playerEligibilityVerifiedAt: expect.any(Date) },
+        create: { eventId: 'evt-1', userId: 'user-1', status: 'YES', reason: null, note: null, playerEligibilityVerifiedAt: expect.any(Date) },
       })
       expect(result.status).toBe('YES')
     })
@@ -1454,6 +1470,7 @@ describe('EventsService', () => {
 
   describe('remindRsvp', () => {
     const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 1 week from now
+    const adult = (id: string) => ({ id, name: id, dateOfBirth: new Date('1990-01-01'), adultConfirmedAt: null })
 
     const baseEvent = {
       id: 'evt-1',
@@ -1466,8 +1483,8 @@ describe('EventsService', () => {
       lastRsvpReminderAt: null,
       team: {
         access: [
-          { role: 'PLAYER', user: { id: 'user-2' } },
-          { role: 'PLAYER', user: { id: 'user-3' } },
+          { role: 'PLAYER', user: adult('user-2') },
+          { role: 'PLAYER', user: adult('user-3') },
         ],
       },
     }
@@ -1489,7 +1506,7 @@ describe('EventsService', () => {
           eventId: 'evt-1',
           clubId: 'club-1',
         }),
-        { clubId: 'club-1' },
+        { clubId: 'club-1', category: 'events' },
       )
       expect(mockPrisma.event.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1510,7 +1527,7 @@ describe('EventsService', () => {
       )
       expect(result.sent).toBe(2)
       expect(result.nextAvailableAt).toBeTruthy()
-      expect(new Date(result.nextAvailableAt).getTime()).toBeGreaterThan(Date.now())
+      expect(new Date(result.nextAvailableAt!).getTime()).toBeGreaterThan(Date.now())
     })
 
     it('excludes already-RSVPed members from reminders', async () => {
@@ -1536,7 +1553,7 @@ describe('EventsService', () => {
         ...baseEvent,
         team: {
           access: [
-            { role: 'PLAYER', user: { id: 'player-1' } },
+            { role: 'PLAYER', user: adult('player-1') },
             { role: 'COACH', user: { id: 'coach-1' } },
             { role: 'PARENT', user: { id: 'parent-1' } },
           ],
@@ -1564,7 +1581,7 @@ describe('EventsService', () => {
       mockPrisma.event.updateMany
         .mockResolvedValueOnce({ count: 1 })
         .mockResolvedValueOnce({ count: 1 })
-      mockPushService.sendToUser.mockRejectedValue(new Error('push unavailable'))
+      mockPushService.sendToUser.mockResolvedValue('rejected')
 
       const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -1585,7 +1602,7 @@ describe('EventsService', () => {
       mockPrisma.event.updateMany
         .mockResolvedValueOnce({ count: 1 })
         .mockResolvedValueOnce({ count: 0 })
-      mockPushService.sendToUser.mockRejectedValue(new Error('push unavailable'))
+      mockPushService.sendToUser.mockResolvedValue('rejected')
 
       await service.remindRsvp('club-1', 'evt-1', 'user-1')
 
@@ -1609,7 +1626,8 @@ describe('EventsService', () => {
 
       expect(mockPushService.sendToUser).not.toHaveBeenCalled()
       expect(result.sent).toBe(0)
-      expect(result.nextAvailableAt).toBeTruthy()
+      expect(result.nextAvailableAt).toBeNull()
+      expect(mockPrisma.event.updateMany).not.toHaveBeenCalled()
     })
 
     it('throws 429 with retryAfter when called within 24h of last reminder', async () => {
@@ -1620,7 +1638,7 @@ describe('EventsService', () => {
           lastRsvpReminderAt: recentReminder,
         })
         // second findUnique is the fresh re-read after atomic claim fails
-        .mockResolvedValueOnce({ lastRsvpReminderAt: recentReminder })
+        .mockResolvedValueOnce({ ...baseEvent, lastRsvpReminderAt: recentReminder })
       mockPrisma.rsvp.findMany.mockResolvedValue([]) // non-empty so we reach the claim
       // Atomic claim fails — someone already holds the rate-limit slot
       mockPrisma.event.updateMany.mockResolvedValue({ count: 0 })
@@ -1633,7 +1651,7 @@ describe('EventsService', () => {
           ...baseEvent,
           lastRsvpReminderAt: recentReminder,
         })
-        .mockResolvedValueOnce({ lastRsvpReminderAt: recentReminder })
+        .mockResolvedValueOnce({ ...baseEvent, lastRsvpReminderAt: recentReminder })
       mockPrisma.rsvp.findMany.mockResolvedValue([])
       mockPrisma.event.updateMany.mockResolvedValue({ count: 0 })
 
@@ -1642,6 +1660,7 @@ describe('EventsService', () => {
       } catch (err: any) {
         expect(err.getStatus()).toBe(429)
         expect(err.getResponse()).toMatchObject({
+          code: 'RSVP_REMINDER_COOLDOWN',
           message: 'Rate limit: reminder already sent',
           retryAfter: expect.any(String),
         })
@@ -1687,8 +1706,8 @@ describe('EventsService', () => {
         ...baseEvent,
         team: {
           access: [
-            { role: 'PLAYER', user: { id: 'user-1' } }, // requester — should be excluded
-            { role: 'PLAYER', user: { id: 'user-2' } },
+            { role: 'PLAYER', user: adult('user-1') }, // requester — should be excluded
+            { role: 'PLAYER', user: adult('user-2') },
           ],
         },
       })
@@ -1732,9 +1751,9 @@ describe('EventsService', () => {
         ...baseEvent,
         team: {
           access: [
-            { role: 'PLAYER', user: { id: 'user-2' } },
-            { role: 'PLAYER', user: { id: 'user-2' } },
-            { role: 'PLAYER', user: { id: 'user-3' } },
+            { role: 'PLAYER', user: adult('user-2') },
+            { role: 'PLAYER', user: adult('user-2') },
+            { role: 'PLAYER', user: adult('user-3') },
           ],
         },
       })
@@ -1745,6 +1764,120 @@ describe('EventsService', () => {
 
       expect(mockPushService.sendToUser).toHaveBeenCalledTimes(2) // user-2 once, user-3 once
       expect(result.sent).toBe(2)
+    })
+
+    it.each([
+      { rsvpLocked: true },
+      { rsvpDeadline: new Date(Date.now() - 1) },
+      { archivedAt: new Date() },
+    ])('does not send reminders when replies are closed: %p', async (policy) => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, ...policy })
+      await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toThrow()
+      expect(mockPrisma.event.updateMany).not.toHaveBeenCalled()
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+    })
+
+    it('routes a child reminder to linked guardians in their language, without duplicates', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, team: { access: [{
+        role: 'PLAYER', user: { id: 'child-1', name: 'Mia Weber', dateOfBirth: new Date(), adultConfirmedAt: new Date() },
+      }] } })
+      mockPrisma.guardianRelationship.findMany.mockResolvedValue([
+        { clubId: 'club-1', playerUserId: 'child-1', parentUserId: 'parent-1' },
+        { clubId: 'club-1', playerUserId: 'child-1', parentUserId: 'parent-1' },
+        { clubId: 'club-other', playerUserId: 'child-1', parentUserId: 'foreign-parent' },
+      ])
+      mockPrisma.user.findMany.mockResolvedValue([{ id: 'parent-1', preferredLanguage: 'en' }])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+      expect(mockPrisma.guardianRelationship.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ clubId: 'club-1', playerUserId: { in: ['child-1'] },
+          parent: { deletedAt: null, memberships: { some: { clubId: 'club-1' } } },
+        }),
+      }))
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith('parent-1', expect.any(String),
+        expect.stringContaining('availability for Mia'),
+        expect.objectContaining({ playerUserId: 'child-1', teamId: 'team-1' }),
+        { clubId: 'club-1', category: 'events' })
+      expect(result.sent).toBe(1)
+    })
+
+    it('does not acquire a cooldown when an unknown-age player has no guardian', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, team: { access: [{
+        role: 'PLAYER', user: { id: 'unknown', name: 'Mia', dateOfBirth: null, adultConfirmedAt: null },
+      }] } })
+      expect((await service.remindRsvp('club-1', 'evt-1', 'user-1')).sent).toBe(0)
+      expect(mockPrisma.event.updateMany).not.toHaveBeenCalled()
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+    })
+
+    it('counts a player only once even if two guardians accept the reminder', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, team: { access: [{
+        role: 'PLAYER', user: { id: 'child-1', name: 'Mia', dateOfBirth: new Date() },
+      }] } })
+      mockPrisma.guardianRelationship.findMany.mockResolvedValue([
+        { clubId: 'club-1', playerUserId: 'child-1', parentUserId: 'parent-1' },
+        { clubId: 'club-1', playerUserId: 'child-1', parentUserId: 'parent-2' },
+      ])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      expect((await service.remindRsvp('club-1', 'evt-1', 'user-1')).sent).toBe(1)
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not report skipped or rejected pushes as sent and releases its own cooldown', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      mockPushService.sendToUser.mockResolvedValue('skipped')
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+      expect(result.sent).toBe(0)
+      expect(new Date(result.nextAvailableAt!).getTime()).toBeLessThanOrEqual(Date.now())
+      expect(mockPrisma.event.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ lastRsvpReminderAt: expect.any(Date) }),
+        data: { lastRsvpReminderAt: null },
+      }))
+    })
+
+    it('excludes players loaned out to another team', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.teamAccess.findMany.mockResolvedValue([
+        { userId: 'user-2', teamId: 'other-team', loanedFromTeamId: 'team-1', loanEndDate: null },
+      ])
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      expect((await service.remindRsvp('club-1', 'evt-1', 'user-1')).sent).toBe(1)
+      expect(mockPushService.sendToUser.mock.calls[0][0]).toBe('user-3')
+    })
+
+    it('preserves a retry guard for a lost provider response instead of risking duplicate pushes', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(baseEvent)
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      mockPushService.sendToUser.mockResolvedValue('unknown')
+      const result = await service.remindRsvp('club-1', 'evt-1', 'user-1')
+      expect(result).toMatchObject({ sent: 0, uncertain: 2 })
+      expect(new Date(result.nextAvailableAt!).getTime()).toBeGreaterThan(Date.now())
+      expect(mockPrisma.event.updateMany).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not remind guardians of a deleted child with residual access', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ ...baseEvent, team: { access: [{
+        role: 'PLAYER', user: { ...adult('child'), dateOfBirth: new Date(), deletedAt: new Date() },
+      }] } })
+      expect((await service.remindRsvp('club-1', 'evt-1', 'user-1')).sent).toBe(0)
+      expect(mockPrisma.guardianRelationship.findMany).not.toHaveBeenCalled()
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+    })
+
+    it('revalidates a concurrent policy lock when the atomic claim loses', async () => {
+      mockPrisma.event.findUnique.mockResolvedValueOnce(baseEvent)
+        .mockResolvedValueOnce({ ...baseEvent, rsvpLocked: true })
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 0 })
+      await expect(service.remindRsvp('club-1', 'evt-1', 'user-1')).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'RSVP_LOCKED' }),
+      })
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+      expect(mockPrisma.event.updateMany.mock.calls[0][0].where).toEqual(expect.objectContaining({
+        rsvpLocked: false, cancelledAt: null, archivedAt: null, date: { gt: expect.any(Date) },
+        AND: expect.arrayContaining([{ OR: [{ rsvpDeadline: null }, { rsvpDeadline: { gt: expect.any(Date) } }] }]),
+      }))
     })
   })
 
@@ -1764,6 +1897,7 @@ describe('EventsService', () => {
         upsert: jest.fn(),
         findMany: jest.fn(),
       }
+      mockPrisma.teamAccess.findMany.mockResolvedValue([{ phase: 'FULL' }])
     })
 
     it('returns checkedInAt on success', async () => {
@@ -1775,8 +1909,8 @@ describe('EventsService', () => {
 
       expect(mockPrisma.eventCheckIn.upsert).toHaveBeenCalledWith({
         where: { eventId_userId: { eventId: 'evt-1', userId: 'user-1' } },
-        create: { clubId: 'club-1', teamId: 'team-1', eventId: 'evt-1', userId: 'user-1' },
-        update: {},
+        create: { clubId: 'club-1', teamId: 'team-1', eventId: 'evt-1', userId: 'user-1', playerEligibilityVerifiedAt: expect.any(Date) },
+        update: { playerEligibilityVerifiedAt: expect.any(Date) },
       })
       expect(result).toEqual({ checkedInAt: checkedInAt.toISOString() })
     })

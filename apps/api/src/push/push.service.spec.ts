@@ -158,6 +158,45 @@ describe('PushService', () => {
   })
 
   describe('sendToUser', () => {
+    it('reports acceptance only when Expo issues a successful ticket', async () => {
+      prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }])
+      jest.mocked(global.fetch).mockResolvedValue({ ok: true,
+        json: async () => ({ data: [{ status: 'ok', id: 'ticket-1' }] }),
+      } as Response)
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toBe('accepted')
+    })
+
+    it('does not report missing tokens as accepted', async () => {
+      prisma.pushToken.findMany.mockResolvedValue([])
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toBe('skipped')
+    })
+
+    it.each(['http', 'rejected', 'network'])('does not report %s failure as accepted', async (kind) => {
+      prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }])
+      if (kind === 'network') jest.mocked(global.fetch).mockRejectedValue(new Error('offline'))
+      else jest.mocked(global.fetch).mockResolvedValue({ ok: kind !== 'http', status: 503,
+        json: async () => ({ data: [{ status: 'error', message: 'rejected' }] }),
+      } as Response)
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toBe(kind === 'rejected' ? 'rejected' : 'unknown')
+    })
+
+    it.each(['request', 'body'])('bounds a stalled Expo %s and preserves uncertainty', async (phase) => {
+      jest.useFakeTimers()
+      try {
+        prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }])
+        const stalled = new Promise<never>(() => undefined)
+        const response = new Response('{}', { status: 200 })
+        jest.spyOn(response, 'json').mockImplementation(() => stalled)
+        jest.mocked(global.fetch).mockImplementation(() => phase === 'request'
+          ? stalled
+          : Promise.resolve(response))
+        const pending = service.sendToUser('u1', 'Title', 'Body')
+        await jest.advanceTimersByTimeAsync(10_001)
+        await expect(pending).resolves.toBe('unknown')
+        expect(jest.mocked(global.fetch).mock.calls[0][1]?.signal?.aborted).toBe(true)
+      } finally { jest.useRealTimers() }
+    })
+
     it('sends push to user', async () => {
       prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }])
 
@@ -169,12 +208,13 @@ describe('PushService', () => {
     it('skips user in quiet hours', async () => {
       notificationsService.isInQuietHours.mockResolvedValue(true)
 
-      await service.sendToUser('u1', 'Title', 'Body', undefined, {
+      const accepted = await service.sendToUser('u1', 'Title', 'Body', undefined, {
         clubId: 'c1',
       })
 
       expect(prisma.pushToken.findMany).not.toHaveBeenCalled()
       expect(global.fetch).not.toHaveBeenCalled()
+      expect(accepted).toBe('skipped')
     })
 
     it('does not check quiet hours when no clubId', async () => {

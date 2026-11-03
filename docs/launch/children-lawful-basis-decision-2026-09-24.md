@@ -1,5 +1,12 @@
 # Children's-data lawful-basis decision record — not approved
 
+**Superseded product scope, 28 October:** the owner confirmed an 18+ first release,
+with youth/guardian participation and dedicated health reporting Coming Soon.
+See [the current decision](adult-first-release-2026-10-28.md). The September
+findings below are a historical worksheet, not the current audience answer.
+Existing records remain; their lawful handling, rights and retention obligations
+are not removed by restricting new participation. No legal approval is implied.
+
 Owner: Anstoss legal/product + each participating club as controller for club records. Date: 24 September 2026. This is a decision worksheet, **not** a legal conclusion or proof of guardian authority. Obtain German/EU privacy counsel sign-off before inviting minors.
 
 Authoritative references: [GDPR Articles 5–9, 13, 28, 35 and 44–46](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng), [EDPB consent guidance, children's consent and parental responsibility](https://www.edpb.europa.eu/sites/default/files/files/file1/20180416_article29wpguidelinesonconsent_publish_en.pdf), [Google Play target audience](https://support.google.com/googleplay/android-developer/answer/9867159).

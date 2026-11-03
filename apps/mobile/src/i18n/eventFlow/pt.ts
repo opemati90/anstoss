@@ -1,5 +1,14 @@
 // European Portuguese, matching the rest of pt.ts ("Plantel", "Lembrar-me").
 export const eventFlowPt = {
+  availability: {
+    title: 'Disponibilidade', open: 'Respostas abertas', closed: 'Respostas encerradas',
+    closedHint: 'Contacta o teu treinador se a tua disponibilidade mudar.',
+    noDeadline: 'Sem prazo', deadlineValue: 'Prazo de resposta: {{value}}',
+    lock: 'Bloquear respostas', lockHint: 'Impedir jogadores e responsáveis legais de alterar as respostas.',
+    chooseDeadline: 'Prazo de resposta', deadlineHint: 'As respostas encerram a esta hora. O bloqueio manual mantém-se até ser desativado.',
+    hoursBefore: '{{count}} horas antes do evento', atStart: 'No início do evento',
+    saveFailed: 'Não foi possível confirmar. Atualiza para verificar as definições atuais.',
+  },
   type: { TRAINING: 'Treino', MATCH: 'Jogo', OTHER: 'Outro' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: { home: 'Jogo em casa contra {{opponent}}', away: 'Jogo fora contra {{opponent}}', neutral: 'Jogo contra {{opponent}}' },
@@ -113,8 +122,11 @@ export const eventFlowPt = {
     empty: 'Ainda ninguém respondeu.',
     remindOpen_one: 'Lembrar {{count}} jogador',
     remindOpen_other: 'Lembrar {{count}} jogadores',
-    remindSent_one: 'Lembrete enviado a {{count}} jogador',
-    remindSent_other: 'Lembrete enviado a {{count}} jogadores',
+    remindSent_one: 'Lembrete em fila para {{count}} jogador',
+    remindSent_other: 'Lembretes em fila para {{count}} jogadores',
+    remindNoneAccepted: 'Nenhum lembrete push em fila. As notificações podem estar desativadas ou não há um dispositivo registado. Podes tentar novamente.',
+    remindUnconfirmed: 'Estado dos lembretes por confirmar',
+    remindUnconfirmedHint: 'O serviço de notificações não confirmou todos os lembretes. Alguns ainda podem chegar. As novas tentativas estão suspensas para evitar duplicados.',
     remindCooldown: 'Já foram lembrados hoje',
     remindFailedTitle: 'Lembrete não enviado',
     remindFailedBody: 'Tenta novamente daqui a pouco.',

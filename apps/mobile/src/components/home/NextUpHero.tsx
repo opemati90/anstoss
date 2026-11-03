@@ -181,6 +181,7 @@ export function NextUpHero({
               ) : null}
             </View>
             <RsvpControl
+              policy={event}
               value={event.myRsvp}
               onChange={onRsvp}
               disabled={rsvpPending}

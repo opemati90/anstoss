@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CHAT } from '../constants/limits'
+import { CHAT_UPLOAD_CONTENT_TYPES, CHAT_UPLOAD_MAX_BYTES, type ChatUploadKind } from '../constants/chat-uploads'
 
 // Chat revamp (inbox, groups, mute). Shared by the API controllers and the
 // mobile create-group / mute flows so both sides validate the same shapes.
@@ -107,6 +108,47 @@ export const sendDirectMessageSchema = z.union([
   }),
 ])
 export type SendDirectMessageInput = z.infer<typeof sendDirectMessageSchema>
+
+/** V2 publication uses a server-owned upload intent, never a client-chosen URL. */
+export const privateMediaPublishSchema = z.object({
+  messageType: z.enum(['IMAGE', 'VIDEO', 'FILE', 'VOICE']),
+  content: z.string().max(1000).trim().optional(),
+  replyToId: z.string().min(1).max(200).optional(),
+  attachmentMeta: chatMediaMetaSchema.extend({
+    fileName: z.string().max(200).refine((value) => {
+      for (const character of value) {
+        const code = character.charCodeAt(0)
+        if (code < 32 || code === 127) return false
+      }
+      return true
+    }, 'Invalid filename').optional(),
+  }).strict().optional(),
+}).strict()
+export type PrivateMediaPublishInput = z.infer<typeof privateMediaPublishSchema>
+
+/** Identity and destination come from authorization, never the request body. */
+export const privateMediaReserveSchema = z.object({
+  requestId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+  messageType: z.enum(['IMAGE', 'VIDEO', 'FILE', 'VOICE']),
+  contentType: z.string().max(100),
+  expectedBytes: z.number().int().positive().max(100 * 1024 * 1024),
+}).strict().superRefine((input, ctx) => {
+  const kind = input.messageType.toLowerCase() as ChatUploadKind
+  if (!CHAT_UPLOAD_CONTENT_TYPES[kind].has(input.contentType)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['contentType'], message: 'Unsupported attachment type' })
+  }
+  if (input.expectedBytes > CHAT_UPLOAD_MAX_BYTES[kind]) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['expectedBytes'], message: 'Attachment is too large' })
+  }
+})
+export type PrivateMediaReserveInput = z.infer<typeof privateMediaReserveSchema>
+
+export const privateMediaStatusSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(['RESERVED', 'PROCESSING', 'UPLOADING', 'READY', 'PUBLISHED', 'CANCELLED', 'EXPIRED']),
+  expiresAt: z.string().datetime(),
+}).strict()
+export type PrivateMediaStatus = z.infer<typeof privateMediaStatusSchema>
 
 /** REST channel post (AnnounceSheet / home composer). */
 export const postChannelMessageSchema = z.object({

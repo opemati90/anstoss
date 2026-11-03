@@ -53,12 +53,15 @@ This maps the common "vibe-coder launch" checklist to Anstoss as of the current
 - Review Prisma tenant fail-open read warnings in logs after staging traffic.
   Those reads rely on service-level authorization and should be promoted to
   fail-closed route by route where feasible.
-- Production dependency audit is clean as of 2026-09-15:
-  `npm audit --omit=dev` reports `0` vulnerabilities. The lockfile keeps
-  launch-safe transitive overrides for Nest uploads (`multer@2.4.0`), Expo
-  plist/XML handling (`@xmldom/xmldom@0.8.15`) and Expo Router's query parser
-  leaf dependency (`decode-uri-component@0.5.0`) instead of using a blind
-  major-version `npm audit fix --force`.
+- The dependency audit is **not clean**. On 2026-11-03 the API/shared scoped
+  production audit reported no critical or high findings, but low/moderate
+  findings remained. The full workspace audit also reported high findings via
+  Expo SDK 57 build tooling, including its Zod 3 dependency. API and shared
+  request validation use Zod 4; the Docker image asserts that resolution.
+  The lockfile includes security updates for API request parsing, proxy trust,
+  Socket.IO and uploads, plus Expo Router decoder compatibility. Re-run both
+  audits at release and document the residual tooling risks; do not claim zero
+  findings or use a blind major-version `npm audit fix --force`.
 - Run App Store privacy labels and Google Play Data Safety review against the
   current privacy manifest and policy copy before submission.
 - Create the packaged internal admin static service (`apps/admin/railway.toml`),

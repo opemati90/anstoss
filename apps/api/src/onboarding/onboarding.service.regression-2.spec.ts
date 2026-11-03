@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { OnboardingService } from './onboarding.service'
 import { ClubActivationService } from '../club-activation/club-activation.service'
 import { ConflictException } from '@nestjs/common'

@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { activeTeamAccessWhere } from './active-team-access'
+import { assertLaunchBirthDate, assertLaunchParticipant, assertLaunchRosterBirthDate } from '../auth/launch-access-policy'
 
 /** Mirror the age-gate guard's age calculation. */
 function getAge(dateOfBirth: Date): number {
@@ -39,6 +40,7 @@ export class RosterSlotsService {
   }
 
   async bulkCreate(clubId: string, teamId: string, userId: string, body: BulkRosterSlotsInput) {
+    for (const slot of body.slots) assertLaunchRosterBirthDate(slot.dateOfBirth)
     await this.assertManager(userId, clubId)
     const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId } })
     if (!team) throw new NotFoundException('Team not found in this club')
@@ -64,6 +66,7 @@ export class RosterSlotsService {
   async claim(clubId: string, teamId: string, slotId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await assertLaunchParticipant(tx, userId)
       const activeUser = await tx.user.findFirst({
         where: { id: userId, deletedAt: null },
         select: { id: true },
@@ -77,6 +80,7 @@ export class RosterSlotsService {
       if (!slot || slot.teamId !== teamId || slot.team.clubId !== clubId) {
         throw new NotFoundException('Slot not found')
       }
+      if (slot.dateOfBirth) assertLaunchBirthDate(slot.dateOfBirth)
 
       const existingAccess = await tx.teamAccess.findFirst({
         where: {

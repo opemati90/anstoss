@@ -64,7 +64,7 @@ const SUMMARY_ORDER: AvailabilityKind[] = ['FIT', 'INJURED', 'SUSPENDED', 'UNAVA
  * Kader — the Team tab. One list of the people, grouped the way a coach
  * thinks about them (TW, Abwehr, Mittelfeld, Sturm, Trainerteam), with each
  * player's availability and answer for the next event on their row. Team
- * tools sit below as three rows. Everything a coach changes about a player
+ * tools sit below the roster. Everything a coach changes about a player
  * lives in PlayerEditSheet; players change their own Urlaub from the pinned
  * "Du" row.
  */
@@ -362,13 +362,6 @@ export default function KaderScreen() {
           subtitle={t('kader.tools.matchesHint')}
           onPress={() => router.push('/team-spiele')}
           testID="kader-tool-matches"
-        />
-        <ToolRow
-          icon="chart.bar"
-          title={t('kader.tools.stats')}
-          subtitle={t('kader.tools.statsHint')}
-          onPress={() => router.push('/team-stats')}
-          testID="kader-tool-stats"
         />
       </SectionGroup>
     </View>

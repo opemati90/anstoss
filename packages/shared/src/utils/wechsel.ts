@@ -1,4 +1,5 @@
 import { TrialInviteStatus, type TrialStage } from '../types/marketplace'
+import { LAUNCH_FEATURES } from '../constants/launch-features'
 
 /**
  * Wechselperioden for German amateur football (DFB Spielordnung):
@@ -83,7 +84,7 @@ export function nextWechselperiode(date: Date | string): {
 //    consent through the parental-consent flow.
 
 /** Minimum age to hold a free-agent profile or the FREE_AGENT role. */
-export const FREE_AGENT_MIN_AGE = 16
+export const FREE_AGENT_MIN_AGE = LAUNCH_FEATURES.youthParticipation ? 16 : LAUNCH_FEATURES.minimumAccountAge
 /** Below this age a free agent is a minor (U18 rules apply). */
 export const FREE_AGENT_ADULT_AGE = 18
 

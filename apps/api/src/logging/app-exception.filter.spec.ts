@@ -7,6 +7,7 @@ import {
   ClerkTokenExpiredError,
   RateLimitExceededError,
   StripeWebhookSignatureError,
+  presignDmMediaSchema,
 } from '@anstoss/shared'
 
 // Mock Sentry so it's not required
@@ -112,6 +113,17 @@ describe('AppExceptionFilter', () => {
     expect(mockLogger.warn).toHaveBeenCalled()
   })
 
+  it('preserves only a valid reminder cooldown timestamp in the error envelope', () => {
+    filter.catch(new HttpException({ code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait', retryAfter: '2026-10-30T20:00:00.000Z' }, 429), mockHost)
+    expect(mockResponse.json).toHaveBeenLastCalledWith({ error: { code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait', retryAfter: '2026-10-30T20:00:00.000Z' }, requestId: 'req-123' })
+    filter.catch(new HttpException({ code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait', retryAfter: 'not-a-date' }, 429), mockHost)
+    expect(mockResponse.json).toHaveBeenLastCalledWith({ error: { code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait' }, requestId: 'req-123' })
+    filter.catch(new HttpException({ code: 'OTHER_RATE_LIMIT', message: 'Wait', retryAfter: '2026-10-30T20:00:00.000Z' }, 429), mockHost)
+    expect(mockResponse.json).toHaveBeenLastCalledWith({ error: { code: 'OTHER_RATE_LIMIT', message: 'Wait' }, requestId: 'req-123' })
+    filter.catch(new HttpException({ code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait', retryAfter: '2026-10-30T20:00:00.000Z' }, 400), mockHost)
+    expect(mockResponse.json).toHaveBeenLastCalledWith({ error: { code: 'RSVP_REMINDER_COOLDOWN', message: 'Wait' }, requestId: 'req-123' })
+  })
+
   // onboarding review fixes (M1/M9): stable codes + wait time pass through.
   it('passes a machine code and retryAfterSeconds from an object HttpException body', () => {
     const error = new HttpException(
@@ -168,16 +180,14 @@ describe('AppExceptionFilter', () => {
       {
         code: 'too_small',
         minimum: 1,
-        type: 'string',
+        origin: 'string',
         inclusive: true,
-        exact: false,
         message: 'Title is required',
         path: ['title'],
       },
       {
         code: 'invalid_type',
         expected: 'string',
-        received: 'number',
         message: 'Expected string, received number',
         path: ['location', 'name'],
       },
@@ -197,5 +207,18 @@ describe('AppExceptionFilter', () => {
       requestId: 'req-123',
     })
     expect(mockLogger.warn).toHaveBeenCalled()
+  })
+
+  it('handles a real shared-schema validation error across workspace copies', () => {
+    const parsed = presignDmMediaSchema.safeParse({ kind: 'image', contentType: 'image/png', sizeBytes: -1 })
+    expect(parsed.success).toBe(false)
+    if (parsed.success) throw new Error('Expected validation failure')
+    filter.catch(parsed.error, mockHost as any)
+    expect(mockResponse.status).toHaveBeenCalledWith(422)
+    expect(mockResponse.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({ code: 'VALIDATION_ERROR', fields: expect.arrayContaining([
+        expect.objectContaining({ path: 'sizeBytes' }),
+      ]) }),
+    }))
   })
 })

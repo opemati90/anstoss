@@ -57,6 +57,9 @@ describe('ChatService retention settings', () => {
 
     await service.updateRetentionSettings('user-1', 'club-1', { enabled: true })
 
+    expect(prisma.$executeRaw.mock.calls[0][1]).toBe('chat-retention-settings:club-1')
+    expect(prisma.$executeRaw.mock.calls[1][1]).toBe('owner:club-1')
+
     expect(prisma.clubChatRetentionSettings.upsert).toHaveBeenLastCalledWith({
       where: { clubId: 'club-1' },
       create: {

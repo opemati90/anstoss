@@ -155,10 +155,12 @@ export const EventRow = memo(function EventRow({
 
       {rsvp && !cancelled ? (
         <RsvpControl
+          policy={event}
           value={rsvp.value}
           onChange={rsvp.onChange}
           disabled={rsvp.pending}
           subjectName={rsvp.subjectName}
+          accessibilityLabel={`${title}, ${new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(date)}, ${timeLine}`}
           size="compact"
           testID={testID ? `${testID}-rsvp` : undefined}
         />

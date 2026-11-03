@@ -67,9 +67,10 @@ export class ContributionsReminderWorker implements OnModuleInit, OnModuleDestro
 
         if (result.sent > 0) {
           this.logger.log(
-            `Sent ${result.sent} automatic contribution reminders for club ${clubId}.`,
+            `Providers accepted ${result.sent} automatic contribution reminders for club ${clubId}.`,
           )
         }
+        if (result.uncertain) this.logger.warn(`Provider acceptance unconfirmed for ${result.uncertain} contribution reminders in club ${clubId}; automatic retry paused.`)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error'
         this.logger.warn(`Automatic contribution reminders failed for club ${clubId}: ${message}`)

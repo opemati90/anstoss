@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import { RegistrationRole } from '../types/club-operations'
+import { LAUNCH_FEATURES } from '../constants/launch-features'
 
 /**
  * Age gate: Germany GDPR Article 8 threshold is 16.
  * Users under 16 are blocked at registration until parental consent (Sprint 3).
  */
-const MIN_AGE = 16
+const MIN_AGE = LAUNCH_FEATURES.youthParticipation ? 16 : LAUNCH_FEATURES.minimumAccountAge
 
 function getAge(dateOfBirth: Date): number {
   const today = new Date()

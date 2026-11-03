@@ -3,7 +3,7 @@ import { ChannelsService } from './channels.service'
 import { CHAT_FAKE_SCHEMA, FakePrisma } from '../test-utils/fake-prisma'
 
 const d = (iso: string) => new Date(iso)
-const active = { status: 'ACTIVE', loanEndDate: null }
+const active = { status: 'ACTIVE', phase: 'FULL', loanEndDate: null }
 
 function channel(id: string, kind: string, teamId: string | null, visibility = 'MEMBERS') {
   return {
@@ -77,7 +77,7 @@ function make(role = 'COACH') {
 }
 
 describe('ChannelsService.listInboxChannels', () => {
-  it('lists each channel once, hides empty adult Eltern + club announcements and foreign clubs', async () => {
+  it('lists each channel once, hides all Coming Soon parent channels, empty club announcements and foreign clubs', async () => {
     const { service } = make()
     const ids = (await service.listInboxChannels('coach', 'club-1')).map((c) => c.id).sort()
     expect(ids).toEqual(
@@ -90,9 +90,7 @@ describe('ChannelsService.listInboxChannels', () => {
         'h-team',
         'u-announcements',
         'u-coaches',
-        'u-parents',
         'u-team',
-        'x-group',
       ].sort(),
     )
   })

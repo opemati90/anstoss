@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { PushService } from './push.service'
 import { AgeGateService } from '../auth/age-gate.service'
 import { createFakePrisma, dobForAge } from '../testing/fake-prisma'
@@ -26,7 +28,7 @@ describe('PushService age-gate fan-out', () => {
       ],
     })
     const service = new PushService(prisma as never, undefined, new AgeGateService(prisma as never))
-    const sent = jest.spyOn(service as any, 'sendPush').mockResolvedValue(undefined)
+    const sent = jest.spyOn(service as any, 'sendPush').mockResolvedValue({ accepted: 1, unknown: false })
     return { service, sent }
   }
 

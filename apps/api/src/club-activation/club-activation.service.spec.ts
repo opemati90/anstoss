@@ -24,7 +24,7 @@ describe('ClubActivationService role independence', () => {
         update: jest.fn().mockResolvedValue({ ...claim, status: 'APPROVED' }),
       },
       team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
-      user: { findFirst: jest.fn().mockResolvedValue({ id: 'admin-player-1' }) },
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'admin-player-1', dateOfBirth: new Date('1990-01-01') }) },
       membership: {
         findUnique: jest
           .fn()
@@ -132,6 +132,7 @@ describe('club authority governance boundaries', () => {
     async (role) => {
       const tx = {
         $executeRaw: jest.fn().mockResolvedValue(1),
+        user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
         membership: { findUnique: jest.fn().mockResolvedValue({ role }) },
         clubClaim: {
           findMany: jest.fn().mockResolvedValue([]),
@@ -141,6 +142,7 @@ describe('club authority governance boundaries', () => {
         },
       }
       const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
         clubDirectoryEntry: { findFirst: jest.fn().mockResolvedValue({ id: 'directory-1' }) },
         membership: { findUnique: jest.fn().mockResolvedValue(null) },
         team: { count: jest.fn().mockResolvedValue(1) },
@@ -190,7 +192,7 @@ describe('club authority governance boundaries', () => {
       },
       clubClaim: { findUnique: jest.fn().mockResolvedValue(claim) },
       team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
-      user: { findFirst: jest.fn().mockResolvedValue({ id: 'owner-2' }) },
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'owner-2', dateOfBirth: new Date('1990-01-01') }) },
       teamAccess: { upsert: jest.fn() },
       teamMember: { upsert: jest.fn() },
     }
@@ -364,7 +366,7 @@ describe('club authority governance boundaries', () => {
         findUnique: jest.fn().mockResolvedValue(claim),
         update: jest.fn().mockResolvedValue({ ...claim, status: 'APPROVED' }),
       },
-      user: { findFirst: jest.fn().mockResolvedValue({ id: 'coach-1' }) },
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'coach-1', dateOfBirth: new Date('1990-01-01') }) },
       team: { findMany: jest.fn().mockResolvedValue([{ id: 'team-1' }]) },
       membership: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -565,6 +567,7 @@ describe('club authority governance boundaries', () => {
 
   it('blocks acceptance of a pending transfer while a dispute is frozen', async () => {
     const tx = {
+      user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
       ownershipTransfer: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'transfer-1',
@@ -610,6 +613,7 @@ describe('club authority governance boundaries', () => {
 
   it('atomically resolves a dispute by transferring ownership to an existing member', async () => {
     const tx = {
+      user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
       $executeRaw: jest.fn().mockResolvedValue(1),
       clubDispute: {
         findUnique: jest.fn().mockResolvedValue({
@@ -669,6 +673,7 @@ describe('club authority governance boundaries', () => {
 
   it('rolls back dispute resolution when the selected owner is not a club member', async () => {
     const tx = {
+      user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
       $executeRaw: jest.fn().mockResolvedValue(1),
       clubDispute: {
         findUnique: jest.fn().mockResolvedValue({

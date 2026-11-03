@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import { randomInt } from 'node:crypto'
 import { createClerkClient } from '@clerk/backend'
@@ -12,6 +13,7 @@ import { ClubClaimStatus, Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import {
   AGE_GATE,
+  LAUNCH_FEATURES,
   buildClubPermissionMap,
   ClubOperationalRole,
   CRITICAL_OPERATIONAL_ROLES,
@@ -41,7 +43,8 @@ import type {
   ChildrenOverview,
 } from '@anstoss/shared'
 import { TeamsService } from '../teams/teams.service'
-import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { assertLaunchBirthDate, assertLaunchParticipant, launchClubParticipantWhere, requireYouthParticipation } from '../auth/launch-access-policy'
+import { activeLaunchTeamAccessWhere as activeTeamAccessWhere } from '../teams/active-team-access'
 import { ClubsService } from '../clubs/clubs.service'
 import { InvitesService } from '../invites/invites.service'
 import { MarketplaceService } from '../marketplace/marketplace.service'
@@ -58,6 +61,10 @@ import {
   tombstoneUnderageEmail,
 } from '../auth/underage-email-tombstone'
 import { R2Provider } from '../assets/r2.provider'
+import { lockMediaObject } from '../assets/media-object-lock'
+import { cancelAccountPrivateUploads, findAccountPrivateUploads } from '../assets/private-upload-account-erasure'
+import { isOwnedPrivateV1Key } from '../media/private-v1-owner'
+import { uploadKindFor, type ChatAttachmentType } from '../media/chat-media-limits'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { tenantContext } from '../prisma/tenant.context'
 // club-admin review fixes (H3): Führungszeugnis retention on offboarding.
@@ -123,6 +130,7 @@ export class UsersService {
    *     login) — soft-delete + best-effort Clerk deletion.
    */
   async sendParentHandoff(userId: string, input: ParentHandoffInput) {
+    requireYouthParticipation()
     const dob = new Date(input.childDateOfBirth)
     if (Number.isNaN(dob.getTime()) || getAge(dob) >= AGE_GATE.MIN_AGE) {
       throw new BadRequestException('Parent handoff is only available for under-16 sign-ups')
@@ -407,7 +415,14 @@ export class UsersService {
     // onboarding revamp: a coach/parent/admin who declared they are 16+
     // (adultConfirmedAt) and has no DOB on file is cleared like an adult.
     const ageGate =
-      age === null && user.adultConfirmedAt
+      !LAUNCH_FEATURES.youthParticipation
+        ? {
+            isUnder16: age !== null && age < 16,
+            status: (age === null ? 'DOB_REQUIRED' : age < LAUNCH_FEATURES.minimumAccountAge ? 'BLOCKED' : 'CLEARED') as 'DOB_REQUIRED' | 'BLOCKED' | 'CLEARED',
+            guardianEmail: null,
+            message: age !== null && age < LAUNCH_FEATURES.minimumAccountAge ? 'Anstoss currently supports adults aged 18 and over.' : null,
+          }
+      : age === null && user.adultConfirmedAt
         ? {
             isUnder16: false,
             status: 'CLEARED' as const,
@@ -457,7 +472,8 @@ export class UsersService {
     // Derive teamMembers from teamAccess for the mobile client.
     // Keep access state so clients can avoid treating pending/revoked rows
     // as active team membership.
-    const teamMembers = user.teamAccess.map((teamAccess: (typeof user.teamAccess)[number]) => ({
+    const launchTeamAccess = user.teamAccess.filter((entry) => LAUNCH_FEATURES.youthParticipation || entry.role !== TeamRole.PARENT)
+    const teamMembers = launchTeamAccess.map((teamAccess: (typeof user.teamAccess)[number]) => ({
       id: teamAccess.id,
       role: teamAccess.role,
       phase: teamAccess.phase,
@@ -495,6 +511,8 @@ export class UsersService {
 
     return {
       ...user,
+      teamAccess: launchTeamAccess,
+      guardianRelationshipsAsParent: LAUNCH_FEATURES.youthParticipation ? user.guardianRelationshipsAsParent : [],
       memberships: user.memberships.map((membership: (typeof user.memberships)[number]) =>
         attachMembershipPermissions(membership),
       ),
@@ -522,6 +540,7 @@ export class UsersService {
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
+        deletedAt: true,
         dateOfBirth: true,
         registrationRole: true,
         adultConfirmedAt: true,
@@ -530,7 +549,7 @@ export class UsersService {
       },
     })
 
-    if (!currentUser) {
+    if (!currentUser || currentUser.deletedAt) {
       throw new NotFoundException('User not found')
     }
 
@@ -581,6 +600,7 @@ export class UsersService {
       if (Number.isNaN(parsedDate.getTime())) {
         throw new BadRequestException('Invalid date of birth')
       }
+      assertLaunchBirthDate(parsedDate)
 
       if (
         knownDob &&
@@ -632,6 +652,7 @@ export class UsersService {
     }
 
     if (data.registrationRole !== undefined) {
+      if (data.registrationRole === RegistrationRole.PARENT) requireYouthParticipation()
       // Onboarding review fix (B3): "Spieler ohne Verein" needs a real DOB and
       // must be 16+ (the Wechselbörse is not for children).
       if (data.registrationRole === RegistrationRole.FREE_AGENT) {
@@ -652,9 +673,48 @@ export class UsersService {
       updateData.registrationRole = data.registrationRole
     }
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
+    return this.prisma.$transaction(async (tx) => {
+      // Match account erasure's first lock. Slow avatar/provider validation
+      // above must never allow an old request to restore erased profile data.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const latest = await tx.user.findUnique({ where: { id: userId }, select: {
+        deletedAt: true, dateOfBirth: true, registrationRole: true,
+      } })
+      if (!latest || latest.deletedAt) throw new NotFoundException('User not found')
+      if ((data.dateOfBirth && latest.dateOfBirth?.getTime() !== currentUser.dateOfBirth?.getTime())
+        || (data.registrationRole !== undefined && latest.registrationRole !== currentUser.registrationRole)) {
+        throw new BadRequestException('Profile changed. Refresh and try again.')
+      }
+      if (data.registrationRole !== undefined && data.registrationRole !== latest.registrationRole) {
+        const leavingDefault = !latest.registrationRole || latest.registrationRole === RegistrationRole.PLAYER
+        if (!leavingDefault || data.registrationRole === RegistrationRole.CLUB_ADMIN) {
+          // Approval/claim writes share the account lock. A club could have
+          // admitted this user while validation/provider work was in flight.
+          const [membership, pendingClaim] = await Promise.all([
+            tx.membership.findFirst({ where: { userId }, select: { id: true } }),
+            tx.clubClaim.findFirst({ where: { claimantUserId: userId,
+              status: { in: [ClubClaimStatus.SUBMITTED, ClubClaimStatus.NEEDS_INFO] },
+              expiresAt: { gt: new Date() } }, select: { id: true } }),
+          ])
+          if (!leavingDefault && (membership || pendingClaim)) throw new BadRequestException({
+            message: 'registrationRole is read-only while you belong to a club or a claim is pending', code: 'ROLE_LOCKED',
+          })
+          if (data.registrationRole === RegistrationRole.CLUB_ADMIN && membership) {
+            throw new BadRequestException('Cannot change registration role to CLUB_ADMIN after joining a club')
+          }
+        }
+      }
+      const avatarKey = data.avatarUrl !== undefined && this.r2?.enabled
+        ? this.r2.objectKeyFromUrl(data.avatarUrl) : null
+      if (avatarKey) {
+        // Same account -> object order as attachment publication. A cleanup
+        // worker only takes the object lock and never waits for an account.
+        await lockMediaObject(tx, avatarKey)
+        if (await tx.accountMediaDeletion.findUnique({ where: { objectKey: avatarKey } })) {
+          throw new BadRequestException('Avatar is being removed; upload it again')
+        }
+      }
+      return tx.user.update({ where: { id: userId, deletedAt: null }, data: updateData })
     })
   }
 
@@ -701,12 +761,14 @@ export class UsersService {
    * dispatches role-specific work (club creation / invite redemption / free-agent profile).
    */
   async completeOnboarding(userId: string, input: CompleteOnboardingInput) {
+    if (input.registrationRole === RegistrationRole.PARENT) requireYouthParticipation()
+    assertLaunchBirthDate(new Date(input.profile.dateOfBirth))
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, registrationRole: true },
+      select: { id: true, registrationRole: true, deletedAt: true },
     })
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new NotFoundException('User not found')
     }
 
@@ -743,13 +805,39 @@ export class UsersService {
       await this.assertOwnedAvatarUpload(userId, input.profile.photoUrl)
     }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: input.profile.displayName,
-        dateOfBirth: new Date(input.profile.dateOfBirth),
-        ...(input.profile.photoUrl ? { avatarUrl: input.profile.photoUrl } : {}),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Deletion and profile edits share this lifecycle lock. The initial
+      // lookup and potentially slow invite/avatar checks are only preflight.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const current = await tx.user.findUnique({
+        where: { id: userId },
+        select: { deletedAt: true, registrationRole: true, dateOfBirth: true },
+      })
+      if (!current || current.deletedAt) throw new NotFoundException('User not found')
+      if (current.registrationRole !== input.registrationRole) {
+        throw new BadRequestException('registrationRole in payload must match the user record')
+      }
+      const dob = new Date(input.profile.dateOfBirth)
+      if (current.dateOfBirth && !isPlaceholderDate(current.dateOfBirth)
+        && current.dateOfBirth.toISOString().slice(0, 10) !== dob.toISOString().slice(0, 10)) {
+        throw new BadRequestException('Date of birth is read-only after registration')
+      }
+      const avatarKey = input.profile.photoUrl && this.r2?.enabled
+        ? this.r2.objectKeyFromUrl(input.profile.photoUrl) : null
+      if (avatarKey) {
+        await lockMediaObject(tx, avatarKey)
+        if (await tx.accountMediaDeletion.findUnique({ where: { objectKey: avatarKey } })) {
+          throw new BadRequestException('Avatar is being removed; upload it again')
+        }
+      }
+      await tx.user.update({
+        where: { id: userId, deletedAt: null },
+        data: {
+          name: input.profile.displayName,
+          dateOfBirth: dob,
+          ...(input.profile.photoUrl ? { avatarUrl: input.profile.photoUrl } : {}),
+        },
+      })
     })
 
     switch (input.registrationRole) {
@@ -810,6 +898,7 @@ export class UsersService {
    * Get a user's profile within a club context (visible to teammates).
    */
   async getClubProfile(requesterUserId: string, targetUserId: string, clubId: string) {
+    await assertLaunchParticipant(this.prisma, targetUserId)
     const [requesterMembership, targetMembership] = await Promise.all([
       this.prisma.membership.findUnique({
         where: { userId_clubId: { userId: requesterUserId, clubId } },
@@ -857,6 +946,7 @@ export class UsersService {
         where: {
           clubId,
           teamId,
+          user: launchClubParticipantWhere(clubId),
           ...activeTeamAccessWhere(),
         },
         include: {
@@ -917,7 +1007,7 @@ export class UsersService {
     }
 
     const memberships = await this.prisma.membership.findMany({
-      where: { clubId },
+      where: { clubId, user: launchClubParticipantWhere(clubId) },
       include: {
         user: {
           select: {
@@ -1107,8 +1197,7 @@ export class UsersService {
                       teamAccess: {
                         some: {
                           clubId,
-                          role: requestedRole as TeamRole,
-                          ...activeTeamAccessWhere(),
+                          AND: [activeTeamAccessWhere(), { role: requestedRole as TeamRole }],
                         },
                       },
                     },
@@ -1124,6 +1213,7 @@ export class UsersService {
         clubId,
         ...roleWhere,
         user: {
+          AND: [launchClubParticipantWhere(clubId)],
           deletedAt: null,
           OR: [
             { name: { contains: query, mode: 'insensitive' } },
@@ -1178,6 +1268,8 @@ export class UsersService {
     memberUserId: string,
     nextRole: MembershipRole,
   ) {
+    if (nextRole === MembershipRole.PARENT) requireYouthParticipation()
+    await assertLaunchParticipant(this.prisma, memberUserId)
     const membership = await this.prisma.$transaction(async (tx: any) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       const [actorMembership, targetMembership] = await Promise.all([
@@ -1300,6 +1392,7 @@ export class UsersService {
     memberUserId: string,
     operationalRoles: ClubOperationalRole[],
   ) {
+    if (operationalRoles.length > 0) await assertLaunchParticipant(this.prisma, memberUserId)
     const updatedMembership = await this.prisma.$transaction(async (tx: any) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       const [actorMembership, targetMembership] = await Promise.all([
@@ -1592,6 +1685,9 @@ export class UsersService {
       parentalConsentsAsGuardian,
       rsvps,
       eventCheckIns,
+      coachAttendance,
+      coachAttendanceChanges,
+      coachAttendanceActions,
       eventReminderPreferences,
       messages,
       messageReactions,
@@ -1685,6 +1781,9 @@ export class UsersService {
           team: { select: { name: true, displayName: true } },
         },
       }),
+      this.prisma.coachAttendance.findMany({ where: { userId }, include: { event: { select: { title: true, date: true } } } }),
+      this.prisma.coachAttendanceChange.findMany({ where: { userId }, include: { event: { select: { title: true, date: true } } } }),
+      this.prisma.coachAttendanceChange.findMany({ where: { actorId: userId }, include: { event: { select: { title: true, date: true } } } }),
       this.prisma.eventReminderPreference.findMany({
         where: { userId },
         include: {
@@ -1885,6 +1984,12 @@ export class UsersService {
         eventDate: checkIn.event?.date,
         checkedInAt: checkIn.checkedInAt,
       })),
+      coachAttendance: coachAttendance.map((entry) => ({ eventTitle: entry.event.title, eventDate: entry.event.date,
+        status: entry.status, updatedAt: entry.updatedAt })),
+      coachAttendanceHistory: coachAttendanceChanges.map((entry) => ({ eventTitle: entry.event.title, eventDate: entry.event.date,
+        previous: entry.previous, status: entry.status, createdAt: entry.createdAt })),
+      coachAttendanceActions: coachAttendanceActions.map((entry) => ({ eventTitle: entry.event.title, eventDate: entry.event.date,
+        playerUserId: entry.userId, previous: entry.previous, status: entry.status, createdAt: entry.createdAt })),
       eventReminderPreferences: eventReminderPreferences.map((pref: any) => ({
         eventTitle: pref.event?.title,
         eventDate: pref.event?.date,
@@ -2086,6 +2191,12 @@ export class UsersService {
    * GDPR account deletion — soft delete + anonymization in a transaction.
    */
   async deleteAccount(userId: string) {
+    // This authenticated self-account operation spans every club, including
+    // abandoned uploads. Never let an ambient selected club truncate erasure.
+    return tenantContext.exit(() => this.deleteAccountUnscoped(userId))
+  }
+
+  private async deleteAccountUnscoped(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -2121,13 +2232,20 @@ export class UsersService {
       // Serialize deletion against persisted DM sends. A send takes this same
       // participant lock and revalidates after acquiring it.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${userId}`}))`
+      // Profile and free-agent writes may have committed after the preflight.
+      // Re-read both under the lifecycle lock before discovering dependent data.
+      const lockedUser = await tx.user.findUnique({ where: { id: userId }, select: {
+        avatarUrl: true, freeAgentProfile: { select: { id: true } },
+      } })
+      if (!lockedUser) throw new NotFoundException('User not found')
+      const lockedFreeAgentProfileId: string | null = lockedUser.freeAgentProfile?.id ?? null
       // Membership/invite approvals share the lifecycle lock above. Refresh
       // the access-derived club set after acquiring it so a transaction that
       // completed during deletion preflight cannot leave tenant-scoped rows.
       // Privacy (M5): consents are re-read under the lock too. A consent that
       // names this user as guardian (by id or email) in a club found after the
       // preflight must still be withdrawn below.
-      const [freshMemberships, freshTeamAccess, freshConsents] = await Promise.all([
+      const [freshMemberships, freshTeamAccess, freshConsents, privateUploads, freshProfileTrials] = await Promise.all([
         tx.membership.findMany({ where: { userId }, select: { clubId: true } }),
         tx.teamAccess.findMany({ where: { userId }, select: { clubId: true } }),
         tx.parentalConsent.findMany({
@@ -2140,12 +2258,18 @@ export class UsersService {
           },
           select: { clubId: true },
         }),
+        findAccountPrivateUploads(tx, userId),
+        lockedFreeAgentProfileId
+          ? tx.trialInvite.findMany({ where: { freeAgentProfileId: lockedFreeAgentProfileId }, select: { clubId: true } })
+          : Promise.resolve([]),
       ])
       const deletionClubIds = uniqueValues([
         ...accountDeletionClubIds,
         ...freshMemberships.map((row: { clubId: string }) => row.clubId),
         ...freshTeamAccess.map((row: { clubId: string }) => row.clubId),
         ...freshConsents.map((row: { clubId: string }) => row.clubId),
+        ...privateUploads.map((row) => row.clubId),
+        ...freshProfileTrials.map((row: { clubId: string }) => row.clubId),
       ])
       for (const clubId of [...deletionClubIds].sort()) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
@@ -2170,10 +2294,25 @@ export class UsersService {
         ...channelRows.map((row: { id: string }) => `chat-message:${row.id}`),
         ...directRows.map((row: { id: string }) => `dm-message:${row.id}`),
       ].sort()
-      for (const key of messageLocks) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`
+      await cancelAccountPrivateUploads(tx, userId, privateUploads, messageLocks)
+      // Unpublished v1 uploads have no message to inventory. Transfer their
+      // durable reservations to the user-independent erasure queue before
+      // anonymising the owner, while excluding concurrent publication.
+      const pendingV1: Array<{ objectKey: string }> = await tx.accountMediaDeletion.findMany({
+        where: { uploadOwnerId: userId, uploadState: 'PENDING' }, select: { objectKey: true },
+      })
+      for (const { objectKey } of pendingV1.sort((a, b) => a.objectKey.localeCompare(b.objectKey))) {
+        await lockMediaObject(tx, objectKey)
+        await tx.accountMediaDeletion.updateMany({
+          where: { objectKey, uploadOwnerId: userId, uploadState: 'PENDING' },
+          data: { uploadOwnerId: null, uploadRequestId: null, uploadFingerprint: null,
+            uploadExpiresAt: null, uploadState: null, uploadMessageId: null, availableAt: new Date() },
+        })
+      }
       const mediaObjectKeys = await this.collectDeletionObjectKeys({
-        userId, avatarUrl: user.avatarUrl,
-        freeAgentProfileId: user.freeAgentProfile?.id ?? null,
+        userId, avatarUrl: lockedUser.avatarUrl,
+        freeAgentProfileId: lockedFreeAgentProfileId,
+        privateUploads,
       }, tx)
       if (mediaObjectKeys.length) {
         // Commit the cleanup intent alongside erasure. Queue failure rolls back
@@ -2237,6 +2376,11 @@ export class UsersService {
       })
       await tx.pollVote.deleteMany({ where: { userId } })
       await tx.rsvp.deleteMany({ where: { userId } })
+      await tx.coachAttendance.deleteMany({ where: { userId } })
+      await tx.coachAttendanceChange.deleteMany({ where: { userId } })
+      await tx.coachAttendanceRejection.deleteMany({ where: { actorId: userId } })
+      await tx.coachAttendance.updateMany({ where: { actorId: userId }, data: { actorId: null } })
+      await tx.coachAttendanceChange.updateMany({ where: { actorId: userId }, data: { actorId: null } })
       await tx.eventReminderPreference.deleteMany({ where: { userId } })
 
       // 3. Anonymize public chat and direct-message content. Delete cached
@@ -2350,9 +2494,9 @@ export class UsersService {
             },
           })
           await tx.trialInvite.deleteMany({ where: { sentByUserId: userId } })
-          if (user.freeAgentProfile) {
+          if (lockedFreeAgentProfileId) {
             await tx.trialInvite.deleteMany({
-              where: { freeAgentProfileId: user.freeAgentProfile.id },
+              where: { freeAgentProfileId: lockedFreeAgentProfileId },
             })
           }
           await tx.contributionAssignment.updateMany({
@@ -2445,15 +2589,15 @@ export class UsersService {
         data: { managedById: null },
       })
 
-      if (user.freeAgentProfile) {
+      if (lockedFreeAgentProfileId) {
         await tx.freeAgentMedia.deleteMany({
-          where: { profileId: user.freeAgentProfile.id },
+          where: { profileId: lockedFreeAgentProfileId },
         })
         await tx.freeAgentExperience.deleteMany({
-          where: { profileId: user.freeAgentProfile.id },
+          where: { profileId: lockedFreeAgentProfileId },
         })
         await tx.freeAgentProfile.delete({
-          where: { id: user.freeAgentProfile.id },
+          where: { id: lockedFreeAgentProfileId },
         })
       }
 
@@ -2672,21 +2816,19 @@ export class UsersService {
     userId: string
     avatarUrl: string | null
     freeAgentProfileId: string | null
+    privateUploads: Array<{ id: string; clubId: string; ownerId: string; targetId: string; targetType: string; messageId: string | null; objectKey: string }>
   }, client: Prisma.TransactionClient = this.prisma) {
-    if (!this.r2) return []
-
     const [messages, directMessages, freeAgentMedia, complianceDocuments] = await Promise.all([
       client.message.findMany({
         where: {
           senderId: input.userId,
           attachmentUrl: { not: null },
-          reports: { none: { evidencePurgedAt: null } },
         },
-        select: { attachmentUrl: true },
+        select: { id: true, attachmentUrl: true, clubId: true, teamId: true, channelId: true, messageType: true },
       }),
       client.directMessage.findMany({
-        where: { senderId: input.userId, attachmentUrl: { not: null }, reports: { none: { evidencePurgedAt: null } } },
-        select: { attachmentUrl: true },
+        where: { senderId: input.userId, attachmentUrl: { not: null } },
+        select: { id: true, attachmentUrl: true, conversationId: true, messageType: true, conversation: { select: { clubId: true } } },
       }),
       input.freeAgentProfileId
         ? client.freeAgentMedia.findMany({
@@ -2696,23 +2838,80 @@ export class UsersService {
         : Promise.resolve([]),
       client.complianceRecord.findMany({
         where: { memberUserId: input.userId, documentUrl: { not: null } },
-        select: { documentUrl: true },
+        select: { documentUrl: true, clubId: true },
       }),
     ])
 
-    const urls = [
-      input.avatarUrl,
-      ...messages.map((message: any) => message.attachmentUrl),
-      ...directMessages.map((message: any) => message.attachmentUrl),
-      ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]),
-      ...complianceDocuments.map((record: any) => record.documentUrl),
-    ].filter((url): url is string => typeof url === 'string' && url.length > 0)
+    // Old marketplace rows may contain arbitrary external or cross-account
+    // thumbnail URLs. Erasure may only enqueue profile assets in this user's
+    // own namespace; never turn someone else's file into a deletion target.
+    const ownedKey = (url: string | null | undefined, prefix: string): string | null => {
+      if (!url) return null
+      const key = this.r2?.objectKeyFromUrl(url) ?? null
+      if (!key) {
+        let pathname = ''
+        try { pathname = decodeURIComponent(new URL(url).pathname) } catch { /* unknown external URL */ }
+        // Never clear an apparently owned object reference if storage
+        // configuration cannot identify the object for the durable outbox.
+        if (pathname.includes(`/${prefix}`)) {
+          throw new ServiceUnavailableException('Media cleanup cannot be scheduled safely')
+        }
+      }
+      return key?.startsWith(prefix) ? key : null
+    }
+    const legacyChatKey = (url: string | null | undefined, prefix: string,
+      binding: { messageId: string; clubId: string; targetType: 'CHANNEL' | 'DM'; targetId: string | null;
+        storageTargetId: string; messageType: string }) => {
+      if (!url) return null
+      if (url.startsWith('https://private-media.anstoss.invalid/private-chat/v2/')) {
+        const upload = input.privateUploads.find((row) => row.ownerId === input.userId
+          && row.clubId === binding.clubId && row.messageId === binding.messageId
+          && row.targetType === binding.targetType && row.targetId === binding.targetId
+          && row.objectKey === `private-chat/v2/${row.id}`
+          && url === `https://private-media.anstoss.invalid/private-chat/v2/${row.id}`)
+        if (!upload) throw new ServiceUnavailableException('Private chat media needs support review before account deletion can complete')
+        return null
+      }
+      // Legacy attachments lack an uploader binding even when the URL matches
+      // the message's team/conversation.
+      const key = ownedKey(url, prefix) // Surface unresolvable apparently-bound objects.
+      if (key && ['IMAGE', 'VIDEO', 'FILE', 'VOICE'].includes(binding.messageType)
+        && isOwnedPrivateV1Key(key, { targetType: binding.targetType === 'CHANNEL' ? 'chat' : 'dm',
+          clubId: binding.clubId, targetId: binding.storageTargetId, ownerId: input.userId,
+          kind: uploadKindFor(binding.messageType as ChatAttachmentType) })) return key
+      throw new ServiceUnavailableException(
+        'Legacy chat media needs support review before account deletion can complete',
+      )
+    }
+    const complianceKey = (url: string | null | undefined, clubId: string) => {
+      if (!url) return null
+      const key = ownedKey(url, `compliance/${clubId}/${input.userId}/`)
+      if (!key) throw new ServiceUnavailableException(
+        'Legacy compliance media needs support review before account deletion can complete',
+      )
+      return key
+    }
+    const keys = [
+      ownedKey(input.avatarUrl, `users/${input.userId}/`),
+      // V2 objects are retired separately via their per-owner upload ledger.
+      ...messages.map((message: any) => legacyChatKey(message.attachmentUrl, `chat/${message.clubId}/${message.teamId}/`, {
+        messageId: message.id, clubId: message.clubId, targetType: 'CHANNEL', targetId: message.channelId,
+        storageTargetId: message.teamId, messageType: message.messageType,
+      })),
+      ...directMessages.map((message: any) => legacyChatKey(message.attachmentUrl, `dm/${message.conversation.clubId}/${message.conversationId}/`, {
+        messageId: message.id, clubId: message.conversation.clubId, targetType: 'DM', targetId: message.conversationId,
+        storageTargetId: message.conversationId, messageType: message.messageType,
+      })),
+      ...freeAgentMedia.flatMap((media: any) => [
+        ownedKey(media.url, `users/${input.userId}/free-agent/`),
+        ownedKey(media.thumbnailUrl, `users/${input.userId}/free-agent/`),
+      ]),
+      // Compliance has no verified general upload-ownership scheme. Only an
+      // explicitly member-scoped key is eligible for automatic deletion.
+      ...complianceDocuments.map((record: any) => complianceKey(record.documentUrl, record.clubId)),
+    ].filter((key): key is string => !!key)
 
-    return uniqueValues(
-      urls
-        .map((url) => this.r2?.objectKeyFromUrl(url) ?? null)
-        .filter((objectKey): objectKey is string => !!objectKey),
-    )
+    return uniqueValues(keys)
   }
 
   /**
@@ -2723,6 +2922,7 @@ export class UsersService {
     userId: string,
     filters?: { dateFrom?: string; dateTo?: string },
   ): Promise<CrossTeamEventItem[]> {
+    requireYouthParticipation()
     // Find all guardian relationships for this parent
     const relationships = await this.prisma.guardianRelationship.findMany({
       where: { parentUserId: userId },
@@ -2802,6 +3002,7 @@ export class UsersService {
         teamId: { in: teamIds },
         date: dateFilter,
         cancelledAt: null,
+        archivedAt: null,
       },
       include: {
         _count: { select: { rsvps: true } },
@@ -2826,6 +3027,8 @@ export class UsersService {
         title: event.title,
         type: event.type,
         date: event.date.toISOString(),
+        rsvpDeadline: event.rsvpDeadline?.toISOString() ?? null,
+        rsvpLocked: Boolean(event.rsvpLocked),
         location: event.location ?? null,
         notes: event.notes ?? null,
         createdById: event.createdById,
@@ -2875,6 +3078,7 @@ export class UsersService {
     clubId: string,
     limit = 3,
   ): Promise<ChildrenOverview> {
+    requireYouthParticipation()
     const membership = await this.prisma.membership.findFirst({
       where: { userId, clubId },
       select: { role: true },

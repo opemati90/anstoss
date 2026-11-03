@@ -14,6 +14,7 @@ import {
   TeamAccessStatus,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { requireYouthParticipation } from '../auth/launch-access-policy'
 import { AuditService } from '../audit/audit.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { PushService } from '../push/push.service'
@@ -75,6 +76,7 @@ export class ConsentService {
     guardianEmail: string
     requestedByUserId?: string | null
   }) {
+    requireYouthParticipation()
     const guardianEmail = data.guardianEmail.trim().toLowerCase()
     const [team, player, membership, playerAccess] = await Promise.all([
       this.prisma.team.findFirst({
@@ -282,6 +284,7 @@ export class ConsentService {
 
   /** Approve a consent request (called by guardian). */
   async approveConsent(consentId: string, guardianUserId: string) {
+    requireYouthParticipation()
     const { consent, updated } = await this.claimConsentDecision(
       consentId,
       guardianUserId,

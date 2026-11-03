@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import {
   MembershipRole,
@@ -837,7 +839,12 @@ describe('TeamsService.updateRosterEntry', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
       teamAccess: { findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }) },
+      user: { findFirst: jest.fn().mockResolvedValue({ id: 'player-1', dateOfBirth: new Date('1990-01-01') }) },
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(),
     }
+    prisma.$transaction.mockImplementation((fn) => fn(prisma))
     const service = new TeamsService(prisma as never)
     const assertManageAccess = jest
       .spyOn(service as any, 'assertManageAccess')
@@ -975,6 +982,46 @@ describe('TeamsService.updateRosterEntry', () => {
     })
   })
 
+  it('serializes operational status with participant lifecycle and rechecks team access', async () => {
+    const { prisma, service } = createService()
+    prisma.teamMember.upsert.mockResolvedValue({})
+    await service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { operationalStatus: 'INACTIVE' })
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(prisma.$executeRaw).toHaveBeenCalled()
+    expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.teamMember.upsert.mock.invocationCallOrder[0])
+    prisma.teamAccess.findFirst.mockResolvedValueOnce({ id: 'access-1' }).mockResolvedValueOnce(null)
+    await expect(service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { operationalStatus: 'INACTIVE' })).rejects.toBeInstanceOf(TeamAccessDeniedError)
+    expect(prisma.teamMember.upsert).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a manager revoked and a target erased while status update waits', async () => {
+    const { prisma, service, assertManageAccess } = createService()
+    assertManageAccess.mockResolvedValueOnce({}).mockRejectedValueOnce(new TeamAccessDeniedError('revoked'))
+    await expect(service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { operationalStatus: 'INACTIVE' })).rejects.toBeInstanceOf(TeamAccessDeniedError)
+    expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
+    assertManageAccess.mockResolvedValue({})
+    prisma.user.findFirst.mockResolvedValueOnce(null)
+    await expect(service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { operationalStatus: 'INACTIVE' })).rejects.toBeInstanceOf(TeamAccessDeniedError)
+    expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
+  })
+
+  it('does not recreate a roster row from a position-only edit after removal', async () => {
+    const { prisma, service } = createService()
+    prisma.teamAccess.findFirst.mockResolvedValueOnce({ id: 'access-1' }).mockResolvedValueOnce(null)
+    await expect(service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { position: 'Defender' })).rejects.toBeInstanceOf(TeamAccessDeniedError)
+    expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
+  })
+
+  it('rechecks a jersey claimed while this request waited for the team lock', async () => {
+    const { prisma, service } = createService()
+    prisma.teamMember.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([{ userId: 'other-player' }])
+    prisma.teamAccess.findFirst.mockResolvedValueOnce({ id: 'access-1' })
+      .mockResolvedValueOnce({ id: 'access-1' }).mockResolvedValueOnce({ user: { name: 'Other player' } } as never)
+    await expect(service.updateRosterEntry('club-1', 'team-1', 'player-1', 'coach-1', { jerseyNumber: 10 })).rejects.toBeInstanceOf(ConflictException)
+    expect(prisma.teamMember.upsert).not.toHaveBeenCalled()
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3)
+  })
+
   // ── Kader adversarial fixes ──────────────────────────────────────────────
   it('L1: a trialist cannot self-report an absence (phase FULL required)', async () => {
     const { prisma, service, assertManageAccess } = createService()
@@ -1033,7 +1080,7 @@ describe('TeamsService.getAggregateRoster', () => {
       team: { findMany: jest.fn() },
     }
     const service = new TeamsService(prisma as never)
-    jest.spyOn(service as any, 'assertClubManager').mockResolvedValue({ role: 'OWNER' })
+    jest.spyOn(service as any, 'assertClubAdministrator').mockResolvedValue({ role: 'OWNER' })
     return { prisma, service }
   }
 

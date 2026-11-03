@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LAUNCH_FEATURES } from '../constants/launch-features'
 
 export const rsvpStatusSchema = z.enum(['YES', 'MAYBE', 'NO'])
 
@@ -24,10 +25,15 @@ export const rsvpReasonSchema = z.preprocess(
 
 export const rsvpNoteSchema = z.string().trim().max(200)
 
+// Retain legacy parsing above for exports/history, but do not collect health
+// reasons or free-text explanations in the first public release.
+const launchReason = LAUNCH_FEATURES.healthReporting ? rsvpReasonSchema : z.never()
+const launchNote = LAUNCH_FEATURES.healthReporting ? rsvpNoteSchema : z.string().trim().max(0)
+
 export const updateRsvpSchema = z.object({
   status: rsvpStatusSchema,
-  reason: rsvpReasonSchema.optional(),
-  note: rsvpNoteSchema.optional(),
+  reason: launchReason.optional(),
+  note: launchNote.optional(),
   /**
    * Parents answer for a child. Required when the caller guards more than
    * one child on the event's team; optional with exactly one.
@@ -39,9 +45,16 @@ export type UpdateRsvpInput = z.infer<typeof updateRsvpSchema>
 
 export const proxyRsvpSchema = z.object({
   status: rsvpStatusSchema,
-  reason: rsvpReasonSchema.optional(),
-  note: rsvpNoteSchema.optional(),
+  reason: launchReason.optional(),
+  note: launchNote.optional(),
   childUserId: z.string().min(1),
 })
 
 export type ProxyRsvpInput = z.infer<typeof proxyRsvpSchema>
+
+export const updateAvailabilityPolicySchema = z.object({
+  deadline: z.string().datetime({ offset: true }).nullable().optional(),
+  locked: z.boolean().optional(),
+}).strict().refine((value) => value.deadline !== undefined || value.locked !== undefined, 'No policy changes supplied')
+
+export type UpdateAvailabilityPolicyInput = z.infer<typeof updateAvailabilityPolicySchema>

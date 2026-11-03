@@ -79,6 +79,9 @@ export const auditEventTypeSchema = z.enum([
   'contribution.plan_created',
   'contribution.status_updated',
   'contribution.reminder_sent',
+  'contribution.reminder_accepted',
+  'contribution.reminder_unconfirmed',
+  'contribution.reminder_failed',
   'contribution.bank_imported',
   'contribution.bank_match_confirmed',
   'contribution.bank_match_reversed',
@@ -274,6 +277,7 @@ export const contributionReminderDispatchResultSchema = z.object({
   requested: z.number().int().min(0),
   sent: z.number().int().min(0),
   skipped: z.number().int().min(0),
+  uncertain: z.number().int().min(0).optional(),
 })
 
 export const myContributionItemSchema = z.object({

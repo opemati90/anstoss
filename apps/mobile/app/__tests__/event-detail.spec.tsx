@@ -1,15 +1,17 @@
 import React from 'react'
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { Alert, ScrollView } from 'react-native'
 import EventDetailScreen from '../event-detail'
-import { api } from '../../src/api/client'
+import { api, ApiError } from '../../src/api/client'
 
 const mockPush = jest.fn()
 const mockApi = api as jest.Mock
 let mockUser = { id: 'user-player', name: 'Tim Weber' }
+let mockEventId = 'match-1'
 
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
-  useLocalSearchParams: () => ({ eventId: 'match-1' }),
+  useLocalSearchParams: () => ({ eventId: mockEventId }),
 }))
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('react-native-safe-area-context', () => ({
@@ -33,7 +35,15 @@ jest.mock('../../src/context/ClubThemeContext', () => {
 jest.mock('../../src/api/client', () => ({
   api: jest.fn(),
   ApiError: class ApiError extends Error {
-    status = 500
+    status: number
+    code?: string
+    data?: unknown
+    constructor(message: string, status = 500, code?: string, data?: unknown) {
+      super(message)
+      this.status = status
+      this.code = code
+      this.data = data
+    }
   },
 }))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
@@ -89,6 +99,7 @@ function detail(overrides: Record<string, unknown> = {}) {
       { userId: 'jonas', name: 'Jonas Becker' },
       { userId: 'felix', name: 'Felix Schulz' },
     ],
+    reminderEligibleUserIds: ['lukas', 'jonas', 'felix'],
     children: [],
     viewer: { canManage: false, isPlayer: true, isGuardian: false },
     ...overrides,
@@ -97,6 +108,7 @@ function detail(overrides: Record<string, unknown> = {}) {
 
 describe('EventDetailScreen', () => {
   beforeEach(() => {
+    mockEventId = 'match-1'
     jest.clearAllMocks()
     mockUser = { id: 'user-player', name: 'Tim Weber' }
   })
@@ -113,6 +125,237 @@ describe('EventDetailScreen', () => {
     // Grouped replies: open replies are listed by name.
     expect(screen.getByText('Felix Schulz')).toBeTruthy()
     expect(screen.queryByTestId('event-manage-menu')).toBeNull()
+  })
+
+  it.each([
+    ['YES', 'yes', 'groupYes'],
+    ['MAYBE', 'maybe', 'groupMaybe'],
+    ['NO', 'no', 'groupNo'],
+  ])('saves the player’s own %s availability and reloads the grouped response', async (status, label, group) => {
+    let saved = false
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => {
+      if (init?.method === 'PUT') { saved = true; return Promise.resolve({}) }
+      const value = detail()
+      return Promise.resolve({
+        ...value,
+        myRsvp: saved ? status : null,
+        members: [...value.members, { userId: 'user-player', name: 'Tim Weber' }],
+        rsvps: saved ? [...value.rsvps, { id: 'mine', userId: 'user-player', status, user: { name: 'Tim Weber' } }] : value.rsvps,
+      })
+    })
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByLabelText(`eventFlow.rsvp.${label}`))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events/match-1/rsvp', {
+      method: 'PUT', body: { status },
+    }), { timeout: 2000 })
+    expect(await screen.findByLabelText(`Tim Weber, eventFlow.responses.${group}`)).toBeTruthy()
+  })
+
+  it('saves a coach lock and disables their player response', async () => {
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'PATCH'
+      ? Promise.resolve({ deadline: null, locked: true })
+      : Promise.resolve(detail({ viewer: { canManage: true, isPlayer: true, isGuardian: false } })))
+    const screen = render(<EventDetailScreen />)
+    fireEvent(await screen.findByTestId('event-availability-lock'), 'valueChange', true)
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events/match-1/availability-policy', { method: 'PATCH', body: { locked: true } }))
+    await screen.findByText('eventFlow.availability.closed')
+    expect(screen.getByLabelText('eventFlow.rsvp.yes')).toBeDisabled()
+  })
+
+  it('hides reminders when replies have closed', async () => {
+    mockApi.mockResolvedValue(detail({ rsvpLocked: true,
+      viewer: { canManage: true, isPlayer: false, isGuardian: false } }))
+    const screen = render(<EventDetailScreen />)
+    await screen.findByText('eventFlow.availability.closed')
+    expect(screen.queryByTestId('event-remind-open')).toBeNull()
+  })
+
+  it('guards rapid reminder taps and explains when none were queued', async () => {
+    let finish!: (value: unknown) => void
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'POST'
+      ? new Promise((resolve) => { finish = resolve })
+      : Promise.resolve(detail({ viewer: { canManage: true, isPlayer: false, isGuardian: false } })))
+    const screen = render(<EventDetailScreen />)
+    const button = await screen.findByTestId('event-remind-open')
+    fireEvent.press(button)
+    fireEvent.press(button)
+    expect(mockApi.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    await act(async () => { finish({ sent: 0, nextAvailableAt: null }) })
+    expect(screen.getByText('eventFlow.responses.remindNoneAccepted')).toBeTruthy()
+    expect(screen.getByTestId('event-remind-open')).not.toBeDisabled()
+  })
+
+  it('preserves a prior real cooldown when no recipients are currently eligible', async () => {
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'POST'
+      ? Promise.resolve({ sent: 0, nextAvailableAt: new Date(Date.now() + 86400000).toISOString() })
+      : Promise.resolve(detail({ viewer: { canManage: true, isPlayer: false, isGuardian: false } })))
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByTestId('event-remind-open'))
+    await screen.findByText('eventFlow.responses.remindCooldown')
+    expect(screen.getByTestId('event-remind-open')).toBeDisabled()
+    expect(screen.queryByText('eventFlow.responses.remindNoneAccepted')).toBeNull()
+  })
+
+  it('refreshes availability if another manager locked responses before a reminder', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    let reads = 0
+    try {
+      mockApi.mockImplementation((_path: string, init?: { method?: string }) => {
+        if (init?.method === 'POST') {
+          return Promise.reject(new ApiError('Responses locked', 409, 'RSVP_LOCKED', {
+            error: { code: 'RSVP_LOCKED', message: 'Responses locked' }, requestId: 'request',
+          }))
+        }
+        return Promise.resolve(detail({
+          rsvpLocked: ++reads > 1,
+          viewer: { canManage: true, isPlayer: false, isGuardian: false },
+        }))
+      })
+      const screen = render(<EventDetailScreen />)
+      fireEvent.press(await screen.findByTestId('event-remind-open'))
+      await screen.findByText('eventFlow.availability.closed')
+      expect(screen.queryByTestId('event-remind-open')).toBeNull()
+      expect(alert).not.toHaveBeenCalled()
+    } finally {
+      alert.mockRestore()
+    }
+  })
+
+  it('keeps a confirmed cooldown when an older event refresh finishes afterward', async () => {
+    let finishRefresh!: (value: unknown) => void
+    let reads = 0
+    const value = detail({ viewer: { canManage: true, isPlayer: false, isGuardian: false } })
+    const retryAfter = new Date(Date.now() + 3600000).toISOString()
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => {
+      if (init?.method === 'POST') return Promise.reject(new ApiError('cooldown', 429, 'RSVP_REMINDER_COOLDOWN', { error: { retryAfter } }))
+      return ++reads === 1 ? Promise.resolve(value) : new Promise((resolve) => { finishRefresh = resolve })
+    })
+    const screen = render(<EventDetailScreen />)
+    const button = await screen.findByTestId('event-remind-open')
+    act(() => { void screen.UNSAFE_getAllByType(ScrollView)[0].props.refreshControl.props.onRefresh() })
+    fireEvent.press(button)
+    await screen.findByText('eventFlow.responses.remindCooldown')
+    await act(async () => { finishRefresh(value) })
+    expect(screen.getByTestId('event-remind-open')).toBeDisabled()
+    expect(screen.getByText('eventFlow.responses.remindCooldown')).toBeTruthy()
+  })
+
+  it.each([
+    ['generic rate limit', 'HTTP_429', { error: { retryAfterSeconds: 60 } }],
+    ['malformed cooldown', 'RSVP_REMINDER_COOLDOWN', { error: { retryAfter: 'invalid' } }],
+  ])('does not invent an event cooldown for %s', async (_label, code, data) => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    try {
+      mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'POST'
+        ? Promise.reject(new ApiError('throttled', 429, code, data))
+        : Promise.resolve(detail({ viewer: { canManage: true, isPlayer: false, isGuardian: false } })))
+      const screen = render(<EventDetailScreen />)
+      fireEvent.press(await screen.findByTestId('event-remind-open'))
+      await waitFor(() => expect(alert).toHaveBeenCalledWith('eventFlow.responses.remindFailedTitle', 'eventFlow.responses.remindFailedBody'))
+      expect(screen.getByTestId('event-remind-open')).not.toBeDisabled()
+    } finally { alert.mockRestore() }
+  })
+
+  it('ignores a reminder completion from an earlier visit to the same event', async () => {
+    let finish!: (value: unknown) => void
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'POST'
+      ? new Promise((resolve) => { finish = resolve })
+      : Promise.resolve(detail({ id: mockEventId, viewer: { canManage: true, isPlayer: false, isGuardian: false } })))
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByTestId('event-remind-open'))
+    mockEventId = 'match-2'
+    screen.rerender(<EventDetailScreen />)
+    await waitFor(() => expect(screen.getByTestId('event-remind-open')).not.toBeDisabled())
+    mockEventId = 'match-1'
+    screen.rerender(<EventDetailScreen />)
+    await waitFor(() => expect(screen.getByTestId('event-remind-open')).not.toBeDisabled())
+    await act(async () => { finish({ sent: 9, nextAvailableAt: new Date(Date.now() + 86400000).toISOString() }) })
+    expect(screen.getByTestId('event-remind-open')).not.toBeDisabled()
+    expect(screen.queryByText('eventFlow.responses.remindSent')).toBeNull()
+  })
+
+  it('does not present an uncertain send as success or as safe to retry', async () => {
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => init?.method === 'POST'
+      ? Promise.resolve({ sent: 0, uncertain: 1, nextAvailableAt: new Date(Date.now() + 86400000).toISOString() })
+      : Promise.resolve(detail({ viewer: { canManage: true, isPlayer: false, isGuardian: false } })))
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByTestId('event-remind-open'))
+    await screen.findByText('eventFlow.responses.remindUnconfirmedHint')
+    expect(screen.getByTestId('event-remind-open')).toBeDisabled()
+    expect(screen.queryByText('eventFlow.responses.remindNoneAccepted')).toBeNull()
+  })
+
+  it('does not let an older refresh overwrite a confirmed policy save', async () => {
+    let finishRefresh!: (value: unknown) => void
+    let reads = 0
+    const value = detail({ viewer: { canManage: true, isPlayer: true, isGuardian: false } })
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => {
+      if (init?.method === 'PATCH') return Promise.resolve({ deadline: null, locked: true })
+      if (++reads === 1) return Promise.resolve(value)
+      return new Promise((resolve) => { finishRefresh = resolve })
+    })
+    const screen = render(<EventDetailScreen />)
+    await screen.findByTestId('event-availability-lock')
+    act(() => { void screen.UNSAFE_getAllByType(ScrollView)[0].props.refreshControl.props.onRefresh() })
+    fireEvent(screen.getByTestId('event-availability-lock'), 'valueChange', true)
+    await screen.findByText('eventFlow.availability.closed')
+    await act(async () => { finishRefresh(value) })
+    expect(screen.getByText('eventFlow.availability.closed')).toBeTruthy()
+    expect(screen.getByLabelText('eventFlow.rsvp.yes')).toBeDisabled()
+  })
+
+  it('rolls back a failed RSVP without discarding a newer saved policy', async () => {
+    let rejectRsvp!: (reason: Error) => void
+    const value = detail({ viewer: { canManage: true, isPlayer: true, isGuardian: false } })
+    mockApi.mockImplementation((_path: string, init?: { method?: string }) => {
+      if (init?.method === 'PATCH') return Promise.resolve({ deadline: null, locked: true })
+      if (init?.method === 'PUT') return new Promise((_resolve, reject) => { rejectRsvp = reject })
+      return Promise.resolve(value)
+    })
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByLabelText('eventFlow.rsvp.yes'))
+    await waitFor(() => expect(rejectRsvp).toBeDefined(), { timeout: 2000 })
+    fireEvent(screen.getByTestId('event-availability-lock'), 'valueChange', true)
+    await screen.findByText('eventFlow.availability.closed')
+    await act(async () => { rejectRsvp(new Error('network')) })
+    expect(screen.getByText('eventFlow.availability.closed')).toBeTruthy()
+    expect(screen.getByLabelText('eventFlow.rsvp.yes')).toBeDisabled()
+  })
+
+  it.each([false, true])('ignores a policy save from an earlier visit (return to original=%s)', async (returnToOriginal) => {
+    let finishPatch!: (value: unknown) => void
+    let finishNext!: (value: unknown) => void
+    mockApi.mockImplementation((path: string, init?: { method?: string }) => {
+      if (init?.method === 'PATCH') return new Promise((resolve) => { finishPatch = resolve })
+      if (path.endsWith('/match-2')) return new Promise((resolve) => { finishNext = resolve })
+      return Promise.resolve(detail({ viewer: { canManage: true, isPlayer: true, isGuardian: false } }))
+    })
+    const screen = render(<EventDetailScreen />)
+    fireEvent(await screen.findByTestId('event-availability-lock'), 'valueChange', true)
+    mockEventId = 'match-2'
+    screen.rerender(<EventDetailScreen />)
+    await waitFor(() => expect(finishNext).toBeDefined())
+    if (returnToOriginal) {
+      mockEventId = 'match-1'
+      screen.rerender(<EventDetailScreen />)
+      await screen.findByTestId('event-availability-lock')
+    }
+    await act(async () => { finishPatch({ deadline: null, locked: true }) })
+    await act(async () => { finishNext(detail({ id: 'match-2', title: 'Next event', opponent: 'Next team' })) })
+    expect(await screen.findByText('eventFlow.availability.open')).toBeTruthy()
+    expect(screen.getByLabelText('eventFlow.rsvp.yes')).not.toBeDisabled()
+  })
+
+  it('disables guardian replies after the deadline', async () => {
+    mockApi.mockResolvedValue(detail({
+      rsvpDeadline: new Date(Date.now() - 1).toISOString(),
+      viewer: { canManage: false, isPlayer: false, isGuardian: true },
+      children: [{ userId: 'kid-mia', name: 'Mia', teamName: 'U11', rsvp: null }],
+    }))
+    const screen = render(<EventDetailScreen />)
+    await screen.findByText('eventFlow.availability.closed')
+    expect(screen.getByLabelText('Mia: eventFlow.rsvp.maybe')).toBeDisabled()
+    expect(screen.queryByTestId('event-availability-lock')).toBeNull()
   })
 
   it('does not ask the coach for their own reply and puts actions in the header menu', async () => {

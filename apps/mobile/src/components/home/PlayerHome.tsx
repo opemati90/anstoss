@@ -15,7 +15,6 @@ import { Haptics } from '../../utils/haptics'
 import { NextUpHero, isInCheckInWindow } from './NextUpHero'
 import { LiveMatchCard } from './LiveMatchCard'
 import { WeekAhead } from './WeekAhead'
-import { SeasonStrip } from './SeasonStrip'
 import { TeamPulse } from './TeamPulse'
 import { HomeSkeleton } from './HomeSkeleton'
 import { EmptyCard, HomeSection, InlineError, formatDayTime } from './HomeKit'
@@ -268,13 +267,6 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
 
       {/* 6. What the team is saying. */}
       <TeamPulse channel={data.teamChannel} announcements={data.announcements} />
-
-      {/* 7. Ambient, so last. */}
-      <SeasonStrip
-        streaks={data.streaks}
-        rank={data.streakRank}
-        seasonStats={data.seasonStats}
-      />
 
       {error ? (
         <Text variant="footnote" color="secondary" style={styles.staleNote}>

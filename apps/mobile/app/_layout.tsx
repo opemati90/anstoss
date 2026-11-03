@@ -65,13 +65,15 @@ export default function RootLayout() {
     (appearanceReady || startupTimedOut)
 
   useEffect(() => {
+    let active = true
     // club-admin revamp: saved light/dark choice (L1: gates the splash)
     restoreAppearancePreference()
       .catch(() => undefined)
-      .finally(() => setAppearanceReady(true))
+      .finally(() => { if (active) setAppearanceReady(true) })
     initializeI18n()
-      .then(() => setI18nReady(true))
-      .catch(() => setI18nReady(true))
+      .then(() => { if (active) setI18nReady(true) })
+      .catch(() => { if (active) setI18nReady(true) })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -231,9 +233,9 @@ export default function RootLayout() {
                   <Stack.Screen name="club-staff" options={{ presentation: 'card' }} />
                   <Stack.Screen name="me" options={{ animation: 'none' }} />
                   <Stack.Screen name="admin-chat-retention" options={{ animation: 'none' }} />
-                  <Stack.Screen name="club-stats" options={{ presentation: 'card' }} />{' '}
+                  <Stack.Screen name="club-stats" options={{ presentation: 'card' }} />
                   <Stack.Screen name="team-management" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="team-families" options={{ presentation: 'card' }} />{' '}
+                  <Stack.Screen name="team-families" options={{ presentation: 'card' }} />
                   <Stack.Screen
                     name="fussball-link"
                     options={{ presentation: 'fullScreenModal' }}

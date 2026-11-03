@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { RegistrationRole } from '@anstoss/shared'
 import { UsersService } from './users.service'
@@ -25,9 +27,12 @@ function createService(
   opts: { membership?: boolean; pendingClaim?: boolean } = {},
 ) {
   const tx = {
+    $executeRaw: jest.fn().mockResolvedValue(0),
     $queryRaw: jest.fn(),
     authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
-    user: { update: jest.fn().mockResolvedValue({}) },
+    user: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
+    membership: { findFirst: jest.fn() },
+    clubClaim: { findFirst: jest.fn() },
   }
   const prisma = {
     user: {
@@ -48,6 +53,9 @@ function createService(
     },
     $transaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   }
+  tx.user.findUnique.mockImplementation(() => prisma.user.findUnique())
+  tx.membership.findFirst.mockImplementation(() => prisma.membership.findFirst())
+  tx.clubClaim.findFirst.mockImplementation(() => prisma.clubClaim.findFirst())
   const service = new UsersService(
     prisma as never,
     {} as never,
@@ -74,24 +82,24 @@ describe('UsersService.updateProfile: date of birth instead of the 16+ declarati
   })
 
   it('treats a repeat declaration on a legacy account as a no-op', async () => {
-    const { prisma, service } = createService({
+    const { tx, service } = createService({
       dateOfBirth: null,
       registrationRole: RegistrationRole.PARENT,
       adultConfirmedAt: new Date('2026-09-01'),
     })
     await service.updateProfile('user-1', { confirmAdult: true })
-    const data = prisma.user.update.mock.calls[0][0].data
+    const data = tx.user.update.mock.calls[0][0].data
     expect(data).not.toHaveProperty('adultConfirmedAt')
   })
 
   it('stores an adult DOB with the name in one write', async () => {
-    const { prisma, service } = createService({
+    const { tx, service } = createService({
       dateOfBirth: null,
       registrationRole: RegistrationRole.PLAYER,
       adultConfirmedAt: null,
     })
     await service.updateProfile('user-1', { name: 'Tim Weber', dateOfBirth: '1996-04-03' })
-    expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
+    expect(tx.user.update.mock.calls[0][0].data).toMatchObject({
       name: 'Tim Weber',
       dateOfBirth: new Date('1996-04-03'),
     })
@@ -137,25 +145,25 @@ describe('UsersService.updateProfile: date of birth instead of the 16+ declarati
   })
 
   it('keeps the consent flow for a legacy member giving a late 14-year-old DOB', async () => {
-    const { prisma, service } = createService(
+    const { tx, service } = createService(
       { dateOfBirth: null, registrationRole: RegistrationRole.PLAYER, adultConfirmedAt: null },
       { membership: true },
     )
     const dob = yearsAgo(14).toISOString().slice(0, 10)
     await service.updateProfile('user-1', { dateOfBirth: dob })
-    expect(prisma.user.update).toHaveBeenCalled()
+    expect(tx.user.update).toHaveBeenCalled()
   })
 })
 
 describe('UsersService.updateProfile: registration role (H3, B3)', () => {
   it('lets a would-be club admin without a club or claim become a player again', async () => {
-    const { prisma, service } = createService({
+    const { tx, service } = createService({
       dateOfBirth: yearsAgo(30),
       registrationRole: RegistrationRole.CLUB_ADMIN,
       adultConfirmedAt: null,
     })
     await service.updateProfile('user-1', { registrationRole: RegistrationRole.PARENT })
-    expect(prisma.user.update.mock.calls[0][0].data.registrationRole).toBe(RegistrationRole.PARENT)
+    expect(tx.user.update.mock.calls[0][0].data.registrationRole).toBe(RegistrationRole.PARENT)
   })
 
   it('locks the role while a club claim is pending', async () => {
@@ -192,7 +200,7 @@ describe('UsersService.updateProfile: registration role (H3, B3)', () => {
   })
 
   it('accepts the free-agent role with a 16+ DOB in the same request', async () => {
-    const { prisma, service } = createService({
+    const { tx, service } = createService({
       dateOfBirth: null,
       registrationRole: RegistrationRole.PLAYER,
       adultConfirmedAt: null,
@@ -202,7 +210,7 @@ describe('UsersService.updateProfile: registration role (H3, B3)', () => {
       dateOfBirth: '2000-01-15',
       registrationRole: RegistrationRole.FREE_AGENT,
     })
-    expect(prisma.user.update.mock.calls[0][0].data.registrationRole).toBe(
+    expect(tx.user.update.mock.calls[0][0].data.registrationRole).toBe(
       RegistrationRole.FREE_AGENT,
     )
   })

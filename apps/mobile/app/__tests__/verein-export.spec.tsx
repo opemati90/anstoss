@@ -69,7 +69,7 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('../../src/utils/haptics', () => ({
   Haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn(), error: jest.fn() },
 }))
-jest.mock('../../src/launchFeatures', () => ({ COMPLIANCE_FEATURE_ENABLED: false }))
+jest.mock('../../src/launchFeatures', () => ({ COMPLIANCE_FEATURE_ENABLED: false, OPTIONAL_CLUB_FEATURES: { marketplace: false, statistics: false, sponsorship: false } }))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
 
 const EXPORT = {

@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { AppState, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { EventRsvpEntry, EventSquadMember } from '@anstoss/shared'
 import { Avatar, Button, Text } from '../ui'
@@ -19,9 +19,14 @@ export type ResponsesPanelProps = {
     /** Cool-down until this ISO time (one reminder per 24 h). */
     cooldownUntil: string | null
     sentCount: number | null
+    uncertainCount?: number
   } | null
   /** After start: open the attendance sheet (managers). */
   onOpenAttendance?: (() => void) | null
+  /** A manager who also plays cannot send a reminder to themselves. */
+  viewerUserId?: string
+  /** The server's full-squad reminder candidates; absent on older APIs. */
+  reminderEligibleUserIds?: string[]
 }
 
 type Person = {
@@ -42,9 +47,12 @@ export function ResponsesPanel({
   canManage,
   remind,
   onOpenAttendance,
+  viewerUserId,
+  reminderEligibleUserIds,
 }: ResponsesPanelProps) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const { fontScale } = useWindowDimensions()
 
   const groups = useMemo(() => {
     const byStatus = (status: EventRsvpEntry['status']) =>
@@ -73,17 +81,35 @@ export function ResponsesPanel({
   }, [members, rsvps, t])
 
   const total = groups.yes.length + groups.maybe.length + groups.no.length + groups.open.length
-  const cooling =
-    remind?.cooldownUntil != null && new Date(remind.cooldownUntil).getTime() > Date.now()
+  const [now, setNow] = useState(Date.now)
+  const cooldownUntil = remind?.cooldownUntil
+  useEffect(() => {
+    const update = () => setNow(Date.now())
+    update()
+    const remaining = cooldownUntil ? Date.parse(cooldownUntil) - Date.now() : 0
+    const timer = remaining > 0 ? setTimeout(update, remaining + 1) : null
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') update()
+    })
+    return () => {
+      if (timer) clearTimeout(timer)
+      listener.remove()
+    }
+  }, [cooldownUntil])
+  const cooling = cooldownUntil != null && Date.parse(cooldownUntil) > now
+  // Do not guess with older API responses: event participants can include
+  // trial players who the reminder service intentionally does not target.
+  const eligible = new Set(reminderEligibleUserIds ?? [])
+  const reminderCount = groups.open.filter((person) => person.userId !== viewerUserId && eligible.has(person.userId)).length
 
   return (
     <View style={styles.root}>
       <View style={[styles.summary, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
         <View style={styles.counts}>
-          <Count value={groups.yes.length} label={t('eventFlow.responses.yes')} strong />
-          <Count value={groups.maybe.length} label={t('eventFlow.responses.maybe')} />
-          <Count value={groups.no.length} label={t('eventFlow.responses.no')} />
-          <Count value={groups.open.length} label={t('eventFlow.responses.open')} />
+          <Count value={groups.yes.length} label={t('eventFlow.responses.yes')} strong wide={fontScale >= 1.3} />
+          <Count value={groups.maybe.length} label={t('eventFlow.responses.maybe')} wide={fontScale >= 1.3} />
+          <Count value={groups.no.length} label={t('eventFlow.responses.no')} wide={fontScale >= 1.3} />
+          <Count value={groups.open.length} label={t('eventFlow.responses.open')} wide={fontScale >= 1.3} />
         </View>
         {total > 0 ? (
           <View
@@ -103,14 +129,16 @@ export function ResponsesPanel({
             {groups.open.length ? <View style={{ flex: groups.open.length }} /> : null}
           </View>
         ) : null}
-        {canManage && remind && groups.open.length > 0 ? (
+        {canManage && remind && reminderCount > 0 ? (
           <Button
             label={
               cooling
-                ? remind.sentCount != null
+                ? (remind.uncertainCount ?? 0) > 0
+                  ? t('eventFlow.responses.remindUnconfirmed')
+                  : remind.sentCount != null && remind.sentCount > 0
                   ? t('eventFlow.responses.remindSent', { count: remind.sentCount })
                   : t('eventFlow.responses.remindCooldown')
-                : t('eventFlow.responses.remindOpen', { count: groups.open.length })
+                : t('eventFlow.responses.remindOpen', { count: reminderCount })
             }
             variant="bordered"
             size="md"
@@ -120,6 +148,15 @@ export function ResponsesPanel({
             onPress={remind.onPress}
             testID="event-remind-open"
           />
+        ) : null}
+        {canManage && cooling && (remind?.uncertainCount ?? 0) > 0 ? (
+          <Text variant="footnote" color="secondary" accessibilityRole="alert">
+            {t('eventFlow.responses.remindUnconfirmedHint')}
+          </Text>
+        ) : canManage && !cooling && remind?.sentCount === 0 ? (
+          <Text variant="footnote" color="secondary" accessibilityRole="alert">
+            {t('eventFlow.responses.remindNoneAccepted')}
+          </Text>
         ) : null}
         {canManage && onOpenAttendance ? (
           <Button
@@ -147,13 +184,13 @@ export function ResponsesPanel({
   )
 }
 
-function Count({ value, label, strong }: { value: number; label: string; strong?: boolean }) {
+function Count({ value, label, strong, wide }: { value: number; label: string; strong?: boolean; wide: boolean }) {
   return (
-    <View style={styles.count} accessible accessibilityLabel={`${value} ${label}`}>
+    <View style={[styles.count, wide && styles.countWide]} accessible accessibilityLabel={`${value} ${label}`}>
       <Text variant="title2" color={strong ? 'tint' : 'primary'} tabular>
         {String(value)}
       </Text>
-      <Text variant="caption1" color="secondary" numberOfLines={1}>
+      <Text variant="caption1" color="secondary">
         {label}
       </Text>
     </View>
@@ -165,10 +202,11 @@ function Group({ title, people, muted }: { title: string; people: Person[]; mute
   if (people.length === 0) return null
   return (
     <View style={styles.group}>
-      <Text variant="footnote" weight="semibold" color="secondary" style={styles.groupTitle}>
-        {`${title} · ${people.length}`}
-      </Text>
-      <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+      <View style={[styles.groupHeading, { borderBottomColor: c.borderSubtle }]} accessible accessibilityRole="header" accessibilityLabel={`${title}, ${people.length}`}>
+        <Text variant="subheadline" weight="semibold" style={styles.headingTitle}>{title}</Text>
+        <Text variant="subheadline" color="secondary" tabular>{String(people.length)}</Text>
+      </View>
+      <View>
         {people.map((person, index) => (
           <View
             key={person.userId}
@@ -177,15 +215,15 @@ function Group({ title, people, muted }: { title: string; people: Person[]; mute
               index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
             ]}
             accessible
-            accessibilityLabel={[person.name, person.detail].filter(Boolean).join(', ')}
+            accessibilityLabel={[person.name, title, person.detail].filter(Boolean).join(', ')}
           >
             <Avatar size="sm" src={person.avatarUrl} fallbackText={person.name} />
             <View style={styles.rowText}>
-              <Text variant="body" color={muted ? 'secondary' : 'primary'} numberOfLines={1}>
+              <Text variant="body" color={muted ? 'secondary' : 'primary'}>
                 {person.name}
               </Text>
               {person.detail ? (
-                <Text variant="footnote" color="secondary" numberOfLines={2}>
+                <Text variant="footnote" color="secondary">
                   {person.detail}
                 </Text>
               ) : null}
@@ -206,8 +244,9 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: hairline,
   },
-  counts: { flexDirection: 'row', justifyContent: 'space-between' },
-  count: { flex: 1, gap: SPACING_XXS },
+  counts: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space.md },
+  count: { width: '25%', gap: SPACING_XXS, paddingRight: space.xs },
+  countWide: { width: '50%' },
   bar: {
     height: 8,
     borderRadius: radius.full,
@@ -216,19 +255,22 @@ const styles = StyleSheet.create({
   },
   emptyText: { paddingHorizontal: space.xs },
   group: { gap: space.xs },
-  groupTitle: { paddingHorizontal: space.xs, textTransform: 'uppercase', letterSpacing: 0.6 },
-  list: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
+  groupHeading: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.sm,
+    borderBottomWidth: hairline,
   },
+  headingTitle: { flexShrink: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm + space.xs,
     minHeight: 52,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.xs,
     paddingVertical: space.sm,
   },
   rowText: { flex: 1, minWidth: 0 },

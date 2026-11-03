@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect, useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 
 /**
  * What the user said they want before signing in:
@@ -13,7 +14,7 @@ import { useEffect, useState } from 'react'
 export type OnboardingIntent = 'free-agent' | 'parent-handoff'
 
 export function parseOnboardingIntent(value: unknown): OnboardingIntent | null {
-  return value === 'free-agent' || value === 'parent-handoff' ? value : null
+  return value === 'free-agent' || (value === 'parent-handoff' && LAUNCH_FEATURES.youthParticipation) ? value : null
 }
 
 const KEY = 'anstoss:onboarding-intent'

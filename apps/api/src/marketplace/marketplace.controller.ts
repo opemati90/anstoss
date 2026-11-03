@@ -23,7 +23,7 @@ import {
   updatePlayerSearchSchema,
   updateRegistrationRoleSchema,
 } from '@anstoss/shared'
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
@@ -32,10 +32,7 @@ import { MarketplaceService } from './marketplace.service'
 import { PlayerSearchService } from './player-search.service'
 import { AllowWithoutConsent } from '../auth/age-gate.guard'
 
-const MEDIA_ALLOWED_CONTENT_TYPES: Record<'PHOTO' | 'VIDEO', Set<string>> = {
-  PHOTO: new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']),
-  VIDEO: new Set(['video/mp4', 'video/quicktime', 'video/webm']),
-}
+import { freeAgentMediaLimit, MEDIA_ALLOWED_CONTENT_TYPES } from './media-policy'
 
 @Controller()
 export class MarketplaceController {
@@ -95,7 +92,7 @@ export class MarketplaceController {
     if (!allowed.has(data.contentType)) {
       throw new BadRequestException('Unsupported content type')
     }
-    const maxBytes = data.type === 'VIDEO' ? 100 * 1024 * 1024 : 10 * 1024 * 1024
+    const maxBytes = freeAgentMediaLimit(data.type)
     if (data.sizeBytes > maxBytes) {
       throw new BadRequestException('File exceeds the allowed size')
     }
@@ -125,20 +122,25 @@ export class MarketplaceController {
     @Body() body: unknown,
   ) {
     const data = createFreeAgentMediaSchema.parse(body)
-    if (this.r2.enabled) {
-      const objectKey = this.r2.objectKeyFromUrl(data.url)
-      const expectedPrefix = `users/${user.id}/free-agent/${data.type.toLowerCase()}/`
+    if (!this.r2.enabled) throw new ServiceUnavailableException('Media uploads are unavailable')
+    const validateMedia = async (url: string, type: 'PHOTO' | 'VIDEO') => {
+      const objectKey = this.r2.objectKeyFromUrl(url)
+      const expectedPrefix = `users/${user.id}/free-agent/${type.toLowerCase()}/`
       if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
         throw new BadRequestException('Media does not belong to this user upload')
       }
       try {
         await this.r2.assertStoredObject(objectKey, {
-          maxBytes: data.type === 'VIDEO' ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
-          allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES[data.type],
+          maxBytes: freeAgentMediaLimit(type),
+          allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES[type],
         })
       } catch {
         throw new BadRequestException('Media upload is invalid or incomplete')
       }
+    }
+    await validateMedia(data.url, data.type)
+    if (data.thumbnailUrl && !(data.type === 'PHOTO' && data.thumbnailUrl === data.url)) {
+      await validateMedia(data.thumbnailUrl, 'PHOTO')
     }
     return this.marketplaceService.addMedia(user.id, data)
   }

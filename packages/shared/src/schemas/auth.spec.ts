@@ -69,10 +69,10 @@ describe('registerSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('accepts exactly 16 years old', () => {
+  it('accepts exactly the 18-year launch minimum', () => {
     const today = new Date()
     const exactly16 = new Date(
-      today.getFullYear() - 16,
+      today.getFullYear() - MIN_AGE,
       today.getMonth(),
       today.getDate(),
     )
@@ -102,8 +102,8 @@ describe('getAge', () => {
 })
 
 describe('MIN_AGE', () => {
-  it('is 16 (GDPR Germany)', () => {
-    expect(MIN_AGE).toBe(16)
+  it('is 18 for the adult-only public release', () => {
+    expect(MIN_AGE).toBe(18)
   })
 })
 

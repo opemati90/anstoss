@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import AccessBlockedScreen from '../access-blocked'

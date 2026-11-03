@@ -33,6 +33,7 @@ import {
   type UpdateFixtureOverlayInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { assertLaunchRosterBirthDate } from '../auth/launch-access-policy'
 import { PushService } from '../push/push.service'
 import { INTL_LOCALE_TAG, type Locale } from '../i18n/translations'
 import { formatPush } from '../push/push.templates'
@@ -1042,6 +1043,7 @@ export class FussballService {
     candidates: Prisma.RosterSlotCreateManyInput[],
   ) {
     if (candidates.length === 0) return
+    for (const candidate of candidates) assertLaunchRosterBirthDate(candidate.dateOfBirth)
     await this.prisma.$transaction(async (tx) => {
       const team = await tx.team.findUnique({ where: { id: teamId }, select: { clubId: true } })
       if (!team) throw new NotFoundException('Team not found')

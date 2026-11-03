@@ -145,6 +145,7 @@ describe('AttendanceSheet reason label', () => {
       rsvps: [],
       checkIns: [],
       noShows: [{ userId: 'u1', user: { name: 'Alice' }, status: 'NO', reason: null }],
+      missingCheckInsReady: true,
     })
     renderSheet()
     await waitFor(() => expect(screen.getByText('Alice')).toBeOnTheScreen())
@@ -156,6 +157,7 @@ describe('AttendanceSheet reason label', () => {
       rsvps: [],
       checkIns: [],
       noShows: [{ userId: 'u1', user: { name: 'Carol' }, status: 'NO', reason: 'injury' }],
+      missingCheckInsReady: true,
     })
     renderSheet()
     await waitFor(() => {
@@ -169,6 +171,7 @@ describe('AttendanceSheet reason label', () => {
       rsvps: [],
       checkIns: [],
       noShows: [{ userId: 'u1', user: { name: 'Dirk' }, status: 'NO', reason: 'suspended' }],
+      missingCheckInsReady: true,
     })
     renderSheet()
     await waitFor(() => expect(screen.getByText('Suspended')).toBeOnTheScreen())

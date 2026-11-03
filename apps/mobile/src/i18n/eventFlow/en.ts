@@ -1,4 +1,13 @@
 export const eventFlowEn = {
+  availability: {
+    title: 'Availability', open: 'Replies open', closed: 'Replies closed',
+    closedHint: 'Contact your coach if your availability changes.',
+    noDeadline: 'No deadline', deadlineValue: 'Reply deadline: {{value}}',
+    lock: 'Lock replies', lockHint: 'Stop players and guardians from changing responses.',
+    chooseDeadline: 'Reply deadline', deadlineHint: 'Closes automatically at this time. A manual lock stays active until you turn it off.',
+    hoursBefore: '{{count}} hours before the event', atStart: 'At the event start',
+    saveFailed: 'Could not confirm the save. Pull to refresh and check the current settings.',
+  },
   type: { TRAINING: 'Training', MATCH: 'Match', OTHER: 'Other' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: { home: 'Home vs {{opponent}}', away: 'Away at {{opponent}}', neutral: 'Match vs {{opponent}}' },
@@ -112,8 +121,11 @@ export const eventFlowEn = {
     empty: 'Nobody has replied yet.',
     remindOpen_one: 'Remind {{count}} player',
     remindOpen_other: 'Remind {{count}} players',
-    remindSent_one: 'Reminder sent to {{count}} player',
-    remindSent_other: 'Reminder sent to {{count}} players',
+    remindSent_one: 'Reminder queued for {{count}} player',
+    remindSent_other: 'Reminders queued for {{count}} players',
+    remindNoneAccepted: 'No push reminders were queued. Recipients may have notifications off or no registered device. You can try again.',
+    remindUnconfirmed: 'Reminder status unconfirmed',
+    remindUnconfirmedHint: 'The notification provider did not confirm every reminder. Some may still arrive. Retrying is paused to avoid duplicates.',
     remindCooldown: 'Already reminded today',
     remindFailedTitle: 'Reminder not sent',
     remindFailedBody: 'Please try again in a moment.',

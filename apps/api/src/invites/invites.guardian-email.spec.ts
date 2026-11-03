@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException } from '@nestjs/common'
 import { InvitesService } from './invites.service'
 import { createFakePrisma, dobForAge } from '../testing/fake-prisma'

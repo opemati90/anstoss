@@ -23,6 +23,8 @@ export default function Index() {
     user,
     pendingClubClaim,
     pendingJoinRequest,
+    availableRoleModes,
+    activeClub,
   } = useAuth()
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
   const pendingInvite = usePendingInviteState()
@@ -55,6 +57,8 @@ export default function Index() {
     pendingInviteCode: pendingInvite ?? null,
     resumeTarget: resumeTarget ?? null,
     intent: intent ?? null,
+    availableRoleModes,
+    activeClubRole: activeClub?.role,
   })
   return <Redirect href={href as Href} />
 }

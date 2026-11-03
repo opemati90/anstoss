@@ -5,7 +5,10 @@ const config: Config = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', { tsconfig: {
+      baseUrl: __dirname,
+      paths: { '@anstoss/shared': ['../../packages/shared/src/index.ts'] },
+    } }],
   },
   collectCoverageFrom: ['**/*.ts', '!**/*.spec.ts', '!**/*.module.ts', '!main.ts'],
   coverageDirectory: '../coverage',
@@ -25,6 +28,7 @@ const config: Config = {
     },
   },
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/test-utils/enable-private-v1-reservations.ts'],
   watchman: false,
   moduleNameMapper: {
     '^@anstoss/shared$': '<rootDir>/../../../packages/shared/src',

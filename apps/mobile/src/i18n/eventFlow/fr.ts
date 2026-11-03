@@ -1,4 +1,13 @@
 export const eventFlowFr = {
+  availability: {
+    title: 'Disponibilité', open: 'Réponses ouvertes', closed: 'Réponses closes',
+    closedHint: 'Contactez votre entraîneur si votre disponibilité change.',
+    noDeadline: 'Aucune échéance', deadlineValue: 'Date limite : {{value}}',
+    lock: 'Verrouiller les réponses', lockHint: 'Empêcher les joueurs et les responsables légaux de modifier leurs réponses.',
+    chooseDeadline: 'Date limite de réponse', deadlineHint: 'Les réponses seront closes à cette heure. Le verrouillage manuel reste actif jusqu’à sa désactivation.',
+    hoursBefore: '{{count}} heures avant l’événement', atStart: 'Au début de l’événement',
+    saveFailed: 'Enregistrement non confirmé. Actualisez pour vérifier les paramètres actuels.',
+  },
   type: { TRAINING: 'Entraînement', MATCH: 'Match', OTHER: 'Autre' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: {
@@ -119,8 +128,11 @@ export const eventFlowFr = {
     empty: 'Personne n’a encore répondu.',
     remindOpen_one: 'Relancer {{count}} joueur',
     remindOpen_other: 'Relancer {{count}} joueurs',
-    remindSent_one: 'Rappel envoyé à {{count}} joueur',
-    remindSent_other: 'Rappel envoyé à {{count}} joueurs',
+    remindSent_one: 'Rappel mis en file pour {{count}} joueur',
+    remindSent_other: 'Rappels mis en file pour {{count}} joueurs',
+    remindNoneAccepted: 'Aucun rappel push mis en file. Les notifications sont peut-être désactivées ou aucun appareil n’est enregistré. Tu peux réessayer.',
+    remindUnconfirmed: 'Statut des rappels non confirmé',
+    remindUnconfirmedHint: 'Le service de notifications n’a pas confirmé tous les rappels. Certains peuvent encore arriver. Les nouvelles tentatives sont suspendues pour éviter les doublons.',
     remindCooldown: 'Déjà relancé aujourd’hui',
     remindFailedTitle: 'Rappel non envoyé',
     remindFailedBody: 'Réessaie dans un instant.',

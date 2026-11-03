@@ -136,6 +136,70 @@ API lint and typecheck passed. Independent recovery audit reran three suites /
 never-reused object keys and single-attempt initiation; preserve both invariants
 when connecting authenticated orchestration. This does not approve deployment.
 
+Subsequent abort/removal slice: acknowledged/missing multipart sessions first
+settle to `ABORTED`, not `REMOVED`. An empty existing session is still pending.
+The [S3 abort contract](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
+warns that in-flight parts may survive an abort and require further cleanup;
+this protocol must not erase its tracking metadata merely on an abort receipt.
+The current executor deliberately does **not** reclaim ABORTED capacity based
+on `NoSuchUpload`, an empty session or a missing final object: an already-issued
+part upload can still complete. It does not repeat an ambiguous abort. ABORTED
+stays charged until a provider-backed terminal part-erasure receipt is available;
+timeouts and access errors retain the durable operation and quota.
+Recovery can confirm `REMOVING` on object absence only because that state follows
+terminal finalization of a unique, never-reused key: no direct client final PUT
+or repeated server completion may exist. The remove primitive is not wired;
+evidence/live-message holds must be enforced before claiming removal. Independent
+audit passed this scoped ordering; 67 tests and API lint/typecheck passed.
+Migration 76 applied only to the isolated local PostgreSQL fixture. Provider
+part cleanup, evidence-hold orchestration and live verification remain gates.
+
+Removal-claim guards are now implemented in the local ledger: the bound message
+lock precedes the upload and media-object locks; the binding is rechecked after
+locking. Live channel/DM references and unpurged report evidence (by canonical
+v2 reference or bound message ID) prevent `REMOVING`; query failures fail closed.
+Existing report creation uses the same message lock and rejects deleted rows.
+Independent audit reran 76 tests and passed this scoped guard. Integration still
+must forbid cross-club sharing/noncanonical v2 references and make every new
+attachment path reject `REMOVING` under the upload lock. Channel-reference
+queries are club-scoped, not global. No provider delete or live route is enabled
+by this guard; end-to-end report/deletion races remain a release test.
+
+Attachment binding now validates the actual channel/DM message before claiming
+`ATTACHED`: matching sender, club, destination, canonical object reference,
+undeleted status and media message type. It uses message → upload → media locks.
+It does not replace membership/safeguarding authorization. Callers must insert
+and bind in the same transaction and throw/roll back if binding returns false.
+An independent audit reran 80 tests and passed this scope. API lint/typecheck
+passed. Expanded isolated PostgreSQL verification (exit 0) exercised real DM
+predicates against wrong sender, foreign conversation, wrong reference, deleted
+message and text-only cases; successful binding, live-reference hold, report
+hold after deletion and removal eligibility after evidence purge also passed.
+Synthetic fixture cleanup succeeded. Channel bindings have unit coverage here,
+not the same relational fixture or device E2E evidence. No live routes enabled.
+
+Atomic publication component added locally: `PrivateUploadPublisher` owns the
+transaction containing authorization callback, state/type/target checks, message
+insertion, binding, and DM inbox update. Binding failure throws inside that
+transaction. The expanded isolated PostgreSQL verifier forces binding failure
+after INSERT and confirms no message persists and the upload stays READY, then
+publishes successfully with the real ledger (exit 0; fixture cleanup succeeded).
+The fixture's authorization callback returns a synthetic target: it does not
+prove membership or safeguarding. Independent publisher/ledger audit: 42 tests
+passed; API lint/typecheck passed. Existing ChatService/DmService routes remain
+unchanged. Live wiring must supply lifecycle locks, real policy checks, bounded
+content/metadata validation, and post-commit-only broadcasting.
+
+Publication input validation is now implemented locally through the shared
+`privateMediaPublishSchema`: strict fields (no client-chosen URL/routing), raw
+caption length at most 1,000, bounded media metadata, and filenames without C0
+or DEL characters. The publisher parses before its transaction, uses the parsed
+copy, rejects supplied MIME/size that contradict the ledger, and writes ledger
+MIME/size into the message metadata. These values reflect declarations/storage
+metadata, not file-content sniffing or malware analysis; dimensions/duration/
+waveform remain bounded client claims. Independent audit passed 23 publisher
+tests and 19 schema tests. Live route and mobile integration remain outstanding.
+
 Read-only production check, 2026-10-27: API service
 `373adb45-3ab1-4076-b2b9-72f1590ba1b3`, environment
 `c6651cfe-f78d-4c06-aefd-634f5933cc22`, has the public R2 and separate quarantine
@@ -238,9 +302,275 @@ moderation, or deletion paths in production.
 3. Do not disclose whether an arbitrary email exists.
 4. Revoke leaked credentials and rotate the affected provider key. Never paste secrets into support notes.
 
+## Local channel-media binding verification — 2026-10-27
+
+The media-send transaction now rereads the channel through its transaction
+client and requires both the expected club and the expected team (or a club-wide
+channel in that club). Regression cases cover deleted channels, changed teams,
+and cross-club bindings before message insertion. The targeted media/inbox run
+passed 31 tests across two suites; API typecheck and targeted ESLint passed.
+An independent adversarial review passed this diff and independently ran the
+10-test media service suite.
+
+This is not proof of complete concurrent channel authorization: channel writers
+do not yet share a lock with this reread, and the team/channel permission services
+still use their existing clients. The v2 upload route/client rollout remains
+unfinished. These local changes were not pushed, deployed, or built with Expo.
+
+### Media notification failure isolation — 2026-10-27
+
+After media persistence and response serialization, push preparation now runs
+in a detached async helper with a caught, non-identifying warning. Sender lookup,
+reply-author lookup, recipient lookup and push rejection cannot reject the media
+send response through this helper. Existing reader/mute filtering, sender
+exclusion and localized push payloads remain intact. Positive tests cover both
+team channels and same-club club-wide channels.
+
+The independent adversarial pass approved the production diff. The full API
+run passed 135 suites / 1,467 tests before three additional notification-failure
+regressions were added. The expanded 17-test media suite subsequently passed locally and in
+the independent audit, including all four notification failure boundaries.
+Notification delivery remains best-effort: process termination may still lose
+pending notifications.
+
+### Media response preparation and realtime isolation — 2026-10-27
+
+The subsequent change prepares the media response using the transaction client
+before commit. Response-read or serialization errors now reject the owned
+transaction. After commit, synchronous realtime broadcast failures and both
+synchronous/asynchronous inbox scheduling failures are caught independently;
+neither suppresses push preparation or rejects the saved response.
+
+The full API suite passed 135 suites / 1,475 tests. API typecheck, targeted ESLint
+and an independent adversarial review passed; the auditor independently ran six
+chat service/gateway suites (66 tests). Tests verify use of the transaction
+client, rejection of the transaction promise, no fan-out on serialization failure,
+and successful saved responses despite each delivery failure. They do not prove
+real PostgreSQL rollback for this specific service path. Response loss after
+commit still needs idempotent retry handling, and durable notification delivery
+and concurrent channel mutation protections remain incomplete. No deployment.
+
+## Private-upload publication retries — local verification 2026-10-27
+
+The not-yet-routed v2 publisher now serializes publication attempts for an upload,
+locks the existing bound message before the upload, and returns a matching live
+message on retry. Every attempt reauthorizes current access. Changed captions,
+types, attachment references/metadata, unavailable messages and cancelled uploads
+are not accepted as successful retries. Successful replay returns `replayed: true`;
+future callers must not repeat broadcasts, inbox mutations or push dispatch.
+
+The isolated local PostgreSQL verifier passed three simultaneous attempts with
+one stored message, one non-replay result and identical returned message IDs.
+It also rejected changed-caption retries and replays after a recipient block,
+using the real DM permission callback. Synthetic rows were cleaned up. The
+independent adversarial review passed 76 tests across the publisher/ledger/recovery
+suites; API typecheck and targeted ESLint passed.
+
+This is not live mobile retry support yet: routes/client integration and durable
+post-commit delivery remain unfinished. A crash between commit and notification
+dispatch still requires a durable delivery mechanism. No production changes.
+
 ## Release rollback
 
 1. Stop the rollout or disable the affected subsystem kill switch.
 2. Keep additive migrations in place; roll application code forward with a corrective build rather than deleting production data.
 3. Verify API health, authentication, tenant isolation, chat, claims, invitations, contributions, and entitlement resolution.
 4. Run the canary checks and review Sentry before resuming rollout.
+
+## Private-upload coordinator — local verification 2026-10-27
+
+The internal coordinator connects authorization, active-user/target checks,
+committed operation claims and storage initiation/completion. Provider I/O runs
+only after the claim transaction resolves; exceptions produce an opaque unknown
+outcome and leave pending state for reconciliation. Receipt settlement preserves
+cancellation and does not require access to remain active after external I/O.
+
+Sixteen coordinator tests and API typecheck passed. The independent review first
+caught a test-only implicit-any error; after correction its rerun passed four
+suites / 96 tests. The local PostgreSQL verifier passed three concurrent advances
+for each operation, one provider call each, and provider-stub reads observing
+committed INITIATING/FINALIZING state. Synthetic fixtures were cleaned up and the
+isolated server stopped. Storage calls in that verifier were stubs, not live R2.
+
+The coordinator is not an exposed route. Reservation/signing/client integration,
+cleanup scheduling, ambiguous initiation handling, live-provider verification,
+and durable delivery remain incomplete. No production deployment or Expo build.
+
+## Private upload-part signing — local verification 2026-10-27
+
+The internal coordinator now reauthorizes the user and target, checks the locked
+upload is UPLOADING with no pending operation/cancellation, and signs only its
+stored multipart session, part number and byte length. Capabilities last at most
+300 seconds and are bounded by the reservation deadline. The returned projection
+contains only the signed PUT URL, expiration and required Content-Length header;
+it grants no final-object write or multipart completion authority.
+
+The first independent audit found deadline drift between separate clock reads.
+The corrected implementation anchors TTL, reported expiry and the AWS signing
+date to one captured instant and rejects a capability that expires while signing.
+Regressions exercise signing delays, elapsed deadlines, unusable upload states,
+revoked authorization, secret-error redaction and the actual signed URL date/TTL.
+
+This does not revoke an already issued URL; cancellation prevents finalization,
+while private in-flight part cleanup remains a separate lifecycle requirement.
+Live R2, HTTP/client integration and native Content-Length behavior are unverified.
+
+Final verification: 136 API suites / 1,517 tests passed with local socket
+permission (the sandboxed run had four EPERM HTTP listener failures). API
+typecheck and targeted ESLint passed. Independent re-audit passed three suites /
+96 tests and confirmed the timing finding resolved. No build or deployment.
+
+## Private upload reservation — local verification 2026-10-27
+
+The internal coordinator accepts a strict shared reservation schema containing
+only media type, MIME declaration and expected byte length. Per-kind MIME/size
+limits now live in shared constants; existing API consumers reexport those same
+values. The current-user/target authorization callback supplies routing, and an
+active-account check precedes the transactional reservation. The response contains
+only upload ID and expiry, with no provider operation or storage key exposure.
+
+Shared schema tests passed 37 cases; coordinator tests passed 32. Independent
+review passed the shared suite and 63 coordinator/publisher tests. API typecheck,
+shared lint and targeted API ESLint passed. This validates declarations, not
+actual byte content. HTTP authorization, reservation rate/quota enforcement and
+mobile integration must be completed before this entry point is exposed.
+
+## Upload reservation admission limits — local verification 2026-10-27
+
+Reservations now take a per-club/per-owner PostgreSQL advisory lock and check
+pending count and expected bytes in the same transaction as insertion. Admission
+limits are 10 pending records and 250 MiB; usage includes every state except
+ATTACHED and REMOVED. Exceeding a limit returns 429 with
+`PRIVATE_UPLOAD_PENDING_LIMIT`; a failed usage query rejects creation.
+
+These are operational admission limits, not plan entitlements, global storage
+quotas or HTTP rate limits. Cancellation, expiry and ABORTED do not prove storage
+erasure and do not automatically free capacity. Retiring formerly ATTACHED media
+can increase charged cleanup backlog above the admission cap; this deliberately
+blocks further reservations until cleanup catches up. Do not claim an invariant
+that all lifecycle transitions preserve a count below ten.
+
+The local PostgreSQL verifier raced twelve reservations and verified precisely
+the remaining admission slots succeeded; excess requests returned 429. Synthetic
+rows were cleaned up and the isolated server stopped. Boundary/failure unit tests,
+API typecheck and targeted lint passed. Full API: 136 suites / 1,526 tests passed.
+Cleanup scheduling and user recovery UX remain required before route activation.
+
+## Private upload cleanup executor — local verification 2026-10-27
+
+An internal per-intent executor now expires unstarted reservations, claims abort
+or removal for eligible uploads, and reconciles pending operations through
+observations rather than blindly retrying storage writes. Uncancelled ATTACHED
+records never expire. Removal uses the ledger's message/evidence hold checks and
+message-before-upload lock order. ABORTED remains charged; neither absent
+session nor absent final object proves that an in-flight part cannot finish.
+Do not re-abort or reclaim quota based on those observations.
+
+The local PostgreSQL verifier confirmed a live DM blocks removal, an unpurged
+report continues to block it after message deletion, clearing those holds allows
+one stub storage deletion after committed REMOVING state, and rerunning terminal
+cleanup does not repeat that deletion. Synthetic fixtures were removed and the
+isolated server stopped. This is real relational verification with stub storage,
+not live R2 erasure evidence.
+
+Full API: 137 suites / 1,538 tests passed. API typecheck, targeted lint and independent
+adversarial audit passed; the auditor ran three suites / 61 tests. Scheduling,
+bounded retries/alerts, ambiguous initiation resolution, live-provider cleanup
+verification, metadata erasure and client integration remain outstanding. No production change.
+
+## Persistent cleanup batch scheduling — local verification 2026-10-27
+
+Added cleanupAvailableAt/cleanupClaimId with an additive migration and tenant/due
+index. The per-club runner selects at most 25 cancelled or expired eligible
+intents, claims each observed schedule with a random token, and conditionally
+reschedules only its own token. A ten-minute scheduling lease permits process
+restart recovery; it never overrides provider-operation state. Held/conflict
+records wait one hour, unknown outcomes fifteen minutes, and aborted-part cleanup
+six hours; normal follow-up waits one minute.
+
+Migration 20261027190000 applied only to the isolated local database. The relational
+verifier at that historical checkpoint covered expiry and aborted-session
+observations. That behavior was subsequently tightened: ABORTED remains charged
+even after an absent-session observation. Do not rely on the old reclamation
+result. Fixtures
+were cleaned up and the test server stopped.
+This does not establish real concurrent worker takeover; CAS predicates have
+unit coverage. Database failure may end a batch, leaving its lease for recovery.
+
+Full API: 138 suites / 1,546 tests passed. Typecheck, targeted lint and independent
+audit passed; the auditor ran four suites / 69 tests. Runtime timer/DI activation,
+tenant enumeration, alerting and live-provider cleanup verification remain unfinished. No deploy.
+
+## Cleanup runtime registration — local verification 2026-10-27
+
+The Assets module now registers a cleanup worker that is inert unless
+`PRIVATE_UPLOAD_CLEANUP_ENABLED=true`. Keep it unset/false for the current rollout.
+Enabling requires configured separate private-bucket credentials, a valid R2
+account ID and the EU endpoint; configuration checks alone do not verify bucket
+privacy, token scope or physical data placement.
+
+The worker runs at startup and every minute, discovers at most ten due tenant IDs
+directly from upload intents (including deleted clubs), and delegates mutation to
+the scoped 25-item batch runner. It refuses global discovery inside tenant request
+context. Concurrent cycles in one instance are suppressed; cross-instance claims
+use persisted compare-and-swap scheduling tokens. Warnings contain no identities,
+URLs, provider errors or credentials. They are not yet an operational alert system.
+
+The initial independent audit found that an active batch could start more jobs
+after shutdown. Continuation checks now run before scanning, before each claim
+and after claim acquisition. Stop/disable prevents further jobs at these boundaries;
+an already-running cleanup job is not forcibly aborted or drained. Its operation
+state remains durable for reconciliation. Targeted tests cover default-off, failed
+configuration, deleted-club discovery, overlap, disablement, tenant isolation and
+stopping during a job/claim. No environment flag was enabled and no deployment ran.
+
+## Upload status/cancellation and legacy boundary — local verification 2026-10-28
+
+The internal coordinator now exposes an explicit three-field status projection
+(`id`, `status`, `expiresAt`) after current authorization and a locked target
+check. Provider keys, multipart IDs and operation tokens are not returned.
+Cancellation rejects message-bound uploads; its acknowledgement is not evidence
+of physical erasure. Published bindings do not expire with the upload reservation.
+The prior independent status/cancellation audit passed its scoped checks. A fresh
+full API run on October 28 passed 139 suites / 1,571 tests before the legacy guard
+below was added.
+
+The legacy R2 adapter now refuses the reserved `private-chat/` namespace, including
+explicit-bucket operations. It cannot accidentally issue a final PUT or fall back
+to public storage for v2 keys. Mixed deletion batches are validated in full before
+any storage operation starts. Public URL parsing also rejects that namespace.
+Targeted R2 tests passed (21 tests), as did API typecheck and targeted lint.
+The independent adversarial review returned a scoped PASS and independently ran
+two suites / 23 tests. The post-change full API run passed 139 suites / 1,574 tests.
+
+This is not v2 read-path/client activation or launch approval. Routes, client
+integration, lifecycle-aware reads/moderation, durable delivery and live storage
+verification remain required. No Expo build, production deployment or flag change
+was performed for this verification.
+
+## Private v1 upload reservation rollout
+
+`PRIVATE_V1_UPLOAD_RESERVATIONS` defaults off and controls pending-upload
+cleanup, not reservation creation. The bridge always records reservations;
+while the flag is off it schedules them at a distant sentinel date that old
+workers will not select. Do not enable cleanup while any API replica running
+the pre-bridge media writer can accept requests: that writer does not take the
+object lock, so cleanup could race a committed message. Apply the reservation
+migration and deploy the bridge with the flag off; verify every pre-bridge
+replica and in-flight writer has drained. During the mixed-version interval,
+globally pause account deletion at the edge for **all** replicas, including
+old ones: new erasure can otherwise schedule immediately due cleanup while an
+old unlocked writer is still committing a message. Alternatively first deploy
+and fully drain a writer-lock-only bridge before deploying reservation/erasure
+changes. Resume account deletion and enable the flag only after verifying the
+drain, then check the new presign, publish, retry and orphan
+cleanup paths end to end. Verify the live API configuration and worker health;
+do not rely on the flag default as evidence that cleanup is enabled.
+
+The bridge requires the private-media capability header and conditional PUT.
+Old mobile clients that lack them cannot upload through it; existing messages
+must remain readable where authorized. Coordinate distribution and minimum
+version messaging before cutover; do not describe old-client compatibility as
+verified. A legacy pre-cutover presign may need to be uploaded again. The flag
+off bridge retains abandoned-upload cleanup obligations but does not process
+them, so it is a temporary rollout state, not a completed release configuration.

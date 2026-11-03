@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 /**
  * Chat revamp adversarial-review fixes (B1, H1, H2, H3, H4, M2, M4) against
  * an in-memory Prisma that evaluates where clauses, so a forgotten scope or a
@@ -12,7 +14,7 @@ import { evaluateGroupSafeguarding } from './group-safeguarding'
 const CLUB = 'club-1'
 const TEAM = 'team-u13'
 const OTHER_TEAM = 'team-herren'
-const active = { status: 'ACTIVE', loanEndDate: null }
+const active = { status: 'ACTIVE', phase: 'FULL', loanEndDate: null }
 
 function seed() {
   return {
@@ -122,6 +124,24 @@ describe('B1 group safeguarding', () => {
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
+  it('does not let a TRIAL coach create or manage a team group', async () => {
+    const { service } = build((s) => {
+      s.teamAccess.find((row) => row.userId === 'coach' && row.teamId === TEAM)!.phase = 'TRIAL'
+    })
+
+    await expect(service.provisionTeamChannels('coach', TEAM)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    )
+    await expect(
+      service.createCustomChannel('coach', {
+        clubId: CLUB,
+        teamId: TEAM,
+        name: 'Trial authority',
+        memberIds: ['assistant', 'adult'],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
   it('allows two team staff adults with minors, and staff + the child’s guardian', async () => {
     const { service, prisma } = build()
     await service.createCustomChannel('coach', { clubId: CLUB, teamId: TEAM, name: 'Trainerteam + Kids', memberIds: ['assistant', 'kid', 'kid2'] })
@@ -160,6 +180,7 @@ describe('B1 group safeguarding', () => {
 
   it('rejects members outside the club and players of another team', async () => {
     const { service, prisma } = build((s) => {
+      s.user.push({ id: 'herren-player', dateOfBirth: yearsAgo(25), managedById: null, adultConfirmedAt: null, deletedAt: null, name: 'Adult player' })
       s.membership.push({ id: 'm9', userId: 'herren-player', clubId: CLUB, role: 'PLAYER', operationalRoles: [], createdAt: new Date() })
       s.teamAccess.push({ id: 'ta9', userId: 'herren-player', teamId: OTHER_TEAM, clubId: CLUB, role: 'PLAYER', ...active, createdAt: new Date() })
     })
@@ -213,6 +234,15 @@ describe('H1 / M4 write rules', () => {
     expect((await service.getChannelAccess('coach', 'team-ann')).canWrite).toBe(true)
     // A club COACH of another team reads but cannot announce to the U13.
     expect((await service.getChannelAccess('clubcoach', 'team-ann')).canWrite).toBe(false)
+  })
+
+  it('does not let a TRIAL coach write team announcements', async () => {
+    const { service } = build((s) => {
+      clubChannels(s)
+      s.teamAccess.find((row) => row.userId === 'coach' && row.teamId === TEAM)!.phase = 'TRIAL'
+    })
+
+    expect((await service.getChannelAccess('coach', 'team-ann')).canWrite).toBe(false)
   })
 
   it('a club-news REST post is not an announcement', async () => {

@@ -1,6 +1,7 @@
 import { TeamAccessPhase, TeamAccessStatus, TeamRole } from '@anstoss/shared'
 import { Prisma } from '@prisma/client'
 import { activeTeamAccessWhere } from './active-team-access'
+import { launchParticipantWhere } from '../auth/launch-access-policy'
 
 /**
  * The one definition of "squad" used for every squad number in the app
@@ -24,6 +25,7 @@ export const SQUAD_ACCESS_COUNT_WHERE = {
   status: TeamAccessStatus.ACTIVE,
   role: TeamRole.PLAYER,
   phase: TeamAccessPhase.FULL,
+  get user() { return launchParticipantWhere() },
 } satisfies Prisma.TeamAccessWhereInput
 
 export type SquadCandidate = {

@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller'
 import type { ChannelKind, DmLineupInput } from '@anstoss/shared'
 import type { ChatMessage } from '../../hooks/useChat'
+import { useOwnMessageScroll } from './useOwnMessageScroll'
 import { useConversation } from '../../hooks/useConversation'
 import { uploadDmMedia } from '../../hooks/dmMedia'
 import { getInboxUnread } from '../../hooks/useInbox'
@@ -160,6 +161,7 @@ export function ChatScreen({
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [composerHint, setComposerHint] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const uploadingRef = useRef(false)
   const [atBottom, setAtBottom] = useState(true)
   const [blockedPeer, setBlockedPeer] = useState(false)
 
@@ -289,6 +291,10 @@ export function ChatScreen({
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
   }, [])
 
+  const { arm: armOwnScroll, cancel: cancelOwnScroll } = useOwnMessageScroll(
+    lastMessageId, messages[messages.length - 1]?.senderId, userId, scrollToLatest,
+  )
+
   const jumpTo = useCallback(
     (messageId: string) => {
       const index = rows.findIndex((row) => row.type === 'message' && row.message.id === messageId)
@@ -413,7 +419,8 @@ export function ChatScreen({
   // ── Attachments ──────────────────────────────────────────────────────
   const sendAttachment = useCallback(
     async (att: ChatAttachment): Promise<boolean> => {
-      if (!token) return false
+      if (!token || uploadingRef.current) return false
+      uploadingRef.current = true
       setUploading(true)
       setComposerHint(t('chatThread.attach.uploading'))
       try {
@@ -440,6 +447,7 @@ export function ChatScreen({
             )
             return false
           }
+          armOwnScroll()
           const result = await sendDmAttachment!({
             messageType,
             attachmentUrl: upload.publicUrl,
@@ -447,6 +455,7 @@ export function ChatScreen({
             ...(replyToId ? { replyToId } : {}),
           })
           if (result !== 'ok') {
+            cancelOwnScroll()
             setComposerHint(
               result === 'forbidden' ? t('chatThread.errors.dmForbidden') : t('chatHub.errors.uploadFailed'),
             )
@@ -466,6 +475,7 @@ export function ChatScreen({
             setComposerHint(t('chatHub.errors.uploadFailed'))
             return false
           }
+          armOwnScroll()
           const ok = await sendMediaMessage({
             messageType,
             attachmentUrl: upload.publicUrl,
@@ -473,6 +483,7 @@ export function ChatScreen({
             ...(replyToId ? { replyToId } : {}),
           })
           if (!ok) {
+            cancelOwnScroll()
             setComposerHint(t('chatHub.errors.uploadFailed'))
             return false
           }
@@ -480,11 +491,16 @@ export function ChatScreen({
         setComposerHint(null)
         if (replyTarget) setReplyTarget(null)
         return true
+      } catch {
+        cancelOwnScroll()
+        setComposerHint(t('chatHub.errors.uploadFailed'))
+        return false
       } finally {
+        uploadingRef.current = false
         setUploading(false)
       }
     },
-    [clubId, conversationId, isDm, replyTarget, sendDmAttachment, sendMediaMessage, t, teamId, token],
+    [armOwnScroll, cancelOwnScroll, clubId, conversationId, isDm, replyTarget, sendDmAttachment, sendMediaMessage, t, teamId, token],
   )
 
   const handleVoice = useCallback(
@@ -519,7 +535,7 @@ export function ChatScreen({
           action === 'library' ? pickLibraryMedia() : action === 'camera' ? takeCameraPhoto() : pickPdf()
         void pick.then((att) => {
           if (att) void sendAttachment(att)
-        })
+        }).catch(() => setComposerHint(t('chatHub.errors.uploadFailed')))
       })
     },
     [sendAttachment, t],
@@ -734,7 +750,10 @@ export function ChatScreen({
         {composerEnabled ? (
           <ChatInput
             onSend={(content: string) => {
+              armOwnScroll()
               const promise = send(content, replyTarget?.id ?? null, { isAnnouncement: isAnnouncements })
+              void promise.then((sent) => { if (!sent) cancelOwnScroll() })
+                .catch(cancelOwnScroll)
               if (replyTarget) setReplyTarget(null)
               setComposerHint(null)
               return promise
@@ -746,7 +765,7 @@ export function ChatScreen({
                 ? () =>
                     void takeCameraPhoto().then((att) => {
                       if (att) void sendAttachment(att)
-                    })
+                    }).catch(() => setComposerHint(t('chatHub.errors.uploadFailed')))
                 : undefined
             }
             onTyping={sendTyping}
@@ -793,7 +812,7 @@ export function ChatScreen({
               runAfterSheet(() => {
                 void pickLibraryMedia().then((att) => {
                   if (att) void sendAttachment(att)
-                })
+                }).catch(() => setComposerHint(t('chatHub.errors.uploadFailed')))
               })
             } else {
               router.push({ pathname: '/lineup-builder', params: { teamId } } as never)

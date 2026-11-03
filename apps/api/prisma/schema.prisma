@@ -29,8 +29,16 @@ model AccountMediaDeletion {
   availableAt   DateTime @default(now())
   createdAt     DateTime @default(now())
   lastFailureAt DateTime?
+  uploadOwnerId String?
+  uploadRequestId String?
+  uploadFingerprint String?
+  uploadExpiresAt DateTime?
+  uploadState String?
+  uploadMessageId String?
 
   @@index([availableAt])
+  @@index([uploadOwnerId, uploadState])
+  @@unique([uploadOwnerId, uploadRequestId])
 }
 
 // Internal multipart lifecycle. No cascading FK: storage reconciliation must
@@ -40,6 +48,9 @@ model PrivateMediaUpload {
   id                String   @id
   clubId            String
   ownerId           String
+  reserveRequestId  String?
+  reservedMessageType String?
+  reservedTeamId    String?
   targetId          String
   targetType        String
   objectKey         String   @unique
@@ -53,9 +64,13 @@ model PrivateMediaUpload {
   expiresAt         DateTime
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  cleanupAvailableAt DateTime @default(now())
+  cleanupClaimId     String?
 
   @@index([clubId, ownerId])
+  @@unique([clubId, ownerId, reserveRequestId])
   @@index([state, expiresAt])
+  @@index([clubId, cleanupAvailableAt])
 }
 
 enum PrivateMediaUploadState {
@@ -66,6 +81,7 @@ enum PrivateMediaUploadState {
   READY
   ATTACHED
   ABORTING
+  ABORTED
   REMOVING
   REMOVED
 }
@@ -136,6 +152,9 @@ model User {
   claimedRosterSlot              RosterSlot?
   createdBroadcasts              Broadcast[]               @relation("BroadcastCreator")
   eventCheckIns                  EventCheckIn[]
+  coachAttendance                CoachAttendance[]
+  coachAttendanceHistory         CoachAttendanceChange[]
+  coachAttendanceRejections      CoachAttendanceRejection[]
   // Events revamp: Fahrgemeinschaft
   carpoolRidesDriven             CarpoolRide[]
   carpoolSeats                   CarpoolSeat[]
@@ -883,6 +902,8 @@ model Event {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   lastRsvpReminderAt DateTime?
+  rsvpDeadline      DateTime?
+  rsvpLocked        Boolean   @default(false)
   // Events revamp (2026-09): matchday logistics live on the event itself.
   meetingAt          DateTime?
   meetingPoint       String?
@@ -906,6 +927,9 @@ model Event {
   rsvps               Rsvp[]
   reminderPreferences EventReminderPreference[]
   checkIns            EventCheckIn[]
+  coachAttendance     CoachAttendance[]
+  coachAttendanceHistory CoachAttendanceChange[]
+  coachAttendanceRejections CoachAttendanceRejection[]
   series              EventSeries?              @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   fixture             ImportedFixture?          @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
   carpoolRides        CarpoolRide[]
@@ -1068,6 +1092,7 @@ model Rsvp {
   // it until the Kader is saved again.
   squadDroppedAt DateTime?
   updatedAt      DateTime   @updatedAt
+  playerEligibilityVerifiedAt DateTime?
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2061,6 +2086,7 @@ enum ContributionReminderStatus {
   SENT
   SKIPPED
   FAILED
+  UNCONFIRMED
 }
 
 enum PreferredFoot {
@@ -2470,6 +2496,7 @@ model EventCheckIn {
   eventId     String
   userId      String
   checkedInAt DateTime @default(now())
+  playerEligibilityVerifiedAt DateTime?
 
   club  Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
   team  Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -2479,6 +2506,49 @@ model EventCheckIn {
   @@unique([eventId, userId])
   @@index([clubId, checkedInAt])
   @@map("event_check_ins")
+}
+
+// Coach-recorded outcomes are distinct from the player's own check-in/RSVP.
+model CoachAttendance {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String
+  version   Int      @default(1)
+  actorId   String?
+  updatedAt DateTime @updatedAt
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model CoachAttendanceChange {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  actorId   String?
+  previous  String?
+  status    String
+  operationId String? @unique
+  expectedVersion Int?
+  createdAt DateTime @default(now())
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([eventId, userId, createdAt])
+  @@index([userId])
+  @@index([actorId])
+}
+
+// A rejected operation fences delayed retries without storing target identity.
+model CoachAttendanceRejection {
+  operationId String @id
+  eventId String
+  actorId String
+  createdAt DateTime @default(now())
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  @@index([actorId])
 }
 
 // ─── Email OTP Authentication ───────────────────────────

@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException } from '@nestjs/common'
 import { TeamAccessDeniedError } from '@anstoss/shared'
 import { EventsService } from './events.service'
@@ -10,6 +12,8 @@ import { EventsService } from './events.service'
  */
 function setup() {
   const prisma: any = {
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(async () => [(await prisma.event.findUnique()) ?? (await prisma.event.findFirst())]),
     event: {
       create: jest.fn(async ({ data }: any) => ({ id: 'evt-new', createdAt: new Date(), ...data })),
       createMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -41,6 +45,7 @@ function setup() {
       findFirst: jest.fn().mockResolvedValue({ id: 'access-1' }),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    membership: { findUnique: jest.fn().mockResolvedValue({ id: 'membership' }) },
     teamMember: { findMany: jest.fn().mockResolvedValue([]) },
     guardianRelationship: {
       findFirst: jest.fn().mockResolvedValue({ id: 'g-1' }),
@@ -106,6 +111,7 @@ describe('EventsService – review fixes', () => {
     it('an Absage takes the player out of the Kader and marks the drop-out', async () => {
       const { prisma, service } = setup()
       prisma.event.findUnique.mockResolvedValue(event)
+      prisma.teamAccess.findMany.mockResolvedValue([{ phase: 'FULL' }])
 
       await service.upsertRsvp('evt-1', 'tim', 'NO', 'injured')
 
@@ -122,6 +128,7 @@ describe('EventsService – review fixes', () => {
     it('a Zusage does not touch the nomination', async () => {
       const { prisma, service } = setup()
       prisma.event.findUnique.mockResolvedValue(event)
+      prisma.teamAccess.findMany.mockResolvedValue([{ phase: 'FULL' }])
       await service.upsertRsvp('evt-1', 'tim', 'YES')
       expect(prisma.rsvp.updateMany).not.toHaveBeenCalled()
     })
@@ -193,7 +200,7 @@ describe('EventsService – review fixes', () => {
         }),
       ).resolves.toEqual(expect.objectContaining({ nominatedUserIds: ['lukas'] }))
       expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
-        where: { eventId: 'evt-1', userId: { in: ['lukas'] } },
+        where: { eventId: 'evt-1', userId: { in: ['lukas'] }, status: { in: ['YES', 'MAYBE'] } },
         data: { nominated: true, squadDroppedAt: null },
       })
       expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
@@ -398,7 +405,7 @@ describe('EventsService – review fixes', () => {
         cancelledAt: null,
         team: {
           access: [
-            { role: 'PLAYER', user: { id: 'tim' } },
+            { role: 'PLAYER', user: { id: 'tim', dateOfBirth: new Date('1990-01-01') } },
             { role: 'PLAYER', user: { id: 'inactive-1' } },
           ],
         },

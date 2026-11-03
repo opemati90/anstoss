@@ -12,7 +12,7 @@ import { Icon, Text, type IconName } from '../ui'
 import { ConversationAvatar } from './ConversationAvatar'
 import { badgeLabel, formatInboxTime, isMuted } from './inboxModel'
 
-export const INBOX_AVATAR_SIZE = 52
+export const INBOX_AVATAR_SIZE = 48
 export const INBOX_ROW_MIN_HEIGHT = 72
 const ACTION_WIDTH = 80
 

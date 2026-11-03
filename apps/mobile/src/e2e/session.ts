@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { availabilityClosed, type AvailabilityPolicy } from '../components/events/availabilityPolicy'
 import {
   buildClubPermissionMap,
   ClubCapability,
@@ -3419,6 +3420,21 @@ function handleEventFlowRequest(
   const api = session.api
   const base = `/clubs/${CLUB_ID}/events`
 
+  const availabilityMatch = pathname.match(new RegExp(`^${base}/([^/]+)/availability-policy$`))
+  if (availabilityMatch && (method === 'GET' || method === 'PATCH')) {
+    const event = findFlowEvent(availabilityMatch[1]) as (EventFeedItem & AvailabilityPolicy) | null
+    if (!event) return { handled: true, ok: false, status: 404, message: 'Event not found' }
+    if (method === 'PATCH') {
+      if (!['coach', 'club-admin'].includes(session.scenario)) return { handled: true, ok: false, status: 403, message: 'Forbidden' }
+      const body = (options.body ?? {}) as { deadline?: string | null; locked?: boolean }
+      if (body.deadline !== undefined) event.rsvpDeadline = body.deadline
+      if (body.locked !== undefined) event.rsvpLocked = body.locked
+    }
+    return { handled: true, ok: true, status: 200, body: {
+      deadline: event.rsvpDeadline ?? null, locked: Boolean(event.rsvpLocked), closed: availabilityClosed(event),
+    } }
+  }
+
   // Parent feed: one row per (event, child), childRsvp read from the replies.
   if (method === 'GET' && pathname === '/me/children-events') {
     const rows = api.parentEvents.map((row) => {
@@ -3614,6 +3630,7 @@ function handleEventFlowRequest(
     if (event.cancelledAt) {
       return { handled: true, ok: false, status: 400, message: 'Cannot RSVP to a cancelled event' }
     }
+    if (availabilityClosed(event)) return { handled: true, ok: false, status: 409, code: 'RSVP_LOCKED', message: 'Availability is closed' }
     const body = (options.body ?? {}) as {
       status?: 'YES' | 'MAYBE' | 'NO'
       reason?: string
@@ -3768,7 +3785,7 @@ function handleEventFlowRequest(
 
 export function handleE2EApiRequest(
   path: string,
-  options: { method: string; body?: unknown },
+  options: { method: string; body?: unknown; headers?: Record<string, string> },
 ): E2EApiResponse {
   if (!isE2ESupported() || !currentSession) {
     return { handled: false }
@@ -3777,6 +3794,10 @@ export function handleE2EApiRequest(
   const pathname = path.split('?')[0]
   const method = options.method.toUpperCase()
   const query = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null
+  if ((pathname === '/me/export-bound' || pathname === '/me/bound') &&
+    options.headers?.['x-expected-actor-id'] !== currentSession.user.id) {
+    return { handled: true, ok: false, status: 403, message: 'Account changed' }
+  }
 
   // Wechselbörse revamp: trials, Gesuche, free agents, Aufnahmeantrag.
   const session = currentSession
@@ -3828,7 +3849,7 @@ export function handleE2EApiRequest(
   const onboardingResponse = handleOnboardingRequest(method, pathname, options.body)
   if (onboardingResponse) return onboardingResponse
 
-  if (method === 'GET' && pathname === '/me/export') {
+  if (method === 'GET' && (pathname === '/me/export' || pathname === '/me/export-bound')) {
     return {
       handled: true,
       ok: true,
@@ -3843,7 +3864,7 @@ export function handleE2EApiRequest(
     }
   }
 
-  if (method === 'DELETE' && pathname === '/me') {
+  if (method === 'DELETE' && (pathname === '/me' || pathname === '/me/bound')) {
     return { handled: true, ok: true, status: 204 }
   }
 

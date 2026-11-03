@@ -8,6 +8,8 @@ import { Avatar } from '../ui/Avatar'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { card, hairline, radius, space } from '../../theme/tokens'
 import { reasonLabel } from './eventFormat'
+import type { EventSquadMember } from '@anstoss/shared'
+import { CoachAttendancePanel } from './CoachAttendancePanel'
 
 type CheckInEntry = {
   userId: string
@@ -33,6 +35,7 @@ type AttendanceData = {
   rsvps: Array<RsvpEntry>
   checkIns: CheckInEntry[]
   noShows: NoShowEntry[]
+  missingCheckInsReady?: boolean
 }
 
 export type AttendanceSheetProps = {
@@ -48,6 +51,9 @@ export type AttendanceSheetProps = {
   /** Staff can load check-ins/no-shows. Players use the already-authorized
    * RSVP projection supplied by the event endpoint. */
   canManageAttendance?: boolean
+  members?: EventSquadMember[]
+  canRecordAttendance?: boolean
+  actorId?: string
 }
 
 export function AttendanceSheet({
@@ -58,6 +64,9 @@ export function AttendanceSheet({
   eventDate,
   rsvps: rsvpsProp,
   canManageAttendance = true,
+  members,
+  canRecordAttendance = false,
+  actorId,
 }: AttendanceSheetProps) {
   const { t } = useTranslation()
   const c = useClubColors()
@@ -100,6 +109,7 @@ export function AttendanceSheet({
             rsvps: result?.rsvps ?? [],
             checkIns: result?.checkIns ?? [],
             noShows: result?.noShows ?? [],
+            missingCheckInsReady: result?.missingCheckInsReady === true,
           })
         }
       })
@@ -169,6 +179,9 @@ export function AttendanceSheet({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {canManageAttendance && canRecordAttendance && eventEnded && members && actorId ? (
+            <CoachAttendancePanel key={`${actorId}:${clubId}:${eventId}`} clubId={clubId} eventId={eventId} actorId={actorId} members={members} />
+          ) : null}
           {/* RSVP responses — who's coming. The primary list, especially
               pre-match where there are no check-ins yet. */}
           {(['YES', 'MAYBE', 'NO'] as const).map((st) => {
@@ -281,8 +294,8 @@ export function AttendanceSheet({
           </>
           ) : null}
 
-          {/* No-Shows section — only after event ends */}
-          {canManageAttendance && eventEnded ? (
+          {/* Missing check-ins are not proof of absence. */}
+          {canManageAttendance && data?.missingCheckInsReady === true ? (
             <>
               <View style={[styles.sectionHeader, { marginTop: space.lg }]}>
                 <Icon name="xmark.circle.fill" size="sm" color="error" />

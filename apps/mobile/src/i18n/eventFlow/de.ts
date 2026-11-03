@@ -1,6 +1,15 @@
 // Events revamp (create, schedule, event detail, Kader, Fahrten). German is
 // the reference locale: every other eventFlow file mirrors these keys.
 export const eventFlowDe = {
+  availability: {
+    title: 'Verfügbarkeit', open: 'Antworten offen', closed: 'Antworten geschlossen',
+    closedHint: 'Melde dich beim Trainerteam, wenn sich deine Verfügbarkeit ändert.',
+    noDeadline: 'Keine Frist', deadlineValue: 'Antwortfrist: {{value}}',
+    lock: 'Antworten sperren', lockHint: 'Spieler und Erziehungsberechtigte können ihre Antworten nicht mehr ändern.',
+    chooseDeadline: 'Antwortfrist', deadlineHint: 'Antworten werden zu diesem Zeitpunkt geschlossen. Eine manuelle Sperre bleibt bis zum Ausschalten aktiv.',
+    hoursBefore: '{{count}} Stunden vor dem Termin', atStart: 'Zum Beginn des Termins',
+    saveFailed: 'Speichern konnte nicht bestätigt werden. Aktualisiere die Seite, um die aktuellen Einstellungen zu prüfen.',
+  },
   type: { TRAINING: 'Training', MATCH: 'Spiel', OTHER: 'Sonstiges' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: { home: 'Heimspiel gegen {{opponent}}', away: 'Auswärtsspiel bei {{opponent}}', neutral: 'Spiel gegen {{opponent}}' },
@@ -114,8 +123,11 @@ export const eventFlowDe = {
     empty: 'Noch hat niemand geantwortet.',
     remindOpen_one: 'Offene erinnern ({{count}})',
     remindOpen_other: 'Offene erinnern ({{count}})',
-    remindSent_one: 'Erinnerung an {{count}} Person gesendet',
-    remindSent_other: 'Erinnerung an {{count}} Personen gesendet',
+    remindSent_one: 'Erinnerung für {{count}} Person eingeplant',
+    remindSent_other: 'Erinnerungen für {{count}} Personen eingeplant',
+    remindNoneAccepted: 'Keine Push-Erinnerungen eingeplant. Benachrichtigungen können deaktiviert sein oder es ist kein Gerät registriert. Du kannst es erneut versuchen.',
+    remindUnconfirmed: 'Erinnerungsstatus unbestätigt',
+    remindUnconfirmedHint: 'Der Benachrichtigungsdienst hat nicht alle Erinnerungen bestätigt. Manche können noch ankommen. Erneutes Senden ist pausiert, um doppelte Nachrichten zu vermeiden.',
     remindCooldown: 'Heute schon erinnert',
     remindFailedTitle: 'Erinnerung nicht gesendet',
     remindFailedBody: 'Versuch es gleich noch mal.',

@@ -66,6 +66,18 @@ describe('api client', () => {
     )
   })
 
+  it('keeps the confirmed actor binding when token acquisition finishes after an account switch', async () => {
+    let finishToken!: (token: string) => void
+    setTokenGetter(() => new Promise((resolve) => { finishToken = resolve }))
+    mockFetch.mockResolvedValue({ ok: false, status: 403, statusText: 'Forbidden', text: async () => JSON.stringify({ message: 'Account changed' }) })
+    const request = api('/me/bound', { method: 'DELETE', headers: { 'x-expected-actor-id': 'account-a' } })
+    finishToken('token-for-account-b')
+    await expect(request).rejects.toThrow('Account changed')
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/me/bound'), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer token-for-account-b', 'x-expected-actor-id': 'account-a' }),
+    }))
+  })
+
   it('throws on non-ok responses', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

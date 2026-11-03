@@ -19,6 +19,8 @@ import type {
   UpdateChatRetentionSettingsInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { isDeepStrictEqual } from 'node:util'
+import type { Prisma } from '@prisma/client'
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ChatGateway } from './chat.gateway'
@@ -27,6 +29,10 @@ import { ChannelsService } from '../channels/channels.service'
 import { BillingService } from '../billing/billing.service'
 import { R2Provider } from '../assets/r2.provider'
 import { lockMediaObject } from '../assets/media-object-lock'
+import { adoptPrivateV1Upload, consumePrivateV1Upload } from '../media/private-v1-reservations'
+import { isPrivateUploadMarker, retireMessageUpload } from '../assets/private-upload-retirement'
+import { retireLegacyChatMedia } from '../assets/legacy-chat-media-retirement'
+import { isOwnedPrivateV1Key } from '../media/private-v1-owner'
 import {
   CHAT_UPLOAD_CONTENT_TYPES,
   CHAT_UPLOAD_MAX_BYTES,
@@ -66,6 +72,7 @@ export class ChatService {
     input: UpdateChatRetentionSettingsInput,
   ): Promise<ChatRetentionSettings> {
     const settings = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`chat-retention-settings:${clubId}`}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       await this.assertRetentionAdminAccess(userId, clubId, tx)
       const updated = await tx.clubChatRetentionSettings.upsert({
@@ -144,14 +151,15 @@ export class ChatService {
     channelId: string,
     teamId: string,
     clubId: string,
+    db: Pick<Prisma.TransactionClient, 'channel'> = this.prisma,
   ): Promise<void> {
-    const channel = await this.prisma.channel.findUnique({
+    const channel = await db.channel.findUnique({
       where: { id: channelId },
       select: { teamId: true, clubId: true },
     })
     if (!channel) throw new NotFoundException('Channel not found')
     const belongs =
-      channel.teamId === teamId || (channel.teamId === null && channel.clubId === clubId)
+      channel.clubId === clubId && (channel.teamId === teamId || channel.teamId === null)
     if (!belongs) {
       throw new ForbiddenException('Channel does not belong to this team')
     }
@@ -174,10 +182,12 @@ export class ChatService {
     if (this.r2) {
       const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
       const expectedPrefix = `chat/${access.team.clubId}/${input.teamId}/${input.messageType.toLowerCase()}/`
-      if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
+      const kind = uploadKindFor(input.messageType)
+      if (!objectKey || !objectKey.startsWith(expectedPrefix)
+        || !isOwnedPrivateV1Key(objectKey, { targetType: 'chat', clubId: access.team.clubId,
+          targetId: input.teamId, ownerId: userId, kind })) {
         throw new BadRequestException('Attachment does not belong to this team upload')
       }
-      const kind = uploadKindFor(input.messageType)
       try {
         await this.r2.assertStoredObject(objectKey, {
           maxBytes: CHAT_UPLOAD_MAX_BYTES[kind],
@@ -195,52 +205,102 @@ export class ChatService {
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     await this.assertReplyInChannel(input.replyToId, input.channelId)
-    const message = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${access.team.clubId}`}))`
       const activeUser = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } })
       if (!activeUser || activeUser.deletedAt) throw new ForbiddenException('Account unavailable')
       await this.teamsService.assertReadableAccess(userId, input.teamId)
       await this.channelsService.assertWritable(userId, input.channelId!)
+      await this.assertChannelInTeam(input.channelId!, input.teamId, access.team.clubId, tx)
       if (!this.r2?.enabled) throw new BadRequestException('Attachment storage is unavailable')
       const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
-      if (!objectKey) throw new BadRequestException('Invalid attachment')
+      const kind = uploadKindFor(input.messageType)
+      if (!objectKey || !isOwnedPrivateV1Key(objectKey, { targetType: 'chat', clubId: access.team.clubId,
+        targetId: input.teamId, ownerId: userId, kind })) throw new BadRequestException('Invalid attachment')
       await lockMediaObject(tx, objectKey)
-      if (await tx.accountMediaDeletion.findUnique({ where: { objectKey }, select: { objectKey: true } })) {
+      const reservation = await tx.accountMediaDeletion.findUnique({ where: { objectKey }, select: { uploadState: true } })
+      if (reservation && reservation.uploadState !== 'PENDING') {
         throw new BadRequestException('Attachment is being removed; upload it again')
       }
-      const kind = uploadKindFor(input.messageType)
+      const existing = await tx.message.findFirst({ where: { attachmentUrl: input.attachmentUrl },
+        select: { id: true, clubId: true, teamId: true, channelId: true, senderId: true, content: true,
+          messageType: true, attachmentMeta: true, replyToId: true, deletedAt: true } })
+      if (existing) {
+        if (existing.deletedAt || existing.clubId !== access.team.clubId || existing.teamId !== input.teamId
+          || existing.channelId !== input.channelId || existing.senderId !== userId || existing.messageType !== input.messageType
+          || existing.content !== (input.content ?? '') || (existing.replyToId ?? null) !== (input.replyToId ?? null)
+          || !isDeepStrictEqual(existing.attachmentMeta ?? null, input.attachmentMeta ?? null)) {
+          throw new BadRequestException('Attachment has already been used')
+        }
+        if (reservation) await adoptPrivateV1Upload(tx, userId, objectKey)
+        return { serialized: await this.serializeMessage(userId, existing.id, tx), replayed: true }
+      }
       try {
         await this.r2.assertStoredObject(objectKey, {
           maxBytes: CHAT_UPLOAD_MAX_BYTES[kind], allowedContentTypes: CHAT_UPLOAD_CONTENT_TYPES[kind],
         })
       } catch { throw new BadRequestException('Attachment upload is invalid or incomplete') }
-      return tx.message.create({
-      data: {
-        teamId: input.teamId,
-        clubId: access.team.clubId,
-        channelId: input.channelId,
-        senderId: userId,
-        content: input.content ?? '',
-        messageType: input.messageType,
-        attachmentUrl: input.attachmentUrl,
-        attachmentMeta: (input.attachmentMeta as never) ?? undefined,
-        replyToId: input.replyToId,
-      },
+      await consumePrivateV1Upload(tx, userId, objectKey)
+      const message = await tx.message.create({
+        data: {
+          teamId: input.teamId,
+          clubId: access.team.clubId,
+          channelId: input.channelId,
+          senderId: userId,
+          content: input.content ?? '',
+          messageType: input.messageType,
+          attachmentUrl: input.attachmentUrl,
+          attachmentMeta: (input.attachmentMeta as never) ?? undefined,
+          replyToId: input.replyToId,
+        },
       })
+      // Prepare the response before commit: a failed read/serialization must
+      // roll back the insert rather than report an already-saved message failed.
+      return { serialized: await this.serializeMessage(userId, message.id, tx), replayed: false }
     }, { timeout: 45_000 })
-    const serialized = await this.serializeMessage(userId, message.id)
-    this.gateway.broadcastChatEvent(
-      input.teamId,
-      {
-        kind: 'media',
-        message: serialized,
-        messageId: message.id,
-      },
-      input.channelId ?? null,
-    )
-    void this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null)
+    const { serialized, replayed } = result
+    if (replayed) {
+      // A lost response may also have coincided with a lost realtime event.
+      // Replaying by message ID repairs connected threads without buzzing
+      // recipients twice; clients deduplicate the saved message by ID.
+      try {
+        this.gateway.broadcastChatEvent(input.teamId,
+          { kind: 'media-recovered', message: serialized, messageId: serialized.id }, input.channelId ?? null)
+      } catch { this.logger.warn('Media replay realtime broadcast failed') }
+      void Promise.resolve()
+        .then(() => this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null))
+        .catch(() => this.logger.warn('Media replay inbox update failed'))
+      return serialized
+    }
+    try {
+      this.gateway.broadcastChatEvent(
+        input.teamId,
+        {
+          kind: 'media',
+          message: serialized,
+          messageId: serialized.id,
+        },
+        input.channelId ?? null,
+      )
+    } catch {
+      this.logger.warn('Media message realtime broadcast failed after persistence')
+    }
+    void Promise.resolve()
+      .then(() => this.gateway.emitInboxUpdateForChannel?.(input.channelId ?? null))
+      .catch(() => this.logger.warn('Media message inbox update failed after persistence'))
 
+    void this.notifyMediaMessage(userId, access.team.clubId, serialized.id, input)
+      .catch(() => this.logger.warn('Media message notification failed after persistence'))
+    return serialized
+  }
+
+  private async notifyMediaMessage(
+    userId: string,
+    clubId: string,
+    messageId: string,
+    input: Parameters<ChatService['postMedia']>[1],
+  ): Promise<void> {
     // Push fan-out: media posts skipped the gateway-level notify path,
     // so for parity with text messages we dispatch (a) a reply push
     // when replyToId targets someone else, and (b) a team push so
@@ -251,7 +311,6 @@ export class ChatService {
       select: { name: true },
     })
     const senderName = sender?.name ?? ''
-    const clubId = access.team.clubId
     const channelId = input.channelId as string
     const caption = input.content?.trim() || null
 
@@ -267,7 +326,7 @@ export class ChatService {
 
     // Channel-scoped fan-out: only readers of the channel, minus anyone who
     // muted it. L3: the legacy team-wide push for channel-less posts is gone.
-    this.channelsService
+    await this.channelsService
       .listChannelReaderIds(input.teamId, channelId, { excludeMuted: true })
       .then((readerIds) =>
         Promise.all(
@@ -278,7 +337,7 @@ export class ChatService {
               const data = {
                 kind: isReply ? 'MESSAGE_REPLY' : 'MEDIA_MESSAGE',
                 clubId,
-                messageId: message.id,
+                messageId,
                 teamId: input.teamId,
                 channelId,
               }
@@ -300,9 +359,6 @@ export class ChatService {
             }),
         ),
       )
-      .catch(() => undefined)
-
-    return serialized
   }
 
   /** L5: a reply must quote a message of the same channel. */
@@ -317,16 +373,49 @@ export class ChatService {
 
   private isTeamManager(access: {
     membership?: { role?: string | null } | null
-    activeTeamAccess: Array<{ role?: string | null }>
+    activeTeamAccess: Array<{ role?: string | null; phase?: string | null }>
   }): boolean {
     return (
       access.membership?.role === 'OWNER' ||
       access.membership?.role === 'ADMIN' ||
-      access.membership?.role === 'COACH' ||
       access.activeTeamAccess.some(
-        (e) => e.role === 'HEAD_COACH' || e.role === 'ASSISTANT_COACH',
+        (e) =>
+          e.phase === 'FULL' &&
+          (e.role === 'HEAD_COACH' || e.role === 'ASSISTANT_COACH'),
       )
     )
+  }
+
+  private async lockTeamManagerMutation(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    teamId: string,
+    expectedClubId: string,
+  ) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${expectedClubId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${teamId}`}))`
+    const activeUser = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } })
+    if (!activeUser || activeUser.deletedAt) throw new ForbiddenException('Account unavailable')
+    const access = await this.teamsService.assertReadableAccess(userId, teamId)
+    if (access.team.clubId !== expectedClubId || !this.isTeamManager(access)) {
+      throw new ForbiddenException('Only coaches and admins can perform this action')
+    }
+    return access
+  }
+
+  /** Hold the concrete channel scope/member rows through the mutation.
+   * Explicit member removal and stale-member purge use DELETE and therefore
+   * wait behind these row locks; if removal won first, the access recheck sees
+   * the missing membership and refuses the write.
+   */
+  private async lockChannelAuthorization(
+    tx: Prisma.TransactionClient,
+    channelId: string,
+    userId: string,
+  ) {
+    await tx.$queryRaw`SELECT "id" FROM "Channel" WHERE "id" = ${channelId} FOR SHARE`
+    await tx.$queryRaw`SELECT "id" FROM "ChannelMember" WHERE "channelId" = ${channelId} AND "userId" = ${userId} FOR SHARE`
   }
 
   async postPoll(
@@ -398,33 +487,34 @@ export class ChatService {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
-    // Sharing an event into chat is a manager action, like posting a lineup;
-    // the composer hides it from players and the API must agree.
-    if (!this.isTeamManager(access)) {
-      throw new ForbiddenException('Only coaches and admins can share events')
-    }
-    const event = await this.prisma.event.findFirst({
-      where: { id: input.eventId, teamId: input.teamId },
-    })
-    if (!event) throw new NotFoundException('Event not found')
+    const message = await this.prisma.$transaction(async (tx) => {
+      await this.lockTeamManagerMutation(tx, userId, input.teamId, access.team.clubId)
+      await this.lockChannelAuthorization(tx, input.channelId!, userId)
+      await this.channelsService.assertWritable(userId, input.channelId!)
+      await this.assertChannelInTeam(input.channelId!, input.teamId, access.team.clubId, tx)
+      const event = await tx.event.findFirst({
+        where: { id: input.eventId, teamId: input.teamId, clubId: access.team.clubId },
+      })
+      if (!event) throw new NotFoundException('Event not found')
 
-    // The card carries enough to render without a second request: the
-    // client only fetches the event for the reader's own answer.
-    const message = await this.prisma.message.create({
-      data: {
-        teamId: input.teamId,
-        clubId: access.team.clubId,
-        channelId: input.channelId,
-        senderId: userId,
-        content: event.title,
-        messageType: 'RSVP_POLL',
-        attachmentMeta: {
-          eventId: input.eventId,
-          eventDate: event.date.toISOString(),
-          eventType: event.type,
-          location: event.location ?? null,
-        } as any,
-      },
+      // The card carries enough to render without a second request: the
+      // client only fetches the event for the reader's own answer.
+      return tx.message.create({
+        data: {
+          teamId: input.teamId,
+          clubId: access.team.clubId,
+          channelId: input.channelId,
+          senderId: userId,
+          content: event.title,
+          messageType: 'RSVP_POLL',
+          attachmentMeta: {
+            eventId: input.eventId,
+            eventDate: event.date.toISOString(),
+            eventType: event.type,
+            location: event.location ?? null,
+          } as any,
+        },
+      })
     })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
@@ -452,35 +542,33 @@ export class ChatService {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
-    const isCoach = this.isTeamManager(access)
-    if (!isCoach) {
-      throw new ForbiddenException('Only coaches can post lineups')
-    }
-
-    // Premium gate: lineup builder is part of the 'lineup_builder_pro'
-    // feature on the Plus plan (see apps/web/src/index.html pricing).
-    // Without this gate the mobile paywall is decoration — anyone could
-    // call the API directly.
-    const entitlements = await this.billingService.getEntitlements(access.team.clubId)
-    if (!entitlements.features.includes('lineup_builder_pro')) {
-      throw new ForbiddenException("Lineup builder requires the club's premium plan")
-    }
-
-    const message = await this.prisma.message.create({
-      data: {
-        teamId: input.teamId,
-        clubId: access.team.clubId,
-        channelId: input.channelId,
-        senderId: userId,
-        content: input.xi,
-        messageType: 'LINEUP',
-        isAnnouncement: true,
-        isPinned: true,
-        attachmentMeta: {
-          ...(input.fixtureId ? { fixtureId: input.fixtureId } : {}),
-          formation: input.formation,
-        } as any,
-      },
+    const message = await this.prisma.$transaction(async (tx) => {
+      await this.lockTeamManagerMutation(tx, userId, input.teamId, access.team.clubId)
+      await this.lockChannelAuthorization(tx, input.channelId!, userId)
+      await this.channelsService.assertWritable(userId, input.channelId!)
+      await this.assertChannelInTeam(input.channelId!, input.teamId, access.team.clubId, tx)
+      // Premium gate follows the locked authorization recheck so an
+      // unauthorized caller cannot use error differences to probe the plan.
+      const entitlements = await this.billingService.getEntitlements(access.team.clubId)
+      if (!entitlements.features.includes('lineup_builder_pro')) {
+        throw new ForbiddenException("Lineup builder requires the club's premium plan")
+      }
+      return tx.message.create({
+        data: {
+          teamId: input.teamId,
+          clubId: access.team.clubId,
+          channelId: input.channelId,
+          senderId: userId,
+          content: input.xi,
+          messageType: 'LINEUP',
+          isAnnouncement: true,
+          isPinned: true,
+          attachmentMeta: {
+            ...(input.fixtureId ? { fixtureId: input.fixtureId } : {}),
+            formation: input.formation,
+          } as any,
+        },
+      })
     })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
@@ -775,19 +863,71 @@ export class ChatService {
 
   async deleteMessage(userId: string, messageId: string): Promise<ChatMessage> {
     const message = await this.loadAccessibleMessage(userId, messageId)
-    const isCoach = await this.userIsTeamCoach(userId, message.teamId)
-    if (message.senderId !== userId && !isCoach) {
-      throw new ForbiddenException('Only the sender or a coach can delete')
-    }
 
-    await this.prisma.message.update({
-      where: { id: messageId },
-      data: {
-        deletedAt: new Date(),
-        content: '',
-        attachmentUrl: null,
-        attachmentMeta: null as never,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Serialize with account deletion, membership/offboarding and coach
+      // assignment changes, then re-read the message and authorization. The
+      // initial read supplies lock keys only and never authorizes the write.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${message.clubId}`}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${message.teamId}`}))`
+      if (message.channelId) await this.lockChannelAuthorization(tx, message.channelId, userId)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`chat-message:${messageId}`}))`
+      const [activeUser, current] = await Promise.all([
+        tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } }),
+        tx.message.findUnique({ where: { id: messageId } }),
+      ])
+      if (!activeUser || activeUser.deletedAt) throw new ForbiddenException('Account unavailable')
+      if (
+        !current ||
+        current.clubId !== message.clubId ||
+        current.teamId !== message.teamId ||
+        current.channelId !== message.channelId
+      ) {
+        throw new ForbiddenException('Message is no longer available')
+      }
+      let canModerate: boolean
+      if (current.channelId) {
+        const access = await this.channelsService.getChannelAccess(userId, current.channelId)
+        if (!access.canRead || access.channel.clubId !== current.clubId) {
+          throw new ForbiddenException('Forbidden for this channel')
+        }
+        if (access.channel.teamId !== null && access.channel.teamId !== current.teamId) {
+          throw new ForbiddenException('Message channel scope is inconsistent')
+        }
+        // The actual channel decides moderation authority. Club-wide messages
+        // retain a teamId storage anchor; a coach of that arbitrary team must
+        // not gain club-wide deletion power through it.
+        canModerate = access.isManager === true
+      } else {
+        await this.teamsService.assertReadableAccess(userId, current.teamId)
+        canModerate = await this.userIsTeamCoach(userId, current.teamId, tx)
+      }
+      if (current.senderId !== userId && !canModerate) {
+        throw new ForbiddenException('Only the sender or a coach can delete')
+      }
+      const retired = await retireMessageUpload(tx, {
+        clubId: current.clubId,
+        messageId,
+        targetType: 'CHANNEL',
+        targetId: current.channelId,
+      })
+      if (isPrivateUploadMarker(current.attachmentUrl) && !retired) {
+        throw new Error('Private upload message binding is unavailable')
+      }
+      await retireLegacyChatMedia(tx, this.r2, current.attachmentUrl, {
+        kind: 'chat', clubId: current.clubId, targetId: current.teamId,
+        senderId: current.senderId, messageType: current.messageType,
+      })
+      await tx.message.update({
+        where: { id: messageId },
+        data: {
+          deletedAt: new Date(),
+          content: '',
+          attachmentUrl: null,
+          attachmentMeta: null as never,
+        },
+      })
     })
 
     const updated = await this.serializeMessage(userId, messageId)
@@ -830,8 +970,12 @@ export class ChatService {
     return this.channelsService.markChannelRead(userId, channelId)
   }
 
-  async serializeMessage(userId: string, messageId: string): Promise<ChatMessage> {
-    const m: any = await this.prisma.message.findUniqueOrThrow({
+  async serializeMessage(
+    userId: string,
+    messageId: string,
+    db: Pick<Prisma.TransactionClient, 'message'> = this.prisma,
+  ): Promise<ChatMessage> {
+    const m: any = await db.message.findUniqueOrThrow({
       where: { id: messageId },
       include: {
         sender: { select: { id: true, name: true, avatarUrl: true } },
@@ -923,9 +1067,13 @@ export class ChatService {
     return message
   }
 
-  private async userIsTeamCoach(userId: string, teamId: string): Promise<boolean> {
-    const access = await this.prisma.teamAccess.findFirst({
-      where: { userId, teamId, ...activeTeamAccessWhere() },
+  private async userIsTeamCoach(
+    userId: string,
+    teamId: string,
+    db: Pick<Prisma.TransactionClient, 'teamAccess'> = this.prisma,
+  ): Promise<boolean> {
+    const access = await db.teamAccess.findFirst({
+      where: { userId, teamId, phase: 'FULL', ...activeTeamAccessWhere() },
     })
     if (!access) return false
     return access.role === 'HEAD_COACH' || access.role === 'ASSISTANT_COACH'

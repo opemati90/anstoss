@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import {
@@ -8,6 +10,7 @@ import {
 } from '@anstoss/shared'
 import { AUTH_IDENTITY_PROVIDER_CLERK, hashAuthSubject } from '../auth/auth-identity-tombstone'
 import { UsersService } from './users.service'
+import { getClubId, tenantContext } from '../prisma/tenant.context'
 
 describe('UsersService.searchClubMemberDirectory', () => {
   function createDirectoryService() {
@@ -423,6 +426,7 @@ describe('UsersService.getChildrenEvents', () => {
 
     const call = prisma.event.findMany.mock.calls[0][0]
     expect(call.where.teamId.in).toEqual(['team-1'])
+    expect(call.where.archivedAt).toBeNull()
   })
 
   it('passes dateFrom and dateTo filters to event query', async () => {
@@ -534,7 +538,12 @@ describe('UsersService.deleteAccount', () => {
     const tx = {
       $queryRaw: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(0),
-      accountMediaDeletion: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      accountMediaDeletion: { createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      privateMediaUpload: {
+        findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       teamMember: { deleteMany: deleteMany() },
@@ -553,6 +562,9 @@ describe('UsersService.deleteAccount', () => {
       userBlock: { deleteMany: deleteMany() },
       pollVote: { deleteMany: deleteMany() },
       rsvp: { deleteMany: deleteMany() },
+      coachAttendance: { deleteMany: deleteMany(), updateMany: updateMany() },
+      coachAttendanceChange: { deleteMany: deleteMany(), updateMany: updateMany() },
+      coachAttendanceRejection: { deleteMany: deleteMany() },
       // Privacy (M4): future team activity is detached on consent withdrawal.
       event: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
       fixtureOverlay: { updateMany: updateMany() },
@@ -582,8 +594,9 @@ describe('UsersService.deleteAccount', () => {
       rosterSlot: { updateMany: updateMany() },
       injuryReport: { deleteMany: deleteMany() },
       teamDutyAssignment: { deleteMany: deleteMany() },
-      trialInvite: { deleteMany: deleteMany() },
+      trialInvite: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       user: {
+        findUnique: jest.fn(),
         updateMany: updateMany(),
         update: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
@@ -628,8 +641,8 @@ describe('UsersService.deleteAccount', () => {
       freeAgentMedia: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
     }
-
     const events = { emit: jest.fn() }
+    tx.user.findUnique.mockImplementation(() => prisma.user.findUnique())
     const service = new UsersService(
       prisma as never,
       {} as never,
@@ -642,6 +655,20 @@ describe('UsersService.deleteAccount', () => {
 
     return { prisma, tx, service, events }
   }
+
+  it('transfers abandoned upload reservations to anonymous durable cleanup during account erasure', async () => {
+    const { tx, service } = createService()
+    tx.accountMediaDeletion.findMany.mockResolvedValue([{ objectKey: 'chat/test/pending.png' }])
+    await service.deleteAccount('user-1')
+    expect(tx.accountMediaDeletion.updateMany).toHaveBeenCalledWith({
+      where: { objectKey: 'chat/test/pending.png', uploadOwnerId: 'user-1', uploadState: 'PENDING' },
+      data: { uploadOwnerId: null, uploadRequestId: null, uploadFingerprint: null, uploadExpiresAt: null,
+        uploadState: null, uploadMessageId: null, availableAt: expect.any(Date) },
+    })
+    const objectLock = tx.$executeRaw.mock.calls.findIndex((call: any[]) => call.includes('media-object:chat/test/pending.png'))
+    expect(objectLock).toBeGreaterThanOrEqual(0)
+    expect(tx.$executeRaw.mock.invocationCallOrder[objectLock]).toBeLessThan(tx.accountMediaDeletion.updateMany.mock.invocationCallOrder[0])
+  })
 
   // Privacy: deleting a guardian must not leave a child's consent APPROVED
   // (external audit 2026-09-24).
@@ -819,6 +846,10 @@ describe('UsersService.deleteAccount', () => {
     const { tx, service, events } = createService()
 
     await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+    expect(tx.coachAttendance.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } })
+    expect(tx.coachAttendanceChange.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } })
+    expect(tx.coachAttendance.updateMany).toHaveBeenCalledWith({ where: { actorId: 'user-1' }, data: { actorId: null } })
+    expect(tx.coachAttendanceChange.updateMany).toHaveBeenCalledWith({ where: { actorId: 'user-1' }, data: { actorId: null } })
     expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', { userId: 'user-1' })
     expect(events.emit.mock.invocationCallOrder[0]).toBeGreaterThan(tx.user.update.mock.invocationCallOrder[0])
 
@@ -911,6 +942,78 @@ describe('UsersService.deleteAccount', () => {
     expect(tx.teamAccess.deleteMany).toHaveBeenCalledTimes(2)
   })
 
+  it('cancels bound and unpublished uploads across former clubs before anonymizing a self-account', async () => {
+    const { tx, service } = createService()
+    const uploads = [
+      { id: 'upload-a', clubId: 'former-club', ownerId: 'user-1', targetId: 'conversation', targetType: 'DM',
+        messageId: 'old-direct-message', state: 'ATTACHED', cancelRequestedAt: null, operationId: null },
+      { id: 'upload-b', clubId: 'deleted-club', ownerId: 'user-1', targetId: 'channel', targetType: 'CHANNEL',
+        messageId: null, state: 'FINALIZING', cancelRequestedAt: null, operationId: 'provider-pending' },
+    ]
+    tx.privateMediaUpload.findMany.mockImplementation(async () => {
+      expect(getClubId()).toBeUndefined()
+      return uploads as never
+    })
+    tx.privateMediaUpload.findFirst.mockImplementation(async ({ where }: any) => {
+      expect(getClubId()).toBe(where.clubId)
+      return uploads.find((upload) => upload.id === where.id) as never
+    })
+    tx.privateMediaUpload.updateMany.mockImplementation(async ({ where, data }: any) => {
+      expect(getClubId()).toBe(where.clubId)
+      expect(data.state).toBeUndefined()
+      return { count: 1 }
+    })
+    await tenantContext.run({ clubId: 'selected-club', userId: 'user-1' }, async () => {
+      await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+      expect(getClubId()).toBe('selected-club')
+    })
+    expect(tx.privateMediaUpload.updateMany).toHaveBeenCalledTimes(2)
+    expect(tx.privateMediaUpload.updateMany.mock.invocationCallOrder[1]).toBeLessThan(tx.user.update.mock.invocationCallOrder[0])
+    const locks = tx.$executeRaw.mock.calls.map((call: any[]) => call[1])
+    expect(locks).toContain('owner:former-club')
+    expect(locks).toContain('owner:deleted-club')
+    expect(locks.indexOf('dm-message:old-direct-message')).toBeLessThan(locks.indexOf('private-upload:upload-a'))
+    expect(tx.teamAccess.deleteMany).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not anonymize or remove message references when private cancellation cannot be persisted', async () => {
+    const { tx, service, events } = createService()
+    const upload = { id: 'upload', clubId: 'former-club', ownerId: 'user-1', targetId: 'channel', targetType: 'CHANNEL',
+      messageId: null, state: 'INITIATING', operationId: 'pending', cancelRequestedAt: null }
+    tx.privateMediaUpload.findMany.mockResolvedValue([upload] as never)
+    tx.privateMediaUpload.findFirst.mockResolvedValue(upload as never)
+    tx.privateMediaUpload.updateMany.mockResolvedValue({ count: 0 })
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Private upload cleanup could not be scheduled safely')
+    expect(tx.user.update).not.toHaveBeenCalled()
+    expect(tx.message.updateMany).not.toHaveBeenCalled()
+    expect(tx.directMessage.updateMany).not.toHaveBeenCalled()
+    expect(events.emit).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a v2 attachment has no matching owner/target ledger binding', async () => {
+    const { tx, service } = createService()
+    const row = { id: 'message', clubId: 'club-1', teamId: 'team-1', channelId: 'channel',
+      attachmentUrl: 'https://private-media.anstoss.invalid/private-chat/v2/upload' }
+    tx.message.findMany.mockResolvedValueOnce([{ id: row.id }]).mockResolvedValue([row])
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Private chat media needs support review')
+    expect(tx.message.updateMany).not.toHaveBeenCalled()
+    expect(tx.user.update).not.toHaveBeenCalled()
+  })
+
+  it('allows erasure of a v2 message only with its exact owner and target ledger binding', async () => {
+    const { tx, service } = createService()
+    const upload = { id: 'upload', clubId: 'club-1', ownerId: 'user-1', targetId: 'channel', targetType: 'CHANNEL',
+      messageId: 'message', objectKey: 'private-chat/v2/upload', state: 'ATTACHED', cancelRequestedAt: null, operationId: null }
+    tx.privateMediaUpload.findMany.mockResolvedValue([upload] as never)
+    tx.privateMediaUpload.findFirst.mockResolvedValue(upload as never)
+    const row = { id: 'message', clubId: 'club-1', teamId: 'team-1', channelId: 'channel',
+      attachmentUrl: 'https://private-media.anstoss.invalid/private-chat/v2/upload' }
+    tx.message.findMany.mockResolvedValueOnce([{ id: row.id }]).mockResolvedValue([row])
+    await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+    expect(tx.privateMediaUpload.updateMany).toHaveBeenCalled()
+    expect(tx.user.update).toHaveBeenCalled()
+  })
+
   it('tombstones legacy Clerk subjects during deletion', async () => {
     const { prisma, tx, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
@@ -934,7 +1037,73 @@ describe('UsersService.deleteAccount', () => {
     )
   })
 
-  it('enqueues channel, DM and profile media atomically without calling storage', async () => {
+  it('re-reads the final avatar under the lifecycle lock instead of erasing only the preflight avatar', async () => {
+    const { prisma, tx, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'player@example.com', clerkId: null,
+      avatarUrl: 'https://assets.example/users/user-1/avatar/old.png', freeAgentProfile: null })
+    tx.user.findUnique.mockResolvedValue({ avatarUrl: 'https://assets.example/users/user-1/avatar/new.png' })
+    jest.spyOn(service as any, 'collectDeletionObjectKeys').mockImplementation(async (input: any) => {
+      expect(input.avatarUrl).toBe('https://assets.example/users/user-1/avatar/new.png')
+      return ['users/user-1/avatar/new.png']
+    })
+    await service.deleteAccount('user-1')
+    expect(tx.user.findUnique.mock.invocationCallOrder[0]).toBeGreaterThan(tx.$executeRaw.mock.invocationCallOrder[1])
+    expect(tx.accountMediaDeletion.createMany).toHaveBeenCalledWith({ data: [{ objectKey: 'users/user-1/avatar/new.png' }], skipDuplicates: true })
+  })
+
+  it('does not erase an owned avatar reference when storage configuration cannot resolve it', async () => {
+    const { tx, service } = createService()
+    tx.user.findUnique.mockResolvedValue({ avatarUrl: 'https://assets.example/users/user-1/avatar/new.png', freeAgentProfile: null })
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Media cleanup cannot be scheduled safely')
+    expect(tx.user.update).not.toHaveBeenCalled()
+    expect(tx.accountMediaDeletion.createMany).not.toHaveBeenCalled()
+  })
+
+  it('does not enqueue a foreign legacy avatar URL when storage is unconfigured', async () => {
+    const { tx, service } = createService()
+    tx.user.findUnique.mockResolvedValue({ avatarUrl: 'https://external.invalid/users/another/avatar.png', freeAgentProfile: null })
+    await expect(service.deleteAccount('user-1')).resolves.toEqual({ success: true })
+    expect(tx.accountMediaDeletion.createMany).not.toHaveBeenCalled()
+  })
+
+  it('does not clear an unresolved private-v1 message attachment without a cleanup intent', async () => {
+    const { tx, service } = createService()
+    tx.message.findMany.mockResolvedValueOnce([{ id: 'message' }])
+      .mockResolvedValue([{ clubId: 'club', teamId: 'team', attachmentUrl: 'https://private-media.anstoss.invalid/chat/club/team/image/private-v1-file.png' }])
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Media cleanup cannot be scheduled safely')
+    expect(tx.message.updateMany).not.toHaveBeenCalled()
+    expect(tx.user.update).not.toHaveBeenCalled()
+  })
+
+  it('erases a free-agent profile created after preflight and includes its trial clubs', async () => {
+    const { prisma, tx, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'player@example.com', clerkId: null,
+      avatarUrl: null, freeAgentProfile: null })
+    tx.user.findUnique.mockResolvedValue({ avatarUrl: null, freeAgentProfile: { id: 'new-profile' } })
+    tx.trialInvite.findMany.mockResolvedValue([{ clubId: 'new-trial-club' }])
+    jest.spyOn(service as any, 'collectDeletionObjectKeys').mockImplementation(async (input: any) => {
+      expect(input.freeAgentProfileId).toBe('new-profile')
+      return ['users/user-1/free-agent/new.png']
+    })
+    await service.deleteAccount('user-1')
+    expect(tx.$executeRaw.mock.calls.map((call: any[]) => call[1])).toContain('owner:new-trial-club')
+    expect(tx.trialInvite.deleteMany).toHaveBeenCalledWith({ where: { freeAgentProfileId: 'new-profile' } })
+    expect(tx.freeAgentMedia.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'new-profile' } })
+    expect(tx.freeAgentProfile.delete).toHaveBeenCalledWith({ where: { id: 'new-profile' } })
+    expect(tx.accountMediaDeletion.createMany).toHaveBeenCalledWith({
+      data: [{ objectKey: 'users/user-1/free-agent/new.png' }], skipDuplicates: true,
+    })
+  })
+
+  it('does not act on a free-agent profile removed before the erasure lock', async () => {
+    const { tx, service } = createService()
+    tx.user.findUnique.mockResolvedValue({ avatarUrl: null, freeAgentProfile: null })
+    await service.deleteAccount('user-1')
+    expect(tx.freeAgentProfile.delete).not.toHaveBeenCalled()
+    expect(tx.freeAgentMedia.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('enqueues owned profile and member-scoped compliance media atomically without calling storage', async () => {
     const { prisma, tx, service } = createService()
     const r2 = {
       objectKeyFromUrl: jest.fn((url: string) =>
@@ -952,43 +1121,69 @@ describe('UsersService.deleteAccount', () => {
       avatarUrl: 'https://assets.example/users/user-1/avatar.png',
       freeAgentProfile: { id: 'profile-1' },
     })
-    tx.message.findMany.mockResolvedValueOnce([{ id: 'channel-message' }]).mockResolvedValue([{ attachmentUrl: 'https://assets.example/chat/club-1/file.png' }])
-    tx.directMessage.findMany.mockResolvedValueOnce([{ id: 'direct-message' }]).mockResolvedValue([{ attachmentUrl: 'https://assets.example/dm/conversation/file.png' }])
+    tx.message.findMany.mockResolvedValue([])
+    tx.directMessage.findMany.mockResolvedValue([])
     tx.freeAgentMedia.findMany.mockResolvedValue([
       {
         url: 'https://assets.example/users/user-1/free-agent/photo.png',
         thumbnailUrl: null,
       },
     ])
-    tx.complianceRecord.findMany.mockResolvedValue([{ documentUrl: 'https://assets.example/compliance/club-1/private.pdf' }])
+    tx.complianceRecord.findMany.mockResolvedValue([{ clubId: 'club-1', documentUrl: 'https://assets.example/compliance/club-1/user-1/private.pdf' }])
 
     await service.deleteAccount('user-1')
 
     expect(tx.accountMediaDeletion.createMany).toHaveBeenCalledWith({ data: [
       'users/user-1/avatar.png',
-      'chat/club-1/file.png',
-      'dm/conversation/file.png',
       'users/user-1/free-agent/photo.png',
-      'compliance/club-1/private.pdf',
+      'compliance/club-1/user-1/private.pdf',
     ].map((objectKey) => ({ objectKey })), skipDuplicates: true })
     expect(r2.deleteObjects).not.toHaveBeenCalled()
     expect(tx.message.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ reports: { none: { evidencePurgedAt: null } } }),
+      where: { senderId: 'user-1', attachmentUrl: { not: null } },
     }))
     expect(tx.directMessage.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ reports: { none: { evidencePurgedAt: null } } }),
+      where: { senderId: 'user-1', attachmentUrl: { not: null } },
     }))
+  })
+
+  it.each(['channel', 'dm'] as const)('fails closed for ambiguous legacy %s attachments, including foreign keys', async (kind) => {
+    const { tx, service } = createService()
+    ;(service as any).r2 = { objectKeyFromUrl: (url: string) => url.replace('https://assets.example/', '') }
+    const foreignUrl = 'https://assets.example/users/another/avatar.png'
+    if (kind === 'channel') {
+      tx.message.findMany.mockResolvedValueOnce([{ id: 'm' }])
+        .mockResolvedValue([{ clubId: 'club-1', teamId: 'team-1', attachmentUrl: foreignUrl }])
+    } else {
+      tx.directMessage.findMany.mockResolvedValueOnce([{ id: 'm' }])
+        .mockResolvedValue([{ conversationId: 'conversation', conversation: { clubId: 'club-1' }, attachmentUrl: foreignUrl }])
+    }
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Legacy chat media needs support review')
+    expect(tx.accountMediaDeletion.createMany).not.toHaveBeenCalled()
+    expect(tx.user.update).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for a compliance document without a member-scoped key', async () => {
+    const { tx, service } = createService()
+    ;(service as any).r2 = { objectKeyFromUrl: (url: string) => url.replace('https://assets.example/', '') }
+    tx.complianceRecord.findMany.mockResolvedValue([{ clubId: 'club-1', documentUrl: 'https://assets.example/users/another/avatar.png' }])
+    await expect(service.deleteAccount('user-1')).rejects.toThrow('Legacy compliance media needs support review')
+    expect(tx.accountMediaDeletion.createMany).not.toHaveBeenCalled()
+    expect(tx.user.update).not.toHaveBeenCalled()
   })
 })
 
 describe('UsersService.completeOnboarding', () => {
   function createService() {
     const prisma = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      $transaction: jest.fn(),
       user: {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
     }
+    prisma.$transaction.mockImplementation(async (operation) => operation(prisma))
     const teamsService = {} as any
     const clubsService = { createClubWithTeam: jest.fn() }
     const invitesService = {
@@ -1044,7 +1239,7 @@ describe('UsersService.completeOnboarding', () => {
 
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'user-1' },
+        where: { id: 'user-1', deletedAt: null },
         data: expect.objectContaining({
           name: 'Max Mustermann',
           avatarUrl: 'https://example.com/avatar.png',

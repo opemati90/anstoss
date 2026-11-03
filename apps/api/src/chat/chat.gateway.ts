@@ -95,6 +95,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         | 'edited'
         | 'deleted'
         | 'media'
+        | 'media-recovered'
         | 'poll'
         | 'rsvp-poll'
         | 'lineup'
@@ -424,14 +425,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     channelId: string
   }) {
     if (!this.server) return
-    const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
-    if (sockets.length === 0) return
-    const rooms = [`channel:${payload.channelId}`]
-    if (payload.teamId) {
-      rooms.push(`team:${payload.teamId}:channel:${payload.channelId}`)
-    }
-    for (const socket of sockets) {
-      for (const room of rooms) socket.join(room)
+    try {
+      if (await this.isChatDisabled()) return
+      const before = await this.channelsService.getChannelAccess(payload.userId, payload.channelId)
+      if (!before.canRead || !before.channel) return
+      const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
+      if (sockets.length === 0) return
+      // Redis socket discovery can be delayed. An old add event is not an
+      // authorization grant: re-read after that await and use canonical scope.
+      const current = await this.channelsService.getChannelAccess(payload.userId, payload.channelId)
+      if (!current.canRead || !current.channel || current.channel.clubId !== before.channel.clubId) return
+      if (this.ageGate && !await this.ageGate.isAllowed(payload.userId, {
+        clubId: current.channel.clubId, teamId: current.channel.teamId,
+      })) return
+      const rooms = [`channel:${current.channel.id}`]
+      if (current.channel.teamId) rooms.push(`team:${current.channel.teamId}:channel:${current.channel.id}`)
+      for (const socket of sockets) {
+        if (socket.data?.userId !== payload.userId) continue
+        for (const room of rooms) await socket.join(room)
+      }
+    } catch {
+      // Lifecycle delivery is best effort; a reconnect performs fresh checks.
+      this.logger.warn('Channel membership autojoin skipped; authorization unavailable')
     }
   }
 
@@ -1212,6 +1227,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     await this.fanOutDirectMessage(payload)
   }
 
+  /** Reconnect a saved DM after a lost response without repeating its push. */
+  @OnEvent('dm.message.recovered')
+  async onDirectMessageRecovered(payload: { message: DirectMessageItem; clientMessageId?: string | null }) {
+    await this.fanOutDirectMessage(payload, false)
+  }
+
   /** Reaction / delete on a DM: patch both participants' open threads. */
   @OnEvent('dm.message.updated')
   onDirectMessageUpdated(payload: { kind: 'reaction' | 'deleted'; message: DirectMessageItem }) {
@@ -1237,7 +1258,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async fanOutDirectMessage(payload: {
     message: DirectMessageItem
     clientMessageId?: string | null
-  }) {
+  }, notifyPush = true) {
     if (!this.server) return
     const { message } = payload
     const conversationId = message.conversationId
@@ -1259,6 +1280,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     } catch {
       // inbox refresh is best-effort
     }
+
+    if (!notifyPush) return
 
     const peer = await this.dmService
       .getOtherParticipant(conversationId, message.senderId)

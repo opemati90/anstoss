@@ -174,7 +174,7 @@ export function usePlayerHome(
     }
     const seq = ++requestSeq.current
 
-    const [events, announcements, channels, streaks, seasonStats, teamFixtures, rosterOps, dues] =
+    const [events, announcements, channels, teamFixtures, rosterOps, dues] =
       await Promise.all([
         keep(
           api<HomeEvent[]>(`/clubs/${clubId}/events?scope=upcoming&mine=1&limit=${EVENT_LIMIT}`),
@@ -183,10 +183,6 @@ export function usePlayerHome(
         teamId
           ? keep(api<HomeChannel[]>(`/teams/${teamId}/channels`))
           : Promise.resolve([] as HomeChannel[]),
-        keep(api<StreaksResponse>(`/clubs/${clubId}/streaks`)),
-        teamId
-          ? keep(api<TeamSeasonStats>(`/clubs/${clubId}/teams/${teamId}/season-stats`))
-          : Promise.resolve(null),
         teamId ? fetchFixturesForTeams([teamId]) : Promise.resolve([] as ImportedFixture[]),
         teamId
           ? keep(api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`))
@@ -219,9 +215,6 @@ export function usePlayerHome(
     setData((current) => {
       const prev = sameScope ? current : EMPTY
       const pick = <T,>(value: Maybe<T>, fallback: T): T => (value === FAILED ? fallback : value)
-      const streakRes = pick(streaks, null)
-      const leaderboard = asArray<StreaksResponse['leaderboard'][number]>(streakRes?.leaderboard)
-      const rankIndex = userId ? leaderboard.findIndex((row) => row.userId === userId) : -1
       const ops = pick(rosterOps, undefined as RosterOpsSnapshot | null | undefined)
       const contributions = pick(dues, undefined as MyContributionSummary | null | undefined)
       return {
@@ -235,10 +228,9 @@ export function usePlayerHome(
           channels === FAILED
             ? prev.teamChannel
             : (asArray<HomeChannel>(channels).find((channel) => channel.kind === 'TEAM') ?? null),
-        streaks: streaks === FAILED ? prev.streaks : (streakRes?.me ?? null),
-        streakRank:
-          streaks === FAILED ? prev.streakRank : rankIndex >= 0 ? rankIndex + 1 : null,
-        seasonStats: seasonStats === FAILED ? prev.seasonStats : (seasonStats ?? null),
+        streaks: null,
+        streakRank: null,
+        seasonStats: null,
         duties: ops === undefined ? prev.duties : myOpenDuties(ops, userId),
         dues: contributions === undefined ? prev.dues : outstandingDues(contributions),
       }

@@ -13,10 +13,11 @@ export function fetchChatMedia(
   kind: ConversationKind,
   id: string,
   tab: ChatMediaTab,
+  actorId?: string,
 ) {
   const base =
     kind === 'dm' ? `/clubs/${clubId}/conversations/${id}` : `/clubs/${clubId}/channels/${id}`
-  return api<ChatMediaItem[]>(`${base}/media?tab=${tab}`)
+  return api<ChatMediaItem[]>(`${base}/media?tab=${tab}`, actorId ? { headers: { 'x-expected-actor-id': actorId } } : {})
 }
 
 /** 1h signed GET for one attachment; null when storage has no signed path. */
@@ -25,12 +26,13 @@ export function fetchSignedMediaUrl(
   kind: ConversationKind,
   conversationId: string,
   messageId: string,
+  actorId?: string,
 ) {
   const path =
     kind === 'dm'
       ? `/clubs/${clubId}/conversations/${conversationId}/messages/${messageId}/media-url`
       : `/messages/${messageId}/media-url`
-  return api<{ url: string | null }>(path)
+  return api<{ url: string | null }>(path, actorId ? { headers: { 'x-expected-actor-id': actorId } } : {})
 }
 
 export type { ReportReason } from '@anstoss/shared'

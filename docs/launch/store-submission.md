@@ -105,9 +105,10 @@ for draft console answers; it is not approval to publish them.
     purchase flow.
   - Do not add in-app purchase links for digital features without store billing.
 - Target audience/content rating:
-- Declare the actual target age groups. The current under-16 guardian path and
-  youth teams mean an adult-only answer cannot be assumed. Any child audience
-  requires the relevant Families compliance pass before submission.
+- The owner confirmed an 18+ first release on 28 October. Declare the adult-only
+  audience only after final clients, deployed API and marketing enforce that scope.
+  Youth/guardian participation remains Coming Soon; retained records still need
+  lawful handling. See `adult-first-release-2026-10-28.md`.
   - Content rating questionnaire must disclose UGC/chat and account creation.
 
 ## App Privacy Labels
@@ -123,10 +124,10 @@ match these non-tracking categories:
   Stripe subscription references for the club's Anstoss software plan.
 - Usage/diagnostics: product interaction, crash data, performance data.
 - Other data: date of birth, role, membership, team access, RSVP and lineup data.
-- Health information: player-selected `sick`/`injured` RSVP reasons and optional
-  notes remain enabled even though the separate Medic and compliance modules are
-  disabled. Declare this in both stores and resolve the Article 9 basis before
-  publishing a minor-facing release.
+- Health information: new dedicated reporting (including RSVP reasons/notes) is
+  disabled in the adult-first candidate. Historical data remains. Verify exact
+  production/binary behavior and historical processing before changing health
+  declarations; hiding UI does not justify answering No.
 - User-entered city/postal-code and carpool pickup text may map to location or
   address categories; confirm the exact console classification for the binary.
 
@@ -139,7 +140,7 @@ their broader store questions “No” merely because a device permission is abs
   are a separate classification question.
 - Device phonebook access (none found); team/DM relationships may still count as
   contacts or social-graph data.
-- Health/Fitness device APIs (none found); RSVP health information is collected.
+- Health/Fitness device APIs (none found); historical RSVP health information remains.
 - SMS/call log access.
 
 ## Release Notes Template

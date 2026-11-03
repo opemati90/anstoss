@@ -65,7 +65,7 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('../../src/utils/haptics', () => ({
   Haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn(), error: jest.fn() },
 }))
-jest.mock('../../src/launchFeatures', () => ({ COMPLIANCE_FEATURE_ENABLED: true }))
+jest.mock('../../src/launchFeatures', () => ({ COMPLIANCE_FEATURE_ENABLED: true, OPTIONAL_CLUB_FEATURES: { marketplace: false, statistics: false, sponsorship: false } }))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
 
 const INBOX: AdminInbox = {
@@ -116,11 +116,11 @@ describe('Verein tab', () => {
     retention = { enabled: false, messageRetentionDays: 365, attachmentRetentionDays: 365 }
   })
 
-  it('shows the club header with a human role label and one member count', async () => {
+  it('shows a clear workspace title and summary without repeating club identity', async () => {
     const screen = renderScreen()
-    expect(screen.getByText('SV Albatros')).toBeTruthy()
+    expect(screen.getByText('verein.tabTitle')).toBeTruthy()
     expect(screen.getByText('verein.roleLabel.OWNER')).toBeTruthy()
-    expect(await screen.findByText('verein.memberCount:126 · verein.teamCount:8')).toBeTruthy()
+    expect(await screen.findByText('verein.roleLabel.OWNER · verein.memberCount:126 · verein.teamCount:8')).toBeTruthy()
     expect(screen.queryByText(/SUPER/i)).toBeNull()
   })
 
@@ -131,9 +131,18 @@ describe('Verein tab', () => {
     expect(screen.getByText('verein.roleLabel.TREASURER')).toBeTruthy()
   })
 
+  it('keeps optional modules out of the launch workspace without hiding core operations', () => {
+    const screen = renderScreen()
+    for (const key of ['wechsel.title', 'verein.members.families', 'verein.teams.stats', 'verein.finance.sponsors']) {
+      expect(screen.queryByText(key)).toBeNull()
+    }
+    expect(screen.getByText('verein.members.joinRequests')).toBeTruthy()
+    expect(screen.getByText('verein.finance.dues')).toBeTruthy()
+  })
+
   it('pushes each workspace screen instead of opening modals', async () => {
     const screen = renderScreen()
-    await screen.findByText('verein.memberCount:126 · verein.teamCount:8')
+    await screen.findByText('verein.roleLabel.OWNER · verein.memberCount:126 · verein.teamCount:8')
     fireEvent.press(screen.getByText('verein.members.list'))
     fireEvent.press(screen.getByText('verein.teams.manage'))
     fireEvent.press(screen.getByText('verein.finance.dues'))

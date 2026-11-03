@@ -6,6 +6,8 @@ import { useAuth } from '../src/context/AuthContext'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { space } from '../src/theme/tokens'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { AdultLaunchScreen } from '../src/onboarding/AdultLaunchScreen'
 
 export default function AccessBlockedScreen() {
   const { t } = useTranslation()
@@ -16,6 +18,8 @@ export default function AccessBlockedScreen() {
     void signOut()
     router.replace('/(auth)/welcome')
   }
+
+  if (!LAUNCH_FEATURES.youthParticipation) return <AdultLaunchScreen onDone={handleSignOut} />
 
   return (
     <Screen padded={false}>

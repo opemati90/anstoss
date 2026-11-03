@@ -17,7 +17,7 @@ import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedChatMediaUrl } from '../../hooks/useSignedChatMediaUrl'
 import { hexToRgba } from '../../theme/club-theme'
 import { CHAT_MEDIA_SCRIM, CHAT_ON_MEDIA } from '../../theme/chat'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { hairline, radius, space } from '../../theme/tokens'
 import * as Haptics from '../../utils/haptics'
 import { Avatar, Icon } from '../ui'
 import { Text } from '../ui/Text'
@@ -314,9 +314,6 @@ export const MessageBubble = memo(function MessageBubble({
       {ticks}
     </View>
   )
-  // Invisible copy of the meta so the last text line leaves room for it.
-  const metaSpacer = `${isEdited ? `${t('chatThread.edited')} ` : ''}${time}${isOwn ? '   ' : ''}`
-
   const isMedia = !isDeleted && (messageType === 'IMAGE' || messageType === 'VIDEO')
   const meta_ = message.attachmentMeta ?? null
   const mediaWidth = Math.min(260, maxBubbleWidth - space.sm)
@@ -332,7 +329,6 @@ export const MessageBubble = memo(function MessageBubble({
   const body = isDeleted ? (
     <Text variant="body" style={[styles.italic, { color: onBubbleMuted }]}>
       {t('chat.messageDeleted')}
-      <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
     </Text>
   ) : messageType === 'IMAGE' ? (
     <MediaImage
@@ -384,7 +380,6 @@ export const MessageBubble = memo(function MessageBubble({
   ) : (
     <Text variant="body" style={{ color: onBubble }} selectable={false}>
       {displayContent}
-      <Text variant="caption1" style={styles.spacer} accessible={false}>{`  ${metaSpacer}`}</Text>
     </Text>
   )
 
@@ -472,7 +467,6 @@ export const MessageBubble = memo(function MessageBubble({
             {captionText ? (
               <Text variant="body" style={[styles.caption, { color: onBubble }]}>
                 {captionText}
-                <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
               </Text>
             ) : null}
 
@@ -687,13 +681,13 @@ const styles = StyleSheet.create({
   mediaInset: { paddingHorizontal: space.xs },
   sender: { marginBottom: space['2xs'] },
   caption: { paddingHorizontal: space.xs, paddingTop: space.xs },
-  spacer: { color: 'transparent', fontFamily: fonts.data },
   italic: { fontStyle: 'italic' },
   center: { textAlign: 'center' },
   flex: { flex: 1, minWidth: 0 },
   translation: { marginTop: space['2xs'] },
-  metaDock: { position: 'absolute', right: space.sm + space.xs, bottom: space.xs },
+  metaDock: { alignSelf: 'flex-end', marginTop: space['2xs'] },
   metaOnMedia: {
+    position: 'absolute', marginTop: 0,
     right: space.sm,
     bottom: space.sm,
     paddingHorizontal: space.xs + space['2xs'],

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import type { ExternalTeamLink, FussballTeamPreview } from '@anstoss/shared'
@@ -16,6 +16,11 @@ type CreateTeamLinkResponse = {
 }
 
 export default function FussballLinkScreen() {
+  const { activeClub, activeTeamId } = useAuth()
+  return <FussballLinkContent key={`${activeClub?.club.id ?? ''}:${activeTeamId ?? ''}`} />
+}
+
+function FussballLinkContent() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()
@@ -27,6 +32,13 @@ export default function FussballLinkScreen() {
   const [loadError, setLoadError] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const inputRevision = useRef(0)
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!activeTeamId) {
@@ -45,7 +57,7 @@ export default function FussballLinkScreen() {
     } finally {
       setLoading(false)
     }
-  }, [activeTeamId, t])
+  }, [activeTeamId])
 
   useEffect(() => {
     void loadData()
@@ -57,20 +69,23 @@ export default function FussballLinkScreen() {
       return
     }
 
+    const revision = inputRevision.current
     try {
       setPreviewing(true)
       const result = await api<FussballTeamPreview>('/integrations/fussball/team-preview', {
         method: 'POST',
         body: { input: input.trim() },
       })
-      setPreview(result)
+      if (mounted.current && revision === inputRevision.current) setPreview(result)
     } catch (error) {
-      Alert.alert(
-        t('fussball.previewErrorTitle'),
-        error instanceof Error ? error.message : t('fussball.previewErrorBody'),
-      )
+      if (mounted.current && revision === inputRevision.current) {
+        Alert.alert(
+          t('fussball.previewErrorTitle'),
+          error instanceof Error ? error.message : t('fussball.previewErrorBody'),
+        )
+      }
     } finally {
-      setPreviewing(false)
+      if (mounted.current) setPreviewing(false)
     }
   }
 
@@ -95,18 +110,21 @@ export default function FussballLinkScreen() {
           label: preview.label,
         },
       })
+      if (!mounted.current) return
       await loadData()
+      if (!mounted.current) return
       setPreview(null)
       setInput('')
 
       Alert.alert(t('fussball.connectSuccessTitle'), t('fussball.connectSuccessBody'))
     } catch (error) {
+      if (!mounted.current) return
       Alert.alert(
         t('fussball.connectErrorTitle'),
         error instanceof Error ? error.message : t('fussball.connectErrorBody'),
       )
     } finally {
-      setSaving(false)
+      if (mounted.current) setSaving(false)
     }
   }
 
@@ -143,12 +161,29 @@ export default function FussballLinkScreen() {
             {t('fussball.linkTitle')}
           </Text>
           <Text style={[styles.panelBody, { color: c.textSecondary }]}>
-            {t('fussball.linkBody')}
+            {t('fussball.setupIntro')}
+          </Text>
+          {[1, 2, 3].map((step) => (
+            <View key={step} style={styles.guideStep}>
+              <Text style={[styles.guideNumber, { color: c.primary }]}>{step}</Text>
+              <Text style={[styles.guideText, { color: c.textPrimary }]}>
+                {t(`fussball.setupStep${step}`)}
+              </Text>
+            </View>
+          ))}
+          <Text style={[styles.panelBody, { color: c.textSecondary }]}>
+            {t('fussball.setupLimitation')}
           </Text>
           <TextInput
             value={input}
-            onChangeText={setInput}
-            placeholder={t('fussball.inputPlaceholder')}
+            onChangeText={(value) => {
+              inputRevision.current += 1
+              setInput(value)
+              setPreview(null)
+            }}
+            placeholder={t('fussball.setupPlaceholder')}
+            accessibilityLabel={t('fussball.setupInputLabel')}
+            editable={!saving}
             placeholderTextColor={c.textTertiary}
             style={[
               styles.input,
@@ -166,7 +201,7 @@ export default function FussballLinkScreen() {
           <Pressable
             style={[styles.primaryButton, { backgroundColor: c.primary }]}
             onPress={handlePreview}
-            disabled={previewing}
+            disabled={previewing || saving}
             accessibilityRole="button"
             accessibilityLabel={t('fussball.previewAction')}
           >
@@ -199,7 +234,9 @@ export default function FussballLinkScreen() {
               ]}
             >
               <Text style={[styles.statusPillText, { color: c.textSecondary }]}>
-                {preview.provider}
+                {preview.provider === 'widget_embed'
+                  ? t('fussball.widgetLabel')
+                  : t('fussball.referenceLabel')}
               </Text>
             </View>
           </View>
@@ -358,6 +395,23 @@ const styles = StyleSheet.create({
   },
   panelBody: {
     marginTop: space.sm,
+    fontSize: fontSize.sm,
+    lineHeight: lineHeight.sm,
+    fontFamily: fonts.body,
+  },
+  guideStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    marginTop: space.md,
+  },
+  guideNumber: {
+    width: 24,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.label,
+  },
+  guideText: {
+    flex: 1,
     fontSize: fontSize.sm,
     lineHeight: lineHeight.sm,
     fontFamily: fonts.body,

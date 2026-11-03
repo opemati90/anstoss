@@ -74,8 +74,9 @@ export async function submitJoin(
   role: JoinRole,
   target: JoinTarget,
   currentRegistrationRole: string | null | undefined,
+  preserveRegistrationRole = false,
 ): Promise<void> {
-  const patch = buildJoinProfilePatch(role, currentRegistrationRole)
+  const patch = preserveRegistrationRole ? {} : buildJoinProfilePatch(role, currentRegistrationRole)
   if (Object.keys(patch).length > 0) {
     await api('/me', { method: 'PATCH', body: patch })
   }

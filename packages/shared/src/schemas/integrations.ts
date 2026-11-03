@@ -109,7 +109,7 @@ export const importedFixtureSchema = z.object({
   resultAway: z.number().int().min(0).nullable(),
   tableSnapshot: z.array(tableSnapshotRowSchema).nullable(),
   sourceConfidence: fixtureDataConfidenceSchema,
-  rawPayload: z.record(z.unknown()),
+  rawPayload: z.record(z.string(), z.unknown()),
   lastSeenAt: z.string().datetime(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

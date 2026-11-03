@@ -10,6 +10,8 @@
  *   account holder, or a guardian link / approved parental consent in the
  *   club — which the caller resolves (it needs the database).
  */
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+
 export type PrivateMessagingUser = {
   id: string
   dateOfBirth: Date | null
@@ -30,6 +32,11 @@ export function classifyPrivateMessaging(
   now = new Date(),
 ): PrivateMessagingDecision {
   if (!a.dateOfBirth || !b.dateOfBirth) return { kind: 'AGE_UNVERIFIED' }
+  if (![a.dateOfBirth, b.dateOfBirth].every((dob) => Number.isFinite(dob.getTime()))) return { kind: 'AGE_UNVERIFIED' }
+  if (!LAUNCH_FEATURES.youthParticipation &&
+    (isUnderAge(a.dateOfBirth, LAUNCH_FEATURES.minimumAccountAge, now) || isUnderAge(b.dateOfBirth, LAUNCH_FEATURES.minimumAccountAge, now))) {
+    return { kind: 'MINOR_BLOCKED' }
+  }
   const aMinor = isUnder16(a.dateOfBirth, now)
   const bMinor = isUnder16(b.dateOfBirth, now)
   if (!aMinor && !bMinor) return { kind: 'ALLOWED' }
@@ -41,10 +48,14 @@ export function classifyPrivateMessaging(
 }
 
 export function isUnder16(dateOfBirth: Date, now = new Date()) {
+  return isUnderAge(dateOfBirth, 16, now)
+}
+
+export function isUnderAge(dateOfBirth: Date, minimumAge: number, now = new Date()) {
   let age = now.getUTCFullYear() - dateOfBirth.getUTCFullYear()
   const monthDelta = now.getUTCMonth() - dateOfBirth.getUTCMonth()
   if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < dateOfBirth.getUTCDate())) {
     age -= 1
   }
-  return age < 16
+  return age < minimumAge
 }

@@ -7,6 +7,7 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { assertLaunchParticipant, requireYouthParticipation } from '../auth/launch-access-policy'
 import { randomBytes } from 'crypto'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
@@ -56,6 +57,7 @@ export class InvitesService {
     input: CreateInviteInput,
     callerMembershipRole: MembershipRole,
   ) {
+    if (input.role === 'PARENT' || input.linkedPlayerUserId || input.childName || input.guardianEmail) requireYouthParticipation()
     const coachRoles: TeamRole[] = [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH]
     const isAdminOrAbove =
       callerMembershipRole === MembershipRole.OWNER || callerMembershipRole === MembershipRole.ADMIN
@@ -251,6 +253,7 @@ export class InvitesService {
     if (!invite) {
       throw new NotFoundException('Invite not found')
     }
+    if (invite.role === 'PARENT' || invite.kind === 'PARENT_APPROVAL') requireYouthParticipation()
 
     if (invite.status === InviteStatus.ACCEPTED || invite.acceptedAt) {
       throw new BadRequestException('Invite already used')
@@ -276,6 +279,7 @@ export class InvitesService {
   }
 
   async createCampaign(clubId: string, userId: string, input: CreateInviteCampaignInput) {
+    if (input.role !== 'PLAYER') requireYouthParticipation()
     const membership = await this.prisma.membership.findUnique({
       where: { userId_clubId: { userId, clubId } },
       select: { role: true },
@@ -339,6 +343,7 @@ export class InvitesService {
     ) {
       throw new NotFoundException('Invite link is invalid or expired')
     }
+    if (campaign.role === 'PARENT') requireYouthParticipation()
     return {
       code: campaign.code,
       type: campaign.type,
@@ -381,6 +386,7 @@ export class InvitesService {
   }
 
   async redeemAny(code: string, userId: string, input?: RedeemInviteInput) {
+    await assertLaunchParticipant(this.prisma, userId)
     let campaign = await this.prisma.inviteCampaign.findUnique({
       where: { code },
       select: { id: true, code: true },
@@ -408,6 +414,7 @@ export class InvitesService {
   }
 
   async redeemCampaign(code: string, userId: string) {
+    await assertLaunchParticipant(this.prisma, userId)
     let campaign = await this.prisma.inviteCampaign.findUnique({
       where: { code },
       include: { club: true, team: true },
@@ -420,6 +427,7 @@ export class InvitesService {
       })
     }
     if (!campaign) throw new NotFoundException('Invite link is invalid or expired')
+    if (campaign.role === 'PARENT') requireYouthParticipation()
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, dateOfBirth: true },
@@ -569,6 +577,7 @@ export class InvitesService {
   }
 
   async redeem(code: string, userId: string, input: RedeemInviteInput = {}) {
+    await assertLaunchParticipant(this.prisma, userId)
     const invite = await this.validate(code).catch(async (err: unknown) => {
       // Onboarding review fix (M9): the same person opening a link they
       // already used is a member, not an error. Say so with a stable code so
@@ -856,6 +865,7 @@ export class InvitesService {
     user: { id: string; email: string; name: string; dateOfBirth: Date },
     input: RedeemInviteInput,
   ) {
+    requireYouthParticipation()
     const invite = await this.prisma.invite.findUnique({
       where: { id: inviteId },
       include: {
@@ -1043,6 +1053,7 @@ export class InvitesService {
     inviteId: string,
     user: { id: string; email: string; name: string },
   ) {
+    requireYouthParticipation()
     const invite = await this.prisma.invite.findUnique({
       where: { id: inviteId },
       include: {
@@ -1260,6 +1271,7 @@ export class InvitesService {
     const orderedUserIds = Array.from(new Set(userIds)).sort()
     for (const userId of orderedUserIds) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await assertLaunchParticipant(tx, userId)
     }
     const activeUsers = await tx.user.findMany({
       where: { id: { in: orderedUserIds }, deletedAt: null },

@@ -6,6 +6,7 @@ import {
   S3Client,
   ListMultipartUploadsCommand,
   HeadObjectCommand,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
 import { PrivateUploadStorage } from './private-upload-storage'
 import { Readable } from 'stream'
@@ -40,6 +41,47 @@ describe('server-controlled private multipart storage', () => {
     expect(url.searchParams.get('partNumber')).toBe('1')
     expect(url.searchParams.get('X-Amz-Expires')).toBe('300')
     expect(url.searchParams.get('X-Amz-SignedHeaders')).toContain('content-length')
+  })
+
+  it('honors a shorter capability lifetime', async () => {
+    const url = new URL(await storage.signPart(key, 'upload-1', 42, 60, new Date('2026-10-27T12:00:00Z')))
+    expect(url.searchParams.get('X-Amz-Expires')).toBe('60')
+    expect(url.searchParams.get('X-Amz-Date')).toBe('20261027T120000Z')
+    expect(url.searchParams.get('partNumber')).toBe('1')
+  })
+
+  it('signs private GETs only in its dedicated bucket with a five-minute lifetime', async () => {
+    const send = jest.spyOn(S3Client.prototype, 'send')
+    const url = new URL(await storage.signGet(key, 300, new Date('2026-10-27T12:00:00Z')))
+    expect(url.hostname).toBe('private-test.example.eu.r2.cloudflarestorage.com')
+    expect(url.pathname).toBe(`/${key}`)
+    expect(url.searchParams.get('X-Amz-Expires')).toBe('300')
+    expect(url.searchParams.get('X-Amz-Date')).toBe('20261027T120000Z')
+    expect(url.searchParams.has('uploadId')).toBe(false)
+    expect(url.searchParams.has('partNumber')).toBe(false)
+    expect(url.searchParams.get('response-cache-control')).toBe('private, no-store')
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('supports a shorter private GET lifetime', async () => {
+    const url = new URL(await storage.signGet(key, 60))
+    expect(url.searchParams.get('X-Amz-Expires')).toBe('60')
+  })
+
+  it.each([0, -1, 301, 1.5, NaN, Infinity])('rejects invalid read lifetime %s', async (ttl) => {
+    await expect(storage.signGet(key, ttl)).rejects.toThrow('lifetime')
+  })
+
+  it('rejects invalid read keys and signing dates', async () => {
+    await expect(storage.signGet('chat/club/team/image/private-v1-file')).rejects.toThrow('key')
+    await expect(storage.signGet(`${key}?query=injected`)).rejects.toThrow('key')
+    await expect(storage.signGet(`${key}\n`)).rejects.toThrow('key')
+    await expect(storage.signGet(`${key}\u2028`)).rejects.toThrow('key')
+    await expect(storage.signGet(key, 300, new Date(NaN))).rejects.toThrow('signing time')
+  })
+
+  it.each([0, -1, 301, 1.5, NaN, Infinity])('rejects invalid capability lifetime %s', async (ttl) => {
+    await expect(storage.signPart(key, 'upload-1', 42, ttl)).rejects.toThrow('lifetime')
   })
 
   it('uses the storage-verified part and ETag to complete', async () => {
@@ -218,6 +260,36 @@ describe('server-controlled private multipart storage', () => {
       throw failure
     }) as S3Client['send'])
     await expect(storage.observeObject(key)).rejects.toBe(failure)
+  })
+
+  it('removes only a validated opaque object key', async () => {
+    const send = jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({} as never)
+    await storage.remove(key)
+    expect(send.mock.calls[0][0]).toBeInstanceOf(DeleteObjectCommand)
+    expect(send.mock.calls[0][0].input).toEqual({ Bucket: 'private-test', Key: key })
+    await expect(storage.remove('chat/somebody/legacy')).rejects.toThrow('key')
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('observes an empty multipart session as present, not aborted', async () => {
+    jest.spyOn(S3Client.prototype, 'send').mockResolvedValue({ Parts: [] } as never)
+    await expect(storage.observeMultipart(key, 'provider')).resolves.toEqual({ kind: 'present', hasParts: false })
+  })
+
+  it('recognizes only explicit NoSuchUpload404 as a missing session', async () => {
+    jest.spyOn(S3Client.prototype, 'send').mockImplementation((async () => {
+      throw { name: 'NoSuchUpload', $metadata: { httpStatusCode: 404 } }
+    }) as S3Client['send'])
+    await expect(storage.observeMultipart(key, 'provider')).resolves.toEqual({ kind: 'not_observed' })
+  })
+
+  it.each([
+    { name: 'AccessDenied', $metadata: { httpStatusCode: 403 } },
+    { name: 'NoSuchUpload', $metadata: { httpStatusCode: 500 } },
+    { name: 'NotFound', $metadata: { httpStatusCode: 404 } },
+  ])('does not mistake multipart failure for an abort receipt: %j', async (failure) => {
+    jest.spyOn(S3Client.prototype, 'send').mockImplementation((async () => { throw failure }) as S3Client['send'])
+    await expect(storage.observeMultipart(key, 'provider')).rejects.toBe(failure)
   })
 
   it('does not retry initiation when the transport loses the response', async () => {

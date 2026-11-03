@@ -3,7 +3,6 @@ import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, View } from 
 import {
   type CrossTeamEventItem,
   type EventFeedItem,
-  type ImportedFixture,
   RSVP,
 } from '@anstoss/shared'
 import { router, useFocusEffect } from 'expo-router'
@@ -14,15 +13,14 @@ import { api, API_URL } from '../../../src/api/client'
 import { useEventsSocket, type EventRsvpUpdate } from '../../../src/hooks/useEventsSocket'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
-import { Banner, Icon, SegmentedControl, Text } from '../../../src/components/ui'
+import { Banner, Text } from '../../../src/components/ui'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { LiveStatusPill } from '../../../src/components/match'
 import { EventRow } from '../../../src/components/events/EventRow'
 import type { AbsenceDetail, RsvpStatus } from '../../../src/components/events/RsvpControl'
 import { monthKey } from '../../../src/components/events/eventFormat'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { fonts, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { fonts, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 type EventScope = 'upcoming' | 'past'
 
@@ -59,7 +57,6 @@ export default function EventsScreen() {
   const [scope, setScope] = useState<EventScope>('upcoming')
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [childEvents, setChildEvents] = useState<CrossTeamEventItem[]>([])
-  const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -78,7 +75,6 @@ export default function EventsScreen() {
     if (!canLoad || !clubId) {
       setEvents([])
       setChildEvents([])
-      setLiveFixture(null)
       setError(false)
       setLoadedKey(key)
       return
@@ -89,24 +85,15 @@ export default function EventsScreen() {
         if (viewKeyRef.current !== key) return
         setChildEvents(data ?? [])
         setEvents([])
-        setLiveFixture(null)
       } else {
         // Managers without a selected team read the club feed; everyone else
         // stays team-scoped so nobody sees another squad's schedule.
         const query = new URLSearchParams({ scope })
         if (activeTeamId) query.set('teamId', activeTeamId)
-        const [data, fixtures] = await Promise.all([
-          api<EventFeedItem[]>(`/clubs/${clubId}/events?${query.toString()}`),
-          activeTeamId && scope === 'upcoming'
-            ? api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=5`).catch(
-                () => [] as ImportedFixture[],
-              )
-            : Promise.resolve([] as ImportedFixture[]),
-        ])
+        const data = await api<EventFeedItem[]>(`/clubs/${clubId}/events?${query.toString()}`)
         if (viewKeyRef.current !== key) return
         setEvents(data ?? [])
         setChildEvents([])
-        setLiveFixture(fixtures?.find((fixture) => fixture.status === 'live') ?? null)
       }
       setError(false)
     } catch {
@@ -230,13 +217,12 @@ export default function EventsScreen() {
     router.push({ pathname: '/event-detail', params: { eventId } })
 
   const showSkeleton = canLoad && !loaded && !error
-  const title = isParent ? t('eventFlow.list.parentTitle') : t('eventFlow.list.title')
+  const title = t('eventFlow.list.title')
 
   const header = (
     <View>
       <View style={styles.headerWrap}>
         <TabScreenHeader
-          eyebrow={activeClub?.club.name}
           title={title}
           actionIcon={canManage ? 'plus' : undefined}
           onActionPress={canManage ? () => router.push('/create-event') : undefined}
@@ -246,46 +232,17 @@ export default function EventsScreen() {
       </View>
       {!isParent ? (
         <View style={styles.controls}>
-          <SegmentedControl<EventScope>
-            segments={[
-              { key: 'upcoming', label: t('eventFlow.list.upcoming') },
-              { key: 'past', label: t('eventFlow.list.past') },
-            ]}
-            value={scope}
-            onChange={setScope}
-          />
+          <View style={styles.filters} accessibilityRole="tablist">
+            {(['upcoming', 'past'] as const).map((item) => (
+              <Pressable key={item} onPress={() => setScope(item)} accessibilityRole="tab"
+                accessibilityState={{ selected: scope === item }} style={styles.filter}>
+                <Text variant="subheadline" weight={scope === item ? 'semibold' : 'regular'}
+                  color={scope === item ? 'primary' : 'secondary'}>{t(`eventFlow.list.${item}`)}</Text>
+                <View style={[styles.filterLine, { backgroundColor: scope === item ? c.primary : 'transparent' }]} />
+              </Pressable>
+            ))}
+          </View>
         </View>
-      ) : null}
-      {liveFixture ? (
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/match-detail',
-              params: { fixtureId: liveFixture.id, teamId: liveFixture.teamId },
-            })
-          }
-          accessibilityRole="button"
-          android_ripple={{ color: c.surfaceSunken }}
-          accessibilityLabel={t('eventFlow.list.liveA11y', {
-            home: liveFixture.homeTeam,
-            away: liveFixture.awayTeam,
-          })}
-          style={({ pressed }) => [
-            styles.liveBanner,
-            { backgroundColor: c.surface, borderColor: c.borderSubtle },
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <LiveStatusPill status="live" />
-          <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.liveText}>
-            {`${liveFixture.homeTeam} `}
-            <Text variant="subheadline" weight="semibold" color="primary" tabular style={styles.liveScore}>
-              {`${liveFixture.resultHome ?? 0}:${liveFixture.resultAway ?? 0}`}
-            </Text>
-            {` ${liveFixture.awayTeam}`}
-          </Text>
-          <Icon name="chevron.right" size={14} color="tertiary" />
-        </Pressable>
       ) : null}
       {error && loaded ? (
         <View style={styles.bannerWrap}>
@@ -456,22 +413,9 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
   },
   monthText: { fontFamily: fonts.label, textTransform: 'capitalize' },
-  liveBanner: {
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    minHeight: 52,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    paddingVertical: space.sm,
-    gap: space.sm,
-  },
-  liveText: { flex: 1, minWidth: 0 },
-  liveScore: { fontFamily: fonts.data },
+  filters: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  filter: { minWidth: 48, minHeight: 44, paddingHorizontal: space.xs, justifyContent: 'center', position: 'relative' },
+  filterLine: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1 },
   bannerWrap: { paddingHorizontal: space.md, paddingTop: space.sm },
   empty: { paddingTop: space.xl, paddingHorizontal: space.md },
 })

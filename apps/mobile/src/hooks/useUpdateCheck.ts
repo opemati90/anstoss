@@ -57,15 +57,19 @@ export function useUpdateCheck() {
   })
   const dismissedRecommendedVersionRef = useRef<string | undefined>(undefined)
   const dismissedAnnouncementRef = useRef<string | undefined>(undefined)
+  const lifecycleRef = useRef(0)
 
   const checkResponse = useCallback((response: Response) => {
     if (response.status === 426) {
+      const lifecycle = lifecycleRef.current
       response.json().then((body) => {
+        if (lifecycleRef.current !== lifecycle) return
         const nextState = getUpdateStateFromResponse(response, body)
         if (nextState) {
           setUpdateState(nextState)
         }
       }).catch(() => {
+        if (lifecycleRef.current !== lifecycle) return
         setUpdateState({ forceUpdate: true, softUpdate: false })
       })
       return
@@ -100,8 +104,9 @@ export function useUpdateCheck() {
 
   // Register the checker so every api() call is intercepted
   useEffect(() => {
+    lifecycleRef.current += 1
     setResponseChecker(checkResponse)
-    return () => setResponseChecker(null)
+    return () => { lifecycleRef.current += 1; setResponseChecker(null) }
   }, [checkResponse])
 
   const dismissSoftUpdate = useCallback(() => {

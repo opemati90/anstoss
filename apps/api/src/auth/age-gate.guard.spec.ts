@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { Controller, ExecutionContext, Get, UseGuards } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AgeGateError } from '@anstoss/shared'

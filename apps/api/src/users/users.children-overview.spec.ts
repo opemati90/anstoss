@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { ForbiddenException } from '@nestjs/common'
 import { childrenOverviewQuerySchema } from '@anstoss/shared'
 import { UsersService } from './users.service'

@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../ui'
 import type { TextVariant } from '../ui/Text'
 import { useClubColors } from '../../context/ClubThemeContext'
-import type { ClubTheme } from '../../theme/club-theme'
+import { textSafeAccent, type ClubTheme } from '../../theme/club-theme'
 import { radius, space, SPACING_XXS } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { UnavailableReasonSheet, type AbsenceDetail } from './UnavailableReasonSheet'
+import type { AvailabilityPolicy } from './availabilityPolicy'
+import { useAvailabilityClosed } from '../../hooks/useAvailabilityClosed'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 
 export type RsvpStatus = 'YES' | 'MAYBE' | 'NO'
 export type { AbsenceDetail }
@@ -20,9 +23,9 @@ export function rsvpTone(status: RsvpStatus, c: ClubTheme): { fg: string; bg: st
 }
 
 const OPTIONS: Array<{ status: RsvpStatus; icon: string; labelKey: string }> = [
-  { status: 'YES', icon: 'checkmark', labelKey: 'eventFlow.rsvp.yes' },
+  { status: 'YES', icon: 'hand.thumbsup', labelKey: 'eventFlow.rsvp.yes' },
   { status: 'MAYBE', icon: 'questionmark.circle', labelKey: 'eventFlow.rsvp.maybe' },
-  { status: 'NO', icon: 'xmark', labelKey: 'eventFlow.rsvp.no' },
+  { status: 'NO', icon: 'hand.thumbsdown', labelKey: 'eventFlow.rsvp.no' },
 ]
 
 export type RsvpControlProps = {
@@ -33,6 +36,7 @@ export type RsvpControlProps = {
    */
   onChange: (status: RsvpStatus, absence?: AbsenceDetail) => void
   disabled?: boolean
+  policy?: AvailabilityPolicy
   /** `compact` uses a smaller label for dense list rows; tap targets stay 44pt. */
   size?: 'default' | 'compact'
   /** Skip the Absage sheet (e.g. a coach correcting a reply). Default: ask. */
@@ -63,6 +67,7 @@ export const RsvpControl = memo(function RsvpControl({
   value,
   onChange,
   disabled = false,
+  policy,
   size = 'default',
   askReason = true,
   subjectName,
@@ -72,6 +77,8 @@ export const RsvpControl = memo(function RsvpControl({
 }: RsvpControlProps) {
   const c = useClubColors()
   const { t } = useTranslation()
+  const closed = useAvailabilityClosed(policy ?? null)
+  disabled = disabled || closed
   const compact = size === 'compact'
   const variant: TextVariant = compact ? 'subheadline' : 'callout'
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -88,7 +95,7 @@ export const RsvpControl = memo(function RsvpControl({
     ? labels.map((label) => measured[label] as number)
     : null
   const ready = trackWidth > 0 && labelWidths !== null
-  const layout = decidePillLayout({ trackWidth, labelWidths, iconSize: compact ? 15 : 17 })
+  const layout = decidePillLayout({ trackWidth: compact ? Math.max(0, trackWidth - space.xs * 2) : trackWidth, labelWidths, iconSize: compact ? 15 : 17 })
 
   const onMeasure = useCallback((label: string, width: number) => {
     setMeasured((prev) => (prev[label] === width ? prev : { ...prev, [label]: width }))
@@ -98,7 +105,7 @@ export const RsvpControl = memo(function RsvpControl({
     (status: RsvpStatus) => {
       if (disabled) return
       Haptics.select()
-      if (status === 'NO' && askReason) {
+      if (status === 'NO' && askReason && LAUNCH_FEATURES.healthReporting) {
         setSheetOpen(true)
         return
       }
@@ -110,9 +117,9 @@ export const RsvpControl = memo(function RsvpControl({
   const handleAbsence = useCallback(
     (detail: AbsenceDetail) => {
       setSheetOpen(false)
-      onChange('NO', detail)
+      if (!disabled) onChange('NO', detail)
     },
-    [onChange],
+    [onChange, disabled],
   )
 
   return (
@@ -121,6 +128,7 @@ export const RsvpControl = memo(function RsvpControl({
         testID={testID}
         style={[
           styles.track,
+          compact && [styles.compactTrack, { backgroundColor: c.surfaceSunken }],
           layout === 'column' && styles.trackColumn,
           disabled && styles.disabled,
           !ready && styles.unmeasured,
@@ -137,6 +145,7 @@ export const RsvpControl = memo(function RsvpControl({
               key={label}
               variant={variant}
               weight="semibold"
+              maxFontSizeMultiplier={2}
               numberOfLines={1}
               style={styles.measureText}
               onLayout={(e) => onMeasure(label, Math.ceil(e.nativeEvent.layout.width))}
@@ -168,24 +177,25 @@ export const RsvpControl = memo(function RsvpControl({
                 compact ? styles.optionCompact : null,
                 layout === 'tall' && styles.optionTall,
                 layout === 'column' && styles.optionColumn,
-                isActive
+                compact ? (isActive
+                  ? { backgroundColor: c.surface, borderColor: c.borderSubtle, borderWidth: 1 }
+                  : { backgroundColor: 'transparent', borderWidth: 0 }) : isActive
                   ? { backgroundColor: tone.bg, borderColor: tone.fg, borderWidth: 1.5 }
                   : { backgroundColor: c.surface, borderColor: c.borderControl, borderWidth: 1 },
                 pressed && !isActive && { backgroundColor: c.surfaceSunken },
               ]}
             >
               <Icon
-                name={isActive && option.status === 'YES' ? 'checkmark.circle.fill' : option.icon}
+                name={option.icon}
                 size={compact ? 15 : 17}
                 color={isActive ? tone.fg : c.textSecondary}
               />
               <Text
                 variant={variant}
                 weight={isActive ? 'semibold' : 'medium'}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={MIN_LABEL_SCALE}
-                style={{ color: isActive ? tone.fg : c.textPrimary, flexShrink: 1 }}
+                maxFontSizeMultiplier={2}
+                numberOfLines={layout === 'column' ? undefined : 1}
+                style={{ color: compact ? (isActive ? textSafeAccent(c.primary, c.surface) : c.textSecondary) : (isActive ? tone.fg : c.textPrimary), flexShrink: 1 }}
               >
                 {label}
               </Text>
@@ -193,9 +203,10 @@ export const RsvpControl = memo(function RsvpControl({
           )
         })}
       </View>
-      {askReason ? (
+      {closed ? <Text variant="footnote" color="secondary">{t('eventFlow.availability.closed')}</Text> : null}
+      {askReason && LAUNCH_FEATURES.healthReporting ? (
         <UnavailableReasonSheet
-          visible={sheetOpen}
+          visible={sheetOpen && !disabled}
           subjectName={subjectName}
           onSubmit={handleAbsence}
           onClose={() => setSheetOpen(false)}
@@ -213,9 +224,6 @@ const TALL_PAD = space.xs
 const ICON_GAP = space.xs + 2
 /** Selected outline (1.5pt) on both sides. */
 const BORDER = 3
-/** adjustsFontSizeToFit may shrink a label this far before we stack pills. */
-const MIN_LABEL_SCALE = 0.8
-
 const HIDDEN_FROM_A11Y = {
   accessibilityElementsHidden: true,
   importantForAccessibility: 'no-hide-descendants' as const,
@@ -224,9 +232,8 @@ const HIDDEN_FROM_A11Y = {
 /**
  * Pick the densest pill layout whose widest label fits a third of the row.
  *
- * `labelWidths` are measured widths (already at the user's font scale, which
- * the Text variant caps). Order of preference: icon beside label ('inline'),
- * icon above label ('tall', which may shrink the label to 80%), and only when
+ * `labelWidths` are measured widths at the user's font scale (up to 200%).
+ * Order of preference: icon beside label ('inline'), icon above label ('tall'), and only when
  * even that clips, one pill per line ('column'). Unmeasured input returns
  * 'inline'; the control stays invisible until it is measured.
  */
@@ -242,8 +249,8 @@ export function decidePillLayout({
   if (trackWidth <= 0 || !labelWidths || labelWidths.length === 0) return 'inline'
   const perPill = (trackWidth - GAP * 2) / 3
   const longest = Math.max(...labelWidths)
-  if (PILL_PAD * 2 + BORDER + iconSize + ICON_GAP + longest <= perPill) return 'inline'
-  if (TALL_PAD * 2 + BORDER + longest * MIN_LABEL_SCALE <= perPill) return 'tall'
+  if (PILL_PAD * 2 + BORDER + iconSize + (iconSize ? ICON_GAP : 0) + longest <= perPill) return 'inline'
+  if (TALL_PAD * 2 + BORDER + longest <= perPill) return 'tall'
   return 'column'
 }
 
@@ -252,6 +259,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: GAP,
   },
+  compactTrack: { padding: space.xs, borderRadius: radius.lg, borderCurve: 'continuous', gap: space.xs },
   trackColumn: { flexDirection: 'column' },
   disabled: { opacity: 0.5 },
   unmeasured: { opacity: 0 },

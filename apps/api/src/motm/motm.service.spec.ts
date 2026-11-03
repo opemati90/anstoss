@@ -3,6 +3,10 @@ import { MotmService, currentSeason } from './motm.service'
 
 function createService() {
   const prisma = {
+    user: { findMany: jest.fn().mockResolvedValue([
+      { id: 'user-alex', name: 'Alex', avatarUrl: 'a.png' },
+      { id: 'user-sam', name: 'Sam', avatarUrl: null },
+    ]) },
     membership: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
     importedFixture: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
     poll: { findMany: jest.fn<Promise<unknown>, unknown[]>() },
@@ -159,9 +163,14 @@ describe('currentSeason', () => {
 
 function createVoteService() {
   const prisma = {
+    $transaction: jest.fn(async (run: (tx: unknown) => Promise<unknown>): Promise<unknown> => run(prisma)),
+    $executeRaw: jest.fn().mockResolvedValue(0),
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
     importedFixture: { findUnique: jest.fn<Promise<unknown>, unknown[]>() },
     poll: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
     teamAccess: { findFirst: jest.fn<Promise<unknown>, unknown[]>() },
+    membership: { findFirst: jest.fn<Promise<unknown>, unknown[]>().mockResolvedValue({ role: 'ADMIN' }) },
     pollOption: { upsert: jest.fn<Promise<unknown>, unknown[]>() },
     pollVote: {
       deleteMany: jest.fn().mockResolvedValue({}),
@@ -226,10 +235,13 @@ describe('MotmService.vote integrity', () => {
 
     expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith({
       where: {
+        clubId: 'club-1',
         teamId: 'team-1',
         userId: 'u-2',
         status: 'ACTIVE',
+        phase: 'FULL',
         role: 'PLAYER',
+        user: expect.objectContaining({ deletedAt: null, dateOfBirth: { lte: expect.any(Date) } }),
         OR: [{ loanEndDate: null }, { loanEndDate: { gt: expect.any(Date) } }],
       },
       select: { user: { select: { id: true, name: true } } },
@@ -240,6 +252,108 @@ describe('MotmService.vote integrity', () => {
     expect(prisma.pollVote.create).toHaveBeenCalledWith({
       data: { pollId: 'poll-1', optionId: 'poll-1:u-2', userId: 'u-1' },
     })
+    expect(prisma.$executeRaw.mock.calls.map((call) => String(call[1]))).toEqual([
+      'u-1',
+      'u-2',
+      'owner:club-1',
+      'motm-fixture:fix-1',
+    ])
+  })
+
+  it('requires FULL roster access for a candidate', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.importedFixture.findUnique.mockResolvedValue(FINISHED)
+    prisma.poll.findFirst.mockResolvedValue(openPoll)
+    // Prisma applies the FULL predicate, so a TRIAL-only row is absent.
+    prisma.teamAccess.findFirst.mockResolvedValue(null)
+
+    await expect(service.vote('u-1', 'fix-1', 'trial-player')).rejects.toThrow('roster')
+    expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ phase: 'FULL' }),
+    }))
+    expect(prisma.pollVote.create).not.toHaveBeenCalled()
+  })
+
+  it('does not use a TRIAL coach as the synthetic poll sender', async () => {
+    const { service, prisma } = createVoteService()
+    prisma.teamAccess.findFirst.mockResolvedValue(null)
+    prisma.membership.findFirst.mockResolvedValue({ userId: 'owner' })
+
+    await expect(
+      (service as unknown as {
+        systemSender: (clubId: string, teamId: string, client: typeof prisma) => Promise<{ id: string }>
+      }).systemSender('club-1', 'team-1', prisma),
+    ).resolves.toEqual({ id: 'owner' })
+    expect(prisma.teamAccess.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ phase: 'FULL' }),
+    }))
+  })
+
+  it('serializes first-poll creation for concurrent disjoint voters and candidates', async () => {
+    let poll: { id: string; closesAt: Date } | null = null
+    const votes: Array<{ pollId: string; userId: string; optionId: string }> = []
+    const fixtureLocks: string[] = []
+    let fixtureTail = Promise.resolve()
+    const prisma: any = {
+      user: { findFirst: jest.fn().mockResolvedValue({ dateOfBirth: new Date('1990-01-01') }) },
+      importedFixture: { findUnique: jest.fn().mockResolvedValue(FINISHED) },
+      poll: {
+        findFirst: jest.fn(async () => poll),
+        create: jest.fn(async () => (poll = { id: 'poll-created-once', closesAt: new Date(Date.now() + 3_600_000) })),
+      },
+      message: { create: jest.fn().mockResolvedValue({ id: 'anchor' }) },
+      teamAccess: {
+        findFirst: jest.fn(async ({ where }: any) =>
+          where.role === 'PLAYER'
+            ? { user: { id: where.userId, name: where.userId } }
+            : { userId: 'full-coach' }),
+      },
+      membership: { findFirst: jest.fn().mockResolvedValue({ userId: 'owner' }) },
+      pollOption: { upsert: jest.fn(async ({ create }: any) => ({ id: create.id })) },
+      pollVote: {
+        deleteMany: jest.fn(async ({ where }: any) => {
+          for (let index = votes.length - 1; index >= 0; index -= 1) {
+            if (votes[index].pollId === where.pollId && votes[index].userId === where.userId) votes.splice(index, 1)
+          }
+        }),
+        create: jest.fn(async ({ data }: any) => { votes.push(data); return data }),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+    }
+    prisma.$transaction = jest.fn(async (run: (tx: any) => Promise<unknown>) => {
+      let releaseFixture: (() => void) | undefined
+      const tx = {
+        ...prisma,
+        $executeRaw: jest.fn(async (_query: unknown, key: string) => {
+          if (!String(key).startsWith('motm-fixture:')) return 0
+          fixtureLocks.push(String(key))
+          const previous = fixtureTail
+          fixtureTail = new Promise<void>((resolve) => { releaseFixture = resolve })
+          await previous
+          return 0
+        }),
+      }
+      try { return await run(tx) } finally { releaseFixture?.() }
+    })
+    const service = new MotmService(
+      prisma,
+      { assertReadableAccess: jest.fn().mockResolvedValue(undefined) } as never,
+      { getEntitlements: jest.fn().mockResolvedValue({ features: ['motm_archive'] }) } as never,
+    )
+    jest.spyOn(service, 'getTally').mockResolvedValue({ fixtureId: 'fix-1' } as never)
+
+    await Promise.all([
+      service.vote('voter-a', 'fix-1', 'candidate-a'),
+      service.vote('voter-b', 'fix-1', 'candidate-b'),
+    ])
+
+    expect(prisma.poll.create).toHaveBeenCalledTimes(1)
+    expect(prisma.message.create).toHaveBeenCalledTimes(1)
+    expect(votes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ pollId: 'poll-created-once', userId: 'voter-a' }),
+      expect.objectContaining({ pollId: 'poll-created-once', userId: 'voter-b' }),
+    ]))
+    expect(fixtureLocks).toEqual(['motm-fixture:fix-1', 'motm-fixture:fix-1'])
   })
 })
 

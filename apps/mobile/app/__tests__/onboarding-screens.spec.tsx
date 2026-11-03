@@ -1,5 +1,8 @@
+import '../../test/future-capabilities'
+
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
 
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
@@ -12,6 +15,14 @@ const mockVerifyOtp = jest.fn()
 const mockStartOtp = jest.fn()
 const mockResetDraft = jest.fn()
 let mockAuth: Record<string, unknown> = {}
+let mockKeyboardInset = 0
+let mockKeyboardVisible = false
+
+jest.mock('../../src/onboarding/ui', () => ({
+  ...jest.requireActual('../../src/onboarding/ui'),
+  useKeyboardInset: () => mockKeyboardInset,
+  useKeyboardVisible: () => mockKeyboardVisible,
+}))
 
 jest.mock('expo-router', () => {
   // Like expo-router: one stable router object.
@@ -217,6 +228,49 @@ describe('sign-in (code screen)', () => {
 })
 
 describe('welcome', () => {
+  it('hides the hero when Android resizes the window and keyboard overlap is zero', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    mockKeyboardInset = 0
+    mockKeyboardVisible = true
+    try {
+      const screen = render(<Welcome />)
+      expect(screen.queryByTestId('welcome-hero')).toBeNull()
+    } finally {
+      mockKeyboardVisible = false
+    }
+  })
+  it('keeps the language control in normal flow when the compact keyboard hides the hero', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    mockKeyboardInset = 300
+    mockKeyboardVisible = true
+    const dimensions = jest.spyOn(require('react-native'), 'useWindowDimensions').mockReturnValue({
+      width: 320, height: 568, scale: 2, fontScale: 2,
+    })
+    try {
+      const screen = render(<Welcome />)
+      const topBar = StyleSheet.flatten(screen.getByTestId('welcome-language-container').props.style)
+      expect(topBar.position).not.toBe('absolute')
+      expect(topBar.flexDirection).toBe('row')
+    } finally {
+      mockKeyboardInset = 0
+      mockKeyboardVisible = false
+      dimensions.mockRestore()
+    }
+  })
+  it('leaves space for the language control at large text sizes over the hero', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    const dimensions = jest.spyOn(require('react-native'), 'useWindowDimensions').mockReturnValue({
+      width: 320, height: 568, scale: 2, fontScale: 2,
+    })
+    try {
+      const screen = render(<Welcome />)
+      expect(screen.queryByText('Anstoss')).toBeNull()
+      expect(StyleSheet.flatten(screen.getByTestId('welcome-language-container').props.style).flexDirection).toBe('row')
+      expect(screen.getByText('Deutsch')).toBeTruthy()
+    } finally {
+      dimensions.mockRestore()
+    }
+  })
   it('M7: explains a session that expired mid-onboarding', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
     mockParams = { reason: 'expired' }

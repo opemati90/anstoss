@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { ManagedSubProfilesService } from './managed-sub-profiles.service'
+import { requireYouthParticipation } from '../auth/launch-access-policy'
 import { JOIN_CODE_LENGTH } from '../teams/team-join-code.util'
 
 /**
@@ -65,6 +66,7 @@ export class ParentHandoffService {
 
   /** Preview a code so the app can show whom it's setting up before picking a slot. */
   async getByCode(parentUserId: string, code: string) {
+    requireYouthParticipation()
     const handoff = await this.getPendingHandoff(code)
     await this.assertGuardianEmail(parentUserId, handoff.guardianEmail)
     const team = handoff.teamId
@@ -87,6 +89,7 @@ export class ParentHandoffService {
    * membership or staff-only roster permissions.
    */
   async getTeamForCode(parentUserId: string, code: string, rawJoinCode: string) {
+    requireYouthParticipation()
     const handoff = await this.getPendingHandoff(code)
     await this.assertGuardianEmail(parentUserId, handoff.guardianEmail)
     const joinCode = rawJoinCode.trim().toUpperCase()
@@ -112,6 +115,7 @@ export class ParentHandoffService {
    * back so they can retry.
    */
   async redeem(parentUserId: string, input: RedeemParentHandoffInput) {
+    requireYouthParticipation()
     const team = await this.resolveRedeemTeam(input)
 
     return tenantContext.run({ clubId: team.clubId, userId: parentUserId }, () =>

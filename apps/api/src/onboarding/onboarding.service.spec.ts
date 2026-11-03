@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { ConflictException } from '@nestjs/common'
 import { OnboardingService } from './onboarding.service'
 

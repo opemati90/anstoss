@@ -12,6 +12,18 @@ describe('E2E API session shim', () => {
     await clearE2ESession()
   })
 
+  it('enforces actor binding on the new privacy routes', async () => {
+    await activateE2EScenario('player')
+    const wrong = handleE2EApiRequest('/me/export-bound', { method: 'GET', headers: { 'x-expected-actor-id': 'wrong' } })
+    expect(wrong).toMatchObject({ handled: true, ok: false, status: 403 })
+    const legacy = handleE2EApiRequest('/me/export', { method: 'GET' })
+    expect(legacy).toMatchObject({ handled: true, ok: true, status: 200 })
+    if (!legacy.handled || !legacy.ok) throw new Error('Expected legacy export')
+    const id = (legacy.body as { user: { id: string } }).user.id
+    expect(handleE2EApiRequest('/me/export-bound', { method: 'GET', headers: { 'x-expected-actor-id': id } })).toMatchObject({ handled: true, ok: true, status: 200 })
+    expect(handleE2EApiRequest('/me/bound', { method: 'DELETE', headers: { 'x-expected-actor-id': id } })).toMatchObject({ handled: true, ok: true, status: 204 })
+  })
+
   it('handles tab conversation requests without falling through to the real API', async () => {
     await activateE2EScenario('player')
 

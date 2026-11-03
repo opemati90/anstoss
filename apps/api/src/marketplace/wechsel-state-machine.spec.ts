@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { TrialInviteStatus } from '@anstoss/shared'
 import { createWechselDb, fillSeats } from '../testing/wechsel-db'

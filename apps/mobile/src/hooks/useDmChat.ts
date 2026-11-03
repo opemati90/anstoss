@@ -57,6 +57,19 @@ export function normalizeDmMessage(message: DmMessage): DmMessage {
   }
 }
 
+function newestRead(previous: string | null, next: string | null): string | null {
+  if (!next || !Number.isFinite(Date.parse(next))) return previous
+  if (!previous || !Number.isFinite(Date.parse(previous))) return next
+  return Date.parse(next) > Date.parse(previous) ? next : previous
+}
+
+function chronological(messages: DmMessage[]): DmMessage[] {
+  return messages.sort((a, b) => {
+    const left = Date.parse(a.createdAt), right = Date.parse(b.createdAt)
+    return Number.isFinite(left) && Number.isFinite(right) ? left - right : 0
+  })
+}
+
 export type DmConnectionState = 'connected' | 'reconnecting' | 'offline'
 
 type UseDmChatOptions = {
@@ -100,6 +113,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [lastError, setLastError] = useState<string | null>(null)
   const [messagesOwnerKey, setMessagesOwnerKey] = useState(cacheKey)
   const [historyLoaded, setHistoryLoaded] = useState(() => dmMessagesCache.has(cacheKey))
   /** The peer's read watermark: own messages at or before it show ✓✓. */
@@ -108,12 +122,21 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   const socketRef = useRef<Socket | null>(null)
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
+  const threadRef = useRef<{ key: string; sequence: number; generation: number; arrivals: Map<string, number> }>(
+    { key: cacheKey, sequence: 0, generation: 0, arrivals: new Map() },
+  )
 
   useEffect(() => {
     const cached = dmMessagesCache.get(cacheKey)
+    threadRef.current = { key: cacheKey, sequence: 0, generation: 0, arrivals: new Map() }
     setMessages(cached ?? [])
     setMessagesOwnerKey(cacheKey)
     setHistoryLoaded(Boolean(cached))
+    setTypingUsers([])
+    setHasMore(true)
+    setLoadingHistory(false)
+    setPeerLastReadAt(null)
+    setLastError(null)
   }, [cacheKey])
 
   useEffect(() => {
@@ -121,17 +144,35 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     dmMessagesCache.set(cacheKey, messages)
   }, [cacheKey, messages, messagesOwnerKey])
 
+  const recordArrival = useCallback((id: string) => {
+    const current = threadRef.current
+    if (current.key !== cacheKey) return false
+    current.arrivals.set(id, ++current.sequence)
+    return true
+  }, [cacheKey])
+
   const loadHistory = useCallback(() => {
     const socket = socketRef.current
     if (!socket?.connected) return
+    const sequence = threadRef.current.sequence
+    const generation = ++threadRef.current.generation
     socket.emit('dm:history', { conversationId }, (response: DmHistoryResponse) => {
+      if (threadRef.current.key !== cacheKey || socketRef.current !== socket || threadRef.current.generation !== generation) return
       setHistoryLoaded(true)
       if (Array.isArray(response?.data?.messages)) {
-        setMessages((response.data.messages ?? []).map(normalizeDmMessage))
+        const history = (response.data.messages ?? []).map(normalizeDmMessage)
+        const ids = new Set(history.map((message) => message.id))
+        const fresh = new Set([...threadRef.current.arrivals].filter(([, n]) => n > sequence).map(([id]) => id))
+        setMessages((previous) => {
+          const current = new Map(previous.filter((message) => fresh.has(message.id)).map((message) => [message.id, message]))
+          return chronological([...history.map((message) => current.get(message.id) ?? message),
+            ...previous.filter((message) => !ids.has(message.id)
+              && (fresh.has(message.id) || message.id.startsWith('pending:')))])
+        })
         setMessagesOwnerKey(cacheKey)
         setHasMore(response.data.hasMore ?? false)
         if (response.data.peerLastReadAt !== undefined) {
-          setPeerLastReadAt(response.data.peerLastReadAt ?? null)
+          setPeerLastReadAt((previous) => newestRead(previous, response.data?.peerLastReadAt ?? null))
         }
       }
     })
@@ -161,14 +202,17 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     })
 
     socketRef.current = socket
+    const isCurrent = () => threadRef.current.key === cacheKey && socketRef.current === socket
 
     socket.on('connect', () => {
+      if (!isCurrent()) return
       setConnectionState('connected')
       socket.emit('dm:join', { conversationId })
       loadHistory()
     })
 
     socket.on('disconnect', (reason) => {
+      if (!isCurrent()) return
       // 'io server disconnect' means server kicked us — don't expect reconnect
       if (reason === 'io server disconnect') {
         setConnectionState('offline')
@@ -180,11 +224,14 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     })
 
     socket.io.on('reconnect_failed', () => {
+      if (!isCurrent()) return
       setConnectionState('offline')
     })
 
     socket.on('dm:message', (raw: DmMessage) => {
+      if (!isCurrent()) return
       const msg = normalizeDmMessage(raw)
+      if (msg.conversationId !== conversationId || !recordArrival(msg.id)) return
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         if (msg.clientMessageId && msg.senderId === userId) {
@@ -200,7 +247,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
             return next
           }
         }
-        return [...prev, msg]
+        return chronological([...prev, msg])
       })
       if (msg.senderId === userId && msg.clientMessageId) {
         const pending = pendingOutgoingRef.current.find(
@@ -215,19 +262,23 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
     // Reactions and deletes arrive as full rows.
     socket.on('dm:event', (payload: { kind?: string; message?: DirectMessageItem }) => {
+      if (!isCurrent()) return
       const next = payload?.message
-      if (!next?.id) return
+      if (!next?.id || next.conversationId !== conversationId) return
       const row = fromDirectMessageItem(next)
+      recordArrival(row.id)
       setMessages((prev) => prev.map((m) => (m.id === row.id ? { ...m, ...row } : m)))
     })
 
     // The peer read the thread: advance the ✓✓ watermark.
     socket.on('dm:read', (data: { userId?: string; readAt?: string | null }) => {
+      if (!isCurrent()) return
       if (!data || data.userId === userId) return
-      setPeerLastReadAt(data.readAt ?? new Date().toISOString())
+      setPeerLastReadAt((previous) => newestRead(previous, data.readAt ?? new Date().toISOString()))
     })
 
     socket.on('dm:typing', (data: { userId: string; userName: string; conversationId?: string }) => {
+      if (!isCurrent()) return
       if (data.userId === userId) return
       if (data.conversationId && data.conversationId !== conversationId) return
 
@@ -249,22 +300,26 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
     return () => {
       socket.disconnect()
-      socketRef.current = null
+      if (socketRef.current === socket) {
+        socketRef.current = null
+        setLoadingHistory(false)
+      }
       typingTimeoutsRef.current.forEach((t) => clearTimeout(t))
       typingTimeoutsRef.current.clear()
+      setTypingUsers([])
     }
-  }, [token, conversationId, userId, apiUrl, loadHistory])
-
-  const [lastError, setLastError] = useState<string | null>(null)
+  }, [token, conversationId, userId, apiUrl, loadHistory, cacheKey, recordArrival])
 
   const completePendingOutgoing = useCallback(
     (key: string, ok: boolean, response?: DmHistoryResponse | null) => {
       const pending = pendingOutgoingRef.current.find((item) => item.key === key)
       pendingOutgoingRef.current = pendingOutgoingRef.current.filter((item) => item.key !== key)
+      if (threadRef.current.key !== cacheKey) return ok || Boolean(pending?.delivered)
       if (ok || pending?.delivered) {
         const serverId = response?.id ?? response?.data?.id
         const clientMessageId = response?.clientMessageId ?? pending?.clientMessageId
         if (serverId && clientMessageId) {
+          threadRef.current.arrivals.set(serverId, ++threadRef.current.sequence)
           setMessages((prev) =>
             prev.map((item) =>
               item.clientMessageId === clientMessageId && item.id.startsWith('pending:')
@@ -284,7 +339,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       setLastError('send_error')
       return false
     },
-    [],
+    [cacheKey],
   )
 
   const sendMessage = useCallback(
@@ -371,16 +426,18 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     async (input: SendDirectMessageInput): Promise<'ok' | 'forbidden' | 'failed'> => {
       if (!clubId) return 'failed'
       const result = await postDirectMessage(clubId, conversationId, input)
+      if (threadRef.current.key !== cacheKey) return result.ok ? 'ok' : result.reason
       if (!result.ok) {
         setLastError(result.reason === 'forbidden' ? 'dm_forbidden' : 'send_error')
         return result.reason
       }
       const row = fromDirectMessageItem(result.message)
-      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
+      recordArrival(row.id)
+      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : chronological([...prev, row])))
       setLastError(null)
       return 'ok'
     },
-    [clubId, conversationId],
+    [clubId, conversationId, cacheKey, recordArrival],
   )
 
   const sendAttachment = useCallback(
@@ -400,9 +457,10 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       const updated = await setDmReaction(clubId, conversationId, messageId, emoji, on)
       if (!updated) return
       const row = fromDirectMessageItem(updated)
+      if (row.conversationId !== conversationId || !recordArrival(row.id)) return
       setMessages((prev) => prev.map((m) => (m.id === row.id ? { ...m, ...row } : m)))
     },
-    [clubId, conversationId],
+    [clubId, conversationId, recordArrival],
   )
 
   const deleteMessage = useCallback(
@@ -411,9 +469,10 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       const updated = await deleteDirectMessage(clubId, conversationId, messageId)
       if (!updated) return
       const row = fromDirectMessageItem(updated)
+      if (row.conversationId !== conversationId || !recordArrival(row.id)) return
       setMessages((prev) => prev.map((m) => (m.id === row.id ? { ...m, ...row } : m)))
     },
-    [clubId, conversationId],
+    [clubId, conversationId, recordArrival],
   )
 
   const sendTyping = useCallback(() => {
@@ -439,25 +498,30 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   }
 
   const loadMore = useCallback(() => {
-    if (!socketRef.current || !hasMore || loadingHistory) return
+    const socket = socketRef.current
+    if (!socket || !hasMore || loadingHistory) return
 
     const oldest = messages[0]
     if (!oldest) return
 
     setLoadingHistory(true)
-    socketRef.current.emit(
+    socket.emit(
       'dm:history',
       { conversationId, cursor: oldest.createdAt },
       (response: DmHistoryResponse) => {
+        if (threadRef.current.key !== cacheKey || socketRef.current !== socket) return
         const data = response?.data
         if (Array.isArray(data?.messages)) {
-          setMessages((prev) => [...(data.messages ?? []).map(normalizeDmMessage), ...prev])
+          setMessages((prev) => {
+            const existing = new Set(prev.map((message) => message.id))
+            return [...(data.messages ?? []).map(normalizeDmMessage).filter((message) => !existing.has(message.id)), ...prev]
+          })
           setHasMore(data.hasMore ?? false)
         }
         setLoadingHistory(false)
       },
     )
-  }, [conversationId, hasMore, loadingHistory, messages])
+  }, [cacheKey, conversationId, hasMore, loadingHistory, messages])
 
   const reconnect = useCallback(() => {
     if (socketRef.current) {

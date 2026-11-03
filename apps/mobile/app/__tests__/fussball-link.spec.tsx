@@ -1,5 +1,6 @@
 import React from 'react'
-import { render, waitFor, fireEvent } from '@testing-library/react-native'
+import { Alert } from 'react-native'
+import { act, render, waitFor, fireEvent } from '@testing-library/react-native'
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }))
 jest.mock('@expo/vector-icons', () => ({
@@ -88,6 +89,10 @@ describe('FussballLinkScreen', () => {
     await waitFor(() => {
       expect(getByText('fussball.linkTitle')).toBeTruthy()
       expect(getByText('fussball.previewAction')).toBeTruthy()
+      expect(getByText('fussball.setupStep1')).toBeTruthy()
+      expect(getByText('fussball.setupStep2')).toBeTruthy()
+      expect(getByText('fussball.setupStep3')).toBeTruthy()
+      expect(getByText('fussball.setupLimitation')).toBeTruthy()
     })
   })
 
@@ -312,7 +317,7 @@ describe('FussballLinkScreen', () => {
     })
 
     const screen = render(<FussballLinkScreen />)
-    fireEvent.changeText(screen.getByPlaceholderText('fussball.inputPlaceholder'), snippet)
+    fireEvent.changeText(screen.getByPlaceholderText('fussball.setupPlaceholder'), snippet)
     fireEvent.press(screen.getByText('fussball.previewAction'))
     await waitFor(() => expect(screen.getByText('fussball.liveWidget')).toBeTruthy())
     fireEvent.press(screen.getByText('fussball.connectAction'))
@@ -328,5 +333,98 @@ describe('FussballLinkScreen', () => {
         },
       })
     })
+  })
+
+  it('does not allow a stale preview to be saved after editing the address', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    let resolvePreview!: (value: object) => void
+    mockApi.mockImplementation((url: string) =>
+      url.endsWith('/team-preview')
+        ? new Promise((resolve) => { resolvePreview = resolve })
+        : Promise.resolve([]),
+    )
+    const screen = render(<FussballLinkScreen />)
+    const input = screen.getByPlaceholderText('fussball.setupPlaceholder')
+    fireEvent.changeText(input, 'https://www.fussball.de/mannschaft/first')
+    fireEvent.press(screen.getByText('fussball.previewAction'))
+    fireEvent.changeText(input, 'https://www.fussball.de/mannschaft/second')
+    act(() => {
+      resolvePreview({ input: 'https://www.fussball.de/mannschaft/first', label: 'First', provider: 'fussball_public_page' })
+    })
+    await waitFor(() => expect(screen.getByText('fussball.previewAction')).toBeTruthy())
+    expect(screen.queryByText('fussball.connectAction')).toBeNull()
+  })
+
+  it('clears a checked link when the active team changes', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    mockApi.mockImplementation((url: string) => url.endsWith('/team-preview')
+      ? Promise.resolve({ input: 'https://www.fussball.de/mannschaft/first', label: 'First', provider: 'fussball_public_page' })
+      : Promise.resolve([]))
+    const screen = render(<FussballLinkScreen />)
+    fireEvent.changeText(screen.getByPlaceholderText('fussball.setupPlaceholder'), 'https://www.fussball.de/mannschaft/first')
+    fireEvent.press(screen.getByText('fussball.previewAction'))
+    await waitFor(() => expect(screen.getByText('fussball.connectAction')).toBeTruthy())
+    mockUseAuth.mockReturnValue({ ...managerAuth('OWNER'), activeTeamId: 't2' })
+    screen.rerender(<FussballLinkScreen />)
+    expect(screen.queryByText('fussball.connectAction')).toBeNull()
+    expect(screen.getByPlaceholderText('fussball.setupPlaceholder').props.value).toBe('')
+  })
+
+  it('does not show an earlier team’s links after requests resolve out of order', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    let resolveFirst!: (value: object[]) => void
+    mockApi.mockImplementation((url: string) => url.includes('teamId=t1')
+      ? new Promise((resolve) => { resolveFirst = resolve })
+      : Promise.resolve([]))
+    const screen = render(<FussballLinkScreen />)
+    mockUseAuth.mockReturnValue({ ...managerAuth('OWNER'), activeTeamId: 't2' })
+    screen.rerender(<FussballLinkScreen />)
+    await waitFor(() => expect(screen.getByText('fussball.noLinksTitle')).toBeTruthy())
+    act(() => resolveFirst([{ id: 'old', label: 'Wrong team', externalUrl: 'https://www.fussball.de/team/first', provider: 'fussball_public_page' }]))
+    expect(screen.queryByText('Wrong team')).toBeNull()
+  })
+
+  it('does not show a previous team’s preview error after switching teams', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    let rejectPreview!: (reason: Error) => void
+    mockApi.mockImplementation((url: string) => url.endsWith('/team-preview')
+      ? new Promise((_, reject) => { rejectPreview = reject })
+      : Promise.resolve([]))
+    const screen = render(<FussballLinkScreen />)
+    fireEvent.changeText(screen.getByPlaceholderText('fussball.setupPlaceholder'), 'https://www.fussball.de/mannschaft/first')
+    fireEvent.press(screen.getByText('fussball.previewAction'))
+    mockUseAuth.mockReturnValue({ ...managerAuth('OWNER'), activeTeamId: 't2' })
+    screen.rerender(<FussballLinkScreen />)
+    act(() => { rejectPreview(new Error('old request failed')) })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(alert).not.toHaveBeenCalled()
+    alert.mockRestore()
+  })
+
+  it('does not show an old team’s save result or reload after switching teams', async () => {
+    mockUseAuth.mockReturnValue(managerAuth('OWNER'))
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    let resolveSave!: (value: object) => void
+    mockApi.mockImplementation((url: string, options?: { method?: string }) => {
+      if (url.endsWith('/team-preview')) return Promise.resolve({ input: 'https://www.fussball.de/mannschaft/first', label: 'First', provider: 'fussball_public_page' })
+      if (url === '/integrations/fussball/team-links' && options?.method === 'POST') return new Promise((resolve) => { resolveSave = resolve })
+      return Promise.resolve([])
+    })
+    const screen = render(<FussballLinkScreen />)
+    fireEvent.changeText(screen.getByPlaceholderText('fussball.setupPlaceholder'), 'https://www.fussball.de/mannschaft/first')
+    fireEvent.press(screen.getByText('fussball.previewAction'))
+    await waitFor(() => expect(screen.getByText('fussball.connectAction')).toBeTruthy())
+    fireEvent.press(screen.getByText('fussball.connectAction'))
+    const oldTeamLoads = mockApi.mock.calls.filter(([url]) => url.includes('teamId=t1')).length
+    mockUseAuth.mockReturnValue({ ...managerAuth('OWNER'), activeTeamId: 't2' })
+    screen.rerender(<FussballLinkScreen />)
+    act(() => { resolveSave({ link: {} }) })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(alert).not.toHaveBeenCalled()
+    expect(mockApi.mock.calls.filter(([url]) => url.includes('teamId=t1'))).toHaveLength(oldTeamLoads)
+    alert.mockRestore()
   })
 })

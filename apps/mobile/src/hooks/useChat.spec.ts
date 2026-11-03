@@ -212,6 +212,254 @@ describe('useChat', () => {
     expect(result.current.unreadCount).toBe(0)
   })
 
+  it('deduplicates recovered media without inflating unread counts', () => {
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'ch-1',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    const message = makeMessage({ id: 'recovered-media', senderId: 'user-2' })
+    act(() => {
+      result.current.setIsAtBottom(false)
+      socket.trigger('chat:event', { kind: 'media', message })
+      socket.trigger('chat:event', { kind: 'media-recovered', message })
+      socket.trigger('chat:event', { kind: 'media-recovered', message })
+    })
+    expect(result.current.messages.filter((item) => item.id === message.id)).toHaveLength(1)
+    expect(result.current.unreadCount).toBe(1)
+  })
+
+  it('counts a genuinely new recovered message once while scrolled away', () => {
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'recover-new',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    const message = makeMessage({ id: 'recovered-new', senderId: 'user-2' })
+    act(() => {
+      result.current.setIsAtBottom(false)
+      socket.trigger('chat:event', { kind: 'media-recovered', message })
+      socket.trigger('chat:event', { kind: 'media-recovered', message })
+    })
+    expect(result.current.messages.filter((item) => item.id === message.id)).toHaveLength(1)
+    expect(result.current.unreadCount).toBe(1)
+  })
+
+  it('keeps a live message arriving before the initial history response', () => {
+    let historyAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) historyAck = ack
+      return socket
+    })
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'history-race',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    const message = makeMessage({ id: 'live-during-history', channelId: 'history-race', senderId: 'user-2' })
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      result.current.setIsAtBottom(false)
+      socket.trigger('chat:event', { kind: 'media', message })
+      historyAck({ data: { messages: [makeMessage({ id: 'history-only' })], hasMore: false } })
+      socket.trigger('chat:event', { kind: 'media-recovered', message })
+    })
+    expect(result.current.messages.map((item) => item.id)).toEqual(['history-only', 'live-during-history'])
+    expect(result.current.unreadCount).toBe(1)
+  })
+
+  it('keeps a REST-created message when an older history response arrives', () => {
+    let historyAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) historyAck = ack
+      return socket
+    })
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'rest-race',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      result.current.appendMessage(makeMessage({ id: 'rest-created', senderId: 'user-1' }))
+      historyAck({ data: { messages: [makeMessage({ id: 'history-only' })], hasMore: false } })
+    })
+    expect(result.current.messages.map((item) => item.id)).toEqual(['history-only', 'rest-created'])
+  })
+
+  it('keeps an acknowledged text when history arrives after its acknowledgement', async () => {
+    let historyAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) historyAck = ack
+      return socket
+    })
+    socket.timeout.mockReturnValue({ emit: (_event: string, payload: any, ack: (...args: unknown[]) => void) => {
+      ack(null, { id: 'acked-text', clientMessageId: payload.clientMessageId })
+    } })
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'ack-race',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    await act(async () => { expect(await result.current.sendMessage('hello', 'club-1')).toBe(true) })
+    act(() => historyAck({ data: { messages: [], hasMore: false } }))
+    expect(result.current.messages.map((message) => message.id)).toContain('acked-text')
+  })
+
+  it('does not resurrect a deleted message when older history arrives', async () => {
+    let staleAck!: AckHandler
+    let requests = 0
+    const original = makeMessage({ id: 'deleted-during-history', content: 'private old content' })
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) {
+        requests++
+        if (requests === 1) ack({ data: { messages: [original], hasMore: false } })
+        else staleAck = ack
+      }
+      return socket
+    })
+    global.fetch = jest.fn((_url: string, init?: RequestInit) => Promise.resolve(init?.method === 'DELETE'
+      ? { ok: true, text: async () => JSON.stringify({ ...original, content: '', deletedAt: '2026-04-20T00:00:00.000Z' }) }
+      : { ok: true, json: async () => null })) as jest.Mock
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'delete-race',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => { socket.connected = true; socket.trigger('connect'); result.current.refreshHistory() })
+    await act(async () => { await result.current.deleteMessage(original.id) })
+    act(() => staleAck({ data: { messages: [original], hasMore: false } }))
+    expect(result.current.messages[0]).toMatchObject({ id: original.id, content: '', deletedAt: '2026-04-20T00:00:00.000Z' })
+  })
+
+  it('does not mark a delayed history response read when the user scrolled away', () => {
+    let historyAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) historyAck = ack
+      return socket
+    })
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'history-away',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      result.current.setIsAtBottom(false)
+      historyAck({ data: { messages: [], hasMore: false } })
+    })
+    expect(socket.emit).not.toHaveBeenCalledWith('markChannelRead', expect.anything())
+  })
+
+  it('orders recovered older media before newer messages', () => {
+    const { result } = renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'recovery-order',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => {
+      socket.trigger('chat:event', { kind: 'media', message: makeMessage({ id: 'newer', createdAt: '2026-04-18T10:00:00.000Z' }) })
+      socket.trigger('chat:event', { kind: 'media-recovered', message: makeMessage({ id: 'older', createdAt: '2026-04-17T10:00:00.000Z' }) })
+    })
+    expect(result.current.messages.map((message) => message.id)).toEqual(['older', 'newer'])
+  })
+
+  it('marks genuinely new recovered media read while at the bottom', () => {
+    renderHook(() => useChat({ clubId: 'club-1', teamId: 'team-1', channelId: 'bottom-recovery',
+      token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }))
+    act(() => socket.trigger('chat:event', { kind: 'media-recovered', message: makeMessage({ id: 'new-at-bottom' }) }))
+    expect(socket.emit).toHaveBeenCalledWith('markChannelRead', { teamId: 'team-1', channelId: 'bottom-recovery' })
+  })
+
+  it('ignores an old channel history response after switching channels', () => {
+    let oldAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) oldAck = ack
+      return socket
+    })
+    const nextSocket = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(nextSocket)
+    const { result, rerender } = renderHook(({ channel }: { channel: string }) => useChat({ clubId: 'club-1', teamId: 'team-1',
+      channelId: channel, token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { channel: 'old-channel' } })
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      result.current.setIsAtBottom(false)
+      socket.trigger('chat:event', { kind: 'media', message: makeMessage({ id: 'old-live' }) })
+    })
+    expect(result.current.unreadCount).toBe(1)
+    rerender({ channel: 'new-channel' })
+    act(() => {
+      oldAck({ data: { messages: [makeMessage({ id: 'stale-old' })], hasMore: false } })
+    })
+    expect(result.current.messages.some((message) => message.id === 'stale-old')).toBe(false)
+    expect(result.current.unreadCount).toBe(0)
+  })
+
+  it('clears old-channel typing when switching channels', () => {
+    const nextSocket = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(nextSocket)
+    const { result, rerender } = renderHook(({ channel }: { channel: string }) => useChat({ clubId: 'club-1', teamId: 'team-1',
+      channelId: channel, token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { channel: 'typing-old' } })
+    act(() => socket.trigger('typing', { userId: 'user-2', userName: 'Mina', channelId: 'typing-old' }))
+    expect(result.current.typingUsers).toEqual(['Mina'])
+    rerender({ channel: 'typing-new' })
+    expect(result.current.typingUsers).toEqual([])
+  })
+
+  it('reports a saved media send as successful without appending it to a switched channel', async () => {
+    let finish!: (value: unknown) => void
+    const pending = new Promise((resolve) => { finish = resolve })
+    global.fetch = jest.fn((url: string) => url.endsWith('/messages/media') ? pending : Promise.resolve({
+      ok: true, json: () => Promise.resolve(null),
+    })) as jest.Mock
+    const nextSocket = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(nextSocket)
+    const { result, rerender } = renderHook(({ channel }: { channel: string }) => useChat({ clubId: 'club-1', teamId: 'team-1',
+      channelId: channel, token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { channel: 'send-old' } })
+    let sent!: Promise<boolean>
+    act(() => { sent = result.current.sendMediaMessage({ messageType: 'IMAGE', attachmentUrl: 'https://example.invalid/a' }) })
+    rerender({ channel: 'send-new' })
+    let success = false
+    await act(async () => {
+      finish({ ok: true, json: async () => makeMessage({ id: 'saved-old', channelId: 'send-old' }) })
+      success = await sent
+    })
+    expect(success).toBe(true)
+    expect(result.current.messages.some((message) => message.id === 'saved-old')).toBe(false)
+  })
+
+  it.each(['loadMore', 'refreshHistory'] as const)('ignores a stale %s response after switching channels', (method) => {
+    let oldAck!: AckHandler
+    let histories = 0
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) {
+        histories++
+        if (histories === 1) ack({ data: { messages: [makeMessage({ id: 'old-initial' })], hasMore: true } })
+        else oldAck = ack
+      }
+      return socket
+    })
+    const nextSocket = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(nextSocket)
+    const { result, rerender } = renderHook(({ channel }: { channel: string }) => useChat({ clubId: 'club-1', teamId: 'team-1',
+      channelId: channel, token: 'token-1', userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { channel: `old-${method}` } })
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    act(() => result.current[method]())
+    expect(oldAck).toBeDefined()
+    rerender({ channel: `new-${method}` })
+    act(() => oldAck({ data: { messages: [makeMessage({ id: 'stale-page' })], hasMore: false } }))
+    expect(result.current.messages.some((message) => message.id === 'stale-page')).toBe(false)
+    expect(result.current.loadingHistory).toBe(false)
+  })
+
+  it('clears pending pagination when a token change replaces the socket', () => {
+    let pageAck!: AckHandler
+    socket.emit.mockImplementation((event: string, _payload: unknown, ack?: AckHandler) => {
+      if (event === 'history' && ack) {
+        if (!pageAck) { pageAck = ack; ack({ data: { messages: [makeMessage({ id: 'initial-token' })], hasMore: true } }) }
+        else pageAck = ack
+      }
+      return socket
+    })
+    const nextSocket = createSocket()
+    mockIo.mockReturnValueOnce(socket).mockReturnValueOnce(nextSocket)
+    const { result, rerender } = renderHook(({ token }: { token: string }) => useChat({ clubId: 'club-1', teamId: 'team-1',
+      channelId: 'same-channel', token, userId: 'user-1', apiUrl: 'http://api.test' }),
+    { initialProps: { token: 'token-1' } })
+    act(() => { socket.connected = true; socket.trigger('connect') })
+    act(() => result.current.loadMore())
+    expect(result.current.loadingHistory).toBe(true)
+    rerender({ token: 'token-2' })
+    expect(result.current.loadingHistory).toBe(false)
+    act(() => pageAck({ data: { messages: [makeMessage({ id: 'stale-token-page' })], hasMore: false } }))
+    expect(result.current.messages.some((message) => message.id === 'stale-token-page')).toBe(false)
+  })
+
   it('treats a self echo as delivery even when the ack says failed', async () => {
     const { result } = renderHook(() =>
       useChat({

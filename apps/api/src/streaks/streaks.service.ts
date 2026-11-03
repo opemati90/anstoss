@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { type StreaksResponse } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { distinctInOrder, isoWeekKey, weekStreaks } from './streak-math'
+import { launchClubParticipantWhere } from '../auth/launch-access-policy'
 
 export { type StreaksResponse }
 
@@ -29,7 +30,10 @@ export class StreaksService {
     // membership is enforced by the controller guard). The leaderboard then
     // lists the team's active members instead of every club member.
     if (teamId) {
-      const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId }, select: { id: true } })
+      const team = await this.prisma.team.findFirst({
+        where: { id: teamId, clubId },
+        select: { id: true },
+      })
       if (!team) throw new NotFoundException('Team not found')
     }
 
@@ -38,7 +42,10 @@ export class StreaksService {
         where: { clubId, ...(teamId ? { teamId } : {}), date: { gte: since } },
         select: {
           date: true,
-          rsvps: { where: { status: 'YES' }, select: { userId: true } },
+          rsvps: {
+            where: { status: 'YES', user: launchClubParticipantWhere(clubId) },
+            select: { userId: true },
+          },
         },
         orderBy: { date: 'asc' },
       }),
@@ -51,6 +58,7 @@ export class StreaksService {
                 status: 'ACTIVE',
                 phase: 'FULL',
                 role: { in: ['PLAYER', 'HEAD_COACH', 'ASSISTANT_COACH'] },
+                user: launchClubParticipantWhere(clubId),
                 OR: [{ loanEndDate: null }, { loanEndDate: { gt: new Date() } }],
               },
               select: {
@@ -61,17 +69,24 @@ export class StreaksService {
             .then((rows) => {
               // One row per person (a playing coach has two access rows).
               const seen = new Set<string>()
-              return rows.filter((row) => (seen.has(row.userId) ? false : (seen.add(row.userId), true)))
+              return rows.filter((row) =>
+                seen.has(row.userId) ? false : (seen.add(row.userId), true),
+              )
             })
         : this.prisma.membership.findMany({
-            where: { clubId },
+            where: { clubId, user: launchClubParticipantWhere(clubId) },
             select: {
               userId: true,
               user: { select: { id: true, name: true, avatarUrl: true } },
             },
           }),
       this.prisma.importedFixture.findMany({
-        where: { clubId, ...(teamId ? { teamId } : {}), status: 'FINISHED', kickoffAt: { gte: since } },
+        where: {
+          clubId,
+          ...(teamId ? { teamId } : {}),
+          status: 'FINISHED',
+          kickoffAt: { gte: since },
+        },
         select: { id: true, kickoffAt: true },
         orderBy: { kickoffAt: 'asc' },
       }),
@@ -100,12 +115,14 @@ export class StreaksService {
     // --- MOTM: winner per fixture, bucketed into the fixture's week. ---
     const motmWonByUser = new Map<string, Set<string>>()
     const motmTimeline: string[] = []
+    const visibleMemberIds = new Set(memberships.map((member) => member.userId))
     if (fixtures.length > 0) {
       const fixtureWeekById = new Map(fixtures.map((f) => [f.id, isoWeekKey(f.kickoffAt)]))
       const polls = await this.prisma.poll.findMany({
         where: { question: { in: fixtures.map((f) => `motm:${f.id}`) } },
         include: {
           votes: {
+            where: { user: launchClubParticipantWhere(clubId) },
             include: { user: { select: { id: true } } },
             orderBy: { votedAt: 'asc' },
           },
@@ -121,7 +138,11 @@ export class StreaksService {
       for (const fixture of fixtures) {
         const poll = pollByFixtureId.get(fixture.id)
         if (!poll || poll.votes.length === 0) continue
-        const winner = tallyWinner(poll.votes)
+        // Stored votes remain intact; excluded candidates never enter the
+        // operational leaderboard through a historical poll option id.
+        const winner = tallyWinner(
+          poll.votes.filter((vote) => visibleMemberIds.has(vote.optionId.split(':')[1])),
+        )
         if (!winner) continue
         const week = fixtureWeekById.get(fixture.id)!
         motmTimeline.push(week)

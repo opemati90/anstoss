@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node", "jest"],
+    "paths": { "@anstoss/shared": ["../../packages/shared/src"] }
+  },
+  "include": ["src/**/*.ts", "scripts/verify-squad-concurrency.ts"],
+  "exclude": ["node_modules", "dist"]
+}

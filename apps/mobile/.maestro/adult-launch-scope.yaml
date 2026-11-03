@@ -1,0 +1,31 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=parent"
+- extendedWaitUntil:
+    visible: "Adults only, for now"
+    timeout: 20000
+- assertVisible: "Data & account"
+- tapOn:
+    id: "adult-launch-privacy"
+- assertVisible: "Data & account"
+- assertVisible:
+    id: "privacy-export"
+- assertVisible:
+    id: "privacy-existing-consent"
+- assertVisible:
+    id: "privacy-delete"
+- takeScreenshot: /private/tmp/anstoss-adult-launch-privacy
+- back
+- extendedWaitUntil:
+    visible: "Adults only, for now"
+    timeout: 10000
+- takeScreenshot: /private/tmp/anstoss-adult-launch-notice
+- tapOn:
+    id: "adult-launch-sign-out"
+- extendedWaitUntil:
+    visible: "Welcome to Anstoss"
+    timeout: 10000

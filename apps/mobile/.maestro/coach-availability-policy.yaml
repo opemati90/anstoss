@@ -1,0 +1,28 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=coach"
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://event-detail?eventId=event-match-next"
+- extendedWaitUntil:
+    visible: "Availability"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "event-availability-lock"
+    direction: DOWN
+- tapOn:
+    id: "event-availability-lock"
+- assertVisible: "Replies closed"
+- tapOn:
+    id: "event-availability-lock"
+- assertVisible: "Replies open"
+- tapOn:
+    id: "event-availability-policy"
+- tapOn: ".*24 hours before the event.*"
+- assertVisible: "Replies open"

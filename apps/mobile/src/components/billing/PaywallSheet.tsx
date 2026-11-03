@@ -37,12 +37,6 @@ const LAUNCH_FEATURES: LaunchFeature[] = [
     defaultBody: 'See free agents nearby, send trial invites, fill the bench.',
   },
   {
-    key: 'sponsorLogos',
-    icon: 'photo',
-    defaultTitle: 'Sponsor logos',
-    defaultBody: 'Upload your kit sponsors and show them on every member’s home screen.',
-  },
-  {
     key: 'prioritySupport',
     icon: 'bolt',
     defaultTitle: 'Priority support',

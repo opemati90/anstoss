@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 import {
   Image,
   Modal,
@@ -20,11 +21,11 @@ import type { PolicyKind } from '../../src/content/policies'
 import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { APP_LANGUAGES, getAppLanguage, setAppLanguage, type AppLanguage } from '../../src/i18n'
-import { OnboardingTextField, ProgressSegments, useKeyboardInset } from '../../src/onboarding/ui'
+import { OnboardingTextField, useKeyboardInset, useKeyboardVisible } from '../../src/onboarding/ui'
 import type { OnboardingIntent } from '../../src/onboarding/intent'
-import { onboardingProgress } from '../../src/onboarding/steps'
 import { sendCodeErrorKey } from '../../src/onboarding/errors'
 import { hairline, radius, space } from '../../src/theme/tokens'
+import { OPTIONAL_CLUB_FEATURES } from '../../src/launchFeatures'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -46,8 +47,9 @@ export default function Welcome() {
   const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
-  const { height } = useWindowDimensions()
+  const { height, fontScale } = useWindowDimensions()
   const keyboardInset = useKeyboardInset()
+  const keyboardUp = useKeyboardVisible()
   const { startOtp } = useOnboardingAuth()
   const { isSignedIn } = useAuth()
   const params = useLocalSearchParams<{ inviteCode?: string; reason?: string }>()
@@ -94,38 +96,29 @@ export default function Welcome() {
   // A signed-in user never sees the entry screen (deep link, stale stack).
   if (isSignedIn) return <Redirect href="/" />
 
-  const keyboardUp = keyboardInset > 0
   // The photo stays as a slim band on tall phones while typing and gives its
   // space to the form on small ones (iPhone SE, compact Android).
-  const heroHeight = keyboardUp
-    ? height >= 800
-      ? 112
-      : 0
-    : Math.min(Math.round(height * 0.34), 300)
-  const footerBottom = keyboardUp ? keyboardInset + space.sm : insets.bottom + space.md
-  const progress = onboardingProgress('member', 'welcome')
+  const heroHeight = keyboardUp ? 0 : Math.min(Math.round(height * 0.23), 196)
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + space.sm, paddingBottom: keyboardUp ? keyboardInset + space.md : insets.bottom + space.md }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
       >
-        {heroHeight > 0 ? (
-          <Image
-            source={require('../../assets/welcome-stadium.jpg')}
-            style={[styles.hero, { height: heroHeight + insets.top }]}
-            resizeMode="cover"
-            accessible={false}
-          />
-        ) : null}
-
         <View
-          style={[styles.topBar, { top: insets.top + space.sm }]}
+          testID="welcome-language-container"
+          style={styles.topBar}
         >
+            <View style={styles.brand}>
+              <Image source={require('../../assets/icon.png')} style={styles.brandIcon} accessible={false} />
+              {fontScale < 1.5 ? (
+                <Text variant="headline" weight="semibold" numberOfLines={1}>Anstoss</Text>
+              ) : null}
+            </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('onboardingFlow.welcome.languageA11y', {
@@ -142,16 +135,25 @@ export default function Welcome() {
           </Pressable>
         </View>
 
+        {heroHeight > 0 ? (
+          <View style={styles.heroFrame}>
+            <Image
+              testID="welcome-hero"
+              source={require('../../assets/welcome-stadium.jpg')}
+              style={[styles.hero, { height: heroHeight }]}
+              resizeMode="cover"
+              accessible={false}
+            />
+          </View>
+        ) : null}
+
         <View
+          testID="welcome-content"
           style={[
             styles.content,
-            { paddingTop: heroHeight > 0 ? space.lg : insets.top + space['2xl'] },
+            { paddingTop: heroHeight > 0 ? space.xl : space.md },
           ]}
         >
-          {progress ? <ProgressSegments progress={progress} /> : null}
-          <Text variant="caption1" weight="semibold" color="tertiary" style={styles.eyebrow}>
-            {t('onboardingFlow.welcome.tagline')}
-          </Text>
           <Text variant="title1" accessibilityRole="header">
             {t('onboardingFlow.welcome.title')}
           </Text>
@@ -193,7 +195,7 @@ export default function Welcome() {
               testID="welcome-email"
             />
           </View>
-          {!inviteCode ? (
+          {!inviteCode && OPTIONAL_CLUB_FEATURES.marketplace ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('onboardingFlow.welcome.freeAgentLink')}
@@ -214,7 +216,7 @@ export default function Welcome() {
               </Text>
             </Pressable>
           ) : null}
-          {!inviteCode ? (
+          {!inviteCode && LAUNCH_FEATURES.youthParticipation ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('onboardingFlow.welcome.setupCodeLink')}
@@ -237,15 +239,8 @@ export default function Welcome() {
               </Text>
             </Pressable>
           ) : null}
-        </View>
-      </ScrollView>
-
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: footerBottom, borderTopColor: c.borderSubtle, backgroundColor: c.background },
-        ]}
-      >
+          {!LAUNCH_FEATURES.youthParticipation ? <Text variant="footnote" color="secondary">{t('onboardingFlow.launch.adultsHint')}</Text> : null}
+        <View style={styles.footer}>
         <Button
           label={t('onboardingFlow.common.continue')}
           onPress={() => void send()}
@@ -280,7 +275,9 @@ export default function Welcome() {
             </Text>
           </Pressable>
         </View>
-      </View>
+        </View>
+        </View>
+      </ScrollView>
 
       <Modal
         visible={languageOpen}
@@ -337,11 +334,17 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { flexGrow: 1 },
+  heroFrame: { marginHorizontal: space.md, borderRadius: radius.lg, borderCurve: 'continuous', overflow: 'hidden' },
   hero: { width: '100%' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
+  brandIcon: { width: 40, height: 40, borderRadius: radius.md, borderCurve: 'continuous' },
   topBar: {
-    position: 'absolute',
-    right: space.md,
-    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingBottom: space.md,
   },
   languagePill: {
     flexDirection: 'row',
@@ -358,13 +361,10 @@ const styles = StyleSheet.create({
     paddingBottom: space.lg,
     gap: space.sm,
   },
-  eyebrow: { marginTop: space.md, textTransform: 'uppercase', letterSpacing: 1.2 },
   field: { marginTop: space.md },
   footer: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    borderTopWidth: hairline,
-    gap: space.xs,
+    paddingTop: space.md,
+    gap: space.sm,
   },
   links: {
     flexDirection: 'row',

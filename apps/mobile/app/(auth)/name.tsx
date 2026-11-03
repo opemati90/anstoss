@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { AdultLaunchScreen } from '../../src/onboarding/AdultLaunchScreen'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
@@ -17,6 +19,7 @@ const MIN_AGE = 16
 
 type Stage =
   | { kind: 'form' }
+  | { kind: 'adult-launch' }
   | { kind: 'under13' }
   | { kind: 'handoff'; dob: string }
 
@@ -53,6 +56,10 @@ export default function NameScreen() {
 
   async function submit() {
     if (!valid || saving) return
+    if (!LAUNCH_FEATURES.youthParticipation && askDob && dobCheck.status === 'valid' && dobCheck.age < LAUNCH_FEATURES.minimumAccountAge) {
+      setStage({ kind: 'adult-launch' })
+      return
+    }
     // 13-15: straight to the parent handoff, nothing is stored on this account.
     if (
       askDob &&
@@ -81,7 +88,8 @@ export default function NameScreen() {
       router.replace('/')
     } catch (err) {
       const code = apiErrorCode(err)
-      if (code === 'UNDER_13') setStage({ kind: 'under13' })
+      if (!LAUNCH_FEATURES.youthParticipation && (code === 'LAUNCH_ADULT_ONLY' || code === 'UNDER_13' || code === 'UNDER_16_HANDOFF')) setStage({ kind: 'adult-launch' })
+      else if (code === 'UNDER_13') setStage({ kind: 'under13' })
       else if (code === 'UNDER_16_HANDOFF' && dobCheck.status === 'valid') {
         setStage({ kind: 'handoff', dob: dobCheck.iso })
       } else if (!onExpired(err)) setError(t('onboardingFlow.common.saveFailed'))
@@ -91,6 +99,7 @@ export default function NameScreen() {
   }
 
   if (stage.kind === 'under13') return <Under13Screen onDone={finishSignedOut} />
+  if (stage.kind === 'adult-launch') return <AdultLaunchScreen onDone={finishSignedOut} onBack={() => setStage({ kind: 'form' })} />
   if (stage.kind === 'handoff') {
     return (
       <GuardianHandoffScreen

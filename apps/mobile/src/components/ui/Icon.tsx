@@ -87,6 +87,8 @@ export const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'checkmark.seal.fill': 'shield-checkmark',
   'checkmark.shield': 'shield-checkmark-outline',
   'checkmark.shield.fill': 'shield-checkmark',
+  'hand.thumbsup': 'thumbs-up-outline',
+  'hand.thumbsdown': 'thumbs-down-outline',
   shield: 'shield-outline',
   'shield.fill': 'shield',
 

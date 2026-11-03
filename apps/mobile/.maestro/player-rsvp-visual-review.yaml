@@ -1,0 +1,17 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: responses-visual-review.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://event-detail?eventId=event-match-next'
+- scrollUntilVisible:
+    element:
+      id: 'event-rsvp-YES'
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/player-rsvp-visual-review

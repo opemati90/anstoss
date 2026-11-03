@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
+  ForbiddenException,
   Param,
   Patch,
   Post,
@@ -274,6 +276,13 @@ export class UsersController {
     return this.usersService.exportUserData(user.id)
   }
 
+  @AllowWithoutConsent()
+  @Get('me/export-bound')
+  async exportMyDataBound(@CurrentUser() user: { id: string }, @Headers('x-expected-actor-id') expectedActorId: string) {
+    if (expectedActorId !== user.id) throw new ForbiddenException('Account changed')
+    return this.usersService.exportUserData(user.id)
+  }
+
   /**
    * DELETE /me — GDPR account deletion (soft delete + anonymization).
    */
@@ -281,6 +290,14 @@ export class UsersController {
   @Delete('me')
   @RateLimit('write')
   async deleteMyAccount(@CurrentUser() user: { id: string }) {
+    return this.usersService.deleteAccount(user.id)
+  }
+
+  @AllowWithoutConsent()
+  @Delete('me/bound')
+  @RateLimit('write')
+  async deleteMyAccountBound(@CurrentUser() user: { id: string }, @Headers('x-expected-actor-id') expectedActorId: string) {
+    if (expectedActorId !== user.id) throw new ForbiddenException('Account changed')
     return this.usersService.deleteAccount(user.id)
   }
 

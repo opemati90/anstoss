@@ -1,0 +1,16 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=club-admin"
+- extendedWaitUntil:
+    visible: "Club"
+    timeout: 20000
+- tapOn: "Club"
+- extendedWaitUntil:
+    visible:
+      id: "verein-tab"
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/club-workspace-visual-review

@@ -7,6 +7,8 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+import { requireYouthParticipation } from '../auth/launch-access-policy'
 import type { CarpoolBoard, CarpoolRideItem, CreateCarpoolRideInput } from '@anstoss/shared'
 import { TeamAccessDeniedError } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
@@ -124,6 +126,7 @@ export class CarpoolService {
   /** The person taking/leaving a seat: the caller or a child they guard on the team. */
   private async resolveRider(userId: string, teamId: string, childUserId?: string) {
     if (!childUserId || childUserId === userId) return userId
+    requireYouthParticipation()
     const link = await this.prisma.guardianRelationship.findFirst({
       where: {
         parentUserId: userId,
@@ -231,7 +234,7 @@ export class CarpoolService {
     driverName: string,
     riderIds: string[],
   ) {
-    const guardians = (await this.prisma.guardianRelationship.findMany({
+    const guardians = (LAUNCH_FEATURES.youthParticipation ? await this.prisma.guardianRelationship.findMany({
       where: { playerUserId: { in: riderIds } },
       select: {
         parentUserId: true,
@@ -239,7 +242,7 @@ export class CarpoolService {
         childName: true,
         player: { select: { name: true } },
       },
-    })) as Array<{
+    }) : []) as Array<{
       parentUserId: string
       playerUserId: string | null
       childName: string | null

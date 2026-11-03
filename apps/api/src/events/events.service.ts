@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   HttpException,
 } from '@nestjs/common'
 import { Prisma, TeamRole } from '@prisma/client'
@@ -27,6 +28,8 @@ import {
   ClubCapability,
   rsvpStatusSchema,
   TeamAccessDeniedError,
+  LAUNCH_FEATURES,
+  updateRsvpSchema,
 } from '@anstoss/shared'
 
 const RsvpStatus = rsvpStatusSchema.enum
@@ -38,6 +41,10 @@ import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
 import { ChatService } from '../chat/chat.service'
 import { EventsGateway } from './events.gateway'
+import { assertAvailabilityOpen, lockAvailabilityEvent, lockAvailabilityAuthority, lockAvailabilityLifecycles, validateAvailabilityDeadline } from './availability-policy'
+import { getAge } from '../auth/age-gate.service'
+import { assertLaunchParticipant, launchParticipantWhere, requireYouthParticipation } from '../auth/launch-access-policy'
+import { resolveTrialSessionScope } from '../marketplace/trial-access'
 import {
   eventTitleFor,
   formatEventDateFor,
@@ -1012,6 +1019,8 @@ export class EventsService {
       cancelledAt: event.cancelledAt?.toISOString() ?? null,
       cancelReason: event.cancelReason ?? null,
       autoTitle: event.autoTitle ?? false,
+      rsvpDeadline: event.rsvpDeadline?.toISOString() ?? null,
+      rsvpLocked: Boolean(event.rsvpLocked),
       responseCount: squadRsvps.length,
       checkInCount: event._count.checkIns ?? 0,
       squadSize: event.team?._count?.access ?? 0,
@@ -1106,6 +1115,7 @@ export class EventsService {
         },
         series: { select: { id: true, intervalWeeks: true, until: true, weekdays: true } },
         rsvps: {
+          ...(!LAUNCH_FEATURES.youthParticipation ? { where: { user: launchParticipantWhere() } } : {}),
           include: {
             user: {
               select: { id: true, name: true, avatarUrl: true },
@@ -1145,8 +1155,8 @@ export class EventsService {
     await this.withSquadCounts([event])
     const includeReadiness = await this.canViewReadiness(userId, event.teamId)
 
-    const [members, children, playerAccess] = await Promise.all([
-      this.loadTeamPlayers(event.teamId),
+    const [squadMembers, children, playerAccess] = await Promise.all([
+      this.loadTeamPlayers(event.teamId, this.prisma, clubId),
       this.loadGuardedChildren(userId, event.teamId),
       // Any player row counts for answering (trialists too), not only the
       // squad: a Spielertrainer or a trialist answers for themselves.
@@ -1155,30 +1165,35 @@ export class EventsService {
         select: { id: true },
       }),
     ])
+    const members = LAUNCH_FEATURES.youthParticipation ? squadMembers
+      : await this.loadEventResponseMembers(clubId, event.teamId, event.id, squadMembers)
     const childIds = new Set(children.map((child) => child.userId))
-    const memberIds = new Set(members.map((member) => member.userId))
-    const squadRsvps = event.rsvps.filter((rsvp) => memberIds.has(rsvp.userId))
+    const memberIds = new Set(squadMembers.map((member) => member.userId))
+    const responseIds = new Set(members.map((member) => member.userId))
+    const visibleRsvps = LAUNCH_FEATURES.youthParticipation ? event.rsvps
+      : event.rsvps.filter((rsvp) => responseIds.has(rsvp.userId))
+    const squadRsvps = visibleRsvps.filter((rsvp) => memberIds.has(rsvp.userId))
     // The Kader is the coach's draft until it is published; nobody who said
     // Absage or left the team is in it (H1).
     const showSquad = includeReadiness || Boolean(event.squadPublishedAt)
     const isNominated = (rsvp: { userId: string; status: string; nominated: boolean }) =>
       showSquad && rsvp.nominated && rsvp.status !== RsvpStatus.NO && memberIds.has(rsvp.userId)
 
-    const mine = event.rsvps.find((rsvp) => rsvp.userId === userId)
+    const mine = visibleRsvps.find((rsvp) => rsvp.userId === userId)
     const myRsvp = mine?.status ?? null
 
     const myCheckInAt = event.checkIns[0]?.checkedInAt?.toISOString() ?? null
     const teamMemberCount = includeReadiness ? (event.team?._count?.access ?? null) : undefined
     // Why someone can't come is private: managers, the player and their
     // guardians see it; teammates only see the answer.
-    const rsvps = event.rsvps.map((rsvp) => {
+    const rsvps = visibleRsvps.map((rsvp) => {
       const canSeeReason = includeReadiness || rsvp.userId === userId || childIds.has(rsvp.userId)
       return {
         id: rsvp.id,
         userId: rsvp.userId,
         status: rsvp.status,
-        reason: canSeeReason ? rsvp.reason : undefined,
-        note: canSeeReason ? rsvp.note : undefined,
+        reason: canSeeReason ? (LAUNCH_FEATURES.healthReporting ? rsvp.reason : null) : undefined,
+        note: canSeeReason ? (LAUNCH_FEATURES.healthReporting ? rsvp.note : null) : undefined,
         nominated: isNominated(rsvp),
         updatedAt: toIso(rsvp.updatedAt),
         user: rsvp.user,
@@ -1186,14 +1201,14 @@ export class EventsService {
     })
 
     const childRows = children.map((child) => {
-      const reply = event.rsvps.find((rsvp) => rsvp.userId === child.userId)
+      const reply = visibleRsvps.find((rsvp) => rsvp.userId === child.userId)
       return {
         userId: child.userId,
         name: child.name,
         teamName: event.team?.name ?? null,
         rsvp: reply?.status ?? null,
-        reason: reply?.reason ?? null,
-        note: reply?.note ?? null,
+        reason: LAUNCH_FEATURES.healthReporting ? reply?.reason ?? null : null,
+        note: LAUNCH_FEATURES.healthReporting ? reply?.note ?? null : null,
         nominated: reply ? isNominated(reply) : false,
       }
     })
@@ -1218,6 +1233,8 @@ export class EventsService {
     return {
       ...(base as unknown as Omit<EventDetail, 'date'>),
       date: toIso(event.date),
+      rsvpDeadline: toIso(event.rsvpDeadline),
+      rsvpLocked: Boolean(event.rsvpLocked),
       createdAt: toIso(event.createdAt),
       meetingAt: toIso(event.meetingAt),
       squadPublishedAt: toIso(event.squadPublishedAt),
@@ -1235,8 +1252,8 @@ export class EventsService {
       rsvps,
       team: event.team ? { id: event.team.id, name: event.team.name } : null,
       myRsvp,
-      myRsvpReason: mine?.reason ?? null,
-      myRsvpNote: mine?.note ?? null,
+      myRsvpReason: LAUNCH_FEATURES.healthReporting ? mine?.reason ?? null : null,
+      myRsvpNote: LAUNCH_FEATURES.healthReporting ? mine?.note ?? null : null,
       myNominated: mine ? isNominated(mine) : false,
       myRsvpStale: Boolean(
         mine &&
@@ -1256,6 +1273,8 @@ export class EventsService {
           })
         : undefined,
       members,
+      ...(includeReadiness ? { reminderEligibleUserIds: squadMembers
+        .filter((member) => member.userId !== userId).map((member) => member.userId) } : {}),
       children: childRows,
       viewer: {
         canManage: includeReadiness,
@@ -1272,21 +1291,21 @@ export class EventsService {
    * loan running, not INACTIVE), with jersey number and position when known.
    * These are the people Offen / Zusagen / the Kader are counted against.
    */
-  private async loadTeamPlayers(teamId: string) {
+  private async loadTeamPlayers(teamId: string, client: Prisma.TransactionClient = this.prisma, clubId?: string) {
     // Kader fix L5 (team agent): skip players loaned out of this team.
     const [access, profiles, loanedOut] = await Promise.all([
-      this.prisma.teamAccess.findMany({
-        where: { teamId, ...SQUAD_ACCESS_COUNT_WHERE, ...activeTeamAccessWhere() },
+      client.teamAccess.findMany({
+        where: { teamId, ...(clubId ? { clubId } : {}), ...SQUAD_ACCESS_COUNT_WHERE, ...activeTeamAccessWhere() },
         select: {
           userId: true,
           user: { select: { id: true, name: true, avatarUrl: true } },
         },
       }),
-      this.prisma.teamMember.findMany({
+      client.teamMember.findMany({
         where: { teamId },
         select: { userId: true, jerseyNumber: true, position: true, operationalStatus: true },
       }),
-      loanedOutByTeam(this.prisma, [teamId]).then((byTeam) => byTeam.get(teamId)),
+      loanedOutByTeam(client, [teamId]).then((byTeam) => byTeam.get(teamId)),
     ])
     const profileByUser = new Map(
       (profiles ?? []).map(
@@ -1323,8 +1342,43 @@ export class EventsService {
     return members.sort((a, b) => a.name.localeCompare(b.name, 'de'))
   }
 
+  /** RSVP roster = full squad plus adults whose trial grants this event.
+   * Trialists never become squad nominees merely by appearing in responses. */
+  private async loadEventResponseMembers(
+    clubId: string, teamId: string, eventId: string,
+    squad: Awaited<ReturnType<EventsService['loadTeamPlayers']>>,
+  ) {
+    const trialRows = await this.prisma.teamAccess.findMany({ where: {
+      clubId, teamId, role: TeamRole.PLAYER, phase: 'TRIAL', ...activeTeamAccessWhere(),
+      user: launchParticipantWhere(),
+    }, select: { userId: true, user: { select: { name: true, avatarUrl: true } } } })
+    if (!trialRows.length) return squad
+    const membershipRows = await this.prisma.membership.findMany({ where: {
+      clubId, userId: { in: trialRows.map((row) => row.userId) },
+    }, select: { userId: true } })
+    const memberIds = new Set(membershipRows.map((row) => row.userId))
+    const existing = new Set(squad.map((member) => member.userId))
+    const trials = await Promise.all(trialRows.map(async (row) => {
+      if (existing.has(row.userId) || !row.user) return null
+      const scope = await resolveTrialSessionScope(this.prisma as never, row.userId, teamId)
+      if (scope.wechsel) {
+        if (!scope.eventIds.includes(eventId)) return null
+      } else {
+        const priorInvite = await this.prisma.trialInvite.findFirst({ where: {
+          clubId, teamId, freeAgentProfile: { userId: row.userId },
+        }, select: { id: true } })
+        if (priorInvite || !memberIds.has(row.userId)) return null
+      }
+      return { userId: row.userId, name: row.user.name ?? '', avatarUrl: row.user.avatarUrl,
+        jerseyNumber: null, position: null }
+    }))
+    return [...squad, ...trials.filter((member): member is NonNullable<typeof member> => member !== null)]
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+  }
+
   /** Children the user guards who are active on the team. */
   private async loadGuardedChildren(userId: string, teamId: string) {
+    if (!LAUNCH_FEATURES.youthParticipation) return []
     const rows = await this.prisma.guardianRelationship.findMany({
       where: {
         parentUserId: userId,
@@ -1350,9 +1404,14 @@ export class EventsService {
     reason?: string,
     note?: string,
     childUserId?: string,
-  ): Promise<{ eventId: string; userId: string; status: string }> {
+    guardianActorId?: string,
+  ): Promise<{ eventId: string; userId: string; status: string; reason?: string | null; note?: string | null }> {
+    if (!updateRsvpSchema.safeParse({ status, reason, note }).success) {
+      throw new BadRequestException({ code: 'FEATURE_COMING_SOON', message: 'Availability reasons and notes are not available in this release. Send Yes, Maybe or No only.' })
+    }
     // A parent naming the child goes straight through the guardian check.
     if (childUserId && childUserId !== userId) {
+      requireYouthParticipation()
       return this.upsertRsvpProxy(eventId, userId, childUserId, status, reason, note)
     }
 
@@ -1379,6 +1438,7 @@ export class EventsService {
       select: { id: true },
     })
     if (!callerOnTeam) {
+      if (!LAUNCH_FEATURES.youthParticipation) throw new TeamAccessDeniedError('Only your own availability is supported in this release.')
       const guardianMatches = await this.prisma.guardianRelationship.findMany({
         where: {
           parentUserId: userId,
@@ -1425,32 +1485,42 @@ export class EventsService {
 
     const storedReason = status === 'NO' ? (reason ?? null) : null
     const storedNote = note?.trim() ? note.trim().slice(0, 200) : null
+    const rsvp = await this.prisma.$transaction(async (tx) => {
+    await lockAvailabilityLifecycles(tx, [userId, ...(guardianActorId ? [guardianActorId] : [])])
+    const current = await lockAvailabilityEvent(tx, eventId, event.clubId)
+    await lockAvailabilityAuthority(tx, current.clubId, current.teamId, userId, guardianActorId)
+    await this.assertCurrentPlayerEligibility(tx, current.clubId, current.teamId, eventId, userId)
+    assertAvailabilityOpen(current)
     // H1: an Absage takes the player out of the Kader. The coach keeps a
     // marker (squadDroppedAt) so the Kader tab can say who dropped out,
     // instead of a published Kader that still counts them in.
     if (status === RsvpStatus.NO) {
-      await this.prisma.rsvp.updateMany({
+      await tx.rsvp.updateMany({
         where: { eventId, userId, nominated: true },
         data: { nominated: false, squadDroppedAt: new Date() },
       })
     }
-    const rsvp = await this.prisma.rsvp.upsert({
+    return tx.rsvp.upsert({
       where: {
         eventId_userId: { eventId, userId },
       },
       update: {
         status,
-        reason: storedReason,
-        note: storedNote,
+        playerEligibilityVerifiedAt: new Date(),
+        // Disabling health reporting changes access/collection, not existing
+        // stored records. Historical explanations remain exportable only.
+        ...(LAUNCH_FEATURES.healthReporting ? { reason: storedReason, note: storedNote } : {}),
         ...(status !== RsvpStatus.NO && { squadDroppedAt: null }),
       },
       create: {
         eventId,
         userId,
         status,
+        playerEligibilityVerifiedAt: new Date(),
         reason: storedReason,
         note: storedNote,
       },
+    })
     })
 
     // Auto-create reminder when user RSVPs YES and event is >1hr away
@@ -1458,11 +1528,11 @@ export class EventsService {
       const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
       if (event.date > oneHourFromNow) {
         const remindAt = new Date(event.date.getTime() - 60 * 60 * 1000)
-        await this.prisma.eventReminderPreference.upsert({
+        void Promise.resolve().then(() => this.prisma.eventReminderPreference.upsert({
           where: { eventId_userId: { eventId, userId } },
           update: {},
           create: { eventId, userId, remindAt },
-        })
+        })).catch(() => this.pushLogger.warn('Saved RSVP reminder scheduling failed'))
       }
     }
 
@@ -1484,7 +1554,47 @@ export class EventsService {
       })
     }
 
-    return rsvp
+    return { eventId: rsvp.eventId, userId: rsvp.userId, status: rsvp.status,
+      reason: LAUNCH_FEATURES.healthReporting ? rsvp.reason : null,
+      note: LAUNCH_FEATURES.healthReporting ? rsvp.note : null }
+  }
+
+  async getAvailabilityPolicy(clubId: string, eventId: string, userId: string) {
+    const event = await this.prisma.event.findFirst({ where: { id: eventId, clubId } })
+    if (!event) throw new NotFoundException('Event not found')
+    await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId })
+    return {
+      deadline: event.rsvpDeadline?.toISOString() ?? null,
+      locked: event.rsvpLocked,
+      closed: Boolean(event.cancelledAt || event.archivedAt || event.rsvpLocked
+        || (event.rsvpDeadline && Math.min(event.rsvpDeadline.getTime(), event.date.getTime()) <= Date.now())),
+    }
+  }
+
+  async updateAvailabilityPolicy(
+    clubId: string,
+    eventId: string,
+    userId: string,
+    input: { deadline?: string | null; locked?: boolean },
+  ) {
+    const event = await this.prisma.event.findFirst({ where: { id: eventId, clubId } })
+    if (!event) throw new NotFoundException('Event not found')
+    await this.teamsService.assertEventManagementAccess(userId, event.teamId)
+    return this.prisma.$transaction(async (tx) => {
+      await lockAvailabilityLifecycles(tx, [userId])
+      const current = await lockAvailabilityEvent(tx, eventId, clubId)
+      await lockAvailabilityAuthority(tx, clubId, current.teamId, userId)
+      await this.teamsService.assertEventManagementAccess(userId, current.teamId)
+      if (current.cancelledAt || current.archivedAt) throw new BadRequestException('Event is not active')
+      if (input.deadline !== undefined) {
+        validateAvailabilityDeadline(input.deadline === null ? null : new Date(input.deadline), current.date)
+      }
+      const updated = await tx.event.update({ where: { id: eventId }, data: {
+        ...(input.deadline !== undefined && { rsvpDeadline: input.deadline === null ? null : new Date(input.deadline) }),
+        ...(input.locked !== undefined && { rsvpLocked: input.locked }),
+      } })
+      return { deadline: updated.rsvpDeadline?.toISOString() ?? null, locked: updated.rsvpLocked }
+    })
   }
 
   private async notifyRsvpUpdate(
@@ -1560,6 +1670,7 @@ export class EventsService {
     reason?: string,
     note?: string,
   ): Promise<{ eventId: string; userId: string; status: string }> {
+    requireYouthParticipation()
     const relationship = await this.prisma.guardianRelationship.findFirst({
       where: {
         parentUserId,
@@ -1570,7 +1681,7 @@ export class EventsService {
       throw new ForbiddenException('No guardian relationship with this player')
     }
 
-    return this.upsertRsvp(eventId, childUserId, status, reason, note)
+    return this.upsertRsvp(eventId, childUserId, status, reason, note, undefined, parentUserId)
   }
 
   async getRsvpSummary(eventId: string, userId: string) {
@@ -1959,12 +2070,13 @@ export class EventsService {
 
   private async buildSquad(event: {
     id: string
+    clubId: string
     teamId: string
     squadPublishedAt: Date | null
-  }): Promise<EventSquad> {
+  }, client: Prisma.TransactionClient = this.prisma): Promise<EventSquad> {
     const [members, rsvps] = await Promise.all([
-      this.loadTeamPlayers(event.teamId),
-      this.prisma.rsvp.findMany({
+      this.loadTeamPlayers(event.teamId, client, event.clubId),
+      client.rsvp.findMany({
         where: { eventId: event.id },
         select: {
           userId: true,
@@ -1992,7 +2104,7 @@ export class EventsService {
     const candidates = members
       .map((member) => {
         const reply = replyByUser.get(member.userId)
-        return { ...member, rsvp: reply?.status ?? null, reason: reply?.reason ?? null }
+        return { ...member, rsvp: reply?.status ?? null, reason: LAUNCH_FEATURES.healthReporting ? reply?.reason ?? null : null }
       })
       .filter((member) => member.rsvp === RsvpStatus.YES || member.rsvp === RsvpStatus.MAYBE)
     const candidateIds = new Set(candidates.map((candidate) => candidate.userId))
@@ -2008,7 +2120,7 @@ export class EventsService {
         userId: reply.userId,
         name: nameOf(reply),
         cause: memberIds.has(reply.userId) ? ('declined' as const) : ('left' as const),
-        reason: memberIds.has(reply.userId) ? reply.reason : null,
+        reason: LAUNCH_FEATURES.healthReporting && memberIds.has(reply.userId) ? reply.reason : null,
         at: reply.squadDroppedAt ? reply.squadDroppedAt.toISOString() : null,
       }))
     return {
@@ -2045,17 +2157,28 @@ export class EventsService {
     await this.teamsService.assertEventManagementAccess(userId, event.teamId)
     if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
 
-    const current = await this.buildSquad(event)
-    const candidateIds = new Set(current.candidates.map((candidate) => candidate.userId))
-    const userIds = Array.from(new Set(input.userIds)).filter((id) => candidateIds.has(id))
-
-    const wasNominated = new Set(current.nominatedUserIds)
-    const firstPublish = !event.squadPublishedAt
-    const publishedAt = input.publish ? new Date() : event.squadPublishedAt
-
-    await this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
+      const lockedUserIds = [...new Set([userId, ...input.userIds])].sort()
+      await lockAvailabilityLifecycles(tx, lockedUserIds)
+      // RSVP and squad writes serialize on the same event. Never restore a
+      // nomination from a candidate list read before a decline committed.
+      const currentEvent = await lockAvailabilityEvent(tx, eventId, clubId)
+      await lockAvailabilityAuthority(tx, clubId, currentEvent.teamId, userId)
+      await this.teamsService.assertEventManagementAccess(userId, currentEvent.teamId)
+      if (currentEvent.cancelledAt || currentEvent.archivedAt) throw new BadRequestException('Event is unavailable')
+      // Do not lock unrelated roster rows: deletion takes TeamMember before
+      // TeamAccess. Selected players share its lifecycle lock (also used by
+      // new/reactivated loans), followed by this consistent row order.
+      await tx.$queryRaw`SELECT m."id" FROM "TeamMember" m JOIN "Team" t ON t."id" = m."teamId" WHERE t."clubId" = ${clubId} AND m."teamId" = ${currentEvent.teamId} AND m."userId" IN (${Prisma.join(lockedUserIds)}) ORDER BY m."id" FOR SHARE OF m`
+      await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "clubId" = ${clubId} AND "teamId" = ${currentEvent.teamId} AND "userId" IN (${Prisma.join(lockedUserIds)}) ORDER BY "id" FOR SHARE`
+      const current = await this.buildSquad(currentEvent, tx)
+      const candidateIds = new Set(current.candidates.map((candidate) => candidate.userId))
+      const userIds = Array.from(new Set(input.userIds)).filter((id) => candidateIds.has(id))
+      const wasNominated = new Set(current.nominatedUserIds)
+      const firstPublish = !currentEvent.squadPublishedAt
+      const publishedAt = input.publish ? new Date() : currentEvent.squadPublishedAt
       await tx.rsvp.updateMany({
-        where: { eventId, userId: { in: userIds } },
+        where: { eventId, userId: { in: userIds }, status: { in: [RsvpStatus.YES, RsvpStatus.MAYBE] } },
         data: { nominated: true, squadDroppedAt: null },
       })
       await tx.rsvp.updateMany({
@@ -2069,18 +2192,23 @@ export class EventsService {
       })
       if (input.publish) {
         await tx.event.update({
-          where: { id: eventId },
+          where: { id: eventId, clubId },
           data: { squadPublishedAt: publishedAt },
         })
       }
-    })
+      const recipients = input.publish
+        ? firstPublish ? userIds : userIds.filter((id) => !wasNominated.has(id))
+        : []
+      const updatedEvent = { ...currentEvent, squadPublishedAt: publishedAt ?? null }
+      return { event: updatedEvent, recipients, squad: await this.buildSquad(updatedEvent, tx) }
+    }, { timeout: 15_000 })
 
-    this.eventsGateway.emitEventUpsert(event.teamId, event.id)
+    try { this.eventsGateway.emitEventUpsert(saved.event.teamId, saved.event.id) }
+    catch { this.pushLogger.warn('Saved squad realtime update failed') }
 
     if (input.publish) {
-      const recipients = firstPublish ? userIds : userIds.filter((id) => !wasNominated.has(id))
-      if (recipients.length > 0) {
-        void this.notifySquadNominated(event, recipients).catch((err) => {
+      if (saved.recipients.length > 0) {
+        void this.notifySquadNominated(saved.event, saved.recipients).catch((err) => {
           this.pushLogger.warn(
             `SQUAD_NOMINATED push failed for event ${event.id}: ${
               err instanceof Error ? err.message : 'unknown error'
@@ -2090,7 +2218,7 @@ export class EventsService {
       }
     }
 
-    return this.buildSquad({ ...event, squadPublishedAt: publishedAt ?? null })
+    return saved.squad
   }
 
   /** preferredLanguage → event locale for each user (German when unset). */
@@ -2117,7 +2245,7 @@ export class EventsService {
     event: TitledEventRecord & { id: string; date: Date; clubId: string },
     playerIds: string[],
   ) {
-    const guardians = (await this.prisma.guardianRelationship.findMany({
+    const guardians = (LAUNCH_FEATURES.youthParticipation ? await this.prisma.guardianRelationship.findMany({
       where: { playerUserId: { in: playerIds } },
       select: {
         parentUserId: true,
@@ -2125,7 +2253,7 @@ export class EventsService {
         childName: true,
         player: { select: { name: true } },
       },
-    })) as Array<{
+    }) : []) as Array<{
       parentUserId: string
       playerUserId: string | null
       childName: string | null
@@ -2251,7 +2379,7 @@ export class EventsService {
     clubId: string,
     eventId: string,
     requestingUserId: string,
-  ): Promise<{ sent: number; nextAvailableAt: string }> {
+  ): Promise<{ sent: number; uncertain?: number; nextAvailableAt: string | null }> {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId, clubId },
       include: {
@@ -2263,6 +2391,7 @@ export class EventsService {
               where: {
                 ...SQUAD_ACCESS_COUNT_WHERE,
                 ...activeTeamAccessWhere(),
+                user: launchParticipantWhere(),
               },
               include: { user: true },
             },
@@ -2272,7 +2401,8 @@ export class EventsService {
     })
     if (!event) throw new NotFoundException('Event not found')
     if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
-    if (new Date(event.date) < new Date()) throw new BadRequestException('Event is in the past')
+    if (new Date(event.date) <= new Date()) throw new BadRequestException('Event is in the past')
+    assertAvailabilityOpen(event)
 
     // Auth: only event managers (OWNER/ADMIN/COACH) may send reminders
     await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
@@ -2288,10 +2418,14 @@ export class EventsService {
       select: { userId: true },
     })
     const inactiveIds = new Set((inactive ?? []).map((row: { userId: string }) => row.userId))
+    const loanedOut = (await loanedOutByTeam(this.prisma, [event.teamId])).get(event.teamId)
     const nonResponders = event.team.access
       .filter((a: { role?: string }) => !a.role || a.role === TeamRole.PLAYER)
+      .filter((a) => !a.user.deletedAt)
+      .filter((a) => LAUNCH_FEATURES.youthParticipation || (a.user.dateOfBirth && getAge(a.user.dateOfBirth) >= LAUNCH_FEATURES.minimumAccountAge))
       .filter((a: { user: { id: string } }) => !inactiveIds.has(a.user.id))
-      .map((a: { user: { id: string } }) => a.user)
+      .filter((a: { user: { id: string } }) => !loanedOut?.has(a.user.id))
+      .map((a) => a.user)
       .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
 
     // Bug 2 fix: deduplicate by userId (users with multiple roles appear multiple times)
@@ -2304,11 +2438,41 @@ export class EventsService {
 
     // Bug 3 fix: if nobody needs a reminder, return early without claiming the rate-limit slot
     if (uniqueNonResponders.length === 0) {
+      const previousExpiry = event.lastRsvpReminderAt
+        ? new Date(event.lastRsvpReminderAt).getTime() + RSVP_REMINDER_COOLDOWN_MS : 0
       return {
         sent: 0,
-        nextAvailableAt: new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString(),
+        nextAvailableAt: previousExpiry > Date.now() ? new Date(previousExpiry).toISOString() : null,
       }
     }
+
+    // A minor's availability is a guardian action. Unknown DOB fails closed;
+    // the legacy adult declaration is used only when DOB is absent.
+    const needsGuardian = (user: { dateOfBirth: Date | null; adultConfirmedAt: Date | null }) =>
+      user.dateOfBirth ? getAge(user.dateOfBirth) < 16 : !user.adultConfirmedAt
+    const guardedIds = uniqueNonResponders.filter(needsGuardian).map((user) => user.id)
+    const guardians = guardedIds.length > 0 ? await this.prisma.guardianRelationship.findMany({
+      where: {
+        clubId,
+        playerUserId: { in: guardedIds },
+        parent: { deletedAt: null, memberships: { some: { clubId } } },
+      },
+      select: { clubId: true, playerUserId: true, parentUserId: true },
+    }) : []
+    const targets = uniqueNonResponders.map((player) => ({
+      playerId: player.id,
+      recipients: needsGuardian(player)
+        ? [...new Set(guardians.filter((link) => link.clubId === clubId && link.playerUserId === player.id).map((link) => link.parentUserId))]
+        : [player.id],
+      childName: needsGuardian(player) ? firstName(player.name || '') || undefined : undefined,
+    })).filter((target) => target.recipients.length > 0)
+    if (targets.length === 0) {
+      const previousExpiry = event.lastRsvpReminderAt
+        ? new Date(event.lastRsvpReminderAt).getTime() + RSVP_REMINDER_COOLDOWN_MS : 0
+      return { sent: 0, nextAvailableAt: previousExpiry > Date.now() ? new Date(previousExpiry).toISOString() : null }
+    }
+    // Resolve fallible reads before taking a cooldown slot.
+    const locales = await this.loadEventLocales(targets.flatMap((target) => target.recipients))
 
     // Bug 1 fix: atomic rate-limit claim — only one concurrent caller gets count === 1
     const cutoff = new Date(Date.now() - RSVP_REMINDER_COOLDOWN_MS)
@@ -2317,60 +2481,77 @@ export class EventsService {
       where: {
         id: eventId,
         clubId,
-        OR: [{ lastRsvpReminderAt: null }, { lastRsvpReminderAt: { lt: cutoff } }],
+        cancelledAt: null,
+        archivedAt: null,
+        date: { gt: claimedAt },
+        rsvpLocked: false,
+        AND: [
+          { OR: [{ rsvpDeadline: null }, { rsvpDeadline: { gt: claimedAt } }] },
+          { OR: [{ lastRsvpReminderAt: null }, { lastRsvpReminderAt: { lt: cutoff } }] },
+        ],
       },
       data: { lastRsvpReminderAt: claimedAt },
     })
     if (claim.count === 0) {
       // Someone beat us or rate limit is still active — re-read to get retryAfter
       const fresh = await this.prisma.event.findUnique({
-        where: { id: eventId },
-        select: { lastRsvpReminderAt: true },
+        where: { id: eventId, clubId },
       })
-      const nextAvailableAt = new Date(
-        (fresh?.lastRsvpReminderAt?.getTime() ?? Date.now()) + RSVP_REMINDER_COOLDOWN_MS,
-      ).toISOString()
+      if (!fresh) throw new NotFoundException('Event not found')
+      assertAvailabilityOpen(fresh)
+      const nextTime = fresh.lastRsvpReminderAt?.getTime() && fresh.lastRsvpReminderAt.getTime() + RSVP_REMINDER_COOLDOWN_MS
+      if (!nextTime || nextTime <= Date.now()) {
+        throw new ConflictException('Reminder could not be scheduled; refresh and try again')
+      }
+      const nextAvailableAt = new Date(nextTime).toISOString()
       throw new HttpException(
-        { message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt },
+        { code: 'RSVP_REMINDER_COOLDOWN', message: 'Rate limit: reminder already sent', retryAfter: nextAvailableAt },
         429,
       )
     }
 
-    // Each player reads the reminder in their own language.
-    const locales = await this.loadEventLocales(uniqueNonResponders.map((u: { id: string }) => u.id))
     const data = {
       type: 'event_rsvp_reminder',
       eventId,
       clubId,
+      teamId: event.teamId,
       url: `anstoss:///event-detail?eventId=${eventId}`,
     }
 
     const deliveryResults = await Promise.all(
-      uniqueNonResponders.map(async (user: { id: string }) => {
-        const copy = rsvpReminderCopy(locales.get(user.id) ?? 'de', {
-          event,
-          date: new Date(event.date),
-          location: event.location,
-        })
-        try {
-          await this.pushService.sendToUser(user.id, copy.title, copy.body, data, { clubId })
-          return true
-        } catch {
-          return false
-        }
+      targets.map(async (target) => {
+        const results = await Promise.all(target.recipients.map(async (recipient) => {
+          const copy = rsvpReminderCopy(locales.get(recipient) ?? 'de', {
+            event,
+            date: new Date(event.date),
+            location: event.location,
+            childName: target.childName,
+          })
+          try {
+            return await this.pushService.sendToUser(recipient, copy.title, copy.body, {
+              ...data, playerUserId: target.playerId,
+            }, { clubId, category: 'events' })
+          } catch {
+            return 'unknown' as const
+          }
+        }))
+        // Count players reached, not devices or guardians. Expo acceptance
+        // is not proof of delivery, but a skipped/rejected push is not sent.
+        return results.includes('accepted') ? 'accepted' : results.includes('unknown') ? 'unknown' : 'skipped'
       }),
     )
-    const sent = deliveryResults.filter(Boolean).length
+    const sent = deliveryResults.filter((result) => result === 'accepted').length
+    const uncertain = deliveryResults.filter((result) => result === 'unknown').length
 
-    if (sent === 0) {
+    if (sent === 0 && uncertain === 0) {
       await this.prisma.event.updateMany({
         where: { id: eventId, clubId, lastRsvpReminderAt: claimedAt },
         data: { lastRsvpReminderAt: null },
       })
     }
 
-    const nextAvailableAt = new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString()
-    return { sent, nextAvailableAt }
+    const nextAvailableAt = new Date(sent > 0 || uncertain > 0 ? claimedAt.getTime() + RSVP_REMINDER_COOLDOWN_MS : Date.now()).toISOString()
+    return { sent, uncertain, nextAvailableAt }
   }
 
   /**
@@ -2388,23 +2569,62 @@ export class EventsService {
     // Must be a member of the event's team (players, coaches, guardians)
     await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
 
-    // Time window: 2 hours before start → 3 hours after start
-    const eventTime = new Date(event.date).getTime()
-    const now = Date.now()
-    const windowStart = eventTime - 2 * 60 * 60 * 1000
-    const windowEnd = eventTime + 3 * 60 * 60 * 1000
-    if (now < windowStart || now > windowEnd) {
-      throw new BadRequestException('Check-in window is not open')
-    }
+    const checkIn = await this.prisma.$transaction(async (tx) => {
+      await lockAvailabilityLifecycles(tx, [userId])
+      const current = await lockAvailabilityEvent(tx, eventId, clubId)
+      if (current.cancelledAt || current.archivedAt) throw new BadRequestException('Event is cancelled or archived')
+      if (current.teamId !== event.teamId) throw new BadRequestException('Event changed; try again')
+      await lockAvailabilityAuthority(tx, clubId, current.teamId, userId)
+      await this.assertCurrentPlayerEligibility(tx, clubId, current.teamId, eventId, userId)
 
-    // Idempotent upsert — second tap returns existing record
-    const checkIn = await this.prisma.eventCheckIn.upsert({
-      where: { eventId_userId: { eventId, userId } },
-      create: { clubId, teamId: event.teamId, eventId, userId },
-      update: {}, // no-op on duplicate
+      const eventTime = new Date(current.date).getTime()
+      const now = Date.now()
+      if (now < eventTime - 2 * 60 * 60 * 1000 || now > eventTime + 3 * 60 * 60 * 1000) {
+        throw new BadRequestException('Check-in window is not open')
+      }
+      return tx.eventCheckIn.upsert({
+        where: { eventId_userId: { eventId, userId } },
+        create: { clubId, teamId: current.teamId, eventId, userId, playerEligibilityVerifiedAt: new Date() },
+        update: { playerEligibilityVerifiedAt: new Date() },
+      })
     })
 
     return { checkedInAt: checkIn.checkedInAt.toISOString() }
+  }
+
+  /** Called only after account, event and authority locks are held. */
+  async assertCurrentPlayerEligibility(tx: Prisma.TransactionClient, clubId: string, teamId: string, eventId: string, userId: string) {
+    await assertLaunchParticipant(tx, userId)
+    // Invitation transitions also acquire the player lifecycle lock; keep rows
+    // stable through scope resolution for writers which update an invitation.
+    await tx.$queryRaw`SELECT ti."id" FROM "TrialInvite" ti JOIN "FreeAgentProfile" fp ON fp."id" = ti."freeAgentProfileId" WHERE ti."clubId" = ${clubId} AND ti."teamId" = ${teamId} AND fp."userId" = ${userId} ORDER BY ti."id" FOR SHARE OF ti`
+    const accessRows = await tx.teamAccess.findMany({ where: { clubId, teamId, userId,
+      role: TeamRole.PLAYER, ...activeTeamAccessWhere() }, select: { phase: true } })
+    const membership = await tx.membership.findUnique({ where: { userId_clubId: { userId, clubId } }, select: { id: true } })
+    if (accessRows.some((access) => access.phase === 'FULL') && membership) {
+      const [profiles, loans] = await Promise.all([
+        tx.teamMember.findMany({ where: { teamId, userId }, select: { userId: true, operationalStatus: true } }),
+        tx.teamAccess.findMany({ where: { clubId, userId, loanedFromTeamId: teamId, role: TeamRole.PLAYER,
+          ...activeTeamAccessWhere() }, select: { userId: true, loanedFromTeamId: true } }),
+      ])
+      if (profiles.some((profile) => profile.userId === userId && profile.operationalStatus === 'INACTIVE') ||
+        loans.some((loan) => loan.userId === userId && loan.loanedFromTeamId === teamId)) {
+        throw new ForbiddenException('Only an active player can respond')
+      }
+      return
+    }
+    if (accessRows.some((access) => access.phase === 'TRIAL')) {
+      const trial = await resolveTrialSessionScope(tx as never, userId, teamId)
+      if (trial.wechsel && trial.eventIds.includes(eventId)) return
+      if (!trial.wechsel && membership) {
+        const priorInvite = await tx.trialInvite.findFirst({ where: {
+          clubId, teamId, freeAgentProfile: { userId },
+        }, select: { id: true } })
+        if (!priorInvite) return
+      }
+      throw new ForbiddenException('This event is not part of your trial')
+    }
+    throw new ForbiddenException('Only an active player can respond')
   }
 
   /**
@@ -2431,6 +2651,7 @@ export class EventsService {
       userId: string
       user: { name: string }
     }>
+    missingCheckInsReady: boolean
   }> {
     const event = await this.prisma.event.findUnique({ where: { id: eventId, clubId } })
     if (!event) throw new NotFoundException('Event not found')
@@ -2438,15 +2659,24 @@ export class EventsService {
     // Auth: must be able to manage events for this team
     await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
 
+    const eligibleMembers = LAUNCH_FEATURES.youthParticipation ? null
+      : await this.loadEventResponseMembers(clubId, event.teamId, eventId, await this.loadTeamPlayers(event.teamId, this.prisma, clubId))
+    const eligibleUserIds = eligibleMembers?.map((member) => member.userId)
+    // Current membership cannot establish whether an old response was made
+    // by a player at the time. Keep legacy rows intact but fail closed for
+    // past-event reporting unless the write carries eligibility evidence.
+    const evidence = new Date(event.date).getTime() <= Date.now()
+      ? { playerEligibilityVerifiedAt: { not: null } }
+      : { OR: [{ userId: { in: eligibleUserIds ?? [] } }, { playerEligibilityVerifiedAt: { not: null } }] }
     const [rsvps, checkIns] = await Promise.all([
       this.prisma.rsvp.findMany({
-        where: { eventId },
+        where: { eventId, ...(eligibleUserIds ? { ...evidence, user: launchParticipantWhere() } : {}) },
         include: {
           user: { select: { id: true, name: true, avatarUrl: true } },
         },
       }),
       this.prisma.eventCheckIn.findMany({
-        where: { eventId },
+        where: { eventId, ...(eligibleUserIds ? { ...evidence, user: launchParticipantWhere() } : {}) },
         orderBy: { checkedInAt: 'asc' },
         include: {
           user: { select: { id: true, name: true } },
@@ -2456,7 +2686,8 @@ export class EventsService {
 
     const checkedInUserIds = new Set(checkIns.map((c: { userId: string }) => c.userId))
 
-    // No-shows: RSVPed YES but didn't check in (only show after event window closes)
+    // These members said yes but have no self check-in; absence cannot be
+    // inferred from that alone. The client labels this "not checked in".
     const eventEnded = new Date(event.date).getTime() + 3 * 60 * 60 * 1000 < Date.now()
     const noShows = eventEnded
       ? rsvps.filter(
@@ -2466,11 +2697,12 @@ export class EventsService {
       : []
 
     return {
+      missingCheckInsReady: eventEnded,
       rsvps: rsvps.map((r: any) => ({
         userId: r.userId,
         user: r.user,
         status: r.status,
-        reason: r.reason,
+        reason: LAUNCH_FEATURES.healthReporting ? r.reason : null,
       })),
       checkIns: checkIns.map((c: any) => ({
         userId: c.userId,
@@ -2526,12 +2758,12 @@ function buildEventReadiness(event: EventReadinessRecord): EventReadiness {
   const noCount = event.rsvps.filter((rsvp) => rsvp.status === RsvpStatus.NO).length
   const pendingCount = Math.max(0, squadSize - responseCount)
   const checkInCount = event._count.checkIns ?? 0
-  const injuryRiskCount = event.rsvps.filter(
+  const injuryRiskCount = LAUNCH_FEATURES.healthReporting ? event.rsvps.filter(
     (rsvp) => rsvp.status === RsvpStatus.NO && isInjuryReason(rsvp.reason ?? null),
-  ).length
-  const suspensionRiskCount = event.rsvps.filter(
+  ).length : 0
+  const suspensionRiskCount = LAUNCH_FEATURES.healthReporting ? event.rsvps.filter(
     (rsvp) => rsvp.status === RsvpStatus.NO && isSuspensionReason(rsvp.reason ?? null),
-  ).length
+  ).length : 0
 
   const signals: EventReadinessSignal[] = []
 
@@ -2640,27 +2872,8 @@ function buildEventReadiness(event: EventReadinessRecord): EventReadiness {
   const eventStarted = now >= eventTime
   const eventWindowClosed = now > eventTime + 3 * 60 * 60 * 1000
 
-  if (checkInWindowOpen && !eventWindowClosed && yesCount > 0 && checkInCount < yesCount) {
-    const missingCheckIns = yesCount - checkInCount
-    score -= Math.min(12, missingCheckIns * 2)
-    signals.push({
-      key: 'check_in_gap',
-      severity: missingCheckIns >= 4 ? 'warning' : 'info',
-      count: checkInCount,
-      target: yesCount,
-    })
-  }
-
-  if (eventWindowClosed && yesCount > checkInCount) {
-    const noShowCount = yesCount - checkInCount
-    score -= Math.min(20, noShowCount * 4)
-    signals.push({
-      key: 'no_show_risk',
-      severity: noShowCount >= 3 ? 'critical' : 'warning',
-      count: noShowCount,
-      target: yesCount,
-    })
-  }
+  // Aggregate check-ins include people who did not answer YES. Do not infer
+  // check-in gaps or no-shows by subtracting them from confirmations.
 
   const normalizedScore = Math.max(0, Math.min(100, Math.round(score)))
   const status = getReadinessStatus(normalizedScore, signals)
@@ -2717,11 +2930,9 @@ function buildReadinessBriefing({
   maybeCount,
   noCount,
   pendingCount,
-  checkInCount,
   targetConfirmed,
   injuryRiskCount,
   suspensionRiskCount,
-  checkInWindowOpen,
   eventStarted,
   eventWindowClosed,
   nudge,
@@ -2744,7 +2955,6 @@ function buildReadinessBriefing({
   const missingConfirmations = Math.max(0, targetConfirmed - yesCount)
   const medicalRiskCount = injuryRiskCount + suspensionRiskCount
   const availabilityRiskCount = maybeCount + noCount
-  const noShowCount = Math.max(0, yesCount - checkInCount)
 
   if (status === 'NEEDS_SETUP') {
     return createReadinessBriefing(
@@ -2755,17 +2965,6 @@ function buildReadinessBriefing({
   }
 
   if (eventWindowClosed) {
-    if (noShowCount > 0) {
-      return createReadinessBriefing(
-        'no_show_review',
-        { count: noShowCount },
-        `Review attendance: ${noShowCount} confirmed ${pluralize(
-          'player',
-          noShowCount,
-        )} ${noShowCount === 1 ? 'was' : 'were'} not checked in.`,
-      )
-    }
-
     return createReadinessBriefing(
       'event_closed',
       {},
@@ -2811,14 +3010,6 @@ function buildReadinessBriefing({
         'risk',
         medicalRiskCount,
       )} in Anstoss.`,
-    )
-  }
-
-  if (checkInWindowOpen && !eventWindowClosed && yesCount > 0 && checkInCount < yesCount) {
-    return createReadinessBriefing(
-      'check_in_gap',
-      { count: checkInCount, target: yesCount },
-      `Check in arrivals: ${checkInCount}/${yesCount} confirmed players are marked present.`,
     )
   }
 

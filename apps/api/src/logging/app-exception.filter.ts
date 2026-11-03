@@ -56,7 +56,7 @@ export class AppExceptionFilter implements ExceptionFilter {
 
     // Zod validation errors → 422 with field-level details
     if (exception instanceof ZodError) {
-      const fields = exception.errors.map((e) => ({
+      const fields = exception.issues.map((e) => ({
         path: e.path.join('.'),
         message: e.message,
       }))
@@ -104,12 +104,17 @@ export class AppExceptionFilter implements ExceptionFilter {
         body && typeof body.retryAfterSeconds === 'number' && body.retryAfterSeconds >= 0
           ? Math.ceil(body.retryAfterSeconds)
           : null
+      const retryAfter = status === 429 && customCode === 'RSVP_REMINDER_COOLDOWN'
+        && typeof body?.retryAfter === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(body.retryAfter)
+        && Number.isFinite(Date.parse(body.retryAfter)) && new Date(body.retryAfter).toISOString() === body.retryAfter
+        ? body.retryAfter : null
 
       response.status(status).json({
         error: {
           code: customCode ?? `HTTP_${status}`,
           message,
           ...(retryAfterSeconds !== null ? { retryAfterSeconds } : {}),
+          ...(retryAfter !== null ? { retryAfter } : {}),
         },
         requestId,
       })

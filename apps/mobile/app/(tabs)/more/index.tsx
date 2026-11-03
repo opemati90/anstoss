@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, Pressable, ScrollView, Alert, Linking, Share } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
 import Constants from 'expo-constants'
-import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
-import * as Sharing from 'expo-sharing'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -21,9 +19,9 @@ import {
 import { ClubSwitcher } from '../../../src/components/ClubSwitcher'
 import { TAB_BAR_CLEARANCE, space, hairline, elevation, RADIUS_CARD } from '../../../src/theme/tokens'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
-import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
 import { useChildrenSummary } from '../../../src/components/home/childrenSummary'
-import { useStreaks } from '../../../src/hooks/useStreaks'
+import { useAccountPrivacyActions } from '../../../src/hooks/useAccountPrivacyActions'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 import {
   getAppearancePreference,
   setAppearancePreference,
@@ -45,7 +43,7 @@ type Persona = 'PLAYER' | 'COACH' | 'PARENT' | 'ADMIN' | 'FREE_AGENT' | 'NONE'
 const APPEARANCE_OPTIONS: AppearancePreference[] = ['system', 'light', 'dark']
 
 /**
- * Profil tab. One header per persona (player card with streaks for players,
+ * Profil tab. One identity card per persona (without season statistics),
  * team card for coaches, "Meine Kinder" for parents, Verein shortcut for
  * admins), then the same calm sections for everyone: Konto, Verein, App,
  * Daten & Rechtliches.
@@ -68,10 +66,6 @@ export default function MoreScreen() {
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearancePreference>('system')
-  const deletionBusy = useRef(false)
-  const deletionCommittedFor = useRef<string | null>(null)
-  const currentUserId = useRef(user?.id)
-  currentUserId.current = user?.id
 
   useEffect(() => {
     void getAppearancePreference().then(setAppearance)
@@ -91,96 +85,10 @@ export default function MoreScreen() {
             : clubRole === 'COACH'
               ? 'COACH'
               : clubRole === 'PARENT'
-                ? 'PARENT'
+                ? LAUNCH_FEATURES.youthParticipation ? 'PARENT' : 'NONE'
                 : 'PLAYER')) as Persona)
 
-  // Streaks only mean something for players; don't fetch them for anyone else.
-  const { data: streaks } = useStreaks({ enabled: persona === 'PLAYER' })
-  const board = streaks?.leaderboard ?? []
-  const myRank = user ? board.findIndex((e) => e.userId === user.id) + 1 : 0
-
-  const handleExportData = async () => {
-    const subject = encodeURIComponent(t('profileHub.exportMailSubject'))
-    const body = encodeURIComponent(
-      t('profileHub.exportMailBody', {
-        email: user?.email ?? '-',
-        userId: user?.id ?? '-',
-        club: activeClub?.club?.name ?? '-',
-      }),
-    )
-    const openManualRequest = () =>
-      Linking.openURL(`mailto:support@anstoss.io?subject=${subject}&body=${body}`).catch(() =>
-        Alert.alert(t('more.exportData'), t('more.exportFallback')),
-      )
-
-    let exportPayload: unknown
-    try {
-      exportPayload = await api('/me/export')
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return
-      if (error instanceof ApiError && error.status >= 500) {
-        Alert.alert(t('common.error'), t('more.exportError'))
-        return
-      }
-      openManualRequest()
-      return
-    }
-
-    const json = JSON.stringify(exportPayload, null, 2)
-    try {
-      if (FileSystem.cacheDirectory && (await Sharing.isAvailableAsync())) {
-        const fileUri = `${FileSystem.cacheDirectory}anstoss-data-export-${Date.now()}.json`
-        await FileSystem.writeAsStringAsync(fileUri, json, {
-          encoding: FileSystem.EncodingType.UTF8,
-        })
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'application/json',
-          UTI: 'public.json',
-          dialogTitle: t('profileHub.exportDialogTitle'),
-        })
-        return
-      }
-      if (json.length <= 20000) {
-        await Share.share({ title: t('profileHub.exportDialogTitle'), message: json })
-        return
-      }
-      openManualRequest()
-    } catch {
-      openManualRequest()
-    }
-  }
-
-  const handleDeleteAccount = () => {
-    Alert.alert(t('more.deleteAccountTitle'), t('more.deleteAccountBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('more.deleteAccountConfirm'),
-        style: 'destructive',
-        onPress: async () => {
-          const accountId = user?.id
-          if (!accountId || currentUserId.current !== accountId || deletionBusy.current) return
-          deletionBusy.current = true
-          try {
-            if (deletionCommittedFor.current !== accountId) {
-              await api('/me', { method: 'DELETE' })
-              deletionCommittedFor.current = accountId
-            }
-            if (currentUserId.current !== accountId) return
-            await signOut()
-            router.replace('/(auth)/welcome')
-          } catch {
-            if (currentUserId.current !== accountId) return
-            Alert.alert(
-              t(deletionCommittedFor.current === accountId ? 'more.deleteAccountSuccess' : 'common.error'),
-              t(deletionCommittedFor.current === accountId ? 'more.deleteAccountSignOutError' : 'more.deleteAccountError'),
-            )
-          } finally {
-            deletionBusy.current = false
-          }
-        },
-      },
-    ])
-  }
+  const { handleExportData, handleDeleteAccount } = useAccountPrivacyActions()
 
   const handleLeaveClub = () => {
     if (!activeClub) return
@@ -260,13 +168,6 @@ export default function MoreScreen() {
         },
       ]
     : [
-        {
-          key: 'edit-profile',
-          label: t('profileHub.editProfile'),
-          sub: user?.email ?? undefined,
-          icon: 'person.circle',
-          onPress: () => router.push('/edit-profile'),
-        },
         {
           key: 'notifications',
           label: t('notificationSettings.title'),
@@ -364,6 +265,13 @@ export default function MoreScreen() {
   // ── Daten & Rechtliches ──
   const data: Row[] = [
     {
+      key: 'child-consent',
+      label: t('childConsent.moreRowTitle'),
+      sub: t('childConsent.moreRowSubtitle'),
+      icon: 'checkmark.shield.fill',
+      onPress: () => router.push('/child-consent' as never),
+    },
+    {
       key: 'legal',
       label: t('more.legal'),
       sub: t('more.legalSub'),
@@ -401,33 +309,6 @@ export default function MoreScreen() {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {persona === 'PLAYER' ? (
-          <Pressable
-            onPress={() => router.push('/edit-profile')}
-            accessibilityRole="button"
-            accessibilityLabel={t('profileHub.editProfile')}
-            android_ripple={{ color: c.borderSubtle }}
-            style={({ pressed }) => [pressed && styles.pressedScale]}
-            testID="profile-player-card"
-          >
-            <VerifiedPlayerCard
-              name={name}
-              avatarUrl={user?.avatarUrl}
-              subtitle={activeClub?.club?.name ?? user?.email ?? null}
-              streaks={
-                streaks?.me ?? {
-                  attendanceWeeks: 0,
-                  attendanceLongest: 0,
-                  motmWeeks: 0,
-                  motmLongest: 0,
-                  lastActivityAt: '',
-                }
-              }
-              rank={myRank > 0 ? myRank : null}
-              totalRanked={board.length}
-            />
-          </Pressable>
-        ) : (
           <ProfileCard
             name={name}
             avatarUrl={user?.avatarUrl ?? null}
@@ -442,11 +323,12 @@ export default function MoreScreen() {
                       .join(' · ')
                   : persona === 'PARENT'
                     ? [activeClub?.club.name, t('roles.PARENT')].filter(Boolean).join(' · ')
-                    : (user?.email ?? '')
+                    : persona === 'PLAYER'
+                      ? (activeClub?.club.name ?? user?.email ?? '')
+                      : (user?.email ?? '')
             }
             testID={`profile-card-${persona.toLowerCase()}`}
           />
-        )}
 
         {persona === 'COACH' && teamName ? (
           <SectionGroup header={t('profileHub.myTeam')} style={styles.section}>
@@ -483,15 +365,6 @@ export default function MoreScreen() {
                 />
               ))
             )}
-            {/* privacy: guardian consent overview + withdrawal (GDPR Art. 7(3)) */}
-            <ListRow
-              left={<SoftIcon name="checkmark.shield.fill" />}
-              title={t('childConsent.moreRowTitle')}
-              subtitle={t('childConsent.moreRowSubtitle')}
-              showChevron
-              onPress={() => router.push('/child-consent' as never)}
-              testID="more-child-consent"
-            />
           </SectionGroup>
         ) : null}
 

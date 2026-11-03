@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import { TeamAccessDeniedError } from '@anstoss/shared'
 import { EventsService } from './events.service'
@@ -10,6 +12,8 @@ function setup() {
   let n = 0
   const created: any[] = []
   const prisma: any = {
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(async () => [(await prisma.event.findUnique()) ?? (await prisma.event.findFirst())]),
     event: {
       create: jest.fn(async ({ data }: any) => ({ id: `evt-${++n}`, createdAt: new Date(), ...data })),
       createMany: jest.fn(async ({ data }: any) => {
@@ -45,10 +49,11 @@ function setup() {
               teamId: args.where.teamId?.in?.[0] ?? args.where.teamId,
               userId,
             }))
-          : [],
+          : args?.where?.role === 'PLAYER' ? [{ phase: 'FULL' }] : [],
       ),
     },
     teamMember: { findMany: jest.fn().mockResolvedValue([]) },
+    membership: { findUnique: jest.fn().mockResolvedValue({ id: 'membership' }) },
     guardianRelationship: {
       findFirst: jest.fn().mockResolvedValue({ id: 'g-1' }),
       findMany: jest.fn().mockResolvedValue([]),
@@ -471,7 +476,7 @@ describe('EventsService – events revamp', () => {
       ])
       await service.updateSquad('club-1', 'evt-1', 'coach-1', { userIds: ['tim', 'jonas'] })
       expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
-        where: { eventId: 'evt-1', userId: { in: ['tim'] } },
+        where: { eventId: 'evt-1', userId: { in: ['tim'] }, status: { in: ['YES', 'MAYBE'] } },
         data: { nominated: true, squadDroppedAt: null },
       })
       expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
@@ -499,16 +504,52 @@ describe('EventsService – events revamp', () => {
       await flush()
 
       expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
-        where: { eventId: 'evt-1', userId: { in: ['tim', 'lukas'] } },
+        where: { eventId: 'evt-1', userId: { in: ['tim', 'lukas'] }, status: { in: ['YES', 'MAYBE'] } },
         data: { nominated: true, squadDroppedAt: null },
       })
       expect(prisma.event.update).toHaveBeenCalledWith({
-        where: { id: 'evt-1' },
+        where: { id: 'evt-1', clubId: 'club-1' },
         data: { squadPublishedAt: expect.any(Date) },
       })
       const recipients = push.sendToUser.mock.calls.map((call: any[]) => call[0]).sort()
       expect(recipients).toEqual(['lukas', 'parent-lukas'])
       expect(push.sendToUser.mock.calls.every((call: any[]) => call[3].type === 'event_squad')).toBe(true)
+    })
+
+    it('re-reads candidates inside the transaction after a decline overtakes preflight', async () => {
+      const { prisma, push, service } = setup()
+      prisma.event.findFirst.mockResolvedValue(event)
+      prisma.teamAccess.findMany.mockResolvedValue(players)
+      prisma.rsvp.findMany.mockResolvedValue([{ userId: 'tim', status: 'YES', nominated: true }])
+      prisma.$transaction.mockImplementation(async (fn: any) => {
+        prisma.rsvp.findMany.mockResolvedValue([{ userId: 'tim', status: 'NO', nominated: false, squadDroppedAt: new Date() }])
+        return fn(prisma)
+      })
+      const result = await service.updateSquad('club-1', 'evt-1', 'coach-1', { userIds: ['tim'], publish: true })
+      expect(prisma.rsvp.updateMany).toHaveBeenCalledWith({
+        where: { eventId: 'evt-1', userId: { in: [] }, status: { in: ['YES', 'MAYBE'] } },
+        data: { nominated: true, squadDroppedAt: null },
+      })
+      expect(result.nominatedUserIds).toEqual([])
+      expect(push.sendToUser).not.toHaveBeenCalled()
+      expect(prisma.$queryRaw.mock.calls[0][0].join('')).toContain('FOR UPDATE')
+    })
+
+    it.each(['cancelledAt', 'archivedAt'])('rejects %s changed after preflight', async (field) => {
+      const { prisma, service } = setup()
+      prisma.event.findFirst.mockResolvedValue(event)
+      prisma.$queryRaw.mockResolvedValue([{ ...event, [field]: new Date() }])
+      await expect(service.updateSquad('club-1', 'evt-1', 'coach-1', { userIds: [], publish: true })).rejects.toThrow('unavailable')
+      expect(prisma.rsvp.updateMany).not.toHaveBeenCalled()
+      expect(prisma.event.update).not.toHaveBeenCalled()
+    })
+
+    it('rechecks coach authority after the event/authority locks', async () => {
+      const { prisma, teams, service } = setup()
+      prisma.event.findFirst.mockResolvedValue(event)
+      teams.assertEventManagementAccess.mockResolvedValueOnce({}).mockRejectedValueOnce(new TeamAccessDeniedError('revoked'))
+      await expect(service.updateSquad('club-1', 'evt-1', 'coach-1', { userIds: [], publish: true })).rejects.toThrow('revoked')
+      expect(prisma.rsvp.updateMany).not.toHaveBeenCalled()
     })
   })
 

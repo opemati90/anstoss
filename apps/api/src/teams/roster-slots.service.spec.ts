@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { NotFoundException } from '@nestjs/common'
 import { TeamAccessDeniedError, RosterSlotAlreadyClaimedError } from '@anstoss/shared'
 import { RosterSlotsService } from './roster-slots.service'

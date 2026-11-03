@@ -27,6 +27,7 @@ import {
   toggleEventReminderSchema,
   updateEventSquadSchema,
   saveEventLineupSchema,
+  updateAvailabilityPolicySchema,
 } from '@anstoss/shared'
 
 /** Logistics fields shared by create / series / update; ISO strings → Date. */
@@ -202,6 +203,27 @@ export class EventsController {
     return this.eventsService.cancel(eventId, user.id, data.reason, data.scope ?? 'this', clubId)
   }
 
+  @Get(':eventId/availability-policy')
+  async getAvailabilityPolicy(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+  ) {
+    return this.eventsService.getAvailabilityPolicy(clubId, eventId, user.id)
+  }
+
+  @Patch(':eventId/availability-policy')
+  @RateLimit('write')
+  async updateAvailabilityPolicy(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = updateAvailabilityPolicySchema.parse(body)
+    return this.eventsService.updateAvailabilityPolicy(clubId, eventId, user.id, input)
+  }
+
   /**
    * PUT /clubs/:clubId/events/:eventId/rsvp — upsert RSVP.
    */
@@ -268,7 +290,7 @@ export class EventsController {
     @Param('clubId') clubId: string,
     @Param('eventId') eventId: string,
     @CurrentUser() user: { id: string },
-  ): Promise<{ sent: number; nextAvailableAt: string }> {
+  ): Promise<{ sent: number; nextAvailableAt: string | null }> {
     return this.eventsService.remindRsvp(clubId, eventId, user.id)
   }
 

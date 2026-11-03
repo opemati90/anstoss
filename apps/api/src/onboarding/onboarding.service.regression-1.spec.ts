@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import { ForbiddenException } from '@nestjs/common'
 import { OnboardingService } from './onboarding.service'
 

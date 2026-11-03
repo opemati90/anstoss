@@ -9,14 +9,16 @@ import { TeamsModule } from '../teams/teams.module'
 import { ChatModule } from '../chat/chat.module'
 import { PushModule } from '../push/push.module'
 import { ContributionsModule } from '../contributions/contributions.module'
+import { CoachAttendanceController } from './coach-attendance.controller'
+import { CoachAttendanceService } from './coach-attendance.service'
 
 @Module({
   // ContributionsModule is imported so EventsService can enforce the
   // pay-to-play rule on RSVP — players with overdue dues get a 403
   // when they try to commit YES to the next match.
   imports: [TeamsModule, PushModule, ContributionsModule, ChatModule],
-  controllers: [EventsController, CarpoolController],
-  providers: [EventsService, EventsGateway, EventReminderWorker, CarpoolService],
+  controllers: [EventsController, CarpoolController, CoachAttendanceController],
+  providers: [EventsService, EventsGateway, EventReminderWorker, CarpoolService, CoachAttendanceService],
   exports: [EventsService],
 })
 export class EventsModule {}

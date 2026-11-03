@@ -10,7 +10,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test",
+    "test": "npm run test:store-zip && turbo test",
+    "test:store-zip": "node --import tsx --test scripts/store-zip-integrity.test.ts",
     "validate": "npm run lint && npm run typecheck && npm test && npm run build",
     "android": "npm run android --workspace @anstoss/mobile",
     "ios": "npm run ios --workspace @anstoss/mobile",
@@ -32,7 +33,7 @@
     "eslint": "^10.1.0",
     "glob": "7.2.3",
     "globals": "^17.4.0",
-    "js-yaml": "5.2.3",
+    "js-yaml": "5.5.0",
     "jscodeshift": "^17.3.0",
     "patch-package": "^8.0.1",
     "prettier": "^3.2.0",
@@ -65,27 +66,33 @@
     "metro-config": "0.84.5",
     "metro-transform-worker": "0.84.5",
     "@nestjs/platform-express": {
-      "multer": "2.4.0"
+      "multer": "2.5.0"
     },
     "@nestjs/swagger": {
-      "js-yaml": "5.2.3"
+      "js-yaml": "5.5.0"
     },
     "@xmldom/xmldom": "0.8.15",
-    "decode-uri-component": "0.5.0",
+    "decode-uri-component": "0.5.1",
     "expo-application": "~57.0.3",
     "expo-auth-session": "~57.0.12",
     "expo-crypto": "~57.0.3",
     "expo-web-browser": "~57.0.3",
     "file-type": "21.3.4",
-    "multer": "2.4.0",
+    "multer": "2.5.0",
+    "body-parser": "2.4.0",
+    "engine.io": "6.6.10",
+    "proxy-addr": "2.0.8",
+    "brace-expansion@^5.0.0": "5.0.12",
+    "node-forge": "1.4.2",
+    "shell-quote": "1.12.0",
+    "source-map-js": "1.2.2",
     "postcss": "8.5.26",
-    "qs": "6.16.0",
+    "qs": "6.17.1",
     "tar": "7.5.17",
     "uuid": "npm:uuid@11.1.1",
     "xcode@3.0.1": {
       "uuid": "npm:uuid@11.1.1"
-    },
-    "zod": "3.25.76"
+    }
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

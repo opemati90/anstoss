@@ -7,11 +7,15 @@ import {
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
-import { randomUUID } from 'crypto'
+import { isDeepStrictEqual } from 'node:util'
+import { isOwnedPrivateV1Key, newOwnedPrivateV1Key } from '../media/private-v1-owner'
 import { PrismaService } from '../prisma/prisma.service'
 import { TranslationService } from '../translation/translation.service'
 import { R2Provider } from '../assets/r2.provider'
 import { lockMediaObject } from '../assets/media-object-lock'
+import { retireLegacyChatMedia } from '../assets/legacy-chat-media-retirement'
+import { reservePrivateV1Upload, consumePrivateV1Upload, adoptPrivateV1Upload } from '../media/private-v1-reservations'
+import { isPrivateUploadMarker, retireMessageUpload } from '../assets/private-upload-retirement'
 import type {
   ChatContactGroup,
   ChatContactIneligibleReason,
@@ -26,8 +30,10 @@ import type {
   PresignDmMediaInput,
   SendDirectMessageInput,
 } from '@anstoss/shared'
-import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { activeLaunchTeamAccessWhere as activeTeamAccessWhere } from '../teams/active-team-access'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 import { classifyPrivateMessaging } from './private-messaging'
+import { launchClubParticipantWhere } from '../auth/launch-access-policy'
 import {
   CHAT_UPLOAD_CONTENT_TYPES,
   CHAT_UPLOAD_MAX_BYTES,
@@ -63,6 +69,9 @@ export type DmPersistInput = {
   replyToId?: string
   attachmentUrl?: string | null
   attachmentMeta?: MessageAttachmentMeta | null
+  /** Internal authorization scope for a saved event-lineup snapshot. */
+  lineupTeamId?: string
+  lineupClubId?: string
 }
 
 /** Returns true if either user has blocked the other. */
@@ -335,23 +344,28 @@ export class DmService {
     userId: string,
     conversationId: string,
     input: DmPersistInput | string,
+    delivery?: { replayed: boolean },
   ): Promise<DirectMessageItem> {
     const data: DmPersistInput =
       typeof input === 'string' ? { messageType: 'TEXT', content: input } : input
     const message = await this.prisma.$transaction(async (tx) => {
-      const initial = await this.assertConversationAccess(userId, conversationId, tx)
-      const participants = [userId, initial.peerUserId].sort()
-      const lockKeys = [
-        ...participants.map((participantId) => `dm-user:${participantId}`),
-        ...participants.map((participantId) => `dm-access:${initial.clubId}:${participantId}`),
-      ]
-      for (const lockKey of lockKeys) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+      const initial = await this.lockWritableConversation(
+        userId,
+        conversationId,
+        tx,
+        undefined,
+        Boolean(data.lineupTeamId),
+      )
+      if (data.lineupTeamId) {
+        if (!data.lineupClubId || data.lineupClubId !== initial.clubId) {
+          throw new ForbiddenException('Lineup does not belong to this club')
+        }
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${data.lineupTeamId}`}))`
+        const teamIds = await this.lineupTeamIds(userId, initial.clubId, tx)
+        if (teamIds !== 'ALL' && !teamIds.includes(data.lineupTeamId)) {
+          throw new ForbiddenException('Only the team’s coaches can share its lineup')
+        }
       }
-
-      // Re-check after the locks. Club removal takes the same per-member lock,
-      // so a completed revocation cannot race a final persisted message.
-      await this.assertCanMessageConversation(userId, conversationId, tx)
       if (data.attachmentUrl) {
         if (!this.r2?.enabled) throw new BadRequestException('Attachment storage is unavailable')
         const key = this.r2.objectKeyFromUrl(data.attachmentUrl)
@@ -359,10 +373,24 @@ export class DmService {
           throw new BadRequestException('Invalid attachment')
         }
         await lockMediaObject(tx, key)
-        if (await tx.accountMediaDeletion.findUnique({ where: { objectKey: key }, select: { objectKey: true } })) {
+        const reservation = await tx.accountMediaDeletion.findUnique({ where: { objectKey: key }, select: { uploadState: true } })
+        if (reservation && reservation.uploadState !== 'PENDING') {
           throw new BadRequestException('Attachment is being removed; upload it again')
         }
-        await this.assertDmUpload(initial.clubId, conversationId, data.messageType as ChatAttachmentType, data.attachmentUrl)
+        await this.assertDmUpload(userId, initial.clubId, conversationId, data.messageType as ChatAttachmentType, data.attachmentUrl)
+        const existing = await tx.directMessage.findFirst({ where: { attachmentUrl: data.attachmentUrl }, include: DM_MESSAGE_INCLUDE })
+        if (existing) {
+          if (existing.deletedAt || existing.conversationId !== conversationId || existing.senderId !== userId
+            || existing.messageType !== data.messageType || existing.content !== data.content
+            || (existing.replyToId ?? null) !== (data.replyToId ?? null)
+            || !isDeepStrictEqual(existing.attachmentMeta ?? null, data.attachmentMeta ?? null)) {
+            throw new BadRequestException('Attachment has already been used')
+          }
+          if (reservation) await adoptPrivateV1Upload(tx, userId, key)
+          if (delivery) delivery.replayed = true
+          return existing as DmRow
+        }
+        await consumePrivateV1Upload(tx, userId, key)
       }
       if (data.replyToId) {
         const parent = await tx.directMessage.findFirst({
@@ -424,15 +452,17 @@ export class DmService {
     if (input.messageType === 'TEXT') {
       persist = { messageType: 'TEXT', content: input.content, replyToId: input.replyToId }
     } else if (input.messageType === 'LINEUP') {
-      const meta = await this.resolveLineup(userId, clubId, input.lineup)
+      const resolved = await this.resolveLineup(userId, clubId, input.lineup)
+      const meta = resolved.meta
       persist = {
         messageType: 'LINEUP',
         content: input.content?.trim() || meta.title || meta.formation || '',
         attachmentMeta: meta,
+        ...(resolved.teamId ? { lineupTeamId: resolved.teamId, lineupClubId: clubId } : {}),
         replyToId: input.replyToId,
       }
     } else {
-      await this.assertDmUpload(clubId, conversationId, input.messageType, input.attachmentUrl)
+      await this.assertDmUpload(userId, clubId, conversationId, input.messageType, input.attachmentUrl)
       persist = {
         messageType: input.messageType,
         content: input.content?.trim() ?? '',
@@ -442,8 +472,9 @@ export class DmService {
       }
     }
 
-    const item = await this.saveMessage(userId, conversationId, persist)
-    this.eventEmitter?.emit('dm.message.created', {
+    const delivery = { replayed: false }
+    const item = await this.saveMessage(userId, conversationId, persist, delivery)
+    this.eventEmitter?.emit(delivery.replayed ? 'dm.message.recovered' : 'dm.message.created', {
       message: item,
       clientMessageId: input.clientMessageId ?? null,
     })
@@ -452,6 +483,7 @@ export class DmService {
 
   /** The stored attachment must be this conversation's upload, validated like channel media. */
   private async assertDmUpload(
+    userId: string,
     clubId: string,
     conversationId: string,
     type: ChatAttachmentType,
@@ -461,7 +493,8 @@ export class DmService {
     const kind = uploadKindFor(type)
     const objectKey = this.r2.objectKeyFromUrl(attachmentUrl)
     const expectedPrefix = `dm/${clubId}/${conversationId}/${kind}/`
-    if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
+    if (!objectKey || !objectKey.startsWith(expectedPrefix)
+      || !isOwnedPrivateV1Key(objectKey, { targetType: 'dm', clubId, targetId: conversationId, ownerId: userId, kind })) {
       throw new BadRequestException('Attachment does not belong to this conversation upload')
     }
     try {
@@ -501,14 +534,20 @@ export class DmService {
     if (input.sizeBytes > CHAT_UPLOAD_MAX_BYTES[input.kind]) {
       throw new BadRequestException('File exceeds the allowed size')
     }
-    const objectKey = `dm/${clubId}/${conversationId}/${input.kind}/private-v1-${randomUUID()}-${safeUploadName(input.filename)}`
+    const objectKey = newOwnedPrivateV1Key({ targetType: 'dm', clubId, targetId: conversationId,
+      ownerId: userId, kind: input.kind }, safeUploadName(input.filename))
     if (!this.r2?.enabled) {
       return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
     }
+    const expiresAt = await reservePrivateV1Upload(this.prisma, userId, objectKey, {
+      targetType: 'dm', clubId, targetId: conversationId, ...input,
+    })
     const { uploadUrl, publicUrl } = await this.r2.presignPut(
       objectKey,
       input.contentType,
       input.sizeBytes,
+      300,
+      new Date(expiresAt.getTime() - 15 * 60_000),
     )
     return { enabled: true, objectKey, uploadUrl, publicUrl, uploadHeaders: { 'If-None-Match': '*' } }
   }
@@ -524,25 +563,21 @@ export class DmService {
     conversationId: string,
     messageId: string,
   ): Promise<{ url: string | null }> {
-    const { clubId: conversationClubId } = await this.assertConversationAccess(
-      userId,
-      conversationId,
-    )
-    if (conversationClubId !== clubId) {
-      throw new ForbiddenException('Not a participant in this conversation')
-    }
-    const message = await this.prisma.directMessage.findFirst({
-      where: { id: messageId, conversationId },
-      select: { attachmentUrl: true, deletedAt: true },
+    return this.prisma.$transaction(async (tx) => {
+      // Hold the same participant and lifecycle locks as access revocation
+      // through message revalidation and URL signing.
+      await this.authorizePrivateMediaRead(userId, clubId, conversationId, tx)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-message:${messageId}`}))`
+      const message = await tx.directMessage.findFirst({
+        where: { id: messageId, conversationId },
+        select: { attachmentUrl: true, deletedAt: true },
+      })
+      if (!message) throw new NotFoundException('Message not found')
+      if (message.deletedAt || !message.attachmentUrl || !this.r2?.enabled) return { url: null }
+      const objectKey = this.r2.objectKeyFromUrl(message.attachmentUrl)
+      if (!objectKey || !objectKey.startsWith(`dm/${clubId}/${conversationId}/`)) return { url: null }
+      return { url: await this.r2.presignGet(objectKey, 3600) }
     })
-    if (!message) throw new NotFoundException('Message not found')
-    if (message.deletedAt || !message.attachmentUrl) return { url: null }
-    if (!this.r2?.enabled) return { url: null }
-    const objectKey = this.r2.objectKeyFromUrl(message.attachmentUrl)
-    if (!objectKey || !objectKey.startsWith(`dm/${clubId}/${conversationId}/`)) {
-      return { url: null }
-    }
-    return { url: await this.r2.presignGet(objectKey, 3600) }
   }
 
   /**
@@ -601,16 +636,21 @@ export class DmService {
     return out
   }
 
-  /** Teams whose lineups the caller may share: coached teams, or all for admins. */
-  private async lineupTeamIds(userId: string, clubId: string): Promise<string[] | 'ALL'> {
+  /** Teams whose lineups the caller may share: FULL coached teams, or all for admins. */
+  private async lineupTeamIds(
+    userId: string,
+    clubId: string,
+    db: Pick<Prisma.TransactionClient, 'membership' | 'teamAccess'> = this.prisma,
+  ): Promise<string[] | 'ALL'> {
     const [membership, coachRows] = await Promise.all([
-      this.prisma.membership.findFirst({ where: { userId, clubId }, select: { role: true } }),
-      this.prisma.teamAccess.findMany({
+      db.membership.findFirst({ where: { userId, clubId }, select: { role: true } }),
+      db.teamAccess.findMany({
         where: {
           userId,
           clubId,
-          role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] },
           ...activeTeamAccessWhere(),
+          phase: 'FULL',
+          role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] },
         },
         select: { teamId: true },
       }),
@@ -624,16 +664,19 @@ export class DmService {
     userId: string,
     clubId: string,
     input: Extract<SendDirectMessageInput, { messageType: 'LINEUP' }>['lineup'],
-  ): Promise<MessageAttachmentMeta> {
+  ): Promise<{ meta: MessageAttachmentMeta; teamId: string | null }> {
     if (input.source === 'FORMATION') {
       return {
-        lineupSource: 'FORMATION',
-        title: input.title?.trim() || null,
-        formation: input.formation,
-        slots: input.slots.map((slot) => ({
-          position: slot.position,
-          playerName: slot.playerName,
-        })),
+        teamId: null,
+        meta: {
+          lineupSource: 'FORMATION',
+          title: input.title?.trim() || null,
+          formation: input.formation,
+          slots: input.slots.map((slot) => ({
+            position: slot.position,
+            playerName: slot.playerName,
+          })),
+        },
       }
     }
     const event = await this.prisma.event.findFirst({
@@ -648,13 +691,16 @@ export class DmService {
     const lineup = readDmLineup(event.lineup)
     if (!lineup) throw new BadRequestException('This event has no saved lineup')
     return {
-      lineupSource: 'EVENT',
-      eventId: event.id,
-      title: event.title,
-      eventDate: event.date.toISOString(),
-      opponent: event.opponent ?? null,
-      formation: lineup.formation,
-      slots: lineup.slots,
+      teamId: event.teamId,
+      meta: {
+        lineupSource: 'EVENT',
+        eventId: event.id,
+        title: event.title,
+        eventDate: event.date.toISOString(),
+        opponent: event.opponent ?? null,
+        formation: lineup.formation,
+        slots: lineup.slots,
+      },
     }
   }
 
@@ -698,24 +744,36 @@ export class DmService {
     if (message.senderId !== userId) {
       throw new ForbiddenException('Only the sender can delete this message')
     }
-    const stored = await this.prisma.directMessage.findUnique({
-      where: { id: messageId },
-      select: { attachmentUrl: true, reports: { where: { resolvedAt: null }, select: { id: true } } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${userId}`}))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-access:${clubId}:${userId}`}))`
+      const access = await this.assertConversationAccess(userId, conversationId, tx)
+      if (access.clubId !== clubId) throw new ForbiddenException('Conversation does not belong to this club')
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-message:${messageId}`}))`
+      const current = await tx.directMessage.findUnique({
+        where: { id: messageId },
+        select: { senderId: true, conversationId: true, attachmentUrl: true, messageType: true, reports: { where: { resolvedAt: null }, select: { id: true } } },
+      })
+      if (!current || current.senderId !== userId || current.conversationId !== conversationId) {
+        throw new ForbiddenException('Message is no longer available')
+      }
+      if (isPrivateUploadMarker(current.attachmentUrl)) {
+        const retired = await retireMessageUpload(tx, { clubId, messageId, targetType: 'DM', targetId: conversationId })
+        if (!retired) throw new Error('Private upload message binding is unavailable')
+      }
+      await retireLegacyChatMedia(tx, this.r2, current.attachmentUrl, {
+        kind: 'dm', clubId, targetId: conversationId, senderId: current.senderId, messageType: current.messageType,
+      })
+      await tx.directMessage.update({
+        where: { id: messageId },
+        data: {
+          deletedAt: new Date(),
+          content: '',
+          attachmentUrl: null,
+          attachmentMeta: Prisma.DbNull,
+        },
+      })
     })
-    await this.prisma.directMessage.update({
-      where: { id: messageId },
-      data: {
-        deletedAt: new Date(),
-        content: '',
-        attachmentUrl: null,
-        attachmentMeta: Prisma.DbNull,
-      },
-    })
-    // The upload goes with the message, unless an open report still needs it.
-    const key = stored?.attachmentUrl ? this.r2?.objectKeyFromUrl(stored.attachmentUrl) : null
-    if (key && this.r2?.enabled && (stored?.reports?.length ?? 0) === 0) {
-      void this.r2.deleteObjects([key]).catch(() => undefined)
-    }
     const item = await this.loadItem(messageId)
     this.eventEmitter?.emit('dm.message.updated', { kind: 'deleted', message: item })
     return item
@@ -932,7 +990,7 @@ export class DmService {
    */
   async listContacts(userId: string, clubId: string): Promise<ChatContactGroup[]> {
     const membership = await this.prisma.membership.findFirst({
-      where: { userId, clubId },
+      where: { userId, clubId, user: launchClubParticipantWhere(clubId) },
       select: { role: true, club: { select: { name: true } } },
     })
     if (!membership) throw new ForbiddenException('Not a member of this club')
@@ -951,10 +1009,10 @@ export class DmService {
           where: { userId, clubId, ...activeTeamAccessWhere() },
           select: { teamId: true },
         }),
-        this.prisma.guardianRelationship.findMany({
+        LAUNCH_FEATURES.youthParticipation ? this.prisma.guardianRelationship.findMany({
           where: { parentUserId: userId, clubId, teamId: { not: null } },
           select: { teamId: true },
-        }),
+        }) : Promise.resolve([]),
       ])
       const teamIds = Array.from(
         new Set([
@@ -992,7 +1050,7 @@ export class DmService {
     )
     const [userRows, blocks, guardianLinks, consents] = await Promise.all([
       this.prisma.user.findMany({
-        where: { id: { in: candidateIds }, deletedAt: null },
+        where: { id: { in: candidateIds }, ...launchClubParticipantWhere(clubId) },
         select: { id: true, name: true, avatarUrl: true, dateOfBirth: true, managedById: true },
       }),
       this.prisma.userBlock.findMany({
@@ -1097,7 +1155,7 @@ export class DmService {
     client: PrismaService | Prisma.TransactionClient = this.prisma,
   ) {
     const membership = await client.membership.findFirst({
-      where: { userId, clubId },
+      where: { userId, clubId, user: launchClubParticipantWhere(clubId) },
     })
     if (!membership) {
       throw new ForbiddenException('Not a member of this club')
@@ -1157,6 +1215,88 @@ export class DmService {
     if (await eitherHasBlocked(client, userId, peerUserId)) {
       throw new ForbiddenException('Cannot send messages to this user')
     }
+    return { clubId, peerUserId }
+  }
+
+  /** Shared by current sends and the new upload publisher; caller owns tx. */
+  private async lockWritableConversation(
+    userId: string,
+    conversationId: string,
+    tx: Prisma.TransactionClient,
+    expectedClubId?: string,
+    lockClubOwner = false,
+  ) {
+    const initial = await this.assertConversationAccess(userId, conversationId, tx)
+    if (expectedClubId !== undefined && initial.clubId !== expectedClubId) {
+      throw new ForbiddenException('Conversation does not belong to this club')
+    }
+    const participants = [userId, initial.peerUserId].sort()
+    // Global order shared with account erasure and club member removal:
+    // participant DM lifecycle -> club owner/membership -> participant access.
+    // Lineup sends need the owner lock because their authority is derived from
+    // club/team staff state; taking it after dm-access would deadlock removal.
+    for (const lockKey of participants.map((id) => `dm-user:${id}`)) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+    }
+    if (lockClubOwner) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${initial.clubId}`}))`
+    }
+    for (const lockKey of participants.map((id) => `dm-access:${initial.clubId}:${id}`)) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+    }
+    // Re-read memberships, safeguarding and blocks after revocation locks.
+    const current = await this.assertCanMessageConversation(userId, conversationId, tx)
+    if (current.clubId !== initial.clubId || current.peerUserId !== initial.peerUserId) {
+      throw new ForbiddenException('Conversation changed; try again')
+    }
+    return current
+  }
+
+  async authorizePrivateUpload(
+    userId: string,
+    clubId: string,
+    conversationId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    await this.lockWritableConversation(userId, conversationId, tx, clubId)
+    return { userId, clubId, targetType: 'DM' as const, targetId: conversationId }
+  }
+
+  /** Transaction-bound history access for the internal private-media reader.
+   * A former peer may have left the club or blocked the reader: those changes
+   * prevent sending but must not remove the reader's existing DM history.
+   * The caller owns the transaction through message/upload lookup and signing.
+   */
+  async authorizePrivateMediaRead(
+    userId: string,
+    clubId: string,
+    conversationId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const initial = await this.assertConversationAccess(userId, conversationId, tx)
+    if (initial.clubId !== clubId) throw new ForbiddenException('Conversation does not belong to this club')
+
+    // Account erasure locks dm-user before message locks and participant
+    // deletion. Take both in stable order so peer erasure cannot deadlock a
+    // read that later locks a message; only the reader's club access is needed.
+    for (const id of [userId, initial.peerUserId].sort()) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${id}`}))`
+    }
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-access:${clubId}:${userId}`}))`
+
+    // Team-access decisions can update TeamAccess before Membership. Keep the
+    // same order as channel authorization; these rows protect role changes
+    // for legacy mixed-role accounts while the signed URL is issued.
+    await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "userId" = ${userId} AND "clubId" = ${clubId} ORDER BY "id" FOR SHARE`
+    await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "userId" = ${userId} AND "clubId" = ${clubId} FOR SHARE`
+    await tx.$queryRaw`SELECT "id" FROM "Conversation" WHERE "id" = ${conversationId} AND "clubId" = ${clubId} FOR SHARE`
+    await tx.$queryRaw`SELECT "id" FROM "ConversationParticipant" WHERE "conversationId" = ${conversationId} ORDER BY "id" FOR SHARE`
+
+    const current = await this.assertConversationAccess(userId, conversationId, tx)
+    if (current.clubId !== clubId || current.peerUserId !== initial.peerUserId) {
+      throw new ForbiddenException('Conversation changed; try again')
+    }
+    return { userId, clubId, targetType: 'DM' as const, targetId: conversationId }
   }
 
   private async assertPrivateMessagingAllowed(

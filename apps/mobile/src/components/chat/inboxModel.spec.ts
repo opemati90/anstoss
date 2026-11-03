@@ -158,6 +158,11 @@ describe('contactReasonKey (L8)', () => {
 })
 
 describe('groupErrorKey (B1 client)', () => {
+  it('explains when a selected group member is not a confirmed adult', () => {
+    expect(groupErrorKey(new ApiError('GROUP_ADULT_LAUNCH_ONLY', 400))).toBe(
+      'chatInbox.groupErrors.adultLaunchOnly',
+    )
+  })
   it('maps the safeguarding codes from an ApiError message', () => {
     expect(groupErrorKey(new ApiError('GROUP_MINOR_NEEDS_STAFF', 400))).toBe(
       'chatInbox.groupErrors.minorNeedsStaff',

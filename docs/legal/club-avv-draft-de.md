@@ -2,6 +2,14 @@
 
 **Nicht unterschriftsreif.** Stand 24.09.2026. Dieser Entwurf muss anhand der tatsächlichen Dienste, Unterauftragsverarbeiter, technischen Maßnahmen und Rechtsgrundlagen durch qualifizierte Rechtsberatung sowie den Verein geprüft werden. Der Entwurf selbst belegt weder eine abgeschlossene AVV noch gültige Drittlandtransfers.
 
+**Produktänderung vom 28.10.2026:** Der Betreiber hat einen ersten Release nur
+für Erwachsene ab 18 Jahren bestätigt. Jugend-/Erziehungsberechtigten-Funktionen
+und die Erfassung von Gesundheitsangaben sind nicht freigeschaltet. Die früheren
+Angaben zur aktiven Erfassung von RSVP-Gesundheitsgründen unten beschreiben den
+Altbestand, nicht den neuen Release. Bestehende Datensätze werden dadurch nicht
+automatisch gelöscht; Rechtsgrundlagen, Weisungen, Betroffenenrechte und
+Aufbewahrung für Altbestände müssen weiterhin geklärt werden.
+
 ## Parteien und Rangfolge
 
 Verantwortlicher: **[vollständiger Name, Rechtsform, Anschrift des Vereins]**. Auftragsverarbeiter: **Opeyemi Ajimati, Hönower Wiesenweg 57, 12623 Berlin, Deutschland, als natürliche Person und Betreiber von Anstoss** (vom Betreiber am 24.09.2026 als aktuelle Impressumsangabe bestätigt); Vertragskontakt **[E-Mail für AVV-Mitteilungen]**. Wirksam ab **[Datum]**; Hauptvertrag **[Bezeichnung/Version]**. Bei Widersprüchen über die Verarbeitung personenbezogener Vereinsdaten geht diese AVV vor, soweit rechtlich zulässig. Die Vertragsparteien können stattdessen die [EU-Standardvertragsklauseln für Verantwortliche/Auftragsverarbeiter nach Beschluss 2021/915](https://eur-lex.europa.eu/eli/dec_impl/2021/915/oj/eng) unverändert verwenden.

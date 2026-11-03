@@ -1,4 +1,13 @@
 export const eventFlowTr = {
+  availability: {
+    title: 'Katılım durumu', open: 'Yanıtlar açık', closed: 'Yanıtlar kapalı',
+    closedHint: 'Katılım durumunuz değişirse antrenörünüzle iletişime geçin.',
+    noDeadline: 'Son tarih yok', deadlineValue: 'Son yanıt tarihi: {{value}}',
+    lock: 'Yanıtları kilitle', lockHint: 'Oyuncuların ve velilerin yanıtlarını değiştirmesini engelleyin.',
+    chooseDeadline: 'Son yanıt tarihi', deadlineHint: 'Yanıtlar bu saatte kapanır. Manuel kilit, siz kapatana kadar etkin kalır.',
+    hoursBefore: 'Etkinlikten {{count}} saat önce', atStart: 'Etkinlik başladığında',
+    saveFailed: 'Kayıt doğrulanamadı. Güncel ayarları kontrol etmek için yenileyin.',
+  },
   type: { TRAINING: 'Antrenman', MATCH: 'Maç', OTHER: 'Diğer' },
   // Derived match titles (the event stores only the opponent).
   matchTitle: { home: 'İç saha: {{opponent}}', away: 'Deplasman: {{opponent}}', neutral: 'Maç: {{opponent}}' },
@@ -112,8 +121,11 @@ export const eventFlowTr = {
     empty: 'Henüz kimse yanıt vermedi.',
     remindOpen_one: '{{count}} oyuncuya hatırlat',
     remindOpen_other: '{{count}} oyuncuya hatırlat',
-    remindSent_one: '{{count}} oyuncuya hatırlatma gönderildi',
-    remindSent_other: '{{count}} oyuncuya hatırlatma gönderildi',
+    remindSent_one: '{{count}} oyuncu için hatırlatma sıraya alındı',
+    remindSent_other: '{{count}} oyuncu için hatırlatma sıraya alındı',
+    remindNoneAccepted: 'Hiçbir anlık hatırlatma sıraya alınmadı. Bildirimler kapalı olabilir veya kayıtlı cihaz olmayabilir. Tekrar deneyebilirsin.',
+    remindUnconfirmed: 'Hatırlatma durumu doğrulanmadı',
+    remindUnconfirmedHint: 'Bildirim hizmeti tüm hatırlatmaları doğrulamadı. Bazıları hâlâ ulaşabilir. Tekrarları önlemek için yeniden gönderme duraklatıldı.',
     remindCooldown: 'Bugün zaten hatırlatıldı',
     remindFailedTitle: 'Hatırlatma gönderilemedi',
     remindFailedBody: 'Birazdan tekrar dene.',

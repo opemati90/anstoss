@@ -10,15 +10,17 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
-import { activeTeamAccessWhere } from './active-team-access'
+import { activeLaunchTeamAccessWhere as activeTeamAccessWhere } from './active-team-access'
 import { effectiveAbsence, isSquadMember, loanedOutByTeam } from './squad-count'
 // Kader adversarial fixes (H2, M2, M5): messaging rule, duty push, youth check.
 import { resolveRosterMessaging } from './roster-messaging'
 import { formatDutyAssignedPush, resolveDutyPushLocale } from './duty-push'
 import { isYouthTeam } from '../channels/youth-team'
 import { PushService } from '../push/push.service'
+import { assertLaunchParticipant, launchClubParticipantWhere, launchParticipantWhere, requireYouthParticipation } from '../auth/launch-access-policy'
 import {
   ClubCapability,
+  LAUNCH_FEATURES,
   ClubOperationalRole,
   MembershipRole,
   ParentalConsentStatus,
@@ -68,7 +70,7 @@ export class TeamsService {
 
   async listTeamGroups(clubId: string, userId: string) {
     const membership = await this.getMembership(userId, clubId)
-    const canManageClub = isClubManager(membership.role)
+    const canManageClub = membership.role === 'OWNER' || membership.role === 'ADMIN'
 
     const groups = await this.prisma.teamGroup.findMany({
       where: {
@@ -213,8 +215,14 @@ export class TeamsService {
 
     const joinCode = await this.generateUniqueJoinCode()
     const team = await this.prisma.$transaction(async (tx) => {
+      // Acquire account lifecycle before the quota lock, matching deletion.
+      // Team creation and coach grants commit together or not at all.
+      if (headCoachUserId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${headCoachUserId}))`
+        await assertLaunchParticipant(tx, headCoachUserId)
+      }
       await this.requireEntitlements().assertCanCreateTeam(clubId, tx)
-      return tx.team.create({
+      const created = await tx.team.create({
         data: {
           clubId,
           groupId: group.id,
@@ -228,6 +236,10 @@ export class TeamsService {
         },
         include: { group: true },
       })
+      if (headCoachUserId) await this.syncCoachAssignments(clubId, created.id, {
+        headCoachUserId, assistantCoachUserIds: [],
+      }, tx)
+      return created
     })
 
     // Chat revamp (H4): provision the team's default channels at creation so
@@ -237,13 +249,6 @@ export class TeamsService {
       teamId: team.id,
       ageGroup: team.ageGroup ?? null,
     })
-
-    if (headCoachUserId) {
-      await this.syncCoachAssignments(clubId, team.id, {
-        headCoachUserId,
-        assistantCoachUserIds: [],
-      })
-    }
 
     return team
   }
@@ -279,6 +284,7 @@ export class TeamsService {
     teamId: string,
     userId: string,
   ): Promise<TeamFamilyAccessSnapshot> {
+    requireYouthParticipation()
     const access = await this.assertManageAccess(userId, teamId)
 
     const [playerAccess, relationships, pendingConsents] = await Promise.all([
@@ -456,6 +462,7 @@ export class TeamsService {
     userId: string,
     input: UpdateGuardianRelationshipInput,
   ) {
+    requireYouthParticipation()
     await this.assertManageAccess(userId, teamId)
 
     const relationship = await this.prisma.guardianRelationship.findFirst({
@@ -637,6 +644,7 @@ export class TeamsService {
     }
 
     if (input.decision === 'ACCEPT') {
+      await assertLaunchParticipant(this.prisma, teamAccess.userId)
       // For pending coach access: activate the TeamAccess and elevate the
       // club Membership to COACH so the mobile's role-based UI works.
       // isClubManager() returns true for COACH, which unlocks club/team
@@ -755,7 +763,7 @@ export class TeamsService {
   > {
     const access = await this.getTeamContext(userId, teamId)
 
-    if (access.membership && isClubManager(access.membership.role)) {
+    if (access.membership && ['OWNER', 'ADMIN'].includes(access.membership.role)) {
       return access
     }
 
@@ -779,6 +787,9 @@ export class TeamsService {
         return { ...access, trialEventIds: trial.eventIds }
       }
     }
+
+    // Adult guardians do not acquire child-derived participation at launch.
+    requireYouthParticipation()
 
     // Parents reach the team via their kid's GuardianRelationship — they
     // don't have direct TeamAccess. Without this branch the parent
@@ -837,12 +848,12 @@ export class TeamsService {
   async assertManageAccess(userId: string, teamId: string) {
     const access = await this.getTeamContext(userId, teamId)
 
-    if (access.membership && isClubManager(access.membership.role)) {
+    if (access.membership && ['OWNER', 'ADMIN'].includes(access.membership.role)) {
       return access
     }
 
     const manageableTeamAccess = access.activeTeamAccess.find((entry: any) =>
-      isCoachRole(entry.role),
+      entry.phase === TeamAccessPhase.FULL && isCoachRole(entry.role),
     )
 
     if (manageableTeamAccess) {
@@ -861,13 +872,17 @@ export class TeamsService {
         operationalRoles: access.membership.operationalRoles as ClubOperationalRole[],
       })
 
-      if (permissions[ClubCapability.EVENTS]) {
+      if (permissions[ClubCapability.EVENTS] && (
+        ['OWNER', 'ADMIN'].includes(access.membership.role) ||
+        access.activeTeamAccess.some((entry) => entry.phase === TeamAccessPhase.FULL &&
+          (access.membership?.role !== 'COACH' || isCoachRole(entry.role)))
+      )) {
         return access
       }
     }
 
     const manageableTeamAccess = access.activeTeamAccess.find((entry: any) =>
-      isCoachRole(entry.role),
+      entry.phase === TeamAccessPhase.FULL && isCoachRole(entry.role),
     )
 
     if (manageableTeamAccess) {
@@ -913,6 +928,7 @@ export class TeamsService {
       if (!activePlayer) {
         throw new BadRequestException('Player account is no longer active.')
       }
+      await assertLaunchParticipant(tx, input.playerUserId)
 
       const lockTeamIds = [sourceTeamId, input.targetTeamId].sort()
       for (const teamId of lockTeamIds) {
@@ -926,8 +942,8 @@ export class TeamsService {
         where: {
           teamId: sourceTeamId,
           userId: input.playerUserId,
-          role: TeamRole.PLAYER,
           ...activeTeamAccessWhere(),
+          role: TeamRole.PLAYER,
         },
       })
       if (!sourceAccess) {
@@ -1161,6 +1177,9 @@ export class TeamsService {
     userId: string,
     input: UpdateTeamMemberInput,
   ) {
+    const deactivationOnly = input.operationalStatus === 'INACTIVE' &&
+      Object.entries(input).every(([key, value]) => key === 'operationalStatus' || value === undefined)
+    if (!deactivationOnly) await assertLaunchParticipant(this.prisma, targetUserId)
     // Kader revamp: a player may mark themself away (Urlaub) or back (NONE).
     // Everything else — position, number, activity, Sperre, and any change
     // to another member — stays coach-only.
@@ -1194,7 +1213,7 @@ export class TeamsService {
           ? { absenceUntil: input.absenceUntil ? new Date(input.absenceUntil) : null }
           : {}
 
-    return this.prisma.teamMember.upsert({
+    const writeRoster = (client: Prisma.TransactionClient) => client.teamMember.upsert({
       where: { teamId_userId: { teamId, userId: targetUserId } },
       update: {
         ...(input.position !== undefined && { position: input.position }),
@@ -1216,6 +1235,37 @@ export class TeamsService {
         ...absenceData,
       },
     })
+    // All upserts can create an ACTIVE roster row, even a position-only edit.
+    // Serialize every path with account erasure and participation decisions.
+    return this.prisma.$transaction(async (tx) => {
+        for (const id of [...new Set([userId, targetUserId])].sort()) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+        }
+        if (input.jerseyNumber !== undefined) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`jersey-number:${teamId}`}))`
+        }
+        // Match the availability/attendance authority-row order so that a
+        // revoked coach cannot use the preflight decision after waiting.
+        for (const id of [...new Set([userId, targetUserId])].sort()) {
+          await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${id} FOR SHARE`
+          await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "clubId" = ${clubId} AND "userId" = ${id} ORDER BY "id" FOR SHARE`
+          await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "clubId" = ${clubId} AND "teamId" = ${teamId} AND "userId" = ${id} ORDER BY "id" FOR SHARE`
+        }
+        await assertLaunchParticipant(tx, userId)
+        if (selfAbsenceOnly) await this.assertSelfAbsenceAccess(clubId, teamId, userId)
+        else await this.assertManageAccess(userId, teamId)
+        if (!deactivationOnly) await assertLaunchParticipant(tx, targetUserId)
+        else {
+          const target = await tx.user.findFirst({ where: { id: targetUserId, deletedAt: null }, select: { id: true } })
+          if (!target) throw new TeamAccessDeniedError('This player is no longer active.')
+        }
+        const currentAccess = await tx.teamAccess.findFirst({ where: { clubId, teamId, userId: targetUserId, ...activeTeamAccessWhere() }, select: { id: true } })
+        if (!currentAccess) throw new TeamAccessDeniedError('This player no longer belongs to the team.')
+        if (input.jerseyNumber !== undefined && input.jerseyNumber !== null) {
+          await this.assertJerseyNumberFree(clubId, teamId, targetUserId, input.jerseyNumber, tx)
+        }
+        return writeRoster(tx)
+    })
   }
 
   /**
@@ -1229,10 +1279,11 @@ export class TeamsService {
         clubId,
         teamId,
         userId,
-        role: TeamRole.PLAYER,
         // Kader fix L1: trialists are not squad players and cannot self-report.
         phase: TeamAccessPhase.FULL,
         ...activeTeamAccessWhere(),
+        role: TeamRole.PLAYER,
+        user: launchClubParticipantWhere(clubId),
       },
       select: { id: true },
     })
@@ -1260,13 +1311,14 @@ export class TeamsService {
     teamId: string,
     targetUserId: string,
     jerseyNumber: number,
+    client: Prisma.TransactionClient = this.prisma,
   ) {
-    const holders = await this.prisma.teamMember.findMany({
+    const holders = await client.teamMember.findMany({
       where: { teamId, jerseyNumber, userId: { not: targetUserId } },
       select: { userId: true },
     })
     if (holders.length === 0) return
-    const onRoster = await this.prisma.teamAccess.findFirst({
+    const onRoster = await client.teamAccess.findFirst({
       where: {
         clubId,
         teamId,
@@ -1313,6 +1365,8 @@ export class TeamsService {
       where: {
         clubId,
         teamId,
+        user: launchParticipantWhere(),
+        ...(!LAUNCH_FEATURES.youthParticipation ? { role: { not: 'PARENT' as const } } : {}),
         status: {
           in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING],
         },
@@ -1638,9 +1692,10 @@ export class TeamsService {
       where: {
         clubId,
         teamId,
-        role: TeamRole.PLAYER,
         phase: TeamAccessPhase.FULL,
         ...activeTeamAccessWhere(),
+        role: TeamRole.PLAYER,
+        user: launchClubParticipantWhere(clubId),
       },
       include: {
         user: {
@@ -1703,7 +1758,7 @@ export class TeamsService {
     const nextAssignee =
       eligibleRoster[(lastIndex + 1 + eligibleRoster.length) % eligibleRoster.length]
 
-    const assignment = await this.prisma.teamDutyAssignment.create({
+    const createAssignment = (db: Prisma.TransactionClient | PrismaService) => db.teamDutyAssignment.create({
       data: {
         clubId,
         teamId,
@@ -1724,6 +1779,20 @@ export class TeamsService {
         },
       },
     })
+
+    const assignment = LAUNCH_FEATURES.youthParticipation
+      ? await createAssignment(this.prisma)
+      : await this.prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${nextAssignee.userId}))`
+          await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "clubId" = ${clubId} AND "userId" = ${nextAssignee.userId} FOR SHARE`
+          await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "clubId" = ${clubId} AND "teamId" = ${teamId} AND "userId" = ${nextAssignee.userId} FOR SHARE`
+          await assertLaunchParticipant(tx, nextAssignee.userId)
+          const current = await tx.teamAccess.findFirst({ where: { clubId, teamId, userId: nextAssignee.userId,
+            ...activeTeamAccessWhere(), role: TeamRole.PLAYER, phase: TeamAccessPhase.FULL,
+            user: launchClubParticipantWhere(clubId), loanedFromTeamId: null } })
+          if (!current) throw new BadRequestException('The selected player is no longer eligible. Please retry.')
+          return createAssignment(tx)
+        })
 
     // M2: tell the assignee. Best-effort: a failed push never undoes the rota.
     await this.notifyDutyAssigned(clubId, teamId, assignment)
@@ -1773,6 +1842,7 @@ export class TeamsService {
    * relationship naming the child, or the child's managing account.
    */
   private async getGuardianChildIds(clubId: string, userId: string): Promise<Set<string>> {
+    if (!LAUNCH_FEATURES.youthParticipation) return new Set()
     const [links, managed] = await Promise.all([
       this.prisma.guardianRelationship.findMany({
         where: { clubId, parentUserId: userId, playerUserId: { not: null } },
@@ -1868,14 +1938,14 @@ export class TeamsService {
   }
 
   async getAggregateRoster(clubId: string, userId: string) {
-    await this.assertClubManager(clubId, userId)
+    await this.assertClubAdministrator(clubId, userId)
 
     const teams = await this.prisma.team.findMany({
       where: { clubId },
       include: {
         group: true,
         access: {
-          where: activeTeamAccessWhere(),
+          where: { ...activeTeamAccessWhere(), user: launchParticipantWhere() },
           include: {
             user: { select: { id: true, name: true, email: true, avatarUrl: true } },
           },
@@ -2162,6 +2232,7 @@ export class TeamsService {
     clubId: string,
     teamId: string,
     input: UpdateTeamCoachAssignmentsInput,
+    client?: Prisma.TransactionClient,
   ) {
     const assignments = normalizeCoachAssignments(input)
     const coachUserIds = [
@@ -2171,11 +2242,12 @@ export class TeamsService {
       .filter((userId, index, values) => values.indexOf(userId) === index)
       .sort()
 
-    await this.prisma.$transaction(async (tx) => {
+    const apply = async (tx: Prisma.TransactionClient) => {
       // Serialize against account deletion for every user that will receive
       // access. Revalidate membership only after the lifecycle locks are held.
       for (const coachUserId of coachUserIds) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${coachUserId}))`
+        await assertLaunchParticipant(tx, coachUserId)
       }
 
       if (coachUserIds.length > 0) {
@@ -2320,7 +2392,9 @@ export class TeamsService {
           },
         })
       }
-    })
+    }
+    if (client) await apply(client)
+    else await this.prisma.$transaction(apply)
   }
 
   private async getTeamCoachAssignments(teamId: string) {
@@ -2387,6 +2461,7 @@ export class TeamsService {
   }
 
   private async getTeamContext(userId: string, teamId: string) {
+    await assertLaunchParticipant(this.prisma, userId)
     const team = await this.prisma.team.findUnique({
       where: { id: teamId },
       include: {
@@ -2420,7 +2495,7 @@ export class TeamsService {
     return {
       team,
       membership,
-      activeTeamAccess: teamAccess,
+      activeTeamAccess: teamAccess.filter((entry) => LAUNCH_FEATURES.youthParticipation || entry.role !== TeamRole.PARENT),
     }
   }
 

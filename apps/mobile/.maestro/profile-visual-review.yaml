@@ -1,0 +1,16 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: "anstoss://e2e?scenario=player"
+- extendedWaitUntil:
+    visible: "Profile"
+    timeout: 20000
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible:
+      id: "profile-card-player"
+    timeout: 20000
+- takeScreenshot: /Users/yemi/anstoss/output/profile-visual-review

@@ -2,6 +2,8 @@
  * Where a signed-in user belongs right now. Pure so it can be unit tested and
  * shared by index.tsx and screens that finish a step.
  */
+import { LAUNCH_FEATURES } from '@anstoss/shared'
+
 export type RoutingUser = {
   email?: string | null
   name?: string | null
@@ -23,6 +25,8 @@ export type RoutingSnapshot = {
   resumeTarget?: string | null
   /** Intent picked before sign-in (welcome: free agent, or a parent's setup code). */
   intent?: 'free-agent' | 'parent-handoff' | null
+  availableRoleModes?: readonly string[]
+  activeClubRole?: string | null
 }
 
 /**
@@ -45,7 +49,7 @@ export function needsDisplayName(user: RoutingUser | null | undefined): boolean 
  */
 export function needsDateOfBirth(user: RoutingUser | null | undefined): boolean {
   if (!user) return false
-  return !user.dateOfBirth && !user.adultConfirmedAt
+  return !user.dateOfBirth && (!LAUNCH_FEATURES.youthParticipation || !user.adultConfirmedAt)
 }
 
 /** "Wie heißt du?" (name + date of birth) is still open. */
@@ -57,12 +61,16 @@ export function resolveSignedInRoute(snapshot: RoutingSnapshot): string {
   const { user, memberships, ageGate } = snapshot
 
   if (ageGate?.status === 'BLOCKED') return '/access-blocked'
+  if (!LAUNCH_FEATURES.youthParticipation && ageGate?.status === 'PENDING_PARENT_APPROVAL') return '/access-blocked'
   if (ageGate?.status === 'PENDING_PARENT_APPROVAL') return '/pending-approval'
 
   // An invite in flight wins, also for members: a player invited to a second
   // team or club lands on the invite instead of silently on home. The join
   // screen clears the stored code once it is redeemed or declined.
   if (snapshot.pendingInviteCode) return `/join/${snapshot.pendingInviteCode}`
+  if (!LAUNCH_FEATURES.youthParticipation && (user?.registrationRole === 'PARENT' || snapshot.activeClubRole === 'PARENT') &&
+    snapshot.availableRoleModes?.length === 0 && memberships.length > 0) return '/launch-coming-soon'
+  if (ageGate?.status === 'DOB_REQUIRED') return memberships.length > 0 ? '/enter-dob' : '/(auth)/name'
 
   if (memberships.length > 0) {
     // Legacy members from before the DOB step who never gave one.
@@ -83,7 +91,7 @@ export function resolveSignedInRoute(snapshot: RoutingSnapshot): string {
 
   if (needsProfile(user)) return '/(auth)/name'
   if (snapshot.intent === 'free-agent') return '/(auth)/free-agent-profile'
-  if (snapshot.intent === 'parent-handoff') return '/(auth)/parent-handoff'
+  if (snapshot.intent === 'parent-handoff' && LAUNCH_FEATURES.youthParticipation) return '/(auth)/parent-handoff'
   if (snapshot.resumeTarget) return snapshot.resumeTarget
   return '/(auth)/club-search'
 }

@@ -1,6 +1,13 @@
 // Onboarding revamp (welcome, code, name, Verein finden, invite, club setup,
 // waiting screen, home notices). German is the reference locale.
 export const onboardingFlowDe = {
+  launch: {
+    adultsTitle: 'Vorerst nur für Erwachsene',
+    adultsBody: 'Diese Version ist für Vereinsmitglieder ab 18 Jahren. Jugend-, Eltern- und Gesundheitsfunktionen kommen später. Bestehende Datensätze wurden nicht gelöscht.',
+    adultsHint: 'Ab 18 Jahren. Jugend- und Elternfunktionen folgen später.',
+    privacyActions: 'Daten & Konto',
+    privacyBody: 'Du kannst deine Daten weiterhin exportieren, bestehende Einwilligungen widerrufen oder dein Konto löschen.',
+  },
   progressA11y: 'Schritt {{current}} von {{total}}',
   common: {
     continue: 'Weiter',
@@ -199,7 +206,7 @@ export const onboardingFlowDe = {
     groupYouth: 'Jugend',
     linkLabel: 'Link zur Mannschaft auf fussball.de',
     linkPlaceholder: 'https://www.fussball.de/mannschaft/…',
-    linkHint: 'Hilft uns bei der Prüfung. Geht auch mit dfb.de oder fupa.net.',
+    linkHint: 'Suche dein Team auf FUSSBALL.DE und kopiere die Adresse seiner Seite. Sie hilft bei der Prüfung; Spiele werden nicht automatisch importiert. DFB.de und FuPa gehen auch.',
     linkInvalid: 'Bitte füge einen https-Link von fussball.de, dfb.de oder fupa.net ein.',
     participation: 'Bist du in der Mannschaft selbst dabei? (optional)',
     participationCoach: 'Ich trainiere',

@@ -1,4 +1,4 @@
-import { updateRsvpSchema } from './rsvp'
+import { rsvpReasonSchema, updateRsvpSchema } from './rsvp'
 
 describe('updateRsvpSchema', () => {
   it('accepts YES', () => {
@@ -23,23 +23,24 @@ describe('updateRsvpSchema', () => {
 })
 
 describe('rsvp reasons and notes', () => {
-  it('accepts every reason chip, including suspended', () => {
+  it('does not collect explanations in the public release', () => {
     for (const reason of ['injured', 'sick', 'work', 'vacation', 'personal', 'suspended', 'other']) {
-      expect(updateRsvpSchema.safeParse({ status: 'NO', reason }).success).toBe(true)
+      expect(updateRsvpSchema.safeParse({ status: 'NO', reason }).success).toBe(false)
     }
   })
 
   it('maps the legacy injury spelling to injured', () => {
-    const parsed = updateRsvpSchema.parse({ status: 'NO', reason: 'injury' })
-    expect(parsed.reason).toBe('injured')
+    expect(rsvpReasonSchema.parse('injury')).toBe('injured')
+    expect(updateRsvpSchema.safeParse({ status: 'NO', reason: 'injury' }).success).toBe(false)
   })
 
   it('rejects unknown reasons', () => {
     expect(updateRsvpSchema.safeParse({ status: 'NO', reason: 'hangover' }).success).toBe(false)
   })
 
-  it('accepts a short note and rejects one over 200 chars', () => {
-    expect(updateRsvpSchema.safeParse({ status: 'NO', note: 'Knie zwickt' }).success).toBe(true)
+  it('rejects free-text notes while allowing an empty legacy value', () => {
+    expect(updateRsvpSchema.safeParse({ status: 'NO', note: 'Knie zwickt' }).success).toBe(false)
+    expect(updateRsvpSchema.safeParse({ status: 'NO', note: '' }).success).toBe(true)
     expect(updateRsvpSchema.safeParse({ status: 'NO', note: 'x'.repeat(201) }).success).toBe(false)
   })
 

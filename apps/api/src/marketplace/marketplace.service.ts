@@ -7,10 +7,13 @@ import {
   Injectable,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common'
+import { assertLaunchBirthDate, assertLaunchParticipant, launchParticipantWhere, requireYouthParticipation } from '../auth/launch-access-policy'
 import {
   FREE_AGENT_ADULT_AGE,
   FREE_AGENT_MIN_AGE,
+  LAUNCH_FEATURES,
   FreeAgentVisibility,
   JoinRequestStatus,
   MembershipRole,
@@ -37,6 +40,10 @@ import {
   type TrialSession,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import type { Prisma } from '@prisma/client'
+import { R2Provider } from '../assets/r2.provider'
+import { lockMediaObject } from '../assets/media-object-lock'
+import { freeAgentMediaLimit, MEDIA_ALLOWED_CONTENT_TYPES } from './media-policy'
 import { PushService } from '../push/push.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
@@ -113,6 +120,7 @@ export class MarketplaceService {
     @Optional() private readonly clubEntitlements?: ClubEntitlementsService,
     // H4: the player's answer is age-gated in the invite's club context.
     @Optional() private readonly ageGate?: AgeGateService,
+    @Optional() private readonly r2?: R2Provider,
   ) {}
 
   // ─── Free-agent profile ──────────────────────────────────────────────
@@ -130,16 +138,14 @@ export class MarketplaceService {
     userId: string,
     input: FreeAgentProfileWriteInput,
   ): Promise<FreeAgentProfile> {
-    const facts = await this.assertFreeAgent(userId)
-    return this.saveFreeAgentProfile(userId, input, false, facts)
+    return this.saveFreeAgentProfile(userId, input, false)
   }
 
   async updateFreeAgentProfile(
     userId: string,
     input: FreeAgentProfileWriteInput,
   ): Promise<FreeAgentProfile> {
-    const facts = await this.assertFreeAgent(userId)
-    return this.saveFreeAgentProfile(userId, input, true, facts)
+    return this.saveFreeAgentProfile(userId, input, true)
   }
 
   /** H2: 16–17-year-olds show no photos or videos. */
@@ -151,47 +157,112 @@ export class MarketplaceService {
   }
 
   async addMedia(userId: string, input: CreateFreeAgentMediaInput): Promise<FreeAgentMediaEntry> {
-    await this.assertMayAddMedia(userId)
-    const profile = await this.prisma.freeAgentProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!profile) {
-      throw new NotFoundException('Free agent profile not found')
-    }
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const facts = await this.assertFreeAgent(userId, tx)
+      if (facts.minor) throw new ForbiddenException('Photos and videos are only available from 18')
+      const profile = await tx.freeAgentProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+      })
+      if (!profile) {
+        throw new NotFoundException('Free agent profile not found')
+      }
 
-    const existingCount = await this.prisma.freeAgentMedia.count({
-      where: { profileId: profile.id, type: input.type },
-    })
-    const limit = input.type === 'PHOTO' ? 6 : 2
-    if (existingCount >= limit) {
-      throw new BadRequestException(
-        `You can attach up to ${limit} ${input.type === 'PHOTO' ? 'photos' : 'videos'}`,
-      )
-    }
+      // The controller's preflight HEAD is not enough: cleanup can delete a
+      // queued object between that check and insertion. Serialize attachment
+      // with the cleanup worker and verify storage again while locked.
+      if (!this.r2?.enabled) throw new ServiceUnavailableException('Media uploads are unavailable')
+      const references = [
+        { url: input.url, type: input.type },
+        ...(input.thumbnailUrl ? [{ url: input.thumbnailUrl, type: 'PHOTO' as const }] : []),
+      ]
+      const objects = new Map<string, 'PHOTO' | 'VIDEO'>()
+      for (const reference of references) {
+        const key = this.r2.objectKeyFromUrl(reference.url)
+        if (!key?.startsWith(`users/${userId}/free-agent/${reference.type.toLowerCase()}/`)) {
+          throw new BadRequestException('Media does not belong to this user upload')
+        }
+        objects.set(key, reference.type)
+      }
+      for (const [objectKey, type] of [...objects].sort(([a], [b]) => a.localeCompare(b))) {
+        await lockMediaObject(tx, objectKey)
+        if (await tx.accountMediaDeletion.findUnique({ where: { objectKey } })) {
+          throw new BadRequestException('Media is being removed; upload it again')
+        }
+        try {
+          await this.r2.assertStoredObject(objectKey, {
+            maxBytes: freeAgentMediaLimit(type), allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES[type],
+          })
+        } catch {
+          throw new BadRequestException('Media upload is invalid or incomplete')
+        }
+      }
 
-    const created = await this.prisma.freeAgentMedia.create({
-      data: {
-        profileId: profile.id,
-        type: input.type,
-        url: input.url,
-        thumbnailUrl: input.thumbnailUrl ?? null,
-        sortOrder: existingCount,
-      },
+      const existingCount = await tx.freeAgentMedia.count({
+        where: { profileId: profile.id, type: input.type },
+      })
+      const limit = input.type === 'PHOTO' ? 6 : 2
+      if (existingCount >= limit) {
+        throw new BadRequestException(
+          `You can attach up to ${limit} ${input.type === 'PHOTO' ? 'photos' : 'videos'}`,
+        )
+      }
+
+      return tx.freeAgentMedia.create({
+        data: {
+          profileId: profile.id,
+          type: input.type,
+          url: input.url,
+          thumbnailUrl: input.thumbnailUrl ?? null,
+          sortOrder: existingCount,
+        },
+      })
     })
     return mapMedia(created)
   }
 
   /** Removing own media is always allowed (also after a role change). */
   async deleteMedia(userId: string, mediaId: string): Promise<void> {
-    const media = await this.prisma.freeAgentMedia.findUnique({
-      where: { id: mediaId },
-      include: { profile: { select: { userId: true } } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const media = await tx.freeAgentMedia.findUnique({
+        where: { id: mediaId }, include: { profile: { select: { userId: true } } },
+      })
+      if (!media || media.profile.userId !== userId) throw new NotFoundException('Media not found')
+      await this.queueFreeAgentMediaDeletion(tx, userId, [media])
+      await tx.freeAgentMedia.delete({ where: { id: mediaId } })
     })
-    if (!media || media.profile.userId !== userId) {
-      throw new NotFoundException('Media not found')
+  }
+
+  private async queueFreeAgentMediaDeletion(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    media: Array<{ url: string; thumbnailUrl: string | null }>,
+  ) {
+    if (media.length === 0) return
+    if (!this.r2) throw new ServiceUnavailableException('Media deletion is temporarily unavailable')
+    const keys = new Set<string>()
+    for (const url of media.flatMap((item) => [item.url, item.thumbnailUrl]).filter((item): item is string => Boolean(item))) {
+      const objectKey = this.r2.objectKeyFromUrl(url)
+      if (objectKey?.startsWith(`users/${userId}/free-agent/`)) keys.add(objectKey)
+      if (!objectKey) {
+        // Do not drop an apparently owned reference when the configured base
+        // URL cannot resolve it; that would silently strand the object.
+        let path = ''
+        try { path = decodeURIComponent(new URL(url).pathname) } catch { /* foreign legacy URL */ }
+        if (path.includes(`/users/${userId}/free-agent/`)) {
+          throw new ServiceUnavailableException('Media cleanup cannot be scheduled safely')
+        }
+      }
     }
-    await this.prisma.freeAgentMedia.delete({ where: { id: mediaId } })
+    const orderedKeys = [...keys].sort()
+    for (const key of orderedKeys) await lockMediaObject(tx, key)
+    if (orderedKeys.length) {
+      await tx.accountMediaDeletion.createMany({
+        data: orderedKeys.map((objectKey) => ({ objectKey })), skipDuplicates: true,
+      })
+    }
   }
 
   /**
@@ -201,25 +272,19 @@ export class MarketplaceService {
    * cascade removes the invites.
    */
   async deleteFreeAgentProfile(userId: string): Promise<void> {
-    const existing = await this.prisma.freeAgentProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!existing) {
-      throw new NotFoundException('Free agent profile not found')
-    }
-
-    const openInvites: Array<{ id: string; clubId: string; teamId: string }> =
-      await tenantContext.exit(() =>
-        this.prisma.trialInvite.findMany({
+    await tenantContext.exit(async () => this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const existing = await tx.freeAgentProfile.findUnique({
+        where: { userId }, select: { id: true, media: { select: { url: true, thumbnailUrl: true } } },
+      })
+      if (!existing) throw new NotFoundException('Free agent profile not found')
+      const openInvites: Array<{ id: string; clubId: string; teamId: string }> =
+        await tx.trialInvite.findMany({
           where: { freeAgentProfileId: existing.id, status: { in: OPEN_TRIAL_STATUSES } },
           select: { id: true, clubId: true, teamId: true },
-        }),
-      )
-
-    for (const invite of openInvites) {
-      await tenantContext.run({ clubId: invite.clubId, userId }, () =>
-        this.prisma.$transaction(async (tx: any) => {
+        })
+      for (const invite of openInvites.sort((a, b) => a.id.localeCompare(b.id))) {
+        await tenantContext.run({ clubId: invite.clubId, userId }, async () => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${invite.id}`}))`
           await tx.trialInvite.updateMany({
             where: { id: invite.id, clubId: invite.clubId, status: { in: OPEN_TRIAL_STATUSES } },
@@ -233,28 +298,27 @@ export class MarketplaceService {
             JoinRequestStatus.WITHDRAWN,
             userId,
           )
-        }),
-      )
-    }
-
-    await this.prisma.$transaction(async (tx: any) => {
+        })
+      }
+      await this.queueFreeAgentMediaDeletion(tx, userId, existing.media)
       await tx.freeAgentExperience.deleteMany({
         where: { profileId: existing.id },
       })
       await tx.freeAgentProfile.delete({ where: { userId } })
-    })
+    }))
   }
 
   /**
    * FREE_AGENT role + H2 age rule. Returns the caller's age facts. Under 16
    * nobody holds a free-agent profile (lead decision 2026-09-24).
    */
-  private async assertFreeAgent(userId: string): Promise<AgeFacts> {
-    const user = await this.prisma.user.findUnique({
+  private async assertFreeAgent(userId: string, client: PrismaService | Prisma.TransactionClient = this.prisma): Promise<AgeFacts> {
+    await assertLaunchParticipant(client, userId)
+    const user = await client.user.findUnique({
       where: { id: userId },
-      select: { registrationRole: true, dateOfBirth: true },
+      select: { registrationRole: true, dateOfBirth: true, deletedAt: true },
     })
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new NotFoundException('User not found')
     }
     if (user.registrationRole !== RegistrationRole.FREE_AGENT) {
@@ -270,53 +334,58 @@ export class MarketplaceService {
   }
 
   async updateRegistrationRole(userId: string, registrationRole: RegistrationRole) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, dateOfBirth: true, registrationRole: true },
-    })
-
-    if (!user) {
-      throw new NotFoundException('User not found')
-    }
-
-    // H2: under-16s never take the free-agent role.
-    if (registrationRole === RegistrationRole.FREE_AGENT && ageFacts(user).underSixteen) {
-      throw new ForbiddenException(UNDER_16_FREE_AGENT_MESSAGE)
-    }
-
-    if (registrationRole === RegistrationRole.CLUB_ADMIN) {
-      const existingMembership = await this.prisma.membership.findFirst({
-        where: { userId },
-        select: { id: true },
+    if (registrationRole === RegistrationRole.PARENT) requireYouthParticipation()
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await assertLaunchParticipant(tx, userId)
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, dateOfBirth: true, registrationRole: true, deletedAt: true },
       })
-      if (existingMembership) {
-        throw new ForbiddenException(
-          'Cannot change registration role to CLUB_ADMIN after joining a club',
-        )
+
+      if (!user || user.deletedAt) {
+        throw new NotFoundException('User not found')
       }
-    }
 
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: { registrationRole },
-      select: {
-        id: true,
-        registrationRole: true,
-      },
-    })
+      // H2: under-16s never take the free-agent role.
+      if (registrationRole === RegistrationRole.FREE_AGENT && ageFacts(user).underSixteen) {
+        throw new ForbiddenException(UNDER_16_FREE_AGENT_MESSAGE)
+      }
 
-    // M4: leaving the free-agent role takes the card off the Wechselbörse.
-    if (
-      user.registrationRole === RegistrationRole.FREE_AGENT &&
-      registrationRole !== RegistrationRole.FREE_AGENT
-    ) {
-      await this.prisma.freeAgentProfile.updateMany({
-        where: { userId },
-        data: { isOnTransferList: false },
+      if (registrationRole === RegistrationRole.CLUB_ADMIN) {
+        const existingMembership = await tx.membership.findFirst({
+          where: { userId },
+          select: { id: true },
+        })
+        if (existingMembership) {
+          throw new ForbiddenException(
+            'Cannot change registration role to CLUB_ADMIN after joining a club',
+          )
+        }
+      }
+
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: { registrationRole },
+        select: {
+          id: true,
+          registrationRole: true,
+        },
       })
-    }
 
-    return updated
+      // M4: leaving the free-agent role takes the card off the Wechselbörse.
+      if (
+        user.registrationRole === RegistrationRole.FREE_AGENT &&
+        registrationRole !== RegistrationRole.FREE_AGENT
+      ) {
+        await tx.freeAgentProfile.updateMany({
+          where: { userId },
+          data: { isOnTransferList: false },
+        })
+      }
+
+      return updated
+    })
   }
 
   // ─── Spielersuche (club side) ────────────────────────────────────────
@@ -366,6 +435,7 @@ export class MarketplaceService {
       isOnTransferList: true,
       visibility: { in: this.visibilitiesFor(staff) },
       user: {
+        ...launchParticipantWhere(now),
         deletedAt: null,
         // M4: only people who still are free agents.
         registrationRole: RegistrationRole.FREE_AGENT,
@@ -460,6 +530,9 @@ export class MarketplaceService {
     if (!profile || profile.user?.deletedAt) {
       throw new NotFoundException('Free agent profile not found')
     }
+    if (!LAUNCH_FEATURES.youthParticipation && (!profile.user?.dateOfBirth || getAge(profile.user.dateOfBirth) < LAUNCH_FEATURES.minimumAccountAge)) {
+      throw new NotFoundException('Free agent profile not found')
+    }
 
     if (callerUserId && profile.userId === callerUserId) {
       return this.mapProfile(profile, 'owner')
@@ -511,6 +584,19 @@ export class MarketplaceService {
 
   // ─── Probetraining: club side ────────────────────────────────────────
 
+  /** Caller already holds all affected account locks in sorted order. */
+  private async lockTrialStaff(tx: Prisma.TransactionClient, clubId: string, userId: string, teamId: string) {
+    await assertLaunchParticipant(tx, userId)
+    const actor = await tx.user.findFirst({ where: { id: userId, deletedAt: null }, select: { id: true } })
+    if (!actor) throw new ForbiddenException('This account is no longer active')
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${teamId}`}))`
+    await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "userId" = ${userId} AND "clubId" = ${clubId} AND "teamId" = ${teamId} FOR SHARE`
+    await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "userId" = ${userId} AND "clubId" = ${clubId} FOR SHARE`
+    const current = await resolveTrialScope(tx, clubId, userId)
+    assertTeamInScope(current, teamId, 'Trial invite')
+  }
+
   async createTrialInvite(
     clubId: string,
     senderUserId: string,
@@ -543,6 +629,7 @@ export class MarketplaceService {
     if (!profile || profile.user.deletedAt) {
       throw new NotFoundException('Free agent profile not found')
     }
+    if (!LAUNCH_FEATURES.youthParticipation) assertLaunchBirthDate(profile.user.dateOfBirth ?? new Date(NaN))
     const facts = ageFacts(profile.user)
     if (
       !profile.isOnTransferList ||
@@ -577,6 +664,26 @@ export class MarketplaceService {
     // M7: same per-thread lock as createTrialRequest, so a club invite and a
     // player request cannot both open a thread for the same pair.
     const invite = await this.prisma.$transaction(async (tx: any) => {
+      // Account erasure inventories the player's trial clubs under this same
+      // lock. Do not create a thread from the preflight snapshot after erasure.
+      for (const id of [...new Set([senderUserId, profile.user.id])].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+      }
+      await this.lockTrialStaff(tx, clubId, senderUserId, input.teamId)
+      const currentProfile = await tx.freeAgentProfile.findUnique({
+        where: { id: input.freeAgentProfileId },
+        include: { user: { select: { id: true, deletedAt: true, dateOfBirth: true, registrationRole: true } } },
+      })
+      if (!currentProfile || currentProfile.user.id !== profile.user.id || currentProfile.user.deletedAt) {
+        throw new NotFoundException('Free agent profile not found')
+      }
+      if (!LAUNCH_FEATURES.youthParticipation) assertLaunchBirthDate(currentProfile.user.dateOfBirth ?? new Date(NaN))
+      const currentFacts = ageFacts(currentProfile.user)
+      if (!currentProfile.isOnTransferList || currentProfile.visibility === FreeAgentVisibility.PRIVATE
+        || currentProfile.user.registrationRole !== RegistrationRole.FREE_AGENT || currentFacts.underSixteen) {
+        throw new BadRequestException('This player is not looking for a club right now')
+      }
+      assertAgeFitsTeam(team.ageGroup, currentFacts.age)
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-thread:${clubId}:${input.freeAgentProfileId}`}))`
       const existingOpen = await tx.trialInvite.findFirst({
         where: {
@@ -645,6 +752,7 @@ export class MarketplaceService {
       include: trialInviteInclude,
     })
     if (!invite) throw new NotFoundException('Trial invite not found')
+    if (input.action === 'invite' || input.action === 'offer') await assertLaunchParticipant(this.prisma, invite.freeAgentProfile.userId)
     assertTeamInScope(scope, invite.teamId)
 
     const now = new Date()
@@ -720,10 +828,21 @@ export class MarketplaceService {
     }
 
     const updated = await this.prisma.$transaction(async (tx: any) => {
+      for (const id of [...new Set([userId, invite.freeAgentProfile.userId as string])].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+      }
+      const target = await tx.user.findFirst({
+        where: { id: invite.freeAgentProfile.userId, deletedAt: null }, select: { id: true },
+      })
+      if (!target) throw new NotFoundException('Trial invite not found')
+      if (input.action === 'invite' || input.action === 'offer') {
+        await assertLaunchParticipant(tx, invite.freeAgentProfile.userId)
+      }
+      await this.lockTrialStaff(tx, clubId, userId, invite.teamId)
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${invite.id}`}))`
       if (takesSlot) await assertOpenTrialCapacity(tx, clubId)
       const transition = await tx.trialInvite.updateMany({
-        where: { id: invite.id, clubId, status: { in: from } },
+        where: { id: invite.id, clubId, teamId: invite.teamId, freeAgentProfileId: invite.freeAgentProfile.id, status: { in: from } },
         data,
       })
       if (transition.count !== 1) {
@@ -842,7 +961,35 @@ export class MarketplaceService {
 
     return tenantContext.run({ clubId: search.clubId, userId }, async () => {
       const invite = await this.prisma.$transaction(async (tx: any) => {
-        // M5: per-player lock first (daily cap across clubs), then the thread.
+        // Erasure takes this account lock before discovering linked trials.
+        const accounts = [userId, ...(search.createdByUserId ? [search.createdByUserId] : [])]
+        for (const id of [...new Set(accounts)].sort()) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+        }
+        const currentFacts = await this.assertFreeAgent(userId, tx)
+        const currentProfile = await tx.freeAgentProfile.findUnique({ where: { userId }, select: { id: true } })
+        if (!currentProfile || currentProfile.id !== profile.id) {
+          throw new BadRequestException('Create your player profile before asking for a trial')
+        }
+        if (search.createdByUserId) {
+          await this.lockTrialStaff(tx, search.clubId, search.createdByUserId, search.teamId)
+        }
+        await tx.$queryRaw`SELECT "id" FROM "PlayerSearch" WHERE "id" = ${playerSearchId} AND "clubId" = ${search.clubId} FOR SHARE`
+        const currentSearch = await tx.playerSearch.findFirst({
+          where: { id: playerSearchId, clubId: search.clubId, status: 'OPEN' },
+          include: { team: { select: { id: true, ageGroup: true } } },
+        })
+        if (!currentSearch || (currentSearch.expiresAt && currentSearch.expiresAt <= new Date())
+          || currentSearch.teamId !== search.teamId || currentSearch.createdByUserId !== search.createdByUserId) {
+          throw new NotFoundException('This search is no longer open')
+        }
+        if (search.createdByUserId) {
+          const creator = await tx.user.findFirst({ where: { id: search.createdByUserId, deletedAt: null }, select: { id: true } })
+          if (!creator) throw new NotFoundException('This search is no longer open')
+          await assertLaunchParticipant(tx, search.createdByUserId)
+        }
+        assertAgeFitsTeam(currentSearch.team?.ageGroup, currentFacts.age)
+        // M5: per-player cap lock, then the thread.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-requests:${profile.id}`}))`
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-thread:${search.clubId}:${profile.id}`}))`
         const existingOpen = await tx.trialInvite.findFirst({
@@ -876,17 +1023,9 @@ export class MarketplaceService {
         })
       })
 
-      if (search.createdByUserId) {
-        void this.push
-          .sendToUserLocalized(
-            search.createdByUserId,
-            'TRIAL_REQUEST',
-            { playerName: profile.user.name, teamName: search.team.displayName },
-            { trialInviteId: invite.id, clubId: search.clubId },
-            { clubId: search.clubId },
-          )
-          .catch(() => {})
-      }
+      // A post-commit push containing the player's name can race a staff
+      // revocation. Keep the in-app request and omit that notification until
+      // delivery has its own transactional recipient-authorization boundary.
 
       return this.mapTrialInvite(invite, new Map(), 'player')
     })
@@ -941,24 +1080,9 @@ export class MarketplaceService {
 
       const updatedInvite = await this.decideTrialInvite(invite, userId, action)
 
-      if (
-        (action === TrialInviteStatus.ACCEPTED || action === TrialInviteStatus.DECLINED) &&
-        invite.sentByUserId
-      ) {
-        void this.push
-          .sendToUserLocalized(
-            invite.sentByUserId,
-            'TRIAL_RESPONSE',
-            {
-              playerName: invite.freeAgentProfile.user.name,
-              accepted: action === TrialInviteStatus.ACCEPTED,
-              teamName: invite.team.displayName,
-            },
-            { trialInviteId: invite.id, clubId: invite.clubId },
-            { clubId: invite.clubId },
-          )
-          .catch(() => {})
-      }
+      // A named post-commit push can race erasure or staff revocation. The
+      // decision remains visible in-app; restore notifications only with a
+      // delivery-time recipient and player lifecycle authorization boundary.
 
       const sessions = await this.loadSessions([updatedInvite])
       return this.mapTrialInvite(updatedInvite, sessions, 'player')
@@ -967,34 +1091,14 @@ export class MarketplaceService {
 
   /**
    * Persists a free-agent profile (create or update).
-   * Precondition: callers must await `this.assertFreeAgent(userId)` first
-   * (role + age) and pass its facts.
+   * Role and age are revalidated under the account lifecycle lock so an
+   * erasure or role change that wins the lock cannot be undone here.
    */
   private async saveFreeAgentProfile(
     userId: string,
     input: FreeAgentProfileWriteInput,
     requireExisting: boolean,
-    facts: AgeFacts,
   ): Promise<FreeAgentProfile> {
-    const existing = await this.prisma.freeAgentProfile.findUnique({
-      where: { userId },
-      select: { id: true, visibility: true },
-    })
-
-    if (requireExisting && !existing) {
-      throw new NotFoundException('Free agent profile not found')
-    }
-
-    // H2: a 16–17-year-old is visible to clubs only (never PUBLIC).
-    const requestedVisibility =
-      input.visibility === undefined ? undefined : input.visibility
-    const visibility =
-      facts.minor && requestedVisibility === FreeAgentVisibility.PUBLIC
-        ? FreeAgentVisibility.CLUB_ONLY
-        : requestedVisibility
-    const forceMinorVisibility =
-      facts.minor && existing?.visibility === FreeAgentVisibility.PUBLIC && visibility === undefined
-
     const searchFields = {
       postalCode: input.postalCode === undefined ? undefined : input.postalCode,
       searchRadiusKm: input.searchRadiusKm === undefined ? undefined : input.searchRadiusKm,
@@ -1012,6 +1116,17 @@ export class MarketplaceService {
     }
 
     const profile = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const facts = await this.assertFreeAgent(userId, tx)
+      const existing = await tx.freeAgentProfile.findUnique({
+        where: { userId }, select: { id: true, visibility: true },
+      })
+      if (requireExisting && !existing) throw new NotFoundException('Free agent profile not found')
+      // Recompute age-dependent visibility after acquiring the lifecycle lock.
+      const requestedVisibility = input.visibility
+      const visibility = facts.minor && requestedVisibility === FreeAgentVisibility.PUBLIC
+        ? FreeAgentVisibility.CLUB_ONLY : requestedVisibility
+      const forceMinorVisibility = facts.minor && existing?.visibility === FreeAgentVisibility.PUBLIC && visibility === undefined
       const savedProfile = existing
         ? await tx.freeAgentProfile.update({
             where: { userId },

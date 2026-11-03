@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Image,
   Modal,
@@ -11,6 +11,7 @@ import * as WebBrowser from 'expo-web-browser'
 import { useTranslation } from 'react-i18next'
 import type { ChatMediaItem, ChatMediaTab } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import { fetchChatMedia, fetchSignedMediaUrl } from '../../api/chatInfo'
 import type { ConversationKind } from './inboxModel'
 import { Skeleton } from '../Skeleton'
@@ -33,34 +34,20 @@ const GRID_GAP = 2
 // Photo viewers are theme-independent (like Photos / WhatsApp): media on black.
 const MEDIA_BACKDROP = 'black'
 const MEDIA_CONTROL = 'white'
-const SIGNED_URL_TTL_MS = 4 * 60 * 1000
-
-// Private signed URLs live five minutes; reuse them for four across tiles and
-// tab switches instead of re-signing every render.
-const signedCache = new Map<string, { url: string | null; at: number }>()
-
 async function resolveUrl(
   clubId: string,
   kind: ConversationKind,
   conversationId: string,
   item: ChatMediaItem,
+  actorId: string,
 ): Promise<string | null> {
-  const cached = signedCache.get(item.id)
-  if (cached && Date.now() - cached.at < SIGNED_URL_TTL_MS) return cached.url
-  const url = await fetchSignedMediaUrl(clubId, kind, conversationId, item.id)
+  return fetchSignedMediaUrl(clubId, kind, conversationId, item.id, actorId)
     .then((res) => res?.url ?? null)
     .catch(() => null)
-  // Dev without R2: the API returns null and the stored URL is the read path.
-  const fallback = item.attachmentUrl?.startsWith('https://private-media.anstoss.invalid/') ? null : item.attachmentUrl
-  const resolved = url ?? fallback ?? null
-  signedCache.set(item.id, { url: resolved, at: Date.now() })
-  return resolved
 }
 
 /** Test hook. */
-export function __resetSignedMediaCache() {
-  signedCache.clear()
-}
+export function __resetSignedMediaCache() { /* No shared capability cache. */ }
 
 /**
  * "Geteilte Inhalte" on the chat info screen: Medien (photo/video grid),
@@ -68,22 +55,36 @@ export function __resetSignedMediaCache() {
  * skeleton, composed empty line and inline retry.
  */
 export function ChatMediaSection({ clubId, kind, conversationId }: Props) {
+  const { user } = useAuth()
+  if (!user?.id) return null
+  return <ChatMediaContent key={`${user.id}:${clubId}:${kind}:${conversationId}`} actorId={user.id} clubId={clubId} kind={kind} conversationId={conversationId} />
+}
+
+function ChatMediaContent({ actorId, clubId, kind, conversationId }: Props & { actorId: string }) {
   const { t } = useTranslation()
   const c = useClubColors()
   const [tab, setTab] = useState<ChatMediaTab>('media')
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [width, setWidth] = useState(0)
   const [viewer, setViewer] = useState<string | null>(null)
+  const active = useRef(true)
+  const loadVersion = useRef(0)
+
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false; loadVersion.current += 1 }
+  }, [])
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current
     setState({ status: 'loading' })
     try {
-      const items = await fetchChatMedia(clubId, kind, conversationId, tab)
-      setState({ status: 'ready', items: Array.isArray(items) ? items : [] })
+      const items = await fetchChatMedia(clubId, kind, conversationId, tab, actorId)
+      if (active.current && version === loadVersion.current) setState({ status: 'ready', items: Array.isArray(items) ? items : [] })
     } catch {
-      setState({ status: 'error' })
+      if (active.current && version === loadVersion.current) setState({ status: 'error' })
     }
-  }, [clubId, conversationId, kind, tab])
+  }, [actorId, clubId, conversationId, kind, tab])
 
   useEffect(() => {
     void load()
@@ -99,15 +100,15 @@ export function ChatMediaSection({ clubId, kind, conversationId }: Props) {
         if (item.url) await WebBrowser.openBrowserAsync(item.url).catch(() => undefined)
         return
       }
-      const url = await resolveUrl(clubId, kind, conversationId, item)
-      if (!url) return
+      const url = await resolveUrl(clubId, kind, conversationId, item, actorId)
+      if (!active.current || !url) return
       if (item.messageType === 'IMAGE') {
         setViewer(url)
         return
       }
       await WebBrowser.openBrowserAsync(url).catch(() => undefined)
     },
-    [clubId, conversationId, kind, tab],
+    [actorId, clubId, conversationId, kind, tab],
   )
 
   const emptyKey =
@@ -180,6 +181,7 @@ export function ChatMediaSection({ clubId, kind, conversationId }: Props) {
                 clubId={clubId}
                 kind={kind}
                 conversationId={conversationId}
+                actorId={actorId}
                 onPress={() => void openItem(item)}
               />
             ))}
@@ -207,6 +209,7 @@ function MediaTile({
   clubId,
   kind,
   conversationId,
+  actorId,
   onPress,
 }: {
   item: ChatMediaItem
@@ -214,6 +217,7 @@ function MediaTile({
   clubId: string
   kind: ConversationKind
   conversationId: string
+  actorId: string
   onPress: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -224,13 +228,13 @@ function MediaTile({
   useEffect(() => {
     if (isVideo) return
     let cancelled = false
-    void resolveUrl(clubId, kind, conversationId, item).then((resolved) => {
+    void resolveUrl(clubId, kind, conversationId, item, actorId).then((resolved) => {
       if (!cancelled) setUrl(resolved)
     })
     return () => {
       cancelled = true
     }
-  }, [clubId, conversationId, isVideo, item, kind])
+  }, [actorId, clubId, conversationId, isVideo, item, kind])
 
   const date = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short' }).format(
     new Date(item.createdAt),

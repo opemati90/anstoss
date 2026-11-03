@@ -189,6 +189,7 @@ function WeekRow({
 
       {needsReply ? (
         <RsvpControl
+          policy={event}
           value={event.myRsvp}
           onChange={onRsvp}
           disabled={pending}

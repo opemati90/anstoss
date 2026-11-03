@@ -491,6 +491,7 @@ function ChildCard({
             {t('homeHub.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })}
           </Text>
           <RsvpControl
+            policy={event}
             value={event.childRsvp ?? null}
             onChange={onRsvp}
             disabled={pending}

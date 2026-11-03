@@ -4,7 +4,7 @@ import { PrivateUploadLedger } from './private-upload-ledger'
 describe('private upload ambiguous outcome recovery', () => {
   const scope = { id: 'intent', clubId: 'club', ownerId: 'user' }
   let row: any
-  let storage: { discover: jest.Mock; observeObject: jest.Mock }
+  let storage: { discover: jest.Mock; observeObject: jest.Mock; observeMultipart: jest.Mock }
   let recovery: PrivateUploadRecovery
   let tx: any
   beforeEach(() => {
@@ -30,7 +30,7 @@ describe('private upload ambiguous outcome recovery', () => {
         }),
       },
     }
-    storage = { discover: jest.fn(), observeObject: jest.fn() }
+    storage = { discover: jest.fn(), observeObject: jest.fn(), observeMultipart: jest.fn() }
     recovery = new PrivateUploadRecovery(
       { $transaction: async (fn: any) => fn(tx) } as never,
       storage,
@@ -104,5 +104,48 @@ describe('private upload ambiguous outcome recovery', () => {
     await expect(recovery.reconcile(scope)).rejects.toThrow('unavailable')
     expect(row.state).toBe('INITIATING')
     expect(tx.privateMediaUpload.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('records a missing acknowledged upload as ABORTED, not fully erased', async () => {
+    row.state = 'ABORTING'; row.uploadId = 'provider'
+    storage.observeMultipart.mockResolvedValue({ kind: 'not_observed' })
+    expect(await recovery.reconcile(scope)).toBe('settled')
+    expect(row.state).toBe('ABORTED')
+    expect(row.uploadId).toBe('provider')
+  })
+
+  it.each([true, false])('leaves a still-present session pending even with hasParts=%s', async (hasParts) => {
+    row.state = 'ABORTING'; row.uploadId = 'provider'
+    storage.observeMultipart.mockResolvedValue({ kind: 'present', hasParts })
+    expect(await recovery.reconcile(scope)).toBe('unknown')
+    expect(row.state).toBe('ABORTING')
+    expect(tx.privateMediaUpload.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('does not inspect or settle abort without an acknowledged upload ID', async () => {
+    row.state = 'ABORTING'
+    expect(await recovery.reconcile(scope)).toBe('conflict')
+    expect(storage.observeMultipart).not.toHaveBeenCalled()
+  })
+
+  it('can confirm removal only in the already-finalized removal state', async () => {
+    row.state = 'REMOVING'
+    storage.observeObject.mockResolvedValue({ kind: 'not_observed' })
+    expect(await recovery.reconcile(scope)).toBe('settled')
+    expect(row.state).toBe('REMOVED')
+  })
+
+  it('leaves removal pending while the final object is still observed', async () => {
+    row.state = 'REMOVING'
+    storage.observeObject.mockResolvedValue({ kind: 'present', bytes: 42, contentType: 'image/png', etag: 'e' })
+    expect(await recovery.reconcile(scope)).toBe('unknown')
+    expect(row.state).toBe('REMOVING')
+  })
+
+  it('does not treat ABORTED as proof of part-storage erasure', async () => {
+    row.state = 'ABORTED'; row.operationId = null
+    expect(await recovery.reconcile(scope)).toBe('unchanged')
+    expect(row.state).toBe('ABORTED')
+    expect(storage.observeObject).not.toHaveBeenCalled()
   })
 })

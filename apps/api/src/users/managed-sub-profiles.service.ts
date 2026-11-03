@@ -10,6 +10,7 @@ import {
   type CreateManagedSubProfileInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { requireYouthParticipation } from '../auth/launch-access-policy'
 
 const UNDER_16_CUTOFF_YEARS = 16
 
@@ -38,6 +39,7 @@ export class ManagedSubProfilesService {
     parentUserId: string,
     input: ManagedSubProfileCreateInput,
   ) {
+    requireYouthParticipation()
     assertUnder16(input.dateOfBirth)
     return this.prisma.$transaction((tx) =>
       this.createInTransaction(tx, parentUserId, input),
@@ -49,6 +51,7 @@ export class ManagedSubProfilesService {
     parentUserId: string,
     input: ManagedSubProfileCreateInput,
   ) {
+    requireYouthParticipation()
     const dob = assertUnder16(input.dateOfBirth)
 
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${parentUserId}))`

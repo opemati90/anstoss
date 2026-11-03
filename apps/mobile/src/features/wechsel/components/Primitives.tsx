@@ -1,7 +1,8 @@
-import { Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { TrialStage } from '@anstoss/shared'
 import { useClubColors } from '../../../context/ClubThemeContext'
+import { textSafeAccent } from '../../../theme/club-theme'
 import { Icon, Text } from '../../../components/ui'
 import { Skeleton } from '../../../components/Skeleton'
 import {
@@ -67,8 +68,7 @@ export function ClubBadge({
 }
 
 /**
- * The trial pipeline as five tappable tiles with counts. Reads left to
- * right like the process itself; the selected stage carries the accent.
+ * Compact filters for the trial pipeline, with counts kept beside labels.
  */
 export function StageStrip({
   counts,
@@ -79,14 +79,12 @@ export function StageStrip({
   value: TrialStage
   onChange: (stage: TrialStage) => void
 }) {
-  const { fontScale } = useWindowDimensions()
   const { t } = useTranslation()
   const c = useClubColors()
+  const selectedText = textSafeAccent(c.primary, c.background, c.primary50)
   return (
     <View style={styles.strip} accessibilityRole="tablist">
       {STAGES.map((stage) => {
-        // Tiles widen with the user's text size so labels never truncate;
-        // at large sizes the strip wraps to fewer columns instead.
         const selected = stage === value
         const label = stageLabel(t, stage)
         return (
@@ -99,7 +97,6 @@ export function StageStrip({
             android_ripple={{ color: c.borderSubtle, foreground: true }}
             style={({ pressed }) => [
               styles.stageTile,
-              { flexBasis: 96 * Math.min(Math.max(fontScale, 1), 2) },
               {
                 backgroundColor: selected ? c.primary50 : c.surface,
                 borderColor: selected ? c.primary : c.borderDefault,
@@ -108,19 +105,16 @@ export function StageStrip({
             ]}
           >
             <Text
-              variant="title2"
-              tabular
-              color={selected ? c.primary : counts[stage] > 0 ? 'primary' : 'tertiary'}
-            >
-              {counts[stage]}
-            </Text>
-            <Text
-              variant="footnote"
+              variant="subheadline"
               weight={selected ? 'semibold' : 'medium'}
-              color={selected ? c.primary : 'secondary'}
-              numberOfLines={2}
+              color={selected ? selectedText : 'secondary'}
+              maxFontSizeMultiplier={2}
+              style={styles.stageLabel}
             >
               {label}
+            </Text>
+            <Text variant="footnote" tabular weight="semibold" color={selected ? selectedText : 'secondary'} maxFontSizeMultiplier={2}>
+              {String(counts[stage])}
             </Text>
           </Pressable>
         )
@@ -226,18 +220,21 @@ const styles = StyleSheet.create({
     gap: SPACING_SM,
   },
   stageTile: {
-    flexGrow: 1,
-    flexBasis: 96,
-    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_SM,
+    minHeight: 44,
+    maxWidth: '100%',
     overflow: 'hidden',
     paddingHorizontal: SPACING_MD,
     paddingVertical: SPACING_SM,
-    borderRadius: RADIUS_CARD,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
     borderWidth: hairline,
     justifyContent: 'center',
   },
   pressed: { transform: [{ scale: 0.97 }] },
+  stageLabel: { flexShrink: 1 },
   stars: { flexDirection: 'row', gap: SPACING_XS },
   starButton: {
     minWidth: 44,

@@ -42,6 +42,9 @@ export type AuditEventType =
   | 'contribution.self_marked_paid'
   | 'contribution.stripe_paid'
   | 'contribution.reminder_sent'
+  | 'contribution.reminder_accepted'
+  | 'contribution.reminder_unconfirmed'
+  | 'contribution.reminder_failed'
   | 'contribution.bank_imported'
   | 'contribution.bank_match_confirmed'
   | 'contribution.bank_match_reversed'
@@ -194,8 +197,10 @@ export interface ContributionOverview {
 
 export interface ContributionReminderDispatchResult {
   requested: number
+  /** Accepted by at least one provider, not confirmed device/email delivery. */
   sent: number
   skipped: number
+  uncertain?: number
 }
 
 export interface MyContributionItem {

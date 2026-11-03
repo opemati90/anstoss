@@ -210,10 +210,19 @@ const RSVP_REMINDER_QUESTION: Record<EventLocale, string> = {
   tr: 'Katılım durumunu bildirdin mi?',
 }
 
+const RSVP_REMINDER_CHILD: Record<EventLocale, string> = {
+  de: 'Bitte gib die Verfügbarkeit für {c} an.',
+  en: 'Please reply with availability for {c}.',
+  fr: 'Merci d’indiquer la disponibilité de {c}.',
+  it: 'Indica la disponibilità di {c}.',
+  pt: 'Indica a disponibilidade de {c}.',
+  tr: 'Lütfen {c} için katılım durumunu bildir.',
+}
+
 /** Manual "Erinnerung" from the coach to players who have not answered. */
 export function rsvpReminderCopy(
   locale: EventLocale,
-  data: { event: TitledEvent; date: Date; location?: string | null },
+  data: { event: TitledEvent; date: Date; location?: string | null; childName?: string },
 ): { title: string; body: string } {
   const when = new Intl.DateTimeFormat(INTL_TAG[locale], {
     weekday: 'long',
@@ -224,6 +233,8 @@ export function rsvpReminderCopy(
   const place = data.location?.trim() ? ` · ${data.location.trim()}` : ''
   return {
     title: eventTitleFor(data.event, locale),
-    body: `${when}${place}. ${RSVP_REMINDER_QUESTION[locale]}`,
+    body: `${when}${place}. ${data.childName
+      ? fill(RSVP_REMINDER_CHILD[locale], { c: data.childName })
+      : RSVP_REMINDER_QUESTION[locale]}`,
   }
 }

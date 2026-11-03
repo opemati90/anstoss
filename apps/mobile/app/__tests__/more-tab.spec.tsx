@@ -1,3 +1,5 @@
+import '../../test/future-capabilities'
+
 import React from 'react'
 import { Alert, Linking } from 'react-native'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
@@ -92,6 +94,7 @@ jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
   EncodingType: { UTF8: 'utf8' },
   writeAsStringAsync: (...args: unknown[]) => mockWriteAsStringAsync(...args),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
 }))
 jest.mock('expo-sharing', () => ({
   isAvailableAsync: () => Promise.resolve(true),
@@ -146,10 +149,11 @@ describe('Profile tab', () => {
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true)
   })
 
-  it('players keep the player card with streaks', () => {
+  it('players see a simple editable identity without fetching streaks', () => {
     const screen = renderMore()
-    expect(screen.getByText('player-card')).toBeTruthy()
-    expect(mockUseStreaks).toHaveBeenCalledWith({ enabled: true })
+    fireEvent.press(screen.getByTestId('profile-card-player'))
+    expect(mockRouterPush).toHaveBeenCalledWith('/edit-profile')
+    expect(mockUseStreaks).not.toHaveBeenCalled()
   })
 
   it('coaches see a team card, not streaks', () => {
@@ -160,7 +164,7 @@ describe('Profile tab', () => {
     expect(screen.queryByText('player-card')).toBeNull()
     expect(screen.getByTestId('profile-card-coach')).toBeTruthy()
     expect(screen.getByText('Herren I · teamRoles.HEAD_COACH')).toBeTruthy()
-    expect(mockUseStreaks).toHaveBeenCalledWith({ enabled: false })
+    expect(mockUseStreaks).not.toHaveBeenCalled()
   })
 
   it('parents see "Meine Kinder"', () => {
@@ -197,7 +201,6 @@ describe('Profile tab', () => {
       'profileHub.sectionClub',
       'profileHub.sectionApp',
       'profileHub.sectionData',
-      'profileHub.editProfile',
       'notificationSettings.title',
       'contributions.myTitle',
       'more.language',
@@ -206,6 +209,7 @@ describe('Profile tab', () => {
     ]) {
       expect(screen.getByText(key)).toBeTruthy()
     }
+    expect(screen.getByLabelText('profileHub.editProfile')).toBeTruthy()
     expect(screen.queryByText('rankings.title')).toBeNull()
   })
 
@@ -226,7 +230,7 @@ describe('Profile tab', () => {
     const screen = renderMore()
     fireEvent.press(screen.getByText('more.exportData'))
     await waitFor(() => expect(mockShareAsync).toHaveBeenCalled())
-    expect(mockApi).toHaveBeenCalledWith('/me/export')
+    expect(mockApi).toHaveBeenCalledWith('/me/export-bound', expect.objectContaining({ headers: expect.objectContaining({ 'x-expected-actor-id': expect.any(String) }) }))
     expect(mockWriteAsStringAsync).toHaveBeenCalled()
   })
 

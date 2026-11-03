@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import {
   ClubCapability,
+  LAUNCH_FEATURES,
   ClubOperationalRole,
   MembershipRole,
   buildClubPermissionMap,
@@ -33,6 +34,7 @@ import {
   TeamRole,
 } from '@prisma/client'
 import { AuditService } from '../audit/audit.service'
+import { assertLaunchParticipant, launchClubParticipantWhere, requireYouthParticipation } from '../auth/launch-access-policy'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
@@ -190,8 +192,14 @@ export class ContributionsService {
     await this.assertBillingAccess(clubId, userId)
 
     validatePlanInput(input)
+    if (input.targetRole === 'PARENT') requireYouthParticipation()
+    const desiredUserIds = Array.from(new Set((input.memberUserIds ?? []).map((value) => value.trim()).filter(Boolean)))
 
     const refreshed = await this.prisma.$transaction(async (tx: any) => {
+      for (const memberUserId of [...desiredUserIds].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${memberUserId}))`
+        await assertLaunchParticipant(tx, memberUserId)
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plans:${clubId}`}))`
       const plan = await tx.contributionPlan.create({
         data: {
@@ -214,9 +222,6 @@ export class ContributionsService {
           assignments: { where: { endDate: null }, select: { id: true } },
         },
       })
-      const desiredUserIds = Array.from(
-        new Set((input.memberUserIds ?? []).map((value) => value.trim()).filter(Boolean)),
-      )
       if (desiredUserIds.length) {
         const eligible = await this.listEligibleMembers(clubId, plan.targetRole, tx)
         const eligibleIds = new Set(eligible.map((member) => member.userId))
@@ -297,6 +302,9 @@ export class ContributionsService {
         where: { id: planId, clubId },
       })
       if (!currentPlan) throw new NotFoundException('Contribution plan not found')
+      // Existing guardian plans may be archived, not activated or extended.
+      if ((input.targetRole ?? currentPlan.targetRole) === 'PARENT' &&
+        !(input.active === false && Object.keys(input).every((key) => key === 'active'))) requireYouthParticipation()
 
       validatePlanInput({
       name: input.name ?? currentPlan.name,
@@ -437,12 +445,16 @@ export class ContributionsService {
       new Set(input.memberUserIds.map((memberUserId) => memberUserId.trim())),
     ).filter(Boolean)
     await this.prisma.$transaction(async (tx: any) => {
+      for (const memberUserId of [...desiredUserIds].sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${memberUserId}))`
+        await assertLaunchParticipant(tx, memberUserId)
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contribution-plan:${clubId}:${input.planId}`}))`
       const plan = await tx.contributionPlan.findFirst({
         where: { id: input.planId, clubId },
       })
       if (!plan) throw new NotFoundException('Contribution plan not found')
-
+      if (plan.targetRole === 'PARENT') requireYouthParticipation()
       const eligibleMembers = await this.listEligibleMembers(clubId, plan.targetRole, tx)
       const eligibleUserIds = new Set(eligibleMembers.map((member) => member.userId))
       if (desiredUserIds.some((memberUserId) => !eligibleUserIds.has(memberUserId))) {
@@ -495,6 +507,7 @@ export class ContributionsService {
           planId: plan.id,
           memberUserId: { in: removedUserIds },
           endDate: null,
+          member: launchClubParticipantWhere(clubId),
         },
         data: { endDate: now },
         })
@@ -537,6 +550,7 @@ export class ContributionsService {
     input: UpdateContributionMemberStatusInput,
   ) {
     await this.assertBillingAccess(clubId, userId)
+    await assertLaunchParticipant(this.prisma, memberUserId)
 
     const assignment = await this.prisma.contributionAssignment.findFirst({
       where: {
@@ -544,6 +558,7 @@ export class ContributionsService {
         planId: input.planId,
         memberUserId,
         endDate: null,
+        member: launchClubParticipantWhere(clubId),
       },
       include: {
         plan: true,
@@ -563,6 +578,7 @@ export class ContributionsService {
     if (!assignment) {
       throw new NotFoundException('Contribution assignment not found')
     }
+    if (assignment.plan.targetRole === 'PARENT') requireYouthParticipation()
 
     const ensured = await this.ensureCurrentRecords([assignment])
     const current = ensured[0]
@@ -667,6 +683,7 @@ export class ContributionsService {
 
     let sent = 0
     let skipped = 0
+    let uncertain = 0
 
     for (const item of filtered) {
       const result = await this.dispatchReminder(item, {
@@ -678,13 +695,15 @@ export class ContributionsService {
         reminderKey: `manual:${formatDateKey(new Date())}`,
       })
       sent += result.sent ? 1 : 0
-      skipped += result.sent ? 0 : 1
+      uncertain += result.uncertain ? 1 : 0
+      skipped += result.sent || result.uncertain ? 0 : 1
     }
 
     return {
       requested: filtered.length,
       sent,
       skipped,
+      ...(uncertain ? { uncertain } : {}),
     }
   }
 
@@ -1226,6 +1245,7 @@ export class ContributionsService {
     return db.membership.findMany({
       where: {
         clubId,
+        user: launchClubParticipantWhere(clubId),
         role: {
           in: [
             MembershipRole.OWNER,
@@ -1269,6 +1289,8 @@ export class ContributionsService {
       where: {
         clubId,
         status: 'ACTIVE',
+        phase: 'FULL',
+        OR: [{ loanEndDate: null }, { loanEndDate: { gt: new Date() } }],
         role: { in: relevantTeamRoles },
       },
       distinct: ['userId'],
@@ -1290,12 +1312,14 @@ export class ContributionsService {
       where: {
         clubId,
         endDate: null,
+        member: launchClubParticipantWhere(clubId),
         ...(filters?.planId && { planId: filters.planId }),
         ...(filters?.memberUserIds?.length && {
           memberUserId: { in: filters.memberUserIds },
         }),
         plan: {
           active: true,
+          ...(!LAUNCH_FEATURES.youthParticipation ? { targetRole: { not: 'PARENT' } } : {}),
         },
       },
       include: {
@@ -1370,6 +1394,7 @@ export class ContributionsService {
     let requested = 0
     let sent = 0
     let skipped = 0
+    let uncertain = 0
 
     for (const item of records) {
       const keys = getAutomaticReminderKeys(item.record, item.assignment.plan)
@@ -1384,7 +1409,8 @@ export class ContributionsService {
           reminderKey,
         })
         sent += result.sent ? 1 : 0
-        skipped += result.sent ? 0 : 1
+        uncertain += result.uncertain ? 1 : 0
+        skipped += result.sent || result.uncertain ? 0 : 1
       }
     }
 
@@ -1392,6 +1418,7 @@ export class ContributionsService {
       requested,
       sent,
       skipped,
+      ...(uncertain ? { uncertain } : {}),
     }
   }
 
@@ -1406,6 +1433,9 @@ export class ContributionsService {
       reminderKey: string
     },
   ) {
+    // No reservation/period/reminder metadata is created for excluded legacy
+    // youth records. Their stored financial history is left unchanged.
+    if (!LAUNCH_FEATURES.youthParticipation && (!item.assignment.member.dateOfBirth || !isLaunchAdult(item.assignment.member.dateOfBirth))) return { sent: false }
     const existing = await this.prisma.contributionReminder.findFirst({
       where: {
         recordId: item.record.id,
@@ -1416,9 +1446,10 @@ export class ContributionsService {
     if (
       existing &&
       (existing.status === ContributionReminderStatus.SENT ||
+        existing.status === ContributionReminderStatus.UNCONFIRMED ||
         existing.status === ContributionReminderStatus.SKIPPED)
     ) {
-      return { sent: false }
+      return { sent: false, ...(existing.status === ContributionReminderStatus.UNCONFIRMED ? { uncertain: true } : {}) }
     }
     if (existing?.status === ContributionReminderStatus.FAILED) {
       const retried = await this.prisma.contributionReminder.updateMany({
@@ -1526,15 +1557,15 @@ export class ContributionsService {
           },
           locale,
         )
-        const [emailSent, pushSent] = await Promise.all([
+        const [emailResult, pushResult] = await Promise.all([
           recipient.email
             ? sendContributionReminderEmail({
                 to: recipient.email,
                 subject: email.subject,
                 html: email.html,
                 text: email.text,
-              }).catch(() => false)
-            : Promise.resolve(false),
+              }).catch(() => 'unknown' as const)
+            : Promise.resolve('skipped' as const),
           this.pushService
             .sendToUser(
               recipient.id,
@@ -1547,14 +1578,15 @@ export class ContributionsService {
               },
               { clubId: input.clubId },
             )
-            .then(() => true)
-            .catch(() => false),
+            .catch(() => 'unknown' as const),
         ])
-        return { emailSent, pushSent }
+        return { emailSent: emailResult === 'accepted', pushSent: pushResult === 'accepted',
+          unknown: emailResult === 'unknown' || pushResult === 'unknown' }
       }),
     )
     const emailSent = deliveries.some((delivery) => delivery.emailSent)
     const pushSent = deliveries.some((delivery) => delivery.pushSent)
+    const uncertain = deliveries.some((delivery) => delivery.unknown)
 
     await this.prisma.contributionReminder.update({
       where: { recordId_reminderKey: { recordId: item.record.id, reminderKey: input.reminderKey } },
@@ -1564,10 +1596,11 @@ export class ContributionsService {
         status:
           emailSent || pushSent
             ? ContributionReminderStatus.SENT
-            : ContributionReminderStatus.FAILED,
+            : uncertain ? ContributionReminderStatus.UNCONFIRMED : ContributionReminderStatus.FAILED,
         message:
           emailSent || pushSent
             ? null
+            : uncertain ? 'Provider acceptance is unconfirmed. Automatic retry is paused to prevent duplicate reminders.'
             : memberIsMinor && recipients.length === 0
               ? 'No linked guardian is available for this minor.'
               : 'No reminder channel succeeded.',
@@ -1586,15 +1619,16 @@ export class ContributionsService {
 
     await this.auditService.log({
       clubId: input.clubId,
-      type: 'contribution.reminder_sent',
+      type: emailSent || pushSent ? 'contribution.reminder_accepted' : uncertain ? 'contribution.reminder_unconfirmed' : 'contribution.reminder_failed',
       actorType: input.trigger === ContributionReminderTrigger.MANUAL ? 'user' : 'system',
       actorId:
         input.trigger === ContributionReminderTrigger.MANUAL ? item.assignment.assignedById : null,
       actorLabel: null,
       summary:
         emailSent || pushSent
-          ? `Contribution reminder sent to ${item.assignment.member.name} for ${item.assignment.plan.name}.`
-          : `Contribution reminder delivery failed for ${item.assignment.member.name} and ${item.assignment.plan.name}.`,
+          ? `Contribution reminder accepted by a provider for ${item.assignment.member.name} and ${item.assignment.plan.name}.`
+          : uncertain ? `Contribution reminder acceptance unconfirmed for ${item.assignment.member.name} and ${item.assignment.plan.name}; retry paused.`
+          : `No reminder provider accepted the reminder for ${item.assignment.member.name} and ${item.assignment.plan.name}.`,
       metadata: {
         planId: item.assignment.planId,
         memberUserId: item.assignment.memberUserId,
@@ -1602,7 +1636,7 @@ export class ContributionsService {
       },
     })
 
-    return { sent: emailSent || pushSent }
+    return { sent: emailSent || pushSent, ...(uncertain && !emailSent && !pushSent ? { uncertain: true } : {}) }
   }
 
   private async notifyContributionPaid(input: {
@@ -1613,6 +1647,7 @@ export class ContributionsService {
     currency: string
   }) {
     try {
+      await assertLaunchParticipant(this.prisma, input.memberUserId)
       const club = await this.prisma.club.findUnique({
         where: { id: input.clubId },
         select: { name: true, primaryColor: true, badgeUrl: true },
@@ -1944,14 +1979,15 @@ async function sendContributionReminderEmail(input: {
   subject: string
   html: string
   text: string
-}) {
+}): Promise<'accepted' | 'skipped' | 'rejected' | 'unknown'> {
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.RESEND_FROM_EMAIL
   if (!apiKey || !from) {
-    return false
+    return 'skipped'
   }
 
   const response = await fetch('https://api.resend.com/emails', {
+    signal: AbortSignal.timeout(10_000),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -1966,5 +2002,12 @@ async function sendContributionReminderEmail(input: {
     }),
   })
 
-  return response.ok
+  return response.ok ? 'accepted' : response.status >= 500 ? 'unknown' : 'rejected'
+}
+
+function isLaunchAdult(dob: Date) {
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) age--
+  return age >= LAUNCH_FEATURES.minimumAccountAge
 }

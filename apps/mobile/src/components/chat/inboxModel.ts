@@ -224,6 +224,7 @@ export function contactReasonKey(reason: string, viewerIsMinor: boolean): string
 
 const GROUP_ERROR_KEYS: Array<[string, string]> = [
   ['GROUP_MINOR_NEEDS_STAFF', 'chatInbox.groupErrors.minorNeedsStaff'],
+  ['GROUP_ADULT_LAUNCH_ONLY', 'chatInbox.groupErrors.adultLaunchOnly'],
   ['GROUP_PRIVATE_PAIR_NOT_ALLOWED', 'chatInbox.groupErrors.privatePair'],
   ['GROUP_REMOVE_BREAKS_SAFEGUARD', 'chatInbox.groupErrors.removeBreaksSafeguard'],
 ]

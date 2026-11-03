@@ -2,11 +2,14 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { __resetSignedMediaUrlCache, useSignedMediaUrl } from './useSignedMediaUrl'
 
 const mockApi = jest.fn()
+let mockActor = 'actor-a'
 jest.mock('../api/client', () => ({ api: (...args: unknown[]) => mockApi(...args) }))
+jest.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: mockActor } }) }))
 
 describe('useSignedMediaUrl', () => {
   beforeEach(() => {
     mockApi.mockReset()
+    mockActor = 'actor-a'
     __resetSignedMediaUrlCache()
   })
 
@@ -32,7 +35,7 @@ describe('useSignedMediaUrl', () => {
     expect(result.current).toBeNull()
   })
 
-  it('refreshes a remounted cached URL at its original expiry, not four minutes after remount', async () => {
+  it('reauthorizes instead of reusing a capability after remount', async () => {
     jest.useFakeTimers()
     mockApi.mockResolvedValueOnce({ url: 'https://signed/first' }).mockResolvedValueOnce({ url: 'https://signed/new' })
     const first = renderHook(() => useSignedMediaUrl('cached-private', 'https://private-media.anstoss.invalid/chat/x'))
@@ -40,8 +43,8 @@ describe('useSignedMediaUrl', () => {
     first.unmount()
     act(() => jest.advanceTimersByTime(3 * 60_000))
     const second = renderHook(() => useSignedMediaUrl('cached-private', 'https://private-media.anstoss.invalid/chat/x'))
-    expect(second.result.current).toBe('https://signed/first')
-    await act(async () => { jest.advanceTimersByTime(60_000); await Promise.resolve() })
+    expect(second.result.current).toBeNull()
+    await act(async () => { await Promise.resolve() })
     expect(second.result.current).toBe('https://signed/new')
     second.unmount()
   })
@@ -66,21 +69,50 @@ describe('useSignedMediaUrl', () => {
     expect(mockApi).not.toHaveBeenCalled()
   })
 
+  it('retries transient signing failures but not a permanent missing attachment', async () => {
+    jest.useFakeTimers()
+    mockApi.mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce({ url: 'https://signed/recovered' })
+    const transient = renderHook(() => useSignedMediaUrl('transient', 'https://cdn/a'))
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { jest.advanceTimersByTime(30_000); await Promise.resolve() })
+    expect(transient.result.current).toBe('https://signed/recovered')
+    transient.unmount()
+    mockApi.mockReset()
+    mockApi.mockRejectedValue({ status: 404 })
+    const missing = renderHook(() => useSignedMediaUrl('missing', 'https://cdn/a'))
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { jest.advanceTimersByTime(5 * 60_000); await Promise.resolve() })
+    expect(mockApi).toHaveBeenCalledTimes(1)
+    missing.unmount()
+  })
+
   it('skips optimistic rows', () => {
     renderHook(() => useSignedMediaUrl('pending:cm_1', 'https://cdn/x.jpg'))
     expect(mockApi).not.toHaveBeenCalled()
   })
 
-  it('resolves once and serves repeat mounts from cache, including null answers', async () => {
-    mockApi.mockResolvedValueOnce({ url: null })
+  it('never uses a stored remote URL when signing returns null', async () => {
+    mockApi.mockResolvedValue({ url: null })
     const first = renderHook(() => useSignedMediaUrl('msg-img', 'https://cdn/a.jpg'))
     await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(1))
-    expect(first.result.current).toBe('https://cdn/a.jpg')
+    expect(first.result.current).toBeNull()
     first.unmount()
 
     const second = renderHook(() => useSignedMediaUrl('msg-img', 'https://cdn/a.jpg'))
-    expect(second.result.current).toBe('https://cdn/a.jpg')
-    expect(mockApi).toHaveBeenCalledTimes(1)
+    expect(second.result.current).toBeNull()
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2))
+  })
+
+  it('discards an in-flight signed URL when the account changes', async () => {
+    let finish!: (value: { url: string }) => void
+    mockApi.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+      .mockResolvedValueOnce({ url: null })
+    const hook = renderHook(() => useSignedMediaUrl('msg-switch', 'https://cdn/a.jpg'))
+    mockActor = 'actor-b'
+    hook.rerender({})
+    await act(async () => { finish({ url: 'https://signed/account-a' }); await Promise.resolve() })
+    expect(hook.result.current).toBeNull()
+    expect(mockApi).toHaveBeenLastCalledWith(expect.any(String), { headers: { 'x-expected-actor-id': 'actor-b' } })
   })
 
   it('uses the signed URL when the server returns one', async () => {

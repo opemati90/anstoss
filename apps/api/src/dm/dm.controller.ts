@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  ForbiddenException,
   HttpCode,
   Headers,
   Param,
@@ -116,7 +117,9 @@ export class DmController {
     @Param('clubId') clubId: string,
     @Param('conversationId') conversationId: string,
     @Param('messageId') messageId: string,
+    @Headers('x-expected-actor-id') expectedActorId?: string,
   ) {
+    if (expectedActorId && expectedActorId !== user.id) throw new ForbiddenException('Account changed')
     return this.dmService.getMediaUrl(user.id, clubId, conversationId, messageId)
   }
 
@@ -135,7 +138,9 @@ export class DmController {
     @Param('clubId') clubId: string,
     @Param('conversationId') conversationId: string,
     @Query('tab') tab?: string,
+    @Headers('x-expected-actor-id') expectedActorId?: string,
   ) {
+    if (expectedActorId && expectedActorId !== user.id) throw new ForbiddenException('Account changed')
     return this.dmService.listMedia(user.id, clubId, conversationId, parseChatMediaTab(tab))
   }
 

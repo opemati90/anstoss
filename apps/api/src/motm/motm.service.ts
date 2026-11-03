@@ -1,8 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { activeTeamAccessWhere } from '../teams/active-team-access'
+import { activeLaunchTeamAccessWhere, activeTeamAccessWhere } from '../teams/active-team-access'
 import { TeamsService } from '../teams/teams.service'
 import { BillingService } from '../billing/billing.service'
+import type { Prisma } from '@prisma/client'
+import { assertLaunchParticipant, launchClubParticipantWhere } from '../auth/launch-access-policy'
 
 export interface MotmTally {
   fixtureId: string
@@ -77,11 +84,10 @@ export class MotmService {
     private readonly billingService: BillingService,
   ) {}
 
-  async vote(
-    userId: string,
-    fixtureId: string,
-    targetUserId: string,
-  ): Promise<MotmTally> {
+  async vote(userId: string, fixtureId: string, targetUserId: string): Promise<MotmTally> {
+    if (typeof targetUserId !== 'string' || !targetUserId.trim()) {
+      throw new BadRequestException('A player is required')
+    }
     const fixture = await this.prisma.importedFixture.findUnique({
       where: { id: fixtureId },
     })
@@ -97,58 +103,133 @@ export class MotmService {
     // club, but writing a vote requires the club to be on PREMIUM.
     const entitlements = await this.billingService.getEntitlements(fixture.clubId)
     if (!entitlements.features.includes('motm_archive')) {
-      throw new ForbiddenException(
-        "MOTM voting requires the club's premium plan",
-      )
+      throw new ForbiddenException("MOTM voting requires the club's premium plan")
     }
 
-    // Ensure a Poll exists for this fixture (one MOTM poll per fixture)
-    const poll = await this.ensureMotmPoll(fixture.id, fixture.clubId, fixture.teamId)
+    await this.prisma.$transaction(async (tx) => {
+      // Select any third-party attribution before taking lifecycle locks. Never
+      // acquire an extra account lock after the fixture/roster locks: erasure
+      // takes account locks first too. Revalidate this exact sender below.
+      const observedPoll = await tx.poll.findFirst({ where: { question: motmQuestion(fixtureId) } })
+      const selectedSender = observedPoll
+        ? null
+        : await this.systemSender(fixture.clubId, fixture.teamId, tx)
+      // Account deletion takes these same lifecycle locks. Recheck both
+      // participants and the anchor sender before creating any linked records.
+      const accountIds = [userId, targetUserId, ...(selectedSender ? [selectedSender.id] : [])]
+      for (const id of Array.from(new Set(accountIds)).sort()) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`
+        await assertLaunchParticipant(tx, id)
+      }
+      // Club removal takes this lock before changing either membership or team
+      // access. Without it a successful preflight could outlive removal.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${fixture.clubId}`}))`
+      // Participant lifecycle locks always precede feature-scoped locks. The
+      // fixture lock makes the first poll lookup/create linearizable even when
+      // simultaneous votes have completely disjoint voter/candidate pairs.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`motm-fixture:${fixtureId}`}))`
 
-    // Enforce the voting window. closesAt is stamped when the poll opens; once
-    // it passes the result is final and can't be swung days/weeks later.
-    if (poll.closesAt && Date.now() > poll.closesAt.getTime()) {
-      throw new BadRequestException('MOTM voting has closed')
-    }
+      // Fixture sync and manual corrections update this row without the MOTM
+      // advisory lock. Hold a row lock across the vote so a corrected status
+      // cannot invalidate the initial preflight while a vote is being saved.
+      await tx.$queryRaw`SELECT "id" FROM "ImportedFixture" WHERE "id" = ${fixtureId} AND "clubId" = ${fixture.clubId} FOR SHARE`
+      const currentFixture = await tx.importedFixture.findUnique({ where: { id: fixtureId } })
+      if (!currentFixture || currentFixture.clubId !== fixture.clubId || currentFixture.teamId !== fixture.teamId
+        || currentFixture.status !== 'FINISHED') {
+        throw new BadRequestException('MOTM voting opens after the final whistle')
+      }
 
-    // Integrity guards. The endpoint previously accepted any existing userId,
-    // so a member could crown themselves or award a non-player / another
-    // club's player. Block self-votes and require the candidate to be an
-    // ACTIVE player on this fixture's roster.
-    if (targetUserId === userId) {
-      throw new BadRequestException('You cannot vote for yourself')
-    }
-    const rosterEntry = await this.prisma.teamAccess.findFirst({
-      where: {
-        teamId: fixture.teamId,
-        userId: targetUserId,
-        ...activeTeamAccessWhere(),
-        role: 'PLAYER',
-      },
-      select: { user: { select: { id: true, name: true } } },
-    })
-    if (!rosterEntry) {
-      throw new BadRequestException("That player is not on this team's roster")
-    }
-    const candidate = rosterEntry.user
+      // Reading an existing window is safe; opening a new poll must wait until
+      // the candidate has passed the adult-only and roster checks below.
+      const existingPoll = await tx.poll.findFirst({ where: { question: motmQuestion(fixtureId) } })
 
-    const option = await this.prisma.pollOption.upsert({
-      where: { id: `${poll.id}:${candidate.id}` },
-      create: {
-        id: `${poll.id}:${candidate.id}`,
-        pollId: poll.id,
-        label: candidate.name,
-        index: 0,
-      },
-      update: { label: candidate.name },
-    })
+      // Enforce the voting window. closesAt is stamped when the poll opens; once
+      // it passes the result is final and can't be swung days/weeks later.
+      if (existingPoll?.closesAt && Date.now() > existingPoll.closesAt.getTime()) {
+        throw new BadRequestException('MOTM voting has closed')
+      }
 
-    // Replace user's existing vote for this poll (one vote per user)
-    await this.prisma.pollVote.deleteMany({
-      where: { pollId: poll.id, userId },
-    })
-    await this.prisma.pollVote.create({
-      data: { pollId: poll.id, optionId: option.id, userId },
+      // Integrity guards. The endpoint previously accepted any existing userId,
+      // so a member could crown themselves or award a non-player / another
+      // club's player. Block self-votes and require the candidate to be an
+      // ACTIVE player on this fixture's roster.
+      if (targetUserId === userId) {
+        throw new BadRequestException('You cannot vote for yourself')
+      }
+      // Team mutations can update TeamAccess before Membership. Lock every
+      // relevant row in that order (and stable user order) before re-reading
+      // voter, candidate and prospective sender authority. Row locks also
+      // serialize revocations which don't take the club advisory lock.
+      const authorityIds = Array.from(new Set(accountIds)).sort()
+      for (const id of authorityIds) {
+        await tx.$queryRaw`SELECT "id" FROM "TeamAccess" WHERE "clubId" = ${fixture.clubId} AND "teamId" = ${fixture.teamId} AND "userId" = ${id} ORDER BY "id" FOR SHARE`
+      }
+      for (const id of authorityIds) {
+        await tx.$queryRaw`SELECT "id" FROM "Membership" WHERE "clubId" = ${fixture.clubId} AND "userId" = ${id} ORDER BY "id" FOR SHARE`
+      }
+      const voterMembership = await tx.membership.findFirst({
+        where: { clubId: fixture.clubId, userId, user: launchClubParticipantWhere(fixture.clubId) },
+        select: { role: true },
+      })
+      if (!voterMembership) throw new ForbiddenException('You no longer have access to this team')
+      if (!['OWNER', 'ADMIN'].includes(voterMembership.role)) {
+        const voterAccess = await tx.teamAccess.findFirst({
+          where: { clubId: fixture.clubId, teamId: fixture.teamId, userId,
+            ...activeLaunchTeamAccessWhere(), phase: 'FULL' },
+          select: { id: true },
+        })
+        if (!voterAccess) throw new ForbiddenException('You no longer have access to this team')
+      }
+      const rosterEntry = await tx.teamAccess.findFirst({
+        where: {
+          clubId: fixture.clubId,
+          teamId: fixture.teamId,
+          userId: targetUserId,
+          ...activeTeamAccessWhere(),
+          phase: 'FULL',
+          role: 'PLAYER',
+          user: launchClubParticipantWhere(fixture.clubId),
+        },
+        select: { user: { select: { id: true, name: true } } },
+      })
+      if (!rosterEntry) {
+        throw new BadRequestException("That player is not on this team's roster")
+      }
+      const candidate = rosterEntry.user
+      if (!existingPoll) {
+        if (!selectedSender) {
+          // An observed poll can disappear through account erasure while this
+          // request waits. Retry rather than selecting an unlocked new sender.
+          throw new BadRequestException('No system sender available; please try again')
+        }
+        const sender = await this.systemSender(fixture.clubId, fixture.teamId, tx, selectedSender.id)
+        if (!sender) throw new BadRequestException('No system sender available; please try again')
+      }
+      const poll =
+        existingPoll ??
+        (await this.ensureMotmPoll(fixture.id, fixture.clubId, fixture.teamId, selectedSender!.id, tx))
+      if (poll.closesAt && Date.now() > poll.closesAt.getTime()) {
+        throw new BadRequestException('MOTM voting has closed')
+      }
+
+      const option = await tx.pollOption.upsert({
+        where: { id: `${poll.id}:${candidate.id}` },
+        create: {
+          id: `${poll.id}:${candidate.id}`,
+          pollId: poll.id,
+          label: candidate.name,
+          index: 0,
+        },
+        update: { label: candidate.name },
+      })
+
+      // Replace user's existing vote for this poll (one vote per user)
+      await tx.pollVote.deleteMany({
+        where: { pollId: poll.id, userId },
+      })
+      await tx.pollVote.create({
+        data: { pollId: poll.id, optionId: option.id, userId },
+      })
     })
 
     return this.getTally(userId, fixtureId)
@@ -164,7 +245,10 @@ export class MotmService {
     const poll = await this.prisma.poll.findFirst({
       where: { message: { team: { id: fixture.teamId } }, question: motmQuestion(fixtureId) },
       include: {
-        votes: { include: { user: { select: { id: true, name: true } } } },
+        votes: {
+          where: { user: launchClubParticipantWhere(fixture.clubId) },
+          include: { user: { select: { id: true, name: true } } },
+        },
         options: true,
       },
     })
@@ -179,19 +263,21 @@ export class MotmService {
       }
     }
 
-    const total = poll.votes.length
+    const candidates = await this.readLaunchCandidates(fixture.clubId, poll.votes)
+    const visibleVotes = poll.votes.filter((vote) => candidates.has(vote.optionId.split(':')[1]))
+    const total = visibleVotes.length
     const tally = new Map<string, { name: string; votes: number }>()
-    for (const v of poll.votes as any[]) {
+    for (const v of visibleVotes) {
       const candidateId = (v.optionId as string).split(':')[1]
       const existing = tally.get(candidateId) || {
-        name: v.user.name as string,
+        name: candidates.get(candidateId)!.name,
         votes: 0,
       }
       existing.votes += 1
       tally.set(candidateId, existing)
     }
 
-    const myVote = (poll.votes as any[]).find((v) => v.userId === userId)
+    const myVote = visibleVotes.find((v) => v.userId === userId)
     const myVoteUserId = myVote ? (myVote.optionId as string).split(':')[1] : null
 
     return {
@@ -237,7 +323,10 @@ export class MotmService {
 
     // Kader Statistik: optional team scope; the team must be in this club.
     if (teamId) {
-      const team = await this.prisma.team.findFirst({ where: { id: teamId, clubId }, select: { id: true } })
+      const team = await this.prisma.team.findFirst({
+        where: { id: teamId, clubId },
+        select: { id: true },
+      })
       if (!team) throw new NotFoundException('Team not found')
     }
     const scope = teamId ? { teamId } : {}
@@ -273,17 +362,17 @@ export class MotmService {
       where: { question: { in: questions } },
       include: {
         votes: {
+          where: { user: launchClubParticipantWhere(clubId) },
           include: { user: { select: { id: true, name: true, avatarUrl: true } } },
           orderBy: { votedAt: 'asc' },
         },
       },
     })
+    const candidates = await this.readLaunchCandidates(clubId, polls.flatMap((poll) => poll.votes))
 
     const pollByFixtureId = new Map<string, (typeof polls)[number]>()
     for (const p of polls) {
-      const fixtureId = p.question.startsWith('motm:')
-        ? p.question.slice('motm:'.length)
-        : null
+      const fixtureId = p.question.startsWith('motm:') ? p.question.slice('motm:'.length) : null
       if (fixtureId) pollByFixtureId.set(fixtureId, p)
     }
 
@@ -314,14 +403,15 @@ export class MotmService {
         >()
         for (const v of poll.votes) {
           const candidateId = v.optionId.split(':')[1]
-          if (!candidateId) continue
+          const candidate = candidates.get(candidateId)
+          if (!candidate) continue
           const existing = tally.get(candidateId)
           if (existing) {
             existing.votes += 1
           } else {
             tally.set(candidateId, {
-              name: v.user.name,
-              avatarUrl: v.user.avatarUrl,
+              name: candidate.name,
+              avatarUrl: candidate.avatarUrl,
               votes: 1,
               firstAt: v.votedAt.getTime(),
             })
@@ -350,11 +440,7 @@ export class MotmService {
       }
 
       const clubTeamName = teamNameById.get(fixture.teamId) ?? ''
-      const opponentName = computeOpponent(
-        fixture.homeTeam,
-        fixture.awayTeam,
-        clubTeamName,
-      )
+      const opponentName = computeOpponent(fixture.homeTeam, fixture.awayTeam, clubTeamName)
 
       byMatch.push({
         matchId: fixture.id,
@@ -377,28 +463,41 @@ export class MotmService {
     return { season, topByPlayer, byMatch, ...scope }
   }
 
+  /** Operational projection only: never rewrite historical options or votes. */
+  private async readLaunchCandidates(clubId: string, votes: Array<{ optionId: string }>) {
+    const ids = Array.from(new Set(votes.map((vote) => vote.optionId.split(':')[1]).filter(Boolean)))
+    if (ids.length === 0) return new Map<string, { id: string; name: string; avatarUrl: string | null }>()
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids }, ...launchClubParticipantWhere(clubId) },
+      select: { id: true, name: true, avatarUrl: true },
+    })
+    return new Map(users.map((user) => [user.id, user]))
+  }
+
   private async ensureMotmPoll(
     fixtureId: string,
     clubId: string,
     teamId: string,
+    senderId: string,
+    client: Prisma.TransactionClient,
   ) {
     const question = motmQuestion(fixtureId)
-    const existing = await this.prisma.poll.findFirst({ where: { question } })
+    const existing = await client.poll.findFirst({ where: { question } })
     if (existing) return existing
 
     // System message anchor for the poll
-    const message = await this.prisma.message.create({
+    const message = await client.message.create({
       data: {
         clubId,
         teamId,
-        senderId: (await this.systemSender(clubId, teamId)).id,
+        senderId,
         content: 'Man of the Match',
         messageType: 'POLL',
         isAnnouncement: false,
       },
     })
 
-    return this.prisma.poll.create({
+    return client.poll.create({
       data: {
         messageId: message.id,
         question,
@@ -408,22 +507,35 @@ export class MotmService {
     })
   }
 
-  private async systemSender(clubId: string, teamId: string) {
+  private async systemSender(
+    clubId: string,
+    teamId: string,
+    client: Prisma.TransactionClient = this.prisma,
+    selectedUserId?: string,
+  ) {
     // Use any team coach as the system sender; if none, fall back to club owner.
-    const coach = await this.prisma.teamAccess.findFirst({
+    const coach = await client.teamAccess.findFirst({
       where: {
+        clubId,
         teamId,
+        ...(selectedUserId ? { userId: selectedUserId } : {}),
         ...activeTeamAccessWhere(),
+        phase: 'FULL',
         role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] as any },
+        user: launchClubParticipantWhere(clubId),
       },
       include: { user: { select: { id: true } } },
     })
     if (coach) return { id: coach.userId }
-    const owner = await this.prisma.membership.findFirst({
-      where: { clubId, role: 'OWNER' },
+    const owner = await client.membership.findFirst({
+      where: {
+        clubId,
+        role: 'OWNER',
+        ...(selectedUserId ? { userId: selectedUserId } : {}),
+        user: launchClubParticipantWhere(clubId),
+      },
     })
-    if (!owner) throw new BadRequestException('No system sender available')
-    return { id: owner.userId }
+    return owner ? { id: owner.userId } : null
   }
 }
 
@@ -438,11 +550,7 @@ function motmQuestion(fixtureId: string): string {
  * decide — that's the common case for amateur leagues where the home
  * team is listed first.
  */
-function computeOpponent(
-  homeTeam: string,
-  awayTeam: string,
-  clubTeamName: string,
-): string {
+function computeOpponent(homeTeam: string, awayTeam: string, clubTeamName: string): string {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
   const club = norm(clubTeamName)
   if (club && norm(homeTeam).includes(club)) return awayTeam
