@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -65,6 +66,30 @@ assertIncludes(js, "headers['X-Admin-Key']", 'admin JS')
 assertIncludes(js, 'retryOnExpiredSession', 'admin JS')
 assertIncludes(js, 'renderAuthGate', 'admin auth gate')
 assertIncludes(js, "authFetch('/admin/auth/login'", 'admin username password login')
+const authFunction = js.slice(js.indexOf('async function authFetch('), js.indexOf('\nfunction renderAuthGate('))
+const testAuth = (fetch) => runInNewContext(`${authFunction}\nauthFetch`, { fetch, apiUrl: (path) => path })
+for (const status of [401, 403]) {
+  await assert.rejects(
+    testAuth(async () => ({ ok: false, status }))('/admin/auth/login', {}),
+    { message: 'The username or password is incorrect. Please try again.' },
+  )
+}
+await assert.rejects(
+  testAuth(async () => ({ ok: false, status: 429 }))('/admin/auth/login', {}),
+  { message: 'Too many sign-in attempts. Please wait and try again.' },
+)
+await assert.rejects(
+  testAuth(async () => { throw new Error('sensitive transport detail') })('/admin/auth/login', {}),
+  { message: 'Couldn’t connect. Check your connection and try again.' },
+)
+await assert.rejects(
+  testAuth(async () => ({ ok: true, json: async () => { throw new Error('sensitive parser detail') } }))('/admin/auth/login', {}),
+  { message: 'Sign-in is temporarily unavailable. Please try again.' },
+)
+assert.deepEqual(
+  await testAuth(async () => ({ ok: true, json: async () => ({ token: 'test-token' }) }))('/admin/auth/login', {}),
+  { token: 'test-token' },
+)
 assertIncludes(js, 'const form = event.currentTarget', 'stable async form references')
 assertIncludes(js, 'if (result.token) setSessionToken(result.token)', 'password rotation session refresh')
 assertIncludes(js, 'if (submitButton?.disabled) return', 'password rotation duplicate-submit guard')

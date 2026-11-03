@@ -136,20 +136,35 @@ async function adminFetch(path, options = {}, retryOnExpiredSession = true) {
 }
 
 async function authFetch(path, body) {
-  const res = await fetch(apiUrl(path), {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-
-  if (!res.ok) {
-    throw new Error(`Auth failed (${res.status}): ${await responseErrorMessage(res, path)}`)
+  let res
+  try {
+    res = await fetch(apiUrl(path), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new Error('Couldn’t connect. Check your connection and try again.')
   }
 
-  return res.json()
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('The username or password is incorrect. Please try again.')
+    }
+    if (res.status === 429) {
+      throw new Error('Too many sign-in attempts. Please wait and try again.')
+    }
+    throw new Error('Sign-in is temporarily unavailable. Please try again.')
+  }
+
+  try {
+    return await res.json()
+  } catch {
+    throw new Error('Sign-in is temporarily unavailable. Please try again.')
+  }
 }
 
 function renderAuthGate(message = '') {
