@@ -47,11 +47,8 @@ function first(value: string | string[] | undefined): string | undefined {
 type DirectoryHit = Extract<ClubSearchResult, { isActive: false }>
 
 /**
- * Club admin, screen 5: one well-grouped form (club, team, fussball.de
- * link, own part in the team, colour). Submitting sends a verification claim;
- * the server makes the account a club admin in the same step (nothing is
- * written before, so backing out never locks the account). The admin lands
- * on home, which shows "Dein Verein wird geprüft" until Anstoss has checked.
+ * Submit a first-claim request for platform review. This form does not grant
+ * club authority; the club and membership are created only after approval.
  */
 export default function ClubSetupScreen() {
   const router = useRouter()
