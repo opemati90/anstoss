@@ -1,7 +1,7 @@
 import '../../test/future-capabilities'
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 const mockReplace = jest.fn()
@@ -17,11 +17,18 @@ const mockResetDraft = jest.fn()
 let mockAuth: Record<string, unknown> = {}
 let mockKeyboardInset = 0
 let mockKeyboardVisible = false
+let mockLanguage = 'de'
 
 jest.mock('../../src/onboarding/ui', () => ({
   ...jest.requireActual('../../src/onboarding/ui'),
   useKeyboardInset: () => mockKeyboardInset,
   useKeyboardVisible: () => mockKeyboardVisible,
+}))
+
+// This suite also exercises preserved post-launch marketplace behaviour.
+jest.mock('../../src/launchFeatures', () => ({
+  OPTIONAL_CLUB_FEATURES: { marketplace: true, statistics: false, sponsorship: false },
+  COMPLIANCE_FEATURE_ENABLED: false,
 }))
 
 jest.mock('expo-router', () => {
@@ -44,7 +51,7 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
       opts && Object.keys(opts).length ? `${key} ${JSON.stringify(opts)}` : key,
-    i18n: { language: 'de' },
+    i18n: { language: mockLanguage },
   }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }))
@@ -69,7 +76,10 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   SafeAreaView: ({ children }: { children: unknown }) => children,
 }))
-jest.mock('../../src/components/wizard/PolicyOverlay', () => ({ PolicyOverlay: () => null }))
+jest.mock('../../src/components/wizard/PolicyOverlay', () => ({
+  PolicyOverlay: ({ visible, kind }: { visible: boolean; kind: string }) =>
+    visible ? require('react').createElement(require('react-native').View, { testID: `policy-${kind}` }) : null,
+}))
 
 jest.mock('../../src/api/client', () => {
   class ApiError extends Error {
@@ -105,14 +115,15 @@ jest.mock('../../src/context/OnboardingFlowContext', () => ({
 
 import SignIn from '../(auth)/sign-in'
 import NameScreen from '../(auth)/name'
-import ClubSearchScreen, { classifySearchInput } from '../(auth)/club-search'
-import ClubSetupScreen from '../(auth)/club-setup'
+import ClubSearchScreen, { classifySearchInput, clubNameWithoutTeamSuffix } from '../(auth)/club-search'
+import ClubSetupScreen, { isOfficialTeamLink } from '../(auth)/club-setup'
 import RequestPendingScreen from '../(auth)/request-pending'
 import ParentHandoff from '../(auth)/parent-handoff'
 import Welcome from '../(auth)/welcome'
 import JoinInviteScreen from '../join/[...code]'
 import { HomeOnboardingNotices } from '../../src/onboarding/HomeOnboardingNotices'
 import { ApiError } from '../../src/api/client'
+import { LAUNCH_FEATURES } from '@anstoss/shared'
 
 const INVITE = {
   code: 'E2EINV01',
@@ -228,6 +239,36 @@ describe('sign-in (code screen)', () => {
 })
 
 describe('welcome', () => {
+  it('groups the email and primary action before the legal information', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    const screen = render(<Welcome />)
+    const form = within(screen.getByTestId('welcome-form'))
+    expect(form.getByTestId('welcome-email')).toBeTruthy()
+    expect(form.getByTestId('welcome-continue')).toBeTruthy()
+    expect(within(screen.getByTestId('welcome-legal')).getByText('onboardingFlow.welcome.consentIntro')).toBeTruthy()
+  })
+  it('preserves the email when accessibility text size changes', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    const dimensions = jest.spyOn(require('react-native'), 'useWindowDimensions')
+    dimensions.mockReturnValue({ width: 375, height: 812, scale: 2, fontScale: 1 })
+    try {
+      const screen = render(<Welcome />)
+      fireEvent.changeText(screen.getByTestId('welcome-email'), 'player@example.com')
+      dimensions.mockReturnValue({ width: 375, height: 812, scale: 2, fontScale: 2 })
+      screen.rerender(<Welcome />)
+      expect(screen.getByTestId('welcome-email').props.value).toBe('player@example.com')
+    } finally {
+      dimensions.mockRestore()
+    }
+  })
+  it('opens the terms and privacy policy from the agreement section', () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    const screen = render(<Welcome />)
+    fireEvent.press(screen.getByText('onboardingFlow.welcome.termsLink'))
+    expect(screen.getByTestId('policy-terms')).toBeTruthy()
+    fireEvent.press(screen.getByText('onboardingFlow.welcome.privacyPolicyLink'))
+    expect(screen.getByTestId('policy-privacy')).toBeTruthy()
+  })
   it('hides the hero when Android resizes the window and keyboard overlap is zero', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
     mockKeyboardInset = 0
@@ -281,6 +322,18 @@ describe('welcome', () => {
 
 describe('"Wie heißt du?" (name + date of birth)', () => {
   const fresh = { id: 'u', email: 'tim.weber@x.de', name: 'tim.weber', dateOfBirth: null }
+
+  it('keeps the German day-month-year order even in English', () => {
+    mockLanguage = 'en'
+    mockAuth = baseAuth({ user: fresh })
+    try {
+      const screen = render(<NameScreen />)
+      const fields = within(screen.getByTestId('dob-segments')).getAllByTestId(/^dob-(day|month|year)$/)
+      expect(fields.map((field) => field.props.testID)).toEqual(['dob-day', 'dob-month', 'dob-year'])
+    } finally {
+      mockLanguage = 'de'
+    }
+  })
 
   it('saves the name and the DOB together and hands over to the entry router', async () => {
     mockAuth = baseAuth({ user: fresh })
@@ -403,6 +456,33 @@ describe('Verein finden', () => {
     expect(classifySearchInput('SV Albatros')).toEqual({ teamCode: null, inviteCode: null })
   })
 
+  it('finds the club name when a search includes a squad suffix', () => {
+    expect(clubNameWithoutTeamSuffix('FC Treptow III')).toBe('FC Treptow')
+    expect(clubNameWithoutTeamSuffix('FC Treptow')).toBeNull()
+  })
+
+  it('retries an empty team-suffix search using the club name', async () => {
+    searchApi((path) => {
+      if (path === '/clubs/search?q=FC%20Treptow%20III&limit=20') return { results: [] }
+      if (path === '/clubs/search?q=FC%20Treptow&limit=20') return { results: [ALBATROS] }
+      return undefined
+    })
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'FC Treptow III')
+    await waitFor(() => screen.getByTestId('find-club-row-sv-albatros'))
+    expect(screen.getByText('onboardingFlow.club.showingClubResults {"club":"FC Treptow"}')).toBeTruthy()
+  })
+
+  it('does not carry the squad number into the club name during setup', () => {
+    searchApi()
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'FC Treptow III')
+    fireEvent.press(screen.getByTestId('club-create-link'))
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(auth)/club-setup', params: { clubName: 'FC Treptow' },
+    })
+  })
+
   it('H4: picks the role inline on the club row and sends from the same screen, no DOB asked', async () => {
     searchApi()
     const screen = render(<ClubSearchScreen />)
@@ -511,6 +591,29 @@ describe('Verein finden', () => {
 })
 
 describe('club setup', () => {
+  it('accepts the supplied FUSSBALL.DE team-page link', () => {
+    expect(isOfficialTeamLink('https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/')).toBe(true)
+    expect(isOfficialTeamLink('https://fussball.de/?team=1')).toBe(false)
+    expect(isOfficialTeamLink('https://name:secret@fussball.de/team')).toBe(false)
+    expect(isOfficialTeamLink('https://fussball.de:444/team')).toBe(false)
+    expect(isOfficialTeamLink('https://fussball.de.evil.example/team')).toBe(false)
+    expect(isOfficialTeamLink(`https://fussball.de/${'x'.repeat(500)}`)).toBe(false)
+  })
+  it('submits the supplied FUSSBALL.DE page after the team name is entered', async () => {
+    const link = 'https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/'
+    mockParams = { clubName: 'FC Treptow' }
+    mockApi.mockImplementation(async (path: string) =>
+      path === '/club-claims/first' ? { id: 'claim-1' } : { results: [] },
+    )
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-link-input'), link)
+    expect(screen.getByText('onboardingFlow.clubSetup.requiredTeam')).toBeTruthy()
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'Herren III')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(mockApi).toHaveBeenCalledWith('/club-claims/first', expect.objectContaining({
+      body: expect.objectContaining({ clubName: 'FC Treptow', teamName: 'Herren III', externalTeamUrl: link }),
+    }))
+  })
   it('H3: sends only the claim; the server sets CLUB_ADMIN with it', async () => {
     mockParams = { directoryEntryId: 'dir-7', clubName: 'TSV Linden 1899' }
     mockApi.mockImplementation(async (path: string) =>
@@ -535,8 +638,43 @@ describe('club setup', () => {
 
   it('names the colours for screen readers', () => {
     const screen = render(<ClubSetupScreen />)
+    fireEvent.press(screen.getByTestId('club-setup-optional-toggle'))
     expect(screen.getByLabelText('onboardingFlow.clubSetup.colors.navy')).toBeTruthy()
     expect(screen.getByLabelText('onboardingFlow.clubSetup.colors.gold')).toBeTruthy()
+  })
+
+  it('keeps optional role selections when the section is collapsed', () => {
+    const screen = render(<ClubSetupScreen />)
+    const toggle = screen.getByTestId('club-setup-optional-toggle')
+    fireEvent.press(toggle)
+    const coach = screen.getByLabelText('onboardingFlow.clubSetup.participationCoach')
+    fireEvent.press(coach)
+    expect(coach.props.accessibilityState.checked).toBe(true)
+    fireEvent.press(toggle)
+    fireEvent.press(toggle)
+    expect(screen.getByLabelText('onboardingFlow.clubSetup.participationCoach').props.accessibilityState.checked).toBe(true)
+  })
+
+  it('does not offer youth teams when the adult launch flag is off', async () => {
+    const features = LAUNCH_FEATURES as { youthParticipation: boolean }
+    const original = features.youthParticipation
+    features.youthParticipation = false
+    try {
+      mockParams = { clubName: 'FC Treptow' }
+      mockApi.mockImplementation(async (path: string) =>
+        path === '/club-claims/first' ? { id: 'claim-1' } : { results: [] },
+      )
+      const screen = render(<ClubSetupScreen />)
+      expect(screen.queryByText('onboardingFlow.clubSetup.groupYouth')).toBeNull()
+      fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'Herren III')
+      fireEvent.changeText(screen.getByTestId('club-setup-link-input'), 'https://www.fussball.de/mannschaft/example')
+      await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+      expect(mockApi).toHaveBeenCalledWith('/club-claims/first', expect.objectContaining({
+        body: expect.objectContaining({ teamGroupType: 'SENIOR' }),
+      }))
+    } finally {
+      features.youthParticipation = original
+    }
   })
 })
 
@@ -780,8 +918,8 @@ describe('home: club verification (H6)', () => {
     })
     const screen = render(<HomeOnboardingNotices />)
     expect(screen.getByText('onboardingFlow.home.verificationTitle')).toBeTruthy()
-    expect(screen.getByText('onboardingFlow.home.verificationNext1')).toBeTruthy()
-    expect(screen.getByText('onboardingFlow.home.verificationPrepare1')).toBeTruthy()
+    expect(screen.getByText('onboardingFlow.home.verificationBody')).toBeTruthy()
+    expect(screen.queryByText('onboardingFlow.home.verificationPrepare1')).toBeNull()
     fireEvent.press(screen.getByTestId('home-verification-details'))
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(auth)/claim-pending',

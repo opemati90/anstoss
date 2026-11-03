@@ -24,7 +24,7 @@ import { APP_LANGUAGES, getAppLanguage, setAppLanguage, type AppLanguage } from 
 import { OnboardingTextField, useKeyboardInset, useKeyboardVisible } from '../../src/onboarding/ui'
 import type { OnboardingIntent } from '../../src/onboarding/intent'
 import { sendCodeErrorKey } from '../../src/onboarding/errors'
-import { hairline, radius, space } from '../../src/theme/tokens'
+import { fontSize, hairline, radius, space } from '../../src/theme/tokens'
 import { OPTIONAL_CLUB_FEATURES } from '../../src/launchFeatures'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -103,6 +103,7 @@ export default function Welcome() {
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
       <ScrollView
+        key={`welcome-font-scale-${fontScale.toFixed(2)}`}
         style={styles.flex}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + space.sm, paddingBottom: keyboardUp ? keyboardInset + space.md : insets.bottom + space.md }]}
         keyboardShouldPersistTaps="handled"
@@ -154,12 +155,15 @@ export default function Welcome() {
             { paddingTop: heroHeight > 0 ? space.xl : space.md },
           ]}
         >
-          <Text variant="title1" accessibilityRole="header">
-            {t('onboardingFlow.welcome.title')}
-          </Text>
-          <Text variant="body" color="secondary">
-            {t('onboardingFlow.welcome.subtitle')}
-          </Text>
+          <View style={[styles.signInCard, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+          <View style={styles.introduction} testID="welcome-introduction">
+            <Text variant="title2" accessibilityRole="header">
+              {t('onboardingFlow.welcome.signInTitle')}
+            </Text>
+            <Text variant="subheadline" color="secondary">
+              {t('onboardingFlow.welcome.signInSubtitle')}
+            </Text>
+          </View>
           {sessionExpired ? (
             <View
               style={[styles.notice, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
@@ -172,7 +176,7 @@ export default function Welcome() {
               </Text>
             </View>
           ) : null}
-          <View style={styles.field}>
+          <View style={styles.form} testID="welcome-form">
             <OnboardingTextField
               ref={inputRef}
               label={t('onboardingFlow.welcome.emailLabel')}
@@ -191,9 +195,19 @@ export default function Welcome() {
               returnKeyType="go"
               onSubmitEditing={() => void send()}
               error={error}
-              hint={t('onboardingFlow.welcome.hint')}
+              style={styles.emailInput}
               testID="welcome-email"
             />
+            <Button
+              label={t('onboardingFlow.common.continue')}
+              onPress={() => void send()}
+              disabled={!valid}
+              loading={sending}
+              size="lg"
+              fullWidth
+              testID="welcome-continue"
+            />
+          </View>
           </View>
           {!inviteCode && OPTIONAL_CLUB_FEATURES.marketplace ? (
             <Pressable
@@ -239,19 +253,9 @@ export default function Welcome() {
               </Text>
             </Pressable>
           ) : null}
-          {!LAUNCH_FEATURES.youthParticipation ? <Text variant="footnote" color="secondary">{t('onboardingFlow.launch.adultsHint')}</Text> : null}
-        <View style={styles.footer}>
-        <Button
-          label={t('onboardingFlow.common.continue')}
-          onPress={() => void send()}
-          disabled={!valid}
-          loading={sending}
-          size="lg"
-          fullWidth
-          testID="welcome-continue"
-        />
-        <Text variant="caption1" color="tertiary" align="center">
-          {t('onboardingFlow.welcome.consent')}
+        <View style={styles.footer} testID="welcome-legal">
+        <Text variant="caption1" color="secondary">
+          {t('onboardingFlow.welcome.consentIntro')}
         </Text>
         <View style={styles.links}>
           <Pressable
@@ -260,7 +264,7 @@ export default function Welcome() {
             hitSlop={4}
             style={styles.link}
           >
-            <Text variant="caption1" weight="semibold" color="secondary">
+            <Text variant="caption1" weight="semibold" color="tint">
               {t('onboardingFlow.welcome.termsLink')}
             </Text>
           </Pressable>
@@ -270,8 +274,8 @@ export default function Welcome() {
             hitSlop={4}
             style={styles.link}
           >
-            <Text variant="caption1" weight="semibold" color="secondary">
-              {t('onboardingFlow.welcome.privacyLink')}
+            <Text variant="caption1" weight="semibold" color="tint">
+              {t('onboardingFlow.welcome.privacyPolicyLink')}
             </Text>
           </Pressable>
         </View>
@@ -359,20 +363,29 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: space.md,
     paddingBottom: space.lg,
-    gap: space.sm,
+    gap: space.md,
   },
-  field: { marginTop: space.md },
+  signInCard: {
+    padding: space.lg,
+    gap: space.lg,
+    borderWidth: hairline,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
+  },
+  introduction: { gap: space.xs },
+  form: { gap: space.md },
+  emailInput: { fontSize: fontSize.md },
   footer: {
-    paddingTop: space.md,
-    gap: space.sm,
+    gap: 0,
+    paddingHorizontal: space.sm,
   },
   links: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     columnGap: space.md,
   },
-  link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.xs },
+  link: { minHeight: 44, justifyContent: 'center', paddingRight: space.sm },
   freeAgent: {
     flexDirection: 'row',
     alignItems: 'center',

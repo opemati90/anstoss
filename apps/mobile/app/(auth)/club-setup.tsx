@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ClubSearchResponse, ClubSearchResult, TeamRole } from '@anstoss/shared'
+import { LAUNCH_FEATURES, type ClubSearchResponse, type ClubSearchResult, type TeamRole } from '@anstoss/shared'
 import { ApiError, api } from '../../src/api/client'
 import { Icon, SegmentedControl, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
@@ -25,10 +25,19 @@ function colourNameKey(hex: string): string {
   return `onboardingFlow.clubSetup.colors.${CLUB_COLOR_PRESET_NAMES[index] ?? 'black'}`
 }
 
-const OFFICIAL_LINK_RE = /^https:\/\/(?:[^/]+\.)?(?:fussball\.de|dfb\.de|fupa\.net)\/.+/i
-
 export function isOfficialTeamLink(value: string): boolean {
-  return OFFICIAL_LINK_RE.test(value.trim())
+  try {
+    const trimmed = value.trim()
+    if (trimmed.length > 500) return false
+    const url = new URL(trimmed)
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '')
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port &&
+      url.pathname !== '/' && ['fussball.de', 'dfb.de', 'fupa.net'].some(
+        (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+      )
+  } catch {
+    return false
+  }
 }
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -38,7 +47,7 @@ function first(value: string | string[] | undefined): string | undefined {
 type DirectoryHit = Extract<ClubSearchResult, { isActive: false }>
 
 /**
- * Club admin, screen 5: one well-grouped form (club, first team, fussball.de
+ * Club admin, screen 5: one well-grouped form (club, team, fussball.de
  * link, own part in the team, colour). Submitting sends a verification claim;
  * the server makes the account a club admin in the same step (nothing is
  * written before, so backing out never locks the account). The admin lands
@@ -47,6 +56,7 @@ type DirectoryHit = Extract<ClubSearchResult, { isActive: false }>
 export default function ClubSetupScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const c = useClubColors()
   const params = useLocalSearchParams<{ directoryEntryId?: string; clubName?: string }>()
   const { memberships, refreshUser } = useAuth()
   const onExpired = useSessionExpiryHandler()
@@ -60,11 +70,14 @@ export default function ClubSetupScreen() {
   )
   const [clubName, setClubName] = useState(paramName ?? state.clubName ?? '')
   const [teamName, setTeamName] = useState(state.teamName ?? '')
-  const [group, setGroup] = useState<'SENIOR' | 'YOUTH'>(state.teamGroupType ?? 'SENIOR')
+  const [group, setGroup] = useState<'SENIOR' | 'YOUTH'>(
+    LAUNCH_FEATURES.youthParticipation ? state.teamGroupType ?? 'SENIOR' : 'SENIOR',
+  )
   const [link, setLink] = useState(state.officialTeamUrl ?? '')
   const [linkTouched, setLinkTouched] = useState(false)
   const [roles, setRoles] = useState<TeamRole[]>(state.adminTeamRoles ?? [])
   const [colour, setColour] = useState(state.clubPrimaryColor ?? CLUB_COLOURS[0])
+  const [optionalOpen, setOptionalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -86,6 +99,11 @@ export default function ClubSetupScreen() {
   const linkValid = isOfficialTeamLink(link)
   const ready =
     clubName.trim().length >= 2 && teamName.trim().length >= 2 && linkValid && !busy
+  const missingField = clubName.trim().length < 2
+    ? 'onboardingFlow.clubSetup.requiredClub'
+    : teamName.trim().length < 2
+      ? 'onboardingFlow.clubSetup.requiredTeam'
+      : !linkValid ? 'onboardingFlow.clubSetup.requiredLink' : null
 
   function toggleRole(role: TeamRole) {
     setRoles((current) =>
@@ -151,6 +169,10 @@ export default function ClubSetupScreen() {
             <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
               {error}
             </Text>
+          ) : missingField && !busy ? (
+            <Text variant="caption1" color="secondary" align="center">
+              {t(missingField)}
+            </Text>
           ) : undefined
         }
         testID="club-setup"
@@ -181,14 +203,14 @@ export default function ClubSetupScreen() {
           testID="club-setup-team-name-input"
         />
 
-        <SegmentedControl<'SENIOR' | 'YOUTH'>
+        {LAUNCH_FEATURES.youthParticipation ? <SegmentedControl<'SENIOR' | 'YOUTH'>
           segments={[
             { key: 'SENIOR', label: t('onboardingFlow.clubSetup.groupSenior') },
             { key: 'YOUTH', label: t('onboardingFlow.clubSetup.groupYouth') },
           ]}
           value={group}
           onChange={setGroup}
-        />
+        /> : null}
 
         <OnboardingTextField
           label={t('onboardingFlow.clubSetup.linkLabel')}
@@ -205,6 +227,20 @@ export default function ClubSetupScreen() {
           testID="club-setup-link-input"
         />
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: optionalOpen }}
+          onPress={() => setOptionalOpen((open) => !open)}
+          style={styles.optionalToggle}
+          testID="club-setup-optional-toggle"
+        >
+          <Text variant="subheadline" weight="semibold">
+            {t('onboardingFlow.clubSetup.optionalDetails')}
+          </Text>
+          <Icon name={optionalOpen ? 'chevron.up' : 'chevron.down'} size={18} color={c.textSecondary} />
+        </Pressable>
+
+        {optionalOpen ? <>
         <View style={styles.group}>
           <Text variant="subheadline" weight="semibold" color="secondary">
             {t('onboardingFlow.clubSetup.participation')}
@@ -245,6 +281,7 @@ export default function ClubSetupScreen() {
             {t('onboardingFlow.clubSetup.colorsHint')}
           </Text>
         </View>
+        </> : null}
       </OnboardingScreen>
     </ClubThemeOverride>
   )
@@ -423,6 +460,7 @@ function Swatch({
 
 const styles = StyleSheet.create({
   group: { gap: space.sm },
+  optionalToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
     flexDirection: 'row',

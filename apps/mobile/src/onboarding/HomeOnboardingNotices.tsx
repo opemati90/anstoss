@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Banner, Button, Icon, Text } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
-import { hairline, radius, space } from '../theme/tokens'
+import { radius, space } from '../theme/tokens'
 import { clearWelcomeNotice, readWelcomeNotice, type WelcomeNotice } from './welcomeNotice'
 
 /**
@@ -102,15 +102,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     borderRadius: radius.full,
   },
-  card: {
-    gap: space.sm,
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  step: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
-  stepText: { flex: 1, minWidth: 0 },
 })
 
 /**
@@ -152,47 +143,17 @@ export function ClubVerificationHome({
           : t('onboardingFlow.home.verificationBody')}
       </Text>
 
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        <Text variant="headline" weight="semibold">
-          {t('onboardingFlow.home.verificationNextTitle')}
-        </Text>
-        <Step icon="checkmark.shield" text={t('onboardingFlow.home.verificationNext1')} />
-        <Step icon="bell.fill" text={t('onboardingFlow.home.verificationNext2')} />
-        <Step icon="person.2.fill" text={t('onboardingFlow.home.verificationNext3')} />
-      </View>
-
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        <Text variant="headline" weight="semibold">
-          {t('onboardingFlow.home.verificationPrepareTitle')}
-        </Text>
-        <Step icon="list.bullet" text={t('onboardingFlow.home.verificationPrepare1')} />
-        <Step icon="photo" text={t('onboardingFlow.home.verificationPrepare2')} />
-        <Step icon="calendar" text={t('onboardingFlow.home.verificationPrepare3')} />
-      </View>
-
       <Button
         label={
           needsInfo
             ? t('onboardingFlow.home.verificationAnswer')
             : t('onboardingFlow.home.verificationAction')
         }
-        variant={needsInfo ? 'filled' : 'bordered'}
+        variant="filled"
         onPress={openClaim}
         fullWidth
         testID="home-verification-details"
       />
-    </View>
-  )
-}
-
-function Step({ icon, text }: { icon: string; text: string }) {
-  const c = useClubColors()
-  return (
-    <View style={styles.step}>
-      <Icon name={icon} size={18} color={c.textSecondary} />
-      <Text variant="subheadline" color="secondary" style={styles.stepText}>
-        {text}
-      </Text>
     </View>
   )
 }

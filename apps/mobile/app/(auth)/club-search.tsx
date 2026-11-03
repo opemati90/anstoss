@@ -35,10 +35,17 @@ import {
 import { goBackOrReplace } from '../../src/utils/navigation'
 import { hairline, radius, space } from '../../src/theme/tokens'
 import { RADIUS_INPUT } from '../../src/theme/spacing'
+import { OPTIONAL_CLUB_FEATURES } from '../../src/launchFeatures'
 
 const TEAM_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{10}$/
 const INVITE_CODE_RE = /^[A-Za-z0-9_-]{6,32}$/
 const DEBOUNCE_MS = 300
+
+/** A squad suffix belongs to a team, not necessarily to the club's name. */
+export function clubNameWithoutTeamSuffix(value: string): string | null {
+  const shortened = value.trim().replace(/\s+(?:i{1,3}|iv|v|[2-5])\.?$/i, '').trim()
+  return shortened.length >= 2 && shortened !== value.trim() ? shortened : null
+}
 
 const INVITE_ROLE_KEYS: Record<PublicInvitePayload['role'], string> = {
   PLAYER: 'onboardingFlow.roles.player',
@@ -107,6 +114,7 @@ export default function ClubSearchScreen() {
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ClubSearchResult[]>([])
+  const [suggestedQuery, setSuggestedQuery] = useState<string | null>(null)
   const [teamMatch, setTeamMatch] = useState<TeamByCode | null>(null)
   const [inviteMatch, setInviteMatch] = useState<PublicInvitePayload | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -160,12 +168,14 @@ export default function ClubSearchScreen() {
     const id = ++requestId.current
     if (!searchable) {
       setResults([])
+      setSuggestedQuery(null)
       setTeamMatch(null)
       setInviteMatch(null)
       setStatus('idle')
       return
     }
     setStatus('loading')
+    setSuggestedQuery(null)
     const handle = setTimeout(async () => {
       const searchCall = api<ClubSearchResponse>(
         `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
@@ -186,7 +196,24 @@ export default function ClubSearchScreen() {
       setTeamMatch(teamValue)
       setInviteMatch(inviteValue)
       if (search.status === 'fulfilled') {
-        setResults(search.value?.results ?? [])
+        let clubs = search.value?.results ?? []
+        const fallback = !teamCode && !inviteCode && clubs.length === 0
+          ? clubNameWithoutTeamSuffix(trimmed)
+          : null
+        if (fallback) {
+          try {
+            const retry = await api<ClubSearchResponse>(`/clubs/search?q=${encodeURIComponent(fallback)}&limit=20`)
+            if (id !== requestId.current) return
+            clubs = retry?.results ?? []
+            if (clubs.length) setSuggestedQuery(fallback)
+          } catch {
+            if (id !== requestId.current) return
+            setResults([])
+            setStatus('error')
+            return
+          }
+        }
+        setResults(clubs)
         setStatus('done')
       } else {
         setResults([])
@@ -534,6 +561,12 @@ export default function ClubSearchScreen() {
           )
         : null}
 
+      {status === 'done' && suggestedQuery ? (
+        <Text variant="footnote" color="secondary" accessibilityLiveRegion="polite">
+          {t('onboardingFlow.club.showingClubResults', { club: suggestedQuery })}
+        </Text>
+      ) : null}
+
       {status === 'done'
         ? results.map((club) => {
             const place = [club.city, club.association].filter(Boolean).join(' · ')
@@ -586,10 +619,12 @@ export default function ClubSearchScreen() {
         <MoreLink
           icon="building.2"
           label={t('onboardingFlow.club.createClub')}
-          onPress={() => openClubSetup(trimmed && !teamCode && !inviteCode ? { clubName: trimmed } : {})}
+          onPress={() => openClubSetup(trimmed && !teamCode && !inviteCode
+            ? { clubName: clubNameWithoutTeamSuffix(trimmed) ?? trimmed }
+            : {})}
           testID="club-create-link"
         />
-        {!isMember ? (
+        {!isMember && OPTIONAL_CLUB_FEATURES.marketplace ? (
           <MoreLink
             icon="magnifyingglass"
             label={t('onboardingFlow.club.freeAgent')}
@@ -604,7 +639,7 @@ export default function ClubSearchScreen() {
             testID="club-free-agent-link"
           />
         ) : null}
-        {freeAgentOpen && !isMember ? (
+        {freeAgentOpen && !isMember && OPTIONAL_CLUB_FEATURES.marketplace ? (
           <FreeAgentQuickListing
             position={position}
             onPosition={setPosition}

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../components/ui'
@@ -46,22 +46,9 @@ export function validateDob(parts: DobParts, now = new Date()): DobValidation {
 
 type Segment = 'day' | 'month' | 'year'
 
-/** Field order follows the locale (day-month-year for de/fr/it/pt/tr/en-GB). */
-function segmentOrder(locale: string): Segment[] {
-  try {
-    const parts = new Intl.DateTimeFormat(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).formatToParts(new Date(2000, 10, 22))
-    const order = parts
-      .map((part) => part.type)
-      .filter((type): type is Segment => type === 'day' || type === 'month' || type === 'year')
-    return order.length === 3 ? order : ['day', 'month', 'year']
-  } catch {
-    return ['day', 'month', 'year']
-  }
-}
+// Anstoss serves German clubs: the chosen UI language must not silently
+// change the familiar day/month/year order (plain "en" otherwise means en-US).
+const DOB_ORDER: readonly Segment[] = ['day', 'month', 'year']
 
 /**
  * Date of birth as three numeric fields (TT · MM · JJJJ) instead of wheels:
@@ -81,8 +68,8 @@ export function DateOfBirthInput({
   autoFocus?: boolean
 }) {
   const c = useClubColors()
-  const { t, i18n } = useTranslation()
-  const order = useMemo(() => segmentOrder(i18n.language || 'de'), [i18n.language])
+  const { t } = useTranslation()
+  const order = DOB_ORDER
   const refs = {
     day: useRef<TextInput>(null),
     month: useRef<TextInput>(null),
@@ -122,7 +109,7 @@ export function DateOfBirthInput({
       <Text variant="subheadline" weight="semibold" color="secondary">
         {t('onboardingFlow.dob.label')}
       </Text>
-      <View style={styles.row}>
+      <View style={styles.row} testID="dob-segments">
         {order.map((segment, index) => (
           <View key={segment} style={segment === 'year' ? styles.yearCell : styles.cell}>
             <TextInput
