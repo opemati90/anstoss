@@ -563,6 +563,8 @@ describe('club authority governance boundaries', () => {
         externalTeamUrl: 'https://www.fussball.de/mannschaft/example',
       }).externalTeamUrl,
     ).toContain('fussball.de')
+    const treptow = 'https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/'
+    expect(submitFirstClubClaimSchema.parse({ ...base, externalTeamUrl: treptow }).externalTeamUrl).toBe(treptow)
   })
 
   it('blocks acceptance of a pending transfer while a dispute is frozen', async () => {
