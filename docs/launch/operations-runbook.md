@@ -1,5 +1,28 @@
 # Anstoss launch operations runbook
 
+## Release checkpoint — 2026-11-04
+
+At mobile/API revision `89d3967`, the full mobile suite passed 134 suites
+(984 tests passed, one skipped), the full API suite passed 171 suites (2,049
+tests), and workspace type checking passed. On the iOS development simulator,
+the mock FC Treptow onboarding journey submitted a club claim with no team-page
+link and reached pending review. The welcome email field, policy links and
+Continue button were also visible with the keyboard open. These simulator
+journeys use mock data and do not establish production API or device readiness.
+
+A read-only production inventory at approximately 13:49 UTC found two named
+demo-email accounts, no club with slug `fc-musterstadt`, and two memberships
+outside that slug; those accounts must not be assumed isolated or used for
+destructive tests. The same query found zero undeleted users with a recorded
+date of birth less than 18 years ago; it does not establish that all users
+have a known date of birth. Do not run the broad development seed in production.
+Recheck current state before a cutover. No production data was modified.
+
+This checkpoint does not authorize enabling private-media cleanup or publishing
+store builds: the media cutover, compatible-client delivery, independent
+release audit, store artwork review and production/device verification gates
+below remain applicable.
+
 ## Private chat-media rollout (not yet production-verified)
 
 The pending implementation routes new `chat/.../private-v1-*` and
