@@ -24,9 +24,23 @@ unfinished. Fourteen migration directories differ between bridge revision
 `f31b82f` and the candidate. This is not a migration rehearsal or proof that
 the migrations are safe for existing data and production locks. An initial
 schema-only rehearsal script failed independent safety review and was disabled
-before execution; no production dump was taken. A safe rehearsal needs an
-enforced read-only shared snapshot, exact migration-history verification,
-isolated matching-version restore and post-migration catalog checks.
+before execution. A replacement passed independent review and took a single
+read-only PostgreSQL snapshot of schema and `_prisma_migrations` history only;
+no member-table rows were exported. Both archives came from the same exported
+snapshot and were restored into an isolated PostgreSQL 18.6 instance using a
+private Unix socket with TCP disabled. The local Prisma run identified and
+applied the exact 14 candidate migrations, verified their checksums, reported
+an up-to-date migration status, and passed seven selected catalog assertions.
+The local server was stopped and the exact temporary snapshot directory removed.
+The snapshot history can contain operational error details; it was not committed.
+
+This rehearsal is **not** a production migration approval. It used an empty
+member-data set, did not compare the complete post-migration schema with a
+clean baseline, and ran on macOS rather than production's Debian collation
+implementation. It cannot prove data-dependent constraints, lock acquisition,
+index duration, disk/WAL requirements, concurrent-writer safety, or production
+application behavior. Recheck production data, locks and storage under the
+cutover freeze and complete those remaining gates before any deployment.
 
 This checkpoint does not authorize enabling private-media cleanup or publishing
 store builds: the media cutover, compatible-client delivery, independent
