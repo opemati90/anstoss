@@ -547,13 +547,13 @@ describe('club authority governance boundaries', () => {
     )
   })
 
-  it('requires a recognized official team URL on first-owner claims', () => {
+  it('accepts claims without a team URL and validates any supplied URL', () => {
     const base = {
       directoryEntryId: 'directory-1',
       teamName: 'First Team',
       teamRoles: [],
     }
-    expect(() => submitFirstClubClaimSchema.parse(base)).toThrow()
+    expect(submitFirstClubClaimSchema.parse(base).externalTeamUrl).toBeUndefined()
     expect(() =>
       submitFirstClubClaimSchema.parse({ ...base, externalTeamUrl: 'https://evil.example/team' }),
     ).toThrow('direct HTTPS team link from Fussball.de, DFB.de, or FuPa')

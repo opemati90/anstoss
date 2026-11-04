@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LAUNCH_FEATURES } from '@anstoss/shared'
 import { AdultLaunchScreen } from '../../src/onboarding/AdultLaunchScreen'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { PublicInvitePayload } from '@anstoss/shared'
@@ -9,6 +9,7 @@ import { ApiError, api } from '../../src/api/client'
 import { clearPendingInvite, setPendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { Text } from '../../src/components/ui'
+import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
 import {
@@ -243,6 +244,7 @@ function InvitePreview({
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  const [policy, setPolicy] = useState<'terms' | 'privacy' | null>(null)
   const normalized = email.trim().toLowerCase()
   const valid = EMAIL_RE_PREVIEW.test(normalized)
 
@@ -278,11 +280,6 @@ function InvitePreview({
         loading: sending,
         testID: 'join-accept',
       }}
-      footerNote={
-        <Text variant="caption1" color="tertiary" align="center">
-          {t('onboardingFlow.welcome.consent')}
-        </Text>
-      }
       testID="join-preview"
     >
       <Text variant="subheadline" color="secondary">
@@ -310,6 +307,20 @@ function InvitePreview({
         hint={t('onboardingFlow.welcome.hint')}
         testID="join-email"
       />
+      <View testID="join-legal">
+        <Text variant="caption1" color="secondary">
+          {t('onboardingFlow.welcome.consentIntro')}
+        </Text>
+        <View style={styles.policyLinks}>
+          <Pressable accessibilityRole="link" onPress={() => setPolicy('terms')} style={styles.policyLink}>
+            <Text variant="caption1" weight="semibold" color="tint">{t('onboardingFlow.welcome.termsLink')}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={() => setPolicy('privacy')} style={styles.policyLink}>
+            <Text variant="caption1" weight="semibold" color="tint">{t('onboardingFlow.welcome.privacyPolicyLink')}</Text>
+          </Pressable>
+        </View>
+      </View>
+      <PolicyOverlay visible={policy !== null} kind={policy ?? 'terms'} onClose={() => setPolicy(null)} />
     </OnboardingScreen>
   )
 }
@@ -571,6 +582,8 @@ function InviteConfirm({
 }
 
 const styles = StyleSheet.create({
+  policyLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md },
+  policyLink: { minHeight: 44, justifyContent: 'center', paddingRight: space.sm },
   lead: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap' },
   trialPill: {
     minHeight: 28,

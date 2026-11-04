@@ -93,7 +93,7 @@ export default function ClubSetupScreen() {
     })
   }, [clubName, colour, directoryEntryId, group, link, roles, teamName, update])
 
-  const linkValid = isOfficialTeamLink(link)
+  const linkValid = !link.trim() || isOfficialTeamLink(link)
   const ready =
     clubName.trim().length >= 2 && teamName.trim().length >= 2 && linkValid && !busy
   const missingField = clubName.trim().length < 2
@@ -123,7 +123,7 @@ export default function ClubSetupScreen() {
           teamGroupType: group,
           teamRoles: roles,
           primaryColor: colour,
-          externalTeamUrl: link.trim(),
+          ...(link.trim() ? { externalTeamUrl: link.trim() } : {}),
         },
       })
       reset()

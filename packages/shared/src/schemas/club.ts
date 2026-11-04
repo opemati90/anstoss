@@ -250,7 +250,7 @@ export const submitFirstClubClaimSchema = z.object({
     .refine((roles) => new Set(roles).size === roles.length, {
       message: 'Team roles must be unique',
     }),
-  externalTeamUrl: officialTeamUrlSchema,
+  externalTeamUrl: officialTeamUrlSchema.optional(),
   officialEmail: z.string().email().max(254).optional(),
 }).refine((value) => Boolean(value.directoryEntryId || value.clubName), {
   message: 'Choose a directory club or provide the official club name',

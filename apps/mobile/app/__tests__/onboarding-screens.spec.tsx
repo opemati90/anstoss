@@ -77,8 +77,8 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: unknown }) => children,
 }))
 jest.mock('../../src/components/wizard/PolicyOverlay', () => ({
-  PolicyOverlay: ({ visible, kind }: { visible: boolean; kind: string }) =>
-    visible ? require('react').createElement(require('react-native').View, { testID: `policy-${kind}` }) : null,
+  PolicyOverlay: ({ visible, kind, onClose }: { visible: boolean; kind: string; onClose: () => void }) =>
+    visible ? require('react').createElement(require('react-native').Pressable, { testID: `policy-${kind}`, onPress: onClose }) : null,
 }))
 
 jest.mock('../../src/api/client', () => {
@@ -239,13 +239,17 @@ describe('sign-in (code screen)', () => {
 })
 
 describe('welcome', () => {
-  it('groups the email and primary action before the legal information', () => {
+  it('groups the email, legal information and primary action', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
     const screen = render(<Welcome />)
     const form = within(screen.getByTestId('welcome-form'))
     expect(form.getByTestId('welcome-email')).toBeTruthy()
     expect(form.getByTestId('welcome-continue')).toBeTruthy()
     expect(within(screen.getByTestId('welcome-legal')).getByText('onboardingFlow.welcome.consentIntro')).toBeTruthy()
+    expect(form.getByTestId('welcome-legal')).toBeTruthy()
+    const tree = JSON.stringify(screen.toJSON())
+    expect(tree.indexOf('welcome-legal')).toBeGreaterThan(-1)
+    expect(tree.indexOf('welcome-continue')).toBeGreaterThan(tree.indexOf('welcome-legal'))
   })
   it('preserves the email when accessibility text size changes', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
@@ -266,8 +270,10 @@ describe('welcome', () => {
     const screen = render(<Welcome />)
     fireEvent.press(screen.getByText('onboardingFlow.welcome.termsLink'))
     expect(screen.getByTestId('policy-terms')).toBeTruthy()
+    fireEvent.press(screen.getByTestId('policy-terms'))
     fireEvent.press(screen.getByText('onboardingFlow.welcome.privacyPolicyLink'))
     expect(screen.getByTestId('policy-privacy')).toBeTruthy()
+    fireEvent.press(screen.getByTestId('policy-privacy'))
   })
   it('hides the hero when Android resizes the window and keyboard overlap is zero', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
@@ -591,6 +597,18 @@ describe('Verein finden', () => {
 })
 
 describe('club setup', () => {
+  it('submits a claim without a team-page link', async () => {
+    mockParams = { clubName: 'FC Treptow' }
+    mockApi.mockImplementation(async (path: string) =>
+      path === '/club-claims/first' ? { id: 'claim-1' } : { results: [] },
+    )
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'Herren III')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    const claim = mockApi.mock.calls.find(([path]) => path === '/club-claims/first')
+    expect(claim?.[1].body).toEqual(expect.objectContaining({ clubName: 'FC Treptow', teamName: 'Herren III' }))
+    expect(claim?.[1].body).not.toHaveProperty('externalTeamUrl')
+  })
   it('accepts the supplied FUSSBALL.DE team-page link', () => {
     expect(isOfficialTeamLink('https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/')).toBe(true)
     expect(isOfficialTeamLink('https://fussball.de/?team=1')).toBe(false)
@@ -777,6 +795,15 @@ describe('invite (join)', () => {
     mockStartOtp.mockResolvedValue(undefined)
     const screen = render(<JoinInviteScreen />)
     await waitFor(() => screen.getByTestId('join-email'))
+    const tree = JSON.stringify(screen.toJSON())
+    expect(tree.indexOf('join-legal')).toBeGreaterThan(-1)
+    expect(tree.indexOf('join-accept')).toBeGreaterThan(tree.indexOf('join-legal'))
+    fireEvent.press(screen.getByText('onboardingFlow.welcome.termsLink'))
+    expect(screen.getByTestId('policy-terms')).toBeTruthy()
+    fireEvent.press(screen.getByTestId('policy-terms'))
+    fireEvent.press(screen.getByText('onboardingFlow.welcome.privacyPolicyLink'))
+    expect(screen.getByTestId('policy-privacy')).toBeTruthy()
+    fireEvent.press(screen.getByTestId('policy-privacy'))
     fireEvent.changeText(screen.getByTestId('join-email'), 'Lukas.Hoffmann@example.de')
     await act(async () => {
       fireEvent.press(screen.getByTestId('join-accept'))

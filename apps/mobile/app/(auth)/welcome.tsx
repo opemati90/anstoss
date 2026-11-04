@@ -198,6 +198,23 @@ export default function Welcome() {
               style={styles.emailInput}
               testID="welcome-email"
             />
+            <View style={styles.footer} testID="welcome-legal">
+              <Text variant="caption1" color="secondary">
+                {t('onboardingFlow.welcome.consentIntro')}
+              </Text>
+              <View style={styles.links}>
+                <Pressable accessibilityRole="link" onPress={() => setPolicy('terms')} hitSlop={4} style={styles.link}>
+                  <Text variant="caption1" weight="semibold" color="tint">
+                    {t('onboardingFlow.welcome.termsLink')}
+                  </Text>
+                </Pressable>
+                <Pressable accessibilityRole="link" onPress={() => setPolicy('privacy')} hitSlop={4} style={styles.link}>
+                  <Text variant="caption1" weight="semibold" color="tint">
+                    {t('onboardingFlow.welcome.privacyPolicyLink')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
             <Button
               label={t('onboardingFlow.common.continue')}
               onPress={() => void send()}
@@ -253,33 +270,6 @@ export default function Welcome() {
               </Text>
             </Pressable>
           ) : null}
-        <View style={styles.footer} testID="welcome-legal">
-        <Text variant="caption1" color="secondary">
-          {t('onboardingFlow.welcome.consentIntro')}
-        </Text>
-        <View style={styles.links}>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => setPolicy('terms')}
-            hitSlop={4}
-            style={styles.link}
-          >
-            <Text variant="caption1" weight="semibold" color="tint">
-              {t('onboardingFlow.welcome.termsLink')}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => setPolicy('privacy')}
-            hitSlop={4}
-            style={styles.link}
-          >
-            <Text variant="caption1" weight="semibold" color="tint">
-              {t('onboardingFlow.welcome.privacyPolicyLink')}
-            </Text>
-          </Pressable>
-        </View>
-        </View>
         </View>
       </ScrollView>
 
