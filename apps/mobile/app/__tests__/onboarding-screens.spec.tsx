@@ -122,6 +122,7 @@ import ParentHandoff from '../(auth)/parent-handoff'
 import Welcome from '../(auth)/welcome'
 import JoinInviteScreen from '../join/[...code]'
 import { HomeOnboardingNotices } from '../../src/onboarding/HomeOnboardingNotices'
+import { OnboardingTextField } from '../../src/onboarding/ui'
 import { ApiError } from '../../src/api/client'
 import { LAUNCH_FEATURES } from '@anstoss/shared'
 
@@ -597,6 +598,12 @@ describe('Verein finden', () => {
 })
 
 describe('club setup', () => {
+  it('announces an error ahead of a custom accessibility hint', () => {
+    const screen = render(<OnboardingTextField label="Team" hint="Default" accessibilityHint="Custom" error="Invalid" testID="field" />)
+    expect(screen.getByTestId('field').props.accessibilityHint).toBe('Invalid')
+    screen.rerender(<OnboardingTextField label="Team" hint="Default" accessibilityHint="Custom" testID="field" />)
+    expect(screen.getByTestId('field').props.accessibilityHint).toBe('Custom')
+  })
   it('submits a claim without a team-page link', async () => {
     mockParams = { clubName: 'FC Treptow' }
     mockApi.mockImplementation(async (path: string) =>
@@ -616,6 +623,15 @@ describe('club setup', () => {
     expect(isOfficialTeamLink('https://fussball.de:444/team')).toBe(false)
     expect(isOfficialTeamLink('https://fussball.de.evil.example/team')).toBe(false)
     expect(isOfficialTeamLink(`https://fussball.de/${'x'.repeat(500)}`)).toBe(false)
+  })
+  it('exposes the team link guidance and validation error to screen readers', () => {
+    const screen = render(<ClubSetupScreen />)
+    const input = screen.getByTestId('club-setup-link-input')
+    expect(input.props.accessibilityHint).toBe('onboardingFlow.clubSetup.linkHint')
+    fireEvent.changeText(input, 'https://example.com/team')
+    fireEvent(input, 'blur')
+    expect(screen.getByTestId('club-setup-link-input').props.accessibilityHint)
+      .toBe('onboardingFlow.clubSetup.linkInvalid')
   })
   it('submits the supplied FUSSBALL.DE page after the team name is entered', async () => {
     const link = 'https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/'

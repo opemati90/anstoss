@@ -254,7 +254,7 @@ type FieldProps = TextInputProps & {
 
 /** Large, readable single-line input used by every onboarding question. */
 export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function OnboardingTextField(
-  { label, error, hint, style, onFocus, onBlur, ...rest },
+  { label, error, hint, accessibilityHint, style, onFocus, onBlur, ...rest },
   ref,
 ) {
   const c = useClubColors()
@@ -267,6 +267,7 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
       <TextInput
         ref={ref}
         accessibilityLabel={label}
+        accessibilityHint={error ?? accessibilityHint ?? hint ?? undefined}
         placeholderTextColor={c.textTertiary}
         selectionColor={c.primary}
         onFocus={(event) => {
