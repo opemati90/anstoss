@@ -18,6 +18,16 @@ date of birth less than 18 years ago; it does not establish that all users
 have a known date of birth. Do not run the broad development seed in production.
 Recheck current state before a cutover. No production data was modified.
 
+The same day's read-only inspection found PostgreSQL 18.6, `en_US.utf8`
+collation, only `plpgsql` installed, and 73 finished migrations with none
+unfinished. Fourteen migration directories differ between bridge revision
+`f31b82f` and the candidate. This is not a migration rehearsal or proof that
+the migrations are safe for existing data and production locks. An initial
+schema-only rehearsal script failed independent safety review and was disabled
+before execution; no production dump was taken. A safe rehearsal needs an
+enforced read-only shared snapshot, exact migration-history verification,
+isolated matching-version restore and post-migration catalog checks.
+
 This checkpoint does not authorize enabling private-media cleanup or publishing
 store builds: the media cutover, compatible-client delivery, independent
 release audit, store artwork review and production/device verification gates
