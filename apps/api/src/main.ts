@@ -1,17 +1,25 @@
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import helmet from 'helmet'
-import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
 import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
 import { isHttpOriginAllowed } from './http-cors'
 import { defaultHttpBodyParsers, httpBodyParsers } from './http-body-parsers'
 import { mediaCutoverFreeze } from './media/media-cutover-freeze'
-
-// Sentry must init before NestJS bootstrap
-initSentry()
+import { createMigrationMaintenanceServer, migrationMaintenanceEnabled } from './media/migration-maintenance'
 
 async function bootstrap() {
+  if (migrationMaintenanceEnabled(process.env.ANSTOSS_MIGRATION_MAINTENANCE)) {
+    const server = createMigrationMaintenanceServer()
+    const port = Number(process.env.PORT || 3001)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid maintenance port')
+    server.listen(port, '0.0.0.0', () => console.log('Anstoss API running in migration maintenance mode'))
+    return
+  }
+
+  // Sentry must init before NestJS bootstrap, but maintenance starts no app.
+  initSentry()
+  const { AppModule } = await import('./app.module')
   const isProd = process.env.NODE_ENV === 'production'
 
   // Validate secrets BEFORE building the app so a misconfigured deploy fails
