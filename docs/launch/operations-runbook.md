@@ -55,6 +55,15 @@ capacity with approximately 225.7 MB used. This is a platform-reported
 snapshot, not a guarantee of available PostgreSQL/WAL headroom; verify again
 before migration and retain a recoverable backup.
 
+On 2026-11-05, a read-only Railway backup-list check for the exact active
+production database volume returned one listed backup, expired on 2026-09-22,
+and no unexpired backup. A subsequently authorized manual backup request had an
+unknown outcome after an API-session failure; it did not return a workflow ID.
+Refreshed list checks showed no new backup with the requested name, but they do
+not prove whether an in-flight request was accepted. Do not blindly retry:
+check the Railway Backups tab/workflow and confirm the outcome first. A listed
+backup alone is not proof of PostgreSQL consistency or an isolated restore test.
+
 **Media freeze alone is not a migration-wide write fence.** Channel text and
 other event/attendance writes can still contend with the new indexes/ALTERs,
 which use a two-second lock timeout. A separate `ANSTOSS_MIGRATION_MAINTENANCE`
