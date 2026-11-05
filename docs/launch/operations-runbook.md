@@ -64,6 +64,33 @@ not prove whether an in-flight request was accepted. Do not blindly retry:
 check the Railway Backups tab/workflow and confirm the outcome first. A listed
 backup alone is not proof of PostgreSQL consistency or an isolated restore test.
 
+Later on 2026-11-05, a second single backup request returned no workflow ID.
+The user's Railway Backups screenshot subsequently showed only the older
+backup and stated that the current plan must be upgraded to Pro to create new
+managed backups. Do not restore the old backup over production. A current,
+independently restore-tested backup is still required before migration; a
+logical PostgreSQL backup may be evaluated as an alternative without changing
+the Railway subscription.
+
+An owner-only preliminary logical database archive was subsequently created
+on the user's FileVault-encrypted Mac, without a Railway plan upgrade. Its
+SHA-256 was verified before restoring into a fresh local PostgreSQL 18 cluster
+using a private Unix socket and no TCP listener. The restore succeeded, showed
+73 completed and zero unfinished migrations, and the temporary cluster was
+stopped and removed. No application services were started. This was an
+unfenced snapshot; it excludes owners and privileges, does not back up R2 or
+provide point-in-time recovery, and its checks did not compare all table data
+or the complete schema. It does not replace a fresh fenced recovery point or
+the remaining cutover checks. Retain the archive securely and apply an
+appropriate deletion/retention policy.
+
+The same preliminary archive was then restored into another local-only PG18
+cluster, and all 14 pending candidate migrations applied successfully with
+zero unfinished migrations. The temporary database was stopped and removed;
+production was not modified. This tests the data present in that snapshot, but
+does not establish production lock timing, concurrent-writer safety, complete
+post-migration schema equivalence, or behavior of data added afterwards.
+
 **Media freeze alone is not a migration-wide write fence.** Channel text and
 other event/attendance writes can still contend with the new indexes/ALTERs,
 which use a two-second lock timeout. A separate `ANSTOSS_MIGRATION_MAINTENANCE`
