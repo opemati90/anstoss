@@ -50,6 +50,10 @@ and none unfinished. No waiting or granted locks on those relations, old
 visible transactions, or prepared transactions were observed. Activity/lock
 visibility may be restricted, statistics are cumulative, and none of these
 observations fences subsequent writes. Repeat them immediately before cutover.
+On 2026-11-05 Railway listed the production `Postgres` volume as 5,000 MB
+capacity with approximately 225.7 MB used. This is a platform-reported
+snapshot, not a guarantee of available PostgreSQL/WAL headroom; verify again
+before migration and retain a recoverable backup.
 
 **Media freeze alone is not a migration-wide write fence.** Channel text and
 other event/attendance writes can still contend with the new indexes/ALTERs,
@@ -86,6 +90,26 @@ include the subsequent onboarding redesign, and its status does not prove any
 device has installed it or completed a media test. EAS submission history for
 Android was empty. The Android AAB therefore has no verified Play distribution
 in this checkpoint. Neither result authorizes the production media cutover.
+
+On 2026-11-05, the user supplied a Cloudflare dashboard screenshot of the EU
+`anstoss-quarantine` bucket showing **Public Access: Disabled**. This confirms
+the dashboard's bucket-level public-access status at that time; it does not
+prove that no separately configured Worker or other authorized integration can
+serve objects. The dashboard also showed existing `chat/`, `dm/` and
+`retired-chat/` prefixes. Do not assume those objects are disposable; reconcile
+them by metadata and references before cleanup or cutover, and do not delete
+them solely based on their names.
+
+An exploratory aggregate listing on 2026-11-05 found no current objects under
+the public `chat/` and `dm/` prefixes. In the private bucket it found five
+zero-byte `chat/` objects, three zero-byte `dm/` objects, and eight zero-byte
+`retired-chat/` records; the `quarantine/` and reserved `private-chat/`
+prefixes were empty. A separate in-memory, key-hash correlation found eight
+matching zero-byte source/retirement pairs and no unmatched or unrecognized
+source keys. This is consistent with retained barriers, not proof of their
+provenance, DB reference state, multipart/version state, or safe deletion.
+The listings were non-atomic and occurred while writers were not fenced; rerun
+under the verified maintenance fence before cutover and preserve all objects.
 
 This checkpoint does not authorize enabling private-media cleanup or publishing
 store builds: the media cutover, compatible-client delivery, independent
