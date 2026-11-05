@@ -42,6 +42,38 @@ index duration, disk/WAL requirements, concurrent-writer safety, or production
 application behavior. Recheck production data, locks and storage under the
 cutover freeze and complete those remaining gates before any deployment.
 
+A separate read-only aggregate preflight at `2026-11-04T14:52:58Z` observed
+zero non-null channel/DM attachment URLs, zero matching private-v1 duplicate
+groups, and no URLs over 2,500 bytes. The five existing touched tables were
+small (largest total relation size 131,072 bytes); 73 migrations were finished
+and none unfinished. No waiting or granted locks on those relations, old
+visible transactions, or prepared transactions were observed. Activity/lock
+visibility may be restricted, statistics are cumulative, and none of these
+observations fences subsequent writes. Repeat them immediately before cutover.
+
+**Media freeze alone is not a migration-wide write fence.** Channel text and
+other event/attendance writes can still contend with the new indexes/ALTERs,
+which use a two-second lock timeout. A separate `ANSTOSS_MIGRATION_MAINTENANCE`
+mode now exists in the candidate: it starts only a standalone HTTP server,
+reports `{"status":"maintenance"}` for exact GET/HEAD `/health`, returns 503
+and `Retry-After` for other requests, and rejects WebSocket upgrades. It does
+not start Nest, gateways or in-process workers. Invalid flag values fail closed.
+Local compiled-process smoke tests ran without database credentials and verified
+the health body and a 503 write; unit tests also cover polling and WebSockets.
+
+Railway runs predeploy migrations **before** the new container starts. Never
+deploy the full candidate to establish this fence. First deploy a separately
+reviewed bridge based on the currently deployed `f31b82f` with this maintenance
+mode but without new migrations. Enable maintenance on that bridge, verify the
+health body and HTTP/WebSocket 503s, confirm old replicas and existing sockets
+are drained, and pause or fence all external direct-DB writers and jobs. Only
+then, after a current recoverable backup, free-space checks and refreshed data/
+lock and storage inventories, may a reviewed candidate run migrations while
+the bridge remains in maintenance. Keep both private-upload cleanup flags off
+initially and follow the two-account real-device verification plan before
+enabling cleanup or ending maintenance. Neither the bridge update nor this
+candidate is deployed merely because these local tests pass.
+
 This checkpoint does not authorize enabling private-media cleanup or publishing
 store builds: the media cutover, compatible-client delivery, independent
 release audit, store artwork review and production/device verification gates
