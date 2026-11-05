@@ -71,8 +71,21 @@ then, after a current recoverable backup, free-space checks and refreshed data/
 lock and storage inventories, may a reviewed candidate run migrations while
 the bridge remains in maintenance. Keep both private-upload cleanup flags off
 initially and follow the two-account real-device verification plan before
-enabling cleanup or ending maintenance. Neither the bridge update nor this
-candidate is deployed merely because these local tests pass.
+enabling cleanup or ending maintenance. On 2026-11-05, the migration-free
+bridge `41e6e51` deployed successfully to the production API as Railway
+deployment `08ddee4c-39a9-46df-905c-0289b6a0de46`, with the maintenance flag
+unset. Production `/health` reported `status: ok` and `db: ok`; a subsequent
+read-only preflight still found 73 completed migrations, none unfinished, and
+none of the sampled candidate tables or indexes. This verifies the dormant
+bridge only: maintenance has not been activated, and the candidate migrations
+and full private-media API have not been deployed.
+
+On 2026-11-05, App Store Connect reported iOS 1.0.1 build 87 as `VALID` and
+`IN_BETA_TESTING` internally. That artifact is revision `4c17547`; it does not
+include the subsequent onboarding redesign, and its status does not prove any
+device has installed it or completed a media test. EAS submission history for
+Android was empty. The Android AAB therefore has no verified Play distribution
+in this checkpoint. Neither result authorizes the production media cutover.
 
 This checkpoint does not authorize enabling private-media cleanup or publishing
 store builds: the media cutover, compatible-client delivery, independent
