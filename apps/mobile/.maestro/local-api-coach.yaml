@@ -1,0 +1,16 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'anstoss://e2e?scenario=coach&language=de'
+- extendedWaitUntil:
+    visible: 'Nächstes Spiel'
+    timeout: 30000
+- openLink: 'anstoss://event-detail?eventId=event-match-away'
+- extendedWaitUntil:
+    visible: 'Verfügbarkeit'
+    timeout: 30000
+- scrollUntilVisible:
+    element: '.*Julian Becker.*'
+    direction: DOWN
+    visibilityPercentage: 60
+    timeout: 30000
+- assertVisible: '.*Julian Becker, Vielleicht.*'

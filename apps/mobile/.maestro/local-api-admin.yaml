@@ -1,0 +1,14 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'anstoss://e2e?scenario=club-admin&language=de'
+- extendedWaitUntil:
+    visible: '.*offene Aufgaben'
+    timeout: 30000
+- openLink: 'anstoss://pending-requests'
+- extendedWaitUntil:
+    visible: '.*Julian Becker.*'
+    timeout: 30000
+- tapOn: '.*Annehmen.*Julian Becker.*'
+- extendedWaitUntil:
+    notVisible: '.*Annehmen.*Julian Becker.*'
+    timeout: 15000

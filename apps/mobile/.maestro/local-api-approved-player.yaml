@@ -1,0 +1,7 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'anstoss://e2e?scenario=signup-player&language=de'
+- extendedWaitUntil:
+    visible: 'Termine'
+    timeout: 30000
+- assertVisible: 'SV Albatros'

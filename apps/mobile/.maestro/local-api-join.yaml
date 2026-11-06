@@ -1,0 +1,26 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'anstoss://e2e?scenario=signup-player&language=de'
+- extendedWaitUntil:
+    visible:
+      id: 'find-club-search'
+    timeout: 30000
+- tapOn:
+    id: 'find-club-search'
+- inputText: 'Albatros'
+- extendedWaitUntil:
+    visible:
+      id: 'find-club-row-sv-albatros'
+    timeout: 15000
+- tapOn:
+    id: 'find-club-row-sv-albatros'
+- tapOn:
+    id: 'club-role-player'
+- tapOn:
+    id: 'club-team-team-e2e-senior-1'
+- tapOn:
+    id: 'club-send-request'
+- extendedWaitUntil:
+    visible:
+      id: 'request-pending'
+    timeout: 20000

@@ -1,0 +1,46 @@
+appId: com.renuirug.anstoss
+---
+- launchApp:
+    clearState: true
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8124'
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: '(?i).*(DEVELOPMENT SERVERS|developer menu|Welcome to Anstoss|Sign in or join|Anmelden oder beitreten).*'
+    timeout: 180000
+- runFlow:
+    when:
+      visible: 'Enter URL manually'
+    commands:
+      - tapOn: 'Enter URL manually'
+      - tapOn: 'http://'
+      - inputText: 'http://127.0.0.1:8124'
+      - tapOn: 'Connect'
+- runFlow:
+    when:
+      visible: '.*developer menu.*'
+    commands:
+      - scrollUntilVisible:
+          element: 'Continue'
+          direction: DOWN
+          timeout: 10000
+          optional: true
+      - tapOn: 'Continue'
+- runFlow:
+    when:
+      visible: 'Go home'
+    commands:
+      - tapOn:
+          point: '50%,10%'
+- extendedWaitUntil:
+    visible: '(?i).*(Welcome to Anstoss|Sign in or join|Anmelden oder beitreten|Home|Welcome).*'
+    timeout: 180000
+- openLink: 'anstoss://e2e?scenario=player&language=de'
+- extendedWaitUntil:
+    visible: 'Bist du dabei?'
+    timeout: 30000
+- tapOn: 'Vielleicht'
+- assertVisible: 'Termine'

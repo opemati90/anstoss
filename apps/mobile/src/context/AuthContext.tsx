@@ -833,6 +833,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true)
         try {
           applyE2ESession(getE2ESession())
+          if (__DEV__ && process.env.EXPO_PUBLIC_E2E_LOCAL_API === '1') {
+            const result = await api<{ memberships: Membership[]; teamMembers: TeamMember[]; pendingJoinRequest: { id: string; clubId: string } | null }>('/me')
+            setPendingJoinRequest(result.pendingJoinRequest)
+            setMemberships(result.memberships)
+            setTeamMembers(result.teamMembers)
+            setActiveClubState(result.memberships[0] ?? null)
+            setActiveTeamId(result.teamMembers[0]?.team.id ?? null)
+          }
         } finally {
           setIsLoading(false)
         }

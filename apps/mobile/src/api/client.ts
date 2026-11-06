@@ -3,6 +3,7 @@ import { getRuntimeConfig } from '../config/runtime'
 import * as Application from 'expo-application'
 import { getE2ESession, handleE2EApiRequest } from '../e2e/session'
 import i18n from '../i18n'
+import { isSimulatorFixtureRoute, withoutAuthorization } from './simulatorRoute'
 
 const runtimeConfig = getRuntimeConfig()
 const API_URL = runtimeConfig.apiUrl || 'http://localhost:3001'
@@ -122,9 +123,14 @@ export async function api<T = unknown>(
     )
   }
 
-  const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
-  const e2eResponse = handleE2EApiRequest(path, { method, body, headers })
+  const fixtureSession = __DEV__ ? getE2ESession() : null
+  const simulatorBackend = isSimulatorFixtureRoute(__DEV__, process.env.EXPO_PUBLIC_E2E_LOCAL_API, Boolean(fixtureSession), path)
+  const token = simulatorBackend ? null : await getToken()
+  const requestHeaders = simulatorBackend
+    ? withoutAuthorization(headers)
+    : headers
+  const e2eResponse = simulatorBackend ? { handled: false as const } : handleE2EApiRequest(path, { method, body, headers })
 
   if (e2eResponse.handled) {
     if (!e2eResponse.ok) {
@@ -146,14 +152,15 @@ export async function api<T = unknown>(
 
     try {
       const acceptLanguage = i18n.resolvedLanguage || i18n.language || 'de'
-      const res = await fetch(`${API_URL}${path}`, {
+      const res = await fetch(`${simulatorBackend ? 'http://127.0.0.1:31337' : API_URL}${path}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'X-App-Version': APP_VERSION,
           'Accept-Language': acceptLanguage,
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...headers,
+          ...requestHeaders,
+          ...(simulatorBackend && fixtureSession ? { 'x-fixture-user': fixtureSession.user.id } : {}),
         },
         signal: controller.signal,
         ...(body ? { body: JSON.stringify(body) } : {}),
