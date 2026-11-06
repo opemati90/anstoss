@@ -904,6 +904,8 @@ export default {
   },
   matches: {
     title: 'Maçlar',
+    watchLive: 'Canlı izle',
+    fullTime: 'Maç sonucu',
     facts: {
       insight: {
         concedeLate: 'Takım: {{team}} · yenilen gollerin bu oranı 60. dakikadan sonra geliyor.',

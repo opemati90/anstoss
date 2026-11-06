@@ -9,7 +9,8 @@ appId: com.renuirug.anstoss
 # "Open live match" text is (correctly) not individually queryable. Assert the
 # label a screen reader would actually read.
 - assertVisible: ".*vs.*live.*"
-- assertVisible: "Team chat"
+- assertVisible: "Are you in?"
+- tapOn: "Going"
 - runFlow:
     file: subflows/deeplink.yaml
     env:

@@ -861,6 +861,8 @@ const base = {
   },
   matches: {
     title: 'Matches',
+    watchLive: 'Watch live',
+    fullTime: 'Full time',
     facts: {
       insight: {
         concedeLate: 'of {{team}} goals against come after the 60th minute.',

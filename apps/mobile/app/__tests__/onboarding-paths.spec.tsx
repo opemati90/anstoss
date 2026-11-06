@@ -395,11 +395,18 @@ describe('traced onboarding paths (caps)', () => {
       welcome: typeEmailOnWelcome(),
       code: typeCode,
       profile: nameAndAdultDob,
-      clubSearch: requestAs('club-role-player'),
+      clubSearch: requestAs('club-role-player', async (s) => {
+        await waitFor(() => s.getByTestId('club-team-team-1'))
+        fireEvent.press(s.getByTestId('club-team-team-1'))
+      }),
     })
     assertPath('member', screens)
     expect(end).toBe('/(auth)/request-pending')
     expect(mockWorld.pendingJoinRequest).not.toBeNull()
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/join-requests', {
+      method: 'POST',
+      body: { role: 'PLAYER', teamId: 'team-1' },
+    })
   })
 
   it('parent without an invite: 4 screens, role chosen inline on the club row', async () => {

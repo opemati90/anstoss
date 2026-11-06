@@ -490,7 +490,7 @@ describe('JoinRequestsService.approve', () => {
     }
   }
 
-  it('grants club membership and marks the request approved', async () => {
+  it('assigns a selected team to a legacy teamless request when approving', async () => {
     const { service, prisma, tx } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-1',
@@ -501,7 +501,7 @@ describe('JoinRequestsService.approve', () => {
       status: JoinRequestStatus.PENDING,
     })
 
-    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1 })).resolves.toEqual(
+    await expect(service.approve('club-1', 'jr-1', 'reviewer-1', { revision: 1, teamId: 'team-9' })).resolves.toEqual(
       {
         status: 'APPROVED',
       },
@@ -513,19 +513,56 @@ describe('JoinRequestsService.approve', () => {
         create: { userId: 'user-1', clubId: 'club-1', role: 'PLAYER' },
       }),
     )
-    // No team specified -> no team-scoped access granted
-    expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
-    expect(tx.teamMember.upsert).not.toHaveBeenCalled()
+    expect(tx.teamAccess.upsert).toHaveBeenCalled()
+    expect(tx.teamMember.upsert).toHaveBeenCalled()
     expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'jr-1', clubId: 'club-1', status: 'PENDING', revision: 1 },
         data: expect.objectContaining({
           status: 'APPROVED',
           reviewedBy: 'reviewer-1',
+          teamId: 'team-9',
         }),
       }),
     )
     expect(tx.auditLog.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not approve a teamless player without a selected team', async () => {
+    const { service, prisma, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-teamless', clubId: 'club-1', userId: 'user-1', role: 'PLAYER',
+      teamId: null, status: JoinRequestStatus.PENDING,
+    })
+    await expect(service.approve('club-1', 'jr-teamless', 'reviewer-1', { revision: 1 }))
+      .rejects.toBeInstanceOf(BadRequestException)
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+  })
+
+  it('rejects an administrator-selected team from another club', async () => {
+    const { service, prisma, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-teamless', clubId: 'club-1', userId: 'user-1', role: 'PLAYER',
+      teamId: null, status: JoinRequestStatus.PENDING,
+    })
+    tx.team.findFirst.mockResolvedValue(null)
+    await expect(service.approve('club-1', 'jr-teamless', 'reviewer-1', { revision: 1, teamId: 'foreign-team' }))
+      .rejects.toBeInstanceOf(BadRequestException)
+    expect(tx.membership.upsert).not.toHaveBeenCalled()
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('keeps the team the applicant selected instead of accepting a different review team', async () => {
+    const { service, prisma, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-team', clubId: 'club-1', userId: 'user-1', role: 'PLAYER',
+      teamId: 'team-9', status: JoinRequestStatus.PENDING,
+    })
+    await service.approve('club-1', 'jr-team', 'reviewer-1', { revision: 1, teamId: 'other-team' })
+    expect(tx.teamAccess.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ teamId: 'team-9' }),
+    }))
   })
 
   it('does not activate a request after the requester deleted their account', async () => {
@@ -585,7 +622,7 @@ describe('JoinRequestsService.approve', () => {
       clubId: 'club-1',
       userId: 'user-1',
       role: 'PLAYER',
-      teamId: null,
+      teamId: 'team-9',
       status: JoinRequestStatus.PENDING,
     })
 
@@ -620,7 +657,10 @@ describe('JoinRequestsService.approve', () => {
           teamId: 'team-9',
           userId: 'user-2',
           role: 'PLAYER',
+          phase: 'FULL',
+          status: 'ACTIVE',
         }),
+        update: { phase: 'FULL', status: 'ACTIVE', loanedFromTeamId: null, loanStartDate: null, loanEndDate: null },
       }),
     )
     expect(tx.teamMember.upsert).toHaveBeenCalledWith(
@@ -628,6 +668,19 @@ describe('JoinRequestsService.approve', () => {
         where: { teamId_userId: { teamId: 'team-9', userId: 'user-2' } },
       }),
     )
+  })
+
+  it('keeps a successful approval successful when notification delivery fails', async () => {
+    const { service, prisma, push, tx } = makeService()
+    prisma.joinRequest.findFirst.mockResolvedValue({
+      id: 'jr-notify', clubId: 'club-1', userId: 'user-2', role: 'PLAYER',
+      teamId: 'team-9', status: JoinRequestStatus.PENDING,
+    })
+    push.sendToUserLocalized.mockRejectedValue(new Error('push unavailable'))
+
+    await expect(service.approve('club-1', 'jr-notify', 'reviewer-1', { revision: 1 }))
+      .resolves.toEqual({ status: 'APPROVED' })
+    expect(tx.joinRequest.updateMany).toHaveBeenCalled()
   })
 
   it('turns an approved Aufnahmeantrag into full access and closes the trial as JOINED', async () => {
@@ -647,7 +700,7 @@ describe('JoinRequestsService.approve', () => {
     expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ phase: 'FULL', status: 'ACTIVE' }),
-        update: { phase: 'FULL', status: 'ACTIVE' },
+        update: { phase: 'FULL', status: 'ACTIVE', loanedFromTeamId: null, loanStartDate: null, loanEndDate: null },
       }),
     )
     expect(tx.trialInvite.updateMany).toHaveBeenCalledWith({
@@ -703,11 +756,7 @@ describe('JoinRequestsService.approve', () => {
 
     expect(tx.teamAccess.upsert).not.toHaveBeenCalled()
     expect(tx.teamMember.upsert).not.toHaveBeenCalled()
-    expect(tx.joinRequest.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'jr-2', clubId: 'club-1', status: 'PENDING', revision: 1 },
-      }),
-    )
+    expect(tx.joinRequest.updateMany).not.toHaveBeenCalled()
     expect(tx.auditLog.create).not.toHaveBeenCalled()
     expect(push.sendToUserLocalized).not.toHaveBeenCalled()
   })
@@ -719,7 +768,7 @@ describe('JoinRequestsService.approve', () => {
       clubId: 'club-1',
       userId: 'user-3',
       role: 'PLAYER',
-      teamId: null,
+      teamId: 'team-9',
       status: JoinRequestStatus.PENDING,
     })
     tx.joinRequest.updateMany.mockResolvedValue({ count: 0 })

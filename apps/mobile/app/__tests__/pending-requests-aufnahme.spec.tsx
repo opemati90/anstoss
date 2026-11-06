@@ -55,6 +55,7 @@ import { ApiError } from '../../src/api/client'
 const TRIAL_REQUEST = {
   id: 'jr-erik',
   role: 'PLAYER',
+  teamId: 'team-1',
   message: null,
   status: 'PENDING',
   revision: 1,

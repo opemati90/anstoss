@@ -143,10 +143,10 @@ export const onboardingFlowDe = {
   },
   pending: {
     title: 'Anfrage gesendet',
-    body: 'Deine Anfrage liegt bei {{club}}. Der Trainer bestätigt dich meist innerhalb eines Tages.',
+    body: 'Deine Anfrage liegt bei {{club}}. Die Vereinsverwaltung prüft sie.',
     bodyCoach:
       'Der Vorstand von {{club}} prüft deine Anfrage als Trainer. Das dauert meist ein bis zwei Tage.',
-    bodyNoClub: 'Deine Anfrage liegt beim Verein. Der Trainer bestätigt dich meist innerhalb eines Tages.',
+    bodyNoClub: 'Deine Anfrage liegt beim Verein. Die Vereinsverwaltung prüft sie.',
     status: 'Wartet auf Bestätigung',
     nextTitle: 'So geht es weiter',
     next1: 'Wir schicken dir eine Mitteilung, sobald du bestätigt bist.',

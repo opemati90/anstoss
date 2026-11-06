@@ -858,6 +858,8 @@ const base = {
   },
   matches: {
     title: 'Spiele',
+    watchLive: 'Live ansehen',
+    fullTime: 'Endstand',
     facts: {
       insight: {
         concedeLate: 'der Gegentore von {{team}} fallen nach der 60. Minute.',

@@ -61,6 +61,9 @@ describe('club/[slug] — apiErrorKey adoption', () => {
       isActive: true,
     }
     mockApi.mockImplementation((url: string) => {
+      if (url.startsWith('/clubs/lookup')) {
+        return Promise.resolve({ teams: [{ id: 'team-1', displayName: 'Herren I' }] })
+      }
       if (url === '/clubs/c1/join-requests') {
         return Promise.reject(new ApiError('rl', 429, 'RATE_LIMIT_EXCEEDED'))
       }
@@ -68,6 +71,7 @@ describe('club/[slug] — apiErrorKey adoption', () => {
     })
 
     const { findByTestId } = render(<ClubPreview />)
+    fireEvent.press(await findByTestId('club-preview-team-team-1'))
     const submit = await findByTestId('club-preview-request-to-join')
     await act(async () => {
       fireEvent.press(submit)

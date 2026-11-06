@@ -143,10 +143,10 @@ export const onboardingFlowFr: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Demande envoyée',
-    body: 'Ta demande est entre les mains de {{club}}. L’entraîneur te confirme en général dans la journée.',
+    body: 'Ta demande a été envoyée à {{club}}. Un administrateur du club va l’examiner.',
     bodyCoach:
       'Le bureau de {{club}} examine ta demande d’entraîneur. Cela prend en général un à deux jours.',
-    bodyNoClub: 'Ta demande a été transmise au club. L’entraîneur te confirme en général dans la journée.',
+    bodyNoClub: 'Ta demande a été transmise au club. Un administrateur va l’examiner.',
     status: 'En attente de confirmation',
     nextTitle: 'La suite',
     next1: 'On te prévient dès que tu es confirmé.',

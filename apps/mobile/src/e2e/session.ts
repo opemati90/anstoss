@@ -940,7 +940,7 @@ function createFixtures(): ImportedFixture[] {
       teamLinkId: 'link-1',
       provider: 'api_fussball',
       externalMatchId: 'match-42',
-      competition: 'League match',
+      competition: 'Kreisliga',
       season: '2025/26',
       kickoffAt: nowIso(0, 14, 0),
       status: 'live',

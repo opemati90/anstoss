@@ -70,6 +70,7 @@ describe('ClubPreview', () => {
       memberCount: 42,
       teamCount: 5,
     })
+    mockApi.mockResolvedValueOnce({ teams: [] })
 
     const { findByText } = render(<ClubPreview />)
 
@@ -92,16 +93,18 @@ describe('ClubPreview', () => {
         memberCount: 42,
         teamCount: 5,
       })
+      .mockResolvedValueOnce({ teams: [{ id: 'team-1', displayName: 'Herren I' }] })
       .mockResolvedValueOnce({ id: 'jr1', status: 'PENDING' })
 
-    const { findByText } = render(<ClubPreview />)
+    const { findByText, findByTestId } = render(<ClubPreview />)
+    fireEvent.press(await findByTestId('club-preview-team-team-1'))
     const cta = await findByText('Request to join')
     fireEvent.press(cta)
 
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
         '/clubs/c1/join-requests',
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({ method: 'POST', body: { role: 'PLAYER', teamId: 'team-1' } }),
       )
       expect(mockRefreshUser).toHaveBeenCalledWith(undefined, { throwOnError: true })
       expect(mockReplace).toHaveBeenCalledWith('/pending-approval')

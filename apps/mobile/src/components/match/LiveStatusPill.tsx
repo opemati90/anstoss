@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { useMatchTokens } from '../../theme/matchTokens'
 import { fontSize, fonts, radius, space } from '../../theme/tokens'
@@ -21,6 +22,7 @@ export function LiveStatusPill({
   scheduledLabel,
   inverse,
 }: LiveStatusPillProps) {
+  const { t } = useTranslation()
   const tokens = useMatchTokens()
   const pulse = useRef(new Animated.Value(0.5)).current
 
@@ -60,10 +62,10 @@ export function LiveStatusPill({
     status === 'live'
       ? minute !== undefined
         ? `LIVE · ${minute}'`
-        : 'WATCH LIVE'
+        : t('matches.watchLive')
       : status === 'final'
-        ? `FT${finalScore ? ` · ${finalScore}` : ''}`
-        : (scheduledLabel ?? 'UPCOMING')
+        ? `${t('matches.fullTime')}${finalScore ? ` · ${finalScore}` : ''}`
+        : (scheduledLabel ?? t('matches.upcoming'))
 
   return (
     <View style={[styles.pill, { backgroundColor: inverseBg }]}>

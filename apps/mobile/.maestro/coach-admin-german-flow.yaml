@@ -1,0 +1,21 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=coach&language=de'
+- extendedWaitUntil:
+    visible: 'Nächstes Spiel'
+    timeout: 15000
+- assertVisible: 'Aufstellung'
+- assertVisible: '.*Erinnerung an.*senden'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=club-admin&language=de'
+- extendedWaitUntil:
+    visible: '.*offene Aufgaben'
+    timeout: 15000
+- assertVisible: 'Aufnahmeanträge.*'
+- assertVisible: 'Annehmen: Erik Brandt'

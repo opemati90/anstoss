@@ -867,6 +867,8 @@ const base = {
   },
   matches: {
     title: 'Partite',
+    watchLive: 'Guarda in diretta',
+    fullTime: 'Risultato finale',
     facts: {
       insight: {
         concedeLate: 'dei gol subiti da {{team}} arrivano dopo il 60° minuto.',

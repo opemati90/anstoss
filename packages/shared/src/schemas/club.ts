@@ -437,6 +437,7 @@ export const updateJoinRequestWechselSchema = z
 
 export const reviewJoinRequestSchema = z.object({
   revision: z.number().int().positive(),
+  teamId: z.string().trim().min(1).optional(),
   reason: z.string().max(500).optional(),
 })
 

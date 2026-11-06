@@ -115,6 +115,7 @@ export interface AdminInboxSection<T> {
 
 export interface AdminInboxJoinRequest {
   id: string
+  teamId?: string | null
   revision: number
   role: string
   message: string | null

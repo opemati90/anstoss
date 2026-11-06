@@ -25,10 +25,8 @@ import { assertLaunchBirthDate, assertLaunchParticipant } from '../auth/launch-a
  *   chat gateway).
  * - Room per team: `team:{teamId}`.
  * - Emits:
- *     - `event:rsvp`   — when an RSVP is created/changed; carries the event id
- *                        and fresh yes/maybe/no/response counts so clients can
- *                        patch their cached feed without a refetch.
- *     - `event:upsert` — when an event is created or updated.
+ *     - `event:upsert` — when an event or availability changes; clients refetch
+ *                        the authorized, roster-filtered event feed.
  * - Redis adapter for horizontal scaling (mirrors the chat gateway). Without
  *   REDIS_URL it runs single-instance, which is fine for dev/staging.
  *
@@ -146,34 +144,16 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
   }
 
   /**
-   * Broadcast fresh RSVP counts for an event to its team room. Called by
-   * EventsService after an RSVP upsert. Counts are recomputed server-side
-   * so every client converges on the same totals.
+   * Invalidate the event feed after an RSVP change. The feed's authoritative
+   * counts exclude inactive and loaned-out players; raw RSVP counts do not.
    */
   async emitRsvpUpdate(teamId: string, eventId: string) {
     if (!this.server) return
     try {
-      const grouped = await this.prisma.rsvp.groupBy({
-        by: ['status'],
-        where: { eventId },
-        _count: { status: true },
-      })
-      const countFor = (status: string) =>
-        grouped.find((g: { status: string }) => g.status === status)?._count.status ?? 0
-      const yesCount = countFor('YES')
-      const maybeCount = countFor('MAYBE')
-      const noCount = countFor('NO')
-      this.server.to(`team:${teamId}`).emit('event:rsvp', {
-        eventId,
-        teamId,
-        yesCount,
-        maybeCount,
-        noCount,
-        responseCount: yesCount + maybeCount + noCount,
-      })
+      this.server.to(`team:${teamId}`).emit('event:upsert', { eventId, teamId })
     } catch (err) {
       this.logger.warn(
-        `Failed to emit event:rsvp for ${eventId}: ${
+        `Failed to emit event:upsert for ${eventId}: ${
           err instanceof Error ? err.message : 'unknown error'
         }`,
       )

@@ -143,10 +143,10 @@ export const onboardingFlowEn: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Request sent',
-    body: 'Your request is with {{club}}. The coach usually confirms you within a day.',
+    body: 'Your request is with {{club}}. A club administrator will review it.',
     bodyCoach:
       'The committee at {{club}} is reviewing your coach request. This usually takes one or two days.',
-    bodyNoClub: 'Your request is with the club. The coach usually confirms you within a day.',
+    bodyNoClub: 'Your request is with the club. A club administrator will review it.',
     status: 'Waiting for confirmation',
     nextTitle: 'What happens next',
     next1: 'We’ll notify you as soon as you’re confirmed.',

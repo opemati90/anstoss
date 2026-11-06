@@ -1,0 +1,15 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=de'
+- extendedWaitUntil:
+    visible: 'Bist du dabei?'
+    timeout: 15000
+- assertVisible: 'Zusage'
+- assertVisible: 'Vielleicht'
+- assertVisible: 'Absage'
+- tapOn: 'Zusage'
+- assertVisible: 'Termine'

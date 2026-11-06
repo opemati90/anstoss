@@ -1602,6 +1602,9 @@ export class EventsService {
     responderUserId: string,
     status: RsvpStatusValue,
   ) {
+    // Event creators may have left the club or lost coaching authority since
+    // creating the event. Do not send player availability to a former manager.
+    await this.teamsService.assertEventManagementAccess(event.createdById, event.teamId)
     const responder = await this.prisma.user.findUnique({
       where: { id: responderUserId },
       select: { name: true },

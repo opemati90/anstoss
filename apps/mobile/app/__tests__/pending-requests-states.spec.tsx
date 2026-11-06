@@ -20,7 +20,7 @@ jest.mock('../../src/api/client', () => ({
   ApiError: class ApiError extends Error {},
 }))
 jest.mock('../../src/context/AuthContext', () => ({
-  useAuth: () => ({ activeClub: { club: { id: 'c1', name: 'FC' } } }),
+  useAuth: () => ({ activeClub: { club: { id: 'c1', name: 'FC', slug: 'fc' } } }),
 }))
 jest.mock('../../src/context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../src/theme/club-theme')
@@ -60,6 +60,7 @@ describe('pending-requests — states adoption', () => {
       {
         id: 'jr-1',
         role: 'PLAYER',
+        teamId: 'team-1',
         message: null,
         status: 'PENDING',
         revision: 4,
@@ -77,5 +78,28 @@ describe('pending-requests — states adoption', () => {
         body: { revision: 4 },
       })
     })
+  })
+
+  it('requires a team before approving an older teamless player request', async () => {
+    mockApi.mockImplementation((path: string) => {
+      if (path === '/clubs/c1/join-requests') return Promise.resolve([{
+        id: 'jr-legacy', role: 'PLAYER', teamId: null, message: null,
+        status: 'PENDING', revision: 2, createdAt: '2026-08-26T12:00:00.000Z',
+        user: { id: 'user-1', name: 'Mara' },
+      }])
+      if (path.startsWith('/clubs/lookup')) return Promise.resolve({
+        teams: [{ id: 'team-1', displayName: 'Herren I' }],
+      })
+      return Promise.resolve({ status: 'APPROVED' })
+    })
+    const screen = render(<PendingRequestsScreen />)
+    const approve = await screen.findByLabelText('pendingRequests.approve Mara')
+    expect(approve.props.accessibilityState?.disabled).toBe(true)
+    fireEvent.press(await screen.findByTestId('request-team-jr-legacy-team-1'))
+    fireEvent.press(approve)
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith(
+      '/clubs/c1/join-requests/jr-legacy/approve',
+      { method: 'POST', body: { revision: 2, teamId: 'team-1' } },
+    ))
   })
 })

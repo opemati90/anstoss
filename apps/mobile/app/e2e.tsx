@@ -9,7 +9,7 @@ import {
 } from '../src/e2e/session'
 import { clearSessionToken } from '../src/auth/sessionToken'
 import { useAuth } from '../src/context/AuthContext'
-import { setAppLanguage } from '../src/i18n'
+import { APP_LANGUAGES, setAppLanguage, type AppLanguage } from '../src/i18n'
 import { space, fontSize, fontWeight, fonts, lineHeight } from '../src/theme/tokens'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
@@ -34,8 +34,12 @@ function isSupportedScenario(value: string | undefined): value is E2ELaunchScena
 }
 
 export default function E2EBootstrapScreen() {
-  const params = useLocalSearchParams<{ scenario?: string | string[] }>()
+  const params = useLocalSearchParams<{ scenario?: string | string[]; language?: string | string[] }>()
   const scenario = Array.isArray(params.scenario) ? params.scenario[0] : params.scenario
+  const requestedLanguage = Array.isArray(params.language) ? params.language[0] : params.language
+  const language: AppLanguage = APP_LANGUAGES.includes(requestedLanguage as AppLanguage)
+    ? (requestedLanguage as AppLanguage)
+    : 'en'
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
   const { refreshUser } = useAuth()
 
@@ -48,7 +52,7 @@ export default function E2EBootstrapScreen() {
     const nextScenario = isSupportedScenario(scenario) ? scenario : 'signed-out'
 
     void (async () => {
-      await setAppLanguage('en')
+      await setAppLanguage(language)
 
       if (nextScenario === 'signed-out') {
         await clearSessionToken().catch(() => {})
@@ -65,7 +69,7 @@ export default function E2EBootstrapScreen() {
       if (router.canDismiss()) router.dismissAll()
       router.replace('/')
     })()
-  }, [refreshUser, scenario])
+  }, [language, refreshUser, scenario])
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>

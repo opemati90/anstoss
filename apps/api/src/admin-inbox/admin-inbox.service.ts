@@ -110,6 +110,7 @@ export class AdminInboxService {
       count,
       items: rows.map((row: any) => ({
         id: row.id,
+        teamId: row.teamId ?? null,
         revision: row.revision,
         role: row.role,
         message: row.message ?? null,

@@ -23,6 +23,8 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { RosterSkeleton } from '../src/components/Skeleton'
 import {
   Icon,
+  Button,
+  FilterChipRow,
   ListRow,
   Screen,
   SectionGroup,
@@ -36,6 +38,7 @@ type WechselReleaseStatus = 'PENDING' | 'GRANTED' | 'REFUSED' | 'NOT_NEEDED'
 type JoinRequestItem = {
   id: string
   role: string
+  teamId?: string | null
   message: string | null
   status: string
   revision: number
@@ -70,12 +73,34 @@ export default function PendingRequestsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState(false)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [teams, setTeams] = useState<{ id: string; displayName: string }[]>([])
+  const [teamsFailed, setTeamsFailed] = useState(false)
+  const [teamsLoading, setTeamsLoading] = useState(false)
+  const [selectedTeams, setSelectedTeams] = useState<Record<string, string>>({})
+
+  const loadTeams = useCallback(async () => {
+    const slug = activeClub?.club.slug
+    if (!slug) { setTeamsFailed(true); return }
+    setTeamsLoading(true)
+    try {
+      const result = await api<{ teams: { id: string; displayName: string }[] }>(
+        `/clubs/lookup?slug=${encodeURIComponent(slug)}`,
+      )
+      setTeams(result.teams ?? [])
+      setTeamsFailed(false)
+    } catch {
+      setTeamsFailed(true)
+    } finally {
+      setTeamsLoading(false)
+    }
+  }, [activeClub?.club.slug])
 
   const fetchRequests = useCallback(async () => {
     if (!clubId) return
     try {
       const data = await api<JoinRequestItem[]>(`/clubs/${clubId}/join-requests`)
       setRequests(data)
+      if (data.some((item) => item.role === 'PLAYER' && !item.teamId)) void loadTeams()
       setError(false)
     } catch {
       setError(true)
@@ -83,7 +108,7 @@ export default function PendingRequestsScreen() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [clubId])
+  }, [clubId, loadTeams])
 
   useFocusEffect(
     useCallback(() => {
@@ -98,7 +123,7 @@ export default function PendingRequestsScreen() {
   }
 
   const performAction = async (
-    request: Pick<JoinRequestItem, 'id' | 'revision'>,
+    request: Pick<JoinRequestItem, 'id' | 'revision' | 'role' | 'teamId'>,
     action: 'approve' | 'reject',
   ) => {
     if (!clubId) return
@@ -106,7 +131,12 @@ export default function PendingRequestsScreen() {
     try {
       await api(`/clubs/${clubId}/join-requests/${request.id}/${action}`, {
         method: 'POST',
-        body: { revision: request.revision },
+        body: {
+          revision: request.revision,
+          ...(action === 'approve' && request.role === 'PLAYER' && !request.teamId
+            ? { teamId: selectedTeams[request.id] }
+            : {}),
+        },
       })
       setRequests((prev) => prev.filter((r) => r.id !== request.id))
     } catch (err) {
@@ -191,6 +221,7 @@ export default function PendingRequestsScreen() {
               >
                 {requests.map((item) => {
                   const isProcessing = processingId === item.id
+                  const needsTeam = item.role === 'PLAYER' && !item.teamId
                   const date = new Date(item.createdAt)
                   const dateStr = date.toLocaleDateString(getAppLocale(getAppLanguage()), {
                     day: '2-digit',
@@ -240,6 +271,26 @@ export default function PendingRequestsScreen() {
                           </Text>
                         </View>
                       ) : null}
+                      {needsTeam ? (
+                        <View style={styles.messageBlock}>
+                          <Text variant="footnote" color="secondary">{t('onboardingFlow.club.pickTeam')}</Text>
+                          {teamsLoading ? <ActivityIndicator color={c.textSecondary} /> : teamsFailed ? (
+                            <Button
+                              label={t('onboardingFlow.common.retry')}
+                              variant="bordered"
+                              onPress={() => void loadTeams()}
+                            />
+                          ) : teams.length ? (
+                            <FilterChipRow<string>
+                              wrap
+                              singleSelect
+                              selected={selectedTeams[item.id] ?? null}
+                              onToggle={(teamId) => setSelectedTeams((current) => ({ ...current, [item.id]: teamId }))}
+                              chips={teams.map((team) => ({ key: team.id, label: team.displayName, testID: `request-team-${item.id}-${team.id}` }))}
+                            />
+                          ) : <Text variant="footnote" color="secondary">{t('onboardingFlow.club.noTeams')}</Text>}
+                        </View>
+                      ) : null}
                       <View style={styles.actionRow}>
                         <Pressable
                           style={({ pressed }) => [
@@ -283,7 +334,7 @@ export default function PendingRequestsScreen() {
                             pressed && { opacity: 0.7 },
                           ]}
                           onPress={() => handleAction(item, 'approve')}
-                          disabled={isProcessing}
+                          disabled={isProcessing || (needsTeam && !selectedTeams[item.id])}
                           accessibilityRole="button"
                           accessibilityLabel={`${t('pendingRequests.approve')} ${item.user.name}`}
                         >

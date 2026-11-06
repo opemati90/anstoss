@@ -144,10 +144,10 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
   },
   pending: {
     title: 'İstek gönderildi',
-    body: 'İsteğini {{club}} aldı. Antrenör seni genelde bir gün içinde onaylar.',
+    body: 'İsteğini {{club}} aldı. Bir kulüp yöneticisi isteğini inceleyecek.',
     bodyCoach:
       '{{club}} yönetimi antrenörlük isteğini inceliyor. Bu genelde bir iki gün sürer.',
-    bodyNoClub: 'İsteğin kulübe ulaştı. Antrenör seni genelde bir gün içinde onaylar.',
+    bodyNoClub: 'İsteğin kulübe ulaştı. Bir kulüp yöneticisi isteğini inceleyecek.',
     status: 'Onay bekleniyor',
     nextTitle: 'Sırada ne var',
     next1: 'Onaylanır onaylanmaz sana haber veririz.',

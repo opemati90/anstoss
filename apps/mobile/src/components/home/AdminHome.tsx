@@ -111,6 +111,10 @@ export function AdminHome({ clubId, onRefreshStateChange }: AdminHomeProps) {
   )
 
   const decideJoinRequest = (request: AdminInboxJoinRequest, decision: 'approve' | 'reject') => {
+    if (decision === 'approve' && request.role === 'PLAYER' && !request.teamId) {
+      router.push('/pending-requests')
+      return
+    }
     const perform = () =>
       void runAction(`join:${request.id}`, () =>
         api(`/clubs/${clubId}/join-requests/${request.id}/${decision}`, {

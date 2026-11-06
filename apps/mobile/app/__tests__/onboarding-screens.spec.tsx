@@ -2,7 +2,7 @@ import '../../test/future-capabilities'
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native'
-import { StyleSheet } from 'react-native'
+import { Keyboard, StyleSheet } from 'react-native'
 
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
@@ -492,10 +492,13 @@ describe('Verein finden', () => {
 
   it('H4: picks the role inline on the club row and sends from the same screen, no DOB asked', async () => {
     searchApi()
+    const dismiss = jest.spyOn(Keyboard, 'dismiss')
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     await waitFor(() => screen.getByTestId('find-club-row-sv-albatros'))
     fireEvent.press(screen.getByTestId('find-club-row-sv-albatros'))
+    expect(dismiss).toHaveBeenCalled()
+    dismiss.mockRestore()
     expect(screen.getByTestId('club-join-question')).toBeTruthy()
     fireEvent.press(screen.getByTestId('club-role-parent'))
     expect(screen.queryByTestId('dob-day')).toBeNull()

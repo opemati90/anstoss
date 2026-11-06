@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
@@ -36,6 +37,7 @@ import { buildAufnahmeGuardianEmail } from './aufnahme-guardian-email'
 
 @Injectable()
 export class JoinRequestsService {
+  private readonly logger = new Logger(JoinRequestsService.name)
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -181,27 +183,31 @@ export class JoinRequestsService {
     }
 
     // Push notification only to the club authorities who can decide it.
-    const admins = await this.prisma.membership.findMany({
-      where: {
-        clubId,
-        role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
-      },
-      select: { userId: true },
-    })
+    try {
+      const admins = await this.prisma.membership.findMany({
+        where: {
+          clubId,
+          role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
+        },
+        select: { userId: true },
+      })
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
-    })
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      })
 
-    for (const admin of admins) {
-      void this.push.sendToUserLocalized(
-        admin.userId,
-        'JOIN_REQUEST',
-        { userName: user?.name || 'Jemand', clubName: club.name },
-        { type: 'join_request', clubId, requestId: request.id },
-        { clubId },
-      )
+      await Promise.all(admins.map((admin) =>
+        this.push.sendToUserLocalized(
+          admin.userId,
+          'JOIN_REQUEST',
+          { userName: user?.name || 'Jemand', clubName: club.name },
+          { type: 'join_request', clubId, requestId: request.id },
+          { clubId },
+        ).catch(() => this.logger.warn('Join request notification failed')),
+      ))
+    } catch {
+      this.logger.warn('Join request notification failed after request was saved')
     }
 
     return request
@@ -363,6 +369,17 @@ export class JoinRequestsService {
         },
       })
       if (!request) throw new NotFoundException('Join request not found or already reviewed')
+      const effectiveTeamId = request.teamId ?? _input.teamId ?? null
+      if (request.role === TeamRole.PLAYER && !effectiveTeamId) {
+        throw new BadRequestException('Select a team before approving this player')
+      }
+      if (effectiveTeamId) {
+        const team = await tx.team.findFirst({
+          where: { id: effectiveTeamId, clubId },
+          select: { id: true },
+        })
+        if (!team) throw new BadRequestException('Join request team does not belong to this club')
+      }
       const membershipRole =
         request.role === TeamRole.PARENT
           ? MembershipRole.PARENT
@@ -412,14 +429,14 @@ export class JoinRequestsService {
           }
         }
         if (playerAge < 16) {
-          if (!request.teamId) {
+          if (!effectiveTeamId) {
             throw new BadRequestException('Players under 16 must request access to a specific team')
           }
           const approvedConsent = await tx.parentalConsent.findFirst({
             where: {
               playerUserId: request.userId,
               clubId,
-              teamId: request.teamId,
+              teamId: effectiveTeamId,
               status: ParentalConsentStatus.APPROVED,
             },
             select: { id: true },
@@ -447,6 +464,7 @@ export class JoinRequestsService {
           status: 'APPROVED',
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
+          ...(!request.teamId && effectiveTeamId ? { teamId: effectiveTeamId } : {}),
         },
       })
 
@@ -468,38 +486,33 @@ export class JoinRequestsService {
       })
 
       // Create team access if team was specified
-      if (request.teamId) {
-        const team = await tx.team.findFirst({
-          where: { id: request.teamId, clubId },
-          select: { id: true },
-        })
-        if (!team) {
-          throw new BadRequestException('Join request team does not belong to this club')
-        }
-
+      if (effectiveTeamId) {
         await tx.teamAccess.upsert({
           where: {
             teamId_userId_role: {
-              teamId: request.teamId,
+              teamId: effectiveTeamId,
               userId: request.userId,
               role: request.role,
             },
           },
           create: {
             clubId,
-            teamId: request.teamId,
+            teamId: effectiveTeamId,
             userId: request.userId,
             role: request.role,
-            phase:
-              request.role === TeamRole.PLAYER && !request.trialInviteId
-                ? TeamAccessPhase.TRIAL
-                : TeamAccessPhase.FULL,
+            phase: TeamAccessPhase.FULL,
             status: TeamAccessStatus.ACTIVE,
           },
           // After a Probetraining the player already holds TRIAL access; the
           // approved Aufnahmeantrag is the trial decision (TRIAL → FULL).
-          update: request.trialInviteId
-            ? { phase: TeamAccessPhase.FULL, status: TeamAccessStatus.ACTIVE }
+          update: request.role === TeamRole.PLAYER
+            ? {
+                phase: TeamAccessPhase.FULL,
+                status: TeamAccessStatus.ACTIVE,
+                loanedFromTeamId: null,
+                loanStartDate: null,
+                loanEndDate: null,
+              }
             : {},
         })
 
@@ -507,12 +520,12 @@ export class JoinRequestsService {
           await tx.teamMember.upsert({
             where: {
               teamId_userId: {
-                teamId: request.teamId,
+                teamId: effectiveTeamId,
                 userId: request.userId,
               },
             },
             create: {
-              teamId: request.teamId,
+              teamId: effectiveTeamId,
               userId: request.userId,
             },
             update: {},
@@ -541,24 +554,28 @@ export class JoinRequestsService {
           actorId: reviewerId,
           actorLabel: null,
           summary: `Approved join request ${requestId}`,
-          metadata: { requestId, userId: request.userId, teamId: request.teamId },
+          metadata: { requestId, userId: request.userId, teamId: effectiveTeamId },
         },
       })
       return request
     })
 
     // Welcome the approved user with a localized push.
-    const club = await this.prisma.club.findUnique({
-      where: { id: clubId },
-      select: { name: true },
-    })
-    void this.push.sendToUserLocalized(
-      request.userId,
-      'JOIN_APPROVED',
-      { clubName: club?.name ?? '' },
-      { type: 'join_approved', clubId },
-      { clubId },
-    )
+    try {
+      const club = await this.prisma.club.findUnique({
+        where: { id: clubId },
+        select: { name: true },
+      })
+      await this.push.sendToUserLocalized(
+        request.userId,
+        'JOIN_APPROVED',
+        { clubName: club?.name ?? '' },
+        { type: 'join_approved', clubId },
+        { clubId },
+      )
+    } catch {
+      this.logger.warn('Join approval notification failed after decision was saved')
+    }
 
     return { status: 'APPROVED' }
   }
@@ -634,17 +651,21 @@ export class JoinRequestsService {
     })
 
     // Notify the requester that their request was not accepted.
-    const club = await this.prisma.club.findUnique({
-      where: { id: clubId },
-      select: { name: true },
-    })
-    void this.push.sendToUserLocalized(
-      request.userId,
-      'JOIN_REJECTED',
-      { clubName: club?.name ?? '' },
-      { type: 'join_rejected', clubId },
-      { clubId },
-    )
+    try {
+      const club = await this.prisma.club.findUnique({
+        where: { id: clubId },
+        select: { name: true },
+      })
+      await this.push.sendToUserLocalized(
+        request.userId,
+        'JOIN_REJECTED',
+        { clubName: club?.name ?? '' },
+        { type: 'join_rejected', clubId },
+        { clubId },
+      )
+    } catch {
+      this.logger.warn('Join rejection notification failed after decision was saved')
+    }
 
     return { status: 'REJECTED' }
   }

@@ -866,6 +866,8 @@ const base = {
   },
   matches: {
     title: 'Matchs',
+    watchLive: 'Voir en direct',
+    fullTime: 'Score final',
     facts: {
       insight: {
         concedeLate: 'des buts encaissés par {{team}} arrivent après la 60e minute.',

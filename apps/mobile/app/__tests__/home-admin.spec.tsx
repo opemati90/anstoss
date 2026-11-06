@@ -59,6 +59,7 @@ function inbox(overrides: Partial<AdminInbox> = {}): AdminInbox {
           id: 'jr-1',
           revision: 3,
           role: 'PLAYER',
+          teamId: 'team-1',
           message: null,
           createdAt: new Date().toISOString(),
           user: { id: 'u-erik', name: 'Erik Brandt', avatarUrl: null },
@@ -157,6 +158,23 @@ describe('AdminHome (Aufgaben inbox)', () => {
         method: 'POST',
         body: { revision: 3 },
       }),
+    )
+  })
+
+  it('opens the request review when a player has no team', async () => {
+    const data = inbox({
+      joinRequests: { count: 1, items: [{
+        id: 'jr-legacy', revision: 1, role: 'PLAYER', teamId: null,
+        message: null, createdAt: new Date().toISOString(),
+        user: { id: 'u-erik', name: 'Erik Brandt', avatarUrl: null },
+      }] },
+    })
+    const screen = setup(data)
+    await screen.findByText('Erik Brandt')
+    fireEvent.press(screen.getByLabelText('pendingRequests.approve: Erik Brandt'))
+    expect(mockPush).toHaveBeenCalledWith('/pending-requests')
+    expect(mockApi).not.toHaveBeenCalledWith(
+      '/clubs/club-1/join-requests/jr-legacy/approve', expect.anything(),
     )
   })
 

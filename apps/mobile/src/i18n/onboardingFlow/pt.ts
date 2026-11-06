@@ -144,10 +144,10 @@ export const onboardingFlowPt: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Pedido enviado',
-    body: 'O teu pedido está com o {{club}}. Normalmente, o treinador confirma-te no prazo de um dia.',
+    body: 'O teu pedido está com o {{club}}. Um administrador do clube irá analisá-lo.',
     bodyCoach:
       'A direção do {{club}} está a analisar o teu pedido como treinador. Normalmente demora um ou dois dias.',
-    bodyNoClub: 'O teu pedido está com o clube. Normalmente, o treinador confirma-te no prazo de um dia.',
+    bodyNoClub: 'O teu pedido está com o clube. Um administrador irá analisá-lo.',
     status: 'A aguardar confirmação',
     nextTitle: 'O que acontece a seguir',
     next1: 'Avisamos-te assim que fores confirmado.',

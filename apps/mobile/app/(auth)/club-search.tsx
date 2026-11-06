@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -127,6 +127,7 @@ export default function ClubSearchScreen() {
   const [teamId, setTeamId] = useState<string | null>(null)
   const [teams, setTeams] = useState<ClubTeam[] | null>(null)
   const [teamsFailed, setTeamsFailed] = useState(false)
+  const [teamsRetry, setTeamsRetry] = useState(0)
   const [freeAgentOpen, setFreeAgentOpen] = useState(false)
   const [inviteSelected, setInviteSelected] = useState(false)
   const [position, setPosition] = useState<string | null>(null)
@@ -138,7 +139,7 @@ export default function ClubSearchScreen() {
   const trimmed = query.trim()
   const { teamCode, inviteCode } = useMemo(() => classifySearchInput(query), [query])
   const searchable = trimmed.length >= 2
-  const needsTeam = !!selection && role === 'COACH' && !selection.teamId
+  const needsTeam = !!selection && (role === 'COACH' || role === 'PLAYER') && !selection.teamId
 
   // Members opening "Verein finden" from home never carry a sign-up intent.
   useEffect(() => {
@@ -239,7 +240,7 @@ export default function ClubSearchScreen() {
     return () => {
       alive = false
     }
-  }, [needsTeam, selection?.slug, teams])
+  }, [needsTeam, selection?.slug, teams, teamsRetry])
 
   const handleSignOut = useCallback(() => {
     void signOut()
@@ -247,6 +248,7 @@ export default function ClubSearchScreen() {
   }, [router, signOut])
 
   function select(next: SelectedClub | null) {
+    Keyboard.dismiss()
     setInviteSelected(false)
     setSelection((current) => (current?.key === next?.key ? null : next))
     setRole(null)
@@ -450,7 +452,7 @@ export default function ClubSearchScreen() {
               needsTeam={needsTeam}
               teams={teams}
               teamsFailed={teamsFailed}
-              onRetryTeams={() => setTeams(null)}
+              onRetryTeams={() => setTeamsRetry((value) => value + 1)}
               teamId={teamId}
               onTeam={setTeamId}
             />
@@ -725,7 +727,7 @@ function JoinChoice({
       {needsTeam ? (
         <View style={styles.group}>
           <Text variant="footnote" color="secondary">
-            {t('onboardingFlow.club.teamQuestion')}
+            {t(role === 'COACH' ? 'onboardingFlow.club.teamQuestion' : 'onboardingFlow.club.pickTeam')}
           </Text>
           {teams === null && !teamsFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
           {teamsFailed ? (

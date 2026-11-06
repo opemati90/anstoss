@@ -1022,12 +1022,27 @@ describe('EventsService', () => {
       })
 
       await service.upsertRsvp('evt-1', 'user-1', 'MAYBE')
+      await new Promise((resolve) => setImmediate(resolve))
 
+      expect(mockTeamsService.assertEventManagementAccess).toHaveBeenCalledWith('organizer-1', 'team-1')
       expect(mockPushService.sendToUserLocalized).toHaveBeenCalledTimes(1)
       const [recipient, type, data] = mockPushService.sendToUserLocalized.mock.calls[0]
       expect(recipient).toBe('organizer-1')
       expect(type).toBe('RSVP_UPDATE')
       expect(data).toMatchObject({ status: 'MAYBE', eventTitle: 'Friendly Match' })
+    })
+
+    it('does not send availability to an organizer whose authority was revoked', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({
+        id: 'evt-1', teamId: 'team-1', clubId: 'club-1', title: 'Friendly Match',
+        cancelledAt: null, createdById: 'former-coach',
+      })
+      mockPrisma.rsvp.upsert.mockResolvedValue({ eventId: 'evt-1', userId: 'user-1', status: 'MAYBE' })
+      mockTeamsService.assertEventManagementAccess.mockRejectedValue(new Error('access revoked'))
+
+      await expect(service.upsertRsvp('evt-1', 'user-1', 'MAYBE')).resolves.toMatchObject({ status: 'MAYBE' })
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(mockPushService.sendToUserLocalized).not.toHaveBeenCalled()
     })
 
     it('does NOT notify the organizer for their own RSVP', async () => {

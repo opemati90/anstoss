@@ -7,7 +7,7 @@ import { apiErrorKey } from '../../src/lib/apiErrorKey'
 import { useAuth } from '../../src/context/AuthContext'
 import { ModalHeader } from '../../src/components/ModalHeader'
 import { ErrorState } from '../../src/components/ErrorState'
-import { Screen, Button, Text } from '../../src/components/ui'
+import { Screen, Button, FilterChipRow, Text } from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { elevation, hairline, radius, space } from '../../src/theme/tokens'
 
@@ -39,6 +39,10 @@ export default function ClubPreview() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [teams, setTeams] = useState<{ id: string; displayName: string }[] | null>(null)
+  const [teamId, setTeamId] = useState<string | null>(null)
+  const [teamsFailed, setTeamsFailed] = useState(false)
+  const [teamsRetry, setTeamsRetry] = useState(0)
 
   const loadClub = useCallback(() => {
     if (!slug) {
@@ -81,8 +85,22 @@ export default function ClubPreview() {
       return membershipClubId === club.id || membershipClubId === activeClubId
     })
 
+  useEffect(() => {
+    if (!activeClubId || alreadyMember || !slug) return
+    let alive = true
+    setTeams(null)
+    setTeamsFailed(false)
+    setTeamId(null)
+    api<{ teams?: { id: string; displayName: string }[] }>(
+      `/clubs/lookup?slug=${encodeURIComponent(slug)}`,
+    )
+      .then((result) => { if (alive) setTeams(result.teams ?? []) })
+      .catch(() => { if (alive) setTeamsFailed(true) })
+    return () => { alive = false }
+  }, [activeClubId, alreadyMember, slug, teamsRetry])
+
   const handleRequest = async () => {
-    if (!club) return
+    if (!club || !teamId) return
     if (!activeClubId) {
       Alert.alert(
         t('errors.api.title'),
@@ -96,7 +114,7 @@ export default function ClubPreview() {
     try {
       await api(`/clubs/${activeClubId}/join-requests`, {
         method: 'POST',
-        body: { role: 'PLAYER' },
+        body: { role: 'PLAYER', teamId },
       })
       try {
         await refreshUser(undefined, { throwOnError: true })
@@ -224,16 +242,44 @@ export default function ClubPreview() {
             {t('clubPreview.alreadyMember')}
           </Text>
         ) : (
-          <Button
-            label={t('clubPreview.requestToJoin')}
-            variant="filled"
-            size="lg"
-            fullWidth
-            loading={submitting}
-            onPress={() => void handleRequest()}
-            style={{ marginTop: space.md }}
-            testID="club-preview-request-to-join"
-          />
+          <View style={styles.directoryNotice}>
+            <Text variant="footnote" color="secondary">{t('onboardingFlow.club.pickTeam')}</Text>
+            {teams === null && !teamsFailed ? <ActivityIndicator color={c.textSecondary} /> : null}
+            {teamsFailed ? (
+              <Button
+                label={t('onboardingFlow.common.retry')}
+                variant="bordered"
+                onPress={() => setTeamsRetry((value) => value + 1)}
+              />
+            ) : null}
+            {teams?.length === 0 ? (
+              <Text variant="footnote" color="secondary">{t('onboardingFlow.club.noTeams')}</Text>
+            ) : null}
+            {teams && teams.length > 0 ? (
+              <FilterChipRow<string>
+                wrap
+                singleSelect
+                selected={teamId}
+                onToggle={setTeamId}
+                chips={teams.map((team) => ({
+                  key: team.id,
+                  label: team.displayName,
+                  testID: `club-preview-team-${team.id}`,
+                }))}
+              />
+            ) : null}
+            <Button
+              label={t('clubPreview.requestToJoin')}
+              variant="filled"
+              size="lg"
+              fullWidth
+              loading={submitting}
+              disabled={!teamId}
+              onPress={() => void handleRequest()}
+              style={{ marginTop: space.md }}
+              testID="club-preview-request-to-join"
+            />
+          </View>
         )}
       </View>
     </Screen>

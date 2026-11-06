@@ -143,10 +143,10 @@ export const onboardingFlowIt: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Richiesta inviata',
-    body: 'La tua richiesta è arrivata a {{club}}. Di solito l’allenatore ti conferma entro un giorno.',
+    body: 'La tua richiesta è arrivata a {{club}}. Un amministratore della società la esaminerà.',
     bodyCoach:
       'La dirigenza di {{club}} sta valutando la tua richiesta come allenatore. Di solito ci vogliono uno o due giorni.',
-    bodyNoClub: 'La tua richiesta è arrivata alla società. Di solito l’allenatore ti conferma entro un giorno.',
+    bodyNoClub: 'La tua richiesta è arrivata alla società. Un amministratore la esaminerà.',
     status: 'In attesa di conferma',
     nextTitle: 'Cosa succede ora',
     next1: 'Ti avvisiamo non appena vieni confermato.',
