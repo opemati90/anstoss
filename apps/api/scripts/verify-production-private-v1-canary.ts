@@ -59,7 +59,7 @@ async function main() {
     assert.equal(tombstone.ContentType, 'application/x-anstoss-removed')
     const receipt = await client.send(new HeadObjectCommand({ Bucket: config.R2_QUARANTINE_BUCKET, Key: marker }), { abortSignal: deadline() })
     assert.equal(receipt.ContentLength, 0)
-    assert.equal(receipt.Metadata?.source, Buffer.from(key).toString('base64'))
+    assert.equal(receipt.Metadata?.source, undefined)
     assert.ok(receipt.Metadata?.retiredat)
     assert.equal((await put()).status, 412)
     process.stdout.write(`PASS: private R2 v1 PUT, GET and conditional retirement; synthetic canary ${id} retained.\n`)

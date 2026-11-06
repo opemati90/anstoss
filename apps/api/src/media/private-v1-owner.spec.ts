@@ -7,6 +7,7 @@ describe('private v1 upload ownership', () => {
 
   it('binds a server-generated key to sender, club, target and media kind', () => {
     const key = newOwnedPrivateV1Key(scope, 'photo.jpg')
+    expect(key).not.toContain('photo.jpg')
     expect(isOwnedPrivateV1Key(key, scope)).toBe(true)
     expect(isOwnedPrivateV1Key(key, { ...scope, ownerId: 'u2' })).toBe(false)
     expect(isOwnedPrivateV1Key(key, { ...scope, clubId: 'other' })).toBe(false)
@@ -21,8 +22,10 @@ describe('private v1 upload ownership', () => {
     expect(isOwnedPrivateV1Key(`${key}/other`, scope)).toBe(false)
     expect(isOwnedPrivateV1Key(`${key}?x=1`, scope)).toBe(false)
     expect(isOwnedPrivateV1Key(`${key}\n`, scope)).toBe(false)
-    expect(isOwnedPrivateV1Key(key.replace('photo.jpg', 'a..jpg'), scope)).toBe(false)
-    expect(isOwnedPrivateV1Key(key.replace('photo.jpg', 'a'.repeat(121)), scope)).toBe(false)
+    expect(isOwnedPrivateV1Key(key.replace('attachment', 'a..jpg'), scope)).toBe(false)
+    expect(isOwnedPrivateV1Key(key.replace('attachment', 'a'.repeat(121)), scope)).toBe(false)
+    // Previously issued keys remain valid while clients complete existing uploads.
+    expect(isOwnedPrivateV1Key(key.replace('attachment', 'photo.jpg'), scope)).toBe(true)
     expect(isOwnedPrivateV1Key(key.replace('/image/', '/file/'), scope)).toBe(false)
     expect(() => newOwnedPrivateV1Key(scope, '../photo.jpg')).toThrow('Invalid upload scope or name')
     for (const name of ['a..jpg', '.', '..', 'folder/file', 'folder\\file', 'x%2fy', 'a'.repeat(121)]) {

@@ -232,8 +232,9 @@ in-flight write can still commit after a negative read. The unsafe ten-minute
 tombstone cleanup has therefore been removed locally, including its periodic
 bucket scan. The source zero-byte object and retirement receipt remain; this
 is content-resurrection hardening, not complete metadata erasure. Keys contain
-club/team/conversation identifiers and may contain filenames, and receipts
-duplicate the source key. The metadata-retention gate remains open until a
+club/team/conversation identifiers and older keys may contain filenames. New
+keys omit filenames and new receipts omit the source key; older receipts may
+still contain it. The metadata-retention gate remains open until a
 durable upload/finalization lifecycle can prove old writes terminal before
 removing these records. The scheduler regression advances 24 hours after a
 provider restart and models R2's atomic conditional commit; it is not a live

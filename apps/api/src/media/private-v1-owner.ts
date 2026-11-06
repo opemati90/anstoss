@@ -30,7 +30,8 @@ function validScope(scope: UploadScope): boolean {
  * to a different key. The tag binds a new upload to its authenticated sender. */
 export function newOwnedPrivateV1Key(scope: UploadScope, safeName: string): string {
   if (!validScope(scope) || !validName(safeName)) throw new Error('Invalid upload scope or name')
-  return `${scope.targetType}/${scope.clubId}/${scope.targetId}/${scope.kind}/private-v1-u${ownerTag(scope)}-${randomUUID()}-${safeName}`
+  // Keep the original filename out of durable storage keys and retirement barriers.
+  return `${scope.targetType}/${scope.clubId}/${scope.targetId}/${scope.kind}/private-v1-u${ownerTag(scope)}-${randomUUID()}-attachment`
 }
 
 export function isOwnedPrivateV1Key(key: string, scope: UploadScope): boolean {

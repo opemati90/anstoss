@@ -251,7 +251,7 @@ export class R2Provider {
     // the barrier would admit an arbitrarily slow previously authorized upload.
     await storage.client.send(new PutObjectCommand({
       Bucket: storage.bucket, Key: marker, Body: '', ContentLength: 0,
-      Metadata: { source: Buffer.from(objectKey).toString('base64'), retiredat: String(Date.now()) },
+      Metadata: { retiredat: String(Date.now()) },
     }), { abortSignal })
     await storage.client.send(new PutObjectCommand({
       Bucket: storage.bucket, Key: objectKey, Body: '', ContentLength: 0,
