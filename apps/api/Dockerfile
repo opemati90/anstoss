@@ -27,6 +27,10 @@ RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 # Build shared + API
 RUN npx turbo run build --filter=@anstoss/api
 
+# Fail the image build if test-only imports change TypeScript's output root.
+# The runtime command below must point at the artifact we actually compiled.
+RUN test -f /app/apps/api/dist/main.js
+
 # npm may place workspace-specific dependencies under each workspace rather
 # than the root. Preserve both layouts in the runtime image.
 RUN mkdir -p /app/apps/api/node_modules /app/packages/shared/node_modules
