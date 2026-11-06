@@ -19,7 +19,7 @@ describe('ChatService media upload binding', () => {
     const r2 = { enabled: true, objectKeyFromUrl: jest.fn().mockReturnValue(ownedKey), assertStoredObject: jest.fn() }
     const service = new ChatService(prisma as never,
       { assertReadableAccess: jest.fn().mockResolvedValue({ team: { clubId: 'club-1' } }) } as never,
-      gateway as never, {} as never, { assertWritable: jest.fn() } as never, {} as never, r2 as never)
+      gateway as never, {} as never, { assertWritable: jest.fn(), authorizePrivateUpload: jest.fn() } as never, {} as never, r2 as never)
     jest.spyOn(service, 'serializeMessage').mockResolvedValue({ id: 'saved' } as never)
     await expect(service.postMedia('user-1', { teamId: 'team-1', channelId: 'ch-1', messageType: 'IMAGE',
       attachmentUrl: 'https://assets.example/x.png' })).resolves.toEqual({ id: 'saved' })
@@ -37,6 +37,34 @@ describe('ChatService media upload binding', () => {
       teamId: 'team-1', channelId: 'ch-1', messageType: 'IMAGE', attachmentUrl: 'https://assets.example/x.png',
     })).rejects.toThrow('Attachment does not belong to this team upload')
     expect(r2.assertStoredObject).not.toHaveBeenCalled()
+  })
+  it('does not consume or publish an upload when channel access is revoked under the transaction', async () => {
+    const tx = {
+      $executeRaw: jest.fn(),
+      user: { findUnique: jest.fn().mockResolvedValue({ deletedAt: null }) },
+      accountMediaDeletion: { findUnique: jest.fn(), deleteMany: jest.fn() },
+      message: { findFirst: jest.fn(), create: jest.fn() },
+    }
+    const channels = {
+      assertWritable: jest.fn().mockResolvedValue(undefined),
+      authorizePrivateUpload: jest.fn().mockRejectedValue(new Error('channel access revoked')),
+    }
+    const prisma = {
+      $transaction: jest.fn(async (callback) => callback(tx)),
+      channel: { findUnique: jest.fn().mockResolvedValue({ teamId: 'team-1', clubId: 'club-1' }) },
+    }
+    const r2 = { enabled: true, objectKeyFromUrl: jest.fn().mockReturnValue(ownedKey), assertStoredObject: jest.fn() }
+    const service = new ChatService(prisma as never,
+      { assertReadableAccess: jest.fn().mockResolvedValue({ team: { clubId: 'club-1' } }) } as never,
+      {} as never, {} as never, channels as never, {} as never, r2 as never)
+
+    await expect(service.postMedia('user-1', {
+      teamId: 'team-1', channelId: 'ch-1', messageType: 'IMAGE', attachmentUrl: 'https://assets.example/x.png',
+    })).rejects.toThrow('channel access revoked')
+    expect(channels.authorizePrivateUpload).toHaveBeenCalledWith('user-1', 'club-1', 'team-1', 'ch-1', 'write', tx)
+    expect(tx.accountMediaDeletion.findUnique).not.toHaveBeenCalled()
+    expect(tx.accountMediaDeletion.deleteMany).not.toHaveBeenCalled()
+    expect(tx.message.create).not.toHaveBeenCalled()
   })
   it('serializes the persisted response through the supplied transaction client', async () => {
     const prisma = { message: { findUniqueOrThrow: jest.fn().mockRejectedValue(new Error('root client must not be used')) } }
@@ -100,6 +128,7 @@ describe('ChatService media upload binding', () => {
       }
       const channels = {
         assertWritable: jest.fn().mockResolvedValue(undefined),
+        authorizePrivateUpload: jest.fn().mockResolvedValue(undefined),
         listChannelReaderIds: failure === 'readers'
           ? jest.fn().mockRejectedValue(new Error('readers lookup unavailable'))
           : jest.fn().mockResolvedValue(['user-1', 'user-2']),
@@ -135,6 +164,7 @@ describe('ChatService media upload binding', () => {
         return
       }
       await expect(result).resolves.toEqual(serialized)
+      expect(channels.authorizePrivateUpload).toHaveBeenCalledWith('user-1', 'club-1', 'team-1', 'ch-1', 'write', tx)
       expect(serialize).toHaveBeenCalledWith('user-1', 'message-1', tx)
       await new Promise<void>((resolve) => setImmediate(resolve))
       expect(tx.message.create).toHaveBeenCalledTimes(1)
@@ -175,7 +205,7 @@ describe('ChatService media upload binding', () => {
     }
     const service = new ChatService(prisma as never,
       { assertReadableAccess: jest.fn().mockResolvedValue({ team: { clubId: 'club-1' } }) } as never,
-      {} as never, {} as never, { assertWritable: jest.fn().mockResolvedValue(undefined) } as never,
+      {} as never, {} as never, { assertWritable: jest.fn().mockResolvedValue(undefined), authorizePrivateUpload: jest.fn() } as never,
       {} as never, r2 as never)
     await expect(service.postMedia('user-1', {
       teamId: 'team-1', channelId: 'ch-1', messageType: 'IMAGE', attachmentUrl: 'https://assets.example/x.png',
@@ -204,7 +234,7 @@ describe('ChatService media upload binding', () => {
     }
     const service = new ChatService(prisma as never,
       { assertReadableAccess: jest.fn().mockResolvedValue({ team: { clubId: 'club-1' } }) } as never,
-      {} as never, {} as never, { assertWritable: jest.fn().mockResolvedValue(undefined) } as never,
+      {} as never, {} as never, { assertWritable: jest.fn().mockResolvedValue(undefined), authorizePrivateUpload: jest.fn() } as never,
       {} as never, r2 as never)
     await expect(service.postMedia('user-1', {
       teamId: 'team-1', channelId: 'ch-1', messageType: 'IMAGE', attachmentUrl: 'https://assets.example/x.png',

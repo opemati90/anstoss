@@ -210,8 +210,12 @@ export class ChatService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${access.team.clubId}`}))`
       const activeUser = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } })
       if (!activeUser || activeUser.deletedAt) throw new ForbiddenException('Account unavailable')
-      await this.teamsService.assertReadableAccess(userId, input.teamId)
-      await this.channelsService.assertWritable(userId, input.channelId!)
+      // Recheck and lock the current channel, membership and team authority
+      // in the same transaction as the insert. Root-client checks alone can
+      // race a channel removal or role revocation.
+      await this.channelsService.authorizePrivateUpload(
+        userId, access.team.clubId, input.teamId, input.channelId!, 'write', tx,
+      )
       await this.assertChannelInTeam(input.channelId!, input.teamId, access.team.clubId, tx)
       if (!this.r2?.enabled) throw new BadRequestException('Attachment storage is unavailable')
       const objectKey = this.r2.objectKeyFromUrl(input.attachmentUrl)
