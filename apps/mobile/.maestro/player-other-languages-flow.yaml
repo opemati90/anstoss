@@ -1,0 +1,39 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/launch.yaml
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=fr'
+- extendedWaitUntil:
+    visible: 'Présent'
+    timeout: 15000
+- assertVisible: 'Peut-être'
+- assertVisible: 'Absent'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=it'
+- extendedWaitUntil:
+    visible: 'Presente'
+    timeout: 15000
+- assertVisible: 'Forse'
+- assertVisible: 'Assente'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=pt'
+- extendedWaitUntil:
+    visible: 'Vou'
+    timeout: 15000
+- assertVisible: 'Talvez'
+- assertVisible: 'Não vou'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=tr'
+- extendedWaitUntil:
+    visible: 'Varım'
+    timeout: 15000
+- assertVisible: 'Belki'
+- assertVisible: 'Yokum'
