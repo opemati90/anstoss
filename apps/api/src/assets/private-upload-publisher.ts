@@ -16,6 +16,7 @@ type AuthorizedTarget = {
  * Atomic v2 message insertion/binding; not registered in live routes yet.
  * The mandatory authorization callback must acquire membership/revocation locks
  * and check current channel/DM + safeguarding policy inside this transaction.
+ * scope.ownerId must come from the authenticated actor, never request input.
  * It runs before any upload lock. Caller must not broadcast until publish resolves
  * and must not repeat delivery when replayed is true.
  */
@@ -34,6 +35,10 @@ export class PrivateUploadPublisher {
     if (!parsed.success) throw new BadRequestException('Invalid attachment message')
     const validated = parsed.data
     return this.prisma.$transaction(async (tx) => {
+      // Account erasure takes this lifecycle lock before destination locks.
+      // Acquire it before authorization too, including the DM user locks, to
+      // avoid inverting that order while publishing a private attachment.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope.ownerId}))`
       const target = await authorize(tx)
       if (target.userId !== scope.ownerId || target.clubId !== scope.clubId
         || !target.targetId || !['CHANNEL', 'DM'].includes(target.targetType)

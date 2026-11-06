@@ -165,6 +165,30 @@ async function main() {
       assert.equal(uncertain.state, 'FINALIZING')
       assert.ok(uncertain.operationId)
 
+      // Account erasure owns the raw user lock before it takes destination
+      // locks. Publishing must wait on that lock before invoking authorization.
+      const publication = await reservation()
+      await db.privateMediaUpload.update({ where: { id: publication.id }, data: { state: 'READY' } })
+      const lifecycleLocked = latch(), releaseLifecycle = latch()
+      const erasureLock = db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+        lifecycleLocked.release()
+        await releaseLifecycle.wait
+      }, { timeout: 15_000 })
+      let authorized = false
+      try {
+        await reached(lifecycleLocked.wait, erasureLock, 'Account lifecycle lock')
+        const boundedDb = { $transaction: (fn: (tx: any) => Promise<unknown>) => db.$transaction(async (tx) => {
+          await tx.$executeRaw`SET LOCAL lock_timeout = '100ms'`
+          return fn(tx)
+        }) }
+        await assert.rejects(new PrivateUploadPublisher(boundedDb as never).publish(publication,
+          { messageType: 'IMAGE' }, async (tx) => { authorized = true; return authorize(tx) }), /lock timeout/i)
+        assert.equal(authorized, false, 'destination authorization must wait behind account lifecycle')
+      } finally { releaseLifecycle.release() }
+      await erasureLock
+      assert.equal((await db.privateMediaUpload.findUniqueOrThrow({ where: { id: publication.id } })).state, 'READY')
+
       const revoked = await reservation()
       const revokePreparation = latch(), finishRevokePreparation = latch()
       let revokeCompletions = 0
@@ -180,7 +204,7 @@ async function main() {
       } finally { finishRevokePreparation.release() }
       await assert.rejects(revokePending)
       assert.equal(revokeCompletions, 0, 'revoked membership must not dispatch completion')
-      process.stdout.write('PASS: PostgreSQL serializes upload claims and cancellation; revoked access cannot finish; uncertain completions are not retried.\n')
+      process.stdout.write('PASS: PostgreSQL serializes account lifecycle locking and publication, upload claims and cancellation; revoked access cannot finish; uncertain completions are not retried.\n')
     })
   } finally { await db.$disconnect() }
 }

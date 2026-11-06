@@ -38,7 +38,8 @@ describe('atomic private upload publication', () => {
     expect(tx.directMessage.create).not.toHaveBeenCalled()
     expect(ledger.attach).not.toHaveBeenCalled()
     expect(tx.conversation.update).not.toHaveBeenCalled()
-    expect(tx.$executeRaw.mock.calls[1]).toContain(`${targetType === 'DM' ? 'dm-message' : 'chat-message'}:saved`)
+    expect(tx.$executeRaw.mock.calls[0]).toContain('owner')
+    expect(tx.$executeRaw.mock.calls[2]).toContain(`${targetType === 'DM' ? 'dm-message' : 'chat-message'}:saved`)
   })
 
   it.each([null, { content: 'changed' }, { messageType: 'FILE' }, { attachmentMeta: { sizeBytes: 43 } }, { attachmentUrl: 'other' }])('rejects changed/unavailable replay data: %j', async (change) => {
@@ -61,10 +62,26 @@ describe('atomic private upload publication', () => {
   it('authorizes before accessing the upload and binds before updating the inbox', async () => {
     const result = await publish.publish(scope, { messageType: 'IMAGE' }, authorize)
     expect(authorize).toHaveBeenCalledWith(tx)
+    expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(authorize.mock.invocationCallOrder[0])
     expect(authorize.mock.invocationCallOrder[0]).toBeLessThan(ledger.snapshot.mock.invocationCallOrder[0])
     expect(ledger.attach).toHaveBeenCalledWith(tx, scope, result.id)
     expect(ledger.attach.mock.invocationCallOrder[0]).toBeLessThan(tx.conversation.update.mock.invocationCallOrder[0])
     expect(result.attachmentUrl).toBe('https://private-media.anstoss.invalid/private-chat/v2/id')
+  })
+
+  it.each(['DM', 'CHANNEL'])('takes the lifecycle lock before %s destination locks', async (targetType) => {
+    Object.assign(upload, { targetType })
+    authorize.mockImplementation(async (client) => {
+      const destinationLock = targetType === 'DM' ? 'dm-user:owner' : 'owner:club'
+      await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${destinationLock}))`
+      return { userId: 'owner', clubId: 'club', targetId: 'conversation', targetType, teamId: 'team' }
+    })
+    await publish.publish(scope, { messageType: 'IMAGE' }, authorize)
+    const locks = tx.$executeRaw.mock.calls.map((call: unknown[]) => call[1])
+    expect(locks[0]).toBe('owner')
+    expect(locks[1]).toBe(targetType === 'DM' ? 'dm-user:owner' : 'owner:club')
+    expect(String(locks[2])).toBe('private-publish:upload')
+    expect(String(locks[3])).toMatch(targetType === 'DM' ? /^dm-message:/ : /^chat-message:/)
   })
 
   it('throws inside the transaction when binding fails after insertion', async () => {
