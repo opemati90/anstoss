@@ -311,7 +311,7 @@ for (const dataType of [
 const accountDeletionRel = 'apps/web/src/account-deletion.html'
 expect(existsSync(path(accountDeletionRel)), 'Public account-deletion page must exist')
 const accountDeletion = existsSync(path(accountDeletionRel)) ? read(accountDeletionRel) : ''
-for (const needle of ['privacy@anstoss.io', 'within 30 days', 'Profile', 'Data &amp; account', 'Delete account', 'free-agent mode', 'More']) {
+for (const needle of ['privacy@anstoss.io', 'within one month', 'Profile', 'Data &amp; account', 'Delete account', 'free-agent mode', 'More']) {
   expectIncludes(accountDeletion, needle, 'Account deletion page')
 }
 expectIncludes(read('apps/web/src/legal.html'), 'account-deletion', 'Web legal page')
