@@ -4,6 +4,15 @@ appId: com.renuirug.anstoss
 - runFlow:
     file: subflows/deeplink.yaml
     env:
+      URL: 'anstoss://e2e?scenario=player&language=en'
+- extendedWaitUntil:
+    visible: 'Going'
+    timeout: 15000
+- assertVisible: 'Maybe'
+- assertVisible: 'Not going'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
       URL: 'anstoss://e2e?scenario=player&language=fr'
 - extendedWaitUntil:
     visible: 'Présent'
@@ -37,3 +46,10 @@ appId: com.renuirug.anstoss
     timeout: 15000
 - assertVisible: 'Belki'
 - assertVisible: 'Yokum'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=de'
+- extendedWaitUntil:
+    visible: 'Zusage'
+    timeout: 15000
