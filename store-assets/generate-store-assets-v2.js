@@ -171,33 +171,9 @@ function bezelSvg(canvas, frame, dark) {
 
 async function preparedProduct(slide, width, height) {
   const sourcePath = path.join(sourceDir, slide.source)
-  const metadata = await sharp(sourcePath).metadata()
-  let top
-  let bottom
-
-  if (slide.source === 'launch.png') {
-    top = 220
-    bottom = 60
-  } else if (slide.source === 'current-after-user.png') {
-    top = 465
-    bottom = 600
-  } else {
-    top = 560
-    bottom = 60
-  }
-
-  let pipeline = sharp(sourcePath).extract({
-    left: 0,
-    top,
-    width: metadata.width,
-    height: metadata.height - top - bottom,
-  })
-
-  if (slide.source === 'current-after-user.png') {
-    pipeline = pipeline.extend({ top: 72, bottom: 0, left: 0, right: 0, background: '#FFFFFF' })
-  }
-
-  return pipeline
+  // Preserve the complete current screen: old fixed crops hid navigation,
+  // labels and actions after the mobile redesign.
+  return sharp(sourcePath)
     .resize(width, height, { fit: 'contain', position: 'top', background: '#FFFFFF' })
     .composite([{ input: roundedMask(width, height, 54), blend: 'dest-in' }])
     .png()
@@ -229,14 +205,12 @@ async function photoBackground(canvas) {
 async function buildPortrait(slide, index, platform) {
   const apple = platform === 'app-store'
   const canvas = apple ? { width: 1290, height: 2796 } : { width: 1080, height: 1920 }
-  const frame = slide.source === 'launch.png'
-    ? apple
-      ? { x: 210, y: 835, width: 870, height: 1700, radius: 78 }
-      : { x: 190, y: 475, width: 700, height: 1345, radius: 64 }
-    : apple
-      ? { x: index % 2 === 0 ? 112 : 148, y: 795, width: 1058, height: 1800, radius: 78 }
-      : { x: index % 2 === 0 ? 104 : 134, y: 475, width: 872, height: 1345, radius: 64 }
   const inset = apple ? 21 : 18
+  const source = await sharp(path.join(sourceDir, slide.source)).metadata()
+  const frameHeight = apple ? 1900 : 1320
+  const frameWidth = Math.round((frameHeight - inset * 2) * source.width / source.height) + inset * 2
+  const frame = { x: Math.round((canvas.width - frameWidth) / 2), y: apple ? 760 : 475,
+    width: frameWidth, height: frameHeight, radius: apple ? 78 : 64 }
   const product = await preparedProduct(slide, frame.width - inset * 2, frame.height - inset * 2)
   const dark = slide.background === 'photo' || slide.background === colors.forest
   const composites = []

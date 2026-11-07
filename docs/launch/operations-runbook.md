@@ -771,3 +771,23 @@ users. It does not test OTP delivery, physical-device pushes, all media codecs,
 or native store-distributed binaries. Zero-byte anti-resurrection barriers
 remain; this is verified content removal, NOT full metadata erasure or legal
 approval. The current privacy notice discloses the retained security metadata.
+
+The German player and coach/admin simulator flows passed on 7 November, along
+with RSVP-label checks for English, French, Italian, Portuguese and Turkish.
+Those UI checks use deterministic fixtures; the separate production verifier
+above supplies the live synchronization/storage evidence.
+
+Store-review access was checked through the actual OTP request/verify endpoints
+for Sofia (owner), Max (coach), and Tim (player). Each profile and its authorized
+schedule returned 200. The club-wide managed-events route correctly denies a
+player; Tim's team-scoped schedule succeeds. No real email delivery is exercised
+by the dedicated fixed-code reviewer flow. The two fictional events had been
+automatically archived; the seed refresh now permits that specific archived
+state, while still refusing cancelled events, altered identities, deleted users
+and platform-admin grants. Five regression tests, API typecheck and lint passed.
+
+iOS build 88 and Android version code 23 completed from `edef4b57`.
+iOS submission `8fb7da08-600a-4a7d-9469-b38de000026a` is FINISHED (binary uploaded
+to App Store Connect; not submitted for public App Review). Apple processing
+and tester availability are separate. The later seed/artwork/test/documentation
+changes do not change the mobile runtime included in those binaries.

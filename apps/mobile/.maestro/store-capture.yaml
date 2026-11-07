@@ -1,0 +1,88 @@
+appId: com.renuirug.anstoss
+---
+# Run against the current, already-loaded dev-client bundle. All identities
+# and content here are fictional fixtures, never real member information.
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=signed-out&language=en'
+- extendedWaitUntil:
+    visible:
+      id: 'welcome-continue'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/launch'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=coach&language=en'
+- extendedWaitUntil:
+    visible: 'Next match'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/current-after-user'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://events'
+- extendedWaitUntil:
+    visible:
+      id: 'event-row-event-match-away'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/events'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=en'
+- extendedWaitUntil:
+    visible: 'Going'
+    timeout: 20000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://chat'
+- extendedWaitUntil:
+    visible:
+      id: 'chat-inbox-search'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/chat'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=coach&language=en'
+- extendedWaitUntil:
+    visible: 'Next match'
+    timeout: 20000
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://squad'
+- extendedWaitUntil:
+    visible:
+      id: 'kader-row-user-player-1'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/squad'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=en'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://my-contributions'
+- extendedWaitUntil:
+    visible: 'My fees'
+    timeout: 20000
+- extendedWaitUntil:
+    visible: 'Outstanding'
+    timeout: 20000
+- waitForAnimationToEnd
+- takeScreenshot: '${CAPTURE_DIR}/contributions'
+- runFlow:
+    file: subflows/deeplink.yaml
+    env:
+      URL: 'anstoss://e2e?scenario=player&language=de'
+- assertVisible: 'Zusage'

@@ -13,7 +13,7 @@ import {
  * It refuses ambiguous or partial fixtures and never modifies real-club rows.
  * No minors, health details, real club, bank account, or platform-admin role.
  */
-const prisma = new PrismaClient()
+let prisma: PrismaClient | undefined
 const clubId = 'store-review-2026-club'
 const clubSlug = 'fc-musterstadt-review'
 const groupId = 'store-review-2026-senior-group'
@@ -73,7 +73,7 @@ const reviewers = [
   },
 ] as const
 
-async function inspect(tx: Prisma.TransactionClient) {
+export async function inspectStoreReviewFixture(tx: Prisma.TransactionClient, allowArchivedEvents = false) {
   const [clubs, users, teams, groups, memberships, teamAccess, teamMembers, events, channels, welcome, rsvps] =
     await Promise.all([
       tx.club.findMany({
@@ -153,9 +153,9 @@ async function inspect(tx: Prisma.TransactionClient) {
     )) &&
     events.length === 2 &&
     events.some((row) => row.id === trainingId && row.clubId === clubId && row.teamId === teamId &&
-      row.type === 'TRAINING' && !row.archivedAt && !row.cancelledAt) &&
+      row.type === 'TRAINING' && (allowArchivedEvents || !row.archivedAt) && !row.cancelledAt) &&
     events.some((row) => row.id === matchId && row.clubId === clubId && row.teamId === teamId &&
-      row.type === 'MATCH' && !row.archivedAt && !row.cancelledAt) &&
+      row.type === 'MATCH' && (allowArchivedEvents || !row.archivedAt) && !row.cancelledAt) &&
     channels.length === 2 &&
     channels.some((row) => row.id === teamChannelId && row.clubId === clubId && row.teamId === teamId &&
       row.kind === 'TEAM' && row.visibility === 'MEMBERS') &&
@@ -178,6 +178,7 @@ async function inspect(tx: Prisma.TransactionClient) {
 }
 
 async function main() {
+  prisma = new PrismaClient()
   const apply = process.argv.includes('--apply')
   const refreshEvents = process.argv.includes('--refresh-events')
   if (process.argv.some((arg) => !['--apply', '--dry-run', '--refresh-events'].includes(arg) && arg !== process.argv[0] && arg !== process.argv[1])) {
@@ -193,7 +194,7 @@ async function main() {
   const result = await prisma.$transaction(async (tx) => {
     // Another operator cannot slip a second fixture past the preflight.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${seedLock}))`
-    const state = await inspect(tx)
+    const state = await inspectStoreReviewFixture(tx, refreshEvents)
     if (refreshEvents) {
       if (state !== 'already-seeded') {
         throw new Error('Only a complete, unmodified review fixture can have its dates refreshed')
@@ -201,11 +202,11 @@ async function main() {
       const now = Date.now()
       await tx.event.update({
         where: { id: trainingId },
-        data: { date: new Date(now + 4 * 24 * 60 * 60 * 1000) },
+        data: { date: new Date(now + 4 * 24 * 60 * 60 * 1000), archivedAt: null },
       })
       await tx.event.update({
         where: { id: matchId },
-        data: { date: new Date(now + 8 * 24 * 60 * 60 * 1000) },
+        data: { date: new Date(now + 8 * 24 * 60 * 60 * 1000), archivedAt: null },
       })
       return 'events-refreshed' as const
     }
@@ -338,9 +339,9 @@ async function main() {
   console.log(JSON.stringify({ status: result, clubSlug, reviewerAccounts: reviewers.length }))
 }
 
-main()
+if (require.main === module) main()
   .catch((error) => {
     console.error(error instanceof Error ? error.message : 'Review seed failed')
     process.exitCode = 1
   })
-  .finally(() => prisma.$disconnect())
+  .finally(() => prisma?.$disconnect())
