@@ -727,3 +727,47 @@ version messaging before cutover; do not describe old-client compatibility as
 verified. A legacy pre-cutover presign may need to be uploaded again. The flag
 off bridge retains abandoned-upload cleanup obligations but does not process
 them, so it is a temporary rollout state, not a completed release configuration.
+
+## Production MVP verification — 2026-11-07
+
+API source `6610dc26` is deployed. Railway runtime deployment
+`83721e60-fef1-4d95-96a9-aa527138027c` reached SUCCESS; both preceding
+maintenance deployments are REMOVED. Health reports `status: ok, db: ok`.
+Maintenance is off, `PRIVATE_V1_UPLOAD_RESERVATIONS=true`, and the unfinished
+replacement lifecycle remains off (`PRIVATE_UPLOAD_CLEANUP_ENABLED=false`).
+
+The cutover first drained the previous API into standalone maintenance (HTTP
+writes and Socket.IO returned 503). A new logical production backup was taken
+after that fence, restored into isolated local PostgreSQL 18, and rehearsed
+through all 14 pending migrations. Production then reached 87 finished and
+zero unfinished migrations. The encrypted-Mac, owner-only archive is
+`~/anstoss-backups/prod-logical-TaU7Ui/database.dump`, SHA-256
+`e15ac3b92175f850b5b8c12e14b15cf1b47a91f8c59f2d0553503cf2fd7686f8`.
+This is a point-in-time backup, not evidence of a recurring backup schedule.
+
+`apps/api/scripts/verify-production-mvp.cjs --production-synthetic-only`
+passed uninterrupted against the live API and EU private R2 storage, using
+four synthetic adult accounts and one isolated QA club:
+
+- Player join request, denied player approval, admin approval, ACTIVE/FULL access.
+- Player YES → MAYBE → YES, coach summary and member response, outsider denial.
+- Coach squad publication and reminder endpoint (no device push tokens).
+- Coach-recorded PRESENT attendance, idempotent retry, admin read at version 1.
+- Channel and DM PNG upload, publication, exact retry, authorized byte-for-byte
+  download, denied outsider access and denied unsigned bucket access.
+- Account deletion, revoked session, profile anonymization, actual background
+  media cleanup, old PUT rejected with 412 and old signed GET returning no content.
+- The test club was removed and all four synthetic accounts API-anonymized.
+
+The synthetic fixture was `mvp-qa-56633ded-2887-494d-9e0c-202be2b21f09`.
+An earlier interrupted test used `mvp-qa-a850a4f0-c36d-4c54-a5fd-b3e34e30c10d`;
+it was resumed successfully and also cleaned up. Test corrections respected
+the API's prohibition on creating past events and R2's virtual-hosted bucket
+address. Only a newly-created synthetic attendance event was moved into the
+past directly; the attendance actions themselves used the production API.
+
+The verifier mints short-lived sessions solely for its newly-created synthetic
+users. It does not test OTP delivery, physical-device pushes, all media codecs,
+or native store-distributed binaries. Zero-byte anti-resurrection barriers
+remain; this is verified content removal, NOT full metadata erasure or legal
+approval. The current privacy notice discloses the retained security metadata.
