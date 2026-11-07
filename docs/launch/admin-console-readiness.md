@@ -55,8 +55,27 @@ verified-contact registry; no existing club members or data were transferred.
   owner/coach access and duplicate protection using isolated fictional records.
   It removes only its own synthetic records, retaining audit evidence.
 
-Record deployment/live-test outcomes after they finish; the script itself is
-not proof of a production pass. No new Expo build is needed for this update.
+### Production verification completed
+
+Source deployed: `bd060f22` (including implementation commit `108fcbf7`).
+
+- API deployment `65e353c6-8726-454f-a557-c7d9e3a44096`: SUCCESS.
+- Admin deployment `f1065cc1-fde0-41ee-aefb-2534c4789c9d`: SUCCESS.
+- API health: `status=ok`, `db=ok`; admin `/healthz`: `ok`.
+- Live browser sign-in and desktop/mobile application queue: passed.
+- Live synthetic run `admin-qa-684c5685-a955-4a38-aa58-81c9a2a8ec37`:
+  email-alias login, unverified assessment, rejection of ordinary app tokens,
+  mismatched-email rejection, verified activation, owner/coach access and
+  duplicate-team protection all passed. Synthetic records were removed;
+  operator audit evidence remains. No real club was used for this test.
+
+The contact endpoint and worker share the tested transactional activation path;
+this production test did not measure the background worker's polling interval.
+No new Expo build was triggered or needed for this API/admin update.
+
+To rerun the opt-in script, first compile its local JWT prerequisite with
+`npx tsc -p apps/api/tsconfig.build.json --incremental false`. Supply the private
+credential-file path as the argument after `--production-synthetic-only`.
 
 ## Historical baseline (superseded where noted above)
 
