@@ -38,6 +38,10 @@ import { sendEmail } from '../email/mailer'
 import { buildOwnershipTransferCodeEmail } from '../email/email-content'
 import { resolveLocale } from '../i18n/translations'
 import { assertLaunchParticipant } from '../auth/launch-access-policy'
+import {
+  AUTHORITY_PREFIX, assessClubClaim, fussballTeamId, readVerifiedContact,
+  verifiedContactSchema, type VerifiedClubContact,
+} from './claim-assessment'
 
 const CLAIM_TTL_DAYS = 14
 const STAFF_CLAIM_ESCALATION_DAYS = 7
@@ -318,14 +322,82 @@ export class ClubActivationService {
       },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     })
+    const contacts = await this.prisma.platformSetting.findMany({
+      where: { key: { in: [...new Set(claims.map(claim => fussballTeamId(claim.externalTeamUrl))
+        .filter((id): id is string => !!id))].map(id => `${AUTHORITY_PREFIX}${id}`) } },
+      select: { key: true, value: true },
+    })
+    const byKey = new Map(contacts.map(row => [row.key, readVerifiedContact(row.value)]))
     return claims.map((claim) => ({
       ...withEffectiveClaimStatus(claim),
+      assessment: assessClubClaim(claim, byKey.get(`${AUTHORITY_PREFIX}${fussballTeamId(claim.externalTeamUrl)}`) ?? null),
       platformEscalated: claim.kind === ClubClaimKind.STAFF_CLAIM,
       escalatesAt:
         claim.kind === ClubClaimKind.STAFF_CLAIM
           ? addDays(claim.createdAt, STAFF_CLAIM_ESCALATION_DAYS)
           : null,
     }))
+  }
+
+  async verifyClubContact(reviewerId: string, claimId: string, input: { email: string; sourceUrl: string; note: string }) {
+    const contact = await this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
+      const claim = await tx.clubClaim.findUnique({ where: { id: claimId }, include: { directoryEntry: true, claimant: true } })
+      this.assertReviewableClaim(claim, ClubClaimKind.FIRST_CLAIM)
+      const reviewer = await tx.user.findFirst({ where: { id: reviewerId, platformRole: 'PLATFORM_ADMIN', deletedAt: null }, select: { id: true } })
+      if (!reviewer) throw new ForbiddenException('Sign in with a platform admin account to verify authority')
+      if (input.email.trim().toLowerCase() !== claim.claimant.email?.toLowerCase()) {
+        throw new BadRequestException('The verified contact must match the applicant account email')
+      }
+      const teamId = fussballTeamId(claim.externalTeamUrl)
+      if (!teamId) throw new BadRequestException('A recognised FUSSBALL.DE team page is required')
+      const contact = verifiedContactSchema.parse({ ...input, email: input.email.trim(), teamId,
+        clubName: claim.directoryEntry.name, verifiedBy: reviewerId, expiresAt: addDays(new Date(), 30).toISOString() })
+      const key = `${AUTHORITY_PREFIX}${teamId}`
+      await tx.platformSetting.upsert({ where: { key },
+        create: { key, value: JSON.stringify(contact), updatedById: reviewerId },
+        update: { value: JSON.stringify(contact), updatedById: reviewerId },
+      })
+      await tx.auditLog.create({ data: { clubId: null, type: 'club.authority_verified', actorType: 'admin', actorId: reviewerId,
+        summary: 'Verified club contact for automatic application checks.', metadata: { claimId, teamId, expiresAt: contact.expiresAt } } })
+      return contact
+    })
+    // Uses the same transactional activation path as manual approval. If any
+    // check fails, no club or authority is granted; the queue remains actionable.
+    return this.reviewFirstClaim(reviewerId, claimId, { decision: 'APPROVE', note: contact.note }, true)
+  }
+
+  async runAutomaticApprovals() {
+    const rows = await this.prisma.platformSetting.findMany({ where: { key: { startsWith: AUTHORITY_PREFIX } } })
+    const contacts = rows.map(row => ({ row, contact: readVerifiedContact(row.value) }))
+    const active: VerifiedClubContact[] = []
+    for (const { row, contact } of contacts) {
+      if (!contact || new Date(contact.expiresAt) <= new Date()) {
+        // Compare the value so a concurrently refreshed contact is never removed.
+        await this.prisma.platformSetting.deleteMany({ where: { key: row.key, value: row.value } })
+      } else active.push(contact)
+    }
+    if (!active.length) return { approved: 0, reviewRequired: 0 }
+    const paused = await this.prisma.platformSetting.findUnique({ where: { key: 'kill_switch_claims' } })
+    if (paused?.value === 'true') return { approved: 0, reviewRequired: 0 }
+    const claims = await this.prisma.clubClaim.findMany({ where: {
+      kind: 'FIRST_CLAIM', status: 'SUBMITTED', expiresAt: { gt: new Date() },
+      claimant: { email: { in: active.map(contact => contact.email) }, deletedAt: null },
+    }, include: { directoryEntry: true, claimant: { select: { email: true } } } })
+    let approved = 0
+    let reviewRequired = 0
+    for (const claim of claims) {
+      const contact = active.find(item => item.teamId === fussballTeamId(claim.externalTeamUrl)) ?? null
+      if (!contact || !assessClubClaim(claim, contact).eligible) continue
+      try {
+        await this.reviewFirstClaim(contact.verifiedBy, claim.id, { decision: 'APPROVE', note: contact.note }, true)
+        approved += 1
+      } catch (error) {
+        if (!(error instanceof ConflictException || error instanceof ForbiddenException || error instanceof NotFoundException)) throw error
+        reviewRequired += 1
+      }
+    }
+    return { approved, reviewRequired }
   }
 
   async reviewPlatformClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput) {
@@ -434,7 +506,7 @@ export class ClubActivationService {
     })
   }
 
-  async reviewFirstClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput) {
+  async reviewFirstClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput, automatic = false) {
     if (input.decision !== 'APPROVE') {
       return this.updateReviewState(reviewerId, claimId, input)
     }
@@ -446,6 +518,31 @@ export class ClubActivationService {
         include: { directoryEntry: true, evidence: true },
       })
       this.assertReviewableClaim(claim, ClubClaimKind.FIRST_CLAIM)
+      const referenceTeamId = fussballTeamId(claim.externalTeamUrl)
+      if (referenceTeamId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`verified-team:${referenceTeamId}`}))`
+      }
+      if (automatic) {
+        const teamId = referenceTeamId
+        const paused = await tx.platformSetting.findUnique({ where: { key: 'kill_switch_claims' } })
+        if (paused?.value === 'true') throw new ConflictException('Automatic club activation is paused')
+        const [row, applicant, verifier] = await Promise.all([
+          tx.platformSetting.findUnique({ where: { key: `${AUTHORITY_PREFIX}${teamId}` } }),
+          tx.user.findFirst({ where: { id: claim.claimantUserId, deletedAt: null }, select: { email: true } }),
+          tx.user.findFirst({ where: { id: reviewerId, deletedAt: null, platformRole: 'PLATFORM_ADMIN' }, select: { id: true } }),
+        ])
+        const contact = readVerifiedContact(row?.value)
+        if (!applicant || !verifier || contact?.verifiedBy !== reviewerId ||
+          !assessClubClaim({ ...claim, claimant: applicant }, contact).eligible) {
+          throw new ConflictException('Independent club authority verification is required')
+        }
+        const linked = await tx.externalTeamLink.findFirst({ where: { externalUrl: { contains: teamId!, mode: 'insensitive' } }, select: { id: true } })
+        const competing = await tx.clubClaim.findFirst({ where: { id: { not: claim.id }, kind: 'FIRST_CLAIM',
+          externalTeamUrl: { contains: teamId!, mode: 'insensitive' }, OR: [{ status: 'APPROVED' },
+            { status: { in: ['SUBMITTED', 'NEEDS_INFO'] }, expiresAt: { gt: new Date() }, claimantUserId: { not: claim.claimantUserId } }],
+        }, select: { id: true } })
+        if (linked || competing) throw new ConflictException('This team has another application or an active club; review required')
+      }
       if (
         Array.isArray(claim.evidence) &&
         claim.evidence.length === 0 &&
@@ -571,8 +668,8 @@ export class ClubActivationService {
       await tx.auditLog.create({
         data: {
           clubId: club.id,
-          type: 'club.claim_approved',
-          actorType: 'admin',
+          type: automatic ? 'club.claim_auto_approved' : 'club.claim_approved',
+          actorType: automatic ? 'system' : 'admin',
           actorId: reviewerId,
           actorLabel: null,
           summary: `First club claim approved for ${club.name}`,

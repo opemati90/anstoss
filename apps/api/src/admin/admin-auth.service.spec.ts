@@ -104,6 +104,34 @@ describe('AdminAuthService', () => {
     await expect(service.login('admin', 'wrong')).rejects.toThrow(UnauthorizedException)
   })
 
+  it('uses the stored account for its email alias and rejects the old bootstrap password', async () => {
+    const account = {
+      userId: 'operator-1', loginIdentifier: 'admin',
+      passwordHash: passwordHashFor('new-temporary-password'), sessionVersion: 9,
+      disabledAt: null, mustRotatePassword: true,
+      user: {id: 'operator-1', email: 'admin@anstoss.io', name: 'Admin', clerkId: null,
+        platformRole: 'PLATFORM_ADMIN', deletedAt: null},
+    }
+    const prisma = {platformAdminAccount: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(account), update: jest.fn(),
+    }}
+    const service = new AdminAuthService(prisma as never)
+    const result = await service.login(' ADMIN@ANSTOSS.IO ', 'new-temporary-password')
+    expect(verifySessionToken(result.token).admin_v).toBe('9')
+    expect(result.user.loginIdentifier).toBe('admin')
+    await expect(service.login('admin@anstoss.io', 'correct horse battery staple')).rejects.toThrow(UnauthorizedException)
+  })
+
+  it('does not fall back to bootstrap auth when the email account is disabled', async () => {
+    const prisma = {platformAdminAccount: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue({disabledAt: new Date()}),
+    }}
+    await expect(new AdminAuthService(prisma as never).login('admin@anstoss.io', 'correct horse battery staple'))
+      .rejects.toThrow(UnauthorizedException)
+  })
+
   it('fails closed when admin console credentials are missing', async () => {
     delete process.env.ADMIN_CONSOLE_USERNAME
     delete process.env.ADMIN_CONSOLE_PASSWORD_HASH

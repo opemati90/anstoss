@@ -77,7 +77,7 @@ function proxyHeaders(req, body) {
   for (const [key, value] of Object.entries(req.headers)) {
     if (!value) continue
     const name = key.toLowerCase()
-    if (['connection', 'content-length', 'host', 'transfer-encoding'].includes(name)) continue
+    if (['connection', 'content-length', 'host', 'transfer-encoding', 'origin'].includes(name)) continue
     headers.set(key, Array.isArray(value) ? value.join(', ') : value)
   }
 
@@ -115,6 +115,13 @@ const server = createServer(async (req, res) => {
       return
     }
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/') || url.pathname === '/auth' || url.pathname.startsWith('/auth/')) {
+      // The local preview is a same-origin server proxy, not a public CORS
+      // bypass. Validate the browser origin before omitting it upstream.
+      const origin = req.headers.origin
+      if (origin && ![`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`].includes(origin)) {
+        send(res, 403, 'Origin not allowed\n', {'Content-Type': 'text/plain; charset=utf-8'})
+        return
+      }
       await proxyApi(req, res)
       return
     }

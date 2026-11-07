@@ -1,6 +1,67 @@
 # Internal Admin Console Readiness
 
-Status as of the current `develop` branch.
+## MVP update — 7 November 2026
+
+Production console: https://admin.anstoss.io. Primary navigation is now
+Applications, Clubs, People, Safety and Operations, with Settings separate.
+Analytics, broadcast and SQL tools are no longer accepted console routes.
+Existing backend capabilities/data were not deleted. The application queue
+defaults to pending decisions; historical applications have a separate filter.
+
+### Approval policy
+
+Personal email providers (Gmail, Yahoo and others) are accepted. A club-owned
+email domain is not required. These are deterministic checks, **not an AI
+authority classifier**; no paid AI decision provider is configured.
+
+An authenticated platform operator can verify a contact from independent club
+confirmation or a reliable public contact source, recording the source and
+basis. A known email address or public team URL alone is not authority proof.
+“Verify contact” stores an exact email/team/club match for 30 days and runs the
+transactional activation path. A worker checks matching pending applications
+every minute and removes expired verification records.
+
+Activation rechecks account status, adult eligibility, reviewer authority,
+claim expiry, current club activation, and duplicate/competing team claims.
+Conflicts remain reviewable. The claim kill switch and migration-maintenance
+mode pause background activation. Verification requires a dedicated admin
+session, not an ordinary mobile token or the break-glass API key.
+
+URL recognition does not claim that the remote page was fetched or verified.
+There is no automatic extraction of trusted contact details from FUSSBALL.DE.
+Manual operator decisions remain available and audited.
+
+### Recovery and pilot
+
+The existing platform admin password was reset, previous sessions revoked by
+incrementing its stored session version, and password rotation required. The
+temporary credential is stored privately outside Git, never in this document.
+Both the stored username and linked account email now resolve the same account;
+its database password and disabled state take precedence over bootstrap values.
+
+The operator's exact FC Treptow III application was manually approved for an
+isolated MVP pilot at their request. This is not independently verified official
+club representation. The applicant's Yahoo address was not added to the
+verified-contact registry; no existing club members or data were transferred.
+
+### Checks
+
+- API: 179 suites / 2,112 tests passed; lint, typecheck and compilation passed.
+- Admin: static smoke checks and syntax checks passed.
+- Production-backed login and application queue exercised in a local browser
+  preview at desktop and narrow mobile widths.
+- Opt-in live test: `apps/api/scripts/verify-admin-activation.cjs`. It checks
+  email-alias login, unauthorised/mismatched verification rejection, activation,
+  owner/coach access and duplicate protection using isolated fictional records.
+  It removes only its own synthetic records, retaining audit evidence.
+
+Record deployment/live-test outcomes after they finish; the script itself is
+not proof of a production pass. No new Expo build is needed for this update.
+
+## Historical baseline (superseded where noted above)
+
+The following notes describe the earlier console, not outstanding provisioning
+work. The Railway admin service and browser-level checks now exist.
 
 ## Launch-Ready Controls
 

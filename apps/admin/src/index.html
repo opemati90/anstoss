@@ -20,15 +20,13 @@
             <div class="brand-context">Platform Admin</div>
           </div>
         </div>
-        <p class="eyebrow">Secure access</p>
-        <h1 class="login-title">Sign in to the admin console.</h1>
+        <h1 class="login-title">Welcome back</h1>
         <p class="login-copy">
-          Use your platform admin username and password. The emergency admin key stays available
-          only as a fallback inside Settings after sign-in.
+          Sign in to manage club applications and support your teams.
         </p>
         <form class="login-form" id="admin-login-form">
           <label class="support-form">
-            <span>Username</span>
+            <span>Username or email</span>
             <input
               id="admin-login-username"
               class="text-input"
@@ -51,9 +49,7 @@
             Sign in
           </button>
         </form>
-        <p class="muted-line login-status" id="admin-login-status">
-          Sign in to open the admin workspace.
-        </p>
+        <p class="muted-line login-status" id="admin-login-status" role="status" aria-live="polite"></p>
       </div>
     </section>
     <div class="app-shell" id="app-shell" hidden>
@@ -76,17 +72,17 @@
       </div>
 
       <nav class="nav" id="admin-nav" aria-label="Admin navigation">
-        <a class="nav-item" href="#/overview" data-section="overview">
-          <span class="nav-icon" aria-hidden="true"></span>Overview
+        <a class="nav-item" href="#/approvals" data-section="approvals">
+          <span class="nav-icon" aria-hidden="true"></span>Applications
         </a>
         <a class="nav-item" href="#/clubs" data-section="clubs">
           <span class="nav-icon" aria-hidden="true"></span>Clubs
         </a>
         <a class="nav-item" href="#/users" data-section="users">
-          <span class="nav-icon" aria-hidden="true"></span>Users
+          <span class="nav-icon" aria-hidden="true"></span>People
         </a>
-        <a class="nav-item" href="#/subscriptions" data-section="subscriptions">
-          <span class="nav-icon" aria-hidden="true"></span>Billing
+        <a class="nav-item" href="#/moderation" data-section="moderation">
+          <span class="nav-icon" aria-hidden="true"></span>Safety
         </a>
         <a class="nav-item" href="#/health" data-section="health">
           <span class="nav-icon" aria-hidden="true"></span>Operations
@@ -151,9 +147,35 @@
         </article>
       </section>
 
+      <section class="page" data-page="approvals" hidden>
+        <div class="page-heading">
+          <div><h1 class="welcome">Club applications</h1>
+          <p class="lede">Help the next team get started.</p></div>
+          <button class="pill" id="claims-refresh" type="button">Refresh</button>
+        </div>
+        <div class="queue-summary" id="club-claims-summary" role="status" aria-live="polite">Loading applications…</div>
+        <div class="toolbar queue-filters">
+          <label for="claims-filter">Show</label>
+          <select id="claims-filter" class="text-input">
+            <option value="pending">Needs a decision</option>
+            <option value="all">All applications</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table claim-table" id="club-claims-table">
+            <thead><tr><th>Club / team</th><th>Applicant</th><th>Application checks</th><th>Status</th><th>Review</th></tr></thead>
+            <tbody><tr><td colspan="5" class="placeholder">Loading applications…</td></tr></tbody>
+          </table>
+        </div>
+        <details class="review-guidance">
+          <summary>How automatic approval works</summary>
+          <p>Complete adult-team applications can be approved automatically when the applicant matches a previously verified club contact. Gmail, Yahoo and other personal addresses are welcome; a club email domain is not required.</p>
+          <p>Verify authority through a published contact, an existing administrator or direct confirmation. A team link alone is not proof. Conflicting applications stay in review. Verified contact records expire after 30 days.</p>
+        </details>
+      </section>
+
       <section class="page" data-page="clubs" hidden>
-        <p class="eyebrow">Clubs</p>
-        <h1 class="welcome">All clubs.</h1>
+        <h1 class="welcome">Clubs</h1>
         <p class="lede">
           Every club on the platform. Open a club to review its owners, plan, and billing state.
         </p>
@@ -187,33 +209,8 @@
             </tbody>
           </table>
         </div>
-        <article class="panel" style="margin-top: 28px">
-          <p class="eyebrow">Authority review</p>
-          <h2>Club administrator claims</h2>
-          <p class="lede">
-            Approve only after confirming the claimant is authorised by the real club.
-          </p>
-          <p class="muted-line" id="club-claims-summary">Loading claim queue…</p>
-          <div class="table-wrap">
-            <table class="data-table" id="club-claims-table">
-              <thead>
-                <tr>
-                  <th>Club</th>
-                  <th>Claimant</th>
-                  <th>Evidence</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colspan="5" class="placeholder">Loading...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-        <article class="panel" style="margin-top: 28px">
+        <details class="panel operational-details">
+          <summary>Ownership disputes</summary>
           <div class="panel-head">
             <div>
               <p class="eyebrow">Governance</p>
@@ -241,7 +238,7 @@
               </tbody>
             </table>
           </div>
-        </article>
+        </details>
         <article class="panel" style="margin-top: 28px">
           <p class="eyebrow">Access safety</p>
           <h2>Suspicious invite campaigns</h2>
@@ -271,10 +268,10 @@
       </section>
 
       <section class="page" data-page="users" hidden>
-        <p class="eyebrow">Users</p>
-        <h1 class="welcome">Users and platform admins.</h1>
-        <p class="lede">Search all accounts and provision internal admin access.</p>
-        <article class="panel">
+        <h1 class="welcome">People</h1>
+        <p class="lede">Find an account and check its club access.</p>
+        <details class="panel operational-details">
+          <summary>Platform administrator access</summary>
           <div class="panel-head">
             <div>
               <p class="eyebrow">Platform access</p>
@@ -300,7 +297,7 @@
             </label>
             <label>
               <span>Temporary password</span>
-              <input id="platform-admin-password" class="text-input" type="text" placeholder="Set a strong temporary password" />
+              <input id="platform-admin-password" class="text-input" type="password" autocomplete="new-password" placeholder="Set a strong temporary password" />
             </label>
             <button class="pill pill--dark" type="submit">Create platform admin</button>
           </form>
@@ -323,7 +320,7 @@
               </tbody>
             </table>
           </div>
-        </article>
+        </details>
         <div class="toolbar">
           <input
             id="users-search"
@@ -543,10 +540,6 @@
             ><strong>Feature flags</strong><span>Manage controlled rollouts</span></a
           >
           <a href="#/releases"><strong>Releases</strong><span>Check mobile versions</span></a>
-          <a href="#/analytics"><strong>Analytics</strong><span>Review product activity</span></a>
-          <a href="#/broadcast"
-            ><strong>Broadcasts</strong><span>Review messaging controls</span></a
-          >
         </div>
       </section>
 
@@ -979,7 +972,6 @@ Broadcast sending is disabled for launch.</pre>
     <dialog class="detail-dialog" id="claim-decision-dialog" aria-labelledby="claim-decision-title">
       <div class="detail-dialog__head">
         <div>
-          <p class="eyebrow">Authority review</p>
           <h2 id="claim-decision-title">Review claim</h2>
         </div>
         <button class="icon-button" id="claim-decision-close" type="button" aria-label="Close">
@@ -991,6 +983,11 @@ Broadcast sending is disabled for launch.</pre>
         <form class="support-form" id="claim-decision-form">
           <input id="claim-decision-id" type="hidden" />
           <input id="claim-decision-value" type="hidden" />
+          <label id="claim-source-field" hidden>
+            <span>Verification source</span>
+            <input id="claim-source-url" class="text-input" type="url" placeholder="https://club-website.de/contact" />
+            <span class="muted-line">A source you checked independently, not just the submitted team link.</span>
+          </label>
           <label>
             <span>Reviewer note</span>
             <textarea
@@ -1000,7 +997,7 @@ Broadcast sending is disabled for launch.</pre>
             ></textarea>
           </label>
           <div class="settings-row">
-            <button class="pill pill--dark" type="submit">Submit decision</button>
+            <button class="pill pill--dark" id="claim-decision-submit" type="submit">Save decision</button>
             <button class="pill" id="claim-decision-cancel" type="button">Cancel</button>
           </div>
         </form>

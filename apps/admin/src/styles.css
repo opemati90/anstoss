@@ -80,8 +80,7 @@ code { color: #394139; overflow-wrap: anywhere; }
   padding: clamp(24px, 4vw, 36px);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 20px;
-  box-shadow: 0 20px 50px rgba(24, 27, 24, 0.08);
+  border-radius: 16px;
 }
 
 .login-card__brand {
@@ -94,10 +93,10 @@ code { color: #394139; overflow-wrap: anywhere; }
 .login-title {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(34px, 6vw, 48px);
+  font-size: clamp(28px, 4vw, 36px);
   font-weight: 630;
-  letter-spacing: -0.055em;
-  line-height: 0.98;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .login-copy {
@@ -205,7 +204,27 @@ code { color: #394139; overflow-wrap: anywhere; }
 .page { max-width: var(--content); margin: 0 auto; padding-top: clamp(46px, 6vw, 78px); }
 .page[hidden] { display: none; }
 .eyebrow { margin: 0 0 12px; color: var(--red); font-size: 11px; font-weight: 760; letter-spacing: 0.04em; text-transform: uppercase; }
-.welcome, .page > h1 { max-width: 760px; margin: 0; color: var(--ink); font-size: clamp(40px, 5vw, 64px); font-weight: 630; letter-spacing: -0.055em; line-height: 1; }
+.welcome, .page > h1 { max-width: 760px; margin: 0; color: var(--ink); font-size: clamp(28px, 3vw, 36px); font-weight: 630; letter-spacing: -0.03em; line-height: 1.15; }
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.page-heading .lede { margin-bottom: 0; }
+.queue-summary { margin: 32px 0 16px; font-size: 18px; font-weight: 600; }
+.queue-filters { margin-bottom: 20px; }
+.queue-filters select { width: auto; min-width: 180px; }
+.claim-table td { vertical-align: top; }
+.claim-table td:first-child { min-width: 160px; }
+.claim-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 144px; }
+.claim-actions .pill { white-space: nowrap; }
+.claim-checks { min-width: 240px; max-width: 360px; margin-top: 12px; }
+.claim-checks summary { cursor: pointer; font-weight: 550; }
+.claim-checks ul { padding-left: 16px; }
+.claim-checks li { margin: 12px 0; }
+.check-result { display: block; color: var(--muted); font-size: 12px; }
+.evidence-link { text-decoration: underline; text-underline-offset: 3px; }
+.review-guidance { max-width: 720px; margin-top: 28px; color: var(--muted); }
+.review-guidance summary, .operational-details > summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; font-weight: 600; color: var(--ink); }
+.operational-details { margin: 24px 0; }
+.operational-details[open] > summary { margin-bottom: 20px; }
+[hidden] { display: none !important; }
 .lede { max-width: 720px; margin: 18px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
 .muted-line { margin: 12px 0 0; color: var(--faint); font-size: 12px; line-height: 1.55; }
 
@@ -377,7 +396,9 @@ input::placeholder, textarea::placeholder { color: #5f685f; opacity: 1; }
   .command-bar__meta { margin-left: auto; }
   .main { padding-inline: 16px; }
   .page { padding-top: 34px; }
-  .welcome, .page > h1 { font-size: clamp(38px, 12vw, 52px); }
+  .welcome, .page > h1 { font-size: 28px; }
+  .page-heading { align-items: flex-start; gap: 16px; }
+  .page-heading > .pill { width: auto; flex-shrink: 0; }
   .lede { font-size: 14px; }
   .stat-row { grid-template-columns: 1fr 1fr; gap: 8px; }
   .stat-card { min-height: 128px; padding: 16px; }
@@ -388,6 +409,14 @@ input::placeholder, textarea::placeholder { color: #5f685f; opacity: 1; }
   .pill { width: 100%; }
   .panel-head .pill, .list-card .pill { width: auto; }
   .table-wrap { margin-inline: -16px; border-inline: 0; border-radius: 0; }
+  .claim-table, .claim-table tbody, .claim-table tr, .claim-table td { display: block; width: 100%; min-width: 0; }
+  .claim-table thead { display: none; }
+  .claim-table td { border: 0; overflow-wrap: anywhere; }
+  .claim-table tr + tr { border-top: 1px solid var(--line); }
+  .claim-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 600; }
+  .claim-table .claim-checks { min-width: 0; max-width: none; }
+  .claim-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .claim-actions .pill { white-space: normal; }
   .data-table th, .data-table td { padding: 13px 14px; }
   .tool-links { grid-template-columns: 1fr; }
   .tool-links a { min-height: 78px; }

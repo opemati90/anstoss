@@ -72,10 +72,10 @@ async function responseErrorMessage(res, path) {
 
   if (contentType.includes('application/json')) {
     const body = await res.json().catch(() => null)
-    const message = body?.message || body?.error || body?.detail
+    const message = body?.message || body?.error?.message || body?.detail
     if (Array.isArray(message)) return message.join(', ')
     if (typeof message === 'string' && message.trim()) return message.trim()
-    if (body) return JSON.stringify(body).slice(0, 500)
+    if (body) return 'The request could not be completed. Refresh and try again.'
   }
 
   const text = await res.text().catch(() => '')
@@ -188,24 +188,21 @@ function renderAuthGate(message = '') {
 // - Routing -
 
 const SECTIONS = [
-  'overview',
+  'approvals',
   'clubs',
   'users',
   'subscriptions',
-  'revenue',
   'health',
   'audit',
   'support',
-  'broadcast',
   'flags',
   'moderation',
-  'analytics',
-  'sql',
   'releases',
   'settings',
 ]
 
 const SECTION_LOADERS = {
+  approvals: loadClubClaims,
   overview: loadOverview,
   clubs: loadClubs,
   users: loadUsers,
@@ -223,9 +220,10 @@ const SECTION_LOADERS = {
 }
 
 const SECTION_LABELS = {
+  approvals: 'Applications',
   overview: 'Overview',
   clubs: 'Clubs',
-  users: 'Users',
+  users: 'People',
   subscriptions: 'Billing',
   revenue: 'Revenue',
   health: 'Operations',
@@ -233,7 +231,7 @@ const SECTION_LABELS = {
   support: 'Support notes',
   broadcast: 'Broadcast push',
   flags: 'Feature flags',
-  moderation: 'Moderation',
+  moderation: 'Safety',
   analytics: 'Analytics',
   sql: 'SQL runner',
   releases: 'Releases',
@@ -246,15 +244,14 @@ const PRIMARY_SECTION = {
   support: 'health',
   broadcast: 'health',
   flags: 'health',
-  moderation: 'health',
   analytics: 'health',
   releases: 'health',
   sql: 'health',
 }
 
 function currentSection() {
-  const hash = window.location.hash.replace(/^#\/?/, '') || 'overview'
-  return SECTIONS.includes(hash) ? hash : 'overview'
+  const hash = window.location.hash.replace(/^#\/?/, '') || 'approvals'
+  return SECTIONS.includes(hash) ? hash : 'approvals'
 }
 
 function navigate() {
@@ -471,24 +468,36 @@ function bindClubs() {
   })
   document.getElementById('claim-decision-form').addEventListener('submit', async (event) => {
     event.preventDefault()
+    const submit = document.getElementById('claim-decision-submit')
+    if (submit.disabled) return
     const claimId = document.getElementById('claim-decision-id').value
     const decision = document.getElementById('claim-decision-value').value
     const note = document.getElementById('claim-decision-note').value.trim()
     const status = document.getElementById('claim-decision-status')
-    if ((decision === 'APPROVE' || decision === 'NEEDS_INFO') && !note) {
-      status.textContent = 'Add a reviewer note before submitting this action.'
+    if (note.length < (decision === 'VERIFY_CONTACT' ? 20 : 10)) {
+      status.textContent = 'Describe the verification or requested information before saving.'
       return
     }
     status.textContent = 'Saving decision...'
+    submit.disabled = true
     try {
-      await reviewClubClaim(claimId, decision, note)
+      if (decision === 'VERIFY_CONTACT') {
+        const claim = clubClaimsCache.find(item => item.id === claimId)
+        await adminFetch(`/admin/club-claims/${encodeURIComponent(claimId)}/verify-contact`, {
+          method: 'POST', body: JSON.stringify({ email: claim?.claimant?.email,
+            sourceUrl: document.getElementById('claim-source-url').value.trim(), note }),
+        })
+        await loadClubClaims()
+      } else await reviewClubClaim(claimId, decision, note)
       closeClaimDecisionDialog()
       document.getElementById('claim-decision-note').value = ''
       status.textContent = 'Decision saved.'
     } catch (error) {
       status.textContent = error.message || String(error)
-    }
+    } finally { submit.disabled = false }
   })
+  document.getElementById('claims-refresh').addEventListener('click', loadClubClaims)
+  document.getElementById('claims-filter').addEventListener('change', renderClubClaims)
 }
 
 async function openClubDetail(clubId) {
@@ -618,7 +627,6 @@ async function loadClubs() {
   } catch (err) {
     setError(tbody, err)
   }
-  await loadClubClaims()
   await loadClubDisputes()
   await Promise.all([loadInviteCampaigns(), loadJoinRequests(), loadContributionHealth()])
 }
@@ -687,24 +695,39 @@ async function loadClubClaims() {
   try {
     const claims = await adminFetch('/admin/club-claims')
     clubClaimsCache = claims
-    summary.textContent = `${claims.length} claim${claims.length === 1 ? '' : 's'} awaiting review.`
-    if (!claims.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="placeholder">No administrator claims.</td></tr>'
-      return
-    }
-    tbody.innerHTML = claims
+    renderClubClaims()
+  } catch (err) {
+    summary.textContent = err.message || String(err)
+    setError(tbody, err)
+  }
+}
+
+function renderClubClaims() {
+  const pending = clubClaimsCache.filter(claim => ['SUBMITTED', 'NEEDS_INFO'].includes(claim.status))
+  document.getElementById('club-claims-summary').textContent = pending.length
+    ? `${pending.length} application${pending.length === 1 ? '' : 's'} need${pending.length === 1 ? 's' : ''} attention`
+    : 'All caught up. No applications need a decision.'
+  const claims = document.getElementById('claims-filter').value === 'all' ? clubClaimsCache : pending
+  const tbody = document.querySelector('#club-claims-table tbody')
+  tbody.closest('table').classList.toggle('is-empty', !claims.length)
+  if (!claims.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="placeholder">New club applications will appear here.</td></tr>'
+    return
+  }
+  tbody.innerHTML = claims
       .map(
         (claim) => `
       <tr>
-        <td><strong>${esc(claim.directoryEntry?.name || 'Unknown club')}</strong><br><span class="muted-line">${claim.platformEscalated ? 'Staff claim · escalated after 7 days' : 'First club claim'}</span></td>
-        <td>${esc(claim.claimant?.name || 'Unknown')}<br><span class="muted-line">${esc(claim.claimant?.email || '')}</span></td>
-        <td>${claim.externalTeamUrl ? `<strong>Official team page</strong><br><a href="${esc(claim.externalTeamUrl)}" target="_blank" rel="noopener noreferrer">${esc(claim.externalTeamUrl)}</a>${claim.evidence?.length ? '<br>' : ''}` : ''}${claim.evidence?.length ? claim.evidence.map((item) => `<strong>${esc(item.type.replaceAll('_', ' '))}</strong>${item.value ? `<br><span class="muted-line">${esc(item.value)}</span>` : ''}`).join('<br>') : claim.externalTeamUrl ? '' : 'No authority evidence'}</td>
-        <td>${badge(claim.status)}</td>
-        <td>${
+        <td><strong>${esc(claim.directoryEntry?.name || 'Unknown club')}</strong><br><span class="muted-line">${esc(claim.teamName || (claim.platformEscalated ? 'Staff access' : 'New club'))}</span></td>
+        <td data-label="Applicant">${esc(claim.claimant?.name || 'Unknown')}<br><span class="muted-line">${esc(claim.claimant?.email || '')}</span></td>
+        <td data-label="Application checks">${renderClaimChecks(claim)}</td>
+        <td data-label="Status">${badge(claim.status)}</td>
+        <td data-label="Review">${
           claim.status === 'SUBMITTED' || claim.status === 'NEEDS_INFO'
             ? `
-          <div class="toolbar">
-            <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="APPROVE">Approve</button>
+          <div class="claim-actions">
+            <button class="pill pill--dark" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="APPROVE">Review & approve</button>
+            ${claim.kind === 'FIRST_CLAIM' && claim.status === 'SUBMITTED' ? `<button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="VERIFY_CONTACT">Verify contact</button>` : ''}
             <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="NEEDS_INFO">Request info</button>
             <button class="pill" type="button" data-claim-id="${esc(claim.id)}" data-claim-decision="REJECT">Reject</button>
           </div>`
@@ -713,10 +736,22 @@ async function loadClubClaims() {
       </tr>`,
       )
       .join('')
-  } catch (err) {
-    summary.textContent = err.message || String(err)
-    setError(tbody, err)
-  }
+}
+
+function renderClaimChecks(claim) {
+  const checks = claim.assessment?.checks || []
+  const failed = checks.filter(check => !check.passed)
+  const summary = claim.assessment?.eligible ? 'Verified contact matched' : failed[0]?.label || 'Manual review required'
+  let link = ''
+  try {
+    const url = new URL(claim.externalTeamUrl)
+    if (url.protocol === 'https:' && ['fussball.de', 'www.fussball.de', 'next.fussball.de'].includes(url.hostname)) {
+      link = `<a class="evidence-link" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Open team page</a>`
+    }
+  } catch { /* Missing or invalid external references are never clickable. */ }
+  return `${link}<details class="claim-checks"><summary>${esc(summary)}</summary><ul>${checks.map(check =>
+    `<li><span class="check-result">${check.passed ? 'Passed' : 'Needs review'}</span> ${esc(check.label)}</li>`).join('')}</ul>
+    ${claim.evidence?.length ? `<p>${claim.evidence.map(item => esc(item.value || item.type)).join('<br>')}</p>` : '<p>No supporting evidence submitted.</p>'}</details>`
 }
 
 function openClaimDecisionDialog(claimId, decision) {
@@ -729,7 +764,7 @@ function openClaimDecisionDialog(claimId, decision) {
   document.getElementById('claim-decision-id').value = claimId || ''
   document.getElementById('claim-decision-value').value = decision || ''
   title.textContent =
-    decision === 'APPROVE'
+    decision === 'VERIFY_CONTACT' ? 'Verify contact & approve' : decision === 'APPROVE'
       ? 'Approve club claim'
       : decision === 'NEEDS_INFO'
         ? 'Request more proof'
@@ -738,10 +773,13 @@ function openClaimDecisionDialog(claimId, decision) {
     ? `${claim.directoryEntry?.name || 'Unknown club'} · ${claim.claimant?.name || claim.claimant?.email || 'Unknown claimant'}`
     : 'Review this club claim.'
   note.value = ''
-  status.textContent =
-    decision === 'APPROVE' || decision === 'NEEDS_INFO'
-      ? 'Approval and info-request actions require a reviewer note.'
-      : 'Add an optional rejection note.'
+  const verifiesContact = decision === 'VERIFY_CONTACT'
+  document.getElementById('claim-source-field').hidden = !verifiesContact
+  document.getElementById('claim-source-url').required = verifiesContact
+  document.getElementById('claim-source-url').value = ''
+  status.textContent = verifiesContact
+    ? 'Confirm this applicant can represent the club. Personal email addresses are accepted. The system then checks eligibility and conflicts before activation.'
+    : 'Record the basis for your decision. A public team link alone does not establish authority.'
   if (!dialog.open) dialog.showModal()
 }
 
@@ -752,7 +790,6 @@ async function reviewClubClaim(claimId, decision, note = '') {
     body: JSON.stringify({ decision, ...(trimmedNote ? { note: trimmedNote } : {}) }),
   })
   await loadClubClaims()
-  if (decision === 'APPROVE') await loadClubs()
 }
 
 async function loadClubDisputes() {
@@ -1655,6 +1692,7 @@ function bindLoginForm() {
       renderAuthGate()
       renderSettings()
       updateAuthSummary()
+      if (result.user?.mustRotatePassword) window.location.hash = '#/settings'
       navigate()
     } catch (err) {
       setSessionToken('')

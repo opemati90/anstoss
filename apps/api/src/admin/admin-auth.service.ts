@@ -36,7 +36,8 @@ export class AdminAuthService {
     const username = normalizeAdminConsoleLoginIdentifier(rawUsername)
     const password = normalizePassword(rawPassword)
     const platformAdminAccount = this.prisma.platformAdminAccount
-    const dbAccount = platformAdminAccount
+    const credentials = resolveAdminConsoleCredentials()
+    let dbAccount = platformAdminAccount
       ? await platformAdminAccount.findUnique({
       where: { loginIdentifier: username },
       select: {
@@ -60,6 +61,27 @@ export class AdminAuthService {
         })
       : null
 
+    // Once bootstrapped, email aliases must use the stored account's current
+    // password and session version, never the superseded environment secret.
+    if (!dbAccount && platformAdminAccount) {
+      const email = username.includes('@')
+        ? username
+        : credentials && username === credentials.username ? credentials.email : null
+      if (email) {
+        dbAccount = await platformAdminAccount.findFirst({
+          where: { user: { email } },
+          select: {
+            userId: true, loginIdentifier: true, passwordHash: true,
+            sessionVersion: true, disabledAt: true, mustRotatePassword: true,
+            user: { select: {
+              id: true, email: true, name: true, clerkId: true,
+              platformRole: true, deletedAt: true,
+            } },
+          },
+        })
+      }
+    }
+
     if (dbAccount) {
       if (dbAccount.disabledAt) {
         throw new UnauthorizedException('Admin account is disabled')
@@ -82,8 +104,6 @@ export class AdminAuthService {
         mustRotatePassword: dbAccount.mustRotatePassword,
       })
     }
-
-    const credentials = resolveAdminConsoleCredentials()
 
     if (!credentials) {
       throw new ServiceUnavailableException('Admin console credentials are not configured')

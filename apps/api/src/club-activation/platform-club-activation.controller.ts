@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, ForbiddenException, Get, Param, Post, UseGuards } from '@nestjs/common'
+import { verifiedContactSchema } from './claim-assessment'
 import {
   openClubDisputeSchema,
   resolveClubDisputeSchema,
@@ -18,6 +19,14 @@ export class PlatformClubActivationController {
   @Get()
   listFirstClaims() {
     return this.activation.listPlatformClaims()
+  }
+
+  @Post(':claimId/verify-contact')
+  @RateLimit('write')
+  verifyContact(@CurrentUser() user: PlatformAdminRequestUser, @Param('claimId') claimId: string, @Body() body: unknown) {
+    if (!user.id || user.authMethod !== 'session') throw new ForbiddenException('Signed-in platform admin required')
+    const input = verifiedContactSchema.pick({ email: true, sourceUrl: true, note: true }).parse(body)
+    return this.activation.verifyClubContact(user.id, claimId, input)
   }
 
   @Post(':claimId/decision')
