@@ -741,7 +741,8 @@ function renderClubClaims() {
 function renderClaimChecks(claim) {
   const checks = claim.assessment?.checks || []
   const failed = checks.filter(check => !check.passed)
-  const summary = claim.assessment?.eligible ? 'Verified contact matched' : failed[0]?.label || 'Manual review required'
+  const pending = ['SUBMITTED', 'NEEDS_INFO'].includes(claim.status)
+  const summary = !pending ? 'Decision recorded' : claim.assessment?.eligible ? 'Verified contact matched' : failed[0]?.label || 'Manual review required'
   let link = ''
   try {
     const url = new URL(claim.externalTeamUrl)
