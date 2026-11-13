@@ -1489,7 +1489,7 @@ describe('EventsService', () => {
           eventId: 'evt-1',
           clubId: 'club-1',
         }),
-        { clubId: 'club-1' },
+        { clubId: 'club-1', category: 'events' },
       )
       expect(mockPrisma.event.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1511,6 +1511,88 @@ describe('EventsService', () => {
       expect(result.sent).toBe(2)
       expect(result.nextAvailableAt).toBeTruthy()
       expect(new Date(result.nextAvailableAt).getTime()).toBeGreaterThan(Date.now())
+    })
+
+    const automaticEvent = () => ({
+      ...baseEvent,
+      date: new Date(Date.now() + 12 * 60 * 60 * 1000),
+      archivedAt: null,
+      rsvpAutoReminder: true,
+      rsvpAutoReminderFor: null,
+    })
+
+    it.each(['disabled', 'cancelled', 'archived', 'past', 'too-early', 'already-sent', 'missing'])('skips automatic reminders when %s', async (reason) => {
+      const event = automaticEvent()
+      const changes = {
+        disabled: { rsvpAutoReminder: false },
+        cancelled: { cancelledAt: new Date() },
+        archived: { archivedAt: new Date() },
+        past: { date: new Date(Date.now() - 1000) },
+        'too-early': { date: new Date(Date.now() + 25 * 60 * 60 * 1000) },
+        'already-sent': { rsvpAutoReminderFor: event.date },
+        missing: {},
+      }
+      mockPrisma.event.findUnique.mockResolvedValue(reason === 'missing' ? null : { ...event, ...changes[reason as keyof typeof changes] })
+      expect((await service.remindRsvpAutomatically('club-1', 'evt-1')).sent).toBe(0)
+      expect(mockPrisma.event.updateMany).not.toHaveBeenCalled()
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+    })
+
+    it('atomically claims an automatic reminder with date, opt-in and cancellation guards', async () => {
+      const event = automaticEvent()
+      mockPrisma.event.findUnique.mockResolvedValue(event)
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      expect((await service.remindRsvpAutomatically('club-1', 'evt-1')).sent).toBe(2)
+      expect(mockPrisma.event.updateMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: 'evt-1', clubId: 'club-1', date: event.date, cancelledAt: null, archivedAt: null, rsvpAutoReminder: true,
+          AND: [{ OR: [{ rsvpAutoReminderFor: null }, { rsvpAutoReminderFor: { not: event.date } }] }],
+        }),
+        data: { lastRsvpReminderAt: expect.any(Date), rsvpAutoReminderFor: event.date },
+      })
+      expect(mockTeamsService.assertEventManagementAccess).not.toHaveBeenCalled()
+    })
+
+    it('does not send a second batch when another worker owns the claim', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(automaticEvent())
+      mockPrisma.event.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValue({ count: 0 })
+      const results = await Promise.all([
+        service.remindRsvpAutomatically('club-1', 'evt-1'),
+        service.remindRsvpAutomatically('club-1', 'evt-1'),
+      ])
+      expect(results.map((result) => result.sent).sort()).toEqual([0, 2])
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(2)
+    })
+
+    it('marks fully answered automatic reminders so they cannot starve later batches', async () => {
+      const event = automaticEvent()
+      mockPrisma.event.findUnique.mockResolvedValue(event)
+      mockPrisma.rsvp.findMany.mockResolvedValue([{ userId: 'user-2' }, { userId: 'user-3' }])
+      await service.remindRsvpAutomatically('club-1', 'evt-1')
+      expect(mockPrisma.event.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { rsvpAutoReminderFor: event.date } }))
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled()
+    })
+
+    it('clears only its own automatic claim if every send fails', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue(automaticEvent())
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      mockPushService.sendToUser.mockRejectedValue(new Error('offline'))
+      await service.remindRsvpAutomatically('club-1', 'evt-1')
+      const claimedAt = mockPrisma.event.updateMany.mock.calls[0][0].data.lastRsvpReminderAt
+      expect(mockPrisma.event.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'evt-1', clubId: 'club-1', lastRsvpReminderAt: claimedAt },
+        data: { lastRsvpReminderAt: null, rsvpAutoReminderFor: null },
+      })
+    })
+
+    it('asks for replies again after a reschedule and excludes players loaned out', async () => {
+      const event = { ...automaticEvent(), rescheduledAt: new Date(), rsvpAutoReminderFor: new Date(Date.now() - 86400000) }
+      mockPrisma.event.findUnique.mockResolvedValue(event)
+      mockPrisma.event.updateMany.mockResolvedValue({ count: 1 })
+      mockPrisma.teamAccess.findMany.mockResolvedValue([{ userId: 'user-2', teamId: 'other-team', loanedFromTeamId: 'team-1', loanEndDate: null }])
+      await service.remindRsvpAutomatically('club-1', 'evt-1')
+      expect(mockPrisma.rsvp.findMany).toHaveBeenCalledWith({ where: { eventId: 'evt-1', updatedAt: { gte: event.rescheduledAt } }, select: { userId: true } })
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1)
+      expect(mockPushService.sendToUser.mock.calls[0][0]).toBe('user-3')
     })
 
     it('excludes already-RSVPed members from reminders', async () => {

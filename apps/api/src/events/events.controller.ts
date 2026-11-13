@@ -37,6 +37,7 @@ function logisticsFrom(data: {
   homeAway?: 'HOME' | 'AWAY' | null
   carpoolEnabled?: boolean
   durationMin?: number | null
+  rsvpAutoReminder?: boolean
 }) {
   return {
     meetingAt:
@@ -46,6 +47,7 @@ function logisticsFrom(data: {
     homeAway: data.homeAway,
     carpoolEnabled: data.carpoolEnabled,
     durationMin: data.durationMin,
+    rsvpAutoReminder: data.rsvpAutoReminder,
   }
 }
 

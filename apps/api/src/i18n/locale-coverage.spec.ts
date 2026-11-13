@@ -48,6 +48,8 @@ const SAMPLE: Record<string, unknown> = {
   timeUntil: 'in 1 Stunde',
   location: '',
   userName: 'Tim Weber',
+  actorName: 'Markus Hoffmann',
+  minutes: 30,
   status: 'YES',
   senderName: 'Lukas Hoffmann',
   messagePreview: 'Hallo',

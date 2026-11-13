@@ -24,8 +24,7 @@ const eventLogisticsShape = {
   durationMin: z.number().int().min(15).max(600).nullable().optional(),
   /**
    * "Team benachrichtigen" (design 12): remind members who have not answered
-   * 24 h before the start. Default true on the server. Proposed contract,
-   * see docs/redesign/BACKEND_GAPS.md.
+   * 24 h before the start. Default true on the server.
    */
   rsvpAutoReminder: z.boolean().optional(),
 }

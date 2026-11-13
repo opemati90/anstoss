@@ -48,7 +48,7 @@ import {
   type EventLocale,
 } from './event-copy'
 
-const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
+export const RSVP_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
 const SERIES_TIME_ZONE = 'Europe/Berlin'
 const MAX_SERIES_DURATION_MS = 366 * 24 * 60 * 60 * 1000
 
@@ -378,6 +378,7 @@ type EventLogisticsInput = {
   homeAway?: HomeAwayValue | null
   carpoolEnabled?: boolean
   durationMin?: number | null
+  rsvpAutoReminder?: boolean
 }
 
 function normalizeLineupPlayer(player: SaveEventLineupInput['starters'][number]) {
@@ -409,6 +410,7 @@ function logisticsData(data: EventLogisticsInput) {
     ...(data.homeAway !== undefined && { homeAway: data.homeAway }),
     ...(data.carpoolEnabled !== undefined && { carpoolEnabled: data.carpoolEnabled }),
     ...(data.durationMin !== undefined && { durationMin: data.durationMin }),
+    ...(data.rsvpAutoReminder !== undefined && { rsvpAutoReminder: data.rsvpAutoReminder }),
   }
 }
 
@@ -676,8 +678,6 @@ export class EventsService {
         eventId: event.id,
         clubId: ctx.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
-        // Inbox rows lead with the person's name (avatar + bold name).
-        actorName: responder?.name ?? '',
       },
       ctx.excludeUserId,
       { clubId: ctx.clubId, category: 'events', inboxType: type },
@@ -1031,6 +1031,7 @@ export class EventsService {
       squadPublishedAt: event.squadPublishedAt?.toISOString() ?? null,
       carpoolEnabled: event.carpoolEnabled ?? false,
       durationMin: event.durationMin ?? null,
+      rsvpAutoReminder: event.rsvpAutoReminder,
       // The Kader is the coach's draft until it is published.
       myNominated: Boolean(mine?.nominated && (published || includeReadiness)),
       myRsvpStale: Boolean(
@@ -1214,6 +1215,7 @@ export class EventsService {
       fixture: _fixture,
       lineup: _rawLineup,
       importedFields: _importedFields,
+      rsvpAutoReminderFor: _rsvpAutoReminderFor,
       ...base
     } = event
 
@@ -2254,6 +2256,22 @@ export class EventsService {
     eventId: string,
     requestingUserId: string,
   ): Promise<{ sent: number; nextAvailableAt: string }> {
+    return this.sendRsvpReminder(clubId, eventId, requestingUserId)
+  }
+
+  /** Internal scheduler entry point, never exposed by a controller. */
+  async remindRsvpAutomatically(clubId: string, eventId: string) {
+    return this.sendRsvpReminder(clubId, eventId, null)
+  }
+
+  private async sendRsvpReminder(
+    clubId: string,
+    eventId: string,
+    requestingUserId: string | null,
+  ): Promise<{ sent: number; nextAvailableAt: string }> {
+    const automatic = requestingUserId === null
+    const now = new Date()
+    const skipped = { sent: 0, nextAvailableAt: new Date(now.getTime() + RSVP_REMINDER_COOLDOWN_MS).toISOString() }
     const event = await this.prisma.event.findUnique({
       where: { id: eventId, clubId },
       include: {
@@ -2272,16 +2290,21 @@ export class EventsService {
         },
       },
     })
+    if (automatic && (!event || !event.rsvpAutoReminder || event.cancelledAt || event.archivedAt ||
+      event.date <= now || event.date.getTime() > now.getTime() + RSVP_REMINDER_COOLDOWN_MS ||
+      event.rsvpAutoReminderFor?.getTime() === event.date.getTime())) return skipped
     if (!event) throw new NotFoundException('Event not found')
     if (event.cancelledAt) throw new BadRequestException('Event is cancelled')
     if (new Date(event.date) < new Date()) throw new BadRequestException('Event is in the past')
 
     // Auth: only event managers (OWNER/ADMIN/COACH) may send reminders
-    await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
+    if (requestingUserId !== null) {
+      await this.teamsService.assertEventManagementAccess(requestingUserId, event.teamId)
+    }
 
     // Find members with no RSVP for this event
     const existingRsvps = await this.prisma.rsvp.findMany({
-      where: { eventId },
+      where: { eventId, ...(event.rescheduledAt && { updatedAt: { gte: event.rescheduledAt } }) },
       select: { userId: true },
     })
     const respondedUserIds = new Set(existingRsvps.map((r: { userId: string }) => r.userId))
@@ -2290,9 +2313,11 @@ export class EventsService {
       select: { userId: true },
     })
     const inactiveIds = new Set((inactive ?? []).map((row: { userId: string }) => row.userId))
+    const loanedOut = (await loanedOutByTeam(this.prisma, [event.teamId])).get(event.teamId)
     const nonResponders = event.team.access
       .filter((a: { role?: string }) => !a.role || a.role === TeamRole.PLAYER)
       .filter((a: { user: { id: string } }) => !inactiveIds.has(a.user.id))
+      .filter((a: { user: { id: string } }) => !loanedOut?.has(a.user.id))
       .map((a: { user: { id: string } }) => a.user)
       .filter((u: { id: string }) => !respondedUserIds.has(u.id) && u.id !== requestingUserId)
 
@@ -2306,6 +2331,12 @@ export class EventsService {
 
     // Bug 3 fix: if nobody needs a reminder, return early without claiming the rate-limit slot
     if (uniqueNonResponders.length === 0) {
+      if (automatic) {
+        await this.prisma.event.updateMany({
+          where: { id: eventId, clubId, date: event.date, rsvpAutoReminder: true, cancelledAt: null, archivedAt: null },
+          data: { rsvpAutoReminderFor: event.date },
+        })
+      }
       return {
         sent: 0,
         nextAvailableAt: new Date(Date.now() + RSVP_REMINDER_COOLDOWN_MS).toISOString(),
@@ -2319,11 +2350,19 @@ export class EventsService {
       where: {
         id: eventId,
         clubId,
+        cancelledAt: null,
+        archivedAt: null,
+        date: event.date,
+        ...(automatic && {
+          rsvpAutoReminder: true,
+          AND: [{ OR: [{ rsvpAutoReminderFor: null }, { rsvpAutoReminderFor: { not: event.date } }] }],
+        }),
         OR: [{ lastRsvpReminderAt: null }, { lastRsvpReminderAt: { lt: cutoff } }],
       },
-      data: { lastRsvpReminderAt: claimedAt },
+      data: { lastRsvpReminderAt: claimedAt, ...(automatic && { rsvpAutoReminderFor: event.date }) },
     })
     if (claim.count === 0) {
+      if (automatic) return skipped
       // Someone beat us or rate limit is still active — re-read to get retryAfter
       const fresh = await this.prisma.event.findUnique({
         where: { id: eventId },
@@ -2355,7 +2394,7 @@ export class EventsService {
           location: event.location,
         })
         try {
-          await this.pushService.sendToUser(user.id, copy.title, copy.body, data, { clubId })
+          await this.pushService.sendToUser(user.id, copy.title, copy.body, data, { clubId, category: 'events' })
           return true
         } catch {
           return false
@@ -2367,7 +2406,7 @@ export class EventsService {
     if (sent === 0) {
       await this.prisma.event.updateMany({
         where: { id: eventId, clubId, lastRsvpReminderAt: claimedAt },
-        data: { lastRsvpReminderAt: null },
+        data: { lastRsvpReminderAt: null, ...(automatic && { rsvpAutoReminderFor: null }) },
       })
     }
 

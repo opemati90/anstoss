@@ -842,6 +842,9 @@ model Event {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   lastRsvpReminderAt DateTime?
+  rsvpAutoReminder   Boolean   @default(true)
+  // Kick-off covered by the automatic reminder; a reschedule becomes eligible again.
+  rsvpAutoReminderFor DateTime?
   // Events revamp (2026-09): matchday logistics live on the event itself.
   meetingAt          DateTime?
   meetingPoint       String?
@@ -875,6 +878,7 @@ model Event {
   @@index([teamId])
   @@index([date])
   @@index([seriesId])
+  @@index([rsvpAutoReminder, date])
 }
 
 // A recurring event: the rule the occurrences were generated from. Every
