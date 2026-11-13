@@ -15,6 +15,12 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { useClubSwitchGuard } from '../../src/hooks/useClubSwitchGuard'
 import { ClubHeader } from '../../src/components/home/ClubHeader'
+import {
+  OFFLINE_BANNER_CONTENT_INSET,
+  OfflineBanner,
+  OfflineInsetsBoundary,
+} from '../../src/components/OfflineBanner'
+import { useOnline } from '../../src/hooks/useOnline'
 import { resolveRoleMode } from '../../src/components/home/resolveHomeRole'
 // chat revamp: the badge is the inbox's unread total (channels + DMs, unmuted)
 import { useInboxUnreadCount } from '../../src/hooks/useInbox'
@@ -58,7 +64,12 @@ export default function TabLayout() {
   // While the acting/preview banner covers the status bar, screens below it
   // only keep a small top gap instead of the full safe-area inset.
   const bannerVisible = useActingAsBannerVisible()
-  const topInset = bannerVisible ? ACTING_BANNER_CONTENT_INSET : insets.top
+  const online = useOnline()
+  const topInset = bannerVisible
+    ? ACTING_BANNER_CONTENT_INSET
+    : online
+      ? insets.top
+      : OFFLINE_BANNER_CONTENT_INSET
   const chatUnread = useInboxUnreadCount()
   // home revamp: one resolver for the header and the home screen (it honours
   // the active team role, e.g. a club PLAYER who is HEAD_COACH of a team).
@@ -109,6 +120,9 @@ export default function TabLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ActingAsBanner />
+      {/* Board 29: offline bar + RSVP outbox flush on reconnect. */}
+      <OfflineBanner />
+      <OfflineInsetsBoundary>
       <ActingInsetsBoundary>
       {/* 2026-11 redesign: the identity row (crest, club, team·role switcher,
           bell) belongs to Start; the other tabs lead with their own title. */}
@@ -306,6 +320,7 @@ export default function TabLayout() {
         />
       </Tabs>
       </ActingInsetsBoundary>
+      </OfflineInsetsBoundary>
     </View>
   )
 }

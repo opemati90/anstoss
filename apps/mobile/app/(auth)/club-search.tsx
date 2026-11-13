@@ -793,7 +793,7 @@ function MatchRow({
           </Text>
         ) : null}
       </View>
-      <Icon name="checkmark" size={20} color={c.heroBg} />
+      <Icon name="checkmark" size={20} color={c.primary} />
     </Pressable>
   )
 }

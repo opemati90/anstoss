@@ -14,6 +14,7 @@ import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
 import { CombinedHome } from '../../src/components/home/CombinedHome'
 import { useHeldHats } from '../../src/components/home/useHeldHats'
+import { QueuedReplies } from '../../src/components/home/QueuedReplies'
 import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Button } from '../../src/components/ui'
@@ -149,6 +150,7 @@ function RoleAwareHome() {
       {roleSection ? (
         <View style={styles.body}>
           {roleSection}
+          <QueuedReplies />
           {clubId ? <SponsorStrip clubId={clubId} /> : null}
         </View>
       ) : pendingClubClaim && !activeClub ? null /* onboarding revamp: the verification banner says it all */ : (

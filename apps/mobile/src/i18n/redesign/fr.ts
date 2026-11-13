@@ -116,7 +116,21 @@ export default {
     reportedMeta: "Signale : virement effectué",
     title: "Cotisations",
   },
+  states: {
+    offline: {
+      banner: "Hors ligne. Les réponses partiront dès que tu seras de nouveau en ligne.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} absences en attente",
+      decline_one: "{{count}} absence en attente",
+      decline_other: "{{count}} absences en attente",
+      reply: "{{count}} réponses en attente",
+      reply_one: "{{count}} réponse en attente",
+      reply_other: "{{count}} réponses en attente",
+      tag: "En attente",
+    },
     header: {
       family: "Bonjour famille {{name}}",
       hi: "Salut {{name}}",

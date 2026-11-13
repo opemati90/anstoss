@@ -116,7 +116,21 @@ export default {
     reportedMeta: "Reports: transferred",
     title: "Dues",
   },
+  states: {
+    offline: {
+      banner: "Offline. Replies are sent as soon as you're back online.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} declines waiting",
+      decline_one: "{{count}} decline waiting",
+      decline_other: "{{count}} declines waiting",
+      reply: "{{count}} replies waiting",
+      reply_one: "{{count}} reply waiting",
+      reply_other: "{{count}} replies waiting",
+      tag: "Waiting",
+    },
     header: {
       family: "Hello, {{name}} family",
       hi: "Hi {{name}}",

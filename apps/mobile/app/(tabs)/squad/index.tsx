@@ -310,7 +310,8 @@ export default function KaderScreen() {
           />
           <SummaryLine
             counts={model.counts}
-            total={model.players.length}
+            // "Alle 22": the one squad number (roster-ops squadCount).
+            total={model.squadCount}
             filter={filter}
             requests={isCoach ? model.openRequests : 0}
             onRequests={() => setRequestsOpen(true)}

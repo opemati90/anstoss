@@ -116,7 +116,21 @@ export default {
     reportedMeta: "Indica: transferência feita",
     title: "Quotas",
   },
+  states: {
+    offline: {
+      banner: "Offline. As respostas são enviadas assim que voltares a estar online.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} ausências em espera",
+      decline_one: "{{count}} ausência em espera",
+      decline_other: "{{count}} ausências em espera",
+      reply: "{{count}} respostas em espera",
+      reply_one: "{{count}} resposta em espera",
+      reply_other: "{{count}} respostas em espera",
+      tag: "Em espera",
+    },
     header: {
       family: "Olá família {{name}}",
       hi: "Olá {{name}}",

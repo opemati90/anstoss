@@ -168,7 +168,8 @@ describe('Kader tab', () => {
 
   it('shows the one squad number and the availability summary', async () => {
     const screen = render(<KaderScreen />)
-    expect(await screen.findByText('kader.subtitle|4')).toBeTruthy()
+    // Board 16: no subtitle; the squad number rides on the "Alle" chip.
+    expect(await screen.findByText('kader.summary.all|4')).toBeTruthy()
     // Medic kill switch is off for release: injury data never shows.
     expect(screen.getByText('kader.summary.fit|3')).toBeTruthy()
     expect(screen.queryByText('kader.summary.injured|1')).toBeNull()
@@ -191,7 +192,9 @@ describe('Kader tab', () => {
     const screen = render(<KaderScreen />)
     await screen.findByText('Anna Schmidt')
     expect(screen.queryByText('kader.status.injured')).toBeNull()
-    expect(screen.getByText('kader.status.suspendedUntil')).toBeTruthy()
+    // Board 16: a one-word tag; the date moves into the meta line.
+    expect(screen.getByText('kader.status.suspended')).toBeTruthy()
+    expect(screen.getByText('ZM · kader.status.untilDate')).toBeTruthy()
   })
 
   it('filters the list from the summary and resets on a second tap', async () => {
@@ -216,12 +219,12 @@ describe('Kader tab', () => {
     expect(screen.getByText('Tim Weber')).toBeTruthy()
   })
 
-  it('opens a DM when a player taps a teammate', async () => {
+  it('opens the member profile when a player taps a teammate', async () => {
     const screen = render(<KaderScreen />)
     fireEvent.press(await screen.findByTestId('kader-row-user-player-2'))
     expect(mockRouterPush).toHaveBeenCalledWith({
-      pathname: '/dm-chat',
-      params: { userId: 'user-player-2', userName: 'Tim Weber' },
+      pathname: '/member/[id]',
+      params: { id: 'user-player-2' },
     })
   })
 
@@ -254,77 +257,35 @@ describe('Kader tab', () => {
 
     it('offers Einladen in the header', async () => {
       const screen = render(<KaderScreen />)
-      await screen.findByText('kader.requestsBanner|1')
+      await screen.findByTestId('kader-requests-banner')
       fireEvent.press(screen.getByTestId('kader-invite'))
       expect(mockRouterPush).toHaveBeenCalledWith('/invite')
     })
 
-    it('shows the open-requests banner and the collapsed inactive/trial section', async () => {
+    it('shows the open requests as a compact chip and the collapsed inactive/trial section', async () => {
       const screen = render(<KaderScreen />)
-      expect(await screen.findByText('kader.requestsBanner|1')).toBeTruthy()
+      expect(await screen.findByTestId('kader-requests-banner')).toBeTruthy()
       expect(screen.queryByText('Lukas Meyer')).toBeNull()
       fireEvent.press(screen.getByTestId('kader-off-squad-toggle'))
       expect(screen.getByText('Lukas Meyer')).toBeTruthy()
       expect(screen.getByText('Ben Schulz')).toBeTruthy()
     })
 
-    it('L2: warns in the player sheet when the shirt number is already worn', async () => {
-      const screen = render(<KaderScreen />)
-      fireEvent.press(await screen.findByTestId('kader-row-user-player-2'))
-      await waitFor(() => expect(screen.getByText('kader.edit.title')).toBeTruthy())
-      fireEvent.changeText(screen.getByTestId('player-edit-number'), '6')
-      expect(screen.getByText('kader.edit.numberTaken')).toBeTruthy()
-    })
-
-    it('H2: hides the message button in the player sheet when a DM is not allowed', async () => {
-      const blocked = {
-        ...SNAPSHOT,
-        squad: SNAPSHOT.squad.map((m) =>
-          m.userId === 'user-player-2' ? { ...m, canMessage: false, messageBlockedReason: 'MINOR_BLOCKED' } : m,
-        ),
-      }
-      mockApi.mockImplementation(async (path: string) => {
-        if (path.includes('/roster-ops')) return blocked as never
-        return [] as never
-      })
-      const screen = render(<KaderScreen />)
-      fireEvent.press(await screen.findByTestId('kader-row-user-player-2'))
-      await waitFor(() => expect(screen.getByText('kader.edit.title')).toBeTruthy())
-      expect(screen.queryByText('kader.edit.message')).toBeNull()
-    })
-
-    it('opens the player sheet instead of a DM when tapping a player', async () => {
+    it('opens the member profile (edit lives there) when tapping a player', async () => {
       const screen = render(<KaderScreen />)
       fireEvent.press(await screen.findByTestId('kader-row-user-player-2'))
       expect(mockRouterPush).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: '/dm-chat' }))
-      await waitFor(() => expect(screen.getByText('kader.edit.title')).toBeTruthy())
+      expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/member/[id]', params: { id: 'user-player-2' } })
     })
   })
 
   // ── Kader adversarial fixes ──────────────────────────────────────────────
-  it('H2: does not offer a DM the API would refuse; the row does nothing', async () => {
-    const blocked = {
-      ...SNAPSHOT,
-      squad: SNAPSHOT.squad.map((m) =>
-        m.userId === 'user-player-2' ? { ...m, canMessage: false, messageBlockedReason: 'NEEDS_GUARDIAN_LINK' } : m,
-      ),
-    }
-    mockApi.mockImplementation(async (path: string) => {
-      if (path.includes('/roster-ops')) return blocked as never
-      return [] as never
-    })
+  it('shows the last four trainings as attendance bars', async () => {
     const screen = render(<KaderScreen />)
-    const row = await screen.findByTestId('kader-row-user-player-2')
-    expect(row.props.accessibilityLabel).not.toContain('kader.row.messageHint')
-    expect(row.props.accessibilityLabel).toContain('kader.message.blockedMinor')
-    fireEvent.press(row)
-    expect(mockRouterPush).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: '/dm-chat' }))
-  })
-
-  it('L7: the RSVP marker has a distinct shape per answer', async () => {
-    const screen = render(<KaderScreen />)
-    expect(await screen.findByTestId('kader-row-user-player-3-rsvp-NO')).toBeTruthy()
-    expect(screen.getByTestId('kader-row-user-player-2-rsvp-NONE')).toBeTruthy()
+    // The mocked past training has Julian (YES) and Niklas (NO).
+    expect(await screen.findByTestId('kader-row-user-player-3-attendance')).toBeTruthy()
+    const row = screen.getByTestId('kader-row-user-player-3')
+    expect(row.props.accessibilityLabel).toContain('kader.row.attendance|0')
   })
 
   it('L4: a filter lists the signed-in player too when they match', async () => {
@@ -361,7 +322,7 @@ describe('Kader tab', () => {
     const newer = { ...SNAPSHOT, squadCount: 9 }
     const older = { ...SNAPSHOT, squadCount: 2 }
     resolvers[0](older)
-    expect(await screen.findByText('kader.subtitle|2')).toBeTruthy()
+    expect(await screen.findByText('kader.summary.all|2')).toBeTruthy()
     // Two pull-to-refreshes: request #2 (older) and #3 (newer) in flight;
     // #3 answers first, then #2 arrives late and must be ignored.
     const refresh = list()[0]?.props.refreshControl.props.onRefresh
@@ -369,11 +330,11 @@ describe('Kader tab', () => {
     refresh()
     await waitFor(() => expect(resolvers.length).toBe(3))
     resolvers[2](newer)
-    expect(await screen.findByText('kader.subtitle|9')).toBeTruthy()
+    expect(await screen.findByText('kader.summary.all|9')).toBeTruthy()
     resolvers[1]({ ...SNAPSHOT, squadCount: 5 })
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(screen.getByText('kader.subtitle|9')).toBeTruthy()
-    expect(screen.queryByText('kader.subtitle|5')).toBeNull()
+    expect(screen.getByText('kader.summary.all|9')).toBeTruthy()
+    expect(screen.queryByText('kader.summary.all|5')).toBeNull()
   })
 
   it('M1: a club COACH without a coach access on this team gets the player view', async () => {

@@ -131,7 +131,21 @@ export default {
     reportedMeta: "Meldet: überwiesen",
     title: "Beiträge",
   },
+  states: {
+    offline: {
+      banner: "Offline. Zusagen werden gesendet, sobald du wieder online bist.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} Absagen warten",
+      decline_one: "{{count}} Absage wartet",
+      decline_other: "{{count}} Absagen warten",
+      reply: "{{count}} Zusagen warten",
+      reply_one: "{{count}} Zusage wartet",
+      reply_other: "{{count}} Zusagen warten",
+      tag: "Wartet",
+    },
     header: {
       family: "Hallo Familie {{name}}",
       hi: "Hi {{name}}",

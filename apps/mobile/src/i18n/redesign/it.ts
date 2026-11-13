@@ -116,7 +116,21 @@ export default {
     reportedMeta: "Segnala: bonifico fatto",
     title: "Quote",
   },
+  states: {
+    offline: {
+      banner: "Offline. Le risposte partono appena torni online.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} assenze in attesa",
+      decline_one: "{{count}} assenza in attesa",
+      decline_other: "{{count}} assenze in attesa",
+      reply: "{{count}} risposte in attesa",
+      reply_one: "{{count}} risposta in attesa",
+      reply_other: "{{count}} risposte in attesa",
+      tag: "In attesa",
+    },
     header: {
       family: "Ciao famiglia {{name}}",
       hi: "Ciao {{name}}",

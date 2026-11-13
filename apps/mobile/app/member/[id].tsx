@@ -226,7 +226,7 @@ export default function MemberProfileScreen() {
   const pass = profile?.playerPass ?? null
 
   return (
-    <Screen padded={false} edges={['top', 'left', 'right']}>
+    <Screen padded={false} edges={['top', 'left', 'right']} contentStyle={styles.fill}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -447,6 +447,7 @@ const styles = StyleSheet.create({
     gap: PAGE_GAP,
   },
   flex: { flex: 1, minWidth: 0 },
+  fill: { flex: 1 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   identity: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACING_LG + 2 },
   number: { fontSize: NUMBER_SIZE, lineHeight: NUMBER_SIZE * 0.8 + SPACING_XS, paddingTop: SPACING_XS },

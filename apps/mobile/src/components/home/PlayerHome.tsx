@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 import { space } from '../../theme/tokens'
 import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 import { Haptics } from '../../utils/haptics'
+import { enqueueRsvp, isOfflineError } from '../../lib/rsvpOutbox'
 import { NextUpHero, isInCheckInWindow } from './NextUpHero'
 import { LiveStatusPill } from '../match'
 import { HomeSkeleton } from './HomeSkeleton'
@@ -177,7 +178,22 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
           body: { status, ...(status === 'NO' ? absence : {}) },
         })
         Haptics.success()
-      } catch {
+      } catch (error) {
+        // Board 29: no connection — keep the answer and queue it ("Wartet").
+        const event = data.events.find((item) => item.id === eventId)
+        if (isOfflineError(error) && event) {
+          enqueueRsvp({
+            key: `${eventId}:me`,
+            clubId,
+            eventId,
+            status,
+            reason: status === 'NO' ? absence?.reason : undefined,
+            note: status === 'NO' ? absence?.note : undefined,
+            title: event.type === 'TRAINING' ? t('homeHub.type.training', { defaultValue: 'Training' }) : event.title,
+            date: event.date,
+          })
+          return
+        }
         applyRsvp(eventId, previous)
         Haptics.fail()
         Alert.alert(

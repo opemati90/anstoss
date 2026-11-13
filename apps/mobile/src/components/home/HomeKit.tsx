@@ -211,35 +211,37 @@ export function CountCircle({ count }: { count: number }) {
   )
 }
 
-/** Inline, specific error with a retry, sized to sit where the content would. */
+/**
+ * Board 29's error card: a centred white card (radius 24) with a 56pt icon
+ * well, "… konnte nicht laden" at 20/700, the hint at 14, and an ink
+ * "Erneut versuchen" pill. Sized to sit where the content would.
+ */
 export function InlineError({
   title,
   body,
   onRetry,
+  icon = 'exclamationmark.circle',
 }: {
   title: string
   body?: string
   onRetry?: () => void
+  icon?: string
 }) {
   const c = useClubColors()
   const { t } = useTranslation()
   return (
     <HomeCard style={styles.errorCard}>
-      <View style={styles.errorHead}>
-        <View style={[styles.iconWell, { backgroundColor: c.surfaceMuted }]}>
-          <Icon name="exclamationmark.circle" size={18} color={c.textPrimary} />
-        </View>
-        <View style={styles.rowText}>
-          <Text variant="callout" weight="semibold" color="primary">
-            {title}
-          </Text>
-          {body ? (
-            <Text variant="footnote" color="secondary">
-              {body}
-            </Text>
-          ) : null}
-        </View>
+      <View style={[styles.errorIcon, { backgroundColor: c.surfaceMuted }]}>
+        <Icon name={icon} size={24} color={c.textPrimary} />
       </View>
+      <Text variant="title3" weight="bold" color="primary" align="center" style={styles.errorTitle}>
+        {title}
+      </Text>
+      {body ? (
+        <Text variant="body" color="secondary" align="center" style={styles.errorBody}>
+          {body}
+        </Text>
+      ) : null}
       {onRetry ? (
         <PressableScale
           onPress={onRetry}
@@ -248,8 +250,7 @@ export function InlineError({
           haptic="tapLight"
           style={[styles.retry, { backgroundColor: c.ink }]}
         >
-          <Icon name="arrow.clockwise" size={15} color={c.onInk} />
-          <Text variant="subheadline" weight="bold" style={{ color: c.onInk }}>
+          <Text variant="body" weight="bold" style={{ color: c.onInk }}>
             {t('homeHub.retry', { defaultValue: 'Try again' })}
           </Text>
         </PressableScale>
@@ -671,17 +672,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowText: { flex: 1, gap: space['2xs'] },
-  errorCard: { paddingVertical: space.md, gap: space.md },
-  errorHead: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + SPACING_XXS },
+  errorCard: {
+    alignItems: 'center',
+    borderRadius: RADIUS_CARD + space.xs,
+    paddingHorizontal: space.lg,
+    paddingVertical: space['2xl'],
+    gap: SPACING_MD + SPACING_XXS,
+  },
+  errorIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorTitle: { fontSize: 20, lineHeight: 26 },
+  errorBody: { fontSize: 14, lineHeight: 21, maxWidth: 260 },
   retry: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    paddingHorizontal: space.md + 4,
+    minHeight: 48,
+    paddingHorizontal: space.lg + space.xs,
     borderRadius: radius.full,
     borderCurve: 'continuous',
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs + 2,
+    justifyContent: 'center',
   },
   emptyCard: {
     alignItems: 'center',

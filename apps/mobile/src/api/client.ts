@@ -143,6 +143,11 @@ export async function api<T = unknown>(
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
   if (_writeBlocker?.(method.toUpperCase(), path)) throw new PreviewReadOnlyError(path)
+  // Preview/e2e: the in-process mocks would answer even with the network off,
+  // so a browser that reports offline fails like a real request (board 29).
+  if (getE2ESession() && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new ApiError('Network request failed', 0, 'network_error')
+  }
   const e2eResponse = handleE2EApiRequest(path, { method, body })
 
   if (e2eResponse.handled) {

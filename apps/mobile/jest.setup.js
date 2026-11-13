@@ -123,3 +123,9 @@ jest.mock('react-native-reanimated', () => {
   return { ...mock, useReducedMotion: () => false, default: mock.default }
 })
 require('react-native-gesture-handler/jestSetup')
+
+// 2026-11 redesign: offline banner (netinfo) and MyDues copy pills (clipboard).
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock.js'),
+)
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(() => Promise.resolve(true)) }))

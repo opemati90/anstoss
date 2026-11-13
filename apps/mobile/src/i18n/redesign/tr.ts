@@ -116,7 +116,21 @@ export default {
     reportedMeta: "Bildirdi: havale yapıldı",
     title: "Aidatlar",
   },
+  states: {
+    offline: {
+      banner: "Çevrimdışı. Yanıtlar tekrar çevrimiçi olduğunda gönderilecek.",
+    },
+  },
   homeHub: {
+    queued: {
+      decline: "{{count}} katılmama bekliyor",
+      decline_one: "{{count}} katılmama bekliyor",
+      decline_other: "{{count}} katılmama bekliyor",
+      reply: "{{count}} yanıt bekliyor",
+      reply_one: "{{count}} yanıt bekliyor",
+      reply_other: "{{count}} yanıt bekliyor",
+      tag: "Bekliyor",
+    },
     header: {
       family: "Merhaba {{name}} ailesi",
       hi: "Merhaba {{name}}",

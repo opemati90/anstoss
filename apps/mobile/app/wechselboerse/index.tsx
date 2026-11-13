@@ -186,7 +186,8 @@ export default function WechselboerseScreen() {
   const showFooter = segment === 'spieler' && teams.length > 0
 
   return (
-    <Screen padded={false} edges={['top', 'left', 'right']}>
+    // contentStyle fill: the ScrollView must own the height so the footer docks.
+    <Screen padded={false} edges={['top', 'left', 'right']} contentStyle={styles.fill}>
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -296,6 +297,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING_XXL,
   },
   body: { gap: SPACING_LG },
+  fill: { flex: 1 },
   desks: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_MD, paddingBottom: SPACING_XL },
   dot: {
     position: 'absolute',
