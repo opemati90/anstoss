@@ -101,6 +101,7 @@ export const lightTheme = {
   onHeroBg: TEXT_WHITE,
   onHeroMuted: ON_HERO_MUTED,
   alertDot: ALERT_DOT,
+  onAlertDot: TEXT_WHITE,
 
   // App background (the screen root)
   background: APP_BACKGROUND,
@@ -163,6 +164,7 @@ export const darkTheme = {
   onHeroBg: TEXT_WHITE,
   onHeroMuted: ON_HERO_MUTED,
   alertDot: ALERT_DOT,
+  onAlertDot: TEXT_WHITE,
 
   background: '#0B100D',
 

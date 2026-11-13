@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
   Share,
@@ -16,13 +15,27 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
-import { BottomSheet, Button, Icon, ListRow, SectionGroup, SegmentedControl, Text } from '../src/components/ui'
+import {
+  BottomSheet,
+  Button,
+  Icon,
+  IconButton,
+  ListRow,
+  SectionGroup,
+  SegmentedControl,
+  SoftIcon,
+  Text,
+} from '../src/components/ui'
 import { Skeleton } from '../src/components/Skeleton'
 import { ErrorState } from '../src/components/ErrorState'
 import { FormInput } from '../src/components/FormInput'
 import { AttendanceSheet } from '../src/components/events/AttendanceSheet'
 import { CarpoolBoard, type CarpoolRider } from '../src/components/events/CarpoolBoard'
-import { EventHeaderCard } from '../src/components/events/EventHeaderCard'
+import {
+  EventHeaderCard,
+  EventInfoGroup,
+  useHeroText,
+} from '../src/components/events/EventHeaderCard'
 import { ResponsesPanel } from '../src/components/events/ResponsesPanel'
 import {
   RsvpControl,
@@ -33,7 +46,18 @@ import { SquadPanel } from '../src/components/events/SquadPanel'
 import { eventDisplayTitle, eventTimeLine, reasonLabel } from '../src/components/events/eventFormat'
 import { Haptics } from '../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { hairline, radius, space } from '../src/theme/tokens'
+import { goBackOrReplace } from '../src/utils/navigation'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
+import {
+  hairline,
+  RADIUS_CARD,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+} from '../src/theme/tokens'
 
 type Segment = 'responses' | 'squad' | 'rides'
 
@@ -49,6 +73,8 @@ const CHECK_IN_AFTER_MS = 3 * 60 * 60 * 1000
 export default function EventDetailScreen() {
   const { t } = useTranslation()
   const c = useClubColors()
+  const hero = useHeroText()
+  const insets = useSafeAreaInsetsSafe()
   const locale = getAppLocale(getAppLanguage())
   const params = useLocalSearchParams<{
     eventId?: string | string[]
@@ -318,7 +344,7 @@ export default function EventDetailScreen() {
             />
           </View>
         ) : (
-          <View style={styles.content}>
+          <View style={styles.skeleton}>
             <Skeleton shape="card" height={280} />
             <Skeleton shape="card" height={96} />
             <Skeleton shape="card" height={48} />
@@ -345,35 +371,63 @@ export default function EventDetailScreen() {
     event.viewer.isPlayer && !cancelled && inCheckInWindow && event.myRsvp !== 'NO'
   const nominatedPublished = Boolean(event.squadPublishedAt)
 
+  const showLive = Boolean(event.fixtureId && event.team)
+  const showLineup = event.type === 'MATCH' && canManage && !cancelled
+  const hasFooter = showLive || showLineup
+  const contextLabel = `${new Intl.DateTimeFormat(locale, { weekday: 'short' })
+    .format(new Date(event.date))
+    .replace('.', '')} · ${title}`
+
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ModalHeader
-        mode="back"
-        title={title}
-        rightAction={
-          canManage && !cancelled ? (
-            <Pressable
-              onPress={() => setMenuOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('eventFlow.manage.menu')}
-              hitSlop={8}
-              style={styles.menuButton}
-              testID="event-manage-menu"
-            >
-              <Icon name="ellipsis.circle" size="lg" color="primary" />
-            </Pressable>
-          ) : undefined
-        }
-      />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.scroll, hasFooter && styles.scrollWithFooter]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <EventHeaderCard event={event} locale={locale} />
+        <EventHeaderCard
+          event={event}
+          locale={locale}
+          topInset={insets.top}
+          leading={
+            <IconButton
+              variant="onHero"
+              onPress={() => goBackOrReplace(router, '/(tabs)/events')}
+              accessibilityLabel={t('common.back')}
+              testID="event-back"
+            >
+              <Icon name="chevron.left" size={20} color={hero.fg} />
+            </IconButton>
+          }
+          trailing={
+            <>
+              <IconButton
+                variant="onHero"
+                onPress={() => void share()}
+                accessibilityLabel={t('eventFlow.manage.share')}
+                testID="event-share"
+              >
+                <Icon name="square.and.arrow.up" size={20} color={hero.fg} />
+              </IconButton>
+              {canManage && !cancelled ? (
+                <IconButton
+                  variant="onHero"
+                  onPress={() => setMenuOpen(true)}
+                  accessibilityLabel={t('eventFlow.manage.menu')}
+                  testID="event-manage-menu"
+                >
+                  <Icon name="ellipsis" size={20} color={hero.fg} />
+                </IconButton>
+              ) : null}
+            </>
+          }
+        />
 
-        {!cancelled && !started && answersForSelf ? (
-          <SectionGroup header={t('eventFlow.detail.yourAnswer')}>
-            <View style={styles.cardBody} testID="event-self-answer">
+        <View style={styles.content}>
+          {!cancelled && !started && answersForSelf ? (
+            <View style={styles.block} testID="event-self-answer">
+              <Text variant="label" accessibilityRole="header">
+                {t('eventFlow.detail.yourAnswer')}
+              </Text>
               {nominatedPublished && event.myNominated ? (
                 <View style={styles.inlineTag}>
                   <Icon name="checkmark.circle.fill" size={16} color={c.primary} />
@@ -391,6 +445,8 @@ export default function EventDetailScreen() {
                 value={event.myRsvpStale ? null : event.myRsvp}
                 onChange={(status, absence) => void submitRsvp(status, absence, null)}
                 disabled={pendingRsvp != null}
+                contextLabel={contextLabel}
+                accessibilityLabel={t('eventFlow.detail.yourAnswer')}
                 testID="event-rsvp"
               />
               {event.myRsvp === 'NO' && (event.myRsvpReason || event.myRsvpNote) ? (
@@ -400,165 +456,193 @@ export default function EventDetailScreen() {
                     .join(' · ')}
                 </Text>
               ) : null}
-              <View style={[styles.switchRow, { borderTopColor: c.borderSubtle }]}>
-                <Icon name="bell" size={18} color="secondary" />
-                <Text variant="body" color="primary" style={styles.flex}>
-                  {t('eventFlow.detail.remindMe')}
-                </Text>
-                <Switch
-                  value={reminderOn}
-                  onValueChange={(value) => void toggleReminder(value)}
-                  trackColor={{ true: c.primary, false: c.borderStrong }}
-                  accessibilityLabel={t('eventFlow.detail.remindMe')}
-                />
-              </View>
+              <SectionGroup>
+                <View style={styles.switchRow}>
+                  <SoftIcon name="bell" />
+                  <Text variant="callout" weight="semibold" color="primary" style={styles.flex}>
+                    {t('eventFlow.detail.remindMe')}
+                  </Text>
+                  <Switch
+                    value={reminderOn}
+                    onValueChange={(value) => void toggleReminder(value)}
+                    trackColor={{ true: c.ink, false: c.borderStrong }}
+                    accessibilityLabel={t('eventFlow.detail.remindMe')}
+                  />
+                </View>
+              </SectionGroup>
             </View>
-          </SectionGroup>
-        ) : null}
+          ) : null}
 
-        {!cancelled && !started && answersForChildren ? (
-          <View testID="event-child-answers">
-            <SectionGroup header={t('eventFlow.detail.childAnswers')}>
-              {event.children.map((child) => (
-                <View key={child.userId} style={[styles.cardBody, styles.childRow]}>
-                  <View style={styles.childHead}>
-                    <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
-                      {[firstName(child.name), child.teamName].filter(Boolean).join(' · ')}
-                    </Text>
-                    {nominatedPublished && child.nominated ? (
-                      <Text variant="footnote" weight="semibold" color="tint">
-                        {t('eventFlow.detail.inSquad')}
+          {!cancelled && !started && answersForChildren ? (
+            <View style={styles.block} testID="event-child-answers">
+              <Text variant="label" accessibilityRole="header">
+                {t('eventFlow.detail.childAnswers')}
+              </Text>
+              <SectionGroup>
+                {event.children.map((child) => (
+                  <View key={child.userId} style={styles.childRow}>
+                    <View style={styles.childHead}>
+                      <Text variant="callout" weight="semibold" color="primary" numberOfLines={1}>
+                        {[firstName(child.name), child.teamName].filter(Boolean).join(' · ')}
+                      </Text>
+                      {nominatedPublished && child.nominated ? (
+                        <Text variant="footnote" weight="semibold" color="tint">
+                          {t('eventFlow.detail.inSquad')}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <RsvpControl
+                      value={child.rsvp}
+                      subjectName={firstName(child.name)}
+                      onChange={(status, absence) => void submitRsvp(status, absence, child.userId)}
+                      disabled={pendingRsvp != null}
+                      contextLabel={contextLabel}
+                      accessibilityLabel={firstName(child.name)}
+                      testID={`event-rsvp-child-${child.userId}`}
+                    />
+                    {child.rsvp === 'NO' && (child.reason || child.note) ? (
+                      <Text variant="footnote" color="secondary">
+                        {[reasonLabel(child.reason, t), child.note].filter(Boolean).join(' · ')}
                       </Text>
                     ) : null}
                   </View>
-                  <RsvpControl
-                    value={child.rsvp}
-                    subjectName={firstName(child.name)}
-                    onChange={(status, absence) => void submitRsvp(status, absence, child.userId)}
-                    disabled={pendingRsvp != null}
-                    testID={`event-rsvp-child-${child.userId}`}
+                ))}
+              </SectionGroup>
+            </View>
+          ) : null}
+
+          {showCheckIn ? (
+            <SectionGroup>
+              <View style={styles.switchRow}>
+                <SoftIcon name={checkedInAt ? 'checkmark.circle.fill' : 'figure.walk'} />
+                <Text variant="callout" weight="semibold" color="primary" style={styles.flex}>
+                  {checkedInAt
+                    ? t('eventFlow.checkIn.done', {
+                        time: new Intl.DateTimeFormat(locale, {
+                          hour: '2-digit',
+                          hourCycle: 'h23',
+                          minute: '2-digit',
+                        }).format(new Date(checkedInAt)),
+                      })
+                    : t('eventFlow.checkIn.prompt')}
+                </Text>
+                {!checkedInAt ? (
+                  <Button
+                    label={t('eventFlow.checkIn.action')}
+                    variant="filled"
+                    size="sm"
+                    loading={checkingIn}
+                    onPress={() => void checkIn()}
+                    testID="event-check-in"
                   />
-                  {child.rsvp === 'NO' && (child.reason || child.note) ? (
-                    <Text variant="footnote" color="secondary">
-                      {[reasonLabel(child.reason, t), child.note].filter(Boolean).join(' · ')}
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
+                ) : null}
+              </View>
             </SectionGroup>
-          </View>
-        ) : null}
+          ) : null}
 
-        {showCheckIn ? (
-          <View
-            style={[
-              styles.card,
-              styles.inline,
-              { backgroundColor: c.surface, borderColor: c.borderSubtle },
-            ]}
-          >
-            <Icon
-              name={checkedInAt ? 'checkmark.circle.fill' : 'figure.walk'}
-              size={20}
-              color={checkedInAt ? c.primary : c.textSecondary}
+          <EventInfoGroup event={event} locale={locale} />
+
+          {segments.length > 1 ? (
+            <SegmentedControl<Segment>
+              segments={segments}
+              value={activeSegment}
+              onChange={setSegment}
+              testID="event-segments"
             />
-            <Text variant="body" color="primary" style={styles.flex}>
-              {checkedInAt
-                ? t('eventFlow.checkIn.done', {
-                    time: new Intl.DateTimeFormat(locale, {
-                      hour: '2-digit', hourCycle: 'h23',
-                      minute: '2-digit',
-                    }).format(new Date(checkedInAt)),
-                  })
-                : t('eventFlow.checkIn.prompt')}
-            </Text>
-            {!checkedInAt ? (
-              <Button
-                label={t('eventFlow.checkIn.action')}
-                variant="filled"
-                size="md"
-                loading={checkingIn}
-                onPress={() => void checkIn()}
-                testID="event-check-in"
-              />
-            ) : null}
-          </View>
-        ) : null}
+          ) : null}
 
-        {event.fixtureId && event.team ? (
-          <SectionGroup>
-            <ListRow
-              title={t('eventFlow.detail.liveTitle')}
-              subtitle={t('eventFlow.detail.liveSubtitle')}
-              left={<Icon name="football" size={20} color="secondary" />}
-              showChevron
-              onPress={() =>
-                router.push({
-                  pathname: '/match-detail',
-                  params: { fixtureId: event.fixtureId as string, teamId: event.team?.id ?? '' },
-                })
+          {activeSegment === 'responses' ? (
+            <ResponsesPanel
+              rsvps={event.rsvps}
+              members={event.members}
+              canManage={canManage}
+              remind={
+                canManage && !started && !cancelled
+                  ? {
+                      onPress: () => void remind(),
+                      pending: reminding,
+                      cooldownUntil: remindCooldown,
+                      sentCount: remindSent,
+                    }
+                  : null
               }
-              testID="event-open-match"
+              onOpenAttendance={
+                canManage && started && !cancelled ? () => setAttendanceOpen(true) : null
+              }
             />
-          </SectionGroup>
-        ) : null}
-
-        {segments.length > 1 ? (
-          <SegmentedControl<Segment>
-            segments={segments}
-            value={activeSegment}
-            onChange={setSegment}
-            testID="event-segments"
-          />
-        ) : (
-          <Text variant="footnote" weight="semibold" color="secondary" style={styles.sectionLabel}>
-            {t('eventFlow.detail.tabResponses')}
-          </Text>
-        )}
-
-        {activeSegment === 'responses' ? (
-          <ResponsesPanel
-            rsvps={event.rsvps}
-            members={event.members}
-            canManage={canManage}
-            remind={
-              canManage && !started && !cancelled
-                ? {
-                    onPress: () => void remind(),
-                    pending: reminding,
-                    cooldownUntil: remindCooldown,
-                    sentCount: remindSent,
-                  }
-                : null
-            }
-            onOpenAttendance={
-              canManage && started && !cancelled ? () => setAttendanceOpen(true) : null
-            }
-          />
-        ) : null}
-        {activeSegment === 'squad' && clubId ? (
-          <SquadPanel
-            clubId={clubId}
-            event={event}
-            locale={locale}
-            onPublished={() => void fetchEvent()}
-            onOpenLineup={() =>
-              router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
-            }
-          />
-        ) : null}
-        {activeSegment === 'rides' && clubId ? (
-          <CarpoolBoard
-            clubId={clubId}
-            eventId={event.id}
-            eventDate={event.date}
-            meetingAt={event.meetingAt}
-            locale={locale}
-            riders={riders}
-            cancelled={cancelled}
-          />
-        ) : null}
+          ) : null}
+          {activeSegment === 'squad' && clubId ? (
+            <SquadPanel
+              clubId={clubId}
+              event={event}
+              locale={locale}
+              onPublished={() => void fetchEvent()}
+              onOpenLineup={() =>
+                router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
+              }
+            />
+          ) : null}
+          {activeSegment === 'rides' && clubId ? (
+            <CarpoolBoard
+              clubId={clubId}
+              eventId={event.id}
+              eventDate={event.date}
+              meetingAt={event.meetingAt}
+              locale={locale}
+              riders={riders}
+              cancelled={cancelled}
+            />
+          ) : null}
+        </View>
       </ScrollView>
+
+      {hasFooter ? (
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: c.background,
+              borderTopColor: c.borderDefault,
+              paddingBottom: Math.max(insets.bottom, SPACING_LG) + SPACING_XS,
+            },
+          ]}
+        >
+          {showLive ? (
+            <View style={showLineup ? styles.footerSecondary : styles.flex}>
+              <Button
+                label={t('eventFlow.detail.live', { defaultValue: 'Live' })}
+                variant="bordered"
+                size="lg"
+                fullWidth
+                leftIcon={<Icon name="football" size={18} color={c.textPrimary} />}
+                accessibilityLabel={t('eventFlow.detail.liveTitle')}
+                accessibilityHint={t('eventFlow.detail.liveSubtitle')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/match-detail',
+                    params: { fixtureId: event.fixtureId as string, teamId: event.team?.id ?? '' },
+                  })
+                }
+                testID="event-open-match"
+              />
+            </View>
+          ) : null}
+          {showLineup ? (
+            <View style={showLive ? styles.footerPrimary : styles.flex}>
+              <Button
+                label={t('eventFlow.squad.lineup')}
+                variant="filled"
+                size="lg"
+                fullWidth
+                onPress={() =>
+                  router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
+                }
+                testID="event-open-lineup"
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {clubId ? (
         <AttendanceSheet
@@ -579,10 +663,10 @@ export default function EventDetailScreen() {
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title3" color="primary" numberOfLines={2}>
+          <Text variant="title3" weight="bold" color="primary" numberOfLines={2}>
             {title}
           </Text>
-          <View style={[styles.menu, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+          <View style={[styles.menu, { backgroundColor: c.surface }]}>
             <ListRow
               title={t('eventFlow.manage.edit')}
               left={<Icon name="pencil" size={18} color="secondary" />}
@@ -692,42 +776,50 @@ function firstName(name: string | null | undefined): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  // 16pt gutters, 24pt between sections.
-  content: { padding: space.md, paddingBottom: space['2xl'], gap: space.lg },
-  menuButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  card: {
-    padding: space.md,
-    gap: space.sm + space.xs,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  cardBody: { padding: space.md, gap: space.sm + space.xs },
-  inline: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-  inlineTag: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  skeleton: { padding: SCREEN_PADDING, gap: SPACING_XL },
+  scroll: { paddingBottom: SPACING_XL * 2 },
+  // Room for the sticky Live · Aufstellung bar.
+  scrollWithFooter: { paddingBottom: SPACING_XL * 6 },
+  // Design 12: 20pt gutters, 20pt between blocks.
+  content: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_XL, gap: SPACING_XL },
+  block: { gap: SPACING_MD - 2 },
+  inlineTag: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XS },
   flex: { flex: 1, minWidth: 0 },
   switchRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: space.sm + space.xs,
-    borderTopWidth: hairline,
-    paddingTop: space.sm + space.xs,
-    minHeight: 44,
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
   },
-  childRow: { gap: space.sm },
+  childRow: { paddingHorizontal: SPACING_LG, paddingVertical: SPACING_LG, gap: SPACING_MD },
   childHead: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: space.sm,
+    gap: SPACING_SM,
   },
-  sectionLabel: { paddingHorizontal: space.sm },
-  sheet: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.md },
+  footer: {
+    position: 'absolute',
+    start: 0,
+    end: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    gap: SPACING_MD - 2,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_MD,
+    borderTopWidth: hairline,
+  },
+  // Design 12: Live 1fr, Aufstellung 1.4fr.
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  sheet: { paddingBottom: SPACING_LG, gap: SPACING_LG },
   menu: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
 })

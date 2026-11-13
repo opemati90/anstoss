@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking, Share } from 'react-native'
 import Constants from 'expo-constants'
 import * as FileSystem from 'expo-file-system/legacy'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../../src/context/AuthContext'
-import { useClubColors } from '../../../src/context/ClubThemeContext'
+import { useClubColors, useIsDark } from '../../../src/context/ClubThemeContext'
 import { api, ApiError, setAuthExpiryHandlingSuspended } from '../../../src/api/client'
 import {
   Avatar,
@@ -19,7 +19,19 @@ import {
   SoftIcon,
 } from '../../../src/components/ui'
 import { ClubSwitcher } from '../../../src/components/ClubSwitcher'
-import { TAB_BAR_CLEARANCE, space, hairline, elevation, RADIUS_CARD } from '../../../src/theme/tokens'
+import {
+  RADIUS_CARD,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XXS,
+  SPACING_XXXL,
+  TAB_BAR_CLEARANCE,
+} from '../../../src/theme/tokens'
+import { useWechselAccess } from '../../../src/features/wechsel/hooks'
+import type { MyContributionSummary } from '@anstoss/shared'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
 import { useChildrenSummary } from '../../../src/components/home/childrenSummary'
@@ -43,12 +55,14 @@ type Row = {
 type Persona = 'PLAYER' | 'COACH' | 'PARENT' | 'ADMIN' | 'FREE_AGENT' | 'NONE'
 
 const APPEARANCE_OPTIONS: AppearancePreference[] = ['system', 'light', 'dark']
+const COACH_TEAM_ROLES = new Set(['HEAD_COACH', 'ASSISTANT_COACH'])
 
 /**
- * Profil tab. One header per persona (player card with streaks for players,
- * team card for coaches, "Meine Kinder" for parents, Verein shortcut for
- * admins), then the same calm sections for everyone: Konto, Verein, App,
- * Daten & Rechtliches.
+ * Mehr tab (redesign screen 18). "Mehr" title, one header per persona (player
+ * card with streaks for players, profile card for everyone else), the ink
+ * role-mode card when the user has several modes, persona extras (team,
+ * children, Verein shortcut), then grouped rows: Team (dues, treasury, table,
+ * Wechselbörse, invite), Verein und App, Konto, and a quiet Abmelden link.
  */
 export default function MoreScreen() {
   const { t } = useTranslation()
@@ -68,6 +82,9 @@ export default function MoreScreen() {
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearancePreference>('system')
+  const [roleSheetOpen, setRoleSheetOpen] = useState(false)
+  const [openDues, setOpenDues] = useState(0)
+  const wechsel = useWechselAccess()
 
   useEffect(() => {
     void getAppearancePreference().then(setAppearance)
@@ -77,6 +94,29 @@ export default function MoreScreen() {
   const clubRole = activeClub?.role ?? null
   const isOwner = clubRole === 'OWNER'
   const isClubAdmin = clubRole === 'OWNER' || clubRole === 'ADMIN'
+  const hasBillingAccess = Boolean(activeClub?.permissions?.BILLING) || isClubAdmin
+  const duesClubId = activeClub && !isFreeAgent ? activeClub.club.id : null
+
+  // "N offen" on the Beiträge row: the member's own unsettled dues.
+  useFocusEffect(
+    useCallback(() => {
+      if (!duesClubId) return
+      let cancelled = false
+      api<MyContributionSummary>(`/clubs/${duesClubId}/contributions/my`)
+        .then((res) => {
+          if (cancelled) return
+          setOpenDues(
+            (res?.items ?? []).filter(
+              (i) => !['PAID', 'WAIVED', 'EXEMPT'].includes(i.status) && !i.paymentReported,
+            ).length,
+          )
+        })
+        .catch(() => undefined)
+      return () => {
+        cancelled = true
+      }
+    }, [duesClubId]),
+  )
   const persona: Persona = isFreeAgent
     ? 'FREE_AGENT'
     : !activeClub
@@ -222,62 +262,86 @@ export default function MoreScreen() {
 
   const name = user?.name || t('profileHub.fallbackName')
   const teamName = activeTeamAccess?.team?.displayName || activeTeamAccess?.team?.name || null
+  const teamId = activeTeamAccess?.team?.id ?? null
+  const isCoach = Boolean(activeTeamAccess && COACH_TEAM_ROLES.has(activeTeamAccess.role))
 
-  // ── Konto ──
-  const account: Row[] = isFreeAgent
-    ? [
-        {
-          key: 'free-agent-profile',
-          label: t('more.freeAgentProfile'),
-          sub: t('more.freeAgentProfileSub'),
-          icon: 'person.circle',
-          // Wechselbörse: the player profile lives in the free agent's Profil tab.
-          onPress: () => router.navigate('/(tabs)/profile'),
-        },
-        {
-          key: 'notifications',
-          label: t('notificationSettings.title'),
-          sub: t('more.notificationsSub'),
-          icon: 'bell',
-          onPress: () => router.push('/notification-settings'),
-        },
-      ]
-    : [
-        {
-          key: 'edit-profile',
-          label: t('profileHub.editProfile'),
-          sub: user?.email ?? undefined,
-          icon: 'person.circle',
-          onPress: () => router.push('/edit-profile'),
-        },
-        {
-          key: 'notifications',
-          label: t('notificationSettings.title'),
-          sub: t('more.notificationsSub'),
-          icon: 'bell',
-          onPress: () => router.push('/notification-settings'),
-        },
-        ...(activeClub
-          ? [
-              {
-                key: 'contributions',
-                label: t('contributions.myTitle'),
-                sub: t('more.contributionsSub'),
-                icon: 'banknote' as IconName,
-                onPress: () => router.push('/my-contributions'),
-              },
-            ]
-          : []),
-      ]
+  // ── Team ── (dues, table, transfer market, invite)
+  const team: Row[] = [
+    ...(activeClub && !isFreeAgent
+      ? [
+          {
+            key: 'contributions',
+            label: t('contributions.myTitle'),
+            icon: 'banknote' as IconName,
+            value:
+              openDues > 0
+                ? t('more.openCount', { defaultValue: '{{count}} open', count: openDues })
+                : undefined,
+            onPress: () => router.push('/my-contributions'),
+          },
+        ]
+      : []),
+    ...(hasBillingAccess
+      ? [
+          {
+            key: 'treasury',
+            label: t('more.treasury', { defaultValue: 'Treasury' }),
+            icon: 'eurosign.circle' as IconName,
+            onPress: () => router.push('/admin-billing' as never),
+          },
+        ]
+      : []),
+    ...(activeClub && teamId
+      ? [
+          {
+            key: 'table',
+            label: t('more.tableAndFixtures', { defaultValue: 'Table and fixtures' }),
+            icon: 'trophy' as IconName,
+            onPress: () => router.push({ pathname: '/league-table', params: { teamId } } as never),
+          },
+        ]
+      : []),
+    ...(wechsel.canManage
+      ? [
+          {
+            key: 'wechsel',
+            label: t('more.transferList'),
+            icon: 'arrow.left.arrow.right' as IconName,
+            onPress: () => router.push('/wechselboerse' as never),
+          },
+        ]
+      : []),
+    ...(activeClub && (isClubAdmin || isCoach)
+      ? [
+          {
+            key: 'invite',
+            label: t('more.inviteTeam', { defaultValue: 'Invite team' }),
+            icon: 'person.badge.plus' as IconName,
+            onPress: () =>
+              router.push({ pathname: '/invite', params: { returnTo: '/(tabs)/more' } } as never),
+          },
+        ]
+      : []),
+  ]
 
-  // ── Verein ──
-  const club: Row[] = [
+  // ── Verein und App ──
+  const clubAndApp: Row[] = [
+    ...(isClubAdmin && activeClub
+      ? [
+          {
+            key: 'club-profile',
+            label: t('more.clubProfile', { defaultValue: 'Club profile' }),
+            icon: 'shield' as IconName,
+            onPress: () => router.push('/admin-club-profile' as never),
+          },
+        ]
+      : []),
     ...(memberships.length > 1
       ? [
           {
             key: 'switch-club',
             label: t('profileHub.switchClub'),
-            sub: activeClub?.club.name,
+            value: activeClub?.club.name,
             icon: 'arrow.left.arrow.right' as IconName,
             onPress: () => setClubSwitcherVisible(true),
           },
@@ -286,7 +350,6 @@ export default function MoreScreen() {
     {
       key: 'find-club',
       label: t('findClub.title'),
-      sub: t('findClub.subtitle'),
       icon: 'magnifyingglass',
       onPress: () => router.push('/find-club'),
     },
@@ -295,7 +358,6 @@ export default function MoreScreen() {
           {
             key: 'create-club',
             label: t('club.createClub'),
-            sub: t('club.setupWizard.createSubtitle'),
             icon: 'plus.circle' as IconName,
             onPress: () => router.push('/club-setup'),
           },
@@ -306,28 +368,11 @@ export default function MoreScreen() {
           {
             key: 'ownership',
             label: t('ownership.title'),
-            sub: t('ownership.menuSubtitle'),
             icon: 'person.badge.key' as IconName,
             onPress: () => router.push('/ownership-transfers'),
           },
         ]
       : []),
-    ...(activeClub && !isFreeAgent
-      ? [
-          {
-            key: 'leave',
-            label: t('more.leaveClub'),
-            sub: activeClub.club.name,
-            icon: 'rectangle.portrait.and.arrow.right' as IconName,
-            destructive: true,
-            onPress: handleLeaveClub,
-          },
-        ]
-      : []),
-  ]
-
-  // ── App ──
-  const app: Row[] = [
     {
       key: 'language',
       label: t('more.language'),
@@ -342,14 +387,35 @@ export default function MoreScreen() {
       value: t(`profileHub.appearanceOption.${appearance}`),
       onPress: () => setAppearanceOpen(true),
     },
+    {
+      key: 'notifications',
+      label: t('notificationSettings.title'),
+      icon: 'bell',
+      onPress: () => router.push('/notification-settings'),
+    },
   ]
 
-  // ── Daten & Rechtliches ──
-  const data: Row[] = [
+  // ── Konto ── (profile, legal, data, leaving)
+  const account: Row[] = [
+    isFreeAgent
+      ? {
+          key: 'free-agent-profile',
+          label: t('more.freeAgentProfile'),
+          sub: t('more.freeAgentProfileSub'),
+          icon: 'person.circle',
+          // Wechselbörse: the player profile lives in the free agent's Profil tab.
+          onPress: () => router.navigate('/(tabs)/profile'),
+        }
+      : {
+          key: 'edit-profile',
+          label: t('profileHub.editProfile'),
+          sub: user?.email ?? undefined,
+          icon: 'person.circle',
+          onPress: () => router.push('/edit-profile'),
+        },
     {
       key: 'legal',
       label: t('more.legal'),
-      sub: t('more.legalSub'),
       icon: 'doc.text',
       onPress: () => router.push('/legal' as never),
     },
@@ -360,6 +426,18 @@ export default function MoreScreen() {
       icon: 'square.and.arrow.up',
       onPress: () => void handleExportData(),
     },
+    ...(activeClub && !isFreeAgent
+      ? [
+          {
+            key: 'leave',
+            label: t('more.leaveClub'),
+            sub: activeClub.club.name,
+            icon: 'rectangle.portrait.and.arrow.right' as IconName,
+            destructive: true,
+            onPress: handleLeaveClub,
+          },
+        ]
+      : []),
     {
       key: 'delete',
       label: t('more.deleteAccount'),
@@ -368,22 +446,36 @@ export default function MoreScreen() {
       onPress: handleDeleteAccount,
       destructive: true,
     },
-    {
-      key: 'signout',
-      label: t('more.signOut'),
-      icon: 'rectangle.portrait.and.arrow.right',
-      onPress: handleSignOut,
-      destructive: true,
-    },
   ]
 
   const appVersionFooter = t('profileHub.version', {
     version: Constants.expoConfig?.version || '1.0.0',
   })
 
+  const roleSubtitle =
+    persona === 'COACH'
+      ? [teamName, t(`teamRoles.${activeTeamAccess?.role ?? 'HEAD_COACH'}`)].filter(Boolean).join(' · ')
+      : persona === 'ADMIN'
+        ? [activeClub?.club.name, t(`verein.memberRole.${clubRole ?? 'ADMIN'}`)]
+            .filter(Boolean)
+            .join(' · ')
+        : persona === 'PARENT'
+          ? [activeClub?.club.name, t('roles.PARENT')].filter(Boolean).join(' · ')
+          : (user?.email ?? '')
+
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text
+          variant="title1"
+          weight="bold"
+          color="primary"
+          accessibilityRole="header"
+          style={styles.h1}
+        >
+          {t('more.title')}
+        </Text>
+
         {persona === 'PLAYER' ? (
           <Pressable
             onPress={() => router.push('/edit-profile')}
@@ -414,25 +506,25 @@ export default function MoreScreen() {
           <ProfileCard
             name={name}
             avatarUrl={user?.avatarUrl ?? null}
-            subtitle={
-              persona === 'COACH'
-                ? [teamName, t(`teamRoles.${activeTeamAccess?.role ?? 'HEAD_COACH'}`)]
-                    .filter(Boolean)
-                    .join(' · ')
-                : persona === 'ADMIN'
-                  ? [activeClub?.club.name, t(`verein.memberRole.${clubRole ?? 'ADMIN'}`)]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : persona === 'PARENT'
-                    ? [activeClub?.club.name, t('roles.PARENT')].filter(Boolean).join(' · ')
-                    : (user?.email ?? '')
-            }
+            subtitle={roleSubtitle}
             testID={`profile-card-${persona.toLowerCase()}`}
           />
         )}
 
+        {availableRoleModes.length > 1 ? (
+          <RoleModeCard
+            title={t('more.roleModeTitle')}
+            subtitle={
+              activeRoleMode
+                ? t(`roles.${activeRoleMode}`)
+                : t('more.roleModeHint')
+            }
+            onPress={() => setRoleSheetOpen(true)}
+          />
+        ) : null}
+
         {persona === 'COACH' && teamName ? (
-          <SectionGroup header={t('profileHub.myTeam')} style={styles.section}>
+          <SectionGroup header={t('profileHub.myTeam')}>
             <ListRow
               left={<SoftIcon name="person.2.fill" />}
               title={teamName}
@@ -447,7 +539,6 @@ export default function MoreScreen() {
           <SectionGroup
             header={t('profileHub.myChildren')}
             footer={children.length === 0 ? t('profileHub.noChildrenHint') : undefined}
-            style={styles.section}
           >
             {children.length === 0 ? (
               <ListRow
@@ -458,7 +549,7 @@ export default function MoreScreen() {
               children.map((child) => (
                 <ListRow
                   key={child.id}
-                  left={<Avatar size="md" fallbackText={child.name} />}
+                  left={<Avatar size={36} tone="neutral" fallbackText={child.name} />}
                   title={child.name}
                   subtitle={child.team}
                   showChevron
@@ -479,7 +570,7 @@ export default function MoreScreen() {
         ) : null}
 
         {isClubAdmin && persona === 'ADMIN' ? (
-          <SectionGroup style={styles.section}>
+          <SectionGroup>
             <ListRow
               left={<SoftIcon name="building.2.fill" />}
               title={t('profileHub.openVerein')}
@@ -490,14 +581,37 @@ export default function MoreScreen() {
           </SectionGroup>
         ) : null}
 
-        <Section title={t('profileHub.sectionAccount')} rows={account} />
+        <Section title={t('more.sectionTeam', { defaultValue: 'Team' })} rows={team} />
+        <Section
+          title={t('more.sectionClubApp', { defaultValue: 'Club and app' })}
+          rows={clubAndApp}
+        />
+        <Section title={t('profileHub.sectionAccount')} rows={account} footer={appVersionFooter} />
 
-        {availableRoleModes.length > 1 ? (
-          <SectionGroup
-            header={t('more.roleModeTitle')}
-            footer={t('more.roleModeHint')}
-            style={styles.section}
-          >
+        <Pressable
+          onPress={handleSignOut}
+          accessibilityRole="button"
+          accessibilityLabel={t('more.signOut')}
+          style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.6 }]}
+          testID="more-sign-out"
+        >
+          <Icon name="rectangle.portrait.and.arrow.right" size="md" color={c.error} />
+          <Text variant="subheadline" weight="semibold" style={{ color: c.error }}>
+            {t('more.signOut')}
+          </Text>
+        </Pressable>
+      </ScrollView>
+
+      <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
+      <BottomSheet visible={roleSheetOpen} onClose={() => setRoleSheetOpen(false)} heightPct="auto">
+        <View style={styles.sheet}>
+          <Text variant="title3" weight="bold" color="primary">
+            {t('more.roleModeTitle')}
+          </Text>
+          <Text variant="subheadline" color="secondary">
+            {t('more.roleModeHint')}
+          </Text>
+          <SectionGroup>
             {availableRoleModes.map((mode) => (
               <ListRow
                 key={mode}
@@ -506,23 +620,18 @@ export default function MoreScreen() {
                 selected={activeRoleMode === mode}
                 right={
                   activeRoleMode === mode ? (
-                    <Icon name="checkmark" size="md" color="tint" />
+                    <Icon name="checkmark" size="md" color="primary" />
                   ) : undefined
                 }
-                onPress={() => setActiveRoleMode(mode)}
+                onPress={() => {
+                  setActiveRoleMode(mode)
+                  setRoleSheetOpen(false)
+                }}
               />
             ))}
           </SectionGroup>
-        ) : null}
-
-        {!isFreeAgent || club.length > 0 ? (
-          <Section title={t('profileHub.sectionClub')} rows={club} />
-        ) : null}
-        <Section title={t('profileHub.sectionApp')} rows={app} />
-        <Section title={t('profileHub.sectionData')} rows={data} footer={appVersionFooter} />
-      </ScrollView>
-
-      <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
+        </View>
+      </BottomSheet>
       <BottomSheet visible={appearanceOpen} onClose={() => setAppearanceOpen(false)} heightPct="auto">
         <View style={styles.sheet}>
           <Text variant="title3" weight="bold" color="primary">
@@ -535,7 +644,7 @@ export default function MoreScreen() {
                 title={t(`profileHub.appearanceOption.${option}`)}
                 selected={appearance === option}
                 right={
-                  appearance === option ? <Icon name="checkmark" size="md" color="tint" /> : undefined
+                  appearance === option ? <Icon name="checkmark" size="md" color="primary" /> : undefined
                 }
                 onPress={() => {
                   setAppearance(option)
@@ -558,6 +667,7 @@ function roleModeIcon(mode: string): IconName {
   return 'figure.soccer'
 }
 
+/** The design's profile card: white r20, 48pt club avatar, name, roles, chevron. */
 function ProfileCard({
   name,
   avatarUrl,
@@ -580,23 +690,60 @@ function ProfileCard({
       android_ripple={{ color: c.borderSubtle }}
       style={({ pressed }) => [
         styles.profileCard,
-        elevation.card,
-        { backgroundColor: c.surface, borderColor: c.borderDefault },
+        { backgroundColor: c.surface },
         pressed && styles.pressedScale,
       ]}
     >
-      <Avatar size="lg" src={avatarUrl} fallbackText={name} />
+      <Avatar size={48} src={avatarUrl} fallbackText={name} />
       <View style={styles.profileText}>
-        <Text variant="title3" color="primary" weight="bold" numberOfLines={1}>
+        <Text variant="body" color="primary" weight="bold" numberOfLines={1}>
           {name}
         </Text>
         {subtitle ? (
-          <Text variant="subheadline" color="secondary" numberOfLines={2}>
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
       </View>
-      <Icon name="chevron.right" size="md" color="tertiary" />
+      <Icon name="chevron.right" size="md" color="secondary" />
+    </Pressable>
+  )
+}
+
+/** Ink card that opens the role-mode sheet ("Anstoss nutzen als"). */
+function RoleModeCard({
+  title,
+  subtitle,
+  onPress,
+}: {
+  title: string
+  subtitle: string
+  onPress: () => void
+}) {
+  const c = useClubColors()
+  const isDark = useIsDark()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${subtitle}`}
+      testID="more-role-mode"
+      style={({ pressed }) => [
+        styles.profileCard,
+        { backgroundColor: c.ink },
+        pressed && styles.pressedScale,
+      ]}
+    >
+      <Icon name="arrow.left.arrow.right" size="md" color={isDark ? c.onInk : c.accent} />
+      <View style={styles.profileText}>
+        <Text variant="subheadline" weight="bold" style={{ color: c.onInk }} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text variant="footnote" style={{ color: c.onInk, opacity: 0.7 }} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      <Icon name="chevron.right" size="md" color={c.onInk} />
     </Pressable>
   )
 }
@@ -604,7 +751,7 @@ function ProfileCard({
 function Section({ title, rows, footer }: { title: string; rows: Row[]; footer?: string }) {
   if (rows.length === 0) return null
   return (
-    <SectionGroup header={title} footer={footer} style={styles.section}>
+    <SectionGroup header={title} footer={footer}>
       {rows.map((row) => (
         <RowView key={row.key} row={row} />
       ))}
@@ -622,7 +769,7 @@ function RowView({ row }: { row: Row }) {
       destructive={row.destructive}
       right={
         row.value ? (
-          <Text variant="body" color="secondary" numberOfLines={1}>
+          <Text variant="subheadline" color="secondary" numberOfLines={1}>
             {row.value}
           </Text>
         ) : undefined
@@ -636,21 +783,29 @@ function RowView({ row }: { row: Row }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: TAB_BAR_CLEARANCE + space.xl,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_LG,
+    paddingBottom: TAB_BAR_CLEARANCE + SPACING_XXXL,
+    gap: SPACING_XL,
   },
+  h1: { fontSize: 30, lineHeight: 33 },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
+    gap: SPACING_MD,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_LG,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
-  profileText: { flex: 1, minWidth: 0, gap: space['2xs'] },
-  section: { marginTop: space.md },
-  sheet: { gap: space.md, paddingBottom: space.md },
+  profileText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  signOut: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING_SM,
+  },
+  sheet: { gap: SPACING_MD, paddingBottom: SPACING_MD },
   pressedScale: { transform: [{ scale: 0.985 }] },
 })

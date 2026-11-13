@@ -80,11 +80,26 @@ describe('UnavailableReasonSheet', () => {
 
   beforeEach(() => jest.clearAllMocks())
 
-  it('renders all six reason chips, including Gesperrt', () => {
+  it('renders a chip for every reason the API accepts, including Gesperrt and Sonstiges', () => {
     render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
-    for (const key of ['injured', 'sick', 'work', 'vacation', 'personal', 'suspended']) {
+    for (const key of ['injured', 'sick', 'work', 'vacation', 'personal', 'suspended', 'other']) {
       expect(screen.getByTestId(`absence-reason-${key}`)).toBeTruthy()
     }
+  })
+
+  it('Abbrechen closes without sending an Absage', () => {
+    render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
+    fireEvent.press(screen.getByTestId('absence-reason-work'))
+    fireEvent.press(screen.getByTestId('absence-cancel'))
+    expect(onClose).toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('names the event and that only the coach sees the reason', () => {
+    render(
+      <UnavailableReasonSheet visible contextLabel="So · Heimspiel" onSubmit={onSubmit} onClose={onClose} />,
+    )
+    expect(screen.getByText('So · Heimspiel · eventFlow.absence.coachOnly')).toBeTruthy()
   })
 
   it('renders nothing when hidden', () => {

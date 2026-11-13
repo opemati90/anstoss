@@ -141,6 +141,23 @@ function routeApi() {
         { id: 'g', displayName: 'Herren', teams: [{ id: 'team-2', displayName: 'Herren II', leagueName: 'Kreisliga A' }] },
       ] as never
     }
+    if (path.startsWith('/free-agents')) {
+      return {
+        items: [
+          {
+            id: 'fa-daniel',
+            name: 'Daniel A.',
+            avatarUrl: null,
+            positions: ['CB'],
+            highestLeague: 'KREISLIGA_B',
+            currentClubName: null,
+            availableFrom: null,
+            age: 23,
+          },
+        ],
+        total: 1,
+      } as never
+    }
     if (path.includes('/events')) {
       return [
         { id: 'event-tr-1', title: 'Training', type: 'TRAINING', date: inDays(3), location: 'Kunstrasen' },
@@ -199,6 +216,26 @@ describe('Wechselbörse', () => {
         method: 'PATCH',
         body: { status: 'FILLED' },
       }),
+    )
+  })
+
+  it('invites a free agent to a trial straight from the player search', async () => {
+    mockAuth.mockReturnValue(adminAuth())
+    routeApi()
+    const screen = render(<WechselboerseScreen />)
+
+    fireEvent.press(screen.getByText('wechsel.tabSpieler'))
+    expect(await screen.findByText('Daniel A.')).toBeTruthy()
+    expect(screen.getByTestId('wechsel-publish-search')).toBeTruthy()
+    fireEvent.press(await screen.findByLabelText('wechsel.tabProbetraining, Daniel A.'))
+    fireEvent.press(await screen.findByRole('checkbox'))
+    fireEvent.press(screen.getByText('wechsel.inviteSend'))
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/trial-invites',
+        expect.objectContaining({ method: 'POST' }),
+      ),
     )
   })
 })

@@ -324,52 +324,79 @@ export function GesuchCard({
 
 // ─── Spielersuche row ─────────────────────────────────────────────────
 
-export function PlayerRow({ player, onPress }: { player: FreeAgentListItem; onPress: () => void }) {
+/**
+ * Spielersuche row (redesign 21 Wechselbörse): sits inside a SectionGroup —
+ * 44pt avatar, name, age/position line, level · availability line, and an
+ * optional ink "Probetraining" pill (outlined "Eingeladen" once sent). Row
+ * taps open the player's profile.
+ */
+export function PlayerRow({
+  player,
+  onPress,
+  onInvite,
+  invited,
+}: {
+  player: FreeAgentListItem
+  onPress: () => void
+  onInvite?: () => void
+  invited?: boolean
+}) {
   const { t } = useTranslation()
   const c = useClubColors()
   const meta = playerMeta(t, player)
-  const clubLine = [
-    leagueLabel(t, player.highestLeague),
-    player.currentClubName ?? t('spielerprofil.noClub'),
-  ]
-    .filter(Boolean)
-    .join(' · ')
   const available =
     player.availableFrom && new Date(player.availableFrom).getTime() > Date.now()
       ? t('spielerprofil.availableFromShort', { date: formatDate(player.availableFrom) })
       : t('spielerprofil.availableNow')
+  const levelLine = [
+    leagueLabel(t, player.highestLeague),
+    player.currentClubName ?? t('spielerprofil.noClub'),
+    available,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${player.name}, ${meta}, ${clubLine}, ${available}`}
+      accessibilityLabel={`${player.name}, ${meta}, ${levelLine}`}
       onPress={onPress}
       android_ripple={{ color: c.borderSubtle, foreground: true }}
       style={({ pressed }) => [
         styles.playerRow,
-        { backgroundColor: pressed ? c.surfaceSunken : c.surface, borderColor: c.borderSubtle },
+        { backgroundColor: pressed ? c.surfaceSunken : 'transparent' },
       ]}
     >
-      <Avatar size="md" tone="neutral" src={player.avatarUrl} fallbackText={player.name} />
+      <Avatar size={44} tone="neutral" src={player.avatarUrl} fallbackText={player.name} />
       <View style={styles.flex}>
-        <Text variant="headline" color="primary" numberOfLines={1}>
+        <Text variant="subheadline" weight="bold" color="primary" numberOfLines={1}>
           {player.name}
         </Text>
         {meta ? (
-          <Text variant="footnote" color="secondary" numberOfLines={1}>
+          <Text variant="footnote" color="primary" numberOfLines={1}>
             {meta}
           </Text>
         ) : null}
-        <Text variant="footnote" color="secondary" numberOfLines={1}>
-          {clubLine}
+        <Text variant="caption1" color="secondary" numberOfLines={1}>
+          {levelLine}
         </Text>
       </View>
-      <View style={styles.playerRight}>
-        <Text variant="footnote" color="tint" weight="semibold" tabular align="right">
-          {available}
-        </Text>
+      {onInvite ? (
+        <Button
+          size="sm"
+          variant={invited ? 'bordered' : 'filled'}
+          label={invited ? t('wechsel.invitedShort', { defaultValue: 'Invited' }) : t('wechsel.tabProbetraining')}
+          accessibilityLabel={
+            invited
+              ? `${t('wechsel.invitedShort', { defaultValue: 'Invited' })}, ${player.name}`
+              : `${t('wechsel.tabProbetraining')}, ${player.name}`
+          }
+          disabled={invited}
+          onPress={onInvite}
+        />
+      ) : (
         <Icon name="chevron.right" size="sm" color="tertiary" />
-      </View>
+      )}
     </Pressable>
   )
 }
@@ -468,11 +495,7 @@ const styles = StyleSheet.create({
     gap: SPACING_MD,
     paddingHorizontal: SPACING_LG,
     paddingVertical: SPACING_MD,
-    borderRadius: RADIUS_CARD,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
   },
-  playerRight: { alignItems: 'flex-end', gap: SPACING_XS, flexShrink: 1, maxWidth: '38%' },
   checkRow: {
     minHeight: 56,
     flexDirection: 'row',

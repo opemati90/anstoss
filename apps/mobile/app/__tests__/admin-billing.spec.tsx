@@ -283,7 +283,9 @@ describe('AdminBillingScreen', () => {
     const screen = render(<AdminBillingScreen />)
 
     await waitFor(() => {
-      expect(screen.getByText('THIS PERIOD')).toBeTruthy()
+      // Ink hero: collected and open totals in Barlow numbers.
+      expect(screen.getByTestId('fees-hero')).toBeTruthy()
+      expect(screen.getAllByText('Collected').length).toBeGreaterThan(0)
       expect(screen.getByText('Track contributions')).toBeTruthy()
       // Plan section uses a real header, and tracking uses native switches.
       expect(screen.getByText('verein.settings.plan')).toBeTruthy()
@@ -296,6 +298,59 @@ describe('AdminBillingScreen', () => {
 
     fireEvent.press(screen.getByText('Add plan'))
     expect(mockRouterPush).toHaveBeenCalledWith('/admin-contribution-plan')
+  })
+
+  it('marks an open member paid in one tap from the list', async () => {
+    mockUseAuth.mockReturnValue({
+      activeClub: { role: 'OWNER', permissions: { BILLING: true }, club: { id: 'club-1', name: 'FC QA' } },
+    })
+    const overview = {
+      settings: { clubId: 'club-1', enabled: true, autoRemindersEnabled: false, defaultCurrency: 'eur' },
+      summary: {
+        assignedMembers: 1,
+        paidMembers: 0,
+        overdueMembers: 1,
+        outstandingMembers: 1,
+        expectedAmount: 2500,
+        collectedAmount: 0,
+      },
+      plans: [],
+      members: [
+        {
+          memberUserId: 'user-1',
+          name: 'Max Mustermann',
+          email: null,
+          avatarUrl: null,
+          role: 'PLAYER',
+          planId: 'plan-1',
+          planName: 'Monthly',
+          cadence: 'MONTHLY',
+          amount: 2500,
+          currency: 'eur',
+          dueDate: '2026-11-01T12:00:00.000Z',
+          status: 'OVERDUE',
+          paidAmount: null,
+          paidAt: null,
+          note: null,
+          lastReminderSentAt: null,
+        },
+      ],
+    }
+    mockApi.mockImplementation((path: string) => {
+      if (path === '/clubs/club-1/billing/status') return Promise.resolve(null)
+      if (path === '/clubs/club-1/contributions') return Promise.resolve(overview)
+      return Promise.resolve(overview)
+    })
+
+    const screen = render(<AdminBillingScreen />)
+    await waitFor(() => expect(screen.getByText('Max Mustermann')).toBeTruthy())
+    fireEvent.press(screen.getByLabelText('fees.markPaidA11y'))
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/contributions/members/user-1/status', {
+        method: 'PATCH',
+        body: { planId: 'plan-1', status: 'PAID' },
+      }),
+    )
   })
 
   it('shows access denied for members without billing capability', () => {

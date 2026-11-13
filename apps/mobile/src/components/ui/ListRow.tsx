@@ -75,7 +75,8 @@ export function ListRow({
       {left ? <View style={styles.left}>{left}</View> : null}
       <View style={styles.text}>
         <Text
-          variant="body"
+          variant="subheadline"
+          weight="semibold"
           color={destructive ? 'error' : 'primary'}
           numberOfLines={titleNumberOfLines}
         >

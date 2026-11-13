@@ -16,7 +16,8 @@ import { api } from '../src/api/client'
 import { useEntitlements } from '../src/hooks/useEntitlements'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
-import { ModalHeader } from '../src/components/ModalHeader'
+import { ClubScreenHeader } from '../src/components/club/ClubScreenHeader'
+import { DuesTag, formatDues, type DuesTagTone } from '../src/components/club/DuesTag'
 import { AdminStatsSkeleton } from '../src/components/Skeleton'
 import { PaywallSheet } from '../src/components/billing/PaywallSheet'
 import {
@@ -28,20 +29,33 @@ import {
   Screen,
   SectionGroup,
   SoftIcon,
-  StatusPill,
-  type StatusPillTone,
+  PressableScale,
+  SegmentedControl,
   Text,
 } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { hairline, radius, space } from '../src/theme/tokens'
+import {
+  RADIUS_FULL,
+  RADIUS_HERO,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+  space,
+} from '../src/theme/tokens'
 
 /**
- * Admin Billing — "Editorial Calm" doctrine.
+ * Kasse — the treasurer's view of member dues (redesign screen 19).
  *
- * Framed around progress-to-collected: percent paid + collected/expected
- * in Geist Mono, one club-primary progress bar, a quiet count strip.
- * Member status uses the calm semantic StatusPill primitive; Tracking and
- * Plans use a single quiet SoftIcon treatment.
+ * An ink hero answers "how much is in, how much is open" in Barlow numbers
+ * with a paid-share bar and one lime reminder action; a segmented filter
+ * (Offen / Bezahlt / Alle) drives the member list, where each open row can be
+ * marked paid (or a member's reported transfer confirmed) in one tap. Row
+ * taps still open the full status sheet. Tracking, bank, plans and the
+ * Anstoss plan follow below.
  */
 export default function AdminBillingScreen() {
   const { t } = useTranslation()
@@ -72,6 +86,8 @@ export default function AdminBillingScreen() {
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedMember, setSelectedMember] = useState<ContributionMemberRecord | null>(null)
+  const [filter, setFilter] = useState<'open' | 'paid' | 'all'>('open')
+  const [reminded, setReminded] = useState(false)
 
   const fetchScreenData = useCallback(async () => {
     if (!clubId) {
@@ -160,6 +176,7 @@ export default function AdminBillingScreen() {
         t('contributions.reminderSuccessTitle'),
         t('contributions.reminderSuccess', { count: result.sent }),
       )
+      if (!memberUserIds?.length) setReminded(true)
       setSelectedMember(null)
       await fetchScreenData()
     } catch {
@@ -171,19 +188,20 @@ export default function AdminBillingScreen() {
 
   const handleStatusUpdate = async (
     status: 'PAID' | 'PENDING' | 'PARTIAL' | 'WAIVED' | 'EXEMPT',
+    target: ContributionMemberRecord | null = selectedMember,
   ) => {
-    if (!clubId || !selectedMember?.planId) {
+    if (!clubId || !target?.planId) {
       return
     }
 
     setActionLoading(true)
     try {
       const nextOverview = await api<ContributionOverview>(
-        `/clubs/${clubId}/contributions/members/${selectedMember.memberUserId}/status`,
+        `/clubs/${clubId}/contributions/members/${target.memberUserId}/status`,
         {
           method: 'PATCH',
           body: {
-            planId: selectedMember.planId,
+            planId: target.planId,
             status,
           },
         },
@@ -198,18 +216,25 @@ export default function AdminBillingScreen() {
     }
   }
 
+  const handleQuickMarkPaid = (member: ContributionMemberRecord) =>
+    handleStatusUpdate('PAID', member)
+
   const enrolled = (contributions?.members ?? []).filter((m) => m.planId)
-  const SETTLED = new Set(['PAID', 'WAIVED', 'EXEMPT'])
-  const openItems = enrolled.filter((m) => !m.status || !SETTLED.has(m.status))
-  const settledItems = enrolled.filter((m) => m.status && SETTLED.has(m.status))
+  const openItems = enrolled
+    .filter((m) => !isSettled(m.status))
+    .sort((a, b) => Number(b.status === 'OVERDUE') - Number(a.status === 'OVERDUE'))
+  const settledItems = enrolled.filter((m) => isSettled(m.status))
+  const visibleItems =
+    filter === 'open' ? openItems : filter === 'paid' ? settledItems : [...openItems, ...settledItems]
+
+  const header = (
+    <ClubScreenHeader title={t('fees.title', { defaultValue: 'Dues' })} fallbackHref="/(tabs)" />
+  )
 
   if (!hasBillingAccess) {
     return (
-      <Screen
-        header={<ModalHeader title={t('adminBilling.title')} mode="back" />}
-        padded={false}
-        style={{ backgroundColor: c.surfaceSunken }}
-      >
+      <Screen scroll contentStyle={styles.content}>
+        {header}
         <EmptyState
           icon="lock.shield.fill"
           title={t('common.accessDenied')}
@@ -221,21 +246,15 @@ export default function AdminBillingScreen() {
 
   return (
     <Screen
-      header={<ModalHeader title={t('adminBilling.title')} mode="back" />}
       scroll
-      padded={false}
-      style={{ backgroundColor: c.surfaceSunken }}
       contentStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {header}
       {error ? (
-        <View style={styles.section}>
-          <ErrorState message={error} onRetry={fetchScreenData} />
-        </View>
+        <ErrorState message={error} onRetry={fetchScreenData} />
       ) : loading ? (
-        <View style={styles.section}>
-          <AdminStatsSkeleton />
-        </View>
+        <AdminStatsSkeleton />
       ) : contributions ? (
         <>
           {entitlements.data?.compliance?.status === 'OVER_QUOTA' ? (
@@ -257,27 +276,90 @@ export default function AdminBillingScreen() {
                 label: t('adminBilling.reviewPlan', { defaultValue: 'Review plan' }),
                 onPress: () => router.push('/team-management'),
               }}
-              style={styles.section}
             />
           ) : null}
-          {/* ── Progress-to-collected hero ── */}
-          <View style={styles.section}>
-            <ProgressToCollected
-              collected={contributions.summary.collectedAmount}
-              expected={contributions.summary.expectedAmount}
-              currency={contributions.settings.defaultCurrency}
-              locale={locale}
-              assigned={contributions.summary.assignedMembers}
-              paid={contributions.summary.paidMembers}
-              overdue={contributions.summary.overdueMembers}
+
+          {/* ── Ink hero: collected / open, paid share, one reminder action ── */}
+          <CollectedHero
+            summary={contributions.summary}
+            plans={contributions.plans}
+            currency={contributions.settings.defaultCurrency}
+            locale={locale}
+            reminded={reminded}
+            remindDisabled={actionLoading}
+            onRemind={() => void handleSendReminders()}
+          />
+
+          <SegmentedControl
+            fullWidth
+            testID="fees-filter"
+            segments={[
+              {
+                key: 'open' as const,
+                label: `${t('contributions.summaryOutstanding')} · ${openItems.length}`,
+              },
+              {
+                key: 'paid' as const,
+                label: `${t('contributions.summaryPaid')} · ${settledItems.length}`,
+              },
+              { key: 'all' as const, label: t('eventFilter.all') },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
+
+          {/* ── Member list ── */}
+          <SectionGroup footer={t('contributions.membersBody')}>
+            {visibleItems.length === 0 ? (
+              <ListRow
+                left={<SoftIcon name="checkmark.circle.fill" color={c.success} />}
+                title={
+                  enrolled.length > 0
+                    ? filter === 'open'
+                      ? t('verein.finance.noOpenItems')
+                      : t('fees.noneInFilter', { defaultValue: 'Nobody here yet.' })
+                    : t('contributions.emptyMembersTitle')
+                }
+                subtitle={enrolled.length > 0 ? undefined : t('contributions.emptyMembersBody')}
+              />
+            ) : (
+              visibleItems.map((member) => (
+                <DuesMemberRow
+                  key={`${member.memberUserId}:${member.planId}`}
+                  member={member}
+                  locale={locale}
+                  disabled={actionLoading}
+                  onPress={() => setSelectedMember(member)}
+                  onMarkPaid={() => void handleQuickMarkPaid(member)}
+                />
+              ))
+            )}
+          </SectionGroup>
+
+          {/* ── Bank statement matching ── */}
+          <SectionGroup>
+            <ListRow
+              left={<SoftIcon name="doc.text" />}
+              title={t('fees.reconcileTitle', { defaultValue: 'Match bank statement' })}
+              subtitle={t('fees.reconcileSub', {
+                defaultValue: 'CSV or CAMT from online banking',
+              })}
+              showChevron
+              onPress={() => router.push('/admin-contribution-reconciliation')}
             />
-          </View>
+          </SectionGroup>
+
+          <Text variant="footnote" color="secondary">
+            {t('fees.footnote', {
+              defaultValue:
+                'Anstoss never collects money. Members transfer straight to the club account; you only see the status here.',
+            })}
+          </Text>
 
           {/* ── Tracking + auto-reminders: real switches ── */}
           <SectionGroup
             header={t('contributions.tracking', { defaultValue: 'Tracking' })}
             footer={t('verein.finance.trackingFooter')}
-            style={styles.section}
           >
             <ListRow
               left={<SoftIcon name="gearshape.fill" />}
@@ -289,7 +371,7 @@ export default function AdminBillingScreen() {
                   value={contributions.settings.enabled}
                   disabled={savingSettings}
                   onValueChange={(enabled) => void updateContributionSettings({ enabled })}
-                  trackColor={{ true: c.primary, false: c.borderDefault }}
+                  trackColor={{ true: c.ink, false: c.borderDefault }}
                   accessibilityLabel={t('contributions.trackContributions')}
                 />
               }
@@ -307,15 +389,15 @@ export default function AdminBillingScreen() {
                   onValueChange={(autoRemindersEnabled) =>
                     void updateContributionSettings({ autoRemindersEnabled })
                   }
-                  trackColor={{ true: c.primary, false: c.borderDefault }}
+                  trackColor={{ true: c.ink, false: c.borderDefault }}
                   accessibilityLabel={t('contributions.autoReminders')}
                 />
               }
             />
           </SectionGroup>
 
-          {/* ── Bank: account members pay to + statement matching ── */}
-          <SectionGroup header={t('verein.finance.bankSection')} style={styles.section}>
+          {/* ── Bank: the account members pay to ── */}
+          <SectionGroup header={t('verein.finance.bankSection')}>
             <ListRow
               left={<SoftIcon name="building.2" />}
               title={t('verein.finance.bank')}
@@ -332,19 +414,10 @@ export default function AdminBillingScreen() {
               showChevron
               onPress={() => router.push('/admin-contribution-bank')}
             />
-            <ListRow
-              left={<SoftIcon name="arrow.left.arrow.right" />}
-              title={t('verein.finance.reconciliation')}
-              subtitle={t('contributions.reconciliationSubtitle', {
-                defaultValue: 'Import CSV/CAMT.053 and confirm payment matches',
-              })}
-              showChevron
-              onPress={() => router.push('/admin-contribution-reconciliation')}
-            />
           </SectionGroup>
 
           {/* ── Contribution plans ── */}
-          <SectionGroup header={t('verein.finance.feeSchedule')} style={styles.section}>
+          <SectionGroup header={t('verein.finance.feeSchedule')}>
             <ListRow
               left={<SoftIcon name="plus.circle.fill" />}
               title={t('contributions.addPlan')}
@@ -368,65 +441,8 @@ export default function AdminBillingScreen() {
             ))}
           </SectionGroup>
 
-          {/* ── Offene Posten: everything not settled, overdue first ── */}
-          <SectionGroup
-            header={t('verein.finance.openItems')}
-            footer={t('contributions.membersBody')}
-            style={styles.section}
-          >
-            {contributions.summary.overdueMembers > 0 ? (
-              <ListRow
-                left={<SoftIcon name="paperplane.fill" color={c.warning} />}
-                title={t('contributions.sendOverdueReminders')}
-                showChevron
-                disabled={actionLoading}
-                onPress={() => handleSendReminders()}
-              />
-            ) : null}
-            {openItems.length === 0 ? (
-              <ListRow
-                left={<SoftIcon name="checkmark.circle.fill" color={c.success} />}
-                title={
-                  contributions.members.some((m) => m.planId)
-                    ? t('verein.finance.noOpenItems')
-                    : t('contributions.emptyMembersTitle')
-                }
-                subtitle={
-                  contributions.members.some((m) => m.planId)
-                    ? undefined
-                    : t('contributions.emptyMembersBody')
-                }
-              />
-            ) : (
-              openItems.map((member) => (
-                <MemberRow
-                  key={`${member.memberUserId}:${member.planId}`}
-                  member={member}
-                  locale={locale}
-                  onPress={() => setSelectedMember(member)}
-                />
-              ))
-            )}
-          </SectionGroup>
-
-          {settledItems.length > 0 ? (
-            <SectionGroup header={t('verein.finance.settledItems')} style={styles.section}>
-              {settledItems.map((member) => (
-                <MemberRow
-                  key={`${member.memberUserId}:${member.planId}`}
-                  member={member}
-                  locale={locale}
-                  onPress={() => setSelectedMember(member)}
-                />
-              ))}
-            </SectionGroup>
-          ) : null}
-
           {/* ── Anstoss plan access. Club dues stay offline/bank-transfer only. ── */}
-          <SectionGroup
-            header={t('verein.settings.plan')}
-            style={styles.section}
-          >
+          <SectionGroup header={t('verein.settings.plan')}>
             <PlatformBillingRows billing={billing} />
           </SectionGroup>
         </>
@@ -440,7 +456,7 @@ export default function AdminBillingScreen() {
         onSendReminder={() =>
           selectedMember ? handleSendReminders([selectedMember.memberUserId]) : Promise.resolve()
         }
-        onStatusChange={handleStatusUpdate}
+        onStatusChange={(status) => handleStatusUpdate(status)}
       />
 
       <PaywallSheet
@@ -455,95 +471,126 @@ export default function AdminBillingScreen() {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
+/** Members whose period needs no more money. */
+const SETTLED = new Set(['PAID', 'WAIVED', 'EXEMPT'])
+function isSettled(status: ContributionMemberRecord['status']) {
+  return Boolean(status && SETTLED.has(status))
+}
+
+/** The member told the treasurer they transferred; it awaits confirmation. */
+function isReported(member: ContributionMemberRecord) {
+  return member.note === 'PAYMENT_REPORTED_BY_MEMBER' && !isSettled(member.status)
+}
+
 /**
- * Progress-to-collected hero — the treasurer's single answer to
- * "how are we doing this period". Percent paid + collected/expected in
- * Geist Mono, a calm club-primary progress bar, and a quiet count strip
- * (assigned / paid / overdue) below.
+ * Ink hero — "Eingegangen" in large Barlow, "Offen" on the right, a two-part
+ * bar for the paid share, the paid-of-assigned line and one lime action to
+ * remind everyone overdue.
  */
-function ProgressToCollected({
-  collected,
-  expected,
+function CollectedHero({
+  summary,
+  plans,
   currency,
   locale,
-  assigned,
-  paid,
-  overdue,
+  reminded,
+  remindDisabled,
+  onRemind,
 }: {
-  collected: number
-  expected: number
+  summary: ContributionOverview['summary']
+  plans: ContributionPlan[]
   currency: string
   locale: string
-  assigned: number
-  paid: number
-  overdue: number
+  reminded: boolean
+  remindDisabled: boolean
+  onRemind: () => void
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const pct = expected > 0 ? Math.min(1, collected / expected) : 0
-
+  const open = Math.max(0, summary.expectedAmount - summary.collectedAmount)
+  const unpaid = Math.max(0, summary.assignedMembers - summary.paidMembers)
+  const activePlans = plans.filter((plan) => plan.active)
+  const monthlyPlan =
+    activePlans.length === 1 && activePlans[0].cadence === 'MONTHLY' ? activePlans[0] : null
+  const meta = [
+    t('fees.paidOfTotal', {
+      defaultValue: '{{paid}} of {{total}} paid',
+      paid: summary.paidMembers,
+      total: summary.assignedMembers,
+    }),
+    monthlyPlan
+      ? t('fees.perMonth', {
+          defaultValue: '{{amount}} a month',
+          amount: formatDues(monthlyPlan.amount, monthlyPlan.currency, locale),
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const fg = c.onInk
   return (
-    <View
-      style={[styles.progressCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-    >
-      <Text variant="caption2" color="tertiary" style={styles.sectionEyebrow}>
-        {t('contributions.thisPeriod', { defaultValue: 'THIS PERIOD' }).toUpperCase()}
-      </Text>
-
-      <View style={styles.progressHead}>
-        <Text variant="data" color="primary" tabular style={styles.progressPct}>
-          {Math.round(pct * 100)}%
-        </Text>
-        <Text variant="caption1" color="secondary">
-          {t('contributions.summaryCollected')}
-        </Text>
+    <View style={[styles.hero, { backgroundColor: c.ink }]} testID="fees-hero">
+      <View style={styles.heroTop}>
+        <View style={styles.heroStat}>
+          <Text variant="subheadline" style={{ color: fg, opacity: 0.72 }}>
+            {t('contributions.summaryCollected')}
+          </Text>
+          <Text
+            variant="dataLarge"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={{ color: fg, fontSize: 52, lineHeight: 54 }}
+          >
+            {formatDues(summary.collectedAmount, currency, locale)}
+          </Text>
+        </View>
+        <View style={[styles.heroStat, styles.heroStatRight]}>
+          <Text variant="subheadline" style={{ color: fg, opacity: 0.72 }}>
+            {t('contributions.summaryOutstanding')}
+          </Text>
+          <Text variant="dataLarge" numberOfLines={1} style={{ color: fg, fontSize: 30, lineHeight: 32 }}>
+            {formatDues(open, currency, locale)}
+          </Text>
+        </View>
       </View>
-
-      <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
-        <View
-          style={[styles.progressFill, { width: `${pct * 100}%`, backgroundColor: c.primary }]}
-        />
-      </View>
-
-      <View style={styles.progressMoneyRow}>
-        <Text variant="callout" color="primary" weight="semibold" tabular numberOfLines={1}>
-          {formatCurrency(collected, currency, locale)}
-        </Text>
-        <Text variant="caption1" color="tertiary" tabular numberOfLines={1}>
-          {t('contributions.summaryExpected')} {formatCurrency(expected, currency, locale)}
-        </Text>
-      </View>
-
-      <View style={[styles.progressDivider, { backgroundColor: c.borderSubtle }]} />
-
-      <View style={styles.progressCounts}>
-        <CountStat label={t('contributions.summaryAssigned')} value={assigned} />
-        <CountStat label={t('contributions.summaryPaid')} value={paid} />
-        <CountStat
-          label={t('contributions.summaryOverdue')}
-          value={overdue}
-          tone={overdue > 0 ? 'warning' : undefined}
-        />
-      </View>
-    </View>
-  )
-}
-
-function CountStat({ label, value, tone }: { label: string; value: number; tone?: 'warning' }) {
-  const c = useClubColors()
-  return (
-    <View style={styles.countStat}>
-      <Text
-        variant="title3"
-        weight="semibold"
-        tabular
-        style={{ color: tone === 'warning' ? c.warning : c.textPrimary }}
+      <View
+        style={styles.heroBar}
+        accessibilityRole="image"
+        accessibilityLabel={t('fees.paidShareA11y', {
+          defaultValue: '{{paid}} of {{total}} paid',
+          paid: summary.paidMembers,
+          total: summary.assignedMembers,
+        })}
       >
-        {String(value)}
-      </Text>
-      <Text variant="caption2" color="secondary">
-        {label}
-      </Text>
+        {summary.paidMembers > 0 ? (
+          <View style={{ flex: summary.paidMembers, backgroundColor: fg }} />
+        ) : null}
+        {unpaid > 0 || summary.paidMembers === 0 ? (
+          <View style={{ flex: Math.max(unpaid, 1), backgroundColor: fg, opacity: 0.18 }} />
+        ) : null}
+      </View>
+      <View style={styles.heroFoot}>
+        <Text variant="subheadline" style={[styles.flexShrink, { color: fg, opacity: 0.8 }]}>
+          {meta}
+        </Text>
+        {summary.overdueMembers > 0 || reminded ? (
+          <Button
+            variant="accent"
+            size="sm"
+            label={
+              reminded
+                ? t('fees.reminded', { defaultValue: 'Reminded' })
+                : t('fees.remindCount', {
+                    defaultValue: 'Remind {{count}}',
+                    count: summary.overdueMembers,
+                  })
+            }
+            accessibilityLabel={t('contributions.sendOverdueReminders')}
+            disabled={reminded || remindDisabled}
+            onPress={onRemind}
+            testID="fees-remind-overdue"
+          />
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -562,51 +609,90 @@ function PlanRow({
     <ListRow
       left={<SoftIcon name="creditcard.fill" />}
       title={plan.name}
-      subtitle={`${formatCurrency(plan.amount, plan.currency, locale)} · ${t(`contributions.cadence.${plan.cadence}`)} · ${t(`contributions.targetRole.${plan.targetRole}`)}`}
+      subtitle={`${formatDues(plan.amount, plan.currency, locale)} · ${t(`contributions.cadence.${plan.cadence}`)} · ${t(`contributions.targetRole.${plan.targetRole}`)}`}
       showChevron
       onPress={onPress}
     />
   )
 }
 
-function MemberRow({
+function DuesMemberRow({
   member,
   locale,
+  disabled,
   onPress,
+  onMarkPaid,
 }: {
   member: ContributionMemberRecord
   locale: string
+  disabled: boolean
   onPress: () => void
+  onMarkPaid: () => void
 }) {
   const { t } = useTranslation()
+  const c = useClubColors()
+  const settled = isSettled(member.status)
+  const reported = isReported(member)
   const amountLabel =
-    member.amount != null && member.currency
-      ? formatCurrency(member.amount, member.currency, locale)
-      : '-'
-  const dueLabel = member.dueDate
-    ? formatDate(member.dueDate, locale)
-    : t('contributions.memberNoDueDate')
-
+    member.amount != null && member.currency ? formatDues(member.amount, member.currency, locale) : '–'
+  const meta = settled
+    ? member.paidAt
+      ? t('fees.paidOn', { defaultValue: 'Paid {{date}}', date: formatDate(member.paidAt, locale) })
+      : (member.planName ?? '')
+    : reported
+      ? t('fees.reportedMeta', { defaultValue: 'Reports: transferred' })
+      : member.dueDate
+        ? member.status === 'OVERDUE'
+          ? t('fees.overdueSince', {
+              defaultValue: 'Due since {{date}}',
+              date: formatDate(member.dueDate, locale),
+            })
+          : t('contributions.memberDueDate', { date: formatDate(member.dueDate, locale) })
+        : t('contributions.memberNoDueDate')
+  const tag = statusTag(t, member)
   return (
-    <ListRow
-      left={<Avatar size="sm" src={member.avatarUrl} fallbackText={member.name} />}
-      title={member.name}
-      subtitle={`${amountLabel} · ${dueLabel}`}
-      right={
-        member.status ? (
-          <StatusPill
-            tone={getStatusTone(member.status)}
-            label={t(`contributions.status.${member.status}`)}
-          />
-        ) : (
-          <Text variant="footnote" color="tertiary">
-            -
-          </Text>
-        )
-      }
-      showChevron
+    <PressableScale
       onPress={onPress}
-    />
+      accessibilityRole="button"
+      accessibilityLabel={[member.name, amountLabel, tag.label, meta].filter(Boolean).join(', ')}
+      style={styles.memberRow}
+    >
+      <Avatar size={36} tone="neutral" src={member.avatarUrl} fallbackText={member.name} />
+      <View style={styles.memberText}>
+        <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
+          {member.name}
+        </Text>
+        {meta ? (
+          <Text variant="caption1" color="secondary" numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
+        <DuesTag label={tag.label} tone={tag.tone} />
+      </View>
+      <View style={styles.memberRight}>
+        <Text variant="data" align="right" style={{ color: c.textPrimary, fontSize: 18, lineHeight: 22 }}>
+          {amountLabel}
+        </Text>
+        {!settled ? (
+          <Button
+            variant="bordered"
+            size="sm"
+            label={
+              reported
+                ? t('fees.confirm', { defaultValue: 'Confirm' })
+                : t('contributions.status.PAID')
+            }
+            accessibilityLabel={t('fees.markPaidA11y', {
+              defaultValue: 'Mark {{name}} as paid',
+              name: member.name,
+            })}
+            disabled={disabled}
+            hapticTone="success"
+            onPress={onMarkPaid}
+          />
+        ) : null}
+      </View>
+    </PressableScale>
   )
 }
 
@@ -760,18 +846,22 @@ function ContributionMemberActionSheet({
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-function getStatusTone(status: ContributionMemberRecord['status']): StatusPillTone {
-  switch (status) {
-    case 'PAID':
-      return 'success'
+function statusTag(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  member: ContributionMemberRecord,
+): { label: string; tone: DuesTagTone } {
+  if (isReported(member)) return { label: t('fees.reported', { defaultValue: 'Reported' }), tone: 'neutral' }
+  switch (member.status) {
     case 'OVERDUE':
-      return 'error'
+      return { label: t('contributions.status.OVERDUE'), tone: 'overdue' }
+    case 'PAID':
+    case 'WAIVED':
+    case 'EXEMPT':
+      return { label: t(`contributions.status.${member.status}`), tone: 'paid' }
     case 'PARTIAL':
-      return 'warning'
-    case 'PENDING':
-      return 'info'
+      return { label: t('contributions.status.PARTIAL'), tone: 'neutral' }
     default:
-      return 'neutral'
+      return { label: t('contributions.status.PENDING'), tone: 'neutral' }
   }
 }
 
@@ -779,88 +869,79 @@ function formatDate(value: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
   }).format(new Date(value))
 }
 
-function formatCurrency(amount: number, currency: string, locale: string) {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100)
-}
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: space.md,
-    paddingBottom: space['3xl'] + space.lg,
-    gap: space.lg,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_LG,
+    paddingBottom: space['3xl'],
+    gap: SPACING_XL,
   },
-  section: {
-    paddingHorizontal: space.md,
+  flexShrink: { flexShrink: 1 },
+
+  // Ink hero
+  hero: {
+    borderRadius: RADIUS_HERO,
+    borderCurve: 'continuous',
+    padding: SPACING_XL,
+    gap: SPACING_LG,
   },
-  sectionEyebrow: {
-    marginBottom: space.sm,
-    letterSpacing: 1.2,
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: SPACING_MD,
+  },
+  heroStat: { gap: SPACING_XS, flexShrink: 1 },
+  heroStatRight: { alignItems: 'flex-end' },
+  heroBar: {
+    flexDirection: 'row',
+    height: 6,
+    borderRadius: RADIUS_FULL,
+    overflow: 'hidden',
+    gap: SPACING_XXS,
+  },
+  heroFoot: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: SPACING_MD,
   },
 
-  // Progress-to-collected hero
-  progressCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    gap: space.sm,
-  },
-  progressHead: {
+  // Member rows (.row: 60pt min, avatar, text stack, money right)
+  memberRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: space.sm,
+    alignItems: 'center',
+    gap: SPACING_MD,
+    minHeight: 60,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_LG,
   },
-  progressPct: {
-    letterSpacing: -0.5,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', borderRadius: radius.full },
-  progressMoneyRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  progressDivider: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: space['2xs'],
-  },
-  progressCounts: {
-    flexDirection: 'row',
-    gap: space.lg,
-  },
-  countStat: { gap: space['2xs'] },
+  memberText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  memberRight: { alignItems: 'flex-end', gap: SPACING_SM },
 
   actionSheetBody: {
-    gap: space.sm,
+    gap: SPACING_SM,
   },
   actionSheetSubtitle: {
-    marginBottom: space.sm,
+    marginBottom: SPACING_SM,
   },
   actionStatusGrid: {
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   actionStatusRow: {
     flexDirection: 'row',
-    gap: space.xs,
+    gap: SPACING_XS,
   },
   actionStatusCell: {
     flex: 1,
   },
   actionDivider: {
     height: StyleSheet.hairlineWidth,
-    // backgroundColor is resolved inline via c.borderSubtle (needs theme)
   },
 })

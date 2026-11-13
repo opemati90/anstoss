@@ -1,9 +1,18 @@
 import { memo } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Icon, Text } from '../ui'
+import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space, RADIUS_INPUT, SPACING_XXS } from '../../theme/tokens'
+import {
+  fonts,
+  hairline,
+  RADIUS_CARD,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_XS,
+  SPACING_XXS,
+} from '../../theme/tokens'
 import { eventDisplayTitle, eventTimeLine, type EventLike } from './eventFormat'
 import { RsvpControl, type AbsenceDetail, type RsvpStatus } from './RsvpControl'
 
@@ -27,18 +36,25 @@ export type EventRowProps = {
     /** A parent answering for a child: "Mia". */
     subjectName?: string | null
   }
-  /** Small leading label above the title, e.g. "Mia · U11" or a team badge. */
+  /** Replaces the kind line, e.g. "Mia · U11" or the team name in a club feed. */
   eyebrow?: string | null
-  /** Right-aligned summary for coaches, e.g. "14/18". */
+  /** Right-aligned Barlow number for coaches, e.g. "14". */
   trailing?: string | null
+  /** Small word under the number ("dabei"). */
   trailingHint?: string | null
+  /** Extra screen-reader detail that is not shown, e.g. "3 offen". */
+  accessibilityExtra?: string | null
+  /** Position inside the white schedule group: rounds the ends, drops the last divider. */
+  first?: boolean
+  last?: boolean
   testID?: string
 }
 
 /**
- * One schedule row: date block · title · "Treff 13:30 · Anstoß 14:30" and,
- * for players and parents, the answer right there. Everything a Kreisliga
- * player needs from the list without opening anything.
+ * One schedule row inside the white group of the Termine screen (designs 10
+ * and 23): weekday + Barlow day · kind / title / time and place · and either
+ * the coach's count ("14 dabei") or, for players and parents, the answer pills
+ * right under it.
  */
 export const EventRow = memo(function EventRow({
   event,
@@ -48,6 +64,9 @@ export const EventRow = memo(function EventRow({
   eyebrow,
   trailing,
   trailingHint,
+  accessibilityExtra,
+  first,
+  last,
   testID,
 }: EventRowProps) {
   const { t } = useTranslation()
@@ -57,141 +76,147 @@ export const EventRow = memo(function EventRow({
     .format(date)
     .replace('.', '')
     .toUpperCase()
-  const dayNumber = String(date.getDate()).padStart(2, '0')
+  const dayNumber = String(date.getDate())
   const title = eventDisplayTitle(event, t)
   const cancelled = Boolean(event.cancelledAt)
   const timeLine = eventTimeLine(event, locale, t)
-  const subline = cancelled
+  const kind = [
+    t(`eventFlow.type.${event.type}`),
+    event.type === 'MATCH' && event.homeAway
+      ? t(event.homeAway === 'AWAY' ? 'eventFlow.away' : 'eventFlow.home')
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const meta = cancelled
     ? [t('eventFlow.cancelled'), event.cancelReason].filter(Boolean).join(' · ')
     : event.myRsvpStale
-      ? t('eventFlow.list.rescheduled')
-      : event.location
-  const typeLabel = t(`eventFlow.type.${event.type}`)
+      ? `${timeLine} · ${t('eventFlow.list.rescheduled')}`
+      : [timeLine, event.location].filter(Boolean).join(' · ')
+  const contextLabel = `${weekday} · ${title}`
 
   return (
     <View
       testID={testID}
-      style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[
+        styles.group,
+        { backgroundColor: c.surface },
+        first && styles.first,
+        last && styles.last,
+      ]}
     >
-      <Pressable
-        onPress={onOpen}
-        accessibilityRole="button"
-        accessibilityLabel={[
-          eyebrow,
-          title,
-          new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(
-            date,
-          ),
-          timeLine,
-          subline,
-          trailingHint,
-        ]
-          .filter(Boolean)
-          .join(', ')}
-        android_ripple={{ color: c.surfaceSunken }}
-        style={({ pressed }) => [styles.head, pressed && styles.pressed]}
+      <View
+        style={[
+          styles.inner,
+          !last && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
+        ]}
       >
-        <View style={[styles.dateBlock, { backgroundColor: c.surfaceSunken }]}>
-          <Text variant="caption1" color="secondary" style={styles.weekday}>
-            {weekday}
-          </Text>
-          <Text variant="title3" color={cancelled ? 'tertiary' : 'primary'} tabular style={styles.day}>
-            {dayNumber}
-          </Text>
-        </View>
-
-        <View style={styles.body}>
-          {eyebrow ? (
-            <Text variant="caption1" color="secondary" numberOfLines={1}>
-              {eyebrow}
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={[
+            eyebrow ?? kind,
+            title,
+            new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(
+              date,
+            ),
+            cancelled ? meta : timeLine,
+            !cancelled ? event.location : null,
+            event.myRsvpStale && !cancelled ? t('eventFlow.list.rescheduled') : null,
+            trailing && trailingHint ? `${trailing} ${trailingHint}` : null,
+            accessibilityExtra,
+          ]
+            .filter(Boolean)
+            .join(', ')}
+          android_ripple={{ color: c.surfaceSunken }}
+          style={({ pressed }) => [styles.head, pressed && styles.pressed]}
+        >
+          <View style={styles.dateCol}>
+            <Text variant="caption1" weight="bold" color="secondary">
+              {weekday}
             </Text>
-          ) : null}
-          <Text
-            variant="headline"
-            weight="semibold"
-            color={cancelled ? 'tertiary' : 'primary'}
-            numberOfLines={2}
-            style={cancelled ? styles.struck : undefined}
-          >
-            {title}
-          </Text>
-          {/* M5: never truncated. At 320pt or font scale 2.0 "Treff 13:30 ·
-              Anstoß 14:30" wraps instead of hiding the kickoff. */}
-          <Text
-            variant="subheadline"
-            color={cancelled ? 'tertiary' : 'primary'}
-            tabular
-            testID={testID ? `${testID}-time` : undefined}
-          >
-            {(event.type === 'TRAINING' || event.type === 'OTHER') && title !== typeLabel
-              ? `${typeLabel} · ${timeLine}`
-              : timeLine}
-          </Text>
-          {subline ? (
+            <Text
+              variant="data"
+              color={cancelled ? 'tertiary' : 'primary'}
+              style={styles.day}
+            >
+              {dayNumber}
+            </Text>
+          </View>
+
+          <View style={styles.body}>
+            <Text variant="caption1" weight="semibold" color="secondary" numberOfLines={1}>
+              {eyebrow ?? kind}
+            </Text>
+            <Text
+              variant="callout"
+              weight="bold"
+              color={cancelled ? 'tertiary' : 'primary'}
+              numberOfLines={2}
+              style={cancelled ? styles.struck : undefined}
+            >
+              {title}
+            </Text>
+            {/* M5: never truncated. At 320pt or font scale 2.0 the time line
+                wraps instead of hiding the kickoff. */}
             <Text
               variant="footnote"
               color={event.myRsvpStale && !cancelled ? 'tint' : 'secondary'}
-              numberOfLines={1}
+              tabular
+              testID={testID ? `${testID}-time` : undefined}
             >
-              {subline}
+              {meta}
             </Text>
-          ) : null}
-        </View>
-
-        {trailing ? (
-          <View style={styles.trailing}>
-            <Text variant="headline" weight="semibold" color="primary" tabular>
-              {trailing}
-            </Text>
-            {trailingHint ? (
-              <Text variant="caption1" color="tertiary" numberOfLines={1}>
-                {trailingHint}
-              </Text>
-            ) : null}
           </View>
-        ) : null}
-        <Icon name="chevron.right" size={14} color="tertiary" />
-      </Pressable>
 
-      {rsvp && !cancelled ? (
-        <RsvpControl
-          value={rsvp.value}
-          onChange={rsvp.onChange}
-          disabled={rsvp.pending}
-          subjectName={rsvp.subjectName}
-          size="compact"
-          testID={testID ? `${testID}-rsvp` : undefined}
-        />
-      ) : null}
+          {trailing ? (
+            <View style={styles.trailing}>
+              <Text variant="data" color="primary" style={styles.count}>
+                {trailing}
+              </Text>
+              {trailingHint ? (
+                <Text variant="caption1" color="secondary" numberOfLines={1}>
+                  {trailingHint}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </Pressable>
+
+        {rsvp && !cancelled ? (
+          <RsvpControl
+            value={rsvp.value}
+            onChange={rsvp.onChange}
+            disabled={rsvp.pending}
+            subjectName={rsvp.subjectName}
+            contextLabel={contextLabel}
+            accessibilityLabel={contextLabel}
+            size="compact"
+            style={styles.rsvp}
+            testID={testID ? `${testID}-rsvp` : undefined}
+          />
+        ) : null}
+      </View>
     </View>
   )
 })
 
+/** Date column (40) + gap (14): the answer pills line up under the title. */
+const DATE_COL = 40
+const ROW_GAP = SPACING_MD + 2
+
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: space.md,
-    marginBottom: space.sm,
-    padding: space.sm + space.xs,
-    gap: space.sm + space.xs,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.sm + space.xs },
+  group: { marginHorizontal: SCREEN_PADDING, paddingHorizontal: SPACING_LG },
+  first: { borderTopLeftRadius: RADIUS_CARD, borderTopRightRadius: RADIUS_CARD },
+  last: { borderBottomLeftRadius: RADIUS_CARD, borderBottomRightRadius: RADIUS_CARD },
+  inner: { paddingVertical: SPACING_LG, gap: SPACING_MD },
+  head: { flexDirection: 'row', alignItems: 'center', gap: ROW_GAP, minHeight: 44 },
   pressed: { opacity: 0.7 },
-  dateBlock: {
-    minWidth: 52,
-    minHeight: 56,
-    paddingHorizontal: space.xs,
-    paddingVertical: space.xs,
-    borderRadius: RADIUS_INPUT,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekday: { fontFamily: fonts.label, letterSpacing: 0.6 },
-  day: { fontFamily: fonts.data },
-  body: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  dateCol: { width: DATE_COL, alignItems: 'center' },
+  day: { fontFamily: fonts.data, fontSize: 26, lineHeight: 28 },
+  body: { flex: 1, minWidth: 0, gap: SPACING_XXS + 1 },
   struck: { textDecorationLine: 'line-through' },
-  trailing: { alignItems: 'flex-end', gap: 1 },
+  trailing: { alignItems: 'flex-end', gap: SPACING_XXS },
+  count: { fontFamily: fonts.data, fontSize: 22, lineHeight: 24 },
+  rsvp: { paddingStart: DATE_COL + ROW_GAP, paddingBottom: SPACING_XS },
 })

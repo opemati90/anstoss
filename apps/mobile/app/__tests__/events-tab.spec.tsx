@@ -141,7 +141,10 @@ describe('EventsScreen', () => {
     )
     const screen = render(<EventsScreen />)
 
-    expect(await screen.findByText('12/18')).toBeTruthy()
+    // Design 10: the Zusagen as one number ("12 dabei"); open replies are read out.
+    expect(await screen.findByText('12')).toBeTruthy()
+    expect(screen.getByText('eventFlow.list.going')).toBeTruthy()
+    expect(screen.getByLabelText(/eventFlow.list.openCount/)).toBeTruthy()
     expect(screen.getByLabelText('Add event')).toBeTruthy()
     expect(screen.queryByLabelText('In')).toBeNull()
 
@@ -200,6 +203,38 @@ describe('EventsScreen', () => {
         }),
       { timeout: 2000 },
     )
+  })
+
+  it('tells a player how many events still wait for an answer', async () => {
+    setRole('PLAYER')
+    mockApi.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith('/clubs/club-1/events?')
+          ? [makeEvent(), makeEvent({ id: 'event-2', myRsvp: 'YES' })]
+          : [],
+      ),
+    )
+    const screen = render(<EventsScreen />)
+    expect(await screen.findByText('eventFlow.list.awaitingReply')).toBeTruthy()
+  })
+
+  it('filters the list by type with the chip row', async () => {
+    setRole('COACH')
+    mockApi.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith('/clubs/club-1/events?')
+          ? [
+              makeEvent({ id: 'training-1', title: 'Abschluss' }),
+              makeEvent({ id: 'match-1', type: 'MATCH', title: 'Derby', opponent: 'SV Nord', homeAway: 'HOME' }),
+            ]
+          : [],
+      ),
+    )
+    const screen = render(<EventsScreen />)
+    expect(await screen.findByText('Abschluss')).toBeTruthy()
+    fireEvent.press(screen.getByText('eventFlow.list.filterMatches'))
+    await waitFor(() => expect(screen.queryByText('Abschluss')).toBeNull())
+    expect(screen.getByText('Home vs SV Nord')).toBeTruthy()
   })
 
   it('asks for a reason before sending an Absage', async () => {

@@ -1,14 +1,33 @@
+import type { ReactNode } from 'react'
 import { Linking, Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { EventDetail } from '@anstoss/shared'
-import { Icon, Text } from '../ui'
+import { Icon, SectionGroup, SoftIcon, Text, type IconName } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fonts, hairline, radius, space, RADIUS_INPUT, SPACING_XXS } from '../../theme/tokens'
+import { hexToRgba } from '../../theme/club-theme'
+import {
+  fonts,
+  RADIUS_FULL,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+  SPACING_XXL,
+  TEXT_WHITE,
+} from '../../theme/tokens'
 import { eventDisplayTitle, formatClock, meetingLeadMinutes } from './eventFormat'
 
 export type EventHeaderCardProps = {
   event: EventDetail
   locale: string
+  /** Safe-area top inset; the hero runs under the status bar. */
+  topInset: number
+  /** The back button (left) and the action buttons (right) of the hero. */
+  leading: ReactNode
+  trailing?: ReactNode
 }
 
 function openMaps(query: string) {
@@ -16,166 +35,170 @@ function openMaps(query: string) {
 }
 
 /**
- * The top of the one event screen: what, when, where. Times are the largest
- * thing on it because "wann muss ich da sein" is the question every player
- * and parent opens it for.
+ * Text colours on the club hero. White with the muted green-grey of the
+ * design; when the club colour is pale enough that onPrimary turns dark, the
+ * muted line follows it instead.
  */
-export function EventHeaderCard({ event, locale }: EventHeaderCardProps) {
+export function useHeroText() {
+  const c = useClubColors()
+  const fg = c.onPrimary
+  const light = fg.toUpperCase() === TEXT_WHITE
+  return { fg, muted: light ? c.onHeroMuted : hexToRgba(fg, 0.72) }
+}
+
+/**
+ * The club-coloured hero of the one event screen (design 12): back and
+ * actions, kind line, the title in Barlow caps, then three stats (day, start,
+ * Treffpunkt). Times are Barlow because "wann muss ich da sein" is the
+ * question every player and parent opens it for.
+ */
+export function EventHeaderCard({ event, locale, topInset, leading, trailing }: EventHeaderCardProps) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const hero = useHeroText()
   const date = new Date(event.date)
   const cancelled = Boolean(event.cancelledAt)
   const isMatch = event.type === 'MATCH'
-  const typeLabel = [
+  const kindLine = [
     t(`eventFlow.type.${event.type}`),
     isMatch && event.homeAway ? t(event.homeAway === 'AWAY' ? 'eventFlow.away' : 'eventFlow.home') : null,
+    event.team?.name ?? null,
   ]
     .filter(Boolean)
     .join(' · ')
-  const dayLabel = new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(date)
   const lead = meetingLeadMinutes(event)
   const end =
     event.durationMin && event.durationMin > 0
       ? new Date(date.getTime() + event.durationMin * 60000)
       : null
 
-  const tiles: Array<{ label: string; value: string; hint?: string | null; strong?: boolean }> = []
+  const stats: Array<{ label: string; value: string; hint?: string | null }> = [
+    {
+      label: t(`eventFlow.weekdayLong.${date.getDay()}`),
+      value: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(date),
+    },
+    {
+      label: isMatch ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start'),
+      value: formatClock(date, locale),
+    },
+  ]
   if (event.meetingAt) {
-    tiles.push({
+    stats.push({
       label: t('eventFlow.detail.meeting'),
       value: formatClock(event.meetingAt, locale),
       hint: lead != null && lead > 0 ? t('eventFlow.detail.minutesBefore', { count: lead }) : null,
-      strong: true,
     })
-  }
-  tiles.push({
-    label: isMatch ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start'),
-    value: formatClock(date, locale),
-    strong: !event.meetingAt,
-  })
-  if (!isMatch && end) {
-    tiles.push({ label: t('eventFlow.detail.end'), value: formatClock(end, locale) })
+  } else if (end) {
+    stats.push({ label: t('eventFlow.detail.end'), value: formatClock(end, locale) })
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-      <View style={styles.eyebrowRow}>
-        <Text variant="footnote" weight="semibold" color="secondary" style={styles.eyebrow}>
-          {typeLabel}
+    <View style={[styles.hero, { backgroundColor: c.primary, paddingTop: topInset + SPACING_MD }]}>
+      <View style={styles.topRow}>
+        {leading}
+        <View style={styles.actions}>{trailing}</View>
+      </View>
+
+      <View style={styles.titleBlock}>
+        <Text variant="footnote" weight="semibold" color={hero.muted} numberOfLines={2}>
+          {kindLine}
         </Text>
-        {event.team?.name ? (
-          <Text variant="footnote" color="tertiary" numberOfLines={1}>
-            {event.team.name}
-          </Text>
+        <Text
+          variant="display"
+          color={hero.fg}
+          numberOfLines={3}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          style={cancelled ? [styles.title, styles.struck] : styles.title}
+          accessibilityRole="header"
+        >
+          {eventDisplayTitle(event, t)}
+        </Text>
+        {cancelled ? (
+          <View style={[styles.cancelled, { backgroundColor: c.accent }]}>
+            <Icon name="xmark.circle.fill" size={14} color={c.onAccent} />
+            <Text variant="caption1" weight="bold" color={c.onAccent} numberOfLines={2} style={styles.shrink}>
+              {[t('eventFlow.cancelled'), event.cancelReason].filter(Boolean).join(' · ')}
+            </Text>
+          </View>
         ) : null}
       </View>
 
-      <Text
-        variant="title2"
-        color={cancelled ? 'tertiary' : 'primary'}
-        numberOfLines={3}
-        style={cancelled ? styles.struck : undefined}
-        accessibilityRole="header"
-      >
-        {eventDisplayTitle(event, t)}
-      </Text>
-      <Text variant="body" color="secondary">
-        {dayLabel}
-      </Text>
-
-      {cancelled ? (
-        <View style={[styles.cancelled, { backgroundColor: c.surfaceSunken }]}>
-          <Icon name="xmark.circle.fill" size={18} color="secondary" />
-          <View style={styles.flex}>
-            <Text variant="subheadline" weight="semibold" color="primary">
-              {t('eventFlow.cancelled')}
-            </Text>
-            {event.cancelReason ? (
-              <Text variant="footnote" color="secondary">
-                {event.cancelReason}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.tiles}>
-        {tiles.map((tile) => (
+      <View style={styles.stats}>
+        {stats.map((stat) => (
           <View
-            key={tile.label}
-            style={[styles.tile, { backgroundColor: c.surfaceSunken }]}
+            key={stat.label}
+            style={styles.stat}
             accessible
-            accessibilityLabel={[tile.label, tile.value, tile.hint].filter(Boolean).join(', ')}
+            accessibilityLabel={[stat.label, stat.value, stat.hint].filter(Boolean).join(', ')}
           >
-            <Text variant="caption1" color="secondary">
-              {tile.label}
+            <Text variant="caption1" color={hero.muted} numberOfLines={1}>
+              {stat.label}
             </Text>
-            <Text
-              variant={tiles.length > 2 ? 'title2' : 'title1'}
-              color={tile.strong && !cancelled ? 'primary' : 'secondary'}
-              tabular
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={styles.time}
-            >
-              {tile.value}
+            <Text variant="data" color={hero.fg} numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>
+              {stat.value}
             </Text>
-            {tile.hint ? (
-              <Text variant="caption1" color="tertiary" tabular>
-                {tile.hint}
-              </Text>
-            ) : null}
           </View>
         ))}
       </View>
+    </View>
+  )
+}
 
-      {event.meetingPoint || event.location || event.series || event.notes ? (
-        <View style={[styles.rows, { borderTopColor: c.borderSubtle }]}>
-          {event.meetingPoint ? (
-            <PlaceRow
-              icon="mappin.and.ellipse"
-              label={t('eventFlow.detail.meetingPoint')}
-              value={event.meetingPoint}
-              onPress={() => openMaps(event.meetingPoint ?? '')}
-              mapLabel={t('eventFlow.detail.openMap')}
-            />
-          ) : null}
-          {event.location ? (
-            <PlaceRow
-              icon="mappin.circle"
-              label={isMatch ? t('eventFlow.detail.venue') : t('eventFlow.detail.place')}
-              value={event.location}
-              onPress={() => openMaps(event.location ?? '')}
-              mapLabel={t('eventFlow.detail.openMap')}
-            />
-          ) : null}
-          {event.series ? (
-            <View style={styles.infoRow}>
-              <Icon name="arrow.clockwise" size={18} color="secondary" />
-              <Text variant="subheadline" color="secondary" style={styles.flex}>
-                {t(event.series.intervalWeeks === 2 ? 'eventFlow.detail.seriesBiweekly' : 'eventFlow.detail.seriesWeekly', {
-                  date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
-                    new Date(event.series.until),
-                  ),
-                })}
-              </Text>
-            </View>
-          ) : null}
-          {event.notes ? (
-            <View style={styles.infoRow}>
-              <Icon name="doc.text" size={18} color="secondary" />
-              <Text variant="body" color="primary" style={styles.flex}>
-                {event.notes}
-              </Text>
-            </View>
-          ) : null}
+/**
+ * Where (Treffpunkt, venue with "Route"), the series rule and the coach's
+ * notes, as one white group under the hero.
+ */
+export function EventInfoGroup({ event, locale }: { event: EventDetail; locale: string }) {
+  const { t } = useTranslation()
+  const isMatch = event.type === 'MATCH'
+  if (!event.meetingPoint && !event.location && !event.series && !event.notes) return null
+  return (
+    <SectionGroup>
+      {event.meetingPoint ? (
+        <PlaceRow
+          icon="mappin.and.ellipse"
+          label={t('eventFlow.detail.meetingPoint')}
+          value={event.meetingPoint}
+          routeLabel={t('eventFlow.detail.route', { defaultValue: 'Route' })}
+          mapLabel={t('eventFlow.detail.openMap')}
+        />
+      ) : null}
+      {event.location ? (
+        <PlaceRow
+          icon="mappin"
+          label={isMatch ? t('eventFlow.detail.venue') : t('eventFlow.detail.place')}
+          value={event.location}
+          routeLabel={t('eventFlow.detail.route', { defaultValue: 'Route' })}
+          mapLabel={t('eventFlow.detail.openMap')}
+        />
+      ) : null}
+      {event.series ? (
+        <View style={styles.row}>
+          <SoftIcon name="arrow.clockwise" />
+          <Text variant="body" color="primary" style={styles.shrink}>
+            {t(
+              event.series.intervalWeeks === 2
+                ? 'eventFlow.detail.seriesBiweekly'
+                : 'eventFlow.detail.seriesWeekly',
+              {
+                date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
+                  new Date(event.series.until),
+                ),
+              },
+            )}
+          </Text>
         </View>
       ) : null}
-    </View>
+      {event.notes ? (
+        <View style={styles.row}>
+          <SoftIcon name="doc.text" />
+          <Text variant="body" color="primary" style={styles.shrink}>
+            {event.notes}
+          </Text>
+        </View>
+      ) : null}
+    </SectionGroup>
   )
 }
 
@@ -183,75 +206,73 @@ function PlaceRow({
   icon,
   label,
   value,
-  onPress,
+  routeLabel,
   mapLabel,
 }: {
-  icon: string
+  icon: IconName
   label: string
   value: string
-  onPress: () => void
+  routeLabel: string
   mapLabel: string
 }) {
   const c = useClubColors()
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => openMaps(value)}
       accessibilityRole="link"
       accessibilityLabel={`${label}: ${value}`}
       accessibilityHint={mapLabel}
       android_ripple={{ color: c.surfaceSunken }}
-      style={({ pressed }) => [styles.infoRow, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <Icon name={icon} size={18} color="secondary" />
-      <View style={styles.flex}>
-        <Text variant="caption1" color="secondary">
-          {label}
-        </Text>
-        <Text variant="body" color="primary" numberOfLines={2}>
+      <SoftIcon name={icon} />
+      <View style={styles.shrink}>
+        <Text variant="callout" weight="semibold" color="primary" numberOfLines={2}>
           {value}
         </Text>
+        <Text variant="footnote" color="secondary" numberOfLines={1}>
+          {label}
+        </Text>
       </View>
-      <Icon name="map" size={18} color={c.primary} />
+      <Text variant="subheadline" weight="semibold" color="tint">
+        {routeLabel}
+      </Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: space.md,
-    gap: space.sm,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
+  hero: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING_XXL + 2,
+    gap: SPACING_XL + 2,
+    overflow: 'hidden',
   },
-  eyebrowRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: space.sm },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: fonts.label },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  actions: { flexDirection: 'row', gap: SPACING_SM },
+  titleBlock: { gap: SPACING_SM },
+  title: { fontSize: 40 },
   struck: { textDecorationLine: 'line-through' },
-  flex: { flex: 1, minWidth: 0 },
   cancelled: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    padding: space.sm + space.xs,
-    borderRadius: RADIUS_INPUT,
-    borderCurve: 'continuous',
+    gap: SPACING_XS,
+    paddingHorizontal: SPACING_SM + 2,
+    paddingVertical: SPACING_XS,
+    borderRadius: RADIUS_FULL,
   },
-  tiles: { flexDirection: 'row', gap: space.sm, marginTop: space.xs },
-  tile: {
-    flex: 1,
-    paddingVertical: space.sm + space.xs,
-    paddingHorizontal: space.sm + space.xs,
-    borderRadius: RADIUS_INPUT,
-    borderCurve: 'continuous',
-    gap: SPACING_XXS,
-  },
-  time: { fontFamily: fonts.data, letterSpacing: -0.5 },
-  rows: { borderTopWidth: hairline, paddingTop: space.xs, marginTop: space.xs },
-  infoRow: {
+  stats: { flexDirection: 'row', gap: SPACING_MD },
+  stat: { flex: 1, gap: SPACING_XXS + 2 },
+  statValue: { fontFamily: fonts.data, fontSize: 24, lineHeight: 26 },
+  shrink: { flex: 1, minWidth: 0 },
+  pressed: { opacity: 0.6 },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + space.xs,
-    minHeight: 48,
-    paddingVertical: space.xs,
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
   },
 })

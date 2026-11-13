@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Alert, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { FreeAgentListResponse } from '@anstoss/shared'
@@ -12,21 +12,62 @@ import {
   FilterChipRow,
   Icon,
   SearchBar,
+  SectionGroup,
   Text,
 } from '../../../components/ui'
 import { SPACING_LG, SPACING_MD, SPACING_SM } from '../../../theme/tokens'
-import { buildQuery, paths } from '../api'
+import { buildQuery, paths, wechselApi, type TeamOption } from '../api'
 import { PlayerRow } from '../components/Cards'
 import { CardListSkeleton } from '../components/Primitives'
-import { apiErrorMessage } from '../components/Sheets'
+import { apiErrorMessage, InviteSheet } from '../components/Sheets'
 import { LEAGUE_OPTIONS, POSITIONS, leagueLabel, positionLabel } from '../format'
-import { useApiQuery } from '../query'
+import { invalidateApi, useApiQuery } from '../query'
 
 const RADII = [10, 25, 50, 100] as const
 const PAGE = 20
 
-export function SpielersucheTab() {
+type InviteTarget = { id: string; name: string }
+
+/**
+ * Spielersuche. With `clubId` and `teams` each row carries the one-tap
+ * "Probetraining" invite (same InviteSheet + endpoint as the player profile);
+ * players with an open trial invite show "Eingeladen".
+ */
+export function SpielersucheTab({
+  clubId,
+  teams = [],
+  invitedProfileIds,
+}: {
+  clubId?: string | null
+  teams?: TeamOption[]
+  invitedProfileIds?: ReadonlySet<string>
+} = {}) {
   const { t } = useTranslation()
+  const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null)
+  const [sending, setSending] = useState(false)
+  const [sentIds, setSentIds] = useState<ReadonlySet<string>>(new Set())
+  const canInvite = Boolean(clubId) && teams.length > 0
+
+  const sendInvite = async (input: { teamId: string; sessionEventIds: string[]; message?: string }) => {
+    if (!clubId || !inviteTarget) return
+    setSending(true)
+    try {
+      await wechselApi.createInvite(clubId, {
+        freeAgentProfileId: inviteTarget.id,
+        teamId: input.teamId,
+        sessionEventIds: input.sessionEventIds,
+        message: input.message,
+      })
+      invalidateApi(paths.clubTrials(clubId))
+      setSentIds((prev) => new Set([...prev, inviteTarget.id]))
+      Alert.alert(t('wechsel.inviteSent', { name: inviteTarget.name }))
+      setInviteTarget(null)
+    } catch (error) {
+      Alert.alert(t('common.error'), apiErrorMessage(t, error))
+    } finally {
+      setSending(false)
+    }
+  }
   const [text, setText] = useState('')
   const [debounced, setDebounced] = useState('')
   const [position, setPosition] = useState<'ALL' | (typeof POSITIONS)[number]>('ALL')
@@ -101,13 +142,19 @@ export function SpielersucheTab() {
         <Text variant="footnote" color="secondary" tabular>
           {t('wechsel.playersCount', { count: total })}
         </Text>
-        {items.map((player) => (
-          <PlayerRow
-            key={player.id}
-            player={player}
-            onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: player.id } })}
-          />
-        ))}
+        <SectionGroup>
+          {items.map((player) => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              invited={sentIds.has(player.id) || Boolean(invitedProfileIds?.has(player.id))}
+              onInvite={
+                canInvite ? () => setInviteTarget({ id: player.id, name: player.name }) : undefined
+              }
+              onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: player.id } })}
+            />
+          ))}
+        </SectionGroup>
         {items.length < total && pageSize < 50 ? (
           <Button
             label={t('wechsel.loadMore')}
@@ -124,7 +171,6 @@ export function SpielersucheTab() {
     <View style={styles.root}>
       <SearchBar value={text} onChangeText={setText} placeholder={t('wechsel.playersSearch')} />
       <FilterChipRow
-        wrap
         singleSelect
         chips={[
           { key: 'ALL' as const, label: t('wechsel.allPositions') },
@@ -158,6 +204,18 @@ export function SpielersucheTab() {
         />
       </View>
       {body}
+
+      {canInvite && clubId ? (
+        <InviteSheet
+          visible={Boolean(inviteTarget)}
+          onClose={() => setInviteTarget(null)}
+          clubId={clubId}
+          teams={teams}
+          playerName={inviteTarget?.name ?? ''}
+          submitting={sending}
+          onSubmit={(input) => void sendInvite(input)}
+        />
+      ) : null}
 
       <BottomSheet visible={sheet === 'area'} onClose={() => setSheet(null)} heightPct="auto">
         <View style={styles.sheet}>

@@ -1,5 +1,5 @@
 import { SPACING_XXS } from '../../src/theme/spacing'
-import { Text as RNText, View, type ColorValue } from 'react-native'
+import { View, type ColorValue } from 'react-native'
 import { useEffect } from 'react'
 import { Redirect, Tabs, router, usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -11,13 +11,15 @@ import { ClubHeader } from '../../src/components/home/ClubHeader'
 import { resolveRoleMode } from '../../src/components/home/resolveHomeRole'
 // chat revamp: the badge is the inbox's unread total (channels + DMs, unmuted)
 import { useInboxUnreadCount } from '../../src/hooks/useInbox'
-import { Icon } from '../../src/components/ui'
+import { Icon, Text } from '../../src/components/ui'
 import {
   FONT_FAMILY_BOLD,
-  FONT_FAMILY_MEDIUM,
+  FONT_SIZE_MICRO,
   hairline,
+  RADIUS_FULL,
   SPACING_MD,
   SPACING_SM,
+  SPACING_XS,
   TAB_BAR_HEIGHT,
   TAB_ICON_SIZE,
 } from '../../src/theme/tokens'
@@ -122,23 +124,21 @@ export default function TabLayout() {
           },
           tabBarLabel: ({ focused, color, children }) => (
             <View style={{ alignItems: 'center', gap: SPACING_XXS + 1 }}>
-              <RNText
+              <Text
+                variant="caption1"
+                weight={focused ? 'bold' : 'medium'}
+                color={typeof color === 'string' ? color : theme.textSecondary}
                 numberOfLines={1}
                 maxFontSizeMultiplier={1.3}
-                style={{
-                  color: typeof color === 'string' ? color : theme.textSecondary,
-                  fontFamily: focused ? FONT_FAMILY_BOLD : FONT_FAMILY_MEDIUM,
-                  fontSize: 11,
-                  letterSpacing: 0,
-                }}
+                style={{ fontSize: FONT_SIZE_MICRO, lineHeight: FONT_SIZE_MICRO * 1.3, letterSpacing: 0 }}
               >
                 {children}
-              </RNText>
+              </Text>
               <View
                 style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: 2,
+                  width: SPACING_XS,
+                  height: SPACING_XS,
+                  borderRadius: RADIUS_FULL,
                   backgroundColor: focused ? theme.ink : 'transparent',
                 }}
               />
@@ -216,7 +216,7 @@ export default function TabLayout() {
               chatUnread > 0
                 ? {
                     backgroundColor: theme.alertDot,
-                    color: '#FFFFFF',
+                    color: theme.onAlertDot,
                     fontSize: 12,
                     fontFamily: FONT_FAMILY_BOLD,
                   }
@@ -277,26 +277,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="more/index"
           options={{
-            // For club members this tab leads with the verified player card,
-            // so it reads as "Profile"; free agents keep the catch-all "More".
-            title: isFreeAgent ? t('tabs.more') : t('tabs.profile', { defaultValue: 'Profile' }),
-            tabBarIcon: ({ color, focused }) =>
-              isFreeAgent ? (
-                <Icon
-                  name={focused ? 'ellipsis.circle.fill' : 'ellipsis.circle'}
-                  size={TAB_ICON_SIZE}
-                  color={tabIconColor(color)}
-                />
-              ) : (
-                <Icon
-                  name={focused ? 'person.fill' : 'person'}
-                  size={TAB_ICON_SIZE}
-                  color={tabIconColor(color)}
-                />
-              ),
-            tabBarAccessibilityLabel: isFreeAgent
-              ? t('tabs.more')
-              : t('tabs.profile', { defaultValue: 'Profile' }),
+            // 2026-11 redesign: "Mehr" for everyone; the profile card leads the screen.
+            title: t('tabs.more'),
+            tabBarIcon: ({ color }) => (
+              <Icon name="ellipsis" size={TAB_ICON_SIZE} color={tabIconColor(color)} />
+            ),
+            tabBarAccessibilityLabel: t('tabs.more'),
           }}
         />
       </Tabs>

@@ -29,7 +29,17 @@ import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { ApiError, api } from '../src/api/client'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { EmptyState } from '../src/components/EmptyState'
-import { BottomSheet, Button, Icon, ListRow, SectionGroup, SegmentedControl, Text } from '../src/components/ui'
+import {
+  BottomSheet,
+  Button,
+  Icon,
+  ListRow,
+  SectionGroup,
+  SegmentedControl,
+  SoftIcon,
+  Text,
+  type IconName,
+} from '../src/components/ui'
 import { eventDisplayTitle, formatClock } from '../src/components/events/eventFormat'
 import {
   atTime,
@@ -39,12 +49,28 @@ import {
   seasonEnd,
   winterBreak,
 } from '../src/components/events/eventPlan'
-import { FONT_FAMILY_REGULAR, FONT_SIZE_BODY, hairline, radius, space, RADIUS_INPUT } from '../src/theme/tokens'
+import {
+  fonts,
+  FONT_FAMILY_REGULAR,
+  FONT_SIZE_BODY,
+  hairline,
+  INPUT_HEIGHT,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_INPUT,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+} from '../src/theme/tokens'
 
 type EventType = 'TRAINING' | 'MATCH' | 'OTHER'
 type Repeat = 'none' | 'weekly' | 'biweekly'
 type HomeAway = 'HOME' | 'AWAY'
-type PickerKind = 'date' | 'time' | 'meeting' | 'until'
+type PickerKind = 'date' | 'time' | 'until'
 
 type TeamGroupResponse = {
   id: string
@@ -57,6 +83,8 @@ type TeamOption = { id: string; displayName: string }
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0] as const
 const DURATIONS = [60, 75, 90, 105, 120] as const
 const MINUTE_INTERVAL = 5
+/** Design 11's "Treffpunkt vorher" chips, plus none and 90 for long away trips. */
+const MEETING_LEADS = [0, 15, 30, 45, 60, 90] as const
 
 export default function CreateEventScreen() {
   const { t } = useTranslation()
@@ -90,7 +118,6 @@ export default function CreateEventScreen() {
 
   // Training
   const [repeat, setRepeat] = useState<Repeat>(isEdit ? 'none' : 'weekly')
-  const [repeatSheet, setRepeatSheet] = useState(false)
   const [durationSheet, setDurationSheet] = useState(false)
   const [weekdays, setWeekdays] = useState<number[]>(() => [defaultTrainingDate().getDay()])
   const [until, setUntil] = useState<Date>(() => seasonEnd())
@@ -99,7 +126,7 @@ export default function CreateEventScreen() {
   // Match
   const [opponent, setOpponent] = useState('')
   const [homeAway, setHomeAway] = useState<HomeAway>('HOME')
-  const [meetingLead, setMeetingLead] = useState<number>(30)
+  const [meetingLead, setMeetingLead] = useState<number>(() => (params.type === 'MATCH' ? 30 : 0))
   const [leadTouched, setLeadTouched] = useState(false)
   const [meetingPoint, setMeetingPoint] = useState('')
   const [carpool, setCarpool] = useState(false)
@@ -182,18 +209,18 @@ export default function CreateEventScreen() {
         setDuration(source.durationMin ?? 90)
         setWeekdays([start.getDay()])
         setRepeat('none')
+        setMeetingLead(
+          source.meetingAt
+            ? Math.max(0, Math.round((new Date(source.date).getTime() - new Date(source.meetingAt).getTime()) / 60000))
+            : 0,
+        )
+        setLeadTouched(true)
         if (source.type === 'MATCH') {
           setOpponent(source.opponent ?? '')
           setHomeAway(source.homeAway === 'AWAY' ? 'AWAY' : 'HOME')
           setMeetingPoint(source.meetingPoint ?? '')
           setCarpool(Boolean(source.carpoolEnabled))
           setCarpoolTouched(true)
-          if (source.meetingAt) {
-            setMeetingLead(Math.max(0, Math.round((new Date(source.date).getTime() - new Date(source.meetingAt).getTime()) / 60000)))
-          } else {
-            setMeetingLead(0)
-          }
-          setLeadTouched(true)
           if (!source.opponent) setTitle(source.title)
         } else if (
           source.type === 'OTHER' ||
@@ -254,6 +281,7 @@ export default function CreateEventScreen() {
   const switchType = (next: EventType) => {
     setType(next)
     if (isEdit || duplicateFrom) return
+    if (!leadTouched) setMeetingLead(next === 'MATCH' ? (homeAway === 'AWAY' ? 60 : 30) : 0)
     if (next === 'MATCH') {
       setDate(defaultKickoff())
       setRepeat('none')
@@ -272,7 +300,7 @@ export default function CreateEventScreen() {
     if (!carpoolTouched) setCarpool(next === 'AWAY')
   }
 
-  const meetingAt = type === 'MATCH' && meetingLead > 0 ? new Date(date.getTime() - meetingLead * 60000) : null
+  const meetingAt = meetingLead > 0 ? new Date(date.getTime() - meetingLead * 60000) : null
   const repeating = type === 'TRAINING' && repeat !== 'none' && !isEdit
   const plan = useMemo(
     () =>
@@ -313,8 +341,9 @@ export default function CreateEventScreen() {
       Alert.alert(t('eventFlow.create.pastTitle'), t('eventFlow.create.pastBody'))
       return
     }
-    const firstMeeting =
-      type === 'MATCH' && meetingLead > 0 ? new Date(first.getTime() - meetingLead * 60000) : null
+    // The Treffpunkt is a lead before the start, for every type (the API keeps
+    // the offset across a series and when the start moves).
+    const firstMeeting = meetingLead > 0 ? new Date(first.getTime() - meetingLead * 60000) : null
     const payload = {
       ...(typedTitle ? { title: typedTitle } : {}),
       type,
@@ -326,12 +355,12 @@ export default function CreateEventScreen() {
         ? {
             opponent: opponent.trim() || null,
             homeAway,
-            meetingAt: firstMeeting ? firstMeeting.toISOString() : null,
             meetingPoint: meetingPoint.trim() || null,
             carpoolEnabled: carpool,
           }
         : {}),
       ...(type === 'TRAINING' ? { durationMin: duration } : {}),
+      ...(firstMeeting ? { meetingAt: firstMeeting.toISOString() } : isEdit ? { meetingAt: null } : {}),
     }
     // Edits send every field (null clears it, L6) and the date only when it
     // moved; a new event is checked against the create rule.
@@ -397,9 +426,8 @@ export default function CreateEventScreen() {
       style={[
         styles.header,
         {
-          paddingTop: Platform.OS === 'ios' ? space.sm : insets.top + space.sm,
+          paddingTop: Platform.OS === 'ios' ? SPACING_MD : insets.top + SPACING_MD,
           backgroundColor: c.background,
-          borderBottomColor: c.borderSubtle,
         },
       ]}
     >
@@ -410,11 +438,18 @@ export default function CreateEventScreen() {
         style={styles.headerSide}
         testID="event-create-cancel"
       >
-        <Text variant="body" color="tint">
+        <Text variant="callout" weight="semibold" color="tint">
           {t('eventFlow.cancelAction')}
         </Text>
       </Pressable>
-      <Text variant="headline" weight="semibold" color="primary" numberOfLines={1} style={styles.headerTitle}>
+      <Text
+        variant="headline"
+        weight="bold"
+        color="primary"
+        numberOfLines={1}
+        style={styles.headerTitle}
+        accessibilityRole="header"
+      >
         {screenTitle}
       </Text>
       <View style={styles.headerSide} />
@@ -451,75 +486,23 @@ export default function CreateEventScreen() {
     year: 'numeric',
   }).format(date)
   const untilLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(until)
-  const repeatLabel =
-    repeat === 'weekly'
-      ? t('eventFlow.create.repeatWeekly')
-      : repeat === 'biweekly'
-        ? t('eventFlow.create.repeatBiweekly')
-        : t('eventFlow.create.repeatOnce')
   const durationLabel = t('eventFlow.create.durationUntil', {
     minutes: t('eventFlow.create.minutes', { count: duration }),
     time: formatClock(new Date(date.getTime() + duration * 60000), locale),
   })
-  const meetingValue = meetingAt ? formatClock(meetingAt, locale) : t('eventFlow.create.noMeeting')
   const season = seasonEnd()
   const winter = winterBreak()
   const sep = { borderTopWidth: hairline, borderTopColor: c.borderSubtle }
+  const leads: number[] = MEETING_LEADS.includes(meetingLead as (typeof MEETING_LEADS)[number])
+    ? [...MEETING_LEADS]
+    : [...MEETING_LEADS, meetingLead].sort((x, y) => x - y)
 
   const ctaLabel = isEdit
     ? t('eventFlow.create.save')
     : repeating
       ? t('eventFlow.create.createSeries', { count: plan.length })
       : t('eventFlow.create.create')
-
-  // Rows shared by more than one section.
-  const dateRow = (
-    <ListRow
-      key="date"
-      title={t('eventFlow.create.date')}
-      left={<Icon name="calendar" size={18} color="secondary" />}
-      right={<ValueText>{dateLabel}</ValueText>}
-      showChevron
-      onPress={() => setPicker('date')}
-      accessibilityLabel={`${t('eventFlow.create.date')}: ${dateLabel}`}
-      testID="event-date-row"
-    />
-  )
-  const timeRow = (
-    <ListRow
-      key="time"
-      title={type === 'MATCH' ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start')}
-      left={<Icon name="clock" size={18} color="secondary" />}
-      right={<ValueText>{formatClock(date, locale)}</ValueText>}
-      showChevron
-      onPress={() => setPicker('time')}
-      accessibilityLabel={`${type === 'MATCH' ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start')}: ${formatClock(date, locale)}`}
-      testID="event-time-row"
-    />
-  )
-  const notesRow = (
-    <InputRow
-      key="notes"
-      label={t('eventFlow.create.notes')}
-      value={notes}
-      onChangeText={setNotes}
-      placeholder={t('eventFlow.create.notesPlaceholder')}
-      multiline
-      maxLength={1000}
-      testID="event-notes-input"
-    />
-  )
-  const titleRow = (
-    <InputRow
-      key="title"
-      label={type === 'TRAINING' ? t('eventFlow.create.titleOptional') : t('eventFlow.create.title')}
-      value={title}
-      onChangeText={setTitle}
-      placeholder={type === 'TRAINING' ? t('eventFlow.type.TRAINING') : t('eventFlow.create.titlePlaceholder')}
-      maxLength={100}
-      testID="event-title-input"
-    />
-  )
+  const timeTitle = type === 'MATCH' ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start')
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
@@ -543,24 +526,10 @@ export default function CreateEventScreen() {
           />
         ) : null}
 
-        {teamOptions.length > 1 ? (
-          <SectionGroup header={t('eventFlow.create.team')}>
-            <ListRow
-              title={t('eventFlow.create.team')}
-              left={<Icon name="person.2" size={18} color="secondary" />}
-              right={<ValueText>{teamLabel}</ValueText>}
-              showChevron={!isEdit}
-              onPress={isEdit ? undefined : () => setTeamSheet(true)}
-              accessibilityLabel={`${t('eventFlow.create.team')}: ${teamLabel}`}
-              testID="event-team-row"
-            />
-          </SectionGroup>
-        ) : null}
-
-        {/* Spiel: who we play, first. */}
+        {/* Spiel: who we play, first. Otherwise the title. */}
         {type === 'MATCH' ? (
-          <SectionGroup header={t('eventFlow.create.opponent')}>
-            <InputRow
+          <View style={styles.block}>
+            <Field
               label={t('eventFlow.create.opponent')}
               value={opponent}
               onChangeText={setOpponent}
@@ -569,176 +538,69 @@ export default function CreateEventScreen() {
               autoCapitalize="words"
               testID="event-opponent-input"
             />
-            <View style={styles.controlRow}>
-              <SegmentedControl<HomeAway>
-                segments={[
-                  { key: 'HOME', label: t('eventFlow.home'), testID: 'event-home' },
-                  { key: 'AWAY', label: t('eventFlow.away'), testID: 'event-away' },
-                ]}
-                value={homeAway}
-                onChange={switchHomeAway}
-              />
-            </View>
-          </SectionGroup>
-        ) : null}
+            <SegmentedControl<HomeAway>
+              segments={[
+                { key: 'HOME', label: t('eventFlow.home'), testID: 'event-home' },
+                { key: 'AWAY', label: t('eventFlow.away'), testID: 'event-away' },
+              ]}
+              value={homeAway}
+              onChange={switchHomeAway}
+            />
+          </View>
+        ) : (
+          <Field
+            label={type === 'TRAINING' ? t('eventFlow.create.titleOptional') : t('eventFlow.create.title')}
+            value={title}
+            onChangeText={setTitle}
+            placeholder={type === 'TRAINING' ? t('eventFlow.type.TRAINING') : t('eventFlow.create.titlePlaceholder')}
+            maxLength={100}
+            testID="event-title-input"
+          />
+        )}
 
-        {/* Wann: date (unless the series picks the days), start, length / kickoff, meeting. */}
-        <SectionGroup header={t('eventFlow.create.sectionWhen')}>
-          {repeating ? null : dateRow}
-          {timeRow}
+        {/* When and where: Datum · Zeit · Dauer · Ort (design 11's one group). */}
+        <SectionGroup>
+          {teamOptions.length > 1 ? (
+            <ListRow
+              title={t('eventFlow.create.team')}
+              left={<SoftIcon name="person.2" />}
+              right={<ValueText>{teamLabel}</ValueText>}
+              onPress={isEdit ? undefined : () => setTeamSheet(true)}
+              accessibilityLabel={`${t('eventFlow.create.team')}: ${teamLabel}`}
+              testID="event-team-row"
+            />
+          ) : null}
+          {repeating ? null : (
+            <ListRow
+              title={t('eventFlow.create.date')}
+              left={<SoftIcon name="calendar" />}
+              right={<ValueText>{dateLabel}</ValueText>}
+              onPress={() => setPicker('date')}
+              accessibilityLabel={`${t('eventFlow.create.date')}: ${dateLabel}`}
+              testID="event-date-row"
+            />
+          )}
+          <ListRow
+            title={timeTitle}
+            left={<SoftIcon name="clock" />}
+            right={<ValueText data>{formatClock(date, locale)}</ValueText>}
+            onPress={() => setPicker('time')}
+            accessibilityLabel={`${timeTitle}: ${formatClock(date, locale)}`}
+            testID="event-time-row"
+          />
           {type === 'TRAINING' ? (
             <ListRow
               title={t('eventFlow.create.duration')}
-              left={<Icon name="clock.fill" size={18} color="secondary" />}
+              left={<SoftIcon name="clock.fill" />}
               right={<ValueText>{durationLabel}</ValueText>}
-              showChevron
               onPress={() => setDurationSheet(true)}
               accessibilityLabel={`${t('eventFlow.create.duration')}: ${durationLabel}`}
               testID="event-duration-row"
             />
           ) : null}
           {type === 'MATCH' ? (
-            <ListRow
-              title={t('eventFlow.detail.meeting')}
-              left={<Icon name="person.3" size={18} color="secondary" />}
-              right={
-                <View style={styles.valueStack}>
-                  <ValueText>{meetingValue}</ValueText>
-                  {meetingAt ? (
-                    <Text variant="footnote" color="secondary" tabular numberOfLines={2} style={styles.valueHelper}>
-                      {t('eventFlow.detail.minutesBefore', { count: meetingLead })}
-                    </Text>
-                  ) : null}
-                </View>
-              }
-              showChevron
-              onPress={() => setPicker('meeting')}
-              accessibilityLabel={`${t('eventFlow.detail.meeting')}: ${
-                meetingAt
-                  ? t('eventFlow.create.meetingValue', { time: formatClock(meetingAt, locale), count: meetingLead })
-                  : t('eventFlow.create.noMeeting')
-              }`}
-              testID="event-meeting-row"
-            />
-          ) : null}
-        </SectionGroup>
-
-        {/* Wiederholung (new training only): rule, days, end. */}
-        {type === 'TRAINING' && !isEdit ? (
-          <View style={styles.section}>
-            <SectionGroup header={t('eventFlow.create.sectionRepeat')}>
-              <ListRow
-                title={t('eventFlow.create.repeat')}
-                left={<Icon name="arrow.clockwise" size={18} color="secondary" />}
-                right={<ValueText>{repeatLabel}</ValueText>}
-                showChevron
-                onPress={() => setRepeatSheet(true)}
-                accessibilityLabel={`${t('eventFlow.create.repeat')}: ${repeatLabel}`}
-                testID="event-repeat-row"
-              />
-              {repeating ? (
-                <View style={styles.rowGroup} testID="event-weekdays">
-                  <Text variant="subheadline" color="secondary">
-                    {t('eventFlow.create.days')}
-                  </Text>
-                  <View style={styles.dayChips}>
-                    {WEEKDAYS.map((day) => {
-                      const selected = weekdays.includes(day)
-                      return (
-                        <Pressable
-                          key={day}
-                          testID={`event-weekday-${day}`}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: selected }}
-                          accessibilityLabel={t(`eventFlow.weekdayLong.${day}`)}
-                          android_ripple={{ color: c.borderSubtle }}
-                          onPress={() => toggleWeekday(day)}
-                          style={[
-                            styles.dayChip,
-                            // Seven chips share one line; at large text sizes they
-                            // widen and wrap to two even rows instead of squeezing.
-                            { flexBasis: fontScale > 1.3 ? 40 * Math.min(fontScale, 2) : 36 },
-                            selected
-                              ? { backgroundColor: c.primary, borderColor: c.primary }
-                              : { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },
-                          ]}
-                        >
-                          <Text
-                            variant="subheadline"
-                            weight="semibold"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            minimumFontScale={0.8}
-                            color={selected ? c.onPrimary : c.textPrimary}
-                          >
-                            {t(`eventFlow.weekday.${day}`)}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                </View>
-              ) : null}
-              {repeating ? (
-                <View style={styles.rowGroup}>
-                  <View style={styles.untilHead}>
-                    <Icon name="flag" size={18} color="secondary" />
-                    <Text variant="body" color="primary" style={styles.flex}>
-                      {t('eventFlow.create.until')}
-                    </Text>
-                    <Text variant="body" weight="semibold" color="primary" tabular>
-                      {untilLabel}
-                    </Text>
-                  </View>
-                  <View style={styles.presetChips}>
-                    <Chip
-                      label={t('eventFlow.create.seasonEnd')}
-                      selected={sameDay(until, season)}
-                      onPress={() => setUntil(season)}
-                      testID="event-until-season"
-                    />
-                    {winter ? (
-                      <Chip
-                        label={t('eventFlow.create.winterBreak')}
-                        selected={sameDay(until, winter)}
-                        onPress={() => setUntil(winter)}
-                        testID="event-until-winter"
-                      />
-                    ) : null}
-                    <Chip
-                      label={t('eventFlow.create.pickDate')}
-                      selected={!sameDay(until, season) && !(winter && sameDay(until, winter))}
-                      onPress={() => setPicker('until')}
-                      testID="event-until-pick"
-                    />
-                  </View>
-                </View>
-              ) : null}
-            </SectionGroup>
-            {repeating && daysCapped ? (
-              <Text variant="footnote" color="secondary" style={styles.hint} testID="event-days-capped">
-                {t('eventFlow.create.maxDays')}
-              </Text>
-            ) : null}
-            {repeating && plan.length > 0 ? (
-              <Text variant="footnote" color="secondary" style={styles.hint}>
-                {t('eventFlow.create.seriesHint', {
-                  count: plan.length,
-                  first: new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).format(plan[0]),
-                })}
-              </Text>
-            ) : repeating ? (
-              <Text variant="footnote" color="error" style={styles.hint}>
-                {t('eventFlow.create.seriesEmpty')}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* Wo */}
-        <SectionGroup header={t('eventFlow.create.sectionWhere')}>
-          {type === 'MATCH' ? (
             <InputRow
+              icon="mappin.and.ellipse"
               label={t('eventFlow.detail.meetingPoint')}
               value={meetingPoint}
               onChangeText={setMeetingPoint}
@@ -748,6 +610,7 @@ export default function CreateEventScreen() {
             />
           ) : null}
           <InputRow
+            icon="mappin"
             label={type === 'MATCH' ? t('eventFlow.detail.venue') : t('eventFlow.detail.place')}
             value={location}
             onChangeText={setLocation}
@@ -761,16 +624,185 @@ export default function CreateEventScreen() {
             maxLength={200}
             testID="event-location-input"
           />
+          {type === 'TRAINING' && !isEdit ? (
+            <View style={styles.switchRow}>
+              <SoftIcon name="arrow.clockwise" />
+              <Text variant="callout" weight="semibold" color="primary" style={styles.flex}>
+                {t('eventFlow.create.repeat')}
+              </Text>
+              <Switch
+                value={repeat !== 'none'}
+                onValueChange={(on) => setRepeat(on ? 'weekly' : 'none')}
+                trackColor={{ true: c.ink, false: c.borderStrong }}
+                accessibilityLabel={t('eventFlow.create.repeat')}
+                testID="event-repeat-switch"
+              />
+            </View>
+          ) : null}
         </SectionGroup>
 
-        {/* Details */}
-        <SectionGroup header={t('eventFlow.create.sectionDetails')}>
-          {type !== 'MATCH' ? titleRow : null}
+        {/* Wiederholung (new training only): rhythm, days, end. */}
+        {repeating ? (
+          <View style={styles.block}>
+            <SectionGroup>
+              <View style={styles.rowGroup}>
+                <View
+                  style={styles.chipRow}
+                  accessibilityRole="radiogroup"
+                  accessibilityLabel={t('eventFlow.create.repeat')}
+                >
+                  {(['weekly', 'biweekly'] as const).map((option) => (
+                    <Chip
+                      key={option}
+                      label={
+                        option === 'weekly'
+                          ? t('eventFlow.create.repeatWeekly')
+                          : t('eventFlow.create.repeatBiweekly')
+                      }
+                      accessibilityLabel={`${t('eventFlow.create.repeat')}: ${
+                        option === 'weekly'
+                          ? t('eventFlow.create.repeatWeekly')
+                          : t('eventFlow.create.repeatBiweekly')
+                      }`}
+                      selected={repeat === option}
+                      onPress={() => setRepeat(option)}
+                      testID={`event-repeat-${option}`}
+                    />
+                  ))}
+                </View>
+              </View>
+              <View style={styles.rowGroup} testID="event-weekdays">
+                <Text variant="footnote" weight="semibold" color="primary">
+                  {t('eventFlow.create.days')}
+                </Text>
+                <View style={styles.dayChips}>
+                  {WEEKDAYS.map((day) => {
+                    const selected = weekdays.includes(day)
+                    return (
+                      <Pressable
+                        key={day}
+                        testID={`event-weekday-${day}`}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        accessibilityLabel={t(`eventFlow.weekdayLong.${day}`)}
+                        android_ripple={{ color: c.borderSubtle }}
+                        onPress={() => toggleWeekday(day)}
+                        style={[
+                          styles.dayChip,
+                          // Seven chips share one line; at large text sizes they
+                          // widen and wrap to two even rows instead of squeezing.
+                          { flexBasis: fontScale > 1.3 ? 40 * Math.min(fontScale, 2) : 36 },
+                          selected
+                            ? { backgroundColor: c.ink, borderColor: c.ink }
+                            : { backgroundColor: 'transparent', borderColor: c.borderStrong },
+                        ]}
+                      >
+                        <Text
+                          variant="subheadline"
+                          weight="semibold"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
+                          color={selected ? c.onInk : c.textPrimary}
+                        >
+                          {t(`eventFlow.weekday.${day}`)}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              </View>
+              <View style={styles.rowGroup}>
+                <View style={styles.untilHead}>
+                  <Text variant="footnote" weight="semibold" color="primary" style={styles.flex}>
+                    {t('eventFlow.create.until')}
+                  </Text>
+                  <Text variant="callout" weight="semibold" color="primary" tabular>
+                    {untilLabel}
+                  </Text>
+                </View>
+                <View style={styles.chipRow}>
+                  <Chip
+                    label={t('eventFlow.create.seasonEnd')}
+                    selected={sameDay(until, season)}
+                    onPress={() => setUntil(season)}
+                    testID="event-until-season"
+                  />
+                  {winter ? (
+                    <Chip
+                      label={t('eventFlow.create.winterBreak')}
+                      selected={sameDay(until, winter)}
+                      onPress={() => setUntil(winter)}
+                      testID="event-until-winter"
+                    />
+                  ) : null}
+                  <Chip
+                    label={t('eventFlow.create.pickDate')}
+                    selected={!sameDay(until, season) && !(winter && sameDay(until, winter))}
+                    onPress={() => setPicker('until')}
+                    testID="event-until-pick"
+                  />
+                </View>
+              </View>
+            </SectionGroup>
+            {daysCapped ? (
+              <Text variant="footnote" color="secondary" style={styles.hint} testID="event-days-capped">
+                {t('eventFlow.create.maxDays')}
+              </Text>
+            ) : null}
+            {plan.length > 0 ? (
+              <Text variant="footnote" color="secondary" style={styles.hint}>
+                {t('eventFlow.create.seriesHint', {
+                  count: plan.length,
+                  first: new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).format(plan[0]),
+                })}
+              </Text>
+            ) : (
+              <Text variant="footnote" color="error" style={styles.hint}>
+                {t('eventFlow.create.seriesEmpty')}
+              </Text>
+            )}
+          </View>
+        ) : null}
+
+        {/* Treffpunkt vorher: a lead before the start, as chips. */}
+        <View style={styles.block}>
+          <Text variant="footnote" weight="semibold" color="primary">
+            {t('eventFlow.create.meetingBefore', { defaultValue: 'Meet before' })}
+          </Text>
+          <View
+            style={styles.chipRow}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t('eventFlow.create.meetingBefore', { defaultValue: 'Meet before' })}
+            testID="event-meeting-leads"
+          >
+            {leads.map((lead) => (
+              <Chip
+                key={lead}
+                label={lead === 0 ? t('eventFlow.create.noMeeting') : t('eventFlow.create.minutes', { count: lead })}
+                selected={meetingLead === lead}
+                onPress={() => {
+                  setMeetingLead(lead)
+                  setLeadTouched(true)
+                }}
+                testID={`event-meeting-${lead}`}
+              />
+            ))}
+          </View>
+          {meetingAt ? (
+            <Text variant="footnote" color="secondary" tabular style={styles.hint}>
+              {`${t('eventFlow.time.meeting', { time: formatClock(meetingAt, locale) })} · ${t('eventFlow.detail.minutesBefore', { count: meetingLead })}`}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Details: Fahrgemeinschaft (Spiel), notes. */}
+        <SectionGroup>
           {type === 'MATCH' ? (
             <View style={styles.switchRow}>
-              <Icon name="car" size={18} color="secondary" />
+              <SoftIcon name="car" />
               <View style={styles.flex}>
-                <Text variant="body" color="primary">
+                <Text variant="callout" weight="semibold" color="primary">
                   {t('eventFlow.create.carpool')}
                 </Text>
                 <Text variant="footnote" color="secondary">
@@ -783,13 +815,22 @@ export default function CreateEventScreen() {
                   setCarpool(value)
                   setCarpoolTouched(true)
                 }}
-                trackColor={{ true: c.primary, false: c.borderStrong }}
+                trackColor={{ true: c.ink, false: c.borderStrong }}
                 accessibilityLabel={t('eventFlow.create.carpool')}
                 testID="event-carpool-switch"
               />
             </View>
           ) : null}
-          {notesRow}
+          <InputRow
+            icon="doc.text"
+            label={t('eventFlow.create.notes')}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={t('eventFlow.create.notesPlaceholder')}
+            multiline
+            maxLength={1000}
+            testID="event-notes-input"
+          />
         </SectionGroup>
       </ScrollView>
 
@@ -799,7 +840,7 @@ export default function CreateEventScreen() {
           {
             backgroundColor: c.background,
             borderTopColor: c.borderSubtle,
-            paddingBottom: Math.max(insets.bottom, space.md),
+            paddingBottom: Math.max(insets.bottom, SPACING_LG),
           },
         ]}
       >
@@ -825,42 +866,12 @@ export default function CreateEventScreen() {
         />
       </View>
 
-      <BottomSheet visible={repeatSheet} onClose={() => setRepeatSheet(false)} heightPct="auto">
-        <View style={styles.sheet}>
-          <Text variant="title3" color="primary">
-            {t('eventFlow.create.repeat')}
-          </Text>
-          <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-            {(['none', 'weekly', 'biweekly'] as const).map((option, index) => (
-              <ListRow
-                key={option}
-                testID={`event-repeat-${option}`}
-                title={
-                  option === 'weekly'
-                    ? t('eventFlow.create.repeatWeekly')
-                    : option === 'biweekly'
-                      ? t('eventFlow.create.repeatBiweekly')
-                      : t('eventFlow.create.repeatOnce')
-                }
-                selected={repeat === option}
-                right={repeat === option ? <Icon name="checkmark" size={18} color={c.primary} /> : undefined}
-                onPress={() => {
-                  setRepeat(option)
-                  setRepeatSheet(false)
-                }}
-                style={index > 0 ? sep : undefined}
-              />
-            ))}
-          </View>
-        </View>
-      </BottomSheet>
-
       <BottomSheet visible={durationSheet} onClose={() => setDurationSheet(false)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title3" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('eventFlow.create.duration')}
           </Text>
-          <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+          <View style={[styles.group, { backgroundColor: c.surface }]}>
             {DURATIONS.map((value, index) => (
               <ListRow
                 key={value}
@@ -881,10 +892,10 @@ export default function CreateEventScreen() {
 
       <BottomSheet visible={teamSheet} onClose={() => setTeamSheet(false)} heightPct="auto">
         <View style={styles.sheet}>
-          <Text variant="title3" color="primary">
+          <Text variant="title3" weight="bold" color="primary">
             {t('eventFlow.create.team')}
           </Text>
-          <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+          <View style={[styles.group, { backgroundColor: c.surface }]}>
             {teamOptions.map((team, index) => (
               <ListRow
                 key={team.id}
@@ -906,27 +917,16 @@ export default function CreateEventScreen() {
       <DateTimeSheet
         kind={picker}
         onClose={() => setPicker(null)}
-        value={
-          picker === 'until'
-            ? until
-            : picker === 'meeting'
-              ? (meetingAt ?? new Date(date.getTime() - 60 * 60000))
-              : date
-        }
+        value={picker === 'until' ? until : date}
         minimumDate={picker === 'until' ? date : picker === 'date' ? startOfToday() : undefined}
-        maximumDate={picker === 'meeting' ? date : undefined}
         locale={locale}
         isDark={isDark}
         title={
           picker === 'until'
             ? t('eventFlow.create.until')
-            : picker === 'meeting'
-              ? t('eventFlow.detail.meeting')
-              : picker === 'time'
-                ? type === 'MATCH'
-                  ? t('eventFlow.detail.kickoff')
-                  : t('eventFlow.detail.start')
-                : t('eventFlow.create.date')
+            : picker === 'time'
+              ? timeTitle
+              : t('eventFlow.create.date')
         }
         doneLabel={t('eventFlow.done')}
         onChange={(picked) => {
@@ -940,10 +940,6 @@ export default function CreateEventScreen() {
             })
           } else if (picker === 'time') {
             setDate((current) => atTime(current, picked.getHours(), picked.getMinutes()))
-          } else if (picker === 'meeting') {
-            const wall = atTime(date, picked.getHours(), picked.getMinutes())
-            setMeetingLead(Math.max(0, Math.round((date.getTime() - wall.getTime()) / 60000)))
-            setLeadTouched(true)
           }
         }}
       />
@@ -951,33 +947,37 @@ export default function CreateEventScreen() {
   )
 }
 
-function ValueText({ children }: { children: string }) {
+function ValueText({ children, data }: { children: string; data?: boolean }) {
   // Values wrap rather than truncate: "Fr, 12. Sep. 2026" at font scale 2
-  // must stay readable on a 320pt phone.
-  return (
-    <Text variant="body" weight="semibold" color="primary" tabular numberOfLines={2} style={styles.value}>
+  // must stay readable on a 320pt phone. Times are Barlow (design 11).
+  return data ? (
+    <Text variant="data" color="primary" numberOfLines={1} style={styles.valueData}>
+      {children}
+    </Text>
+  ) : (
+    <Text variant="callout" color="secondary" tabular numberOfLines={2} style={styles.value}>
       {children}
     </Text>
   )
 }
 
-/**
- * A text field as a settings row: label above a borderless input, so it
- * sits inside a card next to picker rows without a second frame.
- */
-function InputRow({ label, style, multiline, testID, ...rest }: TextInputProps & { label: string }) {
+/** Design 11's standalone field: semibold label above a 52pt white input. */
+function Field({ label, testID, ...rest }: TextInputProps & { label: string }) {
   const c = useClubColors()
   const [focused, setFocused] = useState(false)
   return (
-    <View style={styles.inputRow}>
-      <Text variant="footnote" color={focused ? 'tint' : 'secondary'}>
+    <View style={styles.field}>
+      <Text variant="footnote" weight="semibold" color="primary">
         {label}
       </Text>
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline, { color: c.textPrimary }, style]}
+        {...rest}
+        style={[
+          styles.fieldInput,
+          { color: c.textPrimary, backgroundColor: c.surface, borderColor: focused ? c.ink : c.borderDefault },
+        ]}
         placeholderTextColor={c.textTertiary}
         accessibilityLabel={label}
-        multiline={multiline}
         testID={testID}
         onFocus={(e) => {
           setFocused(true)
@@ -987,40 +987,85 @@ function InputRow({ label, style, multiline, testID, ...rest }: TextInputProps &
           setFocused(false)
           rest.onBlur?.(e)
         }}
-        {...rest}
       />
     </View>
   )
 }
 
+/**
+ * A text field as a group row: icon well, small label above a borderless
+ * input, so it sits in the white group next to picker rows.
+ */
+function InputRow({
+  label,
+  icon,
+  style,
+  multiline,
+  testID,
+  ...rest
+}: TextInputProps & { label: string; icon: IconName }) {
+  const c = useClubColors()
+  const [focused, setFocused] = useState(false)
+  return (
+    <View style={styles.inputRow}>
+      <SoftIcon name={icon} />
+      <View style={styles.flex}>
+        <Text variant="caption1" weight="semibold" color={focused ? 'tint' : 'secondary'}>
+          {label}
+        </Text>
+        <TextInput
+          style={[styles.input, multiline && styles.inputMultiline, { color: c.textPrimary }, style]}
+          placeholderTextColor={c.textTertiary}
+          accessibilityLabel={label}
+          multiline={multiline}
+          testID={testID}
+          onFocus={(e) => {
+            setFocused(true)
+            rest.onFocus?.(e)
+          }}
+          onBlur={(e) => {
+            setFocused(false)
+            rest.onBlur?.(e)
+          }}
+          {...rest}
+        />
+      </View>
+    </View>
+  )
+}
+
+/** Design `.chip`: 36pt outlined pill, ink when selected; 44pt touch target. */
 function Chip({
   label,
   selected,
   onPress,
   testID,
+  accessibilityLabel,
 }: {
   label: string
   selected: boolean
   onPress: () => void
   testID?: string
+  accessibilityLabel?: string
 }) {
   const c = useClubColors()
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
+      accessibilityState={{ selected, checked: selected }}
+      accessibilityLabel={accessibilityLabel ?? label}
       android_ripple={{ color: c.borderSubtle }}
+      hitSlop={4}
       testID={testID}
       style={[
         styles.chip,
         selected
-          ? { backgroundColor: c.primary, borderColor: c.primary }
-          : { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },
+          ? { backgroundColor: c.ink, borderColor: c.ink }
+          : { backgroundColor: 'transparent', borderColor: c.borderStrong },
       ]}
     >
-      <Text variant="subheadline" weight="medium" tabular color={selected ? c.textInverse : c.textPrimary}>
+      <Text variant="footnote" weight="semibold" tabular color={selected ? c.onInk : c.textPrimary}>
         {label}
       </Text>
     </Pressable>
@@ -1053,7 +1098,7 @@ function DateTimeSheet({
 }) {
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
-  const mode = kind === 'time' || kind === 'meeting' ? 'time' : 'date'
+  const mode = kind === 'time' ? 'time' : 'date'
 
   if (Platform.OS !== 'ios') {
     if (!kind) return null
@@ -1081,7 +1126,7 @@ function DateTimeSheet({
           accessibilityRole="button"
           accessibilityLabel={doneLabel}
         />
-        <View style={[styles.pickerSheet, { backgroundColor: c.background, paddingBottom: space.lg + insets.bottom }]}>
+        <View style={[styles.pickerSheet, { backgroundColor: c.background, paddingBottom: SPACING_XL + insets.bottom }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: c.borderSubtle }]}>
             <Text variant="headline" weight="semibold" color="primary">
               {title}
@@ -1135,92 +1180,107 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.md,
-    paddingBottom: space.sm,
-    borderBottomWidth: hairline,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING_SM,
   },
-  headerSide: { flexShrink: 0, maxWidth: '30%', minWidth: 44, minHeight: 44, justifyContent: 'center' },
-  headerTitle: { flex: 1, minWidth: 0, textAlign: 'center', paddingHorizontal: space.xs },
-  // 16pt gutters, 24pt between sections.
-  content: { padding: space.md, paddingBottom: space.xl, gap: space.lg },
-  section: { gap: space.sm },
+  headerSide: { flexShrink: 0, maxWidth: '30%', minWidth: 72, minHeight: 44, justifyContent: 'center' },
+  headerTitle: { flex: 1, minWidth: 0, textAlign: 'center', paddingHorizontal: SPACING_XS },
+  // Design 11: 20pt gutters, 20pt between blocks.
+  content: { padding: SCREEN_PADDING, paddingBottom: SPACING_XL * 2, gap: SPACING_XL },
+  block: { gap: SPACING_MD - 2 },
   group: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
-  // A labelled block inside a card (training days, end date) shares the row
-  // insets of ListRow so labels line up down the whole card.
-  rowGroup: { paddingHorizontal: space.md, paddingVertical: space.sm + space.xs, gap: space.sm },
-  controlRow: { paddingHorizontal: space.md, paddingVertical: space.sm + space.xs },
-  dayChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  // A labelled block inside a group (rhythm, training days, end date) shares
+  // the row insets of ListRow so labels line up down the whole group.
+  rowGroup: { paddingHorizontal: SPACING_LG, paddingVertical: SPACING_MD, gap: SPACING_SM },
+  dayChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_XS },
   dayChip: {
     flexGrow: 1,
     flexBasis: 40,
     minHeight: 44,
     borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  untilHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm + space.xs, minHeight: 28 },
-  presetChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  untilHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING_MD, minHeight: 28 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_SM },
   chip: {
-    minHeight: 44,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
+    minHeight: 36,
+    paddingHorizontal: SPACING_MD + 2,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   value: { textAlign: 'right' },
-  valueStack: { alignItems: 'flex-end', gap: space['2xs'] },
-  valueHelper: { textAlign: 'right' },
-  hint: { paddingHorizontal: space.sm },
-  inputRow: { paddingHorizontal: space.md, paddingVertical: space.sm + space.xs, gap: space['2xs'] },
+  valueData: { fontFamily: fonts.data, fontSize: 18, lineHeight: 22 },
+  hint: { paddingHorizontal: SPACING_XS },
+  field: { gap: SPACING_XS + 2 },
+  fieldInput: {
+    minHeight: INPUT_HEIGHT,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    paddingHorizontal: SPACING_LG,
+    fontFamily: FONT_FAMILY_REGULAR,
+    fontSize: FONT_SIZE_BODY,
+    includeFontPadding: false,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
+  },
   input: {
-    minHeight: 32,
+    minHeight: 28,
     paddingVertical: 0,
     paddingHorizontal: 0,
+    marginTop: SPACING_XXS,
     fontFamily: FONT_FAMILY_REGULAR,
     fontSize: FONT_SIZE_BODY,
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
-  inputMultiline: { minHeight: 72, textAlignVertical: 'top' },
+  inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + space.xs,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space.xs,
+    gap: SPACING_MD + 2,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
     minHeight: 60,
   },
   footer: {
     borderTopWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingTop: space.sm + space.xs,
-    gap: space.sm + space.xs,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_MD,
+    gap: SPACING_MD,
   },
-  sheet: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.md },
+  sheet: { paddingBottom: SPACING_XL, gap: SPACING_LG },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1 },
   pickerSheet: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderTopLeftRadius: RADIUS_CARD,
+    borderTopRightRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    paddingHorizontal: space.lg,
+    paddingHorizontal: SPACING_XL,
   },
   pickerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: space.md,
+    paddingVertical: SPACING_LG,
     borderBottomWidth: hairline,
   },
-  doneButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.xs },
+  doneButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING_XS },
   iosPicker: { alignSelf: 'stretch' },
 })

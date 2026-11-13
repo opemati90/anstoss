@@ -127,7 +127,8 @@ describe('TabLayout', () => {
       expect.objectContaining({
         name: 'more/index',
         options: expect.objectContaining({
-          title: 'Profil',
+          // 2026-11 redesign: the last tab is "Mehr" for every role.
+          title: 'Mehr',
         }),
       }),
     )

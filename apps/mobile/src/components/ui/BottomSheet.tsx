@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { space } from '../../theme/tokens'
+import { RADIUS_HERO, space } from '../../theme/tokens'
 
 export type BottomSheetProps = {
   visible: boolean
@@ -181,7 +181,7 @@ export function BottomSheet({
           {/* Drag handle — only this top strip captures the pan. */}
           <View {...panResponder.panHandlers} style={styles.dragHandle}>
             <View
-              style={[styles.grabber, { backgroundColor: c.borderDefault }]}
+              style={[styles.grabber, { backgroundColor: c.borderStrong }]}
             />
           </View>
           {/* contentStyle applies to the inner content wrapper only, not the
@@ -211,8 +211,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: RADIUS_HERO,
+    borderTopRightRadius: RADIUS_HERO,
     overflow: 'hidden',
   },
   content: {
@@ -235,8 +235,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grabber: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
   },
 })

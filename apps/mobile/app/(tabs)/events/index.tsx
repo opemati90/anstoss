@@ -14,17 +14,31 @@ import { api, API_URL } from '../../../src/api/client'
 import { useEventsSocket, type EventRsvpUpdate } from '../../../src/hooks/useEventsSocket'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { EventListSkeleton } from '../../../src/components/Skeleton'
-import { Banner, Icon, SegmentedControl, Text } from '../../../src/components/ui'
-import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
+import { Banner, FilterChipRow, Icon, Text } from '../../../src/components/ui'
 import { LiveStatusPill } from '../../../src/components/match'
 import { EventRow } from '../../../src/components/events/EventRow'
 import type { AbsenceDetail, RsvpStatus } from '../../../src/components/events/RsvpControl'
-import { monthKey } from '../../../src/components/events/eventFormat'
+import { monthKey, sameLocalDay } from '../../../src/components/events/eventFormat'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
-import { fonts, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import {
+  fonts,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_INPUT,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+  TAB_BAR_CLEARANCE,
+} from '../../../src/theme/tokens'
 
 type EventScope = 'upcoming' | 'past'
+/** Design 10's chips: Alle · Training · Spiele, plus Vergangen for the past scope. */
+type ListFilter = 'all' | 'TRAINING' | 'MATCH' | 'past'
 
 /** A list row: a team event, or a (event, child) pair for parents. */
 type Row =
@@ -56,7 +70,8 @@ export default function EventsScreen() {
       ? Boolean(activeClub?.permissions?.EVENTS ?? true)
       : roleMode === 'COACH'
 
-  const [scope, setScope] = useState<EventScope>('upcoming')
+  const [filter, setFilter] = useState<ListFilter>('all')
+  const scope: EventScope = filter === 'past' ? 'past' : 'upcoming'
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [childEvents, setChildEvents] = useState<CrossTeamEventItem[]>([])
   const [liveFixture, setLiveFixture] = useState<ImportedFixture | null>(null)
@@ -221,8 +236,10 @@ export default function EventsScreen() {
             key: `${event.id}:${event.childUserId ?? 'self'}`,
             event,
           }))
-        : events.map((event) => ({ kind: 'team' as const, key: event.id, event })),
-    [childEvents, events, isParent],
+        : events
+            .filter((event) => filter === 'all' || filter === 'past' || event.type === filter)
+            .map((event) => ({ kind: 'team' as const, key: event.id, event })),
+    [childEvents, events, filter, isParent],
   )
   const sections = useMemo(() => buildMonthSections(rows, locale), [locale, rows])
 
@@ -232,28 +249,73 @@ export default function EventsScreen() {
   const showSkeleton = canLoad && !loaded && !error
   const title = isParent ? t('eventFlow.list.parentTitle') : t('eventFlow.list.title')
 
+  // Players and parents: how many upcoming events still wait for an answer.
+  const openReplies = useMemo(() => {
+    if (scope !== 'upcoming') return 0
+    if (isParent) {
+      return childEvents.filter(
+        (event) => event.childUserId && !event.cancelledAt && !event.childRsvp,
+      ).length
+    }
+    return events.filter(
+      (event) => !event.cancelledAt && (!event.myRsvp || event.myRsvpStale),
+    ).length
+  }, [childEvents, events, isParent, scope])
+  const showReplyStatus = !canManage && scope === 'upcoming' && loaded && !error && rows.length > 0
+
   const header = (
-    <View>
-      <View style={styles.headerWrap}>
-        <TabScreenHeader
-          eyebrow={activeClub?.club.name}
-          title={title}
-          actionIcon={canManage ? 'plus' : undefined}
-          onActionPress={canManage ? () => router.push('/create-event') : undefined}
-          actionAccessibilityLabel={t('eventFlow.list.create')}
-          actionColor={c.primary}
-        />
-      </View>
-      {!isParent ? (
-        <View style={styles.controls}>
-          <SegmentedControl<EventScope>
-            segments={[
-              { key: 'upcoming', label: t('eventFlow.list.upcoming') },
-              { key: 'past', label: t('eventFlow.list.past') },
+    <View style={styles.header}>
+      <View style={styles.titleRow}>
+        <View style={styles.flex}>
+          <Text variant="title1" color="primary" accessibilityRole="header">
+            {title}
+          </Text>
+        </View>
+        {canManage ? (
+          <Pressable
+            onPress={() => router.push('/create-event')}
+            accessibilityRole="button"
+            accessibilityLabel={t('eventFlow.list.create')}
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.addButton,
+              { backgroundColor: c.ink },
+              pressed && styles.pressed,
             ]}
-            value={scope}
-            onChange={setScope}
-          />
+            testID="events-create"
+          >
+            <Icon name="plus" size={20} color={c.onInk} />
+          </Pressable>
+        ) : null}
+      </View>
+      {canManage && scope === 'upcoming' ? (
+        <WeekStrip events={events} locale={locale} />
+      ) : null}
+      {!isParent ? (
+        <FilterChipRow<ListFilter>
+          chips={[
+            { key: 'all', label: t('eventFlow.list.filterAll', { defaultValue: 'All' }) },
+            { key: 'TRAINING', label: t('eventFlow.type.TRAINING') },
+            { key: 'MATCH', label: t('eventFlow.list.filterMatches', { defaultValue: 'Matches' }) },
+            { key: 'past', label: t('eventFlow.list.past') },
+          ]}
+          selected={filter}
+          onToggle={setFilter}
+          singleSelect
+          testID="events-filter"
+        />
+      ) : null}
+      {showReplyStatus ? (
+        <View style={styles.status} accessible accessibilityRole="text">
+          <View style={[styles.statusDot, { backgroundColor: c.accent, borderColor: c.ink }]} />
+          <Text variant="subheadline" weight="semibold" color="primary" style={styles.flex}>
+            {openReplies > 0
+              ? t('eventFlow.list.awaitingReply', {
+                  count: openReplies,
+                  defaultValue: '{{count}} events waiting for your answer',
+                })
+              : t('eventFlow.list.allAnswered', { defaultValue: 'All answered' })}
+          </Text>
         </View>
       ) : null}
       {liveFixture ? (
@@ -272,12 +334,12 @@ export default function EventsScreen() {
           })}
           style={({ pressed }) => [
             styles.liveBanner,
-            { backgroundColor: c.surface, borderColor: c.borderSubtle },
-            pressed && { opacity: 0.7 },
+            { backgroundColor: c.surface },
+            pressed && styles.pressed,
           ]}
         >
           <LiveStatusPill status="live" />
-          <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.liveText}>
+          <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.flex}>
             {`${liveFixture.homeTeam} `}
             <Text variant="subheadline" weight="semibold" color="primary" tabular style={styles.liveScore}>
               {`${liveFixture.resultHome ?? 0}:${liveFixture.resultAway ?? 0}`}
@@ -288,13 +350,11 @@ export default function EventsScreen() {
         </Pressable>
       ) : null}
       {error && loaded ? (
-        <View style={styles.bannerWrap}>
-          <Banner
-            tone="error"
-            title={t('eventFlow.list.errorTitle')}
-            action={{ label: t('eventFlow.retry'), onPress: () => void fetchEvents() }}
-          />
-        </View>
+        <Banner
+          tone="error"
+          title={t('eventFlow.list.errorTitle')}
+          action={{ label: t('eventFlow.retry'), onPress: () => void fetchEvents() }}
+        />
       ) : null}
     </View>
   )
@@ -310,17 +370,19 @@ export default function EventsScreen() {
         ListHeaderComponent={header}
         renderSectionHeader={({ section }) => (
           <View style={[styles.monthHeader, { backgroundColor: c.background }]}>
-            <Text variant="footnote" weight="semibold" color="secondary" style={styles.monthText}>
+            <Text variant="label" accessibilityRole="header">
               {section.title}
             </Text>
           </View>
         )}
-        renderItem={({ item }) =>
+        renderItem={({ item, index, section }) =>
           item.kind === 'child' ? (
             <EventRow
               testID={`event-row-${item.event.id}`}
               event={item.event}
               locale={locale}
+              first={index === 0}
+              last={index === section.data.length - 1}
               eyebrow={[item.event.childName, item.event.teamDisplayName || item.event.teamName]
                 .filter(Boolean)
                 .join(' · ')}
@@ -349,10 +411,13 @@ export default function EventsScreen() {
               testID={`event-row-${item.event.id}`}
               event={item.event}
               locale={locale}
+              first={index === 0}
+              last={index === section.data.length - 1}
               eyebrow={isClubManager && !activeTeamId ? item.event.team?.name : null}
               onOpen={() => openEvent(item.event.id)}
               trailing={canManage ? summaryValue(item.event, scope) : null}
               trailingHint={canManage ? summaryHint(item.event, scope, t) : null}
+              accessibilityExtra={canManage ? summaryExtra(item.event, scope, t) : null}
               rsvp={
                 !canManage && scope === 'upcoming'
                   ? {
@@ -404,15 +469,10 @@ function firstName(name: string | null | undefined): string | null {
   return name.trim().split(/\s+/)[0] ?? null
 }
 
-/** Coach summary: confirmed of squad ("14/18"), or attendance for past rows. */
+/** Coach summary (design 10): the Zusagen as one Barlow number, or check-ins for past rows. */
 function summaryValue(event: EventFeedItem, scope: EventScope): string | null {
   if (event.cancelledAt) return null
-  const squad = event.squadSize ?? 0
-  if (scope === 'past') {
-    const checkIns = event.checkInCount ?? 0
-    return squad > 0 ? `${checkIns}/${squad}` : String(checkIns)
-  }
-  return squad > 0 ? `${event.yesCount}/${squad}` : String(event.yesCount)
+  return String(scope === 'past' ? (event.checkInCount ?? 0) : event.yesCount)
 }
 
 function summaryHint(
@@ -421,9 +481,75 @@ function summaryHint(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   if (event.cancelledAt) return null
-  if (scope === 'past') return t('eventFlow.list.attended')
+  return scope === 'past'
+    ? t('eventFlow.list.attended')
+    : t('eventFlow.list.going', { defaultValue: 'going' })
+}
+
+/** Not shown, read out: the squad size and how many replies are still open. */
+function summaryExtra(
+  event: EventFeedItem,
+  scope: EventScope,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
+  if (event.cancelledAt || scope === 'past') return null
   const open = Math.max(0, (event.squadSize ?? 0) - event.responseCount)
-  return open > 0 ? t('eventFlow.list.openCount', { count: open }) : t('eventFlow.list.confirmed')
+  return open > 0 ? t('eventFlow.list.openCount', { count: open }) : null
+}
+
+/**
+ * Design 10's week strip: the next seven days, today in ink, a club-colour
+ * dot under days with an event. Decorative for screen readers; the list
+ * below carries the same information.
+ */
+function WeekStrip({ events, locale }: { events: EventFeedItem[]; locale: string }) {
+  const c = useClubColors()
+  const days = useMemo(() => {
+    const start = new Date()
+    start.setHours(12, 0, 0, 0)
+    return Array.from({ length: 7 }, (_, offset) => {
+      const day = new Date(start)
+      day.setDate(start.getDate() + offset)
+      return {
+        key: day.toDateString(),
+        weekday: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day).replace('.', ''),
+        number: String(day.getDate()),
+        today: offset === 0,
+        busy: events.some((event) => !event.cancelledAt && sameLocalDay(event.date, day)),
+      }
+    })
+  }, [events, locale])
+  return (
+    <View
+      style={[styles.week, { backgroundColor: c.surface }]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      testID="events-week"
+    >
+      {days.map((day) => {
+        const fg = day.today ? c.onInk : c.textPrimary
+        return (
+          <View
+            key={day.key}
+            style={[styles.weekDay, day.today && { backgroundColor: c.ink }]}
+          >
+            <Text variant="caption1" weight="semibold" color={fg} style={styles.weekLabel}>
+              {day.weekday}
+            </Text>
+            <Text variant="data" color={fg} style={styles.weekNumber}>
+              {day.number}
+            </Text>
+            <View
+              style={[
+                styles.weekDot,
+                { backgroundColor: day.busy ? (day.today ? c.onInk : c.primary) : 'transparent' },
+              ]}
+            />
+          </View>
+        )
+      })}
+    </View>
+  )
 }
 
 function buildMonthSections(rows: Row[], locale: string): MonthSection[] {
@@ -447,31 +573,58 @@ function buildMonthSections(rows: Row[], locale: string): MonthSection[] {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { paddingBottom: TAB_BAR_CLEARANCE + space.lg },
-  headerWrap: { paddingHorizontal: space.md, paddingTop: space.sm },
-  controls: { paddingHorizontal: space.md, paddingTop: space.xs, paddingBottom: space.sm },
-  monthHeader: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.sm,
+  flex: { flex: 1, minWidth: 0 },
+  pressed: { opacity: 0.7 },
+  list: { paddingBottom: TAB_BAR_CLEARANCE + SPACING_XL },
+  header: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_LG,
+    gap: SPACING_XL,
   },
-  monthText: { fontFamily: fonts.label, textTransform: 'capitalize' },
-  liveBanner: {
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    minHeight: 52,
-    paddingHorizontal: space.md,
-    borderRadius: radius.lg,
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS_FULL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  week: {
+    flexDirection: 'row',
+    gap: SPACING_XXS,
+    padding: SPACING_SM,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  weekDay: {
+    flex: 1,
+    alignItems: 'center',
+    gap: SPACING_XS,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+  },
+  weekLabel: { opacity: 0.7 },
+  weekNumber: { fontFamily: fonts.data, fontSize: 21, lineHeight: 22 },
+  weekDot: { width: 5, height: 5, borderRadius: RADIUS_FULL },
+  status: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD - 2 },
+  statusDot: { width: 8, height: 8, borderRadius: RADIUS_FULL, borderWidth: 1 },
+  monthHeader: {
+    paddingHorizontal: SCREEN_PADDING + SPACING_XS,
+    paddingTop: SPACING_XL,
+    paddingBottom: SPACING_MD,
+  },
+  liveBanner: {
+    minHeight: 52,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_SM,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    paddingVertical: space.sm,
-    gap: space.sm,
+    gap: SPACING_SM,
   },
-  liveText: { flex: 1, minWidth: 0 },
   liveScore: { fontFamily: fonts.data },
-  bannerWrap: { paddingHorizontal: space.md, paddingTop: space.sm },
-  empty: { paddingTop: space.xl, paddingHorizontal: space.md },
+  empty: { paddingTop: SPACING_XL, paddingHorizontal: SCREEN_PADDING },
 })

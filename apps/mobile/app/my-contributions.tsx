@@ -1,54 +1,97 @@
-import { useCallback, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useMemo, useState } from 'react'
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import QRCode from 'react-native-qrcode-svg'
 import type { MyContributionItem, MyContributionSummary } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ApiError, api } from '../src/api/client'
-import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { LoadingBoundary } from '../src/components/LoadingBoundary'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { DashboardSkeleton } from '../src/components/Skeleton'
-import { Text, Icon, StatusPill, type StatusPillTone } from '../src/components/ui'
-import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
+import { ClubScreenHeader } from '../src/components/club/ClubScreenHeader'
+import { DuesTag, formatDues, type DuesTagTone } from '../src/components/club/DuesTag'
+import { Button, PressableScale, SectionGroup, Text } from '../src/components/ui'
+import {
+  RADIUS_CARD,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+} from '../src/theme/tokens'
+import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 
-function formatCurrency(amount: number, currency: string, locale: string) {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100)
-}
+const SETTLED = new Set(['PAID', 'WAIVED', 'EXEMPT'])
+const QR_SIZE = 112
 
 function formatDate(iso: string, locale: string) {
-  return new Date(iso).toLocaleDateString(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
 }
 
-function statusTone(status: string): StatusPillTone {
-  switch (status) {
-    case 'PAID':
-      return 'success'
-    case 'OVERDUE':
-      return 'error'
-    case 'PARTIAL':
-      return 'warning'
-    case 'PENDING':
-      return 'info'
-    default:
-      return 'neutral'
+/** "DE89370400440532013000" → "DE89 3704 0044 0532 0130 00" */
+function groupIban(iban: string) {
+  return iban
+    .replace(/\s+/g, '')
+    .replace(/(.{4})/g, '$1 ')
+    .trim()
+}
+
+/**
+ * EPC069-12 ("GiroCode") payload: German banking apps prefill recipient,
+ * IBAN, amount and reference from it ("Foto-Überweisung"). EUR only.
+ */
+function girocodePayload(
+  holder: string,
+  iban: string,
+  amountCents: number,
+  currency: string,
+  reference: string,
+) {
+  if (currency.toUpperCase() !== 'EUR' || amountCents <= 0) return null
+  return [
+    'BCD',
+    '002',
+    '1',
+    'SCT',
+    '',
+    holder.slice(0, 70),
+    iban.replace(/\s+/g, ''),
+    `EUR${(amountCents / 100).toFixed(2)}`,
+    '',
+    '',
+    reference.slice(0, 140),
+  ].join('\n')
+}
+
+function statusTag(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  item: MyContributionItem,
+): { label: string; tone: DuesTagTone } {
+  if (SETTLED.has(item.status)) {
+    return { label: t(`contributions.status.${item.status}`), tone: 'paid' }
   }
+  if (item.paymentReported) return { label: t('fees.reported', { defaultValue: 'Reported' }), tone: 'neutral' }
+  if (item.status === 'OVERDUE') return { label: t('contributions.status.OVERDUE'), tone: 'overdue' }
+  return { label: t(`contributions.status.${item.status}`), tone: 'neutral' }
 }
 
+/**
+ * Meine Beiträge (redesign screen 26): the member's own dues. The open item
+ * leads in large Barlow with its status tag, then the club's transfer details
+ * with a GiroCode to scan, one "Ich habe überwiesen" action (reports the
+ * payment; the treasurer confirms) and the paid history.
+ */
 export default function MyContributionsScreen() {
   const { t, i18n } = useTranslation()
   const { activeClub } = useAuth()
   const c = useClubColors()
+  const insets = useSafeAreaInsetsSafe()
   const locale = i18n.language
 
   const [data, setData] = useState<MyContributionSummary | null>(null)
@@ -56,6 +99,7 @@ export default function MyContributionsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<ApiError | Error | null>(null)
   const [payingPlan, setPayingPlan] = useState<string | null>(null)
+  const [focusPlanId, setFocusPlanId] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     if (!activeClub) {
@@ -111,7 +155,7 @@ export default function MyContributionsScreen() {
         defaultValue:
           'Tell your treasurer you paid {{plan}} ({{amount}}). It stays outstanding until they verify the payment.',
         plan: item.planName,
-        amount: formatCurrency(item.amount, item.currency, locale),
+        amount: formatDues(item.amount, item.currency, locale),
       }),
       [
         { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
@@ -142,19 +186,38 @@ export default function MyContributionsScreen() {
     )
   }
 
-  const items = data?.items ?? []
-  const total = items.reduce((sum, i) => sum + i.amount, 0)
-  const outstanding = items
-    .filter((i) => i.status !== 'PAID' && i.status !== 'WAIVED' && i.status !== 'EXEMPT')
-    .reduce((sum, i) => sum + i.amount, 0)
-  const paid = items
-    .filter((i) => i.status === 'PAID')
-    .reduce((sum, i) => sum + (i.paidAmount ?? i.amount), 0)
-  const overdueCount = items.filter((i) => i.status === 'OVERDUE').length
+  const items = useMemo(() => data?.items ?? [], [data])
+  const openItems = useMemo(
+    () =>
+      items
+        .filter((i) => !SETTLED.has(i.status))
+        .sort(
+          (a, b) =>
+            Number(b.status === 'OVERDUE') - Number(a.status === 'OVERDUE') ||
+            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+        ),
+    [items],
+  )
+  const settledItems = useMemo(
+    () =>
+      items
+        .filter((i) => SETTLED.has(i.status))
+        .sort(
+          (a, b) =>
+            new Date(b.paidAt ?? b.dueDate).getTime() - new Date(a.paidAt ?? a.dueDate).getTime(),
+        ),
+    [items],
+  )
+  const current =
+    openItems.find((i) => i.planId === focusPlanId) ?? openItems[0] ?? settledItems[0] ?? null
+  const otherOpen = openItems.filter((i) => i !== current)
+  const bank = data?.bankTransfer ?? null
 
   return (
-    <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ModalHeader title={t('contributions.myTitle')} mode="back" onClose={() => router.back()} />
+    <View style={[styles.root, { backgroundColor: c.background, paddingTop: insets.top }]}>
+      <View style={styles.headerWrap}>
+        <ClubScreenHeader title={t('fees.title', { defaultValue: 'Dues' })} fallbackHref="/(tabs)" />
+      </View>
       <ErrorBoundary
         onRetry={retry}
         fallbackTitleKey="states.contributions.error.title"
@@ -172,7 +235,7 @@ export default function MyContributionsScreen() {
               onRetry={retry}
               retryLabel={t('states.common.retry')}
             />
-          ) : !data || !data.hasContributions || items.length === 0 ? (
+          ) : !data || !data.hasContributions || items.length === 0 || !current ? (
             <EmptyState
               icon="receipt"
               title={t('states.contributions.empty.title')}
@@ -181,220 +244,73 @@ export default function MyContributionsScreen() {
           ) : (
             <ScrollView
               style={styles.scroll}
-              contentContainerStyle={styles.content}
+              contentContainerStyle={[styles.content, { paddingBottom: SPACING_XL * 2 + insets.bottom }]}
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
-                  tintColor={c.primary}
+                  tintColor={c.textTertiary}
                 />
               }
             >
-              {/* KPI summary card */}
-              <View
-                style={[
-                  styles.summaryCard,
-                  { backgroundColor: c.surface, borderColor: c.borderDefault },
-                ]}
-              >
-                <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                  {t('contributions.myEyebrow', { defaultValue: 'CONTRIBUTIONS' })}
-                </Text>
-                <View style={styles.summaryRow}>
-                  <View style={styles.summaryStat}>
-                    <Text variant="title2" color="primary" weight="semibold" tabular>
-                      {formatCurrency(outstanding, items[0]?.currency ?? 'EUR', locale)}
-                    </Text>
-                    <Text variant="caption2" color="secondary">
-                      {t('contributions.outstanding', { defaultValue: 'Outstanding' })}
-                    </Text>
-                  </View>
-                  <View style={[styles.summaryDivider, { backgroundColor: c.borderDefault }]} />
-                  <View style={styles.summaryStat}>
-                    <Text variant="title2" color="primary" weight="semibold" tabular>
-                      {formatCurrency(paid, items[0]?.currency ?? 'EUR', locale)}
-                    </Text>
-                    <Text variant="caption2" color="secondary">
-                      {t('contributions.paidThisYear', { defaultValue: 'Paid' })}
-                    </Text>
-                  </View>
-                </View>
-                <View style={[styles.progressTrack, { backgroundColor: c.borderDefault }]}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${total > 0 ? Math.min(100, (paid / total) * 100) : 0}%`,
-                        backgroundColor: c.primary,
-                      },
-                    ]}
-                  />
-                </View>
-                {overdueCount > 0 ? (
-                  <StatusPill
-                    tone="error"
-                    icon="exclamationmark.circle"
-                    label={t('contributions.overdueAlert', {
-                      defaultValue: '{{count}} overdue · please settle soon',
-                      count: overdueCount,
-                    })}
-                    style={styles.alertPill}
-                  />
-                ) : null}
-              </View>
+              <CurrentDue item={current} locale={locale} />
 
-              <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-                {t('contributions.allDues', { defaultValue: 'YOUR DUES' })}
-              </Text>
-
-              <View style={styles.list}>
-                {items.map((item) => {
-                  const tone = statusTone(item.status)
-                  const isPaid = item.status === 'PAID'
-                  const isPaying = payingPlan === item.planId
-                  return (
-                    <View
-                      key={item.planId}
-                      style={[
-                        styles.card,
-                        elevation.card,
-                        {
-                          backgroundColor: c.surface,
-                          borderColor: item.status === 'OVERDUE' ? c.error : c.borderDefault,
-                        },
-                      ]}
-                    >
-                      <View style={styles.cardHead}>
-                        <Text
-                          variant="callout"
-                          color="primary"
-                          weight="semibold"
-                          numberOfLines={1}
-                          style={styles.planName}
-                        >
-                          {item.planName}
-                        </Text>
-                        <StatusPill
-                          tone={tone}
-                          label={t(`contributions.status.${item.status}`, {
-                            defaultValue: item.status,
-                          })}
-                        />
-                      </View>
-
-                      <View style={styles.amountRow}>
-                        <Text variant="title2" color="primary" weight="semibold" tabular>
-                          {formatCurrency(item.amount, item.currency, locale)}
-                        </Text>
-                        <Text variant="caption2" color="secondary" style={styles.cadence}>
-                          {t(`contributions.cadence.${item.cadence}`, {
-                            defaultValue: item.cadence,
-                          })}
-                        </Text>
-                      </View>
-
-                      <View style={styles.metaRow}>
-                        <Icon name="calendar" size={12} color="tertiary" />
-                        <Text variant="caption2" color="secondary">
-                          {isPaid && item.paidAt
-                            ? t('contributions.paidOn', {
-                                defaultValue: 'Paid on {{date}}',
-                                date: formatDate(item.paidAt, locale),
-                              })
-                            : t('contributions.dueOn', {
-                                defaultValue: 'Due {{date}}',
-                                date: formatDate(item.dueDate, locale),
-                              })}
-                        </Text>
-                      </View>
-
-                      {!isPaid && !item.paymentReported ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={t('contributions.reportPayment', {
-                            defaultValue: 'Report payment',
-                          })}
-                          onPress={() => void handleReportPayment(item)}
-                          disabled={isPaying}
-                          style={({ pressed }) => [
-                            styles.payBtn,
-                            { backgroundColor: c.primary },
-                            pressed && { opacity: 0.92 },
-                            isPaying && { opacity: 0.6 },
-                          ]}
-                        >
-                          <Text style={[styles.payBtnText, { color: c.textInverse }]}>
-                            {isPaying
-                              ? t('common.saving', { defaultValue: 'Saving…' })
-                              : t('contributions.reportPayment', {
-                                  defaultValue: 'Report payment',
-                                })}
-                          </Text>
-                        </Pressable>
-                      ) : item.paymentReported ? (
-                        <Text style={[styles.footer, { color: c.textTertiary }]}>
-                          {t('contributions.paymentReported', {
-                            defaultValue: 'Payment reported · awaiting verification',
-                          })}
-                        </Text>
-                      ) : null}
-                    </View>
-                  )
-                })}
-              </View>
-
-              {data?.bankTransfer ? (
-                <View
-                  style={[
-                    styles.bankCard,
-                    { backgroundColor: c.surface, borderColor: c.borderDefault },
-                  ]}
-                >
-                  <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-                    {t('contributions.bankTransfer.title', {
-                      defaultValue: 'PAY BY BANK TRANSFER',
-                    })}
-                  </Text>
-                  <Text variant="caption2" color="secondary" style={styles.bankIntro}>
-                    {t('contributions.bankTransfer.intro', {
-                      defaultValue:
-                        'Transfer your dues to the club account below. Your treasurer marks you as paid once it arrives.',
-                    })}
-                  </Text>
-
-                  <BankField
-                    label={t('contributions.bankTransfer.holder', {
-                      defaultValue: 'Account holder',
-                    })}
-                    value={data.bankTransfer.accountHolder}
-                  />
-                  <BankField
-                    label={t('contributions.bankTransfer.iban', { defaultValue: 'IBAN' })}
-                    value={data.bankTransfer.iban}
-                    mono
-                  />
-                  {data.bankTransfer.reference ? (
-                    <BankField
-                      label={t('contributions.bankTransfer.reference', {
-                        defaultValue: 'Reference',
-                      })}
-                      value={data.bankTransfer.reference}
-                    />
-                  ) : null}
-
-                  <Text variant="caption2" color="tertiary" style={styles.bankCopyHint}>
-                    {t('contributions.bankTransfer.copyHint', {
-                      defaultValue: 'Long-press a value to copy it.',
-                    })}
-                  </Text>
-                </View>
+              {bank && !SETTLED.has(current.status) ? (
+                <PaymentCard
+                  holder={bank.accountHolder}
+                  iban={bank.iban}
+                  reference={bank.reference ?? current.planName}
+                  amount={current.amount}
+                  currency={current.currency}
+                />
               ) : null}
 
-              <Text style={[styles.footer, { color: c.textTertiary }]}>
-                {t('contributions.footnote', {
-                  defaultValue:
-                    'Contact your treasurer if anything looks off. Payments reconcile within 24h.',
+              {!SETTLED.has(current.status) ? (
+                current.paymentReported ? (
+                  <Text variant="subheadline" color="primary" align="center" testID="my-dues-reported">
+                    {t('mydues.reportedThanks', {
+                      defaultValue: 'Thanks. Your treasurer confirms as soon as the money arrives.',
+                    })}
+                  </Text>
+                ) : (
+                  <Button
+                    variant="filled"
+                    size="lg"
+                    fullWidth
+                    label={t('mydues.iTransferred', { defaultValue: 'I have transferred' })}
+                    loading={payingPlan === current.planId}
+                    disabled={payingPlan === current.planId}
+                    onPress={() => void handleReportPayment(current)}
+                    testID="my-dues-report"
+                  />
+                )
+              ) : null}
+
+              {otherOpen.length > 0 ? (
+                <SectionGroup header={t('contributions.summaryOutstanding')}>
+                  {otherOpen.map((item) => (
+                    <DuesRow
+                      key={item.planId}
+                      item={item}
+                      locale={locale}
+                      onPress={() => setFocusPlanId(item.planId)}
+                    />
+                  ))}
+                </SectionGroup>
+              ) : null}
+
+              {settledItems.length > 0 && settledItems[0] !== current ? (
+                <SectionGroup header={t('contributions.summaryPaid')}>
+                  {settledItems.map((item) => (
+                    <DuesRow key={item.planId} item={item} locale={locale} />
+                  ))}
+                </SectionGroup>
+              ) : null}
+
+              <Text variant="caption1" color="secondary">
+                {t('mydues.footnote', {
+                  defaultValue: 'The money goes straight to your club. Anstoss only shows the status.',
                 })}
               </Text>
             </ScrollView>
@@ -405,161 +321,183 @@ export default function MyContributionsScreen() {
   )
 }
 
-function BankField({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string
-  value: string
-  mono?: boolean
-}) {
+/** The lead item: "Plan · fällig 15.12.", the amount in large Barlow, its tag. */
+function CurrentDue({ item, locale }: { item: MyContributionItem; locale: string }) {
+  const { t } = useTranslation()
   const c = useClubColors()
+  const tag = statusTag(t, item)
+  const settled = SETTLED.has(item.status)
+  const line = settled
+    ? item.paidAt
+      ? `${item.planName} · ${t('fees.paidOn', { defaultValue: 'Paid {{date}}', date: formatDate(item.paidAt, locale) })}`
+      : item.planName
+    : `${item.planName} · ${t('mydues.dueShort', { defaultValue: 'due {{date}}', date: formatDate(item.dueDate, locale) })}`
   return (
-    <View style={[styles.bankField, { borderTopColor: c.borderSubtle }]}>
-      <Text variant="caption2" color="tertiary" style={styles.bankFieldLabel}>
-        {label.toUpperCase()}
-      </Text>
-      <Text
-        selectable
-        style={[
-          styles.bankFieldValue,
-          { color: c.textPrimary, fontFamily: mono ? fonts.data : fonts.body },
-        ]}
-      >
-        {value}
+    <View style={styles.currentRow} testID="my-dues-current">
+      <View style={styles.currentStat}>
+        <Text variant="subheadline" color="secondary" numberOfLines={2}>
+          {line}
+        </Text>
+        <Text
+          variant="dataLarge"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={{ color: c.textPrimary, fontSize: 52, lineHeight: 54 }}
+        >
+          {formatDues(item.amount, item.currency, locale)}
+        </Text>
+      </View>
+      <DuesTag label={tag.label} tone={tag.tone} />
+    </View>
+  )
+}
+
+/** Transfer details: GiroCode + Empfänger / IBAN / Verwendungszweck. */
+function PaymentCard({
+  holder,
+  iban,
+  reference,
+  amount,
+  currency,
+}: {
+  holder: string
+  iban: string
+  reference: string
+  amount: number
+  currency: string
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const payload = girocodePayload(holder, iban, amount, currency, reference)
+  const fields = [
+    { key: 'holder', label: t('mydues.recipient', { defaultValue: 'Recipient' }), value: holder },
+    { key: 'iban', label: t('contributions.bankTransfer.iban'), value: groupIban(iban), mono: true },
+    { key: 'reference', label: t('contributions.bankTransfer.reference'), value: reference },
+  ]
+  return (
+    <View style={[styles.payCard, { backgroundColor: c.surface }]} testID="my-dues-payment">
+      {payload ? (
+        <View style={styles.qrRow}>
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={t('mydues.qrA11y', { defaultValue: 'Transfer QR code' })}
+          >
+            <QRCode value={payload} size={QR_SIZE} color={c.textPrimary} backgroundColor={c.surface} />
+          </View>
+          <Text variant="caption1" color="secondary" style={styles.flex}>
+            {t('mydues.qrHint', {
+              defaultValue: 'Choose “photo transfer” in your banking app and scan. Everything is prefilled.',
+            })}
+          </Text>
+        </View>
+      ) : null}
+      <View>
+        {fields.map((field, idx) => (
+          <View
+            key={field.key}
+            style={[
+              styles.payField,
+              idx < fields.length - 1 && {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: c.borderSubtle,
+              },
+            ]}
+          >
+            <Text variant="caption1" color="secondary">
+              {field.label}
+            </Text>
+            <Text variant="subheadline" weight="semibold" color="primary" selectable tabular={field.mono}>
+              {field.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Text variant="caption1" color="tertiary">
+        {t('contributions.bankTransfer.copyHint')}
       </Text>
     </View>
+  )
+}
+
+function DuesRow({
+  item,
+  locale,
+  onPress,
+}: {
+  item: MyContributionItem
+  locale: string
+  onPress?: () => void
+}) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const settled = SETTLED.has(item.status)
+  const tag = statusTag(t, item)
+  const meta = settled
+    ? item.paidAt
+      ? t('fees.paidOn', { defaultValue: 'Paid {{date}}', date: formatDate(item.paidAt, locale) })
+      : tag.label
+    : `${tag.label} · ${t('mydues.dueShort', { defaultValue: 'due {{date}}', date: formatDate(item.dueDate, locale) })}`
+  const amount = formatDues(settled ? (item.paidAmount ?? item.amount) : item.amount, item.currency, locale)
+  const content = (
+    <>
+      <View style={styles.flex}>
+        <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
+          {item.planName}
+        </Text>
+        <Text variant="caption1" color="secondary" numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      <Text variant="data" align="right" style={{ color: c.textPrimary, fontSize: 18, lineHeight: 22 }}>
+        {amount}
+      </Text>
+    </>
+  )
+  if (!onPress) return <View style={styles.duesRow}>{content}</View>
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.planName}, ${amount}, ${meta}`}
+      style={styles.duesRow}
+    >
+      {content}
+    </PressableScale>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  headerWrap: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_LG, paddingBottom: SPACING_SM },
   content: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space['2xl'] * 2,
-    gap: space.md,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_MD,
+    gap: SPACING_XL,
   },
-
-  eyebrow: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-
-  summaryCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    gap: space.sm,
-  },
-  summaryRow: {
+  currentRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    marginTop: space['2xs'],
-  },
-  summaryStat: { flex: 1, gap: space['2xs'] },
-  summaryDivider: { width: hairline, height: 36 },
-  progressTrack: { height: 6, borderRadius: radius.full, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: radius.full },
-
-  alertPill: {
-    marginTop: space['2xs'],
-  },
-
-  sectionLabel: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-    marginTop: space.xs,
-    marginLeft: space.xs,
-    marginBottom: -space.xs,
-  },
-
-  list: { gap: space.sm },
-  card: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
-    gap: space.sm,
-  },
-  cardHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: space.sm,
+    gap: SPACING_MD,
   },
-  planName: { flex: 1, letterSpacing: -0.1 },
-
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: space.sm,
-  },
-  cadence: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs + 2,
-  },
-
-  payBtn: {
-    marginTop: space['2xs'],
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payBtnText: {
-    fontSize: 14,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.1,
-  },
-
-  footer: {
-    fontSize: 12,
-    fontFamily: fonts.body,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: space.xs,
-  },
-
-  bankCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
+  currentStat: { flex: 1, minWidth: 0, gap: SPACING_XS },
+  payCard: {
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    gap: space.xs,
+    padding: SPACING_LG,
+    gap: SPACING_MD,
   },
-  bankIntro: {
-    marginTop: space['2xs'],
-    marginBottom: space['2xs'],
-  },
-  bankField: {
-    paddingTop: space.sm,
-    marginTop: space['2xs'],
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: space['2xs'],
-  },
-  bankFieldLabel: {
-    letterSpacing: 1,
-  },
-  bankFieldValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  bankCopyHint: {
-    marginTop: space.xs,
+  qrRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_LG },
+  payField: { minHeight: 60, justifyContent: 'center', paddingVertical: SPACING_MD, gap: SPACING_XXS },
+  duesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD,
+    minHeight: 54,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_LG,
   },
 })

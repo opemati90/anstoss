@@ -186,13 +186,13 @@ describe('Profile tab', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/club-setup')
   })
 
-  it('has the account, club, app and data sections with appearance', () => {
+  it('has the team, club-and-app and account sections with appearance', () => {
     const screen = renderMore()
     for (const key of [
+      'more.title',
+      'more.sectionTeam',
+      'more.sectionClubApp',
       'profileHub.sectionAccount',
-      'profileHub.sectionClub',
-      'profileHub.sectionApp',
-      'profileHub.sectionData',
       'profileHub.editProfile',
       'notificationSettings.title',
       'contributions.myTitle',
@@ -203,6 +203,15 @@ describe('Profile tab', () => {
       expect(screen.getByText(key)).toBeTruthy()
     }
     expect(screen.queryByText('rankings.title')).toBeNull()
+    // Players without billing rights see their own dues, not the treasury.
+    expect(screen.queryByText('more.treasury')).toBeNull()
+  })
+
+  it('opens the treasury and the role-mode sheet for admins with several modes', () => {
+    const screen = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
+    fireEvent.press(screen.getByText('more.treasury'))
+    expect(mockRouterPush).toHaveBeenCalledWith('/admin-billing')
+    expect(screen.getByTestId('more-role-mode')).toBeTruthy()
   })
 
   it('signs out only after confirmation and resumes expiry handling on cancel', () => {

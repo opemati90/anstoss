@@ -2,21 +2,25 @@ import { memo, useCallback, useState } from 'react'
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, Text } from '../ui'
-import type { TextVariant } from '../ui/Text'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ClubTheme } from '../../theme/club-theme'
-import { radius, space, SPACING_XXS } from '../../theme/tokens'
+import { Radius, RADIUS_FULL, RADIUS_MD, space, SPACING_SM, SPACING_XS, SPACING_XXS } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { UnavailableReasonSheet, type AbsenceDetail } from './UnavailableReasonSheet'
 
 export type RsvpStatus = 'YES' | 'MAYBE' | 'NO'
 export type { AbsenceDetail }
 
-/** Semantic palette per answer: Zusage = success, Vielleicht = warning, Absage = error. */
+/**
+ * Answer colours, one accent (DESIGN.md, 2026-09-11): a reply is a choice,
+ * not three alert states. Zusage carries the club colour, Vielleicht and
+ * Absage stay neutral; the icon and label carry the meaning. Kept as a
+ * helper because home marks a given answer with it.
+ */
 export function rsvpTone(status: RsvpStatus, c: ClubTheme): { fg: string; bg: string } {
-  if (status === 'YES') return { fg: c.success, bg: c.successBg }
-  if (status === 'MAYBE') return { fg: c.warning, bg: c.warningBg }
-  return { fg: c.error, bg: c.errorBg }
+  if (status === 'YES') return { fg: c.primary, bg: c.primary50 }
+  if (status === 'MAYBE') return { fg: c.textPrimary, bg: c.surfaceMuted }
+  return { fg: c.textSecondary, bg: c.surfaceSunken }
 }
 
 const OPTIONS: Array<{ status: RsvpStatus; icon: string; labelKey: string }> = [
@@ -33,7 +37,11 @@ export type RsvpControlProps = {
    */
   onChange: (status: RsvpStatus, absence?: AbsenceDetail) => void
   disabled?: boolean
-  /** `compact` uses a smaller label for dense list rows; tap targets stay 44pt. */
+  /**
+   * `default` is the segmented answer of the event screen and the home hero;
+   * `compact` is the row of small pills under a schedule row (36pt visual,
+   * 44pt touch target).
+   */
   size?: 'default' | 'compact'
   /** Skip the Absage sheet (e.g. a coach correcting a reply). Default: ask. */
   askReason?: boolean
@@ -45,6 +53,8 @@ export type RsvpControlProps = {
    * with the event it belongs to.
    */
   accessibilityLabel?: string
+  /** "So · Heimspiel gegen X": names the event in the Absage sheet. */
+  contextLabel?: string | null
   style?: StyleProp<ViewStyle>
   testID?: string
 }
@@ -52,10 +62,9 @@ export type RsvpControlProps = {
 /**
  * The app's single availability control: Zusage · Vielleicht · Absage.
  *
- * Three pills, each with an icon. The selected answer takes its semantic
- * colour (Zusage green, Vielleicht amber, Absage red) as a tint with a
- * matching outline; unselected pills carry a `borderControl` outline so they
- * read as controls. Colour is never the only carrier of meaning. Absage
+ * One accent (DESIGN.md): the selected answer is filled with the club colour,
+ * the others stay neutral. `default` is a segmented track (surfaceSunken,
+ * 44pt segments, icon + label); `compact` is three outlined pills. Absage
  * opens the short reason sheet everywhere this control is used, so the coach
  * gets the same information no matter where the player answered.
  */
@@ -67,28 +76,30 @@ export const RsvpControl = memo(function RsvpControl({
   askReason = true,
   subjectName,
   accessibilityLabel,
+  contextLabel,
   style,
   testID,
 }: RsvpControlProps) {
   const c = useClubColors()
   const { t } = useTranslation()
   const compact = size === 'compact'
-  const variant: TextVariant = compact ? 'subheadline' : 'callout'
   const [sheetOpen, setSheetOpen] = useState(false)
-  // home revamp: the three pills must hold at 320pt and font scale 2.0.
-  // The real label widths are measured off-screen (same variant, semibold,
-  // so the selected weight fits too) together with the row width, and the
-  // densest layout that fits is chosen: icon beside label, icon above label,
-  // or one pill per line. The row stays invisible until both are known, so
-  // there is no first frame in the wrong layout.
+  // The segmented layout must hold at 320pt and font scale 2.0. The real
+  // label widths are measured off-screen (semibold, so the selected weight
+  // fits too) together with the track width, and the densest layout that
+  // fits is chosen: icon beside label, icon above label, or one segment per
+  // line. The track stays invisible until both are known, so there is no
+  // first frame in the wrong layout. Compact pills simply wrap.
   const [trackWidth, setTrackWidth] = useState(0)
   const [measured, setMeasured] = useState<Record<string, number>>({})
   const labels = OPTIONS.map((option) => t(option.labelKey))
   const labelWidths = labels.every((label) => measured[label] != null)
     ? labels.map((label) => measured[label] as number)
     : null
-  const ready = trackWidth > 0 && labelWidths !== null
-  const layout = decidePillLayout({ trackWidth, labelWidths, iconSize: compact ? 15 : 17 })
+  const ready = compact || (trackWidth > 0 && labelWidths !== null)
+  const layout: PillLayout = compact
+    ? 'inline'
+    : decidePillLayout({ trackWidth, labelWidths, iconSize: ICON_SIZE })
 
   const onMeasure = useCallback((label: string, width: number) => {
     setMeasured((prev) => (prev[label] === width ? prev : { ...prev, [label]: width }))
@@ -120,72 +131,80 @@ export const RsvpControl = memo(function RsvpControl({
       <View
         testID={testID}
         style={[
-          styles.track,
+          compact ? styles.pills : [styles.track, { backgroundColor: c.surfaceSunken }],
           layout === 'column' && styles.trackColumn,
           disabled && styles.disabled,
           !ready && styles.unmeasured,
           style,
         ]}
-        onLayout={(e) => setTrackWidth(Math.round(e.nativeEvent.layout.width))}
+        onLayout={
+          compact
+            ? undefined
+            : (e) => setTrackWidth(Math.round(e.nativeEvent.layout.width) - TRACK_PAD * 2)
+        }
         accessibilityRole="radiogroup"
         accessibilityLabel={accessibilityLabel}
       >
-        {/* Off-screen measurement of the three labels at the widest weight. */}
-        <View style={styles.measure} pointerEvents="none" {...HIDDEN_FROM_A11Y}>
-          {labels.map((label) => (
-            <Text
-              key={label}
-              variant={variant}
-              weight="semibold"
-              numberOfLines={1}
-              style={styles.measureText}
-              onLayout={(e) => onMeasure(label, Math.ceil(e.nativeEvent.layout.width))}
-            >
-              {label}
-            </Text>
-          ))}
-        </View>
-        {/* home revamp: semantic pills. Selected = the answer's own colour
-            (Zusage success, Vielleicht warning, Absage error) as a tint with a
-            matching outline; unselected = borderControl outline. Icon, weight
-            and the radio state carry the meaning alongside colour. */}
+        {!compact ? (
+          // Off-screen measurement of the three labels at the widest weight.
+          <View style={styles.measure} pointerEvents="none" {...HIDDEN_FROM_A11Y}>
+            {labels.map((label) => (
+              <Text
+                key={label}
+                variant="subheadline"
+                weight="semibold"
+                numberOfLines={1}
+                style={styles.measureText}
+                onLayout={(e) => onMeasure(label, Math.ceil(e.nativeEvent.layout.width))}
+              >
+                {label}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         {OPTIONS.map((option, index) => {
           const isActive = value === option.status
           const label = labels[index]
-          const tone = rsvpTone(option.status, c)
+          const fg = isActive ? c.onPrimary : compact ? c.textPrimary : c.textSecondary
           return (
             <Pressable
               key={option.status}
               testID={testID ? `${testID}-${option.status}` : undefined}
               onPress={() => handlePress(option.status)}
               disabled={disabled}
+              hitSlop={compact ? PILL_HIT_SLOP : undefined}
               accessibilityRole="radio"
               accessibilityLabel={subjectName ? `${subjectName}: ${label}` : label}
               accessibilityHint={accessibilityLabel}
               accessibilityState={{ selected: isActive, checked: isActive, disabled }}
               style={({ pressed }) => [
-                styles.option,
-                compact ? styles.optionCompact : null,
-                layout === 'tall' && styles.optionTall,
-                layout === 'column' && styles.optionColumn,
-                isActive
-                  ? { backgroundColor: tone.bg, borderColor: tone.fg, borderWidth: 1.5 }
-                  : { backgroundColor: c.surface, borderColor: c.borderControl, borderWidth: 1 },
-                pressed && !isActive && { backgroundColor: c.surfaceSunken },
+                compact ? styles.pill : styles.segment,
+                layout === 'tall' && styles.segmentTall,
+                layout === 'column' && styles.segmentColumn,
+                compact
+                  ? isActive
+                    ? { backgroundColor: c.primary, borderColor: c.primary }
+                    : { backgroundColor: 'transparent', borderColor: c.borderStrong }
+                  : isActive
+                    ? { backgroundColor: c.primary }
+                    : null,
+                pressed && !isActive && styles.pressed,
               ]}
             >
-              <Icon
-                name={isActive && option.status === 'YES' ? 'checkmark.circle.fill' : option.icon}
-                size={compact ? 15 : 17}
-                color={isActive ? tone.fg : c.textSecondary}
-              />
+              {!compact ? (
+                <Icon
+                  name={isActive && option.status === 'YES' ? 'checkmark.circle.fill' : option.icon}
+                  size={ICON_SIZE}
+                  color={fg}
+                />
+              ) : null}
               <Text
-                variant={variant}
-                weight={isActive ? 'semibold' : 'medium'}
+                variant={compact ? 'footnote' : 'subheadline'}
+                weight={compact || isActive ? 'bold' : 'semibold'}
                 numberOfLines={1}
-                adjustsFontSizeToFit
+                adjustsFontSizeToFit={!compact}
                 minimumFontScale={MIN_LABEL_SCALE}
-                style={{ color: isActive ? tone.fg : c.textPrimary, flexShrink: 1 }}
+                style={{ color: fg, flexShrink: 1 }}
               >
                 {label}
               </Text>
@@ -197,6 +216,7 @@ export const RsvpControl = memo(function RsvpControl({
         <UnavailableReasonSheet
           visible={sheetOpen}
           subjectName={subjectName}
+          contextLabel={contextLabel}
           onSubmit={handleAbsence}
           onClose={() => setSheetOpen(false)}
         />
@@ -211,6 +231,11 @@ const GAP = space.sm
 const PILL_PAD = space.sm
 const TALL_PAD = space.xs
 const ICON_GAP = space.xs + 2
+const ICON_SIZE = 16
+/** Segmented track inset (design `.seg`: 4pt). */
+const TRACK_PAD = SPACING_XS
+/** Compact pills are 36pt tall; 4pt slop each side makes the target 44pt. */
+const PILL_HIT_SLOP = { top: 4, bottom: 4, left: 2, right: 2 }
 /** Selected outline (1.5pt) on both sides. */
 const BORDER = 3
 /** adjustsFontSizeToFit may shrink a label this far before we stack pills. */
@@ -250,11 +275,16 @@ export function decidePillLayout({
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
-    gap: GAP,
+    gap: SPACING_XS,
+    padding: TRACK_PAD,
+    borderRadius: Radius.lg,
+    borderCurve: 'continuous',
   },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_SM },
   trackColumn: { flexDirection: 'column' },
   disabled: { opacity: 0.5 },
   unmeasured: { opacity: 0 },
+  pressed: { opacity: 0.7 },
   measure: {
     position: 'absolute',
     top: 0,
@@ -264,25 +294,33 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   measureText: { alignSelf: 'flex-start' },
-  option: {
+  segment: {
     flex: 1,
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: ICON_GAP,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_MD,
     borderCurve: 'continuous',
     paddingHorizontal: PILL_PAD,
   },
-  optionCompact: { minHeight: 44 },
-  optionTall: {
+  segmentTall: {
     flexDirection: 'column',
     minHeight: 58,
     gap: SPACING_XXS,
     paddingVertical: space.xs + 2,
     paddingHorizontal: TALL_PAD,
-    borderRadius: radius.lg,
   },
-  optionColumn: { flex: 0, justifyContent: 'flex-start', paddingHorizontal: space.md },
+  segmentColumn: { flex: 0, justifyContent: 'flex-start', paddingHorizontal: space.md },
+  pill: {
+    minHeight: 36,
+    minWidth: 44,
+    paddingHorizontal: SPACING_SM + 2,
+    borderRadius: RADIUS_FULL,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })

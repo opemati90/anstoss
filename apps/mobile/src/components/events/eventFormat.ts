@@ -96,14 +96,19 @@ export const RSVP_REASON_KEYS = [
 ] as const
 export type RsvpReasonKey = (typeof RSVP_REASON_KEYS)[number]
 
-/** Reason chips in the Absage sheet (Sonstiges is covered by the note). */
+/**
+ * Reason chips in the Absage sheet, in the redesign's order (Arbeit, Krank,
+ * Verletzt, Urlaub, Privat, Gesperrt, Sonstiges). Every reason the API
+ * accepts (RSVP_REASONS in packages/shared) has a chip.
+ */
 export const ABSENCE_REASON_CHIPS: RsvpReasonKey[] = [
-  'injured',
-  'sick',
   'work',
+  'sick',
+  'injured',
   'vacation',
   'personal',
   'suspended',
+  'other',
 ]
 
 export function reasonLabel(reason: string | null | undefined, t: Translate): string | null {

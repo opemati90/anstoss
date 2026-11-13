@@ -1,11 +1,10 @@
 import { useMemo } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { EventRsvpEntry, EventSquadMember } from '@anstoss/shared'
-import { Avatar, Button, Text } from '../ui'
+import { Avatar, Button, SectionGroup, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hexToRgba } from '../../theme/club-theme'
-import { hairline, radius, space, SPACING_XXS } from '../../theme/tokens'
+import { SPACING_LG, SPACING_MD, SPACING_SM, SPACING_XXS } from '../../theme/tokens'
 import { reasonLabel } from './eventFormat'
 
 export type ResponsesPanelProps = {
@@ -24,17 +23,26 @@ export type ResponsesPanelProps = {
   onOpenAttendance?: (() => void) | null
 }
 
+type Status = 'YES' | 'MAYBE' | 'NO' | 'OPEN'
+
 type Person = {
   userId: string
   name: string
   avatarUrl?: string | null
-  detail?: string | null
+  status: Status
+  /** Absage reason, shown beside the status ("Absage · Verletzt"). */
+  reason?: string | null
+  /** The player's own line, under the name. */
+  note?: string | null
 }
 
+const ORDER: Record<Status, number> = { YES: 0, MAYBE: 1, NO: 2, OPEN: 3 }
+
 /**
- * Zusagen: who is coming, grouped the way a coach counts on a Thursday night.
- * Zugesagt, Vielleicht, Abgesagt (with the reason), Offen. The count bar is one
- * accent at three densities so it reads as one squad, not three alarms.
+ * Zusagen (design 12, "Kader · 14 von 22 dabei"): one white list, everyone on
+ * the team with their answer on the right. Zusage first, then Vielleicht,
+ * Absage (with the reason), Offen. The club colour marks only Zusage, so the
+ * list reads as one squad, not three alarms.
  */
 export function ResponsesPanel({
   rsvps,
@@ -46,190 +54,177 @@ export function ResponsesPanel({
   const { t } = useTranslation()
   const c = useClubColors()
 
-  const groups = useMemo(() => {
-    const byStatus = (status: EventRsvpEntry['status']) =>
-      rsvps
-        .filter((entry) => entry.status === status)
-        .map<Person>((entry) => ({
-          userId: entry.userId,
-          name: entry.user.name,
-          avatarUrl: entry.user.avatarUrl,
-          detail:
-            status === 'NO'
-              ? [reasonLabel(entry.reason, t), entry.note].filter(Boolean).join(' · ') || null
-              : entry.note ?? null,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name))
+  const people = useMemo(() => {
     const answered = new Set(rsvps.map((entry) => entry.userId))
-    const open = members
-      .filter((member) => !answered.has(member.userId))
-      .map<Person>((member) => ({
-        userId: member.userId,
-        name: member.name,
-        avatarUrl: member.avatarUrl,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-    return { yes: byStatus('YES'), maybe: byStatus('MAYBE'), no: byStatus('NO'), open }
+    const list: Person[] = [
+      ...rsvps.map<Person>((entry) => ({
+        userId: entry.userId,
+        name: entry.user.name,
+        avatarUrl: entry.user.avatarUrl,
+        status: entry.status,
+        reason: entry.status === 'NO' ? reasonLabel(entry.reason, t) : null,
+        note: entry.note ?? null,
+      })),
+      ...members
+        .filter((member) => !answered.has(member.userId))
+        .map<Person>((member) => ({
+          userId: member.userId,
+          name: member.name,
+          avatarUrl: member.avatarUrl,
+          status: 'OPEN',
+        })),
+    ]
+    return list.sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.name.localeCompare(b.name))
   }, [members, rsvps, t])
 
-  const total = groups.yes.length + groups.maybe.length + groups.no.length + groups.open.length
+  const yes = people.filter((person) => person.status === 'YES').length
+  const open = people.filter((person) => person.status === 'OPEN').length
   const cooling =
     remind?.cooldownUntil != null && new Date(remind.cooldownUntil).getTime() > Date.now()
+  const showRemind = canManage && remind && open > 0
+  const remindLabel = cooling
+    ? remind?.sentCount != null
+      ? t('eventFlow.responses.remindDone', { defaultValue: 'Reminded' })
+      : t('eventFlow.responses.remindCooldown')
+    : t('eventFlow.responses.remindShort', { count: open, defaultValue: 'Remind {{count}}' })
+  const remindA11y =
+    cooling && remind?.sentCount != null
+      ? t('eventFlow.responses.remindSent', { count: remind.sentCount })
+      : cooling
+        ? t('eventFlow.responses.remindCooldown')
+        : t('eventFlow.responses.remindOpen', { count: open })
+
+  const statusLabel = (person: Person) => {
+    if (person.status === 'OPEN') return t('eventFlow.responses.open')
+    const base = t(
+      person.status === 'YES'
+        ? 'eventFlow.rsvp.yes'
+        : person.status === 'MAYBE'
+          ? 'eventFlow.rsvp.maybe'
+          : 'eventFlow.rsvp.no',
+    )
+    return person.reason ? `${base} · ${person.reason}` : base
+  }
 
   return (
     <View style={styles.root}>
-      <View style={[styles.summary, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        <View style={styles.counts}>
-          <Count value={groups.yes.length} label={t('eventFlow.responses.yes')} strong />
-          <Count value={groups.maybe.length} label={t('eventFlow.responses.maybe')} />
-          <Count value={groups.no.length} label={t('eventFlow.responses.no')} />
-          <Count value={groups.open.length} label={t('eventFlow.responses.open')} />
-        </View>
-        {total > 0 ? (
-          <View
-            style={[styles.bar, { backgroundColor: c.surfaceSunken }]}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            {groups.yes.length ? (
-              <View style={{ flex: groups.yes.length, backgroundColor: c.primary }} />
-            ) : null}
-            {groups.maybe.length ? (
-              <View style={{ flex: groups.maybe.length, backgroundColor: hexToRgba(c.primary, 0.4) }} />
-            ) : null}
-            {groups.no.length ? (
-              <View style={{ flex: groups.no.length, backgroundColor: c.borderStrong }} />
-            ) : null}
-            {groups.open.length ? <View style={{ flex: groups.open.length }} /> : null}
-          </View>
-        ) : null}
-        {canManage && remind && groups.open.length > 0 ? (
-          <Button
-            label={
-              cooling
-                ? remind.sentCount != null
-                  ? t('eventFlow.responses.remindSent', { count: remind.sentCount })
-                  : t('eventFlow.responses.remindCooldown')
-                : t('eventFlow.responses.remindOpen', { count: groups.open.length })
-            }
-            variant="bordered"
-            size="md"
-            fullWidth
-            loading={remind.pending}
-            disabled={remind.pending || cooling}
+      <View style={styles.head}>
+        <Text variant="label" accessibilityRole="header" style={styles.headline}>
+          {t('eventFlow.responses.headline', {
+            yes,
+            total: people.length,
+            defaultValue: 'Squad · {{yes}} of {{total}} in',
+          })}
+        </Text>
+        {showRemind && remind ? (
+          <Pressable
             onPress={remind.onPress}
+            disabled={remind.pending || cooling}
+            accessibilityRole="button"
+            accessibilityLabel={remindA11y}
+            accessibilityState={{ disabled: remind.pending || cooling, busy: remind.pending }}
+            hitSlop={4}
+            style={({ pressed }) => [styles.remind, pressed && styles.pressed]}
             testID="event-remind-open"
-          />
-        ) : null}
-        {canManage && onOpenAttendance ? (
-          <Button
-            label={t('eventFlow.responses.attendance')}
-            variant="bordered"
-            size="md"
-            fullWidth
-            onPress={onOpenAttendance}
-            testID="event-open-attendance"
-          />
+          >
+            <Text
+              variant="subheadline"
+              weight="semibold"
+              color={cooling || remind.pending ? 'secondary' : 'tint'}
+            >
+              {remindLabel}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
 
-      {total === 0 ? (
-        <Text variant="subheadline" color="secondary" style={styles.emptyText}>
+      {people.length === 0 ? (
+        <Text variant="subheadline" color="secondary">
           {t('eventFlow.responses.empty')}
         </Text>
-      ) : null}
-
-      <Group title={t('eventFlow.responses.groupYes')} people={groups.yes} />
-      <Group title={t('eventFlow.responses.groupMaybe')} people={groups.maybe} />
-      <Group title={t('eventFlow.responses.groupNo')} people={groups.no} />
-      <Group title={t('eventFlow.responses.groupOpen')} people={groups.open} muted />
-    </View>
-  )
-}
-
-function Count({ value, label, strong }: { value: number; label: string; strong?: boolean }) {
-  return (
-    <View style={styles.count} accessible accessibilityLabel={`${value} ${label}`}>
-      <Text variant="title2" color={strong ? 'tint' : 'primary'} tabular>
-        {String(value)}
-      </Text>
-      <Text variant="caption1" color="secondary" numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  )
-}
-
-function Group({ title, people, muted }: { title: string; people: Person[]; muted?: boolean }) {
-  const c = useClubColors()
-  if (people.length === 0) return null
-  return (
-    <View style={styles.group}>
-      <Text variant="footnote" weight="semibold" color="secondary" style={styles.groupTitle}>
-        {`${title} · ${people.length}`}
-      </Text>
-      <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
-        {people.map((person, index) => (
-          <View
-            key={person.userId}
-            style={[
-              styles.row,
-              index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
-            ]}
-            accessible
-            accessibilityLabel={[person.name, person.detail].filter(Boolean).join(', ')}
-          >
-            <Avatar size="sm" src={person.avatarUrl} fallbackText={person.name} />
-            <View style={styles.rowText}>
-              <Text variant="body" color={muted ? 'secondary' : 'primary'} numberOfLines={1}>
-                {person.name}
-              </Text>
-              {person.detail ? (
-                <Text variant="footnote" color="secondary" numberOfLines={2}>
-                  {person.detail}
+      ) : (
+        <SectionGroup>
+          {people.map((person) => {
+            const status = statusLabel(person)
+            return (
+              <View
+                key={person.userId}
+                style={styles.row}
+                accessible
+                accessibilityLabel={[person.name, status, person.note].filter(Boolean).join(', ')}
+              >
+                <Avatar size={36} src={person.avatarUrl} fallbackText={person.name} tone="neutral" />
+                <View style={styles.rowText}>
+                  <Text
+                    variant="callout"
+                    weight="semibold"
+                    color={person.status === 'OPEN' ? 'secondary' : 'primary'}
+                    numberOfLines={1}
+                  >
+                    {person.name}
+                  </Text>
+                  {person.note ? (
+                    <Text variant="footnote" color="secondary" numberOfLines={2}>
+                      {person.note}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text
+                  variant="footnote"
+                  weight="semibold"
+                  numberOfLines={1}
+                  color={
+                    person.status === 'YES'
+                      ? c.primary
+                      : person.status === 'OPEN'
+                        ? c.textSecondary
+                        : c.textPrimary
+                  }
+                  style={styles.status}
+                >
+                  {status}
                 </Text>
-              ) : null}
-            </View>
-          </View>
-        ))}
-      </View>
+              </View>
+            )
+          })}
+        </SectionGroup>
+      )}
+
+      {canManage && onOpenAttendance ? (
+        <Button
+          label={t('eventFlow.responses.attendance')}
+          variant="bordered"
+          size="lg"
+          fullWidth
+          onPress={onOpenAttendance}
+          testID="event-open-attendance"
+        />
+      ) : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.md },
-  summary: {
-    padding: space.md,
-    gap: space.md,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-  },
-  counts: { flexDirection: 'row', justifyContent: 'space-between' },
-  count: { flex: 1, gap: SPACING_XXS },
-  bar: {
-    height: 8,
-    borderRadius: radius.full,
-    overflow: 'hidden',
+  root: { gap: SPACING_MD },
+  head: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: SPACING_SM,
+    minHeight: 44,
   },
-  emptyText: { paddingHorizontal: space.xs },
-  group: { gap: space.xs },
-  groupTitle: { paddingHorizontal: space.xs, textTransform: 'uppercase', letterSpacing: 0.6 },
-  list: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
+  headline: { flexShrink: 1 },
+  remind: { minHeight: 44, justifyContent: 'center' },
+  pressed: { opacity: 0.6 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + space.xs,
-    minHeight: 52,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    gap: SPACING_MD + 2,
+    minHeight: 54,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_SM,
   },
-  rowText: { flex: 1, minWidth: 0 },
+  rowText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  status: { maxWidth: '45%', textAlign: 'right' },
 })

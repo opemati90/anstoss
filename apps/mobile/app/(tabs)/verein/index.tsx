@@ -29,7 +29,17 @@ import {
   clubCountsLabel,
   formatMoney,
 } from '../../../src/components/admin/adminFormat'
-import { hairline, RADIUS_CARD, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import {
+  hairline,
+  RADIUS_CARD,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_XL,
+  SPACING_XXS,
+  SPACING_XXXL,
+  TAB_BAR_CLEARANCE,
+} from '../../../src/theme/tokens'
 
 /**
  * Verein — the club admin's workspace (OWNER / ADMIN only). An iOS
@@ -147,18 +157,21 @@ export default function VereinScreen() {
         testID="verein-tab"
       >
         {/* Club identity card */}
-        <View style={[styles.headerCard, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+        <Text variant="title1" weight="bold" color="primary" accessibilityRole="header" style={styles.h1}>
+          {t('verein.tabTitle')}
+        </Text>
+        <View style={[styles.headerCard, { backgroundColor: c.surface }]}>
           {club.badgeUrl ? (
             <Image source={{ uri: club.badgeUrl }} style={[styles.crest, { borderColor: c.borderSubtle }]} />
           ) : (
             <View style={[styles.crest, styles.crestFallback, { backgroundColor: c.primary }]}>
-              <Text variant="title3" weight="bold" color="inverse">
+              <Text variant="title3" weight="bold" style={{ color: c.onPrimary }}>
                 {getInitials(club.name)}
               </Text>
             </View>
           )}
           <View style={styles.headerText}>
-            <Text variant="title3" weight="bold" color="primary" numberOfLines={2}>
+            <Text variant="body" weight="bold" color="primary" numberOfLines={2}>
               {club.name}
             </Text>
             <Text variant="subheadline" color="secondary" numberOfLines={1}>
@@ -420,23 +433,24 @@ function AttentionBadge({ value }: { value: number }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    paddingBottom: TAB_BAR_CLEARANCE + space.xl,
-    gap: space.md,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_LG,
+    paddingBottom: TAB_BAR_CLEARANCE + SPACING_XXXL,
+    gap: SPACING_XL,
   },
+  h1: { fontSize: 30, lineHeight: 33 },
   headerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    padding: space.md,
+    gap: SPACING_MD,
+    paddingVertical: SPACING_MD,
+    paddingHorizontal: SPACING_LG,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   crest: {
-    width: 64,
-    height: 64,
+    width: 48,
+    height: 48,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     borderWidth: hairline,
@@ -446,5 +460,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 0,
   },
-  headerText: { flex: 1, minWidth: 0, gap: space['2xs'] },
+  headerText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
 })

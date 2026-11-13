@@ -300,10 +300,9 @@ describe('CreateEventScreen', () => {
     await screen.findByText('New event')
 
     // Section labels give the form its hierarchy.
-    expect(screen.getByText('eventFlow.create.sectionWhen')).toBeTruthy()
-    expect(screen.getByText('eventFlow.create.sectionRepeat')).toBeTruthy()
-    expect(screen.getByText('eventFlow.create.sectionWhere')).toBeTruthy()
-    expect(screen.getByText('eventFlow.create.sectionDetails')).toBeTruthy()
+    // Redesign (design 11): one group for when/where, no section headers.
+    expect(screen.getByTestId('event-time-row')).toBeTruthy()
+    expect(screen.getByTestId('event-location-input')).toBeTruthy()
 
     fireEvent.press(screen.getByTestId('event-duration-row'))
     fireEvent.press(screen.getByTestId('event-duration-60'))
