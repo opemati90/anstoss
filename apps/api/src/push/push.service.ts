@@ -7,6 +7,8 @@ import { formatPush, type NotificationType, type TemplateData } from './push.tem
 // Privacy/safeguarding: recipients who fail the age gate for the push's club
 // (e.g. consent withdrawn) are skipped.
 import { AgeGateService } from '../auth/age-gate.service'
+import { InboxService } from '../inbox/inbox.service'
+import { isInboxWorthy, type InboxRenderedType } from '../inbox/inbox.policy'
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
@@ -51,6 +53,7 @@ export class PushService {
     @Inject('NotificationsService')
     private readonly notificationsService?: NotificationChecker,
     @Optional() private readonly ageGate?: AgeGateService,
+    @Optional() private readonly inbox?: InboxService,
   ) {}
 
   /**
@@ -158,6 +161,36 @@ export class PushService {
   }
 
   /**
+   * Inbox recipients for a team fan-out: active members minus the sender,
+   * filtered by the privacy age gate only. Mutes and quiet hours silence the
+   * push, not the inbox record.
+   */
+  private async resolveTeamInboxRecipientIds(
+    teamId: string,
+    excludeUserId?: string,
+    clubId?: string,
+  ): Promise<string[]> {
+    const teamMembers = await this.prisma.teamAccess.findMany({
+      where: { teamId, ...activeTeamAccessWhere() },
+      select: { userId: true, clubId: true },
+    })
+    let userIds = Array.from(
+      new Set(
+        teamMembers
+          .map((m: (typeof teamMembers)[number]) => m.userId)
+          .filter((id: string) => id !== excludeUserId),
+      ),
+    )
+    if (this.ageGate && userIds.length > 0) {
+      userIds = await this.ageGate.filterAllowedUserIds(userIds, {
+        clubId: clubId ?? teamMembers[0]?.clubId ?? null,
+        teamId,
+      })
+    }
+    return userIds
+  }
+
+  /**
    * Group a team's deliverable recipients' push tokens by resolved locale, so
    * each locale batch can be sent with its own copy. German fallback.
    */
@@ -196,6 +229,17 @@ export class PushService {
     excludeUserId?: string,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    if (this.inbox && isInboxWorthy(type, templateData)) {
+      const inboxUserIds = await this.resolveTeamInboxRecipientIds(teamId, excludeUserId, options?.clubId)
+      await this.inbox.record(inboxUserIds, {
+        kind: 'template',
+        type,
+        data: templateData,
+        target: payload,
+        clubId: options?.clubId ?? payload?.clubId ?? null,
+        teamId,
+      })
+    }
     const byLocale = await this.groupTeamTokensByLocale(teamId, excludeUserId, options)
     for (const [locale, groupTokens] of byLocale) {
       const { title, body } = formatPush(type, templateData, locale)
@@ -213,8 +257,24 @@ export class PushService {
     render: (locale: Locale) => { title: string; body: string },
     payload?: Record<string, string>,
     excludeUserId?: string,
-    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+    options?: {
+      clubId?: string
+      category?: 'chat' | 'events' | 'announcements'
+      /** Also store this push in each recipient's inbox under this type. */
+      inboxType?: InboxRenderedType
+    },
   ) {
+    if (this.inbox && options?.inboxType) {
+      const inboxUserIds = await this.resolveTeamInboxRecipientIds(teamId, excludeUserId, options.clubId)
+      await this.inbox.record(inboxUserIds, {
+        kind: 'rendered',
+        type: options.inboxType,
+        render,
+        target: payload,
+        clubId: options.clubId ?? payload?.clubId ?? null,
+        teamId,
+      })
+    }
     const byLocale = await this.groupTeamTokensByLocale(teamId, excludeUserId, options)
     for (const [locale, groupTokens] of byLocale) {
       const { title, body } = render(locale)
@@ -233,6 +293,26 @@ export class PushService {
     payload?: Record<string, string>,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    if (this.inbox && isInboxWorthy(type, templateData)) {
+      // The inbox keeps the entry even when the push itself is held back by a
+      // mute or quiet hours; only the privacy age gate stops it.
+      const allowed = this.ageGate
+        ? await this.ageGate.isAllowed(userId, {
+            clubId: options?.clubId ?? payload?.clubId ?? null,
+            teamId: payload?.teamId ?? null,
+          })
+        : true
+      if (allowed) {
+        await this.inbox.record([userId], {
+          kind: 'template',
+          type,
+          data: templateData,
+          target: payload,
+          clubId: options?.clubId ?? payload?.clubId ?? null,
+          teamId: payload?.teamId ?? null,
+        })
+      }
+    }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { preferredLanguage: true },

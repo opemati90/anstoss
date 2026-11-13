@@ -4,9 +4,10 @@ import { PushService } from './push.service'
 import { PrismaModule } from '../prisma/prisma.module'
 import { NotificationsModule } from '../notifications/notifications.module'
 import { NotificationsService } from '../notifications/notifications.service'
+import { InboxModule } from '../inbox/inbox.module'
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => NotificationsModule)],
+  imports: [PrismaModule, InboxModule, forwardRef(() => NotificationsModule)],
   controllers: [PushController],
   providers: [
     PushService,

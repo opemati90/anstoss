@@ -678,7 +678,7 @@ export class EventsService {
         url: `anstoss:///event-detail?eventId=${event.id}`,
       },
       ctx.excludeUserId,
-      { clubId: ctx.clubId, category: 'events' },
+      { clubId: ctx.clubId, category: 'events', inboxType: type },
     )
   }
 

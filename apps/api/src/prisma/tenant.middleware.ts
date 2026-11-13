@@ -79,6 +79,9 @@ export const TENANT_SCOPED_MODELS = new Set([
   'ComplianceRecord',
   // club-admin review fixes: 24h compliance reminder cooldown
   'ComplianceReminder',
+  // 2026-11 redesign: coach-recorded live match state and events.
+  'MatchLive',
+  'MatchLiveEvent',
 ])
 
 /**
@@ -125,6 +128,9 @@ export const TENANT_UNSCOPED_MODELS = new Set([
   // platform console and is intentionally queried across clubs.
   'EntitlementGrant',
   'ClubPlanCompliance',
+  // Per-user notifications inbox: written from push fan-outs (often with no
+  // request club context) and always read/updated by explicit userId.
+  'InboxNotification',
 ])
 
 export const READ_ACTIONS = new Set([

@@ -172,3 +172,27 @@ export class ManagedSubProfileSlotUnavailableError extends AppError {
     super('Roster slot not available')
   }
 }
+
+/** Live match clock moved in an order that does not exist (e.g. half time before kick-off). */
+export class MatchLiveTransitionError extends AppError {
+  readonly code = 'MATCH_LIVE_TRANSITION'
+  readonly httpStatus = 409
+  readonly isOperational = true
+  readonly userMessage = 'The match is not in a state that allows this step.'
+
+  constructor(from: string, to: string) {
+    super(`Cannot move live match from ${from} to ${to}`)
+  }
+}
+
+/** Live tracking was requested for an event that is not a match, or not yet started. */
+export class MatchLiveUnavailableError extends AppError {
+  readonly code = 'MATCH_LIVE_UNAVAILABLE'
+  readonly httpStatus = 400
+  readonly isOperational = true
+  readonly userMessage = 'Live tracking is only available for a match that has kicked off.'
+
+  constructor(reason: string) {
+    super(reason)
+  }
+}

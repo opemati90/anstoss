@@ -1481,7 +1481,11 @@ export class FussballService {
           {
             type: 'fixture-sync',
             fixtureId: updated.id,
+            clubId: updated.clubId,
+            teamId: updated.teamId,
           },
+          undefined,
+          { clubId: updated.clubId, inboxType: 'FIXTURE_CHANGED' },
         )
       }
 
@@ -1743,7 +1747,7 @@ export class FussballService {
         url: `anstoss:///event-detail?eventId=${event.id}`,
       },
       undefined,
-      { clubId: event.clubId, category: 'events' },
+      { clubId: event.clubId, category: 'events', inboxType: 'EVENT_UPDATED' },
     )
   }
 

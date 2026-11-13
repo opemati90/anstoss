@@ -22,3 +22,13 @@ export const upsertNotificationPreferenceSchema = z.object({
 export type UpsertNotificationPreference = z.infer<
   typeof upsertNotificationPreferenceSchema
 >
+
+// ── Notifications inbox (2026-11 redesign, screen 09 Mitteilungen) ──────────
+
+export const notificationInboxQuerySchema = z.object({
+  /** Opaque cursor from the previous page's `nextCursor`. */
+  cursor: z.string().min(1).max(64).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
+})
+
+export type NotificationInboxQuery = z.infer<typeof notificationInboxQuerySchema>

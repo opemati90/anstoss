@@ -60,6 +60,7 @@ model User {
   events                         Event[]                   @relation("EventCreator")
   pushTokens                     PushToken[]
   notificationPreferences        NotificationPreference[]
+  inboxNotifications             InboxNotification[]
   joinRequests                   JoinRequest[]
   freeAgentProfile               FreeAgentProfile?
   sentTrialInvites               TrialInvite[]             @relation("TrialInviteSender")
@@ -186,6 +187,8 @@ model Club {
   // club-admin revamp: compliance records
   complianceRecords       ComplianceRecord[]
   complianceReminders     ComplianceReminder[]
+  matchLives              MatchLive[]
+  matchLiveEvents         MatchLiveEvent[]
 
   @@index([slug])
   @@index([city])
@@ -860,6 +863,8 @@ model Event {
   series              EventSeries?              @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   fixture             ImportedFixture?          @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
   carpoolRides        CarpoolRide[]
+  matchLive           MatchLive?
+  matchLiveEvents     MatchLiveEvent[]
 
   @@index([clubId])
   @@index([teamId])
@@ -2448,4 +2453,94 @@ model OtpCode {
   createdAt  DateTime  @default(now())
 
   @@index([email])
+}
+
+// ── Notifications inbox (2026-11 redesign, screen 09) ──────────────────────
+// One row per recipient for every inbox-worthy push (events, join requests,
+// dues, trials, consent, moderation…). Chat traffic is excluded — chat has its
+// own unread counts. Template pushes store `type` + `data` and are rendered in
+// the reader's current language on read; computed pushes store the rendered
+// `title`/`body` in the recipient's language at write time.
+// Per-user, so not tenant-scoped (see TENANT_UNSCOPED_MODELS); always queried
+// by userId.
+model InboxNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  clubId    String?
+  teamId    String?
+  type      String
+  data      Json?
+  title     String?
+  body      String?
+  target    Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+// ── Coach-recorded live match (2026-11 redesign, screen 14) ────────────────
+enum MatchLiveStatus {
+  NOT_STARTED
+  FIRST_HALF
+  HALF_TIME
+  SECOND_HALF
+  FINISHED
+}
+
+enum MatchLiveEventKind {
+  GOAL
+  CONCEDED
+  YELLOW
+  RED
+  SUB
+}
+
+/// Running state of a MATCH event, tracked by its coach. Score is from the
+/// team's point of view; the event's homeAway maps it onto home/away.
+model MatchLive {
+  eventId      String          @id
+  clubId       String
+  teamId       String
+  status       MatchLiveStatus @default(NOT_STARTED)
+  goalsFor     Int             @default(0)
+  goalsAgainst Int             @default(0)
+  kickoffAt    DateTime?
+  halfTimeAt   DateTime?
+  secondHalfAt DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+}
+
+/// One recorded moment (goal, card, substitution). Soft-deleted on undo so the
+/// score can be recomputed and the audit trail kept.
+model MatchLiveEvent {
+  id            String             @id @default(cuid())
+  clubId        String
+  eventId       String
+  kind          MatchLiveEventKind
+  minute        Int
+  playerUserId  String?
+  playerName    String?
+  relatedUserId String?
+  relatedName   String?
+  createdById   String
+  createdAt     DateTime           @default(now())
+  deletedAt     DateTime?
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, deletedAt, minute])
+  @@index([clubId])
 }

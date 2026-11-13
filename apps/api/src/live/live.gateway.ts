@@ -16,13 +16,16 @@ import { PrismaService } from '../prisma/prisma.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
 import { OnEvent } from '@nestjs/event-emitter'
+import type { MatchLiveStateDto } from '@anstoss/shared'
 
 /**
  * Socket.io gateway for live match streaming.
  *
- * Room model: `live:{fixtureId}`
+ * Room model: `live:{fixtureId}` (fussball.de feed) and
+ * `live-event:{eventId}` (coach-recorded match, see MatchLiveService).
  * Events:
- *   client → 'live:join' { fixtureId }
+ *   client → 'live:join' { fixtureId } | { eventId }
+ *   client ← 'live:match' MatchLiveStateDto (coach-recorded match, every change)
  *   client ← 'live:state' { score, minute, status }
  *   client ← 'live:event' { kind, minute, player, side, detail? }
  *   client ← 'live:final' { resultHome, resultAway }
@@ -103,9 +106,28 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
   }
 
   @SubscribeMessage('live:join')
-  async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() data: { fixtureId: string }) {
+  async handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { fixtureId?: string; eventId?: string },
+  ) {
     const userId = client.data.userId as string | undefined
     if (!userId) return { event: 'error', data: { message: 'Unauthorized' } }
+
+    // Coach-recorded match: join the event room; the client loads the state
+    // over REST (GET …/events/:eventId/live) and receives 'live:match' updates.
+    if (data?.eventId) {
+      const event = await this.prisma.event.findFirst({
+        where: { id: data.eventId },
+        select: { id: true, teamId: true, type: true },
+      })
+      if (!event || event.type !== 'MATCH') {
+        return { event: 'error', data: { message: 'Match not found' } }
+      }
+      await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
+      await client.join(`live-event:${event.id}`)
+      return { event: 'live:joined', data: { eventId: event.id } }
+    }
+    if (!data?.fixtureId) return { event: 'error', data: { message: 'Fixture not found' } }
 
     const fixture = await this.prisma.importedFixture.findUnique({
       where: { id: data.fixtureId },
@@ -148,5 +170,11 @@ export class LiveGateway implements OnGatewayConnection, OnGatewayInit {
     this.server
       .to(`live:${fixtureId}`)
       .emit(event.kind === 'state' ? 'live:state' : 'live:event', event)
+  }
+
+  /** Broadcast a coach-recorded match state to everyone watching the event. */
+  broadcastMatchState(eventId: string, state: MatchLiveStateDto) {
+    if (!this.server) return
+    this.server.to(`live-event:${eventId}`).emit('live:match', state)
   }
 }

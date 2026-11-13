@@ -32,3 +32,26 @@ export type PushNotificationKind =
   | 'MATCH_STARTING'
   | 'GOAL_SCORED'
   | 'MATCH_FINAL'
+
+/**
+ * One entry in the user's notifications inbox. `title`/`body` are rendered in
+ * the reader's current language when the entry was stored as a push template.
+ * `target` is the same deep-link payload the push carried (screen, ids).
+ */
+export interface InboxNotification {
+  id: string
+  type: string
+  title: string
+  body: string
+  clubId: string | null
+  teamId: string | null
+  target: Record<string, string> | null
+  createdAt: string
+  readAt: string | null
+}
+
+export interface InboxNotificationPage {
+  items: InboxNotification[]
+  nextCursor: string | null
+  unreadCount: number
+}

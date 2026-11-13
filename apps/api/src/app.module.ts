@@ -24,6 +24,7 @@ import { AuditModule } from './audit/audit.module'
 import { TeamsModule } from './teams/teams.module'
 import { IntegrationsModule } from './integrations/integrations.module'
 import { NotificationsModule } from './notifications/notifications.module'
+import { InboxModule } from './inbox/inbox.module'
 import { ConsentModule } from './consent/consent.module'
 import { MarketplaceModule } from './marketplace/marketplace.module'
 import { StreaksModule } from './streaks/streaks.module'
@@ -70,6 +71,7 @@ import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
     TeamsModule,
     IntegrationsModule,
     NotificationsModule,
+    InboxModule,
     ConsentModule,
     MarketplaceModule,
     StreaksModule,
