@@ -779,6 +779,25 @@ export const PUSH_TEMPLATES = {
       ),
     channelId: 'events',
   } satisfies Template<{ clubName: string; count: number }>,
+
+  // Vorschau und Vertretung: a board member started acting as the team's
+  // coach. Sent to the team's head coach(es); `minutes` is the session length.
+  ACTING_SESSION_STARTED: {
+    title: (d: { teamName: string }) => d.teamName,
+    body: (d: { actorName: string; teamName: string; minutes: number }, l) =>
+      L(
+        {
+          de: `${d.actorName} vertritt dich ${d.minutes} Min als Trainer. Alles wird protokolliert.`,
+          en: `${d.actorName} is standing in for you as coach for ${d.minutes} min. Everything is logged.`,
+          fr: `${d.actorName} te remplace comme entraîneur pendant ${d.minutes} min. Tout est enregistré.`,
+          it: `${d.actorName} ti sostituisce come allenatore per ${d.minutes} min. Tutto viene registrato.`,
+          pt: `${d.actorName} substitui-te como treinador durante ${d.minutes} min. Tudo fica registado.`,
+          tr: `${d.actorName} ${d.minutes} dk boyunca antrenör olarak senin yerine bakıyor. Her şey kaydediliyor.`,
+        },
+        l,
+      ),
+    channelId: 'events',
+  } satisfies Template<{ actorName: string; teamName: string; minutes: number }>,
 } as const
 
 export type NotificationType = keyof typeof PUSH_TEMPLATES

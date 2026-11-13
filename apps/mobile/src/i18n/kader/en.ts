@@ -11,6 +11,7 @@ export const kaderEn = {
   filterEmpty: 'Nobody has this status right now.',
   showAll: 'Show everyone',
   summary: {
+    requests: "Requests {{n}}",
     fit: '{{count}} fit',
     fit_one: '{{count}} fit',
     fit_other: '{{count}} fit',
@@ -62,6 +63,7 @@ export const kaderEn = {
     assistantCoach: 'Assistant coach',
   },
   row: {
+    attendance: "{{count}} of {{total}} trainings",
     you: 'You',
     new: 'New',
     inactive: 'Inactive',
@@ -108,6 +110,9 @@ export const kaderEn = {
     title_other: 'Inactive and trials ({{count}})',
   },
   tools: {
+    exchangeHint: "Transfer board and trial sessions",
+    parentsHint: "Who answers for which child",
+    injuryHint: "Log an absence, plan the return",
     title: 'Team',
     duties: 'Duties',
     dutiesHint: 'Kit washing, changing-room duty, bibs',

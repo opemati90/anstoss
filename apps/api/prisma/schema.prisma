@@ -105,6 +105,7 @@ model User {
   complianceRecords              ComplianceRecord[]        @relation("ComplianceRecordMember")
   complianceRecordsCreated       ComplianceRecord[]        @relation("ComplianceRecordCreator")
   complianceReminders            ComplianceReminder[]      @relation("ComplianceReminderMember")
+  actingSessions                 ActingSession[]           @relation("ActingSessionActor")
 
   @@index([clerkId])
   @@index([email])
@@ -188,6 +189,7 @@ model Club {
   complianceRecords       ComplianceRecord[]
   complianceReminders     ComplianceReminder[]
   matchLives              MatchLive[]
+  actingSessions          ActingSession[]
   matchLiveEvents         MatchLiveEvent[]
 
   @@index([slug])
@@ -641,6 +643,9 @@ model Team {
   rosterSlots       RosterSlot[]
   channels          Channel[]
   eventCheckIns     EventCheckIn[]
+
+  // Vorschau und Vertretung: board members acting as this team's coach.
+  actingSessions ActingSession[]
 
   @@unique([groupId, displayName])
   @@index([clubId])
@@ -2543,4 +2548,34 @@ model MatchLiveEvent {
 
   @@index([eventId, deletedAt, minute])
   @@index([clubId])
+}
+
+// ─── Vorschau und Vertretung (redesign 31/32) ────────────
+
+enum ActingSessionRole {
+  COACH
+}
+
+/// A club board member / admin temporarily acting as a team's coach
+/// ("Trainer vertreten"). While unexpired and not ended, the actor gets
+/// coach-level team permissions (TeamsService.assertEventManagementAccess /
+/// assertManageAccess). Every start/end is audited and the head coaches are
+/// notified.
+model ActingSession {
+  id          String            @id @default(cuid())
+  clubId      String
+  actorUserId String
+  teamId      String
+  role        ActingSessionRole @default(COACH)
+  reason      String?
+  startedAt   DateTime          @default(now())
+  expiresAt   DateTime
+  endedAt     DateTime?
+
+  club  Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  actor User @relation("ActingSessionActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  team  Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([actorUserId, endedAt, expiresAt])
+  @@index([clubId, teamId])
 }

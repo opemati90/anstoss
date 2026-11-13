@@ -29,7 +29,7 @@ jest.mock('../../src/context/ClubThemeContext', () => {
   return { useClubColors: () => FALLBACK_THEME, useIsDark: () => false }
 })
 
-import NotificationsScreen from '../notifications'
+import NotificationsScreen, { inboxSentence } from '../notifications'
 
 const now = new Date().toISOString()
 
@@ -61,6 +61,21 @@ const fixtureChange = {
   readAt: null,
 }
 
+describe('inboxSentence', () => {
+  it('leads people rows with the actor and reads system rows as "Titel: Text."', () => {
+    expect(
+      inboxSentence({ title: 'Neue Beitrittsanfrage', body: 'Paul Krüger möchte SV beitreten', target: { actorName: 'Paul Krüger' } }),
+    ).toEqual({ actor: 'Paul Krüger', rest: ' möchte SV beitreten.' })
+    expect(
+      inboxSentence({ title: 'Mert Yılmaz hat geantwortet', body: 'Absage · Training', target: { actorName: 'Mert Yılmaz' } }),
+    ).toEqual({ actor: 'Mert Yılmaz', rest: ' hat geantwortet: Absage · Training.' })
+    expect(inboxSentence({ title: 'Umfrage beendet', body: 'Mannschaftsabend', target: null })).toEqual({
+      actor: null,
+      rest: 'Umfrage beendet: Mannschaftsabend.',
+    })
+  })
+})
+
 describe('Notifications inbox screen', () => {
   beforeEach(() => {
     mockApi.mockReset()
@@ -72,7 +87,7 @@ describe('Notifications inbox screen', () => {
     mockApi.mockResolvedValueOnce(page([fixtureChange]))
     const screen = render(<NotificationsScreen />)
     expect(await screen.findByText('notificationsInbox.today')).toBeTruthy()
-    expect(screen.getByText('Spielplan aktualisiert')).toBeTruthy()
+    expect(screen.getByText('Spielplan aktualisiert: Anstoß verschoben auf 15:00.')).toBeTruthy()
 
     mockApi.mockResolvedValueOnce(page([], 0))
     const empty = render(<NotificationsScreen />)

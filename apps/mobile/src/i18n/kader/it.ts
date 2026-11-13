@@ -11,6 +11,7 @@ export const kaderIt = {
   filterEmpty: 'Al momento nessuno ha questo stato.',
   showAll: 'Mostra tutti',
   summary: {
+    requests: "Richieste {{n}}",
     fit: '{{count}} disponibili',
     fit_one: '{{count}} disponibile',
     fit_other: '{{count}} disponibili',
@@ -62,6 +63,7 @@ export const kaderIt = {
     assistantCoach: 'Vice allenatore',
   },
   row: {
+    attendance: "{{count}} allenamenti su {{total}}",
     you: 'Tu',
     new: 'Nuovo',
     inactive: 'Inattivo',
@@ -108,6 +110,9 @@ export const kaderIt = {
     title_other: 'Inattivi e provini ({{count}})',
   },
   tools: {
+    exchangeHint: "Bacheca trasferimenti e provini",
+    parentsHint: "Chi risponde per quale figlio",
+    injuryHint: "Registra un’assenza, pianifica il rientro",
     title: 'Squadra',
     duties: 'Compiti',
     dutiesHint: 'Lavaggio divise, spogliatoio, pettorine',

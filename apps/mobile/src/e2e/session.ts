@@ -785,6 +785,31 @@ function createEvents(): EventFeedItem[] {
       homeAway: 'HOME',
       meetingAt: nowIso(-2, 13, 30),
     },
+    // ─── Older trainings (outside the 3-day window) ──────────
+    // Only reachable with type=TRAINING&scope=past: the Kader attendance
+    // bars and the member profile's "Training · letzte 8" read these.
+    ...[4, 6, 8, 11, 13, 15, 18].map((daysAgo, index) => ({
+      id: `event-training-past-${daysAgo}`,
+      teamId: TEAM_ID,
+      clubId: CLUB_ID,
+      title: 'Training',
+      type: 'TRAINING' as const,
+      date: nowIso(-daysAgo, 19, 0),
+      location: 'Sportplatz Am Wald',
+      notes: null,
+      createdById: 'coach-1',
+      createdAt: nowIso(-daysAgo - 5, 9, 0),
+      archivedAt: null,
+      responseCount: 16,
+      yesCount: [14, 12, 15, 13, 14, 11, 15][index],
+      checkInCount: 12,
+      squadSize: 18,
+      maybeCount: 0,
+      noCount: 2,
+      myRsvp: 'YES' as const,
+      ...EVENT_LOGISTICS_DEFAULTS,
+      durationMin: 90,
+    })),
   ]
 }
 
@@ -3505,7 +3530,9 @@ function handleEventFlowRequest(
     archiveCutoff.setDate(archiveCutoff.getDate() - 3)
     let filtered = api.events.filter((event) => {
       const eventDate = new Date(event.date)
-      return scope === 'past' ? eventDate < now && eventDate >= archiveCutoff : eventDate >= now
+      return scope === 'past'
+        ? eventDate < now && (typeFilter === 'TRAINING' || eventDate >= archiveCutoff)
+        : eventDate >= now
     })
     if (typeFilter) filtered = filtered.filter((event) => event.type === typeFilter)
     filtered.sort((a, b) =>

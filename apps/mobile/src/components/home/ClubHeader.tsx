@@ -40,6 +40,7 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
   const insets = useSafeAreaInsets()
   const isDark = useIsDark()
   const {
+    user,
     activeClub,
     activeTeamAccess,
     activeRoleMode,
@@ -70,14 +71,23 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
   const club = activeClub.club
   // Screen 08 header: "Trainer · SV Spreewiese" over "1. Herren ▾". Parents
   // see "SV Spreewiese · Eltern" over their children's teams.
+  // Players (screen 22) are greeted: "SV Spreewiese · 1. Herren" over
+  // "Hi Kofi".
+  const isPlayer = mode === 'PLAYER'
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? ''
+  const greetPlayer = isPlayer && firstName.length > 0
   const overline = isParent
     ? [club.name, roleLabel].filter(Boolean).join(' · ')
-    : [roleLabel, club.name].filter(Boolean).join(' · ')
+    : greetPlayer
+      ? [club.name, teamName].filter(Boolean).join(' · ')
+      : [roleLabel, club.name].filter(Boolean).join(' · ')
   const title = isParent
     ? children.length > 0
       ? formatChildrenSummary(children)
       : club.name
-    : teamName || club.name
+    : greetPlayer
+      ? t('homeHub.header.hi', { defaultValue: 'Hi {{name}}', name: firstName })
+      : teamName || club.name
   const canOpenSheet = canSwitch || hasMultipleClubs
 
   return (

@@ -11,6 +11,7 @@ export const kaderFr = {
   filterEmpty: 'Personne n’a ce statut pour le moment.',
   showAll: 'Tout afficher',
   summary: {
+    requests: "Demandes {{n}}",
     fit: '{{count}} aptes',
     fit_one: '{{count}} apte',
     fit_other: '{{count}} aptes',
@@ -62,6 +63,7 @@ export const kaderFr = {
     assistantCoach: 'Entraîneur adjoint',
   },
   row: {
+    attendance: "{{count}} entraînements sur {{total}}",
     you: 'Toi',
     new: 'Nouveau',
     inactive: 'Inactif',
@@ -113,6 +115,9 @@ export const kaderFr = {
     title_other: 'Inactifs et essais ({{count}})',
   },
   tools: {
+    exchangeHint: "Bourse aux transferts et essais",
+    parentsHint: "Qui répond pour quel enfant",
+    injuryHint: "Saisir une absence, planifier le retour",
     title: 'Équipe',
     duties: 'Tâches',
     dutiesHint: 'Lavage des maillots, vestiaire, chasubles',

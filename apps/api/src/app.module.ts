@@ -42,6 +42,8 @@ import { I18nModule, I18nMiddleware } from './i18n'
 import { ClubActivationModule } from './club-activation/club-activation.module'
 // club-admin revamp: admin inbox + compliance records
 import { AdminInboxModule } from './admin-inbox/admin-inbox.module'
+// Vorschau und Vertretung: stand-in coach sessions
+import { ActingModule } from './acting/acting.module'
 import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
 
 @Module({
@@ -81,6 +83,7 @@ import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
     TranslationModule,
     LiveModule,
     MotmModule,
+    ActingModule,
     MediaModule,
     ModerationModule,
     SponsorsModule,

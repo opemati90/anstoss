@@ -66,6 +66,9 @@ export type AuditEventType =
   | 'admin.feature_flag.removed'
   | 'admin.setting.updated'
   | 'admin.moderation_report.resolved'
+  // Vorschau und Vertretung: a board member acting as a team's coach
+  | 'acting_session.started'
+  | 'acting_session.ended'
 
 export type AssetKind = 'club_badge' | 'splash_image' | 'sponsor_logo' | 'player_avatar'
 

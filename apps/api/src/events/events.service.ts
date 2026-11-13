@@ -676,6 +676,8 @@ export class EventsService {
         eventId: event.id,
         clubId: ctx.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
+        // Inbox rows lead with the person's name (avatar + bold name).
+        actorName: responder?.name ?? '',
       },
       ctx.excludeUserId,
       { clubId: ctx.clubId, category: 'events', inboxType: type },

@@ -7,14 +7,11 @@ import type { RosterOpsSnapshot } from '@anstoss/shared'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
 import { api } from '../../../src/api/client'
-import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
   Badge,
-  BottomSheet,
   Button,
   FilterChipRow,
   Icon,
-  IconButton,
   ListRow,
   SearchBar,
   SectionGroup,
@@ -40,10 +37,10 @@ import { PlayerEditSheet } from '../../../src/components/squad/PlayerEditSheet'
 import { InjurySheet } from '../../../src/components/squad/InjurySheet'
 import { MEDIC_FEATURE_ENABLED } from '../../../src/components/squad/medicFeature'
 import { useIsTeamCoach } from '../../../src/components/squad/useIsTeamCoach'
+import { attendanceFor, useTrainingAttendance } from '../../../src/components/squad/useTrainingAttendance'
 import { RequestsSheet } from '../../../src/components/squad/RequestsSheet'
 import { SelfStatusSheet } from '../../../src/components/squad/SelfStatusSheet'
-import { SheetHeader } from '../../../src/components/squad/SheetHeader'
-import { formatWeekdayDay, lineLabel, messageBlockedLabel } from '../../../src/components/squad/format'
+import { lineLabel, messageBlockedLabel } from '../../../src/components/squad/format'
 import {
   buildKader,
   canMessageMember,
@@ -69,6 +66,9 @@ type NextEvent = { id: string; title: string; date: string; byUser: Record<strin
 
 type Section = { key: KaderSectionKey | 'OFF_SQUAD'; data: KaderMember[] }
 
+/** The design's four attendance bars: the last four trainings. */
+const ROW_TRAININGS = 4
+
 const SUMMARY_ORDER: AvailabilityKind[] = ['FIT', 'INJURED', 'SUSPENDED', 'UNAVAILABLE', 'AWAY']
 
 /**
@@ -82,8 +82,7 @@ const SUMMARY_ORDER: AvailabilityKind[] = ['FIT', 'INJURED', 'SUSPENDED', 'UNAVA
 export default function KaderScreen() {
   const { t } = useTranslation()
   const c = useClubColors()
-  const locale = getAppLocale(getAppLanguage())
-  const { user, activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  const { user, activeClub, activeTeamId } = useAuth()
   const clubId = activeClub?.club.id ?? null
   const userId = user?.id ?? null
 
@@ -95,13 +94,13 @@ export default function KaderScreen() {
   const [filter, setFilter] = useState<KaderFilter>('ALL')
   const [query, setQuery] = useState('')
   const [offSquadOpen, setOffSquadOpen] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState<KaderMember | null>(null)
   const [injuryOpen, setInjuryOpen] = useState(false)
   const [requestsOpen, setRequestsOpen] = useState(false)
   const [selfOpen, setSelfOpen] = useState(false)
 
   const isCoach = useIsTeamCoach()
+  const { attendance, reload: reloadAttendance } = useTrainingAttendance(clubId, activeTeamId, ROW_TRAININGS)
   // Ignore responses for a team the user has already switched away from.
   const teamRef = useRef(activeTeamId)
   teamRef.current = activeTeamId
@@ -188,6 +187,7 @@ export default function KaderScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true)
+    reloadAttendance()
     try {
       await Promise.all([fetchSnapshot(), fetchNextEvent()])
     } finally {
@@ -228,7 +228,6 @@ export default function KaderScreen() {
     return grouped
   }, [model, filter, isCoach, offSquadOpen, matches, needle])
 
-  const teamName = activeTeamAccess?.team?.displayName || snapshot?.team.displayName || ''
   const dutyBadge = pendingDutyCount(snapshot, userId, isCoach)
 
   const openMember = (member: KaderMember) => {
@@ -284,33 +283,18 @@ export default function KaderScreen() {
   const header = (
     <View style={styles.headerBlock}>
       <View style={styles.titleRow}>
-        <View style={styles.flex}>
-          <Text variant="largeTitle" color="primary" accessibilityRole="header">
-            {t('kader.title')}
-          </Text>
-          {model || teamName ? (
-            <Text variant="subheadline" weight="regular" color="secondary">
-              {model ? t('kader.subtitle', { team: teamName, count: model.squadCount }) : teamName}
-            </Text>
-          ) : null}
-        </View>
+        <Text variant="largeTitle" color="primary" accessibilityRole="header" style={styles.flex}>
+          {t('kader.title')}
+        </Text>
         {isCoach ? (
-          <View style={styles.headerActions}>
-            <Button
-              label={t('kader.invite', { defaultValue: 'Invite' })}
-              size="sm"
-              leftIcon={<Icon name="plus" size={16} color={c.onInk} />}
-              onPress={() => router.push('/invite')}
-              testID="kader-invite"
-            />
-            <IconButton
-              variant="outlined"
-              accessibilityLabel={t('kader.menu.a11y')}
-              onPress={() => setMenuOpen(true)}
-            >
-              <Icon name="ellipsis" size="md" color={c.textPrimary} />
-            </IconButton>
-          </View>
+          <Button
+            label={t('kader.invite', { defaultValue: 'Invite' })}
+            size="sm"
+            leftIcon={<Icon name="plus" size={16} color={c.onInk} />}
+            onPress={() => router.push('/invite')}
+            style={styles.inviteButton}
+            testID="kader-invite"
+          />
         ) : null}
       </View>
 
@@ -331,6 +315,8 @@ export default function KaderScreen() {
             counts={model.counts}
             total={model.players.length}
             filter={filter}
+            requests={isCoach ? model.openRequests : 0}
+            onRequests={() => setRequestsOpen(true)}
             onFilter={(kind) => setFilter((prev) => (kind === 'ALL' || prev === kind ? 'ALL' : kind))}
           />
         </>
@@ -347,38 +333,18 @@ export default function KaderScreen() {
         />
       ) : null}
 
-      {isCoach && model && model.openRequests > 0 ? (
-        <View style={[styles.bannerCard, { backgroundColor: c.surface }]}>
-          <ListRow
-            compact
-            title={t('kader.requestsBanner', { count: model.openRequests })}
-            left={<SoftIcon name="person.badge.plus" size={28} />}
-            showChevron
-            onPress={() => setRequestsOpen(true)}
-            testID="kader-requests-banner"
-          />
-        </View>
-      ) : null}
-
-      {nextEvent && model && model.players.length > 0 ? (
-        <View style={styles.legend}>
-          <Icon name="checkmark.circle.fill" size={14} color="success" />
-          <Text variant="footnote" color="secondary" numberOfLines={2} style={styles.legendText}>
-            {t('kader.rsvpLegend', {
-              title: nextEvent.title,
-              date: formatWeekdayDay(nextEvent.date, locale),
-            })}
-          </Text>
-        </View>
-      ) : null}
-
       {model?.selfPlayer && showSelfPin(model, filter) && !needle ? (
         <View style={styles.selfBlock}>
           <Text variant="label" color="secondary" style={styles.sectionTitle}>
             {t('kader.self.section')}
           </Text>
           <View>
-            <KaderRow member={model.selfPlayer} isFirst isLast={false} />
+            <KaderRow
+              member={model.selfPlayer}
+              isFirst
+              isLast={false}
+              attendance={attendanceFor(attendance, model.selfPlayer.userId, ROW_TRAININGS)}
+            />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('kader.self.change')}
@@ -429,6 +395,34 @@ export default function KaderScreen() {
           onPress={() => router.push('/team-stats')}
           testID="kader-tool-stats"
         />
+        {isCoach ? (
+          <ToolRow
+            icon="arrow.left.arrow.right"
+            title={t('kader.menu.requests')}
+            subtitle={t('kader.tools.exchangeHint')}
+            count={model.trials.filter((m) => m.phase === 'TRIAL').length}
+            onPress={() => router.push('/wechselboerse' as never)}
+            testID="kader-menu-requests"
+          />
+        ) : null}
+        {isCoach ? (
+          <ToolRow
+            icon="figure.and.child.holdinghands"
+            title={t('kader.menu.parents')}
+            subtitle={t('kader.tools.parentsHint')}
+            onPress={() => router.push('/team-families')}
+            testID="kader-menu-parents"
+          />
+        ) : null}
+        {isCoach && MEDIC_FEATURE_ENABLED ? (
+          <ToolRow
+            icon="heart"
+            title={t('kader.menu.injury')}
+            subtitle={t('kader.tools.injuryHint')}
+            onPress={() => setInjuryOpen(true)}
+            testID="kader-menu-injury"
+          />
+        ) : null}
       </SectionGroup>
     </View>
   ) : null
@@ -530,6 +524,7 @@ export default function KaderScreen() {
             isLast={index === section.data.length - 1}
             onPress={rowPress(item)}
             actionHint={rowHint(item)}
+            attendance={attendanceFor(attendance, item.userId, ROW_TRAININGS)}
             testID={`kader-row-${item.userId}`}
           />
         )}
@@ -579,12 +574,6 @@ export default function KaderScreen() {
             onClose={() => setSelfOpen(false)}
             onSaved={reload}
           />
-          <CoachMenuSheet
-            visible={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            openRequests={model?.trials.filter((m) => m.phase === 'TRIAL').length ?? 0}
-            onInjury={() => setInjuryOpen(true)}
-          />
         </>
       ) : null}
     </View>
@@ -599,15 +588,21 @@ function SummaryLine({
   counts,
   total,
   filter,
+  requests,
+  onRequests,
   onFilter,
 }: {
   counts: Record<AvailabilityKind, number>
   total: number
   filter: KaderFilter
+  /** Trials + coach requests: a last chip that opens the requests sheet. */
+  requests: number
+  onRequests: () => void
   onFilter: (kind: KaderFilter) => void
 }) {
   const { t } = useTranslation()
   const parts = SUMMARY_ORDER.filter((kind) => kind === 'FIT' || counts[kind] > 0)
+  const REQUESTS = 'REQUESTS' as KaderFilter
   const labelKey: Record<AvailabilityKind, string> = {
     FIT: 'kader.summary.fit',
     INJURED: 'kader.summary.injured',
@@ -626,12 +621,15 @@ function SummaryLine({
       label: t(labelKey[kind], { count: counts[kind] }),
       testID: `kader-summary-${kind}`,
     })),
+    ...(requests > 0
+      ? [{ key: REQUESTS, label: t('kader.summary.requests', { n: requests }), testID: 'kader-requests-banner' }]
+      : []),
   ]
   return (
     <FilterChipRow<KaderFilter>
       chips={chips}
       selected={filter}
-      onToggle={onFilter}
+      onToggle={(key) => (key === REQUESTS ? onRequests() : onFilter(key))}
       singleSelect
       contentStyle={styles.chips}
       testID="kader-summary"
@@ -668,68 +666,10 @@ function ToolRow({
   )
 }
 
-function CoachMenuSheet({
-  visible,
-  onClose,
-  openRequests,
-  onInjury,
-}: {
-  visible: boolean
-  onClose: () => void
-  openRequests: number
-  onInjury: () => void
-}) {
-  const { t } = useTranslation()
-  // Close first, then act: a push or a second sheet must not race the
-  // closing modal.
-  const go = (action: () => void) => {
-    onClose()
-    setTimeout(action, 250)
-  }
-  return (
-    <BottomSheet visible={visible} onClose={onClose} heightPct="auto">
-      <SheetHeader title={t('kader.menu.title')} cancelLabel={t('kader.actions.close')} onCancel={onClose} />
-      <View style={styles.menuBody}>
-        <SectionGroup>
-          <ListRow
-            title={t('kader.menu.invite')}
-            left={<SoftIcon name="person.badge.plus" size={32} />}
-            showChevron
-            onPress={() => go(() => router.push('/invite'))}
-            testID="kader-menu-invite"
-          />
-          <ListRow
-            title={t('kader.menu.requests')}
-            left={<SoftIcon name="figure.soccer" size={32} />}
-            right={openRequests > 0 ? <Badge label={String(openRequests)} variant="club" /> : undefined}
-            accessibilityLabel={
-              openRequests > 0 ? `${t('kader.menu.requests')}, ${openRequests}` : t('kader.menu.requests')
-            }
-            showChevron
-            onPress={() => go(() => router.push('/wechselboerse' as never))}
-            testID="kader-menu-requests"
-          />
-          {MEDIC_FEATURE_ENABLED ? (
-            <ListRow
-              title={t('kader.menu.injury')}
-              left={<SoftIcon name="heart" size={32} />}
-              showChevron
-              onPress={() => go(onInjury)}
-              testID="kader-menu-injury"
-            />
-          ) : null}
-          <ListRow
-            title={t('kader.menu.parents')}
-            left={<SoftIcon name="figure.and.child.holdinghands" size={32} />}
-            showChevron
-            onPress={() => go(() => router.push('/team-families'))}
-            testID="kader-menu-parents"
-          />
-        </SectionGroup>
-      </View>
-    </BottomSheet>
-  )
-}
+// Design "Kader": 18pt between header blocks, 10pt label → group, 44pt invite pill.
+const HEADER_GAP = 18
+const SECTION_LABEL_GAP = 10
+const INVITE_HEIGHT = 44
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -741,18 +681,11 @@ const styles = StyleSheet.create({
     // Clear the floating tab bar so the last row isn't pinned under it.
     paddingBottom: TAB_BAR_CLEARANCE + space['2xl'],
   },
-  headerBlock: { gap: space.md + 2, marginBottom: space.lg },
+  headerBlock: { gap: HEADER_GAP, marginBottom: HEADER_GAP + space['2xs'] },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  inviteButton: { height: INVITE_HEIGHT, borderRadius: INVITE_HEIGHT / 2 },
   search: { height: INPUT_HEIGHT, borderRadius: RADIUS_INPUT, borderCurve: 'continuous' },
   chips: { paddingHorizontal: 0 },
-  bannerCard: {
-    borderRadius: RADIUS_CARD,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  legend: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  legendText: { flex: 1 },
   selfBlock: { gap: space.sm + 2 },
   selfAction: {
     minHeight: 48,
@@ -767,15 +700,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { paddingHorizontal: space['2xs'] },
   sectionHeaderRow: {
-    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     paddingHorizontal: space['2xs'],
-    paddingBottom: space.sm + 2,
+    paddingBottom: SECTION_LABEL_GAP,
   },
-  sectionGap: { height: space.lg },
+  sectionGap: { height: HEADER_GAP + space['2xs'] },
   filterEmpty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },
   footer: { marginTop: space.sm },
-  menuBody: { paddingTop: space.md },
 })

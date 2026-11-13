@@ -3,7 +3,7 @@ import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle }
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { RADIUS_CARD, RADIUS_MD, SPACING_MD, SPACING_XXS, hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_CARD, RADIUS_MD, RADIUS_SM, SPACING_MD, SPACING_XXS, hairline, radius, space } from '../../theme/tokens'
 import { textSafeAccent } from '../../theme/club-theme'
 
 /**
@@ -104,6 +104,7 @@ export function HomeCard({
  */
 export function HomeRow({
   icon,
+  leading,
   tone = 'neutral',
   title,
   detail,
@@ -111,8 +112,12 @@ export function HomeRow({
   onPress,
   accessibilityLabel,
   showDivider,
+  testID,
 }: {
   icon: string
+  /** Replaces the icon well (e.g. the lime count circle of screen 22). */
+  leading?: ReactNode
+  testID?: string
   tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'error'
   title: string
   detail?: string | null
@@ -131,9 +136,11 @@ export function HomeRow({
 
   const body = (
     <>
-      <View style={[styles.iconWell, { backgroundColor: well.bg }]}>
-        <Icon name={icon} size={18} color={well.fg} />
-      </View>
+      {leading ?? (
+        <View style={[styles.iconWell, { backgroundColor: well.bg }]}>
+          <Icon name={icon} size={18} color={well.fg} />
+        </View>
+      )}
       <View style={styles.rowText}>
         <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.rowTitle}>
           {title}
@@ -156,7 +163,7 @@ export function HomeRow({
 
   if (!onPress) {
     return (
-      <View style={rowStyle} accessible accessibilityLabel={accessibilityLabel}>
+      <View style={rowStyle} accessible accessibilityLabel={accessibilityLabel} testID={testID}>
         {body}
       </View>
     )
@@ -168,9 +175,37 @@ export function HomeRow({
       accessibilityLabel={accessibilityLabel ?? [title, detail].filter(Boolean).join(', ')}
       haptic="tapLight"
       style={rowStyle}
+      testID={testID}
     >
       {body}
     </PressableScale>
+  )
+}
+
+/**
+ * `.tag` of the redesign: 12/700 on a quiet fill, radius 8 ("Offen",
+ * "Fällig 30.11."). `tone="alert"` for overdue money.
+ */
+export function HomeTag({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'alert' }) {
+  const c = useClubColors()
+  return (
+    <View style={[styles.tag, { backgroundColor: tone === 'alert' ? c.errorBg : c.surfaceMuted }]}>
+      <Text variant="caption1" weight="bold" numberOfLines={1} style={{ color: tone === 'alert' ? c.error : c.textSecondary }}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+/** The lime count circle that leads "Termine warten auf dich" (screen 22). */
+export function CountCircle({ count }: { count: number }) {
+  const c = useClubColors()
+  return (
+    <View style={[styles.countCircle, { backgroundColor: c.accent }]}>
+      <Text variant="data" style={[styles.countText, { color: c.onAccent }]}>
+        {String(count)}
+      </Text>
+    </View>
   )
 }
 
@@ -571,8 +606,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 28,
-    paddingHorizontal: space.xs,
+    minHeight: 16,
   },
   sectionTitle: { flexShrink: 1 },
   sectionAction: {
@@ -598,6 +632,20 @@ const styles = StyleSheet.create({
     minHeight: 60,
   },
   rowTitle: { fontSize: 15 },
+  tag: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: RADIUS_SM,
+    borderCurve: 'continuous',
+  },
+  countCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: { fontSize: 20, lineHeight: 24 },
   iconWell: {
     width: 40,
     height: 40,

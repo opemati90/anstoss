@@ -31,6 +31,8 @@ const INBOX_TYPES = new Set<NotificationType>([
   'CONSENT_REQUESTED',
   'MODERATION_REPORT_CREATED',
   'MODERATION_REPORTS_BATCH',
+  // Vorschau und Vertretung: someone acts as the team's coach.
+  'ACTING_SESSION_STARTED',
 ])
 
 /** Computed (non-template) pushes that are inbox-worthy, keyed by a stable type. */

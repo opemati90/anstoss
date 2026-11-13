@@ -127,11 +127,13 @@ export function HeroSplit({ split }: { split: RsvpSplit }) {
     { key: 'yes', count: split.yes, label: t('homeHub.hero.going', { defaultValue: 'going', count: split.yes }) },
     { key: 'maybe', count: split.maybe, label: t('homeHub.split.maybe', { defaultValue: 'maybe', count: split.maybe }) },
     { key: 'open', count: split.open, label: t('homeHub.split.open', { defaultValue: 'no reply', count: split.open }) },
-    ...(split.no > 0
-      ? [{ key: 'no', count: split.no, label: t('homeHub.hero.declined', { defaultValue: 'declined', count: split.no }) }]
-      : []),
   ]
-  const label = items.map((item) => `${item.count} ${item.label}`).join(', ')
+  // Screen 08 shows dabei · vielleicht · offen; Absagen stay in the spoken label.
+  const spoken =
+    split.no > 0
+      ? [...items, { key: 'no', count: split.no, label: t('homeHub.hero.declined', { defaultValue: 'declined', count: split.no }) }]
+      : items
+  const label = spoken.map((item) => `${item.count} ${item.label}`).join(', ')
   return (
     <View style={styles.split}>
       <View

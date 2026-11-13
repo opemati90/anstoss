@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, IconButton, Text } from '../ui'
 import { SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
-import { formatCountdown, formatTime, type MatchdayFields } from './HomeKit'
+import { formatCountdown, type MatchdayFields } from './HomeKit'
 import { HeroSplit, HeroSurface, heroKickoff, useHeroColors, type RsvpSplit } from './HomeHero'
 
 export type { RsvpSplit }
@@ -19,7 +19,7 @@ export type CoachMatchCardProps = {
 /**
  * The coach's next match as the club-coloured hero (redesign screen 08):
  * "Ligaspiel · Heim" and the countdown, the kick-off in Barlow display,
- * "gegen <Gegner>", and the squad's answers as one bar in one accent at
+ * "gegen <Gegner>" (the Treffpunkt lives on the event, not here), and the squad's answers as one bar in one accent at
  * three densities. The actions that move the week forward live in the
  * "Vor dem Spiel" group beneath, not on the card.
  */
@@ -46,15 +46,6 @@ export function CoachMatchCard({ event, locale, split, nowMs, onOpen, onShare }:
       ? t('homeHub.hero.versus', { defaultValue: 'vs {{opponent}}', opponent: event.opponent })
       : event.title
   const kickoff = heroKickoff(event.date, locale)
-  const meeting = formatTime(event.meetingAt, locale)
-  const meetingLine = meeting
-    ? [
-        t('homeHub.hero.meetAt', { defaultValue: 'Meet {{time}}', time: meeting }),
-        event.meetingPoint || event.location,
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : null
 
   return (
     <View>
@@ -82,11 +73,6 @@ export function CoachMatchCard({ event, locale, split, nowMs, onOpen, onShare }:
           <Text variant="headline" weight="semibold" style={[styles.versus, { color: hero.fg }]} numberOfLines={2}>
             {versus}
           </Text>
-          {meetingLine ? (
-            <Text variant="footnote" style={{ color: hero.muted }} numberOfLines={2}>
-              {meetingLine}
-            </Text>
-          ) : null}
         </View>
 
         {total > 0 ? (

@@ -12,7 +12,6 @@ import {
   RADIUS_FULL,
   SCREEN_PADDING,
   SPACING_MD,
-  SPACING_XXS,
   hairline,
   space,
 } from '../src/theme/tokens'
@@ -107,7 +106,7 @@ export default function LanguageScreen() {
                   {code.toUpperCase()}
                 </Text>
                 <View style={styles.rowCopy}>
-                  <Text variant="body" weight="semibold">
+                  <Text variant="body" weight="semibold" style={styles.rowName}>
                     {name.native}
                   </Text>
                   <Text variant="caption1" color="secondary">
@@ -141,20 +140,20 @@ export default function LanguageScreen() {
           <Text variant="display" color={onHero} style={styles.previewTitle}>
             {tp('onboardingFlow.welcome.claim', { defaultValue: 'Your club.\nOne kickoff.' })}
           </Text>
-          <Text variant="caption1" color={c.onHeroMuted}>
-            {tp('onboardingFlow.welcome.claimBody', {
+          <Text variant="footnote" color={c.onHeroMuted} style={styles.previewBody}>
+            {tp('onboardingFlow.language.previewBody', {
               defaultValue:
                 'Fixtures, availability, lineups, chat and dues in one place. No more group-chat chaos.',
             })}
           </Text>
           <View style={[styles.previewButton, { backgroundColor: c.accent }]}>
             <Text variant="subheadline" weight="bold" color={c.onAccent}>
-              {tp('onboardingFlow.common.continue')}
+              {tp('onboardingFlow.welcome.joinCta')}
             </Text>
           </View>
         </View>
 
-        <Text variant="caption1" color="secondary">
+        <Text variant="footnote" color="secondary">
           {tp('onboardingFlow.language.note', {
             defaultValue: 'Also applies to notifications and emails.',
           })}
@@ -184,21 +183,23 @@ const styles = StyleSheet.create({
     gap: SPACING_MD + 8,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
-  title: { flex: 1, minWidth: 0 },
+  title: { flex: 1, minWidth: 0, fontSize: 26, lineHeight: 29 },
   group: {
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
   },
   row: {
-    minHeight: 56,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_MD + 2,
     paddingVertical: space.sm,
   },
+  rowName: { fontSize: 16, lineHeight: 20 },
+  previewBody: { lineHeight: 20 },
   code: { width: 30, fontSize: 15, lineHeight: 18 },
-  rowCopy: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  rowCopy: { flex: 1, minWidth: 0, gap: 1 },
   radio: { width: 22, height: 22, borderRadius: RADIUS_FULL },
   preview: {
     borderRadius: RADIUS_CARD,
@@ -212,7 +213,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: space.xs,
   },
   footer: { paddingHorizontal: SCREEN_PADDING, paddingTop: space.sm },
 })

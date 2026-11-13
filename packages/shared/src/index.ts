@@ -22,6 +22,8 @@ export * from './schemas/platform'
 export * from './schemas/rsvp'
 export * from './schemas/notification'
 export * from './schemas/live'
+// Vorschau und Vertretung: acting sessions (stand-in coach)
+export * from './schemas/acting'
 export * from './schemas/roster-slot'
 export * from './schemas/managed-sub-profile'
 export * from './schemas/chat'

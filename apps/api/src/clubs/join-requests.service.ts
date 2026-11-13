@@ -196,7 +196,7 @@ export class JoinRequestsService {
         admin.userId,
         'JOIN_REQUEST',
         { userName: user?.name || 'Jemand', clubName: club.name },
-        { type: 'join_request', clubId, requestId: request.id },
+        { type: 'join_request', clubId, requestId: request.id, actorName: user?.name || '' },
         { clubId },
       )
     }

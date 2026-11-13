@@ -22,7 +22,7 @@ export type RoutingSnapshot = {
   /** Whitelisted local draft step (only club setup), see resume.ts. */
   resumeTarget?: string | null
   /** Intent picked before sign-in (welcome: free agent, or a parent's setup code). */
-  intent?: 'free-agent' | 'parent-handoff' | null
+  intent?: 'free-agent' | 'parent-handoff' | 'club-setup' | null
 }
 
 /**
@@ -85,5 +85,6 @@ export function resolveSignedInRoute(snapshot: RoutingSnapshot): string {
   if (snapshot.intent === 'free-agent') return '/(auth)/free-agent-profile'
   if (snapshot.intent === 'parent-handoff') return '/(auth)/parent-handoff'
   if (snapshot.resumeTarget) return snapshot.resumeTarget
+  if (snapshot.intent === 'club-setup') return '/(auth)/club-setup'
   return '/(auth)/club-search'
 }

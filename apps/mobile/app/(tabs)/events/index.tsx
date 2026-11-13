@@ -241,7 +241,17 @@ export default function EventsScreen() {
             .map((event) => ({ kind: 'team' as const, key: event.id, event })),
     [childEvents, events, filter, isParent],
   )
-  const sections = useMemo(() => buildMonthSections(rows, locale), [locale, rows])
+  // Coaches see design 11's single white group (no month labels); players
+  // and parents keep the month sections.
+  const sections = useMemo<MonthSection[]>(
+    () =>
+      canManage
+        ? rows.length > 0
+          ? [{ key: 'all', title: '', data: rows }]
+          : []
+        : buildMonthSections(rows, locale),
+    [canManage, locale, rows],
+  )
 
   const openEvent = (eventId: string) =>
     router.push({ pathname: '/event-detail', params: { eventId } })
@@ -368,13 +378,17 @@ export default function EventsScreen() {
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={header}
-        renderSectionHeader={({ section }) => (
-          <View style={[styles.monthHeader, { backgroundColor: c.background }]}>
-            <Text variant="label" accessibilityRole="header">
-              {section.title}
-            </Text>
-          </View>
-        )}
+        renderSectionHeader={({ section }) =>
+          section.title ? (
+            <View style={[styles.monthHeader, { backgroundColor: c.background }]}>
+              <Text variant="label" accessibilityRole="header">
+                {section.title}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.groupGap} />
+          )
+        }
         renderItem={({ item, index, section }) =>
           item.kind === 'child' ? (
             <EventRow
@@ -414,6 +428,7 @@ export default function EventsScreen() {
               first={index === 0}
               last={index === section.data.length - 1}
               eyebrow={isClubManager && !activeTeamId ? item.event.team?.name : null}
+              compact={canManage}
               onOpen={() => openEvent(item.event.id)}
               trailing={canManage ? summaryValue(item.event, scope) : null}
               trailingHint={canManage ? summaryHint(item.event, scope, t) : null}
@@ -626,5 +641,6 @@ const styles = StyleSheet.create({
     gap: SPACING_SM,
   },
   liveScore: { fontFamily: fonts.data },
+  groupGap: { height: SPACING_XL },
   empty: { paddingTop: SPACING_XL, paddingHorizontal: SCREEN_PADDING },
 })

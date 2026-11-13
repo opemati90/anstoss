@@ -38,6 +38,7 @@ describe('outstandingDues', () => {
     expect(dues).toEqual({
       amounts: [{ cents: 4500 + 2000 + 4500, currency: 'EUR' }],
       overdue: true,
+      dueDate: expect.any(String),
     })
   })
 
@@ -60,6 +61,7 @@ describe('outstandingDues', () => {
         { cents: 1500, currency: 'CHF' },
       ],
       overdue: true,
+      dueDate: expect.any(String),
     })
   })
 

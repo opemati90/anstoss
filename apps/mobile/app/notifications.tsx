@@ -9,32 +9,37 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { useNotificationInbox } from '../src/hooks/useNotificationInbox'
 import { openNotificationTarget } from '../src/lib/notificationRoute'
 import { adminActionErrorKey } from '../src/components/admin/adminActions'
-import { Button, Icon, IconButton, Screen, SoftIcon, Text, type IconName } from '../src/components/ui'
+import { Button, getInitials, Icon, IconButton, Screen, SoftIcon, Text, type IconName } from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
   hairline,
   RADIUS_CARD,
-  RADIUS_FULL,
   SCREEN_PADDING,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
   SPACING_XL,
-  SPACING_XS,
   SPACING_XXS,
-  SPACING_XXXL,
+  SPACING_XXL,
 } from '../src/theme/tokens'
 
 type Section = { key: 'today' | 'week' | 'older'; title: string; data: InboxNotification[] }
 
-// The text column starts after the 40pt icon well and the row gap.
-const TEXT_INDENT = SPACING_XXXL + SPACING_SM + SPACING_MD + SPACING_XXS
+
+// People rows (design .av): 36pt round initials well.
+const AVATAR_SIZE = 36
+// Design rows: 14pt between the leading well and the text.
+const ROW_GAP = SPACING_MD + SPACING_XXS
+// Design inline action gap under the sentence.
+const ACTIONS_GAP = SPACING_SM + SPACING_XXS
 
 const ICONS: Array<[RegExp, IconName]> = [
   [/^JOIN_/, 'person.badge.plus'],
-  [/^CONTRIBUTION_/, 'eurosign.circle'],
+  [/^CONTRIBUTION_/, 'creditcard'],
+  [/^POLL_/, 'message'],
+  [/^FIXTURE_CHANGED$/, 'chart.bar'],
   [/^TRIAL_/, 'figure.soccer'],
   [/^(CONSENT|COMPLIANCE)_/, 'checkmark.shield'],
   [/^MODERATION_/, 'flag'],
@@ -47,6 +52,32 @@ const ICONS: Array<[RegExp, IconName]> = [
 
 function iconFor(type: string): IconName {
   return ICONS.find(([re]) => re.test(type))?.[1] ?? 'bell'
+}
+
+const trimEnd = (s: string) => s.trimEnd().replace(/[.:]+$/, '')
+const withStop = (s: string) => (/[.!?…]$/.test(s) ? s : `${s}.`)
+
+/**
+ * One sentence per row, like the design: "**Paul Krüger** möchte … beitreten."
+ * People rows (the payload names an actor) lead with the bold name; system
+ * rows read "Titel: Text." Exported for the spec.
+ */
+export function inboxSentence(item: Pick<InboxNotification, 'title' | 'body' | 'target'>): {
+  actor: string | null
+  rest: string
+} {
+  const actor = item.target?.actorName?.trim() || null
+  const title = item.title?.trim() ?? ''
+  const body = item.body?.trim() ?? ''
+  if (actor) {
+    if (title.startsWith(actor)) {
+      const head = trimEnd(title.slice(actor.length))
+      return { actor, rest: withStop(body ? `${head}: ${body}` : head) }
+    }
+    if (body.startsWith(actor)) return { actor, rest: withStop(body.slice(actor.length)) }
+  }
+  const text = body ? `${trimEnd(title).trim()}: ${body}` : title
+  return { actor: null, rest: withStop(text) }
 }
 
 /**
@@ -212,6 +243,29 @@ export default function NotificationsScreen() {
           const unread = !item.readAt
           const isJoinRequest = item.type === 'JOIN_REQUEST' && Boolean(item.target?.requestId)
           const decided = handled[item.id]
+          const { actor, rest } = inboxSentence(item)
+          const label = `${unread ? `${t('notificationsInbox.unread', { defaultValue: 'Unread' })}. ` : ''}${actor ?? ''}${rest}`
+          const lead = actor ? (
+            <View style={[styles.avatar, { backgroundColor: c.surfaceSunken }]}>
+              <Text variant="caption1" weight="bold" style={styles.avatarText}>
+                {getInitials(actor)}
+              </Text>
+            </View>
+          ) : (
+            <SoftIcon name={iconFor(item.type)} size={40} />
+          )
+          // Unread reads heavier; the design carries no dots.
+          const sentence = (
+            <Text variant="body" weight={unread ? 'medium' : 'regular'} style={styles.sentence}>
+              {actor ? <Text variant="body" weight="bold">{actor}</Text> : null}
+              {rest}
+            </Text>
+          )
+          const time = (
+            <Text variant="caption1" weight="regular" color="secondary" tabular style={styles.time}>
+              {formatWhen(item.createdAt, section.key, locale)}
+            </Text>
+          )
           return (
             <View
               style={[
@@ -221,59 +275,63 @@ export default function NotificationsScreen() {
                 last && styles.groupBottom,
               ]}
             >
-              <Pressable
-                onPress={() => open(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`${unread ? `${t('notificationsInbox.unread', { defaultValue: 'Unread' })}. ` : ''}${item.title}. ${item.body}`}
-                style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-                testID={`inbox-row-${item.id}`}
-              >
-                <SoftIcon name={iconFor(item.type)} />
-                <View style={styles.text}>
-                  <Text variant="subheadline" weight={unread ? 'bold' : 'semibold'} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {item.body ? (
-                    <Text variant="footnote" color="secondary" numberOfLines={3}>
-                      {item.body}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.meta}>
-                  <Text variant="caption1" color="secondary" tabular>
-                    {formatWhen(item.createdAt, section.key, locale)}
-                  </Text>
-                  {unread ? <View style={[styles.dot, { backgroundColor: c.alertDot }]} /> : null}
-                </View>
-              </Pressable>
               {isJoinRequest ? (
-                decided ? (
-                  <Text variant="footnote" weight="semibold" color="secondary" style={styles.decided}>
-                    {decided === 'approved'
-                      ? t('notificationsInbox.approved', { defaultValue: 'Accepted' })
-                      : t('notificationsInbox.rejected', { defaultValue: 'Declined' })}
-                  </Text>
-                ) : (
-                  <View style={styles.actions}>
-                    <Button
-                      label={t('notificationsInbox.approve', { defaultValue: 'Accept' })}
-                      size="sm"
-                      loading={actingId === item.id}
-                      disabled={actingId !== null}
-                      onPress={() => void decideJoinRequest(item, 'approve')}
-                      testID={`inbox-approve-${item.id}`}
-                    />
-                    <Button
-                      label={t('notificationsInbox.reject', { defaultValue: 'Decline' })}
-                      size="sm"
-                      variant="bordered"
-                      disabled={actingId !== null}
-                      onPress={() => void decideJoinRequest(item, 'reject')}
-                      testID={`inbox-reject-${item.id}`}
-                    />
+                // Buttons sit in the text column, outside the open tap target,
+                // so they are not nested inside another button.
+                <View style={[styles.row, styles.rowTop]}>
+                  {lead}
+                  <View style={styles.text}>
+                    <Pressable
+                      onPress={() => open(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}
+                      style={({ pressed }) => (pressed ? styles.pressed : null)}
+                      testID={`inbox-row-${item.id}`}
+                    >
+                      {sentence}
+                    </Pressable>
+                    {decided ? (
+                      <Text variant="footnote" weight="semibold" color="secondary">
+                        {decided === 'approved'
+                          ? t('notificationsInbox.approved', { defaultValue: 'Accepted' })
+                          : t('notificationsInbox.rejected', { defaultValue: 'Declined' })}
+                      </Text>
+                    ) : (
+                      <View style={styles.actions}>
+                        <Button
+                          label={t('notificationsInbox.approve', { defaultValue: 'Accept' })}
+                          size="sm"
+                          loading={actingId === item.id}
+                          disabled={actingId !== null}
+                          onPress={() => void decideJoinRequest(item, 'approve')}
+                          testID={`inbox-approve-${item.id}`}
+                        />
+                        <Button
+                          label={t('notificationsInbox.reject', { defaultValue: 'Decline' })}
+                          size="sm"
+                          variant="bordered"
+                          disabled={actingId !== null}
+                          onPress={() => void decideJoinRequest(item, 'reject')}
+                          testID={`inbox-reject-${item.id}`}
+                        />
+                      </View>
+                    )}
                   </View>
-                )
-              ) : null}
+                  {time}
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => open(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+                  testID={`inbox-row-${item.id}`}
+                >
+                  {lead}
+                  <View style={styles.text}>{sentence}</View>
+                  {time}
+                </Pressable>
+              )}
               {!last ? <View style={[styles.divider, { backgroundColor: c.borderSubtle }]} /> : null}
             </View>
           )
@@ -310,7 +368,7 @@ function groupByAge(
 function formatWhen(iso: string, bucket: Section['key'], locale: string): string {
   const date = new Date(iso)
   if (bucket === 'today') {
-    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+    return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(date)
   }
   if (bucket === 'week') {
     return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date).replace('.', '')
@@ -329,7 +387,7 @@ const styles = StyleSheet.create({
   title: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: SCREEN_PADDING, gap: 0 },
-  sectionLabel: { paddingHorizontal: SPACING_XS, paddingTop: SPACING_XL, paddingBottom: SPACING_MD },
+  sectionLabel: { paddingTop: SPACING_XXL, paddingBottom: SPACING_MD },
   rowWrap: { paddingHorizontal: SPACING_LG },
   groupTop: { borderTopLeftRadius: RADIUS_CARD, borderTopRightRadius: RADIUS_CARD, borderCurve: 'continuous' },
   groupBottom: {
@@ -337,12 +395,21 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: RADIUS_CARD,
     borderCurve: 'continuous',
   },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING_MD + 2, minHeight: 60, paddingVertical: SPACING_MD },
-  text: { flex: 1, minWidth: 0, gap: SPACING_XS },
-  // Indented under the text column (40pt icon well + gap), outside the row's
-  // tap target so the buttons are not nested inside another button.
-  actions: { flexDirection: 'row', gap: SPACING_SM, marginLeft: TEXT_INDENT, paddingBottom: SPACING_MD },
-  decided: { marginLeft: TEXT_INDENT, paddingBottom: SPACING_MD },
+  row: { flexDirection: 'row', alignItems: 'center', gap: ROW_GAP, minHeight: 60, paddingVertical: SPACING_MD },
+  rowTop: { alignItems: 'flex-start' },
+  pressed: { opacity: 0.7 },
+  text: { flex: 1, minWidth: 0, gap: ACTIONS_GAP },
+  sentence: { lineHeight: 21 },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { letterSpacing: 0 },
+  time: { lineHeight: 21 },
+  actions: { flexDirection: 'row', gap: SPACING_SM },
   footer: { gap: SPACING_MD, paddingTop: SPACING_XL },
   settingsRow: {
     flexDirection: 'row',
@@ -353,7 +420,5 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
   },
-  meta: { alignItems: 'flex-end', gap: SPACING_XS },
-  dot: { width: SPACING_SM, height: SPACING_SM, borderRadius: RADIUS_FULL },
   divider: { height: hairline },
 })

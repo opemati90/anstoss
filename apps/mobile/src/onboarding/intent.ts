@@ -6,14 +6,18 @@ import { useEffect, useState } from 'react'
  *  - 'free-agent': "Ohne Verein? Als Spieler gefunden werden" on welcome,
  *    which goes from the name straight to the free-agent profile;
  *  - 'parent-handoff': "Einrichtungscode eingeben" for a parent whose child
- *    was handed over, which goes from the name to "Kind hinzufügen".
+ *    was handed over, which goes from the name to "Kind hinzufügen";
+ *  - 'club-setup': "Verein anlegen" on welcome, which goes from the name
+ *    straight to "Dein Verein" (club setup).
  * Stored so it survives the trip through the email code (and an app kill
  * while the user fetches the code from their inbox). Cleared on sign-out.
  */
-export type OnboardingIntent = 'free-agent' | 'parent-handoff'
+export type OnboardingIntent = 'free-agent' | 'parent-handoff' | 'club-setup'
 
 export function parseOnboardingIntent(value: unknown): OnboardingIntent | null {
-  return value === 'free-agent' || value === 'parent-handoff' ? value : null
+  return value === 'free-agent' || value === 'parent-handoff' || value === 'club-setup'
+    ? value
+    : null
 }
 
 const KEY = 'anstoss:onboarding-intent'

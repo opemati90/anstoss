@@ -7,6 +7,7 @@
  *
  *   member     welcome → code → Wie heißt du? → Verein finden (sends)   = 4
  *   admin      welcome → code → Wie heißt du? → Verein finden → Verein  = 5
+ *   adminDirect welcome (Verein anlegen) → code → Wie heißt du? → Verein = 4
  *   freeAgent  welcome → code → Wie heißt du? → Spielerprofil           = 4
  *              (from Verein finden the listing is sent inline there     = 4)
  *   guardian   welcome → code → Wie heißt du? → Kind hinzufügen         = 4
@@ -26,13 +27,20 @@ export type OnboardingScreenKey =
   | 'invitePreview'
   | 'inviteConfirm'
 
-export type OnboardingPathKey = 'member' | 'admin' | 'freeAgent' | 'guardian' | 'invite'
+export type OnboardingPathKey =
+  | 'member'
+  | 'admin'
+  | 'adminDirect'
+  | 'freeAgent'
+  | 'guardian'
+  | 'invite'
 
 export type OnboardingProgress = { current: number; total: number }
 
 export const ONBOARDING_PATHS: Readonly<Record<OnboardingPathKey, readonly OnboardingScreenKey[]>> = {
   member: ['welcome', 'code', 'profile', 'clubSearch'],
   admin: ['welcome', 'code', 'profile', 'clubSearch', 'clubSetup'],
+  adminDirect: ['welcome', 'code', 'profile', 'clubSetup'],
   freeAgent: ['welcome', 'code', 'profile', 'freeAgentProfile'],
   guardian: ['welcome', 'code', 'profile', 'parentHandoff'],
   invite: ['invitePreview', 'code', 'inviteConfirm'],
@@ -42,6 +50,7 @@ export const ONBOARDING_PATHS: Readonly<Record<OnboardingPathKey, readonly Onboa
 export const ONBOARDING_SCREEN_CAPS: Readonly<Record<OnboardingPathKey, number>> = {
   member: 4,
   admin: 5,
+  adminDirect: 4,
   freeAgent: 4,
   guardian: 4,
   invite: 3,
@@ -61,5 +70,6 @@ export function onboardingProgress(
 export function pathForIntent(intent: string | null | undefined): OnboardingPathKey {
   if (intent === 'free-agent') return 'freeAgent'
   if (intent === 'parent-handoff') return 'guardian'
+  if (intent === 'club-setup') return 'adminDirect'
   return 'member'
 }

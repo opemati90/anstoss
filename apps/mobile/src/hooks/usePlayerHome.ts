@@ -41,6 +41,8 @@ export type HomeEvent = {
 export type HomeDues = {
   amounts: Array<{ cents: number; currency: string }>
   overdue: boolean
+  /** Due date of the earliest owed item ("Beitrag Dezember · fällig 15.12."). */
+  dueDate?: string | null
 }
 
 export type HomeAnnouncement = { id: string; title: string; body: string }
@@ -385,6 +387,7 @@ export function outstandingDues(
   const items = asArray<MyContributionSummary['items'][number]>(summary?.items)
   const byCurrency = new Map<string, number>()
   let overdue = false
+  let earliest: number | null = null
   for (const item of items) {
     if (item.paymentReported) continue
     const due = new Date(item.dueDate).getTime()
@@ -398,11 +401,13 @@ export function outstandingDues(
     const currency = (item.currency || 'EUR').toUpperCase()
     byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + remaining)
     if (item.status === 'OVERDUE') overdue = true
+    if (Number.isFinite(due) && (earliest === null || due < earliest)) earliest = due
   }
   if (byCurrency.size === 0) return null
   return {
     amounts: Array.from(byCurrency, ([currency, cents]) => ({ cents, currency })),
     overdue,
+    dueDate: earliest === null ? null : new Date(earliest).toISOString(),
   }
 }
 

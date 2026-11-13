@@ -21,6 +21,10 @@ export default {
     },
   },
   eventFlow: {
+    matchTitleShort: {
+      away: "bei {{opponent}}",
+      home: "vs. {{opponent}}",
+    },
     absence: {
       coachOnly: "nur der Trainer sieht den Grund",
     },
@@ -32,12 +36,16 @@ export default {
       route: "Route",
     },
     list: {
+      leagueMatch: "Ligaspiel",
       allAnswered: "Alles beantwortet",
       awaitingReply_one: "{{count}} Termin wartet auf deine Antwort",
       awaitingReply_other: "{{count}} Termine warten auf deine Antwort",
       filterAll: "Alle",
       filterMatches: "Spiele",
       going: "dabei",
+    },
+    rsvp: {
+      yes: "Dabei",
     },
     responses: {
       headline: "Kader · {{yes}} von {{total}} dabei",
@@ -80,6 +88,9 @@ export default {
       setLineup: "Aufstellung festlegen",
       squadEmpty: "Noch keine Spieler im Kader",
     },
+    inDays: "in {{count}} Tagen",
+    inDays_one: "in {{count}} Tag",
+    inDays_other: "in {{count}} Tagen",
     firstStart: {
       body: "Drei Schritte, dann läuft dein Team hier statt in WhatsApp.",
       clubDone: "Verein angelegt",
@@ -234,6 +245,16 @@ export default {
       title: "Kader anlegen",
       unclaimed: "Ohne Konto",
     },
+    code: {
+      emailLabel: "E-Mail",
+      legalAnd: " und die ",
+      legalPrefix: "Mit dem Fortfahren akzeptierst du die ",
+      legalPrivacy: "Datenschutzerklärung",
+      legalSuffix: ".",
+      legalTerms: "Nutzungsbedingungen",
+      signInSubtitle: "Wir schicken dir einen Code. Kein Passwort nötig.",
+      signInTitle: "Willkommen zurück",
+    },
     clubSetup: {
       colourAdjusted: "Zu hell für weiße Schrift. Für Text nutzen wir {{hex}}.",
       customColour: "Eigene Hauptfarbe",
@@ -247,6 +268,10 @@ export default {
     },
     welcome: {
       brand: "Anstoss",
+      createCta: "Verein anlegen",
+      haveAccount: "Schon dabei?",
+      joinCta: "Verein beitreten",
+      signInLink: "Anmelden",
       claim: "Dein Verein.\nEin Anpfiff.",
       claimBody: "Termine, Zusagen, Aufstellung, Chat und Beiträge an einem Ort. Ohne WhatsApp-Chaos.",
     },

@@ -196,3 +196,29 @@ export class MatchLiveUnavailableError extends AppError {
     super(reason)
   }
 }
+
+// ─── Vorschau und Vertretung (acting sessions) ──────────────
+
+/** Only club owners/admins, board members and team coordinators may act as a coach. */
+export class ActingSessionForbiddenError extends AppError {
+  readonly code = 'ACTING_SESSION_FORBIDDEN'
+  readonly httpStatus = 403
+  readonly isOperational = true
+  readonly userMessage = 'Only the club board or team managers can stand in for a coach.'
+}
+
+/** The team to act for does not exist in this club. */
+export class ActingSessionTeamNotFoundError extends AppError {
+  readonly code = 'ACTING_SESSION_TEAM_NOT_FOUND'
+  readonly httpStatus = 404
+  readonly isOperational = true
+  readonly userMessage = 'This team was not found in your club.'
+}
+
+/** There is no running acting session to end. */
+export class ActingSessionNotActiveError extends AppError {
+  readonly code = 'ACTING_SESSION_NOT_ACTIVE'
+  readonly httpStatus = 404
+  readonly isOperational = true
+  readonly userMessage = 'There is no active stand-in session.'
+}

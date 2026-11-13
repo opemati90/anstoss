@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -13,14 +13,21 @@ import { space } from '../../theme/tokens'
 import { findFixtureForEvent } from '../../lib/matchFixtureLink'
 import { Haptics } from '../../utils/haptics'
 import { NextUpHero, isInCheckInWindow } from './NextUpHero'
-import { LiveMatchCard } from './LiveMatchCard'
-import { WeekAhead } from './WeekAhead'
-import { SeasonStrip } from './SeasonStrip'
-import { TeamPulse } from './TeamPulse'
+import { LiveStatusPill } from '../match'
 import { HomeSkeleton } from './HomeSkeleton'
-import { EmptyCard, HomeSection, InlineError, formatDayTime } from './HomeKit'
+import {
+  CountCircle,
+  EmptyCard,
+  HomeCard,
+  HomeRow,
+  HomeTag,
+  InlineError,
+  formatDayTime,
+  formatMoney,
+  formatShortDate,
+} from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
-import { DuesRow, TasksSection, useDutyTasks } from './HomeTasks'
+import { useDutyTasks } from './HomeTasks'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 
 export type PlayerHomeProps = {
@@ -33,9 +40,10 @@ export type PlayerHomeProps = {
 /**
  * The player's home screen.
  *
- * Built around one question, *what do I have to do?*, in priority order: a
- * live match if one is on, the next event and its reply, my duties, the rest
- * of the week, money owed, the team's news, and my season last.
+ * Redesign screen 22: the next event as the club hero with the reply
+ * segmented inside it, then one group of what is mine: a live score (compact,
+ * only while one is on), the events still waiting for my answer, my jobs, my
+ * season and the fee I owe.
  */
 export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeProps) {
   const { t } = useTranslation()
@@ -214,29 +222,190 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
     )
   }
 
+  // While the live match owns the next event, the hero moves on to the one
+  // after it; the score itself is one compact row in the group below.
+  const shownHero = liveOwnsHero ? (weekAhead[0] ?? null) : heroEvent
+  // "Termine warten auf dich": every later event still missing an answer.
+  const awaiting = weekAhead.filter(
+    (event) =>
+      event.id !== shownHero?.id &&
+      !event.cancelledAt &&
+      (!event.myRsvp || event.myRsvpStale),
+  )
+  const laterEvents = weekAhead.filter((event) => event.id !== shownHero?.id && !event.cancelledAt)
+  const shortLabel = (event: HomeEvent) => {
+    const kind =
+      event.type === 'MATCH'
+        ? event.homeAway === 'AWAY'
+          ? t('homeHub.away', { defaultValue: 'Away' })
+          : event.homeAway === 'HOME'
+            ? t('homeHub.home', { defaultValue: 'Home' })
+            : t('homeHub.type.match', { defaultValue: 'Match' })
+        : event.type === 'TRAINING'
+          ? t('homeHub.type.training', { defaultValue: 'Training' })
+          : event.title
+    return `${kind} ${formatShortDate(event.date, locale)}`
+  }
+
+  const seasonDetail = [
+    (data.streaks?.attendanceWeeks ?? 0) > 0
+      ? t('home.pulse.streakWeeks', {
+          defaultValue: '{{count}} weeks in a row',
+          count: data.streaks?.attendanceWeeks ?? 0,
+        })
+      : null,
+    data.seasonStats && data.seasonStats.played > 0
+      ? t('homeHub.player.teamRecord', {
+          defaultValue: 'Team {{wins}}-{{draws}}-{{losses}}',
+          wins: data.seasonStats.wins,
+          draws: data.seasonStats.draws,
+          losses: data.seasonStats.losses,
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  const dues = data.dues && data.dues.amounts.length > 0 ? data.dues : null
+  const duesAmount = dues
+    ? dues.amounts.map((entry) => formatMoney(entry.cents, entry.currency, locale)).join(' + ')
+    : ''
+
+  type GroupRow = { key: string; render: (divider: boolean) => ReactNode }
+  const rows: GroupRow[] = []
+  if (liveFixture) {
+    rows.push({
+      key: 'live',
+      render: (divider) => (
+        <HomeRow
+          icon="football"
+          leading={<LiveStatusPill status="live" />}
+          title={`${liveFixture.homeTeam} ${liveFixture.resultHome ?? 0}:${liveFixture.resultAway ?? 0} ${liveFixture.awayTeam}`}
+          accessibilityLabel={t('homeHub.liveA11y', {
+            defaultValue: '{{home}} vs {{away}}, live, {{homeScore}} to {{awayScore}}',
+            home: liveFixture.homeTeam,
+            away: liveFixture.awayTeam,
+            homeScore: liveFixture.resultHome ?? 0,
+            awayScore: liveFixture.resultAway ?? 0,
+          })}
+          onPress={() => openMatch(liveFixture)}
+          showDivider={divider}
+          testID="player-home-live"
+        />
+      ),
+    })
+  }
+  if (awaiting.length > 0) {
+    rows.push({
+      key: 'awaiting',
+      render: (divider) => (
+        <HomeRow
+          icon="calendar"
+          leading={<CountCircle count={awaiting.length} />}
+          title={t('homeHub.player.awaiting', {
+            defaultValue: 'Events waiting for you',
+            count: awaiting.length,
+          })}
+          detail={awaiting.slice(0, 2).map(shortLabel).join(' · ')}
+          onPress={() => router.push('/(tabs)/events' as never)}
+          showDivider={divider}
+          testID="player-home-awaiting"
+        />
+      ),
+    })
+  } else if (laterEvents.length > 0) {
+    rows.push({
+      key: 'answered',
+      render: (divider) => (
+        <HomeRow
+          icon="calendar"
+          title={t('eventFlow.list.allAnswered', { defaultValue: 'All answered' })}
+          detail={laterEvents.slice(0, 2).map(shortLabel).join(' · ')}
+          onPress={() => router.push('/(tabs)/events' as never)}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  for (const task of dutyTasks) {
+    rows.push({
+      key: `task-${task.id}`,
+      render: (divider) => (
+        <HomeRow
+          icon={task.icon}
+          title={task.title}
+          detail={task.detail}
+          onPress={task.onPress}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  if (seasonDetail) {
+    rows.push({
+      key: 'season',
+      render: (divider) => (
+        <HomeRow
+          icon="person"
+          title={t('home.player.seasonTitle', { defaultValue: 'Your season' })}
+          detail={seasonDetail}
+          onPress={() => router.push('/team-stats' as never)}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  if (dues) {
+    rows.push({
+      key: 'dues',
+      render: (divider) => (
+        <HomeRow
+          icon="creditcard"
+          title={
+            dues.dueDate
+              ? t('homeHub.duesMonth', {
+                  defaultValue: 'Fee {{month}}',
+                  month: new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(dues.dueDate)),
+                })
+              : t('homeHub.dues', { defaultValue: 'Membership fee' })
+          }
+          detail={[
+            duesAmount,
+            dues.dueDate
+              ? t('mydues.dueShort', {
+                  defaultValue: 'due {{date}}',
+                  date: formatNumericDate(dues.dueDate, locale),
+                })
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          trailing={
+            <HomeTag
+              label={t(dues.overdue ? 'contributions.status.OVERDUE' : 'contributions.status.PENDING')}
+              tone={dues.overdue ? 'alert' : 'neutral'}
+            />
+          }
+          onPress={() => router.push('/my-contributions')}
+          showDivider={divider}
+          testID="player-home-dues"
+        />
+      ),
+    })
+  }
+
   return (
     <View style={styles.root}>
-      {/* 1. Live strip: only while a match is actually being played. */}
-      {liveFixture ? (
-        <LiveMatchCard
-          fixture={liveFixture}
-          showOpenAction={!heroOwesDecision || !heroIsLive}
-          onPress={() => openMatch(liveFixture)}
+      {/* 1. Next up, answered in place on the hero (screen 22). */}
+      {shownHero ? (
+        <NextUpHero
+          event={shownHero}
+          locale={locale}
+          nowMs={nowMs}
+          rsvpPending={Boolean(pendingIds[shownHero.id])}
+          onRsvp={(status, absence) => void onRsvp(shownHero.id, status, absence)}
+          onOpen={() => openEventOrMatch(shownHero)}
         />
-      ) : null}
-
-      {/* 2. Next up: what, when to be there, and am I coming. */}
-      {heroEvent && !liveOwnsHero ? (
-        <HomeSection title={t('homeHub.nextUp', { defaultValue: 'Next up' })}>
-          <NextUpHero
-            event={heroEvent}
-            locale={locale}
-            nowMs={nowMs}
-            rsvpPending={Boolean(pendingIds[heroEvent.id])}
-            onRsvp={(status, absence) => void onRsvp(heroEvent.id, status, absence)}
-            onOpen={() => openEventOrMatch(heroEvent)}
-          />
-        </HomeSection>
       ) : null}
 
       {!heroEvent && !liveFixture ? (
@@ -250,31 +419,10 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
         />
       ) : null}
 
-      {/* 3. My tasks this week (Trikotwäsche and friends). */}
-      <TasksSection tasks={dutyTasks} />
-
-      {/* 4. The rest of the week; reply pills only where an answer is missing. */}
-      <WeekAhead
-        events={weekAhead}
-        locale={locale}
-        pendingIds={pendingIds}
-        nowMs={nowMs}
-        onRsvp={(eventId, status, absence) => void onRsvp(eventId, status, absence)}
-        onOpen={openEventOrMatch}
-      />
-
-      {/* 5. Money, only while some is owed. */}
-      <DuesRow dues={data.dues} locale={locale} />
-
-      {/* 6. What the team is saying. */}
-      <TeamPulse channel={data.teamChannel} announcements={data.announcements} />
-
-      {/* 7. Ambient, so last. */}
-      <SeasonStrip
-        streaks={data.streaks}
-        rank={data.streakRank}
-        seasonStats={data.seasonStats}
-      />
+      {/* 2. One group: what waits for me, my jobs, my season, my fee. */}
+      {rows.length > 0 ? (
+        <HomeCard>{rows.map((row, index) => <Fragment key={row.key}>{row.render(index > 0)}</Fragment>)}</HomeCard>
+      ) : null}
 
       {error ? (
         <Text variant="footnote" color="secondary" style={styles.staleNote}>
@@ -290,6 +438,12 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
       ) : null}
     </View>
   )
+}
+
+/** "15.12." — day and month, as on the fee row. */
+function formatNumericDate(iso: string, locale: string): string {
+  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(iso))
+  return locale.startsWith('de') && !day.endsWith('.') ? `${day}.` : day
 }
 
 const styles = StyleSheet.create({

@@ -89,7 +89,7 @@ const base = {
     },
   },
   tabs: {
-    team: 'Team',
+    team: 'Kader',
     home: 'Start',
     events: 'Termine',
     schedule: 'Spielplan',

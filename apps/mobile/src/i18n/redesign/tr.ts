@@ -21,6 +21,10 @@ export default {
     },
   },
   eventFlow: {
+    matchTitleShort: {
+      away: "{{opponent}} deplasmanı",
+      home: "vs. {{opponent}}",
+    },
     absence: {
       coachOnly: "nedeni yalnızca antrenör görür",
     },
@@ -32,6 +36,7 @@ export default {
       route: "Yol tarifi",
     },
     list: {
+      leagueMatch: "Lig maçı",
       allAnswered: "Hepsi yanıtlandı",
       awaitingReply_one: "{{count}} etkinlik yanıtını bekliyor",
       awaitingReply_other: "{{count}} etkinlik yanıtını bekliyor",

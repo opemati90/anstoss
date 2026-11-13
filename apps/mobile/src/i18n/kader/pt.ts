@@ -11,6 +11,7 @@ export const kaderPt = {
   filterEmpty: 'Neste momento ninguém tem este estado.',
   showAll: 'Mostrar todos',
   summary: {
+    requests: "Pedidos {{n}}",
     fit: '{{count}} aptos',
     fit_one: '{{count}} apto',
     fit_other: '{{count}} aptos',
@@ -62,6 +63,7 @@ export const kaderPt = {
     assistantCoach: 'Treinador adjunto',
   },
   row: {
+    attendance: "{{count}} de {{total}} treinos",
     you: 'Tu',
     new: 'Novo',
     inactive: 'Inativo',
@@ -108,6 +110,9 @@ export const kaderPt = {
     title_other: 'Inativos e à experiência ({{count}})',
   },
   tools: {
+    exchangeHint: "Mercado de transferências e treinos de captação",
+    parentsHint: "Quem responde por cada criança",
+    injuryHint: "Registar ausência, planear o regresso",
     title: 'Equipa',
     duties: 'Tarefas',
     dutiesHint: 'Lavagem dos equipamentos, balneário, coletes',

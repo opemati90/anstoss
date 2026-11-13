@@ -126,6 +126,8 @@ export type OnboardingScreenProps = {
   secondary?: OnboardingAction
   /** Extra content pinned under the buttons (consent line). */
   footerNote?: ReactNode
+  /** Content at the bottom of the scrolling page (legal line), not docked. */
+  pageFooter?: ReactNode
   children?: ReactNode
   testID?: string
 }
@@ -145,6 +147,7 @@ export function OnboardingScreen({
   primary,
   secondary,
   footerNote,
+  pageFooter,
   children,
   testID,
 }: OnboardingScreenProps) {
@@ -206,6 +209,7 @@ export function OnboardingScreen({
           </Text>
         ) : null}
         {children ? <View style={styles.body}>{children}</View> : null}
+        {pageFooter ? <View style={styles.pageFooter}>{pageFooter}</View> : null}
       </ScrollView>
 
       {hasFooter ? (
@@ -263,7 +267,7 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
   const [focused, setFocused] = useState(false)
   return (
     <View style={styles.field}>
-      <Text variant="caption1" weight="semibold" color="primary">
+      <Text variant="footnote" weight="semibold" color="primary">
         {label}
       </Text>
       <TextInput
@@ -454,6 +458,11 @@ export function HeaderTextButton({ label, onPress }: { label: string; onPress: (
   )
 }
 
+/** Design: 15/1.5 supporting line under the title. */
+const SUBTITLE_LINE_HEIGHT = Math.round(fontSize.md * 1.5)
+/** Pushes the page footer to the bottom of the scroll content. */
+const AUTO = 'auto' as const
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
@@ -485,7 +494,8 @@ const styles = StyleSheet.create({
   },
   lead: { marginBottom: space.lg },
   title: { marginBottom: space.sm },
-  subtitle: { marginBottom: space.xs },
+  subtitle: { lineHeight: SUBTITLE_LINE_HEIGHT },
+  pageFooter: { marginTop: AUTO, paddingTop: space.lg },
   body: { marginTop: space.lg + space.xs, gap: space.md - 2 },
   footer: {
     paddingHorizontal: SCREEN_PADDING,

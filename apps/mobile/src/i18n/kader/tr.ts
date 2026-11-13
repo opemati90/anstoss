@@ -11,6 +11,7 @@ export const kaderTr = {
   filterEmpty: 'Şu anda bu durumda kimse yok.',
   showAll: 'Tümünü göster',
   summary: {
+    requests: "Talepler {{n}}",
     fit: '{{count}} hazır',
     fit_one: '{{count}} hazır',
     fit_other: '{{count}} hazır',
@@ -62,6 +63,7 @@ export const kaderTr = {
     assistantCoach: 'Yardımcı antrenör',
   },
   row: {
+    attendance: "{{total}} antrenmanın {{count}} tanesi",
     you: 'Sen',
     new: 'Yeni',
     inactive: 'Pasif',
@@ -108,6 +110,9 @@ export const kaderTr = {
     title_other: 'Pasif ve deneme oyuncuları ({{count}})',
   },
   tools: {
+    exchangeHint: "Transfer panosu ve deneme antrenmanları",
+    parentsHint: "Hangi çocuk için kim yanıtlıyor",
+    injuryHint: "Eksikliği kaydet, dönüşü planla",
     title: 'Takım',
     duties: 'Görevler',
     dutiesHint: 'Forma yıkama, soyunma odası görevi, antrenman yelekleri',

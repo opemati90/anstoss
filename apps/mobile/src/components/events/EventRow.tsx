@@ -13,7 +13,7 @@ import {
   SPACING_XS,
   SPACING_XXS,
 } from '../../theme/tokens'
-import { eventDisplayTitle, eventTimeLine, type EventLike } from './eventFormat'
+import { eventDisplayTitle, eventTimeLine, formatClock, type EventLike } from './eventFormat'
 import { RsvpControl, type AbsenceDetail, type RsvpStatus } from './RsvpControl'
 
 export type EventRowEvent = EventLike & {
@@ -22,6 +22,8 @@ export type EventRowEvent = EventLike & {
   cancelledAt?: string | null
   cancelReason?: string | null
   myRsvpStale?: boolean
+  /** Linked fussball.de fixture: the coach list calls it a league match. */
+  fixtureId?: string | null
 }
 
 export type EventRowProps = {
@@ -42,6 +44,11 @@ export type EventRowProps = {
   trailing?: string | null
   /** Small word under the number ("dabei"). */
   trailingHint?: string | null
+  /**
+   * Coach schedule (design 11): one line each — short match title
+   * ("vs. Rot-Weiß Köpenick III"), "14:00 · Sportplatz", 76pt rows.
+   */
+  compact?: boolean
   /** Extra screen-reader detail that is not shown, e.g. "3 offen". */
   accessibilityExtra?: string | null
   /** Position inside the white schedule group: rounds the ends, drops the last divider. */
@@ -65,6 +72,7 @@ export const EventRow = memo(function EventRow({
   trailing,
   trailingHint,
   accessibilityExtra,
+  compact,
   first,
   last,
   testID,
@@ -77,11 +85,18 @@ export const EventRow = memo(function EventRow({
     .replace('.', '')
     .toUpperCase()
   const dayNumber = String(date.getDate())
-  const title = eventDisplayTitle(event, t)
+  const title =
+    compact && event.type === 'MATCH' && event.opponent?.trim()
+      ? t(`eventFlow.matchTitleShort.${event.homeAway === 'AWAY' ? 'away' : 'home'}`, {
+          opponent: event.opponent.trim(),
+        })
+      : eventDisplayTitle(event, t)
   const cancelled = Boolean(event.cancelledAt)
-  const timeLine = eventTimeLine(event, locale, t)
+  const timeLine = compact ? formatClock(event.date, locale) : eventTimeLine(event, locale, t)
   const kind = [
-    t(`eventFlow.type.${event.type}`),
+    compact && event.type === 'MATCH' && event.fixtureId
+      ? t('eventFlow.list.leagueMatch')
+      : t(`eventFlow.type.${event.type}`),
     event.type === 'MATCH' && event.homeAway
       ? t(event.homeAway === 'AWAY' ? 'eventFlow.away' : 'eventFlow.home')
       : null,
@@ -90,7 +105,7 @@ export const EventRow = memo(function EventRow({
     .join(' · ')
   const meta = cancelled
     ? [t('eventFlow.cancelled'), event.cancelReason].filter(Boolean).join(' · ')
-    : event.myRsvpStale
+    : event.myRsvpStale && !compact
       ? `${timeLine} · ${t('eventFlow.list.rescheduled')}`
       : [timeLine, event.location].filter(Boolean).join(' · ')
   const contextLabel = `${weekday} · ${title}`
@@ -108,6 +123,7 @@ export const EventRow = memo(function EventRow({
       <View
         style={[
           styles.inner,
+          compact && styles.innerCompact,
           !last && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
         ]}
       >
@@ -129,7 +145,7 @@ export const EventRow = memo(function EventRow({
             .filter(Boolean)
             .join(', ')}
           android_ripple={{ color: c.surfaceSunken }}
-          style={({ pressed }) => [styles.head, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.head, compact && styles.headCompact, pressed && styles.pressed]}
         >
           <View style={styles.dateCol}>
             <Text variant="caption1" weight="bold" color="secondary">
@@ -145,24 +161,33 @@ export const EventRow = memo(function EventRow({
           </View>
 
           <View style={styles.body}>
-            <Text variant="caption1" weight="semibold" color="secondary" numberOfLines={1}>
+            <Text
+              variant="caption1"
+              weight="semibold"
+              color="secondary"
+              numberOfLines={1}
+              style={compact ? styles.kindCompact : undefined}
+            >
               {eyebrow ?? kind}
             </Text>
             <Text
               variant="callout"
               weight="bold"
               color={cancelled ? 'tertiary' : 'primary'}
-              numberOfLines={2}
-              style={cancelled ? styles.struck : undefined}
+              numberOfLines={compact ? 1 : 2}
+              style={{ ...(cancelled ? styles.struck : null), ...(compact ? styles.titleCompact : null) }}
             >
               {title}
             </Text>
-            {/* M5: never truncated. At 320pt or font scale 2.0 the time line
+            {/* M5: never truncated (compact rows lead with the time, so only the
+                place can clip). At 320pt or font scale 2.0 the time line
                 wraps instead of hiding the kickoff. */}
             <Text
               variant="footnote"
-              color={event.myRsvpStale && !cancelled ? 'tint' : 'secondary'}
+              color={event.myRsvpStale && !cancelled && !compact ? 'tint' : 'secondary'}
               tabular
+              numberOfLines={compact ? 1 : undefined}
+              style={compact ? styles.metaCompact : undefined}
               testID={testID ? `${testID}-time` : undefined}
             >
               {meta}
@@ -204,18 +229,26 @@ export const EventRow = memo(function EventRow({
 /** Date column (40) + gap (14): the answer pills line up under the title. */
 const DATE_COL = 40
 const ROW_GAP = SPACING_MD + 2
+const COMPACT_ROW = 76
 
 const styles = StyleSheet.create({
   group: { marginHorizontal: SCREEN_PADDING, paddingHorizontal: SPACING_LG },
   first: { borderTopLeftRadius: RADIUS_CARD, borderTopRightRadius: RADIUS_CARD },
   last: { borderBottomLeftRadius: RADIUS_CARD, borderBottomRightRadius: RADIUS_CARD },
   inner: { paddingVertical: SPACING_LG, gap: SPACING_MD },
+  innerCompact: { paddingVertical: SPACING_MD },
   head: { flexDirection: 'row', alignItems: 'center', gap: ROW_GAP, minHeight: 44 },
+  // Design 11: 76pt rows (12pt padding top and bottom).
+  headCompact: { minHeight: COMPACT_ROW - 2 * SPACING_MD },
   pressed: { opacity: 0.7 },
   dateCol: { width: DATE_COL, alignItems: 'center' },
   day: { fontFamily: fonts.data, fontSize: 26, lineHeight: 28 },
   body: { flex: 1, minWidth: 0, gap: SPACING_XXS + 1 },
   struck: { textDecorationLine: 'line-through' },
+  // Design 11 sets the three lines at the browser's normal leading (~1.2).
+  kindCompact: { lineHeight: 15 },
+  titleCompact: { lineHeight: 19 },
+  metaCompact: { lineHeight: 16 },
   trailing: { alignItems: 'flex-end', gap: SPACING_XXS },
   count: { fontFamily: fonts.data, fontSize: 22, lineHeight: 24 },
   rsvp: { paddingStart: DATE_COL + ROW_GAP, paddingBottom: SPACING_XS },

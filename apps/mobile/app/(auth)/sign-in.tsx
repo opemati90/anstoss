@@ -7,7 +7,9 @@ import { api } from '../../src/api/client'
 import { setPendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
-import { Text } from '../../src/components/ui'
+import { Button, Text } from '../../src/components/ui'
+import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
+import type { PolicyKind } from '../../src/content/policies'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride } from '../../src/context/ClubThemeContext'
 import { sendCodeErrorKey, verifyCodeError } from '../../src/onboarding/errors'
@@ -42,11 +44,14 @@ export default function SignIn() {
     sent?: string
     inviteCode?: string
     intent?: string
+    mode?: string
   }>()
   const initialEmail = first(params.email) ?? ''
   const inviteCode = first(params.inviteCode)
   const intent = parseOnboardingIntent(first(params.intent))
   const cameFromWelcome = first(params.sent) === '1' && !!initialEmail
+  // "Schon dabei? Anmelden" on welcome: a returning member.
+  const returning = first(params.mode) === 'signin'
   const { startOtp, verifyOtp } = useOnboardingAuth()
   const { refreshUser } = useAuth()
 
@@ -59,6 +64,7 @@ export default function SignIn() {
   const [cooldown, setCooldown] = useState(cameFromWelcome ? RESEND_COOLDOWN_S : 0)
   const [refocusKey, setRefocusKey] = useState(0)
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
+  const [policy, setPolicy] = useState<PolicyKind | null>(null)
   const verifyingRef = useRef(false)
   const emailRef = useRef<TextInput>(null)
 
@@ -185,30 +191,56 @@ export default function SignIn() {
     </View>
   ) : null
 
+  const legal = (
+    <Text variant="caption1" weight="regular" color="secondary" align="center" style={styles.legal}>
+      {t('onboardingFlow.code.legalPrefix')}
+      <Text
+        variant="caption1"
+        weight="bold"
+        color="secondary"
+        accessibilityRole="link"
+        onPress={() => setPolicy('terms')}
+      >
+        {t('onboardingFlow.code.legalTerms')}
+      </Text>
+      {t('onboardingFlow.code.legalAnd')}
+      <Text
+        variant="caption1"
+        weight="bold"
+        color="secondary"
+        accessibilityRole="link"
+        onPress={() => setPolicy('privacy')}
+      >
+        {t('onboardingFlow.code.legalPrivacy')}
+      </Text>
+      {t('onboardingFlow.code.legalSuffix')}
+    </Text>
+  )
+
   const content =
     stage === 'email' ? (
       <OnboardingScreen
-        title={t('onboardingFlow.code.emailTitle')}
+        title={
+          returning && !invite
+            ? t('onboardingFlow.code.signInTitle')
+            : t('onboardingFlow.code.emailTitle')
+        }
         subtitle={
           invite
             ? t('onboardingFlow.code.inviteEmailSubtitle', { club: invite.club.name })
-            : t('onboardingFlow.code.emailSubtitle')
+            : returning
+              ? t('onboardingFlow.code.signInSubtitle')
+              : t('onboardingFlow.code.emailSubtitle')
         }
-        progress={progress}
+        progress={inviteCode ? progress : null}
         onBack={back}
         lead={lead}
-        primary={{
-          label: t('onboardingFlow.code.sendCta'),
-          onPress: () => void sendCode(),
-          disabled: !emailValid,
-          loading: busy,
-          testID: 'sign-in-send',
-        }}
+        pageFooter={legal}
         testID="sign-in-email"
       >
         <OnboardingTextField
           ref={emailRef}
-          label={t('onboardingFlow.welcome.emailLabel')}
+          label={t('onboardingFlow.code.emailLabel')}
           value={email}
           onChangeText={(next) => {
             setEmail(next)
@@ -226,6 +258,16 @@ export default function SignIn() {
           onSubmitEditing={() => void sendCode()}
           error={error}
           testID="sign-in-email-input"
+        />
+        <Button
+          label={t('onboardingFlow.code.sendCta')}
+          onPress={() => void sendCode()}
+          disabled={!emailValid}
+          loading={busy}
+          size="lg"
+          fullWidth
+          style={styles.sendButton}
+          testID="sign-in-send"
         />
       </OnboardingScreen>
     ) : (
@@ -304,7 +346,16 @@ export default function SignIn() {
       </OnboardingScreen>
     )
 
-  return <ClubThemeOverride club={invite?.club ?? null}>{content}</ClubThemeOverride>
+  return (
+    <ClubThemeOverride club={invite?.club ?? null}>
+      {content}
+      <PolicyOverlay
+        visible={policy !== null}
+        kind={policy ?? 'terms'}
+        onClose={() => setPolicy(null)}
+      />
+    </ClubThemeOverride>
+  )
 }
 
 const styles = StyleSheet.create({
@@ -318,4 +369,7 @@ const styles = StyleSheet.create({
     columnGap: space.md,
   },
   codeAction: { minHeight: 44, justifyContent: 'center' },
+  // Design: 28 between field, button and the rest (the body gap is 14).
+  sendButton: { marginTop: space.md - 2 },
+  legal: { lineHeight: 18 },
 })

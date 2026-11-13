@@ -576,26 +576,7 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
         </HomeSection>
       ) : null}
 
-      {/* 3. Needs attention: only what the data proves. */}
-      {attention.length > 0 ? (
-        <HomeSection title={t('homeHub.coach.attention', { defaultValue: 'Needs attention' })}>
-          <HomeCard>
-            {attention.map((item, index) => (
-              <HomeRow
-                key={item.key}
-                icon={item.icon}
-                tone={item.tone}
-                title={item.title}
-                detail={item.detail}
-                showDivider={index > 0}
-                onPress={item.onPress}
-              />
-            ))}
-          </HomeCard>
-        </HomeSection>
-      ) : null}
-
-      {/* 4. The quiet next line, and the way to the full calendar. */}
+      {/* 3. The quiet next line, and the way to the full calendar. */}
       {afterEvent ? (
         <View style={styles.after}>
           <PressableScale
@@ -634,6 +615,26 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
             </Text>
           </PressableScale>
         </View>
+      ) : null}
+
+      {/* 4. Needs attention: only what the data proves, below "Danach"
+          (screen 08 ends there when nothing needs the coach). */}
+      {attention.length > 0 ? (
+        <HomeSection title={t('homeHub.coach.attention', { defaultValue: 'Needs attention' })}>
+          <HomeCard>
+            {attention.map((item, index) => (
+              <HomeRow
+                key={item.key}
+                icon={item.icon}
+                tone={item.tone}
+                title={item.title}
+                detail={item.detail}
+                showDivider={index > 0}
+                onPress={item.onPress}
+              />
+            ))}
+          </HomeCard>
+        </HomeSection>
       ) : null}
 
       {/* 5. Season, folded away. */}

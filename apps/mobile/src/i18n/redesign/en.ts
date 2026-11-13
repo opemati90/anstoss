@@ -21,6 +21,10 @@ export default {
     },
   },
   eventFlow: {
+    matchTitleShort: {
+      away: "at {{opponent}}",
+      home: "vs. {{opponent}}",
+    },
     absence: {
       coachOnly: "only the coach sees the reason",
     },
@@ -32,6 +36,7 @@ export default {
       route: "Directions",
     },
     list: {
+      leagueMatch: "League match",
       allAnswered: "All answered",
       awaitingReply_one: "{{count}} event waiting for your answer",
       awaitingReply_other: "{{count}} events waiting for your answer",

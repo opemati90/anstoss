@@ -50,6 +50,8 @@ import { lockPlayerTeamAccess, reconcileGuardianTeamAccess } from './guardian-te
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 // ── Wechselbörse review fixes (H1/L2): trial-scoped reads + roster decisions.
 import { closeLinkedJoinRequest, resolveTrialSessionScope } from '../marketplace/trial-access'
+// Vorschau und Vertretung: a running stand-in session grants coach access.
+import { hasActiveCoachActingSession } from '../acting/acting-access'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
@@ -780,6 +782,11 @@ export class TeamsService {
       }
     }
 
+    // Vorschau und Vertretung: a stand-in coach reads what a coach reads.
+    if (await this.hasActingCoachGrant(userId, access)) {
+      return access
+    }
+
     // Parents reach the team via their kid's GuardianRelationship — they
     // don't have direct TeamAccess. Without this branch the parent
     // /event-detail call 401s and the screen surfaces "Try again".
@@ -849,6 +856,10 @@ export class TeamsService {
       return access
     }
 
+    if (await this.hasActingCoachGrant(userId, access)) {
+      return access
+    }
+
     throw new TeamAccessDeniedError('You do not manage this team.')
   }
 
@@ -874,7 +885,29 @@ export class TeamsService {
       return access
     }
 
+    if (await this.hasActingCoachGrant(userId, access)) {
+      return access
+    }
+
     throw new TeamAccessDeniedError('You do not manage events for this team.')
+  }
+
+  /**
+   * Vorschau und Vertretung: a club member with a running, unexpired coach
+   * acting session for this team ("Trainer vertreten") is treated like a
+   * coach. Requires a current membership of the team's club, so the grant
+   * ends with the membership even before the session expires.
+   */
+  private async hasActingCoachGrant(
+    userId: string,
+    access: { team: { id: string; clubId: string }; membership: unknown },
+  ): Promise<boolean> {
+    if (!access.membership) return false
+    return hasActiveCoachActingSession(this.prisma as any, {
+      userId,
+      teamId: access.team.id,
+      clubId: access.team.clubId,
+    })
   }
 
   // ── ANS-38: Player Loans ─────────────────────────────────────

@@ -82,6 +82,8 @@ export const TENANT_SCOPED_MODELS = new Set([
   // 2026-11 redesign: coach-recorded live match state and events.
   'MatchLive',
   'MatchLiveEvent',
+  // Vorschau und Vertretung: a board member temporarily acting as a coach.
+  'ActingSession',
 ])
 
 /**

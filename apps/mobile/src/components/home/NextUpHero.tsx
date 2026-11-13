@@ -5,7 +5,6 @@ import { SPACING_XL, SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 import {
   eventHeadline,
-  formatCountdown,
   formatShortDate,
   formatTime,
 } from './HomeKit'
@@ -56,7 +55,6 @@ export function NextUpHero({
   const { t } = useTranslation()
 
   const inCheckInWindow = isInCheckInWindow(event.date, nowMs)
-  const countdown = formatCountdown(event.date, nowMs, locale, t)
   const isMatch = event.type === 'MATCH'
   const headline = eventHeadline(event)
   const kickoff = formatTime(event.date, locale)
@@ -73,7 +71,7 @@ export function NextUpHero({
         ? t('homeHub.player.youreMaybe', { defaultValue: 'You said maybe' })
         : answered === 'NO'
           ? t('homeHub.player.youreOut', { defaultValue: "You're not going" })
-          : t('home.player.areYouIn', { defaultValue: 'Are you in?' })
+          : null
 
   const typeLabel = isMatch
     ? t('homeHub.type.match', { defaultValue: 'Match' })
@@ -86,7 +84,9 @@ export function NextUpHero({
         ? t('homeHub.home', { defaultValue: 'Home' })
         : t('homeHub.away', { defaultValue: 'Away' })
       : null
-  const kicker = [t('homeHub.nextUp', { defaultValue: 'Next up' }), typeLabel, venue]
+  // Screen 22: "Als Nächstes · Ligaspiel" — no countdown or venue on the
+  // player hero; the time and the Treffpunkt line say when to be there.
+  const kicker = [t('homeHub.nextUp', { defaultValue: 'Next up' }), typeLabel]
     .filter(Boolean)
     .join(' · ')
   const versus =
@@ -119,16 +119,9 @@ export function NextUpHero({
         haptic="tapLight"
         style={styles.body}
       >
-        <View style={styles.topRow}>
-          <Text variant="footnote" weight="semibold" style={[styles.flex, { color: hero.muted }]} numberOfLines={1}>
-            {kicker}
-          </Text>
-          {countdown && !isCancelled ? (
-            <Text variant="footnote" weight="semibold" tabular style={{ color: hero.muted }}>
-              {countdown}
-            </Text>
-          ) : null}
-        </View>
+        <Text variant="footnote" weight="semibold" style={{ color: hero.muted }} numberOfLines={1}>
+          {kicker}
+        </Text>
         <Text
           variant="display"
           numberOfLines={1}
@@ -141,7 +134,7 @@ export function NextUpHero({
           variant="headline"
           weight="semibold"
           numberOfLines={2}
-          style={[{ color: hero.fg }, isCancelled ? styles.struck : {}]}
+          style={[styles.versus, { color: hero.fg }, isCancelled ? styles.struck : {}]}
         >
           {versus}
         </Text>
@@ -202,11 +195,11 @@ export function NextUpHero({
 const styles = StyleSheet.create({
   hero: { gap: SPACING_XL },
   body: { gap: SPACING_XS + SPACING_XXS },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   kickoff: { fontSize: 50 },
+  versus: { fontSize: 16 },
   flex: { flex: 1 },
   struck: { textDecorationLine: 'line-through' },
-  reply: { gap: space.sm + 4 },
+  reply: { gap: space.sm },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
