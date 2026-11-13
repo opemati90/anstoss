@@ -9,7 +9,7 @@ import * as Haptics from '../../utils/haptics'
 import { Icon } from '../ui'
 import { Text } from '../ui/Text'
 import { VoiceRecorderButton, type VoiceRecorderResult } from './VoiceRecorderButton'
-import { FONT_FAMILY_REGULAR, hairline, radius, space } from '../../theme/tokens'
+import { FONT_FAMILY_REGULAR, FONT_SIZE_BODY, hairline, RADIUS_XL, radius, space } from '../../theme/tokens'
 
 export { pickChatImage, type ChatAttachment } from './chatAttachments'
 
@@ -43,9 +43,10 @@ type Props = {
 }
 
 /**
- * One rounded composer: + on the left, a field that grows to six lines with a
- * camera shortcut, and a send button that springs in over the mic as soon as
- * there is text. Drafts persist per conversation.
+ * One composer: an outlined + circle on the left, a white rounded field
+ * that grows to six lines with a camera shortcut, and an ink send circle
+ * that springs in over the mic as soon as there is text. Drafts persist
+ * per conversation.
  */
 export function ChatInput({
   onSend,
@@ -146,7 +147,7 @@ export function ChatInput({
   )
 
   return (
-    <View style={[styles.wrap, { backgroundColor: c.background, borderTopColor: c.borderSubtle }]}>
+    <View style={[styles.wrap, { backgroundColor: c.background, borderTopColor: c.borderDefault }]}>
       {errorMessage ? (
         <Text variant="caption1" style={[styles.notice, { color: c.error }]}>
           {errorMessage}
@@ -164,14 +165,17 @@ export function ChatInput({
             accessibilityLabel={t('chatThread.attach.open')}
             disabled={disabled}
             android_ripple={{ color: c.borderSubtle, borderless: true, radius: 22 }}
-            style={({ pressed }) => [styles.iconBtn, pressed && { backgroundColor: c.surfaceSunken }]}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { backgroundColor: pressed ? c.surfaceMuted : c.surface, borderColor: c.borderDefault },
+            ]}
             testID="chat-attach-open"
           >
-            <Icon name="plus" size={26} color={disabled ? c.textTertiary : c.primary} />
+            <Icon name="plus" size={20} color={disabled ? c.textTertiary : c.textPrimary} />
           </Pressable>
         ) : null}
 
-        <View style={[styles.field, { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle }]}>
+        <View style={[styles.field, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
           <TextInput
             ref={inputRef}
             style={[styles.input, { color: c.textPrimary }]}
@@ -209,7 +213,7 @@ export function ChatInput({
               <Pressable
                 style={({ pressed }) => [
                   styles.sendButton,
-                  { backgroundColor: canSend || isSending ? c.primary : c.surfaceSunken },
+                  { backgroundColor: canSend || isSending ? c.ink : c.surfaceSunken },
                   pressed && canSend && styles.sendPressed,
                 ]}
                 onPress={handleSend}
@@ -220,9 +224,9 @@ export function ChatInput({
                 testID="chat-send-message"
               >
                 {isSending ? (
-                  <ActivityIndicator color={c.onPrimary} />
+                  <ActivityIndicator color={c.onInk} />
                 ) : (
-                  <Icon name="arrow.up" size={20} color={canSend ? c.onPrimary : c.textTertiary} />
+                  <Icon name="arrow.right" size={20} color={canSend ? c.onInk : c.textTertiary} />
                 )}
               </Pressable>
             </Animated.View>
@@ -243,9 +247,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
-    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    gap: space.sm,
   },
   field: {
     flex: 1,
@@ -253,15 +257,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     minHeight: 44,
-    borderRadius: radius.xl,
+    borderRadius: RADIUS_XL,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
   },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: MAX_FIELD_HEIGHT,
-    fontSize: 17,
+    fontSize: FONT_SIZE_BODY,
     lineHeight: LINE_HEIGHT,
     fontFamily: FONT_FAMILY_REGULAR,
     includeFontPadding: false,
@@ -282,6 +286,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 44,
     height: 44,
+    borderWidth: 1,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

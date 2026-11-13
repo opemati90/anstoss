@@ -108,7 +108,8 @@ export default function ConversationScreen() {
       options={{
         headerTitleAlign: 'left',
         headerBackButtonDisplayMode: 'minimal',
-        headerTintColor: c.primary,
+        // Ink back chevron, like the design's outlined back button.
+        headerTintColor: c.textPrimary,
         headerStyle: { backgroundColor: c.background },
         headerShadowVisible: true,
         headerTitle: () => (

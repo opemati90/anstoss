@@ -179,11 +179,12 @@ describe('Kader tab', () => {
   it('pins the signed-in player and groups the rest by line, then the coaches', async () => {
     const screen = render(<KaderScreen />)
     expect(await screen.findByText('kader.self.change')).toBeTruthy()
-    expect(screen.getByText('kader.lines.defence')).toBeTruthy()
-    expect(screen.getByText('kader.lines.midfield')).toBeTruthy()
-    expect(screen.getByText('kader.lines.coaches')).toBeTruthy()
+    // Section labels carry their head count ("Abwehr · 2").
+    expect(screen.getByText('kader.lines.defence · 2')).toBeTruthy()
+    expect(screen.getByText('kader.lines.midfield · 1')).toBeTruthy()
+    expect(screen.getByText('kader.lines.coaches · 1')).toBeTruthy()
     // Goalkeeper section disappears: the only keeper is the pinned "Du" row.
-    expect(screen.queryByText('kader.lines.goalkeepers')).toBeNull()
+    expect(screen.queryByText(/^kader\.lines\.goalkeepers/)).toBeNull()
   })
 
   it('marks suspended players; fit players and injury data carry no pill', async () => {
@@ -199,6 +200,19 @@ describe('Kader tab', () => {
     expect(screen.queryByText('Tim Weber')).toBeNull()
     expect(screen.getByText('Niklas Wagner')).toBeTruthy()
     fireEvent.press(screen.getByTestId('kader-summary-SUSPENDED'))
+    expect(screen.getByText('Tim Weber')).toBeTruthy()
+  })
+
+  it('searches players by name and resets the filter from the Alle chip', async () => {
+    const screen = render(<KaderScreen />)
+    await screen.findByText('Anna Schmidt')
+    fireEvent.changeText(screen.getByLabelText('kader.search'), 'anna')
+    expect(screen.getByText('Anna Schmidt')).toBeTruthy()
+    expect(screen.queryByText('Tim Weber')).toBeNull()
+    fireEvent.changeText(screen.getByLabelText('kader.search'), '')
+    fireEvent.press(screen.getByTestId('kader-summary-SUSPENDED'))
+    expect(screen.queryByText('Tim Weber')).toBeNull()
+    fireEvent.press(screen.getByTestId('kader-summary-ALL'))
     expect(screen.getByText('Tim Weber')).toBeTruthy()
   })
 
@@ -236,6 +250,13 @@ describe('Kader tab', () => {
       authState.activeRoleMode = 'COACH'
       authState.activeClub = { role: 'COACH', club: { id: 'club-1', name: 'SV Albatros' } }
       authState.activeTeamAccess = { role: 'HEAD_COACH', team: { id: 'team-1', displayName: 'Herren 1' } }
+    })
+
+    it('offers Einladen in the header', async () => {
+      const screen = render(<KaderScreen />)
+      await screen.findByText('kader.requestsBanner|1')
+      fireEvent.press(screen.getByTestId('kader-invite'))
+      expect(mockRouterPush).toHaveBeenCalledWith('/invite')
     })
 
     it('shows the open-requests banner and the collapsed inactive/trial section', async () => {

@@ -682,8 +682,8 @@ export function ChatScreen({
           >
             <Icon name="chevron.down" size="md" color={c.textPrimary} />
             {unreadCount > 0 ? (
-              <View style={[styles.fabBadge, { backgroundColor: c.primary }]}>
-                <Text variant="caption1" weight="bold" tabular color={c.onPrimary}>
+              <View style={[styles.fabBadge, { backgroundColor: c.accent }]}>
+                <Text variant="caption1" weight="bold" tabular color={c.onAccent}>
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </Text>
               </View>
@@ -757,7 +757,7 @@ export function ChatScreen({
           />
         ) : (
           <View
-            style={[styles.readOnly, { backgroundColor: c.surface, borderTopColor: c.borderSubtle }]}
+            style={[styles.readOnly, { backgroundColor: c.background, borderTopColor: c.borderDefault }]}
             accessibilityRole="text"
             testID="chat-read-only"
           >
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   searchResultHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  messageList: { paddingVertical: space.sm },
+  messageList: { paddingVertical: space.md },
   errorBanner: {
     marginHorizontal: space.md,
     marginBottom: space.xs,

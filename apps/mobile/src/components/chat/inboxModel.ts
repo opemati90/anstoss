@@ -254,3 +254,50 @@ export function groupErrorKey(error: unknown): string | null {
   for (const [code, key] of GROUP_ERROR_KEYS) if (text.includes(code)) return key
   return null
 }
+
+// ─── Redesign: channel filter chips (Team / Trainer / Infos / Direkt) ───
+
+export type InboxBucket = 'ALL' | 'TEAM' | 'COACHES' | 'INFO' | 'DM'
+
+export const INBOX_BUCKETS: InboxBucket[] = ['ALL', 'TEAM', 'COACHES', 'INFO', 'DM']
+
+/** Which filter chip a conversation sits under. */
+export function inboxBucket(item: Pick<InboxItem, 'type' | 'kind'>): Exclude<InboxBucket, 'ALL'> {
+  if (item.type === 'DM') return 'DM'
+  switch (item.kind) {
+    case 'COACHES':
+      return 'COACHES'
+    case 'ANNOUNCEMENTS':
+    case 'CLUB_NEWS':
+      return 'INFO'
+    default:
+      return 'TEAM'
+  }
+}
+
+/**
+ * Per chip: how many conversations it holds and their unread (unmuted)
+ * count. Chips with no conversations are hidden; "Alle" always shows.
+ */
+export function inboxBucketStats(
+  items: InboxItem[],
+  now: number = Date.now(),
+): Record<InboxBucket, { size: number; unread: number }> {
+  const stats = Object.fromEntries(
+    INBOX_BUCKETS.map((bucket) => [bucket, { size: 0, unread: 0 }]),
+  ) as Record<InboxBucket, { size: number; unread: number }>
+  for (const item of items) {
+    const unread = isMuted(item, now) ? 0 : item.unreadCount || 0
+    for (const bucket of ['ALL', inboxBucket(item)] as InboxBucket[]) {
+      stats[bucket].size += 1
+      stats[bucket].unread += unread
+    }
+  }
+  return stats
+}
+
+/** Keep the conversations of one chip ("ALL" keeps everything). */
+export function filterByBucket<T extends InboxItem>(items: T[], bucket: InboxBucket): T[] {
+  if (bucket === 'ALL') return items
+  return items.filter((item) => inboxBucket(item) === bucket)
+}

@@ -3,11 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_CARD, RADIUS_INPUT, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import type { ChatMessage } from '../../hooks/useChat'
 import { Icon, Text } from '../ui'
-import { RADIUS_MD } from '../../theme/tokens'
 
 type Poll = {
   id: string
@@ -98,20 +97,28 @@ export function PollCardMessage({ message, onLongPress }: Props) {
       onLongPress={onLongPress}
       delayLongPress={250}
       accessibilityRole="summary"
-      style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[styles.card, { backgroundColor: c.surface }]}
     >
       <View style={styles.head}>
-        <Icon name="chart.bar.fill" size={13} color={c.textSecondary} />
-        <Text variant="caption1" weight="semibold" color="secondary">
+        <Text variant="label" color="secondary">
           {t('chatHub.poll.label')}
         </Text>
         {message.senderName ? (
           <Text variant="caption1" color="tertiary" numberOfLines={1} style={styles.sender}>
             {message.senderName}
           </Text>
+        ) : (
+          <View style={styles.sender} />
+        )}
+        {poll ? (
+          <Text variant="caption1" color="secondary" tabular>
+            {closed
+              ? t('chatHub.poll.closed', { count: total })
+              : t('chatHub.poll.votes', { count: total })}
+          </Text>
         ) : null}
       </View>
-      <Text variant="body" weight="semibold" color="primary">
+      <Text variant="body" weight="bold" color="primary">
         {poll?.question ?? message.content}
       </Text>
 
@@ -151,7 +158,10 @@ export function PollCardMessage({ message, onLongPress }: Props) {
                 })}
                 style={({ pressed }) => [
                   styles.option,
-                  { borderColor: mine ? c.primary : c.borderDefault },
+                  mine
+                    ? { borderColor: c.ink, borderWidth: 2 }
+                    : { borderColor: c.borderDefault, borderWidth: 1 },
+                  { backgroundColor: c.surface },
                   pressed && { opacity: 0.85 },
                 ]}
               >
@@ -160,30 +170,27 @@ export function PollCardMessage({ message, onLongPress }: Props) {
                     styles.fill,
                     {
                       width: `${Math.round(share * 100)}%`,
-                      backgroundColor: mine ? c.primary50 : c.surfaceSunken,
+                      backgroundColor: mine ? c.primary50 : c.surfaceMuted,
                     },
                   ]}
                 />
-                <Icon
-                  name={mine ? 'checkmark.circle.fill' : 'circle'}
-                  size={18}
-                  color={mine ? c.primary : c.textTertiary}
-                />
+                {/* The pick is marked by shape too (thick ink ring + check), not colour alone. */}
+                {mine ? <Icon name="checkmark.circle.fill" size={18} color={c.ink} /> : null}
                 {/* L8: labels wrap fully at font scale 2.0; the row grows instead. */}
-                <Text variant="subheadline" color="primary" style={styles.optionLabel}>
+                <Text
+                  variant="subheadline"
+                  weight={mine ? 'bold' : 'semibold'}
+                  color="primary"
+                  style={styles.optionLabel}
+                >
                   {option.label}
                 </Text>
-                <Text variant="footnote" tabular color="secondary">
+                <Text variant="data" color="primary" style={styles.optionCount}>
                   {option.votes}
                 </Text>
               </Pressable>
             )
           })}
-          <Text variant="caption1" color="tertiary" tabular>
-            {closed
-              ? t('chatHub.poll.closed', { count: total })
-              : t('chatHub.poll.votes', { count: total })}
-          </Text>
         </View>
       ) : null}
     </Pressable>
@@ -193,27 +200,26 @@ export function PollCardMessage({ message, onLongPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     padding: space.md,
-    gap: space.sm,
+    gap: space.sm + 2,
   },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  sender: { flexShrink: 1, marginLeft: space.xs },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  sender: { flex: 1, minWidth: 0 },
   options: { gap: space.sm },
   option: {
-    minHeight: 44,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.sm + space.xs,
+    paddingHorizontal: space.sm + space.xs + 2,
     paddingVertical: space.sm,
-    borderRadius: RADIUS_MD,
+    borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
+  optionCount: { fontSize: 17, lineHeight: 20 },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   optionLabel: { flex: 1, minWidth: 0, flexShrink: 1 },
   retry: { flexDirection: 'row', gap: space.sm, minHeight: 44, alignItems: 'center' },

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import type { ChatMessage } from '../../hooks/useChat'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { hairline, RADIUS_CARD, radius, space } from '../../theme/tokens'
 import { Icon, Text } from '../ui'
 import { clockTime } from './chatGrouping'
 import { POSITION_CODES, slotsByLine } from './lineupFormations'
@@ -66,12 +66,12 @@ export const LineupCardMessage = memo(function LineupCardMessage({ message, loca
         .filter(Boolean)
         .join('. ')}
       accessibilityHint={t('chat.bubbleHint')}
-      style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[styles.card, { backgroundColor: c.surface }]}
       testID={`chat-lineup-card-${message.id}`}
     >
       <View style={styles.head}>
         <Icon name="figure.soccer" size={14} color={c.textSecondary} />
-        <Text variant="caption1" weight="semibold" color="secondary" style={styles.flex}>
+        <Text variant="label" color="secondary" style={styles.flex}>
           {formation ? t('chatThread.lineup.withFormation', { formation }) : t('chatThread.lineup.label')}
         </Text>
         <Text variant="caption1" color="tertiary" tabular>
@@ -79,7 +79,7 @@ export const LineupCardMessage = memo(function LineupCardMessage({ message, loca
         </Text>
       </View>
       {title ? (
-        <Text variant="headline" weight="semibold" color="primary">
+        <Text variant="body" weight="bold" color="primary">
           {title}
         </Text>
       ) : null}
@@ -91,7 +91,7 @@ export const LineupCardMessage = memo(function LineupCardMessage({ message, loca
 
       {lines ? (
         <View
-          style={[styles.pitch, { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle }]}
+          style={[styles.pitch, { backgroundColor: c.surfaceMuted, borderColor: c.borderSubtle }]}
           importantForAccessibility="no-hide-descendants"
         >
           <View style={[styles.halfway, { backgroundColor: c.borderDefault }]} />
@@ -143,9 +143,8 @@ export const LineupCardMessage = memo(function LineupCardMessage({ message, loca
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     padding: space.md,
     gap: space.sm,
   },

@@ -108,14 +108,14 @@ export function FilterChipRow<T extends string = string>({
                 style={[
                   styles.countPill,
                   {
-                    backgroundColor: isActive ? c.accent : c.textTertiary,
+                    backgroundColor: c.accent,
                   },
                 ]}
               >
                 <Text
                   variant="caption2"
                   weight="bold"
-                  color={isActive ? c.onAccent : c.textInverse}
+                  color={c.onAccent}
                   tabular
                 >
                   {chip.count}

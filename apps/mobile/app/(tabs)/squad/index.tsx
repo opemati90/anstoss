@@ -12,18 +12,29 @@ import {
   Badge,
   BottomSheet,
   Button,
+  FilterChipRow,
   Icon,
+  IconButton,
   ListRow,
+  SearchBar,
   SectionGroup,
   SoftIcon,
   Text,
+  type FilterChip,
   type IconName,
 } from '../../../src/components/ui'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { ErrorState } from '../../../src/components/ErrorState'
 import { RosterSkeleton } from '../../../src/components/Skeleton'
 import { TabScreenHeader } from '../../../src/components/TabScreenHeader'
-import { hairline, radius, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import {
+  INPUT_HEIGHT,
+  RADIUS_CARD,
+  RADIUS_INPUT,
+  SCREEN_PADDING,
+  space,
+  TAB_BAR_CLEARANCE,
+} from '../../../src/theme/tokens'
 import { KaderRow } from '../../../src/components/squad/KaderRow'
 import { PlayerEditSheet } from '../../../src/components/squad/PlayerEditSheet'
 import { InjurySheet } from '../../../src/components/squad/InjurySheet'
@@ -82,6 +93,7 @@ export default function KaderScreen() {
   const [error, setError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState<KaderFilter>('ALL')
+  const [query, setQuery] = useState('')
   const [offSquadOpen, setOffSquadOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState<KaderMember | null>(null)
@@ -102,6 +114,7 @@ export default function KaderScreen() {
     setNextEvent(null)
     setLoading(true)
     setFilter('ALL')
+    setQuery('')
   }, [activeTeamId])
 
   const fetchSnapshot = useCallback(async () => {
@@ -190,17 +203,30 @@ export default function KaderScreen() {
     [snapshot, userId, nextEvent],
   )
 
+  // "Spieler suchen": name, position or shirt number, across every section.
+  const needle = query.trim().toLocaleLowerCase()
+  const matches = useCallback(
+    (member: KaderMember) =>
+      !needle ||
+      member.name.toLocaleLowerCase().includes(needle) ||
+      (member.position ?? '').toLocaleLowerCase().includes(needle) ||
+      (member.jerseyNumber != null && String(member.jerseyNumber) === needle),
+    [needle],
+  )
+
   const sections = useMemo<Section[]>(() => {
     if (!model) return []
     const grouped: Section[] = groupKader(model, filter)
+      .map((section) => ({ ...section, data: section.data.filter(matches) }))
+      .filter((section) => section.data.length > 0)
     if (isCoach && filter === 'ALL') {
-      const offSquad = [...model.inactive, ...model.trials]
+      const offSquad = [...model.inactive, ...model.trials].filter(matches)
       if (offSquad.length > 0) {
-        grouped.push({ key: 'OFF_SQUAD', data: offSquadOpen ? offSquad : [] })
+        grouped.push({ key: 'OFF_SQUAD', data: offSquadOpen || needle ? offSquad : [] })
       }
     }
     return grouped
-  }, [model, filter, isCoach, offSquadOpen])
+  }, [model, filter, isCoach, offSquadOpen, matches, needle])
 
   const teamName = activeTeamAccess?.team?.displayName || snapshot?.team.displayName || ''
   const dutyBadge = pendingDutyCount(snapshot, userId, isCoach)
@@ -257,24 +283,57 @@ export default function KaderScreen() {
 
   const header = (
     <View style={styles.headerBlock}>
-      <TabScreenHeader
-        title={t('kader.title')}
-        subtitle={
-          model
-            ? t('kader.subtitle', { team: teamName, count: model.squadCount })
-            : teamName || undefined
-        }
-        actionIcon={isCoach ? 'ellipsis' : undefined}
-        actionAccessibilityLabel={isCoach ? t('kader.menu.a11y') : undefined}
-        onActionPress={isCoach ? () => setMenuOpen(true) : undefined}
-      />
+      <View style={styles.titleRow}>
+        <View style={styles.flex}>
+          <Text variant="largeTitle" color="primary" accessibilityRole="header">
+            {t('kader.title')}
+          </Text>
+          {model || teamName ? (
+            <Text variant="subheadline" weight="regular" color="secondary">
+              {model ? t('kader.subtitle', { team: teamName, count: model.squadCount }) : teamName}
+            </Text>
+          ) : null}
+        </View>
+        {isCoach ? (
+          <View style={styles.headerActions}>
+            <Button
+              label={t('kader.invite', { defaultValue: 'Invite' })}
+              size="sm"
+              leftIcon={<Icon name="plus" size={16} color={c.onInk} />}
+              onPress={() => router.push('/invite')}
+              testID="kader-invite"
+            />
+            <IconButton
+              variant="outlined"
+              accessibilityLabel={t('kader.menu.a11y')}
+              onPress={() => setMenuOpen(true)}
+            >
+              <Icon name="ellipsis" size="md" color={c.textPrimary} />
+            </IconButton>
+          </View>
+        ) : null}
+      </View>
 
       {model && model.players.length > 0 ? (
-        <SummaryLine
-          counts={model.counts}
-          filter={filter}
-          onFilter={(kind) => setFilter((prev) => (prev === kind ? 'ALL' : kind))}
-        />
+        <>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('kader.search', { defaultValue: 'Search players' })}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            containerStyle={styles.search}
+            testID="kader-search"
+          />
+          <SummaryLine
+            counts={model.counts}
+            total={model.players.length}
+            filter={filter}
+            onFilter={(kind) => setFilter((prev) => (kind === 'ALL' || prev === kind ? 'ALL' : kind))}
+          />
+        </>
       ) : null}
 
       {model && model.players.length === 0 ? (
@@ -289,7 +348,7 @@ export default function KaderScreen() {
       ) : null}
 
       {isCoach && model && model.openRequests > 0 ? (
-        <View style={[styles.bannerCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+        <View style={[styles.bannerCard, { backgroundColor: c.surface }]}>
           <ListRow
             compact
             title={t('kader.requestsBanner', { count: model.openRequests })}
@@ -313,9 +372,9 @@ export default function KaderScreen() {
         </View>
       ) : null}
 
-      {model?.selfPlayer && showSelfPin(model, filter) ? (
+      {model?.selfPlayer && showSelfPin(model, filter) && !needle ? (
         <View style={styles.selfBlock}>
-          <Text variant="footnote" weight="semibold" color="secondary" style={styles.sectionTitle}>
+          <Text variant="label" color="secondary" style={styles.sectionTitle}>
             {t('kader.self.section')}
           </Text>
           <View>
@@ -329,12 +388,12 @@ export default function KaderScreen() {
               style={({ pressed }) => [
                 styles.selfAction,
                 {
-                  backgroundColor: pressed ? c.surfaceSunken : c.surface,
-                  borderColor: c.borderDefault,
+                  backgroundColor: pressed ? c.surfaceMuted : c.surface,
+                  borderTopColor: c.borderSubtle,
                 },
               ]}
             >
-              <Text variant="body" color="tint" weight="medium">
+              <Text variant="body" color="primary" weight="semibold">
                 {t('kader.self.change')}
               </Text>
               <Icon name="chevron.right" size="sm" color="tertiary" />
@@ -429,7 +488,11 @@ export default function KaderScreen() {
               <Text variant="body" color="secondary">
                 {t('kader.filterEmpty')}
               </Text>
-              <Button label={t('kader.showAll')} variant="plain" size="sm" onPress={() => setFilter('ALL')} />
+              <Button label={t('kader.showAll')} variant="plain" size="sm" onPress={() => {
+                  setFilter('ALL')
+                  setQuery('')
+                }}
+              />
             </View>
           ) : null
         }
@@ -446,18 +509,15 @@ export default function KaderScreen() {
               style={styles.sectionHeaderRow}
               testID="kader-off-squad-toggle"
             >
-              <Text variant="footnote" weight="semibold" color="secondary" style={styles.flex}>
+              <Text variant="label" color="secondary" style={styles.flex}>
                 {t('kader.offSquad.title', { count: model.inactive.length + model.trials.length })}
               </Text>
               <Icon name={offSquadOpen ? 'chevron.up' : 'chevron.down'} size="sm" color="tertiary" />
             </Pressable>
           ) : (
-            <View style={styles.sectionHeaderRow}>
-              <Text variant="footnote" weight="semibold" color="secondary" style={styles.flex}>
-                {lineLabel(t, section.key)}
-              </Text>
-              <Text variant="footnote" color="tertiary" tabular>
-                {section.data.length}
+            <View style={styles.sectionHeaderRow} accessibilityRole="header">
+              <Text variant="label" color="secondary" style={styles.flex}>
+                {`${lineLabel(t, section.key)} · ${section.data.length}`}
               </Text>
             </View>
           )
@@ -531,17 +591,22 @@ export default function KaderScreen() {
   )
 }
 
+/**
+ * The design's segmented filter: "Alle 22 · 19 fit · 2 gesperrt …" as ink
+ * chips. A second tap on the selected chip goes back to Alle.
+ */
 function SummaryLine({
   counts,
+  total,
   filter,
   onFilter,
 }: {
   counts: Record<AvailabilityKind, number>
+  total: number
   filter: KaderFilter
-  onFilter: (kind: AvailabilityKind) => void
+  onFilter: (kind: KaderFilter) => void
 }) {
   const { t } = useTranslation()
-  const c = useClubColors()
   const parts = SUMMARY_ORDER.filter((kind) => kind === 'FIT' || counts[kind] > 0)
   const labelKey: Record<AvailabilityKind, string> = {
     FIT: 'kader.summary.fit',
@@ -550,45 +615,27 @@ function SummaryLine({
     UNAVAILABLE: 'kader.summary.unavailable',
     AWAY: 'kader.summary.away',
   }
+  const chips: FilterChip<KaderFilter>[] = [
+    {
+      key: 'ALL',
+      label: t('kader.summary.all', { count: total, defaultValue: 'All {{count}}' }),
+      testID: 'kader-summary-ALL',
+    },
+    ...parts.map((kind) => ({
+      key: kind,
+      label: t(labelKey[kind], { count: counts[kind] }),
+      testID: `kader-summary-${kind}`,
+    })),
+  ]
   return (
-    <View style={styles.summary} accessibilityRole="tablist">
-      {parts.map((kind, index) => {
-        const selected = filter === kind
-        const label = t(labelKey[kind], { count: counts[kind] })
-        return (
-          <View key={kind} style={styles.summaryItem}>
-            {index > 0 ? (
-              <Text variant="subheadline" color="tertiary">
-                {'·'}
-              </Text>
-            ) : null}
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              accessibilityLabel={label}
-              accessibilityHint={t('kader.summary.filterHint')}
-              onPress={() => onFilter(kind)}
-              android_ripple={{ color: c.borderSubtle, borderless: false }}
-              hitSlop={{ top: 12, bottom: 12, left: 4, right: 4 }}
-              testID={`kader-summary-${kind}`}
-              style={[
-                styles.summaryChip,
-                selected && { backgroundColor: c.surfaceSunken, borderColor: c.primary },
-              ]}
-            >
-              <Text
-                variant="subheadline"
-                weight={selected ? 'semibold' : 'regular'}
-                color={selected ? 'tint' : 'secondary'}
-                tabular
-              >
-                {label}
-              </Text>
-            </Pressable>
-          </View>
-        )
-      })}
-    </View>
+    <FilterChipRow<KaderFilter>
+      chips={chips}
+      selected={filter}
+      onToggle={onFilter}
+      singleSelect
+      contentStyle={styles.chips}
+      testID="kader-summary"
+    />
   )
 }
 
@@ -687,52 +734,45 @@ function CoachMenuSheet({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  pad: { paddingHorizontal: space.md, paddingTop: space.sm, gap: space.md },
+  pad: { paddingHorizontal: SCREEN_PADDING, paddingTop: space.sm, gap: space.md },
   list: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: space.sm,
     // Clear the floating tab bar so the last row isn't pinned under it.
     paddingBottom: TAB_BAR_CLEARANCE + space['2xl'],
   },
-  headerBlock: { gap: space.md, marginBottom: space.md },
-  summary: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: space.xs },
-  summaryItem: { flexDirection: 'row', alignItems: 'center' },
-  summaryChip: {
-    paddingHorizontal: space.xs + 2,
-    paddingVertical: space['2xs'] + 2,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-    borderColor: 'transparent',
-  },
+  headerBlock: { gap: space.md + 2, marginBottom: space.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  search: { height: INPUT_HEIGHT, borderRadius: RADIUS_INPUT, borderCurve: 'continuous' },
+  chips: { paddingHorizontal: 0 },
   bannerCard: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
   legend: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   legendText: { flex: 1 },
-  selfBlock: { gap: space.sm },
+  selfBlock: { gap: space.sm + 2 },
   selfAction: {
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.md,
-    borderWidth: hairline,
-    borderTopWidth: hairline,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomLeftRadius: RADIUS_CARD,
+    borderBottomRightRadius: RADIUS_CARD,
     borderCurve: 'continuous',
   },
-  sectionTitle: { paddingHorizontal: space.xs },
+  sectionTitle: { paddingHorizontal: space['2xs'] },
   sectionHeaderRow: {
     minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.xs,
-    paddingBottom: space.sm,
+    paddingHorizontal: space['2xs'],
+    paddingBottom: space.sm + 2,
   },
   sectionGap: { height: space.lg },
   filterEmpty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },

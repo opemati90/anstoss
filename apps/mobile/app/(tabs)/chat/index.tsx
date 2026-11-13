@@ -18,20 +18,24 @@ import { markConversationRead, muteConversation } from '../../../src/api/chat'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { ErrorState } from '../../../src/components/ErrorState'
 import { Skeleton } from '../../../src/components/Skeleton'
-import { IconButton, Icon, SearchBar, Text } from '../../../src/components/ui'
+import { FilterChipRow, IconButton, Icon, SearchBar, Text, type FilterChip } from '../../../src/components/ui'
 import { InboxRow, INBOX_AVATAR_SIZE } from '../../../src/components/chat/InboxRow'
 import { openConversation } from '../../../src/components/chat/chatRoutes'
 import {
   conversationSubtitle,
   conversationTitle,
+  filterByBucket,
   filterInbox,
+  INBOX_BUCKETS,
+  inboxBucketStats,
+  type InboxBucket,
   isMuted,
   previewLine,
   routeKindFor,
   sortInbox,
   typingPreview,
 } from '../../../src/components/chat/inboxModel'
-import { hairline, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import { hairline, INPUT_HEIGHT, RADIUS_INPUT, SCREEN_PADDING, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
 
 /** Scroll offset over which the large title hands over to the compact bar. */
 const COLLAPSE_START = 24
@@ -56,10 +60,33 @@ export default function ChatInboxScreen() {
     extrapolate: 'clamp',
   })
   const [query, setQuery] = useState('')
+  const [bucket, setBucket] = useState<InboxBucket>('ALL')
   const [refreshing, setRefreshing] = useState(false)
   const clubId = activeClub?.club.id ?? null
   const teamCount = teamsForActiveClub?.length ?? 0
   const crestUrl = activeClub?.club.badgeUrl ?? null
+
+  // Channel chips (Team / Trainer / Infos / Direkt) with their unread count.
+  // A chip appears only when the member has a conversation of that kind.
+  const chips = useMemo<FilterChip<InboxBucket>[]>(() => {
+    const stats = inboxBucketStats(items)
+    const labels: Record<InboxBucket, string> = {
+      ALL: t('chatHub.filter.all', { defaultValue: 'All' }),
+      TEAM: t('chatHub.kind.team'),
+      COACHES: t('chatHub.filter.coaches', { defaultValue: 'Coaches' }),
+      INFO: t('chatHub.filter.info', { defaultValue: 'Info' }),
+      DM: t('chatHub.filter.direct', { defaultValue: 'Direct' }),
+    }
+    return INBOX_BUCKETS.filter((key) => key === 'ALL' || stats[key].size > 0).map((key) => ({
+      key,
+      label: labels[key],
+      count: key !== 'ALL' && stats[key].unread > 0 ? stats[key].unread : undefined,
+      testID: `chat-filter-${key}`,
+    }))
+  }, [items, t])
+  // A chip that vanished (or a hidden row of chips) falls back to "Alle".
+  const activeBucket: InboxBucket =
+    chips.length > 2 && chips.some((chip) => chip.key === bucket) ? bucket : 'ALL'
 
   const rows = useMemo(() => {
     const decorated = items.map((item) => {
@@ -73,10 +100,10 @@ export default function ChatInboxScreen() {
       }
     })
     const byId = new Map(decorated.map((row) => [row.item.id, row]))
-    const sorted = sortInbox(items)
+    const sorted = filterByBucket(sortInbox(items), activeBucket)
     const filtered = filterInbox(sorted, query, (item) => byId.get(item.id)?.title ?? item.title)
     return filtered.map((item) => byId.get(item.id)!)
-  }, [items, query, t, teamCount, typing, user?.id])
+  }, [activeBucket, items, query, t, teamCount, typing, user?.id])
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -188,13 +215,24 @@ export default function ChatInboxScreen() {
           {t('chatHub.title')}
         </Text>
         <IconButton
+          variant="outlined"
           onPress={() => router.push('/chat/new' as never)}
           accessibilityLabel={t('chatHub.newChat')}
           testID="chat-compose"
         >
-          <Icon name="square.and.pencil" size="lg" color={c.primary} />
+          <Icon name="pencil" size="md" color={c.textPrimary} />
         </IconButton>
       </View>
+      {chips.length > 2 ? (
+        <FilterChipRow<InboxBucket>
+          chips={chips}
+          selected={activeBucket}
+          onToggle={setBucket}
+          singleSelect
+          contentStyle={styles.chips}
+          testID="chat-filter"
+        />
+      ) : null}
       <SearchBar
         value={query}
         onChangeText={setQuery}
@@ -203,6 +241,7 @@ export default function ChatInboxScreen() {
         autoCapitalize="none"
         returnKeyType="search"
         clearButtonMode="while-editing"
+        containerStyle={styles.search}
         testID="chat-inbox-search"
       />
     </View>
@@ -282,10 +321,12 @@ export default function ChatInboxScreen() {
             />
           )}
           ListEmptyComponent={
-            query.trim() ? (
+            query.trim() || activeBucket !== 'ALL' ? (
               <View style={styles.searchEmpty}>
                 <Text variant="body" color="secondary" style={styles.centerText}>
-                  {t('chatHub.searchEmpty', { query: query.trim() })}
+                  {query.trim()
+                    ? t('chatHub.searchEmpty', { query: query.trim() })
+                    : t('chatHub.filter.empty', { defaultValue: 'No conversations here yet.' })}
                 </Text>
               </View>
             ) : (
@@ -339,11 +380,13 @@ const styles = StyleSheet.create({
   },
   centered: { justifyContent: 'center', paddingHorizontal: space.md },
   header: {
-    paddingHorizontal: space.md,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: space.xs,
-    paddingBottom: space.sm,
-    gap: space.sm,
+    paddingBottom: space.md,
+    gap: space.md,
   },
+  chips: { paddingHorizontal: 0 },
+  search: { height: INPUT_HEIGHT, borderRadius: RADIUS_INPUT, borderCurve: 'continuous' },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -6,8 +6,8 @@ import { ApiError } from '../../api/client'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { getAppLanguage, getAppLocale } from '../../i18n'
 import { FormInput } from '../FormInput'
-import { Avatar, BottomSheet, Button, SegmentedControl, Text } from '../ui'
-import { hairline, radius, space } from '../../theme/tokens'
+import { Avatar, BottomSheet, Button, Icon, SegmentedControl, Text } from '../ui'
+import { RADIUS_CARD, radius, space } from '../../theme/tokens'
 import { DateField } from './DateField'
 import { formatDayMonth } from './format'
 import {
@@ -160,6 +160,16 @@ export function PlayerEditSheet({
     : member.isNew
       ? t('kader.edit.subtitleNew')
       : member.position || t('kader.lines.none')
+  // "seit 2023": when this team access began.
+  const sinceYear = member.createdAt ? new Date(member.createdAt).getFullYear() : null
+  const identityLine = [
+    subtitle,
+    sinceYear && !Number.isNaN(sinceYear)
+      ? t('kader.edit.since', { year: sinceYear, defaultValue: 'since {{year}}' })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct={90}>
@@ -176,29 +186,45 @@ export function PlayerEditSheet({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Design "17 Spielerprofil": the shirt number large in Barlow in the
+            club colour, the name beside it, then the one action. */}
         <View style={styles.identity}>
-          <Avatar size="md" src={member.avatarUrl} fallbackText={member.name} />
+          {member.jerseyNumber != null ? (
+            <Text
+              variant="data"
+              color="tint"
+              style={styles.bigNumber}
+              maxFontSizeMultiplier={1.2}
+              accessibilityLabel={t('kader.row.numberA11y', { number: member.jerseyNumber })}
+            >
+              {member.jerseyNumber}
+            </Text>
+          ) : (
+            <Avatar size="lg" src={member.avatarUrl} fallbackText={member.name} />
+          )}
           <View style={styles.identityCopy}>
-            <Text variant="headline" weight="semibold" color="primary" numberOfLines={2}>
+            <Text variant="title2" weight="bold" color="primary" numberOfLines={2} accessibilityRole="header">
               {member.name}
             </Text>
-            <Text variant="footnote" color="secondary" numberOfLines={1}>
-              {subtitle}
+            <Text variant="footnote" color="secondary" numberOfLines={2}>
+              {identityLine}
             </Text>
           </View>
-          {canMessageMember(member) ? (
-            <Button
-              label={t('kader.edit.message')}
-              variant="bordered"
-              size="sm"
-              onPress={() => {
-                onClose()
-                onMessage(member)
-              }}
-              accessibilityLabel={t('kader.edit.messageA11y', { name: member.name })}
-            />
-          ) : null}
         </View>
+        {canMessageMember(member) ? (
+          <Button
+            label={t('kader.edit.message')}
+            variant="filled"
+            size="md"
+            fullWidth
+            leftIcon={<Icon name="message.fill" size={18} color={c.onInk} />}
+            onPress={() => {
+              onClose()
+              onMessage(member)
+            }}
+            accessibilityLabel={t('kader.edit.messageA11y', { name: member.name })}
+          />
+        ) : null}
 
         <Section title={t('kader.edit.sectionPosition')}>
           <View style={styles.twoCol}>
@@ -247,8 +273,8 @@ export function PlayerEditSheet({
                   style={({ pressed }) => [
                     styles.chip,
                     {
-                      backgroundColor: selected ? c.primary : c.surface,
-                      borderColor: selected ? c.primary : c.borderDefault,
+                      backgroundColor: selected ? c.ink : 'transparent',
+                      borderColor: selected ? c.ink : c.borderStrong,
                     },
                     pressed && { opacity: 0.7 },
                   ]}
@@ -256,7 +282,7 @@ export function PlayerEditSheet({
                   <Text
                     variant="footnote"
                     weight="semibold"
-                    color={selected ? c.onPrimary : 'primary'}
+                    color={selected ? c.onInk : 'primary'}
                   >
                     {suggestion}
                   </Text>
@@ -292,7 +318,7 @@ export function PlayerEditSheet({
 
         {MEDIC_FEATURE_ENABLED ? <Section title={t('kader.edit.sectionInjury')}>
           {activeInjury ? (
-            <View style={[styles.injuryCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+            <View style={[styles.injuryCard, { backgroundColor: c.surface }]}>
               <View style={styles.identityCopy}>
                 <Text variant="body" weight="semibold" color="primary">
                   {activeInjury.title}
@@ -380,7 +406,7 @@ function Section({
 }) {
   return (
     <View style={styles.section}>
-      <Text variant="footnote" weight="semibold" color="secondary">
+      <Text variant="label" color="secondary" accessibilityRole="header">
         {title}
       </Text>
       {children}
@@ -401,11 +427,11 @@ const styles = StyleSheet.create({
   },
   identity: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: space.sm + 4,
+    alignItems: 'flex-end',
+    gap: space.md + 2,
   },
-  identityCopy: { flex: 1, minWidth: 140, gap: space['2xs'] },
+  bigNumber: { fontSize: 96, lineHeight: 84, includeFontPadding: false },
+  identityCopy: { flex: 1, minWidth: 0, gap: space.xs, paddingBottom: space.xs },
   section: { gap: space.sm },
   twoCol: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   colWide: { flexGrow: 2, flexBasis: 160 },
@@ -418,7 +444,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
-    borderWidth: hairline,
+    borderWidth: 1,
   },
   injuryCard: {
     flexDirection: 'row',
@@ -426,8 +452,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
     padding: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
 })

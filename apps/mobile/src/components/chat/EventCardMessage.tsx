@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { RSVP } from '@anstoss/shared'
 import { api } from '../../api/client'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { hairline, RADIUS_CARD, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import type { ChatMessage } from '../../hooks/useChat'
 import { Icon } from '../ui'
@@ -46,10 +46,9 @@ type Props = {
  * when, where, and the reader's own availability control. Answering here
  * writes the same RSVP the schedule and home use.
  */
-export function EventCardMessage({ message, clubId, locale, primaryColor, onLongPress }: Props) {
+export function EventCardMessage({ message, clubId, locale, onLongPress }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
-  const accent = primaryColor ?? c.primary
   const meta = (message.attachmentMeta ?? {}) as EventMeta
   const eventId = meta.eventId ?? null
 
@@ -132,7 +131,7 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
     <View
       style={[
         styles.card,
-        { backgroundColor: c.surface, borderColor: c.borderSubtle, borderLeftColor: accent },
+        { backgroundColor: c.surface },
       ]}
     >
       <Pressable
@@ -146,19 +145,19 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
         style={({ pressed }) => [styles.body, pressed && { opacity: 0.9 }]}
       >
         <View style={styles.head}>
-          <Icon name="calendar" size={13} color={accent} />
-          <Text variant="caption2" tracking="wide" weight="semibold" style={{ color: accent }}>
-            {typeLabel.toUpperCase()}
+          <Icon name="calendar" size={14} color={c.textSecondary} />
+          <Text variant="label" color="secondary">
+            {typeLabel}
           </Text>
           {message.senderName ? (
-            <Text variant="caption2" color="tertiary" numberOfLines={1} style={styles.sender}>
+            <Text variant="caption1" color="tertiary" numberOfLines={1} style={styles.sender}>
               {message.senderName}
             </Text>
           ) : null}
         </View>
         <Text
           variant="body"
-          weight="semibold"
+          weight="bold"
           color={cancelled ? 'tertiary' : 'primary'}
           numberOfLines={2}
           style={cancelled ? styles.struck : undefined}
@@ -166,7 +165,7 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
           {message.content}
         </Text>
         {when || location ? (
-          <Text variant="caption1" color="secondary" numberOfLines={1}>
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
             {[when, location].filter(Boolean).join(' · ')}
           </Text>
         ) : null}
@@ -193,18 +192,15 @@ export function EventCardMessage({ message, clubId, locale, primaryColor, onLong
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
+    width: '100%',
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    borderLeftWidth: 3,
     overflow: 'hidden',
-    maxWidth: '92%',
-    alignSelf: 'flex-start',
     marginVertical: space['2xs'],
   },
-  body: { padding: space.md, gap: space['2xs'] + 2 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space['2xs'] + 2 },
-  sender: { flexShrink: 1, marginLeft: space['2xs'] },
+  body: { padding: space.md, gap: space.xs + 2 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
+  sender: { flex: 1, minWidth: 0, textAlign: 'right' },
   reply: {
     borderTopWidth: hairline,
     paddingHorizontal: space.md,

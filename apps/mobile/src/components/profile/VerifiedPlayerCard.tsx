@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { StreaksMe } from '@anstoss/shared'
 import { Avatar, Icon, StatusPill, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { space, radius, hairline } from '../../theme/tokens'
+import { hairline, RADIUS_CARD, radius, space } from '../../theme/tokens'
 
 export type VerifiedPlayerCardProps = {
   name: string
@@ -25,7 +25,7 @@ export type VerifiedPlayerCardProps = {
  * Every figure here is backed by the club's own operational graph (attendance
  * RSVPs, MOTM poll wins), not a public scrape, so the card reads as truth. Pure
  * presentational: the screen supplies data via `useStreaks`. Club-adaptive
- * accent, DM Sans + Geist Mono, restrained — energetic but unmistakably ours,
+ * identity band, Inter + Barlow Condensed numbers, restrained — energetic but unmistakably ours,
  * light + dark.
  */
 export function VerifiedPlayerCard({
@@ -40,13 +40,11 @@ export function VerifiedPlayerCard({
   const c = useClubColors()
   const { t } = useTranslation()
 
-  const tint = `${c.primary}14`
-  const tintStrong = `${c.primary}24`
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surfaceRaised, borderColor: c.borderSubtle }]}>
+    <View style={[styles.card, { backgroundColor: c.surface }]}>
       {/* Accent header — club-tinted band carrying identity. */}
-      <View style={[styles.header, { backgroundColor: tint }]}>
+      <View style={[styles.header, { backgroundColor: c.primary50 }]}>
         <Avatar size="lg" src={avatarUrl} fallbackText={name} />
         <View style={styles.identity}>
           <Text variant="title3" weight="bold" numberOfLines={1}>
@@ -75,8 +73,8 @@ export function VerifiedPlayerCard({
           label={t('verifiedCard.attendanceStreak')}
           value={streaks.attendanceWeeks}
           longest={streaks.attendanceLongest}
-          tintBg={tintStrong}
-          accent={c.primary}
+          tintBg={c.surfaceMuted}
+          accent={c.textPrimary}
         />
         <View style={[styles.tileDivider, { backgroundColor: c.borderSubtle }]} />
         <StreakTile
@@ -84,8 +82,8 @@ export function VerifiedPlayerCard({
           label={t('verifiedCard.motmStreak')}
           value={streaks.motmWeeks}
           longest={streaks.motmLongest}
-          tintBg={tintStrong}
-          accent={c.primary}
+          tintBg={c.surfaceMuted}
+          accent={c.textPrimary}
         />
       </View>
 
@@ -123,8 +121,8 @@ function StreakTile({
       <View style={[styles.tileIcon, { backgroundColor: tintBg }]}>
         <Icon name={icon} size={18} color={accent} />
       </View>
-      <Text variant="caption1" color="tertiary" tracking="wide" style={styles.tileLabel}>
-        {label.toUpperCase()}
+      <Text variant="label" color="secondary" style={styles.tileLabel}>
+        {label}
       </Text>
       <View style={styles.tileValueRow}>
         <Text variant="dataLarge" style={{ color: accent }} tabular>
@@ -143,8 +141,8 @@ function StreakTile({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.xl,
-    borderWidth: hairline,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   header: {
@@ -180,9 +178,9 @@ const styles = StyleSheet.create({
     marginVertical: space.xs,
   },
   tileIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

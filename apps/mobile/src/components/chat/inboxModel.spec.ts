@@ -4,7 +4,10 @@ import {
   contactReasonKey,
   conversationSubtitle,
   conversationTitle,
+  filterByBucket,
   filterInbox,
+  inboxBucket,
+  inboxBucketStats,
   formatInboxTime,
   groupErrorKey,
   isMuted,
@@ -172,5 +175,39 @@ describe('groupErrorKey (B1 client)', () => {
   it('returns null for unrelated failures', () => {
     expect(groupErrorKey(new ApiError('Network down', 0))).toBeNull()
     expect(groupErrorKey(undefined)).toBeNull()
+  })
+})
+
+describe('inbox filter chips', () => {
+  const team = item({ id: 't', kind: 'TEAM', unreadCount: 3 })
+  const parents = item({ id: 'p', kind: 'PARENTS', unreadCount: 1, muted: true })
+  const coaches = item({ id: 'c', kind: 'COACHES' })
+  const news = item({ id: 'n', kind: 'CLUB_NEWS', teamId: null, unreadCount: 1 })
+  const ann = item({ id: 'a', kind: 'ANNOUNCEMENTS' })
+  const dm = item({ id: 'd', type: 'DM', kind: 'DM', unreadCount: 2 })
+
+  it('sorts each conversation under one chip', () => {
+    expect(inboxBucket(team)).toBe('TEAM')
+    expect(inboxBucket(parents)).toBe('TEAM')
+    expect(inboxBucket(item({ kind: 'CUSTOM' }))).toBe('TEAM')
+    expect(inboxBucket(coaches)).toBe('COACHES')
+    expect(inboxBucket(news)).toBe('INFO')
+    expect(inboxBucket(ann)).toBe('INFO')
+    expect(inboxBucket(dm)).toBe('DM')
+  })
+
+  it('counts conversations and unmuted unread per chip', () => {
+    const stats = inboxBucketStats([team, parents, coaches, news, ann, dm])
+    expect(stats.ALL).toEqual({ size: 6, unread: 6 })
+    expect(stats.TEAM).toEqual({ size: 2, unread: 3 })
+    expect(stats.COACHES).toEqual({ size: 1, unread: 0 })
+    expect(stats.INFO).toEqual({ size: 2, unread: 1 })
+    expect(stats.DM).toEqual({ size: 1, unread: 2 })
+  })
+
+  it('filters by chip; ALL keeps everything', () => {
+    const all = [team, coaches, dm]
+    expect(filterByBucket(all, 'ALL')).toHaveLength(3)
+    expect(filterByBucket(all, 'DM').map((i) => i.id)).toEqual(['d'])
   })
 })

@@ -12,14 +12,14 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
-import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
+import { useClubColors } from '../../context/ClubThemeContext'
 import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedChatMediaUrl } from '../../hooks/useSignedChatMediaUrl'
 import { hexToRgba } from '../../theme/club-theme'
 import { CHAT_MEDIA_SCRIM, CHAT_ON_MEDIA } from '../../theme/chat'
-import { fonts, hairline, radius, space } from '../../theme/tokens'
+import { fonts, hairline, RADIUS_CARD, radius, SCREEN_PADDING, space } from '../../theme/tokens'
 import * as Haptics from '../../utils/haptics'
-import { Avatar, Icon } from '../ui'
+import { Avatar, Icon, SoftIcon } from '../ui'
 import { Text } from '../ui/Text'
 import { ReplyQuote } from './ReplyQuote'
 import { ReactionRow } from './ReactionRow'
@@ -28,7 +28,7 @@ import { VoiceMessagePlayer } from './VoiceMessagePlayer'
 import { EventCardMessage } from './EventCardMessage'
 import { PollCardMessage } from './PollCardMessage'
 import { LineupCardMessage } from './LineupCardMessage'
-import { clockTime, fileSizeLabel, senderColor } from './chatGrouping'
+import { clockTime, fileSizeLabel } from './chatGrouping'
 import type { ViewerMedia } from './MediaViewer'
 
 /** Double-tap quick reaction. */
@@ -37,8 +37,9 @@ const DOUBLE_TAP_MS = 280
 const SWIPE_TRIGGER = 56
 const SWIPE_MAX = 72
 const BUBBLE_RADIUS = 18
-const JOINED_RADIUS = 4
-const AVATAR_SIZE = 28
+/** The corner that points at the sender ("tail") and joined corners in a run. */
+const TAIL_RADIUS = 6
+const AVATAR_SIZE = 30
 
 export type ReadState = 'pending' | 'sent' | 'read' | null
 
@@ -82,7 +83,9 @@ export const MessageBubble = memo(function MessageBubble({
   isOwn,
   isGroupChat = false,
   firstInGroup = true,
-  lastInGroup = true,
+  // The 6pt tail sits on every bubble's bottom corner, so the run's end no
+  // longer changes the shape; kept for call-site compatibility.
+  lastInGroup: _lastInGroup = true,
   showSender,
   showAvatar = false,
   readState = null,
@@ -106,7 +109,6 @@ export const MessageBubble = memo(function MessageBubble({
 }: Props) {
   const { t, i18n } = useTranslation()
   const c = useClubColors()
-  const isDark = useIsDark()
   const reduceMotion = useReducedMotion()
   const { width: windowWidth } = useWindowDimensions()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -123,7 +125,9 @@ export const MessageBubble = memo(function MessageBubble({
 
   const onBubble = isOwn ? c.onPrimary : c.textPrimary
   const onBubbleMuted = isOwn ? hexToRgba(c.onPrimary, 0.72) : c.textTertiary
-  const bubbleBg = isOwn ? c.primary : (c.chatBubbleOther ?? c.surfaceSunken)
+  // Redesign: own bubbles carry the club colour, everyone else's are white
+  // cards on the warm page.
+  const bubbleBg = isOwn ? c.primary : c.surface
   const maxBubbleWidth = Math.min(420, windowWidth * (isGroupChat && !isOwn ? 0.72 : 0.8))
 
   const myReactions = new Set(
@@ -273,16 +277,17 @@ export const MessageBubble = memo(function MessageBubble({
   }
 
   // ── Bubble ───────────────────────────────────────────────────────────
+  // 18pt corners with a 6pt tail on the sender's bottom corner; inside a
+  // run the top corner on that side tightens to 6 as well.
   const joinedTop = !firstInGroup
-  const joinedBottom = !lastInGroup
   const corners = isOwn
     ? {
-        borderTopRightRadius: joinedTop ? JOINED_RADIUS : BUBBLE_RADIUS,
-        borderBottomRightRadius: joinedBottom ? JOINED_RADIUS : BUBBLE_RADIUS,
+        borderTopRightRadius: joinedTop ? TAIL_RADIUS : BUBBLE_RADIUS,
+        borderBottomRightRadius: TAIL_RADIUS,
       }
     : {
-        borderTopLeftRadius: joinedTop ? JOINED_RADIUS : BUBBLE_RADIUS,
-        borderBottomLeftRadius: joinedBottom ? JOINED_RADIUS : BUBBLE_RADIUS,
+        borderTopLeftRadius: joinedTop ? TAIL_RADIUS : BUBBLE_RADIUS,
+        borderBottomLeftRadius: TAIL_RADIUS,
       }
 
   const time = clockTime(message.createdAt, i18n.language)
@@ -421,110 +426,112 @@ export const MessageBubble = memo(function MessageBubble({
               ) : null}
             </View>
           ) : null}
-          <Pressable
-            onLongPress={openMenu}
-            delayLongPress={250}
-            onPress={handleBubblePress}
-            accessibilityRole="text"
-            accessibilityLabel={a11yLabel}
-            accessibilityHint={t('chat.bubbleHint')}
-            accessibilityActions={[
-              { name: 'longpress', label: t('chatThread.menu.open') },
-              ...(onReply && !isDeleted ? [{ name: 'reply', label: t('chat.menuReply') }] : []),
-            ]}
-            onAccessibilityAction={(event) => {
-              if (event.nativeEvent.actionName === 'longpress') openMenu()
-              if (event.nativeEvent.actionName === 'reply') onReply?.(message)
-            }}
-            testID={`chat-bubble-${message.id}`}
-            style={[
-              styles.bubble,
-              { maxWidth: maxBubbleWidth, backgroundColor: bubbleBg },
-              corners,
-              isMedia && styles.bubbleMedia,
-            ]}
-          >
+          <View style={[styles.column, isOwn ? styles.columnOwn : styles.columnOther]}>
             {showSender && !isOwn ? (
               <Text
                 variant="caption1"
                 weight="semibold"
+                color="secondary"
                 numberOfLines={1}
-                style={[styles.sender, ...(isMedia ? [styles.mediaInset] : []), { color: senderColor(message.senderId, isDark) }]}
+                style={styles.sender}
               >
                 {senderName}
               </Text>
             ) : null}
-
-            {message.replyTo && !isDeleted ? (
-              <View style={isMedia ? styles.mediaInset : undefined}>
-                <ReplyQuote
-                  senderName={message.replyTo.senderName || t('chatHub.unknownPerson')}
-                  contentPreview={message.replyTo.contentPreview}
-                  accent={isOwn ? c.onPrimary : c.primary}
-                  inverse={isOwn}
-                  onPress={onJumpTo ? () => onJumpTo(message.replyTo!.id) : undefined}
-                />
-              </View>
-            ) : null}
-
-            {body}
-
-            {captionText ? (
-              <Text variant="body" style={[styles.caption, { color: onBubble }]}>
-                {captionText}
-                <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
-              </Text>
-            ) : null}
-
-            {showTranslationFooter ? (
-              <Pressable
-                onPress={() => setShowOriginal((v) => !v)}
-                accessibilityRole="button"
-                accessibilityLabel={showOriginal ? t('chatThread.showTranslation') : t('chatThread.showOriginal')}
-                hitSlop={6}
-                style={styles.translation}
-              >
-                <Text variant="caption1" style={[styles.italic, { color: onBubbleMuted }]}>
-                  {showOriginal
-                    ? t('chat.showOriginal', { lang: translation!.sourceLanguage.toUpperCase() })
-                    : t('chat.translatedFrom', { lang: translation!.sourceLanguage.toUpperCase() })}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {message.reactions && message.reactions.length > 0 ? (
-              <ReactionRow
-                reactions={message.reactions}
-                myUserId={myUserId ?? ''}
-                onToggle={handleToggleExisting}
-                inverse={isOwn}
-              />
-            ) : null}
-
-            <View
-              style={[
-                styles.metaDock,
-                (messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText && styles.metaOnMedia,
-                (messageType === 'IMAGE' || messageType === 'VIDEO') &&
-                  !captionText && { backgroundColor: hexToRgba(CHAT_MEDIA_SCRIM, 0.4) },
+            <Pressable
+              onLongPress={openMenu}
+              delayLongPress={250}
+              onPress={handleBubblePress}
+              accessibilityRole="text"
+              accessibilityLabel={a11yLabel}
+              accessibilityHint={t('chat.bubbleHint')}
+              accessibilityActions={[
+                { name: 'longpress', label: t('chatThread.menu.open') },
+                ...(onReply && !isDeleted ? [{ name: 'reply', label: t('chat.menuReply') }] : []),
               ]}
-              importantForAccessibility="no-hide-descendants"
-              accessibilityElementsHidden
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'longpress') openMenu()
+                if (event.nativeEvent.actionName === 'reply') onReply?.(message)
+              }}
+              testID={`chat-bubble-${message.id}`}
+              style={[
+                styles.bubble,
+                { maxWidth: maxBubbleWidth, backgroundColor: bubbleBg },
+                corners,
+                isMedia && styles.bubbleMedia,
+              ]}
             >
-              {(messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText ? (
-                <View style={styles.meta}>
-                  <Text variant="caption1" tabular style={[styles.metaTime, styles.onMediaText]}>
-                    {time}
-                  </Text>
-                  {isOwn && readState ? (
-                    <Icon name={readState === 'pending' ? 'time' : 'checkmark'} size={12} color={CHAT_ON_MEDIA} />
-                  ) : null}
+              {message.replyTo && !isDeleted ? (
+                <View style={isMedia ? styles.mediaInset : undefined}>
+                  <ReplyQuote
+                    senderName={message.replyTo.senderName || t('chatHub.unknownPerson')}
+                    contentPreview={message.replyTo.contentPreview}
+                    accent={isOwn ? c.onPrimary : c.primary}
+                    inverse={isOwn}
+                    onPress={onJumpTo ? () => onJumpTo(message.replyTo!.id) : undefined}
+                  />
                 </View>
-              ) : (
-                meta
-              )}
-            </View>
-          </Pressable>
+              ) : null}
+
+              {body}
+
+              {captionText ? (
+                <Text variant="body" style={[styles.caption, { color: onBubble }]}>
+                  {captionText}
+                  <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
+                </Text>
+              ) : null}
+
+              {showTranslationFooter ? (
+                <Pressable
+                  onPress={() => setShowOriginal((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showOriginal ? t('chatThread.showTranslation') : t('chatThread.showOriginal')}
+                  hitSlop={6}
+                  style={styles.translation}
+                >
+                  <Text variant="caption1" style={[styles.italic, { color: onBubbleMuted }]}>
+                    {showOriginal
+                      ? t('chat.showOriginal', { lang: translation!.sourceLanguage.toUpperCase() })
+                      : t('chat.translatedFrom', { lang: translation!.sourceLanguage.toUpperCase() })}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              {message.reactions && message.reactions.length > 0 ? (
+                <ReactionRow
+                  reactions={message.reactions}
+                  myUserId={myUserId ?? ''}
+                  onToggle={handleToggleExisting}
+                  inverse={isOwn}
+                />
+              ) : null}
+
+              <View
+                style={[
+                  styles.metaDock,
+                  (messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText && styles.metaOnMedia,
+                  (messageType === 'IMAGE' || messageType === 'VIDEO') &&
+                    !captionText && { backgroundColor: hexToRgba(CHAT_MEDIA_SCRIM, 0.4) },
+                ]}
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden
+              >
+                {(messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText ? (
+                  <View style={styles.meta}>
+                    <Text variant="caption1" tabular style={[styles.metaTime, styles.onMediaText]}>
+                      {time}
+                    </Text>
+                    {isOwn && readState ? (
+                      <Icon name={readState === 'pending' ? 'time' : 'checkmark'} size={12} color={CHAT_ON_MEDIA} />
+                    ) : null}
+                  </View>
+                ) : (
+                  meta
+                )}
+              </View>
+            </Pressable>
+          </View>
         </Animated.View>
       </GestureDetector>
       {menu}
@@ -598,10 +605,10 @@ function FileCard({
       accessibilityLabel={t('chatThread.media.openFile', { name })}
       style={[
         styles.file,
-        { backgroundColor: isOwn ? hexToRgba(c.onPrimary, 0.12) : c.surface, borderColor: isOwn ? 'transparent' : c.borderSubtle },
+        { backgroundColor: isOwn ? hexToRgba(c.onPrimary, 0.12) : c.surfaceMuted, borderColor: isOwn ? 'transparent' : c.borderSubtle },
       ]}
     >
-      <View style={[styles.fileIcon, { backgroundColor: isOwn ? hexToRgba(c.onPrimary, 0.16) : c.surfaceSunken }]}>
+      <View style={[styles.fileIcon, { backgroundColor: isOwn ? hexToRgba(c.onPrimary, 0.16) : c.surface }]}>
         <Icon name="doc.text.fill" size={20} color={fg} />
       </View>
       <View style={styles.fileText}>
@@ -635,34 +642,42 @@ function AnnouncementCard({
   const c = useClubColors()
   const [headline, ...rest] = content.split(/\n+/)
   const body = rest.join('\n').trim()
+  const eyebrow = message.senderName
+    ? t('chatThread.announcement.from', {
+        name: message.senderName,
+        defaultValue: 'Announcement · {{name}}',
+      })
+    : t('chatThread.announcement.label', { defaultValue: 'Announcement' })
   return (
     <Pressable
       onLongPress={onLongPress}
       delayLongPress={250}
       accessibilityRole="summary"
       accessibilityHint={t('chat.bubbleHint')}
-      style={[styles.announcement, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[styles.announcement, { backgroundColor: c.surface }]}
     >
-      <View style={styles.cardHead}>
-        <Icon name="megaphone.fill" size={14} color={c.textSecondary} />
-        <Text variant="caption1" weight="semibold" color="secondary" numberOfLines={1} style={styles.flex}>
-          {message.senderName ?? ''}
+      <SoftIcon name="megaphone" />
+      <View style={styles.announcementBody}>
+        <View style={styles.cardHead}>
+          <Text variant="caption1" weight="semibold" color="secondary" numberOfLines={1} style={styles.flex}>
+            {eyebrow}
+          </Text>
+          <Text variant="caption1" color="tertiary" tabular>
+            {clockTime(message.createdAt, locale)}
+          </Text>
+        </View>
+        <Text variant="body" weight="semibold" color="primary">
+          {headline.trim()}
         </Text>
-        <Text variant="caption1" color="tertiary" tabular>
-          {clockTime(message.createdAt, locale)}
-        </Text>
+        {body ? (
+          <Text variant="footnote" color="primary">
+            {body}
+          </Text>
+        ) : null}
+        {message.reactions && message.reactions.length > 0 ? (
+          <ReactionRow reactions={message.reactions} myUserId={myUserId} onToggle={onToggleReaction} />
+        ) : null}
       </View>
-      <Text variant="headline" weight="semibold" color="primary">
-        {headline.trim()}
-      </Text>
-      {body ? (
-        <Text variant="body" color="primary">
-          {body}
-        </Text>
-      ) : null}
-      {message.reactions && message.reactions.length > 0 ? (
-        <ReactionRow reactions={message.reactions} myUserId={myUserId} onToggle={onToggleReaction} />
-      ) : null}
     </Pressable>
   )
 }
@@ -670,29 +685,32 @@ function AnnouncementCard({
 export const MESSAGE_HEIGHT = 72
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: space.md },
-  rowInner: { flexDirection: 'row', alignItems: 'flex-end', gap: space.xs },
+  row: { paddingHorizontal: SCREEN_PADDING },
+  rowInner: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   rowOwn: { justifyContent: 'flex-end' },
   rowOther: { justifyContent: 'flex-start' },
   avatarSlot: { width: AVATAR_SIZE, alignItems: 'center' },
+  column: { flexShrink: 1, gap: space.xs },
+  columnOwn: { alignItems: 'flex-end' },
+  columnOther: { alignItems: 'flex-start' },
   bubble: {
-    paddingHorizontal: space.sm + space.xs,
-    paddingTop: space.xs + space['2xs'],
-    paddingBottom: space.xs + space['2xs'],
+    paddingHorizontal: space.sm + space.xs + 2,
+    paddingTop: space.sm + 2,
+    paddingBottom: space.sm + 2,
     borderRadius: BUBBLE_RADIUS,
     borderCurve: 'continuous',
     overflow: 'hidden',
   },
   bubbleMedia: { paddingHorizontal: space.xs, paddingTop: space.xs, paddingBottom: space.xs },
   mediaInset: { paddingHorizontal: space.xs },
-  sender: { marginBottom: space['2xs'] },
+  sender: { paddingHorizontal: space['2xs'] },
   caption: { paddingHorizontal: space.xs, paddingTop: space.xs },
   spacer: { color: 'transparent', fontFamily: fonts.data },
   italic: { fontStyle: 'italic' },
   center: { textAlign: 'center' },
   flex: { flex: 1, minWidth: 0 },
   translation: { marginTop: space['2xs'] },
-  metaDock: { position: 'absolute', right: space.sm + space.xs, bottom: space.xs },
+  metaDock: { position: 'absolute', right: space.sm + space.xs + 2, bottom: space.sm },
   metaOnMedia: {
     right: space.sm,
     bottom: space.sm,
@@ -740,7 +758,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     borderRadius: radius.full,
   },
-  cardRow: { paddingHorizontal: space.md, paddingTop: space.sm },
+  cardRow: { paddingHorizontal: SCREEN_PADDING, paddingTop: space.sm + 2 },
   replyHint: { position: 'absolute', left: space.sm, top: 0, bottom: 0, justifyContent: 'center' },
   replyHintCircle: {
     width: 32,
@@ -751,12 +769,13 @@ const styles = StyleSheet.create({
   },
   announcement: {
     width: '100%',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space.xs,
-    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: space.sm + space.xs + 2,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    gap: space.xs,
+    gap: space.sm + space.xs,
   },
+  announcementBody: { flex: 1, minWidth: 0, gap: space.xs },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
 })

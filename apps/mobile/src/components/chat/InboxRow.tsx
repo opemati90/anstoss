@@ -164,7 +164,7 @@ export const InboxRow = memo(function InboxRow({
             <Text
               variant="caption1"
               tabular
-              color={unread && !muted ? c.primary : c.textTertiary}
+              color={unread && !muted ? c.textPrimary : c.textTertiary}
               weight={unread && !muted ? 'semibold' : 'regular'}
               style={styles.time}
             >
@@ -192,14 +192,14 @@ export const InboxRow = memo(function InboxRow({
                 <View
                   style={[
                     styles.badge,
-                    { backgroundColor: muted ? c.surfaceSunken : c.primary },
+                    { backgroundColor: muted ? c.surfaceSunken : c.accent },
                   ]}
                 >
                   <Text
                     variant="caption1"
                     weight="bold"
                     tabular
-                    color={muted ? c.textSecondary : c.textInverse}
+                    color={muted ? c.textSecondary : c.onAccent}
                     allowFontScaling={false}
                     style={styles.badgeText}
                   >
