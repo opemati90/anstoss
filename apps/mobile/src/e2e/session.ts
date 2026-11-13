@@ -15,6 +15,7 @@ import {
   TeamAccessStatus,
   TeamRole,
   type CarpoolBoard,
+  type ContributionHistoryEntry,
   type CarpoolRideItem,
   type ClubAggregateStats,
   type CrossTeamEventItem,
@@ -28,10 +29,13 @@ import {
   type ExternalTeamLink,
   type FreeAgentProfile,
   type ImportedFixture,
+  type TableSnapshotRow,
   type RosterOpsSnapshot,
 } from '@anstoss/shared'
 // ── chat revamp: inbox, conversations, members, contacts, polls ──
 import { handleInboxLiveMock, resetInboxLiveMocks } from './inboxLiveMocks'
+import { handleTeamBoardMock, resetTeamBoardMocks } from './teamBoardMocks'
+import { handleActingMock, resetActingMocks } from './actingMocks' // Vorschau und Vertretung
 import { handleE2EChatRequest } from './chatMocks'
 // ── club-admin revamp: consistent club-admin world + missing shared mocks ──
 import {
@@ -44,6 +48,8 @@ import {
 
 // Wechselbörse revamp: Gesuche, Spielersuche, Probetraining, Aufnahmeantrag mocks
 import { handleWechselMock } from './wechselMocks'
+import { handleHomeMock } from './homeMocks'
+import { handlePlanMock } from './planMocks'
 
 export const E2E_SESSION_KEY = 'anstoss:e2e:session'
 const STRICT_E2E_MOCKS = process.env.EXPO_PUBLIC_E2E_MOCK_STRICT === '1'
@@ -53,6 +59,8 @@ export type E2EScenarioName =
   | 'player'
   | 'parent'
   | 'coach'
+  // Board 30 (HomeEmpty): a coach whose team has no players and no events yet.
+  | 'coach-first-start'
   | 'club-admin'
   | 'free-agent'
   | 'signup-player'
@@ -674,7 +682,7 @@ function createEvents(): EventFeedItem[] {
       durationMin: 105,
       // 2026-11 redesign home contract (schemas/home.ts)
       matchKind: 'LEAGUE',
-      lineupDraft: { formation: '4-3-3', filled: 11, slots: 11, published: true },
+      lineupDraft: { formation: '4-3-3', filled: 11, slots: 11, published: true, mySlot: '9' },
     },
     // Away match with the Fahrten board open.
     {
@@ -703,7 +711,7 @@ function createEvents(): EventFeedItem[] {
       durationMin: 105,
       // 2026-11 redesign home contract (schemas/home.ts)
       matchKind: 'LEAGUE',
-      lineupDraft: { formation: '4-2-3-1', filled: 9, slots: 11 },
+      lineupDraft: { formation: '4-2-3-1', filled: 9, slots: 11, mySlot: '9' },
       carpoolSummary: { seeking: 2, seatsFree: 1, myRideSeats: null },
     },
     // Training series Di + Do 19:00. "Tuesday session" is referenced by
@@ -995,6 +1003,87 @@ function createFixtures(): ImportedFixture[] {
       overlay: null,
       eventId: 'event-match-next',
     },
+    // Redesign 21 (Tabelle / Spielplan): league results with a table
+    // snapshot, plus the next league games. Appended after the live fixture
+    // so `limit=1` callers keep getting it.
+    ...createLeagueFixtures(),
+  ]
+}
+
+const E2E_LEAGUE_TABLE: TableSnapshotRow[] = (
+  [
+    ['BSC Rehberge II', 10, 19, 24, 'WWDWW'],
+    ['FC Adler Neukölln', 10, 12, 22, 'WDWLW'],
+    ['Rot-Weiß Köpenick III', 10, 8, 20, 'DWWLW'],
+    ['SV Albatros', 10, 6, 19, 'WWLWD'],
+    ['TSV Mariendorf II', 10, 2, 15, 'LWDWL'],
+    ['Fortuna Pankow', 10, -1, 13, 'DLWLD'],
+    ['SC Lichtenberg III', 10, -4, 11, 'LLDWL'],
+    ['Grün-Weiß Baumschule', 10, -9, 8, 'LLLDW'],
+  ] as const
+).map(([team, games, diff, points, form], index) => ({
+  place: index + 1,
+  team,
+  img: null,
+  games,
+  won: Math.floor(points / 3),
+  draw: points % 3,
+  lost: games - Math.floor(points / 3) - (points % 3),
+  goal: `${20 + diff}:20`,
+  goalDifference: diff,
+  points,
+  isPromotion: false,
+  isRelegation: false,
+  form: form.split('') as TableSnapshotRow['form'],
+}))
+
+function createLeagueFixtures(): ImportedFixture[] {
+  const base = {
+    clubId: CLUB_ID,
+    teamId: TEAM_ID,
+    teamLinkId: 'link-1',
+    provider: 'api_fussball' as const,
+    competition: 'Kreisliga C',
+    season: '2026/27',
+    region: 'Berlin',
+    division: 'Staffel 3',
+    homeLogo: null,
+    awayLogo: null,
+    venueName: null,
+    pitchAddress: null,
+    sourceConfidence: 'official_partner' as const,
+    rawPayload: {},
+    lastSeenAt: nowIso(0, 6, 0),
+    createdAt: nowIso(-20, 8, 0),
+    updatedAt: nowIso(0, 6, 0),
+    overlay: null,
+    eventId: null,
+  }
+  const game = (
+    id: string,
+    days: number,
+    hour: number,
+    homeTeam: string,
+    awayTeam: string,
+    result: [number, number] | null,
+  ): ImportedFixture =>
+    ({
+      ...base,
+      id,
+      externalMatchId: id,
+      kickoffAt: nowIso(days, hour, 0),
+      status: result ? 'finished' : 'scheduled',
+      homeTeam,
+      awayTeam,
+      resultHome: result ? result[0] : null,
+      resultAway: result ? result[1] : null,
+      tableSnapshot: result ? E2E_LEAGUE_TABLE : null,
+    }) as ImportedFixture
+  return [
+    game('fixture-league-past-1', -5, 14, 'SV Albatros', 'SC Lichtenberg III', [3, 1]),
+    game('fixture-league-past-2', -12, 14, 'Fortuna Pankow', 'SV Albatros', [2, 2]),
+    game('fixture-league-next-1', 9, 14, 'SV Albatros', 'Rot-Weiß Köpenick III', null),
+    game('fixture-league-next-2', 16, 12, 'BSC Rehberge II', 'SV Albatros', null),
   ]
 }
 
@@ -2365,8 +2454,10 @@ function buildClubAdminSession(): E2ESessionSnapshot {
       avatarUrl: null,
       registrationRole: RegistrationRole.CLUB_ADMIN,
     },
-    memberships: [createMembership(MembershipRole.OWNER)],
-    teamMembers: [createTeamMember(TeamRole.HEAD_COACH)],
+    // Board 28 (hats, not modes): Vorstand, Trainer, Kapitän and Spieler of
+    // the senior team at once, so Start shows the combined home.
+    memberships: [{ ...createMembership(MembershipRole.OWNER), operationalRoles: ['CAPTAIN'] }],
+    teamMembers: [createTeamMember(TeamRole.HEAD_COACH), createTeamMember(TeamRole.PLAYER)],
     ageGate: {
       isUnder16: false,
       status: 'CLEARED',
@@ -2495,6 +2586,22 @@ function buildScenario(name: E2EPrimaryScenarioName) {
       return buildParentSession()
     case 'coach':
       return buildCoachSession()
+    case 'coach-first-start': {
+      // Same coach (scenario 'coach', so every coach mock applies), but an
+      // empty Kader and calendar: Start shows CoachFirstStart.
+      const session = buildCoachSession()
+      const ops = createRosterOps()
+      session.api = createApiState({
+        events: [],
+        fixtures: [],
+        rosterOps: {
+          ...ops,
+          squad: ops.squad.filter((member) => member.role !== TeamRole.PLAYER),
+          operations: { ...ops.operations, newPlayers: [], trials: [], pendingCoaches: [] },
+        },
+      })
+      return session
+    }
     case 'club-admin':
       return buildClubAdminSession()
     case 'free-agent':
@@ -2594,6 +2701,8 @@ export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
   const scenario = buildScenario(name)
   resetClubAdminWorld() // club-admin revamp
   resetInboxLiveMocks() // redesign: inbox + live match mocks
+  resetTeamBoardMocks() // redesign: member profile roles
+  resetActingMocks() // Vorschau und Vertretung
   e2eClaim = null // onboarding revamp: claims never leak across personas
   e2eTeamGroups = seedTeamGroupsFor(name)
   e2eRemovedMemberUserIds = new Set()
@@ -2610,6 +2719,8 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
 
   const scenario = buildPostSignupSession(registrationRole)
   resetInboxLiveMocks() // redesign: inbox + live match mocks
+  resetTeamBoardMocks() // redesign: member profile roles
+  resetActingMocks() // Vorschau und Vertretung
   e2eClaim = null // onboarding revamp
   e2eTeamGroups = seedTeamGroupsFor(scenario.scenario)
   e2eRemovedMemberUserIds = new Set()
@@ -2740,6 +2851,62 @@ function handleOnboardingRequest(
       body: {
         team: { id: TEAM_ID, name: TEAM_DISPLAY_NAME, displayName: TEAM_DISPLAY_NAME, clubId: CLUB_ID },
         club: { id: CLUB_ID, name: club.name, badgeUrl: null, primaryColor: CLUB_PRIMARY },
+      },
+    }
+  }
+
+  // Onboarding redesign (board 04, contract in BACKEND_GAPS): unclaimed
+  // roster slots for a team code; one of them is the signed-in person.
+  const rosterSlotsByCode = pathname.match(/^\/public\/teams\/by-code\/([^/]+)\/roster-slots$/)
+  if (method === 'GET' && rosterSlotsByCode) {
+    if (rosterSlotsByCode[1].toUpperCase() !== E2E_TEAM_JOIN_CODE) {
+      return { handled: true, ok: false, status: 404, message: 'Team not found for this code' }
+    }
+    const me = currentSession?.user.name ?? 'Julian Becker'
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        slots: [
+          { id: 'slot-e2e-self', fullName: me, jerseyNumber: 9 },
+          { id: 'slot-e2e-other', fullName: 'Tom Novak', jerseyNumber: 4 },
+        ],
+      },
+    }
+  }
+
+  // Board 07 "Hol dein Team rein": the admin's active join campaign, and the
+  // coach's team join code (contract, BACKEND_GAPS).
+  if (method === 'GET' && pathname === `/clubs/${CLUB_ID}/invite-campaigns`) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: [
+        {
+          id: 'campaign-e2e-1',
+          code: 'SVA-7K2Q',
+          status: 'ACTIVE',
+          useCount: 3,
+          maxUses: 50,
+          expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+          team: { id: TEAM_ID, displayName: TEAM_DISPLAY_NAME },
+        },
+      ],
+    }
+  }
+  const teamJoinCode = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/teams/([^/]+)/join-code$`))
+  if (method === 'GET' && teamJoinCode) {
+    return {
+      handled: true,
+      ok: true,
+      status: 200,
+      body: {
+        code: 'SVA-7K2Q',
+        link: 'https://anstoss.io/join/sv-albatros/SVA-7K2Q',
+        expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+        teamId: teamJoinCode[1],
       },
     }
   }
@@ -3351,6 +3518,11 @@ function buildEventDetail(event: EventFeedItem): EventDetail {
   return {
     ...feed,
     team: { id: event.teamId, name: TEAM_DISPLAY_NAME },
+    // Redesign 13 hero line "Kreisliga C · 11. Spieltag" (proposed contract).
+    competition:
+      event.type === 'MATCH' && event.matchKind === 'LEAGUE'
+        ? { name: 'Kreisliga C', matchday: event.id === 'event-match-next' ? 11 : 12 }
+        : null,
     rsvps,
     myRsvp: self?.status ?? (isGuardian ? null : event.myRsvp),
     myRsvpReason: self?.reason ?? null,
@@ -3841,6 +4013,14 @@ export function handleE2EApiRequest(
   })
   if (wechsel.handled) return wechsel
 
+  // 2026-11 redesign home contract: GET …/my-season (homeMocks.ts).
+  const homeMock = handleHomeMock({ scenario: session.scenario, pathname, method })
+  if (homeMock) return homeMock
+
+  // Plans and pricing: GET …/plan, POST …/plan/trial (planMocks.ts).
+  const planMock = handlePlanMock({ scenario: session.scenario, pathname, method })
+  if (planMock) return planMock
+
   // ── club-admin revamp: the club-admin world answers first (members,
   // stats, team-groups, admin-inbox, compliance, ...) so every count agrees.
   const clubAdminWorld = handleClubAdminWorldRequest(
@@ -3867,6 +4047,33 @@ export function handleE2EApiRequest(
     nameFor: (userId) => eventFlowMembers().find((m) => m.userId === userId)?.name ?? null,
   })
   if (inboxLive) return inboxLive
+
+  // Redesign team boards: member profile bundle and the Mehr summary values.
+  const teamBoard = handleTeamBoardMock({
+    scenario: session.scenario,
+    pathname,
+    method,
+    query,
+    body: options.body,
+    clubId: CLUB_ID,
+    teamId: TEAM_ID,
+    openClubDues: () =>
+      currentSession!.api.adminContributions.members.filter(
+        (m) => m.planId && (m.status === 'OVERDUE' || m.status === 'PENDING'),
+      ).length,
+    tablePosition: () => E2E_LEAGUE_TABLE.find((row) => row.team === 'SV Albatros')?.place ?? null,
+  })
+  if (teamBoard) return teamBoard
+
+  // Vorschau und Vertretung: stand-in coach sessions.
+  const actingResponse = handleActingMock({
+    scenario: session.scenario,
+    pathname,
+    method,
+    body: options.body,
+    clubId: CLUB_ID,
+  })
+  if (actingResponse) return actingResponse
 
   // Events revamp: event flow mocks take precedence over the older handlers.
   const eventFlowResponse = handleEventFlowRequest(method, pathname, query, options)

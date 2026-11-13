@@ -8,6 +8,7 @@ import {
   Share,
   StatusBar,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
@@ -52,7 +53,8 @@ import type { EventDetail, EventFeedItem, EventLineup, EventSquad } from '@ansto
 import { eventDisplayTitle } from '../src/components/events/eventFormat'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 
-const FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2'] as const
+// Design 14's four formation tabs, in its order.
+const FORMATION_OPTIONS = ['4-2-3-1', '4-4-2', '4-3-3', '3-5-2'] as const
 type FormationKey = (typeof FORMATION_OPTIONS)[number]
 
 const withAlpha = hexToRgba
@@ -65,6 +67,7 @@ export default function LineupBuilderScreen() {
   const reduceMotion = useReducedMotion()
   const matchTokens = useMatchTokens()
   const insets = useSafeAreaInsetsSafe()
+  const { height: windowHeight } = useWindowDimensions()
   const params = useLocalSearchParams<{
     eventId?: string | string[]
     teamId?: string | string[]
@@ -81,7 +84,9 @@ export default function LineupBuilderScreen() {
   const [squad, setSquad] = useState<SquadPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [formation, setFormation] = useState<FormationKey>('4-3-3')
+  const [formation, setFormation] = useState<FormationKey>('4-2-3-1')
+  // A bench player held (long press) to put on the pitch with the next slot tap.
+  const [armed, setArmed] = useState<string | null>(null)
   const [xi, setXi] = useState<Record<string, string>>({})
   const [bench, setBench] = useState<string[]>([])
   const [pickerSlot, setPickerSlot] = useState<FormationSlot | null>(null)
@@ -458,16 +463,33 @@ export default function LineupBuilderScreen() {
     )
   }
 
+  // Design 14: "So 15.11. · vs. RW Köpenick III".
+  const eventLocale = getAppLocale(getAppLanguage())
   const subtitle = event
     ? [
-        new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
-          weekday: 'short',
+        `${new Intl.DateTimeFormat(eventLocale, { weekday: 'short' })
+          .format(new Date(event.date))
+          .replace('.', '')} ${new Intl.DateTimeFormat(eventLocale, {
           day: '2-digit',
           month: '2-digit',
-        }).format(new Date(event.date)),
-        eventDisplayTitle(event, t),
+        }).format(new Date(event.date))}`,
+        event.type === 'MATCH' && event.opponent?.trim()
+          ? t(`eventFlow.matchTitleShort.${event.homeAway === 'AWAY' ? 'away' : 'home'}`, {
+              opponent: event.opponent.trim(),
+            })
+          : eventDisplayTitle(event, t),
       ].join(' · ')
     : t('eventFlow.lineup.headlineFallback')
+  // Design 14 is one screen: header, tabs, the pitch filling the middle and
+  // the bench. The pitch takes what is left (never smaller than 360pt).
+  const pitchHeight = Math.max(
+    PITCH_MIN,
+    windowHeight -
+      (insets.top + SPACING_MD + HEADER_ROW + SPACING_LG) -
+      (FORMATION_CHIP_HEIGHT + SPACING_LG) -
+      (BENCH_HEAD + SPACING_SM + SPACING_XXS + BENCH_TILE_HEIGHT + SPACING_LG) -
+      (SPACING_XXXL + insets.bottom),
+  )
 
   const benchPlayers = bench
     .map((id) => playersById.get(id))
@@ -508,7 +530,7 @@ export default function LineupBuilderScreen() {
           size="sm"
           leftIcon={<Icon name="square.and.arrow.up" size={16} color={c.onAccent} />}
           loading={saving}
-          disabled={saving || !isComplete}
+          disabled={saving}
           onPress={saveAndPost}
           style={styles.headerAction}
         />
@@ -555,40 +577,8 @@ export default function LineupBuilderScreen() {
           })}
         </View>
 
-        {/* Fairness hint */}
-        {hint && !hintDismissed ? (
-          <Animated.View
-            style={[
-              styles.hintCard,
-              { backgroundColor: stageTile, transform: [{ scale: hintScale }] },
-            ]}
-          >
-            <View style={[styles.hintBubble, { backgroundColor: c.accent }]}>
-              <Icon name="sparkles" size={14} color={c.onAccent} />
-            </View>
-            <View style={styles.hintCopy}>
-              <Text variant="label" style={{ color: stageMuted }}>
-                {t('lineup.fairnessLabel', { defaultValue: 'FAIRNESS BOOST' })}
-              </Text>
-              <Text variant="footnote" weight="semibold" numberOfLines={2} style={{ color: stageFg }}>
-                {t('lineup.rotateInBody', {
-                  defaultValue: '{{name}} only played {{pct}}% of available minutes. Rotate in?',
-                  name: hint.name,
-                  pct: Math.round(hint.minutesShare * 100),
-                })}
-              </Text>
-            </View>
-            <IconButton
-              onPress={() => setHintDismissed(true)}
-              accessibilityLabel={t('common.dismiss', { defaultValue: 'Dismiss' })}
-            >
-              <Icon name="xmark" size={14} color={stageMuted} />
-            </IconButton>
-          </Animated.View>
-        ) : null}
-
         {/* Pitch */}
-        <View style={[styles.pitch, { backgroundColor: c.primary }]}>
+        <View style={[styles.pitch, { backgroundColor: c.primary, height: pitchHeight }]}>
           <Svg
             width="100%"
             height="100%"
@@ -629,7 +619,14 @@ export default function LineupBuilderScreen() {
                         slot: slot.id,
                       })
                 }
-                onPress={() => setPickerSlot(slot)}
+                onPress={() => {
+                  if (armed) {
+                    assignToSlot(slot.id, armed)
+                    setArmed(null)
+                  } else {
+                    setPickerSlot(slot)
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.slot,
                   { left: `${slot.lateral * 100}%`, top: `${top}%` },
@@ -670,6 +667,71 @@ export default function LineupBuilderScreen() {
           })}
         </View>
 
+        {/* Bench */}
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text variant="label" style={{ color: stageMuted }}>
+              {t('lineup.benchCount', {
+                defaultValue: 'Bench · {{count}}',
+                count: benchPlayers.length,
+              })}
+            </Text>
+            <Text variant="caption1" style={{ color: stageMuted }}>
+              {benchPlayers.length > 0
+                ? armed
+                  ? t('lineup.benchArmed', { defaultValue: 'Tap a spot on the pitch' })
+                  : t('lineup.benchHold', { defaultValue: 'Hold and move onto the pitch' })
+                : null}
+            </Text>
+          </View>
+          {benchPlayers.length === 0 ? (
+            <View style={[styles.benchEmpty, { backgroundColor: stageTile }]}>
+              <Text variant="footnote" align="center" style={{ color: stageMuted }}>
+                {t('lineup.benchEmpty', {
+                  defaultValue: 'Tap a player below to add them to the bench.',
+                })}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.benchGrid}>
+              {benchPlayers.map((p) => (
+                <Pressable
+                  key={p.userId}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('lineup.removeFromBench', {
+                    defaultValue: 'Remove {{name}}',
+                    name: p.name,
+                  })}
+                  accessibilityHint={t('lineup.benchHold', { defaultValue: 'Hold and move onto the pitch' })}
+                  accessibilityState={{ selected: armed === p.userId }}
+                  onPress={() => (armed === p.userId ? setArmed(null) : toggleBench(p.userId))}
+                  onLongPress={() => setArmed(p.userId)}
+                  delayLongPress={300}
+                  style={({ pressed }) => [
+                    styles.benchTile,
+                    { backgroundColor: stageTile },
+                    armed === p.userId && { borderWidth: 1.5, borderColor: c.accent },
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text variant="data" style={[styles.benchNumber, { color: stageFg }]} maxFontSizeMultiplier={1}>
+                    {p.jerseyNumber != null ? String(p.jerseyNumber) : initialsOf(p.name)}
+                  </Text>
+                  <Text
+                    variant="caption1"
+                    numberOfLines={1}
+                    style={[styles.benchName, { color: stageMuted }]}
+                    maxFontSizeMultiplier={1.2}
+                  >
+                    {lastName(p.name)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Below design 14's first screen: count, share, suggestion, fairness. */}
         <View style={styles.pitchActionRow}>
           <Text variant="caption1" tabular style={{ color: stageMuted }}>
             {t('lineup.startersCount', {
@@ -696,62 +758,37 @@ export default function LineupBuilderScreen() {
           </View>
         </View>
 
-        {/* Bench */}
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text variant="label" style={{ color: stageMuted }}>
-              {t('lineup.benchCount', {
-                defaultValue: 'Bench · {{count}}',
-                count: benchPlayers.length,
-              })}
-            </Text>
-            <Text variant="caption1" style={{ color: stageMuted }}>
-              {benchPlayers.length > 0
-                ? t('lineup.benchHint', { defaultValue: 'Tap to remove' })
-                : null}
-            </Text>
-          </View>
-          {benchPlayers.length === 0 ? (
-            <View style={[styles.benchEmpty, { backgroundColor: stageTile }]}>
-              <Text variant="footnote" align="center" style={{ color: stageMuted }}>
-                {t('lineup.benchEmpty', {
-                  defaultValue: 'Tap a player below to add them to the bench.',
+        {/* Fairness hint */}
+        {hint && !hintDismissed ? (
+          <Animated.View
+            style={[
+              styles.hintCard,
+              { backgroundColor: stageTile, transform: [{ scale: hintScale }] },
+            ]}
+          >
+            <View style={[styles.hintBubble, { backgroundColor: c.accent }]}>
+              <Icon name="sparkles" size={14} color={c.onAccent} />
+            </View>
+            <View style={styles.hintCopy}>
+              <Text variant="label" style={{ color: stageMuted }}>
+                {t('lineup.fairnessLabel', { defaultValue: 'FAIRNESS BOOST' })}
+              </Text>
+              <Text variant="footnote" weight="semibold" numberOfLines={2} style={{ color: stageFg }}>
+                {t('lineup.rotateInBody', {
+                  defaultValue: '{{name}} only played {{pct}}% of available minutes. Rotate in?',
+                  name: hint.name,
+                  pct: Math.round(hint.minutesShare * 100),
                 })}
               </Text>
             </View>
-          ) : (
-            <View style={styles.benchGrid}>
-              {benchPlayers.map((p) => (
-                <Pressable
-                  key={p.userId}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('lineup.removeFromBench', {
-                    defaultValue: 'Remove {{name}}',
-                    name: p.name,
-                  })}
-                  onPress={() => toggleBench(p.userId)}
-                  style={({ pressed }) => [
-                    styles.benchTile,
-                    { backgroundColor: stageTile },
-                    pressed && { opacity: 0.6 },
-                  ]}
-                >
-                  <Text variant="data" style={[styles.benchNumber, { color: stageFg }]} maxFontSizeMultiplier={1}>
-                    {p.jerseyNumber != null ? String(p.jerseyNumber) : initialsOf(p.name)}
-                  </Text>
-                  <Text
-                    variant="caption1"
-                    numberOfLines={1}
-                    style={[styles.benchName, { color: stageMuted }]}
-                    maxFontSizeMultiplier={1.2}
-                  >
-                    {lastName(p.name)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
+            <IconButton
+              onPress={() => setHintDismissed(true)}
+              accessibilityLabel={t('common.dismiss', { defaultValue: 'Dismiss' })}
+            >
+              <Icon name="xmark" size={14} color={stageMuted} />
+            </IconButton>
+          </Animated.View>
+        ) : null}
 
         {/* Squad pool (people not in XI or bench) */}
         {pool.length > 0 ? (
@@ -1011,7 +1048,9 @@ const FORMATION_CHIP_HEIGHT = 38
 const HINT_BUBBLE = 32
 const AVATAR = 36
 // Design pitch is 350×480 on a 390pt phone.
-const PITCH_ASPECT = 350 / 480
+const PITCH_MIN = 360
+const HEADER_ROW = 44
+const BENCH_HEAD = 16
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -1066,7 +1105,6 @@ const styles = StyleSheet.create({
 
   pitch: {
     width: '100%',
-    aspectRatio: PITCH_ASPECT,
     borderRadius: RADIUS_XL + SPACING_XS,
     borderCurve: 'continuous',
     overflow: 'hidden',

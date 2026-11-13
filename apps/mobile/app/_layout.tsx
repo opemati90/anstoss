@@ -234,6 +234,7 @@ export default function RootLayout() {
                   <Stack.Screen name="admin-dashboard" options={{ animation: 'none' }} />
                   <Stack.Screen name="admin-members" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-billing" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="abo" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-club-profile" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-reports" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-sponsors" options={{ presentation: 'card' }} />

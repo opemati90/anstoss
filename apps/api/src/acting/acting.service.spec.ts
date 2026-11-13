@@ -5,7 +5,7 @@ import {
   ClubOperationalRole,
 } from '@anstoss/shared'
 import { ActingService } from './acting.service'
-import { canStartActingSession, hasActiveCoachActingSession } from './acting-access'
+import { actingAttribution, actingScopeFor, findActiveCoachActingSessionId } from './acting-access'
 
 const TEAM = { id: 't-aj', displayName: 'A-Jugend', name: 'U19' }
 
@@ -14,6 +14,7 @@ function build(opts: {
   team?: typeof TEAM | null
   active?: { id: string } | null
   headCoaches?: string[]
+  ownTeams?: string[]
 } = {}) {
   const sessions: Array<Record<string, unknown>> = []
   const tx = {
@@ -45,9 +46,11 @@ function build(opts: {
     },
     user: { findUnique: jest.fn().mockResolvedValue({ name: 'Yemi Adeyemi' }) },
     teamAccess: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue((opts.headCoaches ?? ['coach-1', 'actor']).map((userId) => ({ userId }))),
+      findMany: jest.fn(async ({ where }: { where: { role?: string } }) =>
+        where.role
+          ? (opts.headCoaches ?? ['coach-1', 'actor']).map((userId) => ({ userId }))
+          : (opts.ownTeams ?? []).map((teamId) => ({ teamId })),
+      ),
     },
     actingSession: {
       findFirst: jest.fn(async () => (opts.active === undefined ? null : opts.active)),
@@ -71,33 +74,35 @@ function build(opts: {
   return { service, prisma, tx, audit, push, sessions }
 }
 
-describe('canStartActingSession', () => {
-  it('allows owners, admins, board members and team coordinators', () => {
-    expect(canStartActingSession({ role: 'OWNER', operationalRoles: [] })).toBe(true)
-    expect(canStartActingSession({ role: 'ADMIN' })).toBe(true)
+describe('actingScopeFor', () => {
+  it('gives Vorstand (owner/admin) any team and team coordinators their own team', () => {
+    expect(actingScopeFor({ role: 'OWNER', operationalRoles: [] })).toBe('BOARD')
+    expect(actingScopeFor({ role: 'ADMIN' })).toBe('BOARD')
     expect(
-      canStartActingSession({ role: 'PLAYER', operationalRoles: [ClubOperationalRole.BOARD_MEMBER] }),
-    ).toBe(true)
-    expect(
-      canStartActingSession({ role: 'PARENT', operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR] }),
-    ).toBe(true)
+      actingScopeFor({ role: 'PARENT', operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR] }),
+    ).toBe('TEAM_MANAGER')
   })
 
-  it('denies coaches, players, parents, other operational roles and non-members', () => {
-    expect(canStartActingSession({ role: 'COACH', operationalRoles: [] })).toBe(false)
-    expect(canStartActingSession({ role: 'PLAYER', operationalRoles: [ClubOperationalRole.CAPTAIN] })).toBe(false)
-    expect(canStartActingSession({ role: 'PARENT' })).toBe(false)
-    expect(canStartActingSession(null)).toBe(false)
+  it('denies coaches, players, other operational roles and non-members', () => {
+    expect(actingScopeFor({ role: 'COACH', operationalRoles: [] })).toBeNull()
+    expect(actingScopeFor({ role: 'PLAYER', operationalRoles: [ClubOperationalRole.BOARD_MEMBER] })).toBeNull()
+    expect(actingScopeFor({ role: 'PLAYER', operationalRoles: [ClubOperationalRole.CAPTAIN] })).toBeNull()
+    expect(actingScopeFor(null)).toBeNull()
+  })
+
+  it('attributes as "Name (Vorstand) als Trainer"', () => {
+    expect(actingAttribution('Yemi', 'BOARD')).toBe('Yemi (Vorstand) als Trainer')
+    expect(actingAttribution('Lea', 'TEAM_MANAGER')).toBe('Lea (Teammanager) als Trainer')
   })
 })
 
-describe('hasActiveCoachActingSession', () => {
+describe('findActiveCoachActingSessionId', () => {
   it('queries only unexpired, not-ended coach sessions for the team and club', async () => {
     const now = new Date('2026-11-13T10:00:00Z')
     const prisma = { actingSession: { findFirst: jest.fn().mockResolvedValue({ id: 'as1' }) } }
     await expect(
-      hasActiveCoachActingSession(prisma, { userId: 'u1', teamId: 't1', clubId: 'c1' }, now),
-    ).resolves.toBe(true)
+      findActiveCoachActingSessionId(prisma, { userId: 'u1', teamId: 't1', clubId: 'c1' }, now),
+    ).resolves.toBe('as1')
     expect(prisma.actingSession.findFirst).toHaveBeenCalledWith({
       where: {
         actorUserId: 'u1',
@@ -111,8 +116,8 @@ describe('hasActiveCoachActingSession', () => {
     })
     prisma.actingSession.findFirst.mockResolvedValue(null)
     await expect(
-      hasActiveCoachActingSession(prisma, { userId: 'u1', teamId: 't1', clubId: 'c1' }, now),
-    ).resolves.toBe(false)
+      findActiveCoachActingSessionId(prisma, { userId: 'u1', teamId: 't1', clubId: 'c1' }, now),
+    ).resolves.toBeNull()
   })
 })
 
@@ -120,7 +125,7 @@ describe('ActingService', () => {
   it('starts a session, ends any previous one, audits it and notifies the head coach', async () => {
     const { service, tx, audit, push } = build()
     const before = Date.now()
-    const dto = await service.start('c1', 'actor', { teamId: TEAM.id, minutes: 30 })
+    const dto = await service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 30 })
 
     expect(tx.actingSession.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -136,6 +141,7 @@ describe('ActingService', () => {
       expect.objectContaining({
         clubId: 'c1',
         type: 'acting_session.started',
+        metadata: expect.objectContaining({ actingSessionId: 'as1', durationMin: 30 }),
         actorId: 'actor',
         actorLabel: 'Yemi Adeyemi (Vorstand) als Trainer',
       }),
@@ -154,7 +160,7 @@ describe('ActingService', () => {
   it('keeps the session when the push fails', async () => {
     const { service, push } = build()
     push.sendToUserLocalized.mockRejectedValue(new Error('expo down'))
-    await expect(service.start('c1', 'actor', { teamId: TEAM.id, minutes: 15 })).resolves.toMatchObject({
+    await expect(service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 15 })).resolves.toMatchObject({
       id: 'as1',
     })
   })
@@ -175,9 +181,37 @@ describe('ActingService', () => {
     await expect(service.candidates('c1', 'actor')).rejects.toBeInstanceOf(ActingSessionForbiddenError)
   })
 
+  it('lets a team manager cover only their own team', async () => {
+    const tm = { role: 'PLAYER', operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR] }
+    const other = build({ membership: tm, ownTeams: ['t-h1'] })
+    await expect(
+      other.service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 30 }),
+    ).rejects.toBeInstanceOf(ActingSessionForbiddenError)
+    expect(other.tx.actingSession.create).not.toHaveBeenCalled()
+
+    const own = build({ membership: tm, ownTeams: [TEAM.id] })
+    await expect(
+      own.service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 30 }),
+    ).resolves.toMatchObject({ teamId: TEAM.id })
+    expect(own.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ actorLabel: 'Yemi Adeyemi (Teammanager) als Trainer' }),
+    )
+  })
+
+  it('limits a team manager\'s candidates to their own teams', async () => {
+    const { service, prisma } = build({
+      membership: { role: 'PLAYER', operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR] },
+      ownTeams: ['t-aj'],
+    })
+    await service.candidates('c1', 'actor')
+    expect(prisma.team.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { clubId: 'c1', id: { in: ['t-aj'] } } }),
+    )
+  })
+
   it('rejects members without a board or manager role', async () => {
     const { service, tx } = build({ membership: { role: 'COACH', operationalRoles: [] } })
-    await expect(service.start('c1', 'actor', { teamId: TEAM.id, minutes: 30 })).rejects.toBeInstanceOf(
+    await expect(service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 30 })).rejects.toBeInstanceOf(
       ActingSessionForbiddenError,
     )
     expect(tx.actingSession.create).not.toHaveBeenCalled()
@@ -185,14 +219,14 @@ describe('ActingService', () => {
 
   it('rejects non-members', async () => {
     const { service } = build({ membership: null })
-    await expect(service.start('c1', 'actor', { teamId: TEAM.id, minutes: 30 })).rejects.toBeInstanceOf(
+    await expect(service.start('c1', 'actor', { teamId: TEAM.id, role: 'COACH', durationMin: 30 })).rejects.toBeInstanceOf(
       ActingSessionForbiddenError,
     )
   })
 
   it('rejects a team outside the club', async () => {
     const { service, prisma } = build({ team: null })
-    await expect(service.start('c1', 'actor', { teamId: 'other', minutes: 30 })).rejects.toBeInstanceOf(
+    await expect(service.start('c1', 'actor', { teamId: 'other', role: 'COACH', durationMin: 30 })).rejects.toBeInstanceOf(
       ActingSessionTeamNotFoundError,
     )
     expect(prisma.team.findFirst).toHaveBeenCalledWith(
@@ -201,8 +235,11 @@ describe('ActingService', () => {
   })
 
   it('ends the running session and audits it', async () => {
-    const { service, prisma, audit } = build({ active: { id: 'as1' } })
-    const dto = await service.end('c1', 'actor')
+    const { service, prisma, audit } = build({ active: { id: 'as1', clubId: 'c1' } as never })
+    const dto = await service.end('as1', 'actor')
+    expect(prisma.actingSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'as1', actorUserId: 'actor', endedAt: null }) }),
+    )
     expect(prisma.actingSession.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'as1' }, data: { endedAt: expect.any(Date) } }),
     )
@@ -212,7 +249,7 @@ describe('ActingService', () => {
 
   it('throws a named error when nothing is running', async () => {
     const { service } = build({ active: null })
-    await expect(service.end('c1', 'actor')).rejects.toBeInstanceOf(ActingSessionNotActiveError)
+    await expect(service.end('as1', 'actor')).rejects.toBeInstanceOf(ActingSessionNotActiveError)
   })
 
   it('returns the current session or null', async () => {

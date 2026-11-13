@@ -3,24 +3,29 @@ import { z } from 'zod'
 /**
  * Vorschau und Vertretung (redesign 29/31).
  *
- * "Vertretung": a club board member or team manager temporarily acts as a
- * team's coach (e.g. while the coach is on holiday). The server grants
- * coach-level team permissions while the session is unexpired; every start
- * and end is audited and the head coaches are notified.
+ * "Vertretung": Vorstand (any team) or a Teammanager (own team only)
+ * temporarily acts as a team's coach (e.g. while the coach is on holiday).
+ * The server grants coach-level team permissions while the session is
+ * unexpired; every start and end is audited ("Yemi (Vorstand) als Trainer")
+ * and the head coaches are notified. The POST response is the full session
+ * (a superset of the handoff's `{ id, expiresAt }`); end it with
+ * DELETE /acting-sessions/:id.
  *
  * "Vorschau" (view as player / parent, read-only) is client-only.
  */
-export const ACTING_SESSION_MIN_MINUTES = 15
-export const ACTING_SESSION_MAX_MINUTES = 240
-/** Durations the sheet offers. */
+/** Durations a stand-in session may run (REVAMP_HANDOFF: 15, 30 or 60 min). */
 export const ACTING_SESSION_DURATIONS = [15, 30, 60] as const
+export type ActingSessionDuration = (typeof ACTING_SESSION_DURATIONS)[number]
 
+/** Roles one can stand in for. Never Vorstand, never a named person. */
 export const ACTING_SESSION_ROLES = ['COACH'] as const
 export type ActingSessionRole = (typeof ACTING_SESSION_ROLES)[number]
 
+/** POST /clubs/:clubId/acting-sessions */
 export const startActingSessionSchema = z.object({
   teamId: z.string().min(1).max(64),
-  minutes: z.number().int().min(ACTING_SESSION_MIN_MINUTES).max(ACTING_SESSION_MAX_MINUTES),
+  role: z.enum(ACTING_SESSION_ROLES),
+  durationMin: z.union([z.literal(15), z.literal(30), z.literal(60)]),
   reason: z.string().trim().min(1).max(200).optional(),
 })
 export type StartActingSessionInput = z.infer<typeof startActingSessionSchema>

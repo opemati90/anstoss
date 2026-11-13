@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { RSVP, type ChildrenOverview, type MyContributionSummary } from '@anstoss/shared'
 import { api, API_URL } from '../../api/client'
 import { useEventsSocket } from '../../hooks/useEventsSocket'
-import { FilterChipRow, Icon, PressableScale, Text } from '../ui'
+import { Button, FilterChipRow, Icon, PressableScale, Text } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { SPACING_LG, SPACING_XS, SPACING_XXS, hairline, space } from '../../theme/tokens'
+import { SPACING_LG, SPACING_XL, SPACING_XS, SPACING_XXS, hairline, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { SILENT_REFRESH_DEBOUNCE_MS, outstandingDues } from '../../hooks/usePlayerHome'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
@@ -17,16 +17,15 @@ import {
   EmptyCard,
   HomeCard,
   HomeRow,
-  HomeSection,
+  HomeTag,
   InlineError,
   eventHeadline,
-  formatCountdown,
   formatShortDate,
   formatTime,
 } from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
 import { HomeSkeleton } from './HomeSkeleton'
-import { DuesRow, TasksSection, dutyIcon, dutyTitle, type HomeTask } from './HomeTasks'
+import { dutyIcon, dutyTitle, type HomeTask } from './HomeTasks'
 import { setChildrenSummary, type ChildSummary } from './childrenSummary'
 import { type ChildEvent as ConflictEvent, findConflicts } from '../../lib/scheduleConflicts'
 
@@ -45,6 +44,8 @@ type ChildEvent = {
   meetingPoint?: string | null
   fixtureId?: string | null
   carpoolEnabled?: boolean
+  /** schemas/home.ts — carpool state on away matches. */
+  carpoolSummary?: { seeking: number; seatsFree: number; myRideSeats: number | null } | null
   teamName: string
   teamDisplayName: string | null
   /** API: CrossTeamEventItem.childUserId — the child this row belongs to. */
@@ -153,7 +154,10 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
   // One card per child: the next non-cancelled event on that child's calendar.
   const childCards = useMemo(() => {
     const byChild = new Map<string, { next: ChildEvent; more: number }>()
-    for (const ev of events) {
+    const byDate = [...events].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    )
+    for (const ev of byDate) {
       if (ev.cancelledAt) continue
       const key = ev.childUserId ?? `team:${ev.teamName}`
       const entry = byChild.get(key)
@@ -243,7 +247,6 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
       }))
   }, [children, locale, overview, t])
 
-  const announcements = overview?.announcements ?? []
   // Loaded, and no child linked at all: point to the link flow instead of an
   // empty schedule that can never fill.
   const noLinkedChild = loaded && overview !== null && children.length === 0 && events.length === 0
@@ -314,27 +317,154 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
     )
   }
 
+  const selectedEvent = selectedCard?.next ?? null
+  const selectedChild =
+    children.find((child) => child.userId && child.userId === selectedEvent?.childUserId) ??
+    (children.length === 1 ? children[0] : null)
+  const isAway = Boolean(selectedEvent && selectedEvent.type === 'MATCH' && selectedEvent.homeAway === 'AWAY')
+  const carpool = selectedEvent?.carpoolSummary ?? null
+  const offered = carpool?.myRideSeats != null
+  const groupRows: Array<{ key: string; render: (divider: boolean) => ReactNode }> = []
+
+  if (conflicts.length > 0) {
+    groupRows.push({
+      key: 'conflicts',
+      render: (divider) => (
+        <HomeRow
+          icon="exclamationmark.triangle"
+          tone="warning"
+          title={t('homeHub.parent.conflicts', {
+            defaultValue: '{{count}} schedule clashes',
+            count: conflicts.length,
+          })}
+          detail={t('homeHub.parent.conflictsBody', {
+            defaultValue: 'Two of your children are due at the same time. Decide who goes.',
+          })}
+          onPress={() => router.push('/conflicts' as never)}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  if (selectedEvent && isAway) {
+    const openCarpool = () =>
+      router.push({
+        pathname: '/carpool',
+        params: selectedEvent.fixtureId
+          ? { fixtureId: selectedEvent.fixtureId, eventId: selectedEvent.id }
+          : { eventId: selectedEvent.id },
+      } as never)
+    groupRows.push({
+      key: 'carpool',
+      render: (divider) => (
+        <HomeRow
+          icon="car"
+          title={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
+          detail={
+            offered
+              ? t('homeHub.parent.carpoolDriving', {
+                  defaultValue: "You're driving. {{count}} seats free.",
+                  count: carpool?.myRideSeats ?? 0,
+                })
+              : carpool && carpool.seeking > 0
+                ? t('homeHub.parent.carpoolSeeking', {
+                    defaultValue: '{{count}} kids still need a ride',
+                    count: carpool.seeking,
+                  })
+                : t('homeHub.parent.carpoolPlan', { defaultValue: 'Plan rides for the away match' })
+          }
+          trailing={
+            <Button
+              label={
+                offered
+                  ? t('homeHub.parent.seatOffered', { defaultValue: 'Offered' })
+                  : t('homeHub.parent.offerSeat', { defaultValue: 'Offer a seat' })
+              }
+              variant="accent"
+              size="sm"
+              onPress={openCarpool}
+              testID="parent-offer-seat"
+            />
+          }
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  if (selectedChild || children.length > 0) {
+    const consent = selectedChild?.photoConsent ?? null
+    groupRows.push({
+      key: 'photo',
+      render: (divider) => (
+        <HomeRow
+          icon="camera"
+          title={t('homeHub.parent.photoConsent', { defaultValue: 'Photo consent' })}
+          detail={
+            consent === 'GRANTED'
+              ? t('homeHub.parent.photoConsentGranted', { defaultValue: 'Given for team photos on the club site' })
+              : t('homeHub.parent.photoConsentBody', { defaultValue: 'For team photos on the club website' })
+          }
+          trailing={
+            <Button
+              label={t('homeHub.parent.review', { defaultValue: 'Review' })}
+              variant="bordered"
+              size="sm"
+              onPress={() => router.push('/child-consent' as never)}
+              testID="parent-photo-consent"
+            />
+          }
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  for (const task of tasks) {
+    groupRows.push({
+      key: `task-${task.id}`,
+      render: (divider) => (
+        <HomeRow
+          icon={task.icon}
+          title={task.title}
+          detail={task.detail}
+          onPress={task.onPress}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
+  if (familyDues && familyDues.amounts.length > 0) {
+    groupRows.push({
+      key: 'dues',
+      render: (divider) => (
+        <HomeRow
+          icon="creditcard"
+          title={familyDues.planName || t('homeHub.dues', { defaultValue: 'Membership fee' })}
+          trailing={
+            <HomeTag
+              label={
+                familyDues.overdue
+                  ? t('contributions.status.OVERDUE')
+                  : familyDues.dueDate
+                    ? t('homeHub.parent.dueOn', {
+                        defaultValue: 'Due {{date}}',
+                        date: formatDayMonth(familyDues.dueDate, locale),
+                      })
+                    : t('contributions.status.PENDING')
+              }
+              tone={familyDues.overdue ? 'alert' : 'neutral'}
+            />
+          }
+          onPress={() => router.push('/my-contributions' as never)}
+          showDivider={divider}
+          testID="parent-home-dues"
+        />
+      ),
+    })
+  }
+
   return (
     <View style={styles.root}>
       {socketListeners}
-      {conflicts.length > 0 ? (
-        <HomeSection title={t('homeHub.coach.attention', { defaultValue: 'Needs attention' })}>
-          <HomeCard>
-            <HomeRow
-              icon="exclamationmark.triangle"
-              tone="warning"
-              title={t('homeHub.parent.conflicts', {
-                defaultValue: '{{count}} schedule clashes',
-                count: conflicts.length,
-              })}
-              detail={t('homeHub.parent.conflictsBody', {
-                defaultValue: 'Two of your children are due at the same time. Decide who goes.',
-              })}
-              onPress={() => router.push('/conflicts' as never)}
-            />
-          </HomeCard>
-        </HomeSection>
-      ) : null}
 
       {noLinkedChild ? (
         <EmptyCard
@@ -348,7 +478,7 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           onAction={() => router.push(LINK_CHILD_ROUTE as never)}
         />
       ) : childCards.length > 0 && selectedCard ? (
-        <View style={styles.childCards}>
+        <>
           {childCards.length > 1 ? (
             <FilterChipRow
               chips={childCards.map(({ next }) => ({
@@ -366,13 +496,11 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           <ChildCard
             key={`${selectedCard.next.childUserId ?? selectedCard.next.teamName}-${selectedCard.next.id}`}
             event={selectedCard.next}
-            more={selectedCard.more}
             locale={locale}
-            nowMs={Date.now()}
             pending={Boolean(pendingIds[`${selectedCard.next.childUserId}-${selectedCard.next.id}`])}
             onRsvp={(status, absence) => void onChildRsvp(selectedCard.next, status, absence)}
           />
-        </View>
+        </>
       ) : (
         <EmptyCard
           icon="calendar"
@@ -386,28 +514,13 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
         />
       )}
 
-      <TasksSection tasks={tasks} />
-
-      <DuesRow
-        dues={familyDues}
-        locale={locale}
-        title={t('homeHub.parent.familyDues', { defaultValue: 'Family fees' })}
-      />
-
-      {announcements.length > 0 ? (
-        <HomeSection title={t('home.announcements', { defaultValue: 'Announcements' })}>
-          <HomeCard>
-            {announcements.map((a, index) => (
-              <HomeRow
-                key={a.id}
-                icon="megaphone"
-                title={a.title}
-                detail={[a.teamName, a.body].filter(Boolean).join(' · ')}
-                showDivider={index > 0}
-              />
-            ))}
-          </HomeCard>
-        </HomeSection>
+      {/* Board 25: one group — carpool (away), photo consent, jobs, fee. */}
+      {groupRows.length > 0 ? (
+        <HomeCard>
+          {groupRows.map((row, index) => (
+            <Fragment key={row.key}>{row.render(index > 0)}</Fragment>
+          ))}
+        </HomeCard>
       ) : null}
 
       {error ? (
@@ -429,18 +542,19 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
   )
 }
 
+/**
+ * The selected child's next event as the club hero (board 25): "E-Jugend ·
+ * Turnier in Treptow", the time, the Treffpunkt, then "Antwort für Emil"
+ * with the in-hero segmented reply.
+ */
 function ChildCard({
   event,
-  more,
   locale,
-  nowMs,
   pending,
   onRsvp,
 }: {
   event: ChildEvent
-  more: number
   locale: string
-  nowMs: number
   pending: boolean
   onRsvp: (status: RsvpStatus, absence?: AbsenceDetail) => void
 }) {
@@ -449,10 +563,6 @@ function ChildCard({
   const team = teamLabel(event)
   const child = firstName(event.childName) || team
   const canAnswer = Boolean(event.childUserId && event.clubId)
-  const isAway = event.type === 'MATCH' && event.homeAway === 'AWAY'
-  const carpool = isAway && Boolean(event.carpoolEnabled || event.fixtureId)
-  const moreLabel = t('homeHub.parent.moreEvents', { defaultValue: '+{{count}} more', count: more })
-  const countdown = formatCountdown(event.date, nowMs, locale, t)
   const meeting = formatTime(event.meetingAt, locale)
   const place = event.meetingPoint || event.location || null
   const meetLine = [
@@ -464,88 +574,57 @@ function ChildCard({
   const replyFor = t('homeHub.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })
 
   return (
-    <View style={styles.childCards}>
-      <HeroSurface style={styles.hero}>
-        <PressableScale
-          onPress={() =>
-            router.push({ pathname: '/event-detail', params: { eventId: event.id } } as never)
-          }
-          accessibilityRole="button"
-          accessibilityLabel={t('home.parent.actionOpenEventA11y', {
-            defaultValue: 'Open {{title}} for {{child}}',
-            title: eventHeadline(event),
-            child,
-          })}
-          haptic="tapLight"
-          style={styles.heroBody}
-        >
-          <View style={styles.heroTop}>
-            <Text variant="footnote" weight="semibold" numberOfLines={2} style={[styles.flex, { color: hero.muted }]}>
-              {[event.childName ? `${child} · ${team}` : team, eventHeadline(event)].join(' · ')}
-            </Text>
-            {countdown ? (
-              <Text variant="footnote" weight="semibold" style={{ color: hero.muted }}>
-                {countdown}
-              </Text>
-            ) : null}
-          </View>
-          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={[styles.kickoff, { color: hero.fg }]}>
-            {heroKickoff(event.date, locale)}
+    <HeroSurface style={styles.hero}>
+      <PressableScale
+        onPress={() =>
+          router.push({ pathname: '/event-detail', params: { eventId: event.id } } as never)
+        }
+        accessibilityRole="button"
+        accessibilityLabel={t('home.parent.actionOpenEventA11y', {
+          defaultValue: 'Open {{title}} for {{child}}',
+          title: eventHeadline(event),
+          child,
+        })}
+        haptic="tapLight"
+        style={styles.heroBody}
+      >
+        <Text variant="footnote" weight="semibold" numberOfLines={2} style={{ color: hero.muted }}>
+          {[team, eventHeadline(event)].filter(Boolean).join(' · ')}
+        </Text>
+        <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={[styles.kickoff, { color: hero.fg }]}>
+          {heroKickoff(event.date, locale)}
+        </Text>
+        {meetLine ? (
+          <Text variant="footnote" numberOfLines={2} style={{ color: hero.muted }}>
+            {meetLine}
           </Text>
-          {meetLine ? (
-            <Text variant="footnote" numberOfLines={2} style={{ color: hero.muted }}>
-              {meetLine}
-            </Text>
-          ) : null}
-        </PressableScale>
-
-        {canAnswer ? (
-          <View style={styles.reply}>
-            <Text variant="footnote" weight="semibold" style={{ color: hero.fg }}>
-              {replyFor}
-            </Text>
-            <HeroRsvp
-              value={event.childRsvp ?? null}
-              onChange={onRsvp}
-              disabled={pending}
-              subjectName={child}
-              accessibilityLabel={replyFor}
-              testID={`parent-rsvp-${event.childUserId}`}
-            />
-          </View>
         ) : null}
-      </HeroSurface>
+      </PressableScale>
 
-      {carpool || more > 0 ? (
-        <HomeCard>
-          {carpool ? (
-            <HomeRow
-              icon="car.fill"
-              title={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
-              accessibilityLabel={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
-              onPress={() =>
-                router.push({
-                  pathname: '/carpool',
-                  params: event.fixtureId
-                    ? { fixtureId: event.fixtureId, eventId: event.id }
-                    : { eventId: event.id },
-                } as never)
-              }
-            />
-          ) : null}
-          {more > 0 ? (
-            <HomeRow
-              icon="calendar"
-              title={moreLabel}
-              accessibilityLabel={moreLabel}
-              showDivider={carpool}
-              onPress={() => router.push(SCHEDULE_ROUTE as never)}
-            />
-          ) : null}
-        </HomeCard>
+      {canAnswer ? (
+        <View style={styles.reply}>
+          <Text variant="footnote" weight="semibold" style={{ color: hero.fg }}>
+            {replyFor}
+          </Text>
+          <HeroRsvp
+            value={event.childRsvp ?? null}
+            onChange={onRsvp}
+            disabled={pending}
+            subjectName={child}
+            contextLabel={`${heroKickoff(event.date, locale).split(' ')[0]} ${eventHeadline(event)}`}
+            accessibilityLabel={replyFor}
+            testID={`parent-rsvp-${event.childUserId}`}
+          />
+        </View>
       ) : null}
-    </View>
+    </HeroSurface>
   )
+}
+
+/** "30.11." */
+function formatDayMonth(iso: string, locale: string): string {
+  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(iso))
+  return locale.startsWith('de') && !day.endsWith('.') ? `${day}.` : day
 }
 
 function cardKey(event: ChildEvent): string {
@@ -588,12 +667,10 @@ function TeamEventsListener({
 }
 
 const styles = StyleSheet.create({
-  root: { gap: space.lg },
-  childCards: { gap: space.md + 4 },
-  flex: { flex: 1 },
+  // Board 25: 20pt between blocks (the other homes use 24).
+  root: { gap: SPACING_XL },
   hero: { gap: SPACING_LG + SPACING_XXS },
   heroBody: { gap: SPACING_XS + SPACING_XXS },
-  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   kickoff: { fontSize: 50 },
   reply: { gap: space.sm },
   stale: {

@@ -39,6 +39,7 @@ describe('outstandingDues', () => {
       amounts: [{ cents: 4500 + 2000 + 4500, currency: 'EUR' }],
       overdue: true,
       dueDate: expect.any(String),
+      planName: expect.any(String),
     })
   })
 
@@ -62,6 +63,7 @@ describe('outstandingDues', () => {
       ],
       overdue: true,
       dueDate: expect.any(String),
+      planName: expect.any(String),
     })
   })
 

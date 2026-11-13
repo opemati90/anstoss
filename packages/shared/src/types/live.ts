@@ -22,6 +22,11 @@ export interface MatchLiveStateDto {
   scoreAway: number
   homeAway: 'HOME' | 'AWAY' | null
   opponent: string | null
+  /**
+   * Redesign 15: the opponent crest colour ("#B23A3A"), from the fussball.de
+   * club or typed by the coach. Absent on older APIs: the crest stays white.
+   */
+  opponentColor?: string | null
   /** Running minute derived from the clock; null before kick-off. */
   minute: number | null
   kickoffAt: string | null

@@ -239,8 +239,9 @@ export const kaderDe = {
     noTeamBody: 'Wähl ein Team aus, um seine Dienste zu sehen.',
   },
   matches: {
+    todayAt: "heute {{time}}",
     title: 'Spiele & Tabelle',
-    tabMatches: 'Spiele',
+    tabMatches: 'Spielplan',
     tabTable: 'Tabelle',
     home: 'Heim',
     away: 'Auswärts',

@@ -251,6 +251,7 @@ export const kaderFr = {
     noTeamBody: 'Choisis une équipe pour voir ses tâches.',
   },
   matches: {
+    todayAt: "aujourd’hui {{time}}",
     title: 'Matchs et classement',
     tabMatches: 'Matchs',
     tabTable: 'Classement',

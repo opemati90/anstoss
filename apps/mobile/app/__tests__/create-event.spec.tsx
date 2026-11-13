@@ -94,8 +94,10 @@ describe('CreateEventScreen', () => {
     const screen = render(<CreateEventScreen />)
 
     expect(await screen.findByText('New event')).toBeTruthy()
-    expect(screen.getByLabelText('Repeat: Weekly')).toBeTruthy()
-    expect(screen.getByText(/^Add \d+ events$/)).toBeTruthy()
+    // Design 12: "Jede Woche" on, the rule one row below, one "Termin speichern".
+    expect(screen.getByTestId('event-repeat-switch').props.accessibilityState).toEqual({ checked: true })
+    expect(screen.getByLabelText(/^Repeat: Weekly · /)).toBeTruthy()
+    expect(screen.getByText('eventFlow.create.saveEvent')).toBeTruthy()
     // Cancel lives in the modal header.
     expect(screen.getByLabelText('Cancel')).toBeTruthy()
   })
@@ -122,7 +124,8 @@ describe('CreateEventScreen', () => {
       return Promise.resolve([])
     })
     const screen = render(<CreateEventScreen />)
-
+    // The rhythm, days and end live behind the Wiederholen row.
+    fireEvent.press(await screen.findByTestId('event-repeat-row'))
     await waitFor(() => {
       expect(screen.getByTestId('event-weekday-2').props.accessibilityState).toEqual({ checked: true })
       expect(screen.getByTestId('event-weekday-4').props.accessibilityState).toEqual({ checked: true })
@@ -138,7 +141,7 @@ describe('CreateEventScreen', () => {
     })
     const screen = render(<CreateEventScreen />)
     await screen.findByText('New event')
-
+    fireEvent.press(screen.getByTestId('event-repeat-row'))
     // Start from a clean selection, then pick Di + Do.
     for (const day of [0, 1, 2, 3, 4, 5, 6]) {
       const chip = screen.getByTestId(`event-weekday-${day}`)
@@ -156,6 +159,7 @@ describe('CreateEventScreen', () => {
           body: expect.objectContaining({
             type: 'TRAINING',
             durationMin: 90,
+            rsvpAutoReminder: true,
             repeat: expect.objectContaining({ intervalWeeks: 1, weekdays: [2, 4] }),
           }),
         }),
@@ -180,8 +184,8 @@ describe('CreateEventScreen', () => {
     fireEvent.changeText(screen.getByTestId('event-opponent-input'), 'SV Babelsberg 03')
     fireEvent.press(screen.getByTestId('event-away'))
 
-    expect(screen.getByText(/60 min before/)).toBeTruthy()
-    expect(screen.getByTestId('event-carpool-switch').props.value).toBe(true)
+    expect(screen.getByTestId('event-meeting-60').props.accessibilityState).toMatchObject({ checked: true })
+    expect(screen.getByTestId('event-carpool-switch').props.accessibilityState).toEqual({ checked: true })
 
     fireEvent.press(screen.getByTestId('event-create-submit'))
     await waitFor(() => {
@@ -280,6 +284,7 @@ describe('CreateEventScreen', () => {
     )
     const screen = render(<CreateEventScreen />)
     await screen.findByText('New event')
+    fireEvent.press(screen.getByTestId('event-repeat-row'))
     for (const day of [1, 2, 3, 4, 5, 6, 0]) {
       const chip = screen.getByTestId(`event-weekday-${day}`)
       if (!chip.props.accessibilityState?.checked) fireEvent.press(chip)
@@ -304,9 +309,11 @@ describe('CreateEventScreen', () => {
     expect(screen.getByTestId('event-time-row')).toBeTruthy()
     expect(screen.getByTestId('event-location-input')).toBeTruthy()
 
+    // Zeit opens Beginn + Dauer; the row then shows "18:30 – 19:30".
+    fireEvent.press(screen.getByTestId('event-time-row'))
     fireEvent.press(screen.getByTestId('event-duration-row'))
     fireEvent.press(screen.getByTestId('event-duration-60'))
-    expect(screen.getByLabelText(/^eventFlow.create.duration: 60 min · until/)).toBeTruthy()
+    expect(screen.getByLabelText(/^eventFlow.create.time: \d\d:\d\d – \d\d:\d\d$/)).toBeTruthy()
     fireEvent.press(screen.getByTestId('event-create-submit'))
 
     await waitFor(() =>

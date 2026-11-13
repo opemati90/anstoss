@@ -1,6 +1,9 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common'
 import {
+  ClubOperationalRole,
+  EntitlementSource,
   EntitlementStatus,
+  MembershipRole,
   PlanTier,
   Prisma,
   TeamAccessPhase,
@@ -9,7 +12,18 @@ import {
 } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
-import type { CreateEntitlementGrantInput, PublishPlanDefinitionInput } from '@anstoss/shared'
+import {
+  PLAN_CURRENCY,
+  PLAN_PRICES_CENTS,
+  PLAN_SALES_EMAIL,
+  PLAN_TRIAL_DAYS,
+  planFeatureFlags,
+  type ClubPlan,
+  type CreateEntitlementGrantInput,
+  type PlanFeature,
+  type PlanFeatureFlags,
+  type PublishPlanDefinitionInput,
+} from '@anstoss/shared'
 import { AuditService } from '../audit/audit.service'
 
 export const PLAN_LIMITS: Record<PlanTier, { teams: number; players: number }> = {
@@ -26,6 +40,36 @@ export const CORE_CLUB_FEATURES = [
 ] as const
 
 const DOWNGRADE_REMEDIATION_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Vorstand: these membership roles may start or change the club plan. */
+const PLAN_MANAGER_ROLES: ReadonlySet<MembershipRole> = new Set([
+  MembershipRole.OWNER,
+  MembershipRole.ADMIN,
+])
+/** Vorstand (board member) and Kassenwart (treasurer) offices, whatever their membership role. */
+const PLAN_MANAGER_OFFICES: ReadonlySet<ClubOperationalRole> = new Set([
+  ClubOperationalRole.BOARD_MEMBER,
+  ClubOperationalRole.TREASURER,
+])
+
+/** Only Vorstand or Kassenwart may start or change a plan. */
+export class PlanManagementForbiddenException extends ForbiddenException {
+  constructor() {
+    super('Only the Vorstand or the Kassenwart can start or change the club plan')
+  }
+}
+
+/** The club already holds Verein (or better) or has used its one trial. */
+export class PlanTrialUnavailableException extends ConflictException {
+  constructor(reason: 'already_used' | 'already_paid') {
+    super(
+      reason === 'already_used'
+        ? 'This club has already used its 30-day trial'
+        : 'This club already has the Verein plan',
+    )
+  }
+}
 
 type DbClient = PrismaService | Prisma.TransactionClient
 
@@ -402,6 +446,118 @@ export class ClubEntitlementsService {
     ])
     const compliance = await this.refreshCompliance(clubId, entitlement, usage)
     return { clubId, ...entitlement, grants, usage, compliance }
+  }
+
+  // ─── Plans and pricing (Abo screen) ──────────────────────────
+
+  /**
+   * Feature flags for a tier. Kostenlos clubs keep events, chat, squad,
+   * lineup, parents and consents; everything in PLAN_FEATURES unlocks with
+   * Verein. Child consent and safety features are never part of this map,
+   * so they can never be gated.
+   */
+  featureFlags(tier: PlanTier): PlanFeatureFlags {
+    return planFeatureFlags(tier)
+  }
+
+  /** Gate a paid feature through one place instead of scattered tier checks. */
+  async hasFeature(clubId: string, feature: PlanFeature, db: DbClient = this.prisma) {
+    const { tier } = await this.resolve(clubId, db)
+    return this.featureFlags(tier)[feature]
+  }
+
+  /** Vorstand (OWNER/ADMIN or BOARD_MEMBER office) or Kassenwart (TREASURER office). */
+  async canManagePlan(clubId: string, userId: string, db: DbClient = this.prisma) {
+    const membership = await db.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true, operationalRoles: true },
+    })
+    if (!membership) return false
+    if (PLAN_MANAGER_ROLES.has(membership.role)) return true
+    return (membership.operationalRoles ?? []).some((office) => PLAN_MANAGER_OFFICES.has(office))
+  }
+
+  /** GET /clubs/:clubId/plan — what the Abo screen and the More row read. */
+  async plan(clubId: string, userId: string): Promise<ClubPlan> {
+    const [entitlement, usage, priorTrial, canManage] = await Promise.all([
+      this.resolve(clubId),
+      this.usage(clubId),
+      this.prisma.entitlementGrant.findFirst({
+        where: { clubId, source: EntitlementSource.TRIAL },
+        select: { id: true },
+      }),
+      this.canManagePlan(clubId, userId),
+    ])
+    const now = new Date()
+    const winning = entitlement.grants.find(
+      (grant) =>
+        grant.tier === entitlement.tier &&
+        (grant.status === EntitlementStatus.ACTIVE ||
+          (grant.graceEndsAt !== null && grant.graceEndsAt > now)),
+    )
+    const source = entitlement.tier === PlanTier.FREE || !winning ? 'NONE' : winning.source
+    return {
+      clubId,
+      tier: entitlement.tier,
+      source,
+      trialEndsAt:
+        source === EntitlementSource.TRIAL && winning?.expiresAt
+          ? winning.expiresAt.toISOString()
+          : null,
+      trialUsed: Boolean(priorTrial),
+      limits: entitlement.limits,
+      usage,
+      prices: {
+        monthly: { amountCents: PLAN_PRICES_CENTS.monthly, currency: PLAN_CURRENCY },
+        yearly: { amountCents: PLAN_PRICES_CENTS.yearly, currency: PLAN_CURRENCY },
+      },
+      features: this.featureFlags(entitlement.tier),
+      canManage,
+      salesEmail: PLAN_SALES_EMAIL,
+    }
+  }
+
+  /**
+   * POST /clubs/:clubId/plan/trial — 30 days of Verein, no card. The grant
+   * simply expires; resolve() then falls back to Kostenlos, data stays and
+   * gated features turn read-only. One trial per club.
+   */
+  async startTrial(clubId: string, userId: string): Promise<ClubPlan> {
+    if (!(await this.canManagePlan(clubId, userId))) throw new PlanManagementForbiddenException()
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`entitlement-grant:${clubId}`}))`
+      const priorTrial = await tx.entitlementGrant.findFirst({
+        where: { clubId, source: EntitlementSource.TRIAL },
+        select: { id: true },
+      })
+      if (priorTrial) throw new PlanTrialUnavailableException('already_used')
+      const { tier } = await this.resolve(clubId, tx)
+      if (tier !== PlanTier.FREE) throw new PlanTrialUnavailableException('already_paid')
+      const startsAt = new Date()
+      const grant = await tx.entitlementGrant.create({
+        data: {
+          clubId,
+          tier: PlanTier.PRO,
+          source: EntitlementSource.TRIAL,
+          startsAt,
+          expiresAt: new Date(startsAt.getTime() + PLAN_TRIAL_DAYS * DAY_MS),
+          reason: 'In-app 30-day Verein trial',
+          createdById: userId,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          clubId,
+          type: 'billing.trial_started',
+          actorType: 'user',
+          actorId: userId,
+          actorLabel: null,
+          summary: `Started the ${PLAN_TRIAL_DAYS}-day Verein trial`,
+          metadata: { grantId: grant.id, expiresAt: grant.expiresAt?.toISOString() ?? null },
+        },
+      })
+    })
+    return this.plan(clubId, userId)
   }
 
   private async lockClubQuota(clubId: string, db: DbClient) {

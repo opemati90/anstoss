@@ -13,22 +13,23 @@ describe('ActingController', () => {
   beforeEach(() => jest.clearAllMocks())
 
   it('validates and forwards a start request', async () => {
-    await controller.start(user, 'c1', { teamId: 't1', minutes: 30 })
-    expect(acting.start).toHaveBeenCalledWith('c1', 'u1', { teamId: 't1', minutes: 30 })
+    await controller.start(user, 'c1', { teamId: 't1', role: 'COACH', durationMin: 30 })
+    expect(acting.start).toHaveBeenCalledWith('c1', 'u1', { teamId: 't1', role: 'COACH', durationMin: 30 })
   })
 
-  it.each([10, 241, 30.5])('rejects %p minutes', (minutes) => {
-    expect(() => controller.start(user, 'c1', { teamId: 't1', minutes })).toThrow(ZodError)
+  it.each([10, 45, 240, 30.5])('rejects %p minutes', (durationMin) => {
+    expect(() => controller.start(user, 'c1', { teamId: 't1', role: 'COACH', durationMin })).toThrow(ZodError)
     expect(acting.start).not.toHaveBeenCalled()
   })
 
-  it('rejects a missing team', () => {
-    expect(() => controller.start(user, 'c1', { minutes: 30 })).toThrow(ZodError)
+  it('rejects a missing team and any role but COACH', () => {
+    expect(() => controller.start(user, 'c1', { role: 'COACH', durationMin: 30 })).toThrow(ZodError)
+    expect(() => controller.start(user, 'c1', { teamId: 't1', role: 'ADMIN', durationMin: 30 })).toThrow(ZodError)
   })
 
   it('ends the current session and reads it', async () => {
-    await controller.end(user, 'c1')
-    expect(acting.end).toHaveBeenCalledWith('c1', 'u1')
+    await controller.end(user, 'as1')
+    expect(acting.end).toHaveBeenCalledWith('as1', 'u1')
     await expect(controller.current(user)).resolves.toEqual({ session: null })
   })
 })

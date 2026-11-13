@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  BackHandler,
   Pressable,
   ScrollView,
   Share,
@@ -13,7 +12,11 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import QRCode from 'react-native-qrcode-svg'
 import { TeamAccessPhase, TeamRole } from '@anstoss/shared'
+import * as Clipboard from 'expo-clipboard'
+import type { TeamJoinCodeResponse } from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
+import { InviteShare } from '../src/components/invite/InviteShare'
+import { useAndroidBack } from '../src/onboarding/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -100,7 +103,11 @@ function parseRecipientEmails(value: string) {
 export default function InviteScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, isLoading: authIsLoading } = useAuth()
-  const { returnTo, mode } = useLocalSearchParams<{ returnTo?: string; mode?: string }>()
+  const { returnTo, mode, flow } = useLocalSearchParams<{
+    returnTo?: string
+    mode?: string
+    flow?: string
+  }>()
   const c = useClubColors()
   const [groups, setGroups] = useState<TeamGroupResponse[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
@@ -134,6 +141,14 @@ export default function InviteScreen() {
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false)
   const dismissTarget = typeof returnTo === 'string' && returnTo.length > 0 ? returnTo : '/(tabs)'
   const canInvite = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  // Board 07: the code-sharing view first; the e-mail wizard is one row away.
+  const [view, setView] = useState<'share' | 'email'>(
+    isCoachInvite || mode === 'email' ? 'email' : 'share',
+  )
+  const [teamCode, setTeamCode] = useState<TeamJoinCodeResponse | null>(null)
+  const [teamCodeState, setTeamCodeState] = useState<'loading' | 'done' | 'failed'>('loading')
+  const [campaignsLoaded, setCampaignsLoaded] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const loadCampaigns = useCallback(async () => {
     if (!activeClub) return
@@ -144,27 +159,47 @@ export default function InviteScreen() {
       setCampaigns(rows.filter((row) => row.status === 'ACTIVE' || row.status === 'PAUSED'))
     } catch {
       setCampaigns([])
+    } finally {
+      setCampaignsLoaded(true)
     }
   }, [activeClub])
 
   useEffect(() => {
-    void loadCampaigns()
-  }, [loadCampaigns])
+    if (canInvite) void loadCampaigns()
+  }, [canInvite, loadCampaigns])
+
+  // Coaches cannot create join campaigns: they share the team's join code
+  // (contract GET …/teams/:id/join-code, BACKEND_GAPS). No endpoint yet →
+  // the screen falls back to the "only admins" card.
+  useEffect(() => {
+    if (canInvite || !activeClub || !selectedTeamId) return
+    let alive = true
+    setTeamCodeState('loading')
+    api<TeamJoinCodeResponse>(`/clubs/${activeClub.club.id}/teams/${selectedTeamId}/join-code`)
+      .then((res) => {
+        if (!alive) return
+        setTeamCode(res?.code ? res : null)
+        setTeamCodeState(res?.code ? 'done' : 'failed')
+      })
+      .catch(() => {
+        if (alive) setTeamCodeState('failed')
+      })
+    return () => {
+      alive = false
+    }
+  }, [activeClub, canInvite, selectedTeamId])
 
   const handleClose = useCallback(() => {
     router.dismissTo(dismissTarget)
   }, [dismissTarget])
 
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleClose()
-      return true
-    })
-
-    return () => {
-      subscription.remove()
-    }
-  }, [handleClose])
+  // Android hardware back closes the screen (no-op on iOS and web, where
+  // BackHandler is not supported).
+  useAndroidBack(() => {
+    if (view === 'email' && !isCoachInvite && mode !== 'email') setView('share')
+    else handleClose()
+    return true
+  })
 
   useEffect(() => {
     if (!activeClub) return
@@ -185,7 +220,9 @@ export default function InviteScreen() {
           }
         }
       } catch {
-        if (!isCancelled) {
+        // Coaches may not list team groups; the share view uses their
+        // active team instead of interrupting with an alert.
+        if (!isCancelled && canInvite) {
           Alert.alert(t('common.error'), t('invite.teamLoadError'))
         }
       } finally {
@@ -198,7 +235,7 @@ export default function InviteScreen() {
     return () => {
       isCancelled = true
     }
-  }, [activeClub, selectedTeamId, t])
+  }, [activeClub, canInvite, selectedTeamId, t])
 
   const teamOptions = useMemo(
     () =>
@@ -426,6 +463,119 @@ export default function InviteScreen() {
           {t('invite.emptyWithoutClub')}
         </Text>
       </View>
+    )
+  }
+
+  if (view === 'share') {
+    const campaign =
+      campaigns.find((row) => row.status === 'ACTIVE' && row.team.id === selectedTeamId) ??
+      campaigns.find((row) => row.status === 'ACTIVE') ??
+      null
+    const daysLeft = (iso: string | null | undefined) =>
+      iso ? Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)) : null
+    const teamLabel = campaign?.team.displayName ?? selectedTeam?.displayName ?? ''
+    const shareCode = campaign
+      ? { code: campaign.code, link: campaignLink(campaign), days: daysLeft(campaign.expiresAt) }
+      : teamCode
+        ? { code: teamCode.code, link: teamCode.link, days: daysLeft(teamCode.expiresAt) }
+        : null
+    const code = shareCode
+      ? {
+          code: shareCode.code,
+          link: shareCode.link,
+          meta: [
+            teamLabel,
+            shareCode.days ? t('invite.share.validDays', { count: shareCode.days }) : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        }
+      : null
+    const loadingCode = canInvite ? !campaignsLoaded : teamCodeState === 'loading'
+    if (!canInvite && teamCodeState === 'failed') {
+      return (
+        <Screen header={<ModalHeader title={t('invite.screenTitle')} onClose={handleClose} />}>
+          <View style={[styles.emptyContainer]}>
+            <View style={[styles.emptyCard, { borderColor: 'transparent', backgroundColor: c.surface }]}>
+              <Text variant="headline" weight="semibold" color="primary">
+                {t('invite.accessDeniedTitle')}
+              </Text>
+              <Text variant="footnote" color="secondary">
+                {t('invite.accessDeniedBody')}
+              </Text>
+            </View>
+          </View>
+        </Screen>
+      )
+    }
+    const shareMessage = code
+      ? t('invite.shareScopedMessage', {
+          clubName: activeClub.club.name,
+          teamName: teamLabel,
+          link: code.link,
+        })
+      : ''
+    return (
+      <InviteShare
+        code={code}
+        loading={loadingCode}
+        emptyAction={
+          canInvite && selectedTeamId
+            ? {
+                label: t('invite.share.createCode'),
+                busy: isLoading,
+                onPress: () => void handleCreateInvite('LINK'),
+              }
+            : null
+        }
+        progress={flow === 'setup' ? { current: 2, total: 2 } : null}
+        onBack={handleClose}
+        onLater={flow === 'setup' ? handleClose : null}
+        onShare={() => {
+          if (code) void Share.share({ message: shareMessage })
+        }}
+        onCopy={() => {
+          if (!code) return
+          void Clipboard.setStringAsync(code.link).then(() => setCopied(true))
+        }}
+        copied={copied}
+        rows={[
+          ...(selectedTeamId
+            ? [
+                {
+                  key: 'add',
+                  icon: 'person.2',
+                  title: t('invite.addRosterTitle'),
+                  body: t('invite.share.addRosterBody'),
+                  onPress: () =>
+                    router.push({ pathname: '/add-members', params: { teamId: selectedTeamId } }),
+                  testID: 'invite-add-members',
+                },
+              ]
+            : []),
+          {
+            key: 'fussball',
+            icon: 'chart.bar',
+            title: t('invite.fussballTitle'),
+            body: t('invite.fussballBody'),
+            onPress: () => router.push('/fussball-link'),
+            testID: 'invite-fussball-link',
+          },
+          ...(canInvite
+            ? [
+                {
+                  key: 'email',
+                  icon: 'envelope',
+                  title: t('invite.share.byEmail'),
+                  body: t('invite.share.byEmailBody'),
+                  onPress: () => setView('email'),
+                  testID: 'invite-by-email',
+                },
+              ]
+            : []),
+        ]}
+        onDone={handleClose}
+      />
     )
   }
 

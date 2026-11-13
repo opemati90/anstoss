@@ -19,6 +19,8 @@ export const lineupDraftSummarySchema = z.object({
   slots: z.number().int().min(1),
   /** True once the coach published the lineup to the team. */
   published: z.boolean().optional(),
+  /** The reader's own shirt/slot in the draft ("Du stehst selbst auf der 9"). */
+  mySlot: z.string().max(8).nullable().optional(),
 })
 export type LineupDraftSummary = z.infer<typeof lineupDraftSummarySchema>
 

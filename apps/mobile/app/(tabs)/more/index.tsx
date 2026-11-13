@@ -20,6 +20,11 @@ import {
 } from '../../../src/components/ui'
 import { ClubSwitcher } from '../../../src/components/ClubSwitcher'
 import {
+  PreviewCoverEntryCard,
+  PreviewCoverSheet,
+  canUsePreviewCover,
+} from '../../../src/components/roles/PreviewCoverSheet'
+import {
   RADIUS_CARD,
   SCREEN_PADDING,
   SPACING_LG,
@@ -31,6 +36,7 @@ import {
   TAB_BAR_CLEARANCE,
 } from '../../../src/theme/tokens'
 import { useWechselAccess } from '../../../src/features/wechsel/hooks'
+import { useClubPlan } from '../../../src/hooks/useClubPlan'
 import type { MyContributionSummary } from '@anstoss/shared'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
@@ -83,8 +89,10 @@ export default function MoreScreen() {
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearancePreference>('system')
   const [roleSheetOpen, setRoleSheetOpen] = useState(false)
+  const [previewCoverOpen, setPreviewCoverOpen] = useState(false)
   const [openDues, setOpenDues] = useState(0)
   const wechsel = useWechselAccess()
+  const { plan: clubPlan } = useClubPlan()
 
   useEffect(() => {
     void getAppearancePreference().then(setAppearance)
@@ -326,6 +334,19 @@ export default function MoreScreen() {
 
   // ── Verein und App ──
   const clubAndApp: Row[] = [
+    // Abo · Kostenlos/Verein (board 19 → 35). Everyone sees the status;
+    // only Vorstand and Kassenwart can start or change it on the Abo screen.
+    ...(activeClub
+      ? [
+          {
+            key: 'plan',
+            label: t('clubPlan.moreRow'),
+            icon: 'creditcard' as IconName,
+            value: t(`clubPlan.tier.${clubPlan?.tier ?? 'FREE'}`),
+            onPress: () => router.push('/abo' as never),
+          },
+        ]
+      : []),
     ...(isClubAdmin && activeClub
       ? [
           {
@@ -511,7 +532,10 @@ export default function MoreScreen() {
           />
         )}
 
-        {availableRoleModes.length > 1 ? (
+        {/* Vorschau und Vertretung (board 29): Vorstand and Teammanager only. */}
+        {canUsePreviewCover(activeClub) ? (
+          <PreviewCoverEntryCard onPress={() => setPreviewCoverOpen(true)} />
+        ) : availableRoleModes.length > 1 ? (
           <RoleModeCard
             title={t('more.roleModeTitle')}
             subtitle={
@@ -603,6 +627,7 @@ export default function MoreScreen() {
       </ScrollView>
 
       <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
+      <PreviewCoverSheet visible={previewCoverOpen} onClose={() => setPreviewCoverOpen(false)} />
       <BottomSheet visible={roleSheetOpen} onClose={() => setRoleSheetOpen(false)} heightPct="auto">
         <View style={styles.sheet}>
           <Text variant="title3" weight="bold" color="primary">

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { EventRsvpEntry, EventSquadMember } from '@anstoss/shared'
-import { Avatar, Button, SectionGroup, Text } from '../ui'
+import { Avatar, Button, getInitials, SectionGroup, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { SPACING_LG, SPACING_MD, SPACING_SM, SPACING_XXS } from '../../theme/tokens'
 import { reasonLabel } from './eventFormat'
@@ -131,6 +131,7 @@ export function ResponsesPanel({
               variant="subheadline"
               weight="semibold"
               color={cooling || remind.pending ? 'secondary' : 'tint'}
+              style={styles.remindText}
             >
               {remindLabel}
             </Text>
@@ -153,7 +154,16 @@ export function ResponsesPanel({
                 accessible
                 accessibilityLabel={[person.name, status, person.note].filter(Boolean).join(', ')}
               >
-                <Avatar size={36} src={person.avatarUrl} fallbackText={person.name} tone="neutral" />
+                {person.avatarUrl ? (
+                  <Avatar size={AVATAR} src={person.avatarUrl} fallbackText={person.name} tone="neutral" />
+                ) : (
+                  // Design .av: 36pt warm grey well, 12pt bold ink initials.
+                  <View style={[styles.initials, { backgroundColor: c.surfaceSunken }]}>
+                    <Text variant="caption1" weight="bold" color="primary">
+                      {getInitials(person.name)}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.rowText}>
                   <Text
                     variant="callout"
@@ -204,8 +214,19 @@ export function ResponsesPanel({
   )
 }
 
+const AVATAR = 36
+
 const styles = StyleSheet.create({
   root: { gap: SPACING_MD },
+  initials: {
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: AVATAR / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Design 13: "5 erinnern" 14/600.
+  remindText: { fontSize: 14 },
   head: {
     flexDirection: 'row',
     alignItems: 'center',

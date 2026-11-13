@@ -72,3 +72,16 @@ export const clubClaimExtrasSchema = z.object({
   badgeUploadId: z.string().min(1).optional(),
 })
 export type ClubClaimExtras = z.infer<typeof clubClaimExtrasSchema>
+
+// ── 07 Hol dein Team rein: a coach's team join code ────────────────────────
+/**
+ * GET /clubs/:clubId/teams/:teamId/join-code (coaches of the team and admins).
+ * Admins keep using invite campaigns; coaches cannot create campaigns today.
+ */
+export const teamJoinCodeResponseSchema = z.object({
+  teamId: z.string().min(1),
+  code: z.string().min(4).max(32),
+  link: z.string().url(),
+  expiresAt: z.string().datetime().nullable(),
+})
+export type TeamJoinCodeResponse = z.infer<typeof teamJoinCodeResponseSchema>

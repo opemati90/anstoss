@@ -24,6 +24,8 @@ export type MatchdayFields = {
   homeAway?: 'HOME' | 'AWAY' | null
   meetingAt?: string | null
   meetingPoint?: string | null
+  /** schemas/home.ts: LEAGUE | CUP | FRIENDLY | TOURNAMENT */
+  matchKind?: string | null
 }
 
 /**
@@ -553,6 +555,20 @@ export function formatCountdown(
   if (days === 1) return t('home.tomorrow', { defaultValue: 'Tomorrow' })
   if (days <= 7) return t('homeHub.inDays', { defaultValue: 'In {{count}} days', count: days })
   return null
+}
+
+/**
+ * "Ligaspiel", "Pokalspiel", "Testspiel", "Turnier" when the API sends a
+ * match kind (schemas/home.ts), otherwise the plain "Spiel".
+ */
+export function matchKindLabel(
+  kind: string | null | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  if (kind === 'LEAGUE' || kind === 'CUP' || kind === 'FRIENDLY' || kind === 'TOURNAMENT') {
+    return t(`homeHub.matchKind.${kind}`)
+  }
+  return t('homeHub.type.match', { defaultValue: 'Match' })
 }
 
 /**

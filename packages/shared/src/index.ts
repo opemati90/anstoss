@@ -29,8 +29,12 @@ export * from './schemas/roster-slot'
 export * from './schemas/onboarding-redesign'
 export * from './schemas/managed-sub-profile'
 export * from './schemas/chat'
+// Redesign team boards: member profile bundle, Mehr summary values
+export * from './schemas/team-boards'
 // 2026-11 redesign: home contract additions (match kind, lineup draft, season, dues history)
 export * from './schemas/home'
+// Plans and pricing: Kostenlos / Verein, feature flags, trial (Abo screen)
+export * from './schemas/plan'
 export * from './errors/base'
 export * from './utils/iban'
 export * from './utils/wechsel'

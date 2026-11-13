@@ -2,6 +2,7 @@ import type {
   ActingCandidateDto,
   ActingCandidatesResponse,
   ActingSessionDto,
+  ActingSessionDuration,
   CurrentActingSessionResponse,
 } from '@anstoss/shared'
 import { api, ApiError } from '../../api/client'
@@ -38,11 +39,11 @@ export async function fetchActingCandidates(clubId: string): Promise<ActingCandi
 
 export async function startActingSession(
   clubId: string,
-  input: { teamId: string; minutes: number; reason?: string },
+  input: { teamId: string; durationMin: ActingSessionDuration; reason?: string },
 ): Promise<ActingSessionDto> {
   const session = await api<ActingSessionDto>(`/clubs/${clubId}/acting-sessions`, {
     method: 'POST',
-    body: input,
+    body: { ...input, role: 'COACH' },
   })
   setActingSession(session)
   return session
@@ -54,7 +55,7 @@ export async function endActingSession(): Promise<void> {
   setActingSession(null)
   if (!current) return
   try {
-    await api(`/clubs/${current.clubId}/acting-sessions/current`, { method: 'DELETE' })
+    await api(`/acting-sessions/${current.id}`, { method: 'DELETE' })
   } catch (error) {
     if (!(error instanceof ApiError)) throw error
   }

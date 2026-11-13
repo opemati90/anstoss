@@ -21,6 +21,8 @@ export type MatchHeroSide = {
   name: string
   shortName?: string
   badgeUrl?: string | null
+  /** Crest colour when there is no badge (design 15). */
+  color?: string | null
 }
 
 export type MatchHeroProps = {
@@ -111,7 +113,7 @@ export function MatchHero({
 
       <View style={styles.body} accessible accessibilityLabel={scoreA11y}>
         <View style={styles.side}>
-          <MatchCrest name={home.name} badgeUrl={home.badgeUrl} />
+          <MatchCrest name={home.name} badgeUrl={home.badgeUrl} color={home.color} />
           <Text
             variant="footnote"
             weight="semibold"
@@ -132,7 +134,7 @@ export function MatchHero({
         </Text>
 
         <View style={styles.side}>
-          <MatchCrest name={away.name} badgeUrl={away.badgeUrl} />
+          <MatchCrest name={away.name} badgeUrl={away.badgeUrl} color={away.color} />
           <Text
             variant="footnote"
             weight="semibold"

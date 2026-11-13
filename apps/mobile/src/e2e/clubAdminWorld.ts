@@ -493,6 +493,7 @@ export function createClubAdminContributionMembers() {
     amount: number,
     status: 'PENDING' | 'PAID' | 'OVERDUE',
     dueOffsetDays: number,
+    extra: Record<string, unknown> = {},
   ) => ({
     memberUserId,
     name,
@@ -510,14 +511,29 @@ export function createClubAdminContributionMembers() {
     paidAt: status === 'PAID' ? inDays(dueOffsetDays - 2) : null,
     note: null,
     lastReminderSentAt: null,
+    // Redesign 20 contract: how it was paid / whether the member reported it.
+    paymentMethod: status === 'PAID' ? ('TRANSFER' as const) : null,
+    confirmedVia: status === 'PAID' ? ('STATEMENT_IMPORT' as const) : null,
+    paymentReported: false,
+    reportedAt: null,
+    ...extra,
   })
   return [
     row('user-player-2', 'Tim Weber', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'OVERDUE', -21),
     row('user-player-7', 'Jonas Krüger', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'OVERDUE', -14),
+    row('user-player-9', 'Leon Fischer', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'PENDING', 2, {
+      note: 'PAYMENT_REPORTED_BY_MEMBER',
+      paymentReported: true,
+      reportedAt: inDays(-1),
+    }),
     row('user-e2e-m6', 'Felix Bauer', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'OVERDUE', -10),
     row('user-e2e-p113', 'Werner Albrecht', 'plan-passive', 'Fördermitgliedschaft', 'YEARLY', 7500, 'OVERDUE', -30),
     row('user-player-1', 'Julian Becker', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'PENDING', 5),
     row('user-player-3', 'Lukas Hoffmann', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'PAID', -3),
+    row('user-player-8', 'Paul Schäfer', 'plan-monthly', 'Mitgliedsbeitrag', 'MONTHLY', 2500, 'PAID', -8, {
+      paymentMethod: 'CASH',
+      confirmedVia: 'TREASURER',
+    }),
   ]
 }
 

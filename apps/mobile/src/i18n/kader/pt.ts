@@ -239,6 +239,7 @@ export const kaderPt = {
     noTeamBody: 'Escolhe uma equipa para ver as tarefas.',
   },
   matches: {
+    todayAt: "hoje {{time}}",
     title: 'Jogos e classificação',
     tabMatches: 'Jogos',
     tabTable: 'Classificação',

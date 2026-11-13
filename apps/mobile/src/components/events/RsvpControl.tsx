@@ -43,6 +43,8 @@ export type RsvpControlProps = {
    * 44pt touch target).
    */
   size?: 'default' | 'compact'
+  /** Segmented track only: false gives design 13's text-only segments. */
+  showIcons?: boolean
   /** Skip the Absage sheet (e.g. a coach correcting a reply). Default: ask. */
   askReason?: boolean
   /** Name shown in the sheet when a parent answers for a child. */
@@ -73,6 +75,7 @@ export const RsvpControl = memo(function RsvpControl({
   onChange,
   disabled = false,
   size = 'default',
+  showIcons = true,
   askReason = true,
   subjectName,
   accessibilityLabel,
@@ -99,7 +102,7 @@ export const RsvpControl = memo(function RsvpControl({
   const ready = compact || (trackWidth > 0 && labelWidths !== null)
   const layout: PillLayout = compact
     ? 'inline'
-    : decidePillLayout({ trackWidth, labelWidths, iconSize: ICON_SIZE })
+    : decidePillLayout({ trackWidth, labelWidths, iconSize: showIcons ? ICON_SIZE : 0 })
 
   const onMeasure = useCallback((label: string, width: number) => {
     setMeasured((prev) => (prev[label] === width ? prev : { ...prev, [label]: width }))
@@ -191,7 +194,7 @@ export const RsvpControl = memo(function RsvpControl({
                 pressed && !isActive && styles.pressed,
               ]}
             >
-              {!compact ? (
+              {!compact && showIcons ? (
                 <Icon
                   name={isActive && option.status === 'YES' ? 'checkmark.circle.fill' : option.icon}
                   size={ICON_SIZE}

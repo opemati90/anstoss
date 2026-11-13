@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Alert, RefreshControl, StyleSheet, Switch, View } from 'react-native'
+import { Alert, Pressable, RefreshControl, StyleSheet, Switch, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -25,6 +25,7 @@ import {
   Banner,
   BottomSheet,
   Button,
+  Icon,
   ListRow,
   Screen,
   SectionGroup,
@@ -88,6 +89,10 @@ export default function AdminBillingScreen() {
   const [selectedMember, setSelectedMember] = useState<ContributionMemberRecord | null>(null)
   const [filter, setFilter] = useState<'open' | 'paid' | 'all'>('open')
   const [reminded, setReminded] = useState(false)
+  // Design 20 month chip: the period on show ("2026-11"). The API reads
+  // `?period=`; older servers ignore it and return the current period.
+  const [period, setPeriod] = useState(() => periodOf(new Date()))
+  const [monthOpen, setMonthOpen] = useState(false)
 
   const fetchScreenData = useCallback(async () => {
     if (!clubId) {
@@ -99,7 +104,7 @@ export default function AdminBillingScreen() {
       const [billingData, contributionData] = await Promise.all([
         // Plan status is garnish; the finance hub must load without it.
         api<BillingStatus>(`/clubs/${clubId}/billing/status`).catch(() => null),
-        api<ContributionOverview>(`/clubs/${clubId}/contributions`),
+        api<ContributionOverview>(`/clubs/${clubId}/contributions?period=${period}`),
       ])
 
       setBilling(billingData)
@@ -110,7 +115,7 @@ export default function AdminBillingScreen() {
     } finally {
       setLoading(false)
     }
-  }, [clubId, t])
+  }, [clubId, period, t])
 
   useFocusEffect(
     useCallback(() => {
@@ -228,7 +233,31 @@ export default function AdminBillingScreen() {
     filter === 'open' ? openItems : filter === 'paid' ? settledItems : [...openItems, ...settledItems]
 
   const header = (
-    <ClubScreenHeader title={t('fees.title', { defaultValue: 'Dues' })} fallbackHref="/(tabs)" />
+    <ClubScreenHeader
+      title={t('fees.title', { defaultValue: 'Dues' })}
+      fallbackHref="/(tabs)"
+      right={
+        hasBillingAccess ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t('fees.monthA11y')}, ${monthLabel(period, locale)}`}
+            onPress={() => setMonthOpen(true)}
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.monthChip,
+              { borderColor: c.borderStrong },
+              pressed && styles.pressed,
+            ]}
+            testID="fees-month"
+          >
+            <Text variant="subheadline" weight="semibold" color="primary">
+              {monthLabel(period, locale)}
+            </Text>
+            <Icon name="chevron.down" size={14} color="primary" />
+          </Pressable>
+        ) : undefined
+      }
+    />
   )
 
   if (!hasBillingAccess) {
@@ -448,6 +477,28 @@ export default function AdminBillingScreen() {
         </>
       ) : null}
 
+      <BottomSheet visible={monthOpen} onClose={() => setMonthOpen(false)} heightPct="auto">
+        <View style={styles.monthSheet}>
+          <SectionGroup>
+            {recentPeriods(6).map((option) => (
+              <ListRow
+                key={option}
+                title={monthLabel(option, locale, true)}
+                selected={option === period}
+                right={option === period ? <Icon name="checkmark" size={18} color="primary" /> : undefined}
+                onPress={() => {
+                  setMonthOpen(false)
+                  if (option !== period) {
+                    setLoading(true)
+                    setPeriod(option)
+                  }
+                }}
+                testID={`fees-month-${option}`}
+              />
+            ))}
+          </SectionGroup>
+        </View>
+      </BottomSheet>
       <ContributionMemberActionSheet
         member={selectedMember}
         visible={!!selectedMember}
@@ -479,7 +530,45 @@ function isSettled(status: ContributionMemberRecord['status']) {
 
 /** The member told the treasurer they transferred; it awaits confirmation. */
 function isReported(member: ContributionMemberRecord) {
-  return member.note === 'PAYMENT_REPORTED_BY_MEMBER' && !isSettled(member.status)
+  return (
+    (member.paymentReported === true || member.note === 'PAYMENT_REPORTED_BY_MEMBER') &&
+    !isSettled(member.status)
+  )
+}
+
+/** Paid row meta: "Kontoauszug · 01.11.", "Bar beim Training · 03.11." … */
+function paidMeta(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  member: ContributionMemberRecord,
+  locale: string,
+) {
+  if (!member.paidAt) return member.planName ?? ''
+  const date = formatDate(member.paidAt, locale)
+  if (member.confirmedVia === 'STATEMENT_IMPORT') return t('fees.viaStatement', { date })
+  if (member.paymentMethod === 'CASH') return t('fees.viaCash', { date })
+  if (member.paymentMethod === 'TRANSFER' || member.paymentMethod === 'SEPA') {
+    return t('fees.viaTransfer', { date })
+  }
+  return t('fees.paidOn', { defaultValue: 'Paid {{date}}', date })
+}
+
+/** "2026-11" for a date (local calendar). */
+function periodOf(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** This month and the `count - 1` before it, newest first. */
+function recentPeriods(count: number) {
+  const now = new Date()
+  return Array.from({ length: count }, (_, i) => periodOf(new Date(now.getFullYear(), now.getMonth() - i, 1)))
+}
+
+/** "November" (chip) or "November 2026" (sheet). */
+function monthLabel(period: string, locale: string, withYear = false) {
+  const [year, month] = period.split('-').map(Number)
+  return new Intl.DateTimeFormat(locale, withYear ? { month: 'long', year: 'numeric' } : { month: 'long' }).format(
+    new Date(year, (month || 1) - 1, 1),
+  )
 }
 
 /**
@@ -636,11 +725,11 @@ function DuesMemberRow({
   const amountLabel =
     member.amount != null && member.currency ? formatDues(member.amount, member.currency, locale) : '–'
   const meta = settled
-    ? member.paidAt
-      ? t('fees.paidOn', { defaultValue: 'Paid {{date}}', date: formatDate(member.paidAt, locale) })
-      : (member.planName ?? '')
+    ? paidMeta(t, member, locale)
     : reported
-      ? t('fees.reportedMeta', { defaultValue: 'Reports: transferred' })
+      ? member.reportedAt
+        ? t('fees.reportedOn', { date: formatDate(member.reportedAt, locale) })
+        : t('fees.reportedMeta', { defaultValue: 'Reports: transferred' })
       : member.dueDate
         ? member.status === 'OVERDUE'
           ? t('fees.overdueSince', {
@@ -650,49 +739,52 @@ function DuesMemberRow({
           : t('contributions.memberDueDate', { date: formatDate(member.dueDate, locale) })
         : t('contributions.memberNoDueDate')
   const tag = statusTag(t, member)
+  // The pill sits beside the pressable body, never inside it (a button in a
+  // button is invalid on web and double-announced on iOS).
   return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={[member.name, amountLabel, tag.label, meta].filter(Boolean).join(', ')}
-      style={styles.memberRow}
-    >
-      <Avatar size={36} tone="neutral" src={member.avatarUrl} fallbackText={member.name} />
-      <View style={styles.memberText}>
-        <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1}>
-          {member.name}
-        </Text>
-        {meta ? (
-          <Text variant="caption1" color="secondary" numberOfLines={1}>
-            {meta}
+    <View style={styles.memberRow}>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={[member.name, amountLabel, tag.label, meta].filter(Boolean).join(', ')}
+        wrapperStyle={styles.memberBodyWrap}
+        style={styles.memberBody}
+      >
+        <Avatar size={36} tone="neutral" src={member.avatarUrl} fallbackText={member.name} />
+        <View style={styles.memberText}>
+          <Text variant="body" weight="semibold" color="primary" numberOfLines={1}>
+            {member.name}{' '}
+            <Text variant="data" style={[styles.memberAmount, { color: c.textPrimary }]}>
+              {amountLabel}
+            </Text>
           </Text>
-        ) : null}
-        <DuesTag label={tag.label} tone={tag.tone} />
-      </View>
-      <View style={styles.memberRight}>
-        <Text variant="data" align="right" style={{ color: c.textPrimary, fontSize: 18, lineHeight: 22 }}>
-          {amountLabel}
-        </Text>
-        {!settled ? (
-          <Button
-            variant="bordered"
-            size="sm"
-            label={
-              reported
-                ? t('fees.confirm', { defaultValue: 'Confirm' })
-                : t('contributions.status.PAID')
-            }
-            accessibilityLabel={t('fees.markPaidA11y', {
-              defaultValue: 'Mark {{name}} as paid',
-              name: member.name,
-            })}
-            disabled={disabled}
-            hapticTone="success"
-            onPress={onMarkPaid}
-          />
-        ) : null}
-      </View>
-    </PressableScale>
+          {meta ? (
+            <Text variant="caption1" color="secondary" numberOfLines={2}>
+              {meta}
+            </Text>
+          ) : null}
+          <DuesTag label={tag.label} tone={tag.tone} />
+        </View>
+      </PressableScale>
+      {!settled ? (
+        <Button
+          variant="bordered"
+          size="sm"
+          label={
+            reported
+              ? t('fees.confirm', { defaultValue: 'Confirm' })
+              : t('contributions.status.PAID')
+          }
+          accessibilityLabel={t('fees.markPaidA11y', {
+            defaultValue: 'Mark {{name}} as paid',
+            name: member.name,
+          })}
+          disabled={disabled}
+          hapticTone="success"
+          onPress={onMarkPaid}
+        />
+      ) : null}
+    </View>
   )
 }
 
@@ -885,11 +977,12 @@ const styles = StyleSheet.create({
   flexShrink: { flexShrink: 1 },
 
   // Ink hero
+  // Design 20: radius 28, padding 22, 18 between the three bands.
   hero: {
     borderRadius: RADIUS_HERO,
     borderCurve: 'continuous',
-    padding: SPACING_XL,
-    gap: SPACING_LG,
+    padding: SPACING_XL + 2,
+    gap: SPACING_LG + 2,
   },
   heroTop: {
     flexDirection: 'row',
@@ -922,8 +1015,21 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING_MD,
     paddingHorizontal: SPACING_LG,
   },
-  memberText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
-  memberRight: { alignItems: 'flex-end', gap: SPACING_SM },
+  memberBodyWrap: { flex: 1, minWidth: 0 },
+  memberBody: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + 2 },
+  memberText: { flex: 1, minWidth: 0, gap: 3 },
+  memberAmount: { fontSize: 16, lineHeight: 20 },
+  monthChip: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_XS + 2,
+    paddingHorizontal: SPACING_MD + 2,
+    borderRadius: RADIUS_FULL,
+    borderWidth: 1,
+  },
+  pressed: { opacity: 0.6 },
+  monthSheet: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_MD, paddingBottom: SPACING_XL },
 
   actionSheetBody: {
     gap: SPACING_SM,

@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   TextInput,
   View,
   useWindowDimensions,
@@ -54,7 +53,6 @@ import {
   FONT_FAMILY_REGULAR,
   FONT_SIZE_BODY,
   hairline,
-  INPUT_HEIGHT,
   RADIUS_CARD,
   RADIUS_FULL,
   RADIUS_INPUT,
@@ -305,7 +303,6 @@ export default function CreateEventScreen() {
     if (!carpoolTouched) setCarpool(next === 'AWAY')
   }
 
-  const meetingAt = meetingLead > 0 ? new Date(date.getTime() - meetingLead * 60000) : null
   const repeating = type === 'TRAINING' && repeat !== 'none' && !isEdit
   const plan = useMemo(
     () =>
@@ -501,9 +498,9 @@ export default function CreateEventScreen() {
   const ctaLabel = isEdit ? t('eventFlow.create.save') : t('eventFlow.create.saveEvent')
   const timeTitle = type === 'MATCH' ? t('eventFlow.detail.kickoff') : t('eventFlow.detail.start')
   // Design 12: "Di, 17. Nov." and "18:30 – 20:00".
-  const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' }).format(
-    repeating && plan[0] ? plan[0] : date,
-  )
+  const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' })
+    .format(repeating && plan[0] ? plan[0] : date)
+    .replace(/^(\p{L}+)\.,/u, '$1,')
   const timeLabel =
     type === 'TRAINING'
       ? `${formatClock(date, locale)} – ${formatClock(new Date(date.getTime() + duration * 60000), locale)}`
@@ -665,7 +662,7 @@ export default function CreateEventScreen() {
             {leads.map((lead) => (
               <Chip
                 key={lead}
-                label={t('eventFlow.create.minutes', { count: lead })}
+                label={t('eventFlow.create.leadMinutes', { count: lead })}
                 selected={meetingLead === lead}
                 onPress={() => {
                   setMeetingLead(meetingLead === lead ? 0 : lead)

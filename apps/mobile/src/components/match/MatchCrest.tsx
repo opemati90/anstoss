@@ -9,6 +9,8 @@ export type MatchCrestProps = {
   badgeUrl?: string | null
   /** Rendered width; the shield keeps a 40:44 aspect. */
   size?: number
+  /** Club colour for the shield (design 15 opponent); white initials on it. */
+  color?: string | null
 }
 
 /**
@@ -16,7 +18,7 @@ export type MatchCrestProps = {
  * otherwise the redesign's white shield with the club's initials (the
  * design's `Wappen` placeholder) so a missing logo never leaves a hole.
  */
-export function MatchCrest({ name, badgeUrl, size = 44 }: MatchCrestProps) {
+export function MatchCrest({ name, badgeUrl, size = 44, color }: MatchCrestProps) {
   const c = useClubColors()
   const tokens = useMatchTokens()
   const height = Math.round((size * 44) / 40)
@@ -39,7 +41,7 @@ export function MatchCrest({ name, badgeUrl, size = 44 }: MatchCrestProps) {
       <Svg width={size} height={height} viewBox="0 0 40 44">
         <Path
           d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-          fill={tokens.statusInverseBg}
+          fill={color || tokens.statusInverseBg}
         />
         <Path
           d="M20 5 34 9.8v10.2c0 8.6-6 15.2-14 18.6C12 35.2 6 28.6 6 20V9.8z"
@@ -55,7 +57,7 @@ export function MatchCrest({ name, badgeUrl, size = 44 }: MatchCrestProps) {
           fontFamily={fonts.display}
           fontWeight="700"
           fontSize={12.5}
-          fill={tokens.statusInverseText}
+          fill={color ? c.onHeroBg : tokens.statusInverseText}
         >
           {initials}
         </SvgText>

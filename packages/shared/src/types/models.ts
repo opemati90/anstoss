@@ -472,6 +472,8 @@ export interface EventGuardedChild {
 /** GET /clubs/:clubId/events/:eventId */
 export interface EventDetail extends Event {
   team: { id: string; name: string } | null
+  /** Redesign 13: league + matchday on the hero. Absent on older APIs. */
+  competition?: import('../schemas/event').EventCompetition | null
   rsvps: EventRsvpEntry[]
   myRsvp: RsvpStatus | null
   myRsvpReason?: string | null

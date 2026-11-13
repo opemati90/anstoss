@@ -10,11 +10,17 @@ import {
   type StartActingSessionInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
+import { tenantContext } from '../prisma/tenant.context'
 import { AuditService } from '../audit/audit.service'
 import { PushService } from '../push/push.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { effectiveAbsence } from '../teams/squad-count'
-import { activeActingSessionWhere, canStartActingSession } from './acting-access'
+import {
+  actingAttribution,
+  actingScopeFor,
+  activeActingSessionWhere,
+  type ActingScope,
+} from './acting-access'
 
 type SessionRow = {
   id: string
@@ -26,6 +32,14 @@ type SessionRow = {
   expiresAt: Date
   endedAt: Date | null
   team: { displayName: string | null; name: string }
+}
+
+type CandidateTeamRow = {
+  id: string
+  displayName: string | null
+  name: string
+  access: Array<{ userId: string; role: string; user: { name: string | null } | null }>
+  members: Array<{ userId: string; absence: string | null; absenceUntil: Date | null }>
 }
 
 const SESSION_INCLUDE = { team: { select: { displayName: true, name: true } } } as const
@@ -45,8 +59,9 @@ function toDto(row: SessionRow): ActingSessionDto {
 }
 
 /**
- * Vorschau und Vertretung (redesign 29/31): a club board member or team
- * manager temporarily acts as a team's coach. While the session runs,
+ * Vorschau und Vertretung (redesign 29/31, REVAMP_HANDOFF "Vorschau und
+ * Vertretung"): Vorstand (any team) or a Teammanager (own team) stands in as
+ * a team's coach for 15, 30 or 60 minutes. While the session runs,
  * TeamsService grants coach-level permissions for that team. Starting
  * replaces any running session of the same actor.
  */
@@ -61,13 +76,15 @@ export class ActingService {
   ) {}
 
   /**
-   * Teams the caller may stand in for: every club team the caller does not
-   * already coach, with its head coach, teams whose head coach is AWAY first.
+   * Teams the caller may stand in for: in scope (any team for Vorstand, own
+   * teams for a Teammanager), not already coached by the caller, with the
+   * head coach; teams whose head coach is AWAY come first.
    */
   async candidates(clubId: string, userId: string): Promise<ActingCandidatesResponse> {
-    await this.assertCanAct(clubId, userId)
+    const scope = await this.scopeFor(clubId, userId)
+    const ownTeamIds = scope === 'TEAM_MANAGER' ? await this.ownTeamIds(userId, clubId) : null
     const teams = (await this.prisma.team.findMany({
-      where: { clubId },
+      where: { clubId, ...(ownTeamIds ? { id: { in: ownTeamIds } } : {}) },
       select: {
         id: true,
         displayName: true,
@@ -83,17 +100,7 @@ export class ActingService {
         members: { select: { userId: true, absence: true, absenceUntil: true } },
       },
       orderBy: { createdAt: 'asc' },
-    })) as unknown as Array<{
-      id: string
-      displayName: string | null
-      name: string
-      access: Array<{
-        userId: string
-        role: string
-        user: { name: string | null } | null
-      }>
-      members: Array<{ userId: string; absence: string | null; absenceUntil: Date | null }>
-    }>
+    })) as unknown as CandidateTeamRow[]
     const now = new Date()
     const items = teams
       .filter((team) => !team.access.some((access) => access.userId === userId))
@@ -113,22 +120,12 @@ export class ActingService {
     return { items }
   }
 
-  private async assertCanAct(clubId: string, userId: string) {
-    const membership = await this.prisma.membership.findUnique({
-      where: { userId_clubId: { userId, clubId } },
-      select: { role: true, operationalRoles: true },
-    })
-    if (!canStartActingSession(membership)) {
-      throw new ActingSessionForbiddenError(`User ${userId} may not act as coach in ${clubId}`)
-    }
-  }
-
   async start(
     clubId: string,
     userId: string,
     input: StartActingSessionInput,
   ): Promise<ActingSessionDto> {
-    await this.assertCanAct(clubId, userId)
+    const scope = await this.scopeFor(clubId, userId)
     const team = await this.prisma.team.findFirst({
       where: { id: input.teamId, clubId },
       select: { id: true, displayName: true, name: true },
@@ -136,9 +133,12 @@ export class ActingService {
     if (!team) {
       throw new ActingSessionTeamNotFoundError(`Team ${input.teamId} not in club ${clubId}`)
     }
+    if (scope === 'TEAM_MANAGER' && !(await this.ownTeamIds(userId, clubId)).includes(team.id)) {
+      throw new ActingSessionForbiddenError(`Team manager ${userId} is not in team ${team.id}`)
+    }
 
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + input.minutes * 60_000)
+    const expiresAt = new Date(now.getTime() + input.durationMin * 60_000)
     const row = (await this.prisma.$transaction(async (tx) => {
       await tx.actingSession.updateMany({
         where: { ...activeActingSessionWhere(userId, now), clubId },
@@ -149,7 +149,7 @@ export class ActingService {
           clubId,
           actorUserId: userId,
           teamId: team.id,
-          role: 'COACH',
+          role: input.role,
           reason: input.reason ?? null,
           startedAt: now,
           expiresAt,
@@ -162,7 +162,7 @@ export class ActingService {
       where: { id: userId },
       select: { name: true },
     })
-    const actorName = actor?.name || 'Vorstand'
+    const actorName = actor?.name || (scope === 'BOARD' ? 'Vorstand' : 'Teammanager')
     const teamName = team.displayName || team.name
 
     await this.audit.log({
@@ -170,12 +170,12 @@ export class ActingService {
       type: 'acting_session.started',
       actorType: 'user',
       actorId: userId,
-      actorLabel: `${actorName} (Vorstand) als Trainer`,
-      summary: `${actorName} handelt ${input.minutes} Min als Trainer · ${teamName}`,
+      actorLabel: actingAttribution(actorName, scope),
+      summary: `${actingAttribution(actorName, scope)} · ${teamName} · ${input.durationMin} Min`,
       metadata: {
-        sessionId: row.id,
+        actingSessionId: row.id,
         teamId: team.id,
-        minutes: input.minutes,
+        durationMin: input.durationMin,
         expiresAt: expiresAt.toISOString(),
         reason: input.reason ?? null,
       },
@@ -184,36 +184,40 @@ export class ActingService {
     await this.notifyHeadCoaches(clubId, team.id, userId, {
       actorName,
       teamName,
-      minutes: input.minutes,
+      minutes: input.durationMin,
     })
 
     return toDto(row)
   }
 
-  async end(clubId: string, userId: string): Promise<ActingSessionDto> {
+  /** DELETE /acting-sessions/:id — only the actor ends their own session. */
+  async end(sessionId: string, userId: string): Promise<ActingSessionDto> {
     const now = new Date()
+    // No club in the route: this read is filtered by actor explicitly.
     const current = await this.prisma.actingSession.findFirst({
-      where: { ...activeActingSessionWhere(userId, now), clubId },
-      orderBy: { startedAt: 'desc' },
-      select: { id: true },
+      where: { id: sessionId, ...activeActingSessionWhere(userId, now) },
+      select: { id: true, clubId: true },
     })
     if (!current) {
-      throw new ActingSessionNotActiveError(`No active acting session for ${userId} in ${clubId}`)
+      throw new ActingSessionNotActiveError(`No active acting session ${sessionId} for ${userId}`)
     }
-    const row = (await this.prisma.actingSession.update({
-      where: { id: current.id },
-      data: { endedAt: now },
-      include: SESSION_INCLUDE,
-    })) as SessionRow
+    // Tenant-scoped write: run it inside the session's club context.
+    const row = (await tenantContext.run({ clubId: current.clubId, userId }, () =>
+      this.prisma.actingSession.update({
+        where: { id: current.id },
+        data: { endedAt: now },
+        include: SESSION_INCLUDE,
+      }),
+    )) as SessionRow
 
     await this.audit.log({
-      clubId,
+      clubId: row.clubId,
       type: 'acting_session.ended',
       actorType: 'user',
       actorId: userId,
       actorLabel: null,
       summary: `Vertretung beendet · ${row.team.displayName || row.team.name}`,
-      metadata: { sessionId: row.id, teamId: row.teamId },
+      metadata: { actingSessionId: row.id, teamId: row.teamId },
     })
     return toDto(row)
   }
@@ -225,6 +229,27 @@ export class ActingService {
       include: SESSION_INCLUDE,
     })) as SessionRow | null
     return { session: row ? toDto(row) : null }
+  }
+
+  private async scopeFor(clubId: string, userId: string): Promise<ActingScope> {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true, operationalRoles: true },
+    })
+    const scope = actingScopeFor(membership)
+    if (!scope) {
+      throw new ActingSessionForbiddenError(`User ${userId} may not act as coach in ${clubId}`)
+    }
+    return scope
+  }
+
+  /** Teams the user belongs to (any active team role) in this club. */
+  private async ownTeamIds(userId: string, clubId: string): Promise<string[]> {
+    const rows = await this.prisma.teamAccess.findMany({
+      where: { userId, clubId, ...activeTeamAccessWhere() },
+      select: { teamId: true },
+    })
+    return rows.map((row: { teamId: string }) => row.teamId)
   }
 
   private async notifyHeadCoaches(

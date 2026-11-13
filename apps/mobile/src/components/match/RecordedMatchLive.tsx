@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useSafeAreaInsetsSafe } from '../../utils/useSafeAreaInsetsSafe'
 import { Haptics } from '../../utils/haptics'
-import { BottomSheet, Button, Screen, SegmentedControl, Text } from '../ui'
+import { BottomSheet, Button, Icon, Screen, SegmentedControl, Text, type IconName } from '../ui'
 import { ErrorState } from '../ErrorState'
 import { ModalHeader } from '../ModalHeader'
 import { MatchHero } from './MatchHero'
@@ -250,6 +250,7 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
   const scoreHome = ownSide === 'away' ? state.goalsAgainst : state.goalsFor
   const scoreAway = ownSide === 'away' ? state.goalsFor : state.goalsAgainst
   const [homeName, awayName] = ownSide === 'away' ? [theirName, ourName] : [ourName, theirName]
+  const theirColor = state.opponentColor ?? null
   const heroStatus =
     state.status === 'NOT_STARTED' ? 'scheduled' : state.status === 'FINISHED' ? 'final' : 'live'
   const minute = liveMinute(state, now)
@@ -267,8 +268,8 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
         showsVerticalScrollIndicator={false}
       >
         <MatchHero
-          home={{ name: homeName }}
-          away={{ name: awayName }}
+          home={{ name: homeName, color: ownSide === 'away' ? theirColor : null }}
+          away={{ name: awayName, color: ownSide === 'away' ? null : theirColor }}
           status={heroStatus}
           scoreHome={scoreHome}
           scoreAway={scoreAway}
@@ -310,6 +311,7 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
               />
               <ActionTile
                 title={t('matchLive.kind.sub', { defaultValue: 'Substitution' })}
+                icon="arrow.left.arrow.right"
                 tone="outline"
                 compact
                 disabled={busy}
@@ -412,6 +414,7 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
 function ActionTile({
   title,
   subtitle,
+  icon,
   tone,
   compact,
   disabled,
@@ -420,6 +423,7 @@ function ActionTile({
 }: {
   title: string
   subtitle?: string
+  icon?: IconName
   tone: 'accent' | 'outline'
   compact?: boolean
   disabled?: boolean
@@ -445,9 +449,17 @@ function ActionTile({
         (pressed || disabled) && { opacity: 0.7 },
       ]}
     >
-      <Text variant="callout" weight="bold" color={accent ? c.onAccent : c.textPrimary}>
-        {title}
-      </Text>
+      <View style={styles.tileTitle}>
+        {icon ? <Icon name={icon} size={18} color={c.textPrimary} /> : null}
+        <Text
+          variant="callout"
+          weight="bold"
+          color={accent ? c.onAccent : c.textPrimary}
+          style={subtitle ? styles.tileTitleLarge : undefined}
+        >
+          {title}
+        </Text>
+      </View>
       {subtitle ? (
         <Text variant="caption1" weight="medium" color={accent ? c.onAccent : c.textSecondary}>
           {subtitle}
@@ -603,6 +615,9 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   tileLarge: { minHeight: 64, borderRadius: RADIUS_CARD },
+  tileTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  // Design 15: "Tor" / "Gegentor" 16/700 over a 12pt line.
+  tileTitleLarge: { fontSize: 16 },
   tileCompact: { minHeight: 52, borderRadius: RADIUS_LG },
   group: { borderRadius: RADIUS_CARD, borderCurve: 'continuous', paddingHorizontal: SPACING_LG },
   empty: { paddingVertical: SPACING_XL },

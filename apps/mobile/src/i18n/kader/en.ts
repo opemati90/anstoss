@@ -239,6 +239,7 @@ export const kaderEn = {
     noTeamBody: 'Pick a team to see its duties.',
   },
   matches: {
+    todayAt: "today {{time}}",
     title: 'Fixtures & table',
     tabMatches: 'Fixtures',
     tabTable: 'Table',

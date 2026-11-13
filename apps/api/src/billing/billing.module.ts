@@ -7,10 +7,11 @@ import { EntitlementGuard } from './entitlement.guard'
 import { ClubEntitlementsService } from './club-entitlements.service'
 import { PlatformEntitlementsController } from './platform-entitlements.controller'
 import { EntitlementComplianceWorker } from './entitlement-compliance.worker'
+import { PlanController } from './plan.controller'
 
 @Module({
   imports: [AuditModule],
-  controllers: [BillingController, PlatformEntitlementsController],
+  controllers: [BillingController, PlatformEntitlementsController, PlanController],
   providers: [
     StripeProvider,
     BillingService,

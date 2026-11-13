@@ -43,6 +43,9 @@ const FORM_CELL = 16
 const ROW_MIN = 50
 const FIXTURE_ROW_MIN = 60
 const DATE_COL = 76
+// Design 21: five 16pt squares, 3pt apart.
+const FORM_COL = 92
+const FORM_GAP = 3
 
 /**
  * Spiele & Tabelle (design 20 Tabelle) — the team's fussball.de league table
@@ -69,8 +72,8 @@ export default function TeamSpieleScreen() {
   const { width, fontScale } = useWindowDimensions()
   const scale = Math.min(Math.max(fontScale, 1), 2)
   const compactTable = width / scale < 340
-  const numCol = { width: Math.round(28 * scale) }
-  const placeCol = { width: Math.round(22 * scale) }
+  const numCol = { width: Math.round(30 * scale) }
+  const placeCol = { width: Math.round(18 * scale) }
 
   const [upcoming, setUpcoming] = useState<ImportedFixture[]>([])
   const [recent, setRecent] = useState<ImportedFixture[]>([])
@@ -150,9 +153,21 @@ export default function TeamSpieleScreen() {
   // "… · Saison 26/27"). Region and Staffel are not in the feed.
   const leagueFixture = tableSource ?? recent[0] ?? upcoming[0] ?? null
   const headerTitle = leagueFixture?.competition || t('kader.matches.title')
-  const headerSeason = leagueFixture?.season
-    ? t('kader.matches.season', { defaultValue: 'Season {{season}}', season: leagueFixture.season })
-    : null
+  // "Berlin · Staffel 3 · Saison 26/27" — region and Staffel when the
+  // feed carries them (redesign contract), the season always.
+  const headerSeason =
+    [
+      leagueFixture?.region,
+      leagueFixture?.division,
+      leagueFixture?.season
+        ? t('kader.matches.season', {
+            defaultValue: 'Season {{season}}',
+            season: shortSeason(leagueFixture.season),
+          })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || null
 
   // Source line: fussball.de and when the shown data was last scraped.
   const sourceStamp = useMemo(() => {
@@ -162,6 +177,12 @@ export default function TeamSpieleScreen() {
       return Number.isFinite(ts) && (max == null || ts > max) ? ts : max
     }, null)
     if (latest == null) return null
+    const stamp = new Date(latest)
+    if (stamp.toDateString() === new Date().toDateString()) {
+      // Design: "heute 06:00 aktualisiert".
+      const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(stamp)
+      return t('kader.matches.todayAt', { time })
+    }
     return new Intl.DateTimeFormat(locale, {
       day: '2-digit',
       month: '2-digit',
@@ -169,7 +190,7 @@ export default function TeamSpieleScreen() {
       hourCycle: 'h23',
       minute: '2-digit',
     }).format(new Date(latest))
-  }, [tab, tableSource, upcoming, recent, locale])
+  }, [tab, tableSource, upcoming, recent, locale, t])
 
   const retry = () => {
     setLoading(true)
@@ -248,25 +269,26 @@ export default function TeamSpieleScreen() {
         )
       }
       const hasZones = table.some((r) => r.isPromotion || r.isRelegation)
+      const hasForm = table.some((r) => Array.isArray(r.form) && r.form.length > 0)
       return (
         <View style={styles.block}>
           <View style={[styles.group, { backgroundColor: c.surface }]}>
             <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: c.borderSubtle }]}>
-              <Text variant="caption1" weight="semibold" color="secondary" style={placeCol}>
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.headText, placeCol]}>
                 #
               </Text>
-              <Text variant="caption1" weight="semibold" color="secondary" style={styles.flex}>
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.headText, styles.flex]}>
                 {t('kader.matches.colClub', { defaultValue: 'Club' })}
               </Text>
-              {compactTable ? null : (
-                <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
-                  {t('matches.colP')}
+              {hasForm && !compactTable ? (
+                <Text variant="caption1" weight="semibold" color="secondary" style={[styles.headText, styles.formCol]}>
+                  {t('matches.form')}
                 </Text>
-              )}
-              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
+              ) : null}
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.headText, styles.num, numCol]}>
                 {t('kader.matches.colDiff', { defaultValue: 'Diff' })}
               </Text>
-              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.headText, styles.num, numCol]}>
                 {t('matches.colPts')}
               </Text>
             </View>
@@ -301,17 +323,17 @@ export default function TeamSpieleScreen() {
                     <Text
                       variant="subheadline"
                       weight={own ? 'bold' : 'medium'}
-                      numberOfLines={1}
-                      style={[styles.flex, { color: fg }]}
+                      numberOfLines={2}
+                      style={[styles.flex, styles.teamName, { color: fg }]}
                     >
                       {row.team}
                     </Text>
-                    {compactTable ? null : (
-                      <Text variant="footnote" tabular style={[styles.num, numCol, { color: muted }]}>
-                        {row.games}
-                      </Text>
-                    )}
-                    <Text variant="footnote" tabular style={[styles.num, numCol, { color: muted }]}>
+                    {hasForm && !compactTable ? (
+                      <View style={styles.formCol}>
+                        <FormStrip results={(row.form ?? []).slice(-5)} onClub={own} />
+                      </View>
+                    ) : null}
+                    <Text variant="footnote" tabular style={[styles.num, styles.diff, numCol, { color: muted }]}>
                       {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                     </Text>
                     <Text variant="data" style={[styles.num, styles.points, numCol, { color: fg }]}>
@@ -345,7 +367,7 @@ export default function TeamSpieleScreen() {
               ) : null}
             </View>
           ) : null}
-          {footnote(false)}
+          {footnote(hasForm)}
         </View>
       )
     }
@@ -403,8 +425,14 @@ export default function TeamSpieleScreen() {
   )
 }
 
+/** "2026/27" → "26/27", the design's short season. */
+function shortSeason(season: string) {
+  const match = /^(?:\d{2})?(\d{2})\/(?:\d{2})?(\d{2})$/.exec(season.trim())
+  return match ? `${match[1]}/${match[2]}` : season
+}
+
 /** The design's form squares: W solid ink, D quiet fill, L outline. */
-function FormStrip({ results }: { results: FormResult[] }) {
+function FormStrip({ results, onClub = false }: { results: FormResult[]; onClub?: boolean }) {
   const { t } = useTranslation()
   const c = useClubColors()
   const letter = (r: FormResult) =>
@@ -421,11 +449,17 @@ function FormStrip({ results }: { results: FormResult[] }) {
           key={i}
           style={[
             styles.formCell,
-            r === 'W'
-              ? { backgroundColor: c.ink }
-              : r === 'D'
-                ? { backgroundColor: c.borderStrong }
-                : { borderWidth: 1, borderColor: c.borderControl },
+            onClub
+              ? r === 'W'
+                ? { backgroundColor: c.onPrimary }
+                : r === 'D'
+                  ? { backgroundColor: hexToRgba(c.onPrimary, 0.35) }
+                  : { borderWidth: 1, borderColor: hexToRgba(c.onPrimary, 0.5) }
+              : r === 'W'
+                ? { backgroundColor: c.ink }
+                : r === 'D'
+                  ? { backgroundColor: c.borderStrong }
+                  : { borderWidth: 1, borderColor: c.borderControl },
           ]}
         >
           <Text
@@ -433,7 +467,17 @@ function FormStrip({ results }: { results: FormResult[] }) {
             weight="bold"
             style={[
               styles.formLetter,
-              { color: r === 'W' ? c.onInk : r === 'D' ? c.textPrimary : c.textSecondary },
+              {
+                color: onClub
+                  ? r === 'W'
+                    ? c.primary
+                    : c.onPrimary
+                  : r === 'W'
+                    ? c.onInk
+                    : r === 'D'
+                      ? c.textPrimary
+                      : c.textSecondary,
+              },
             ]}
             maxFontSizeMultiplier={1}
           >
@@ -540,6 +584,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   groupPadded: { paddingHorizontal: SPACING_LG },
+  headText: { fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: 'uppercase' },
+  teamName: { fontSize: 14, lineHeight: 17 },
+  formCol: { width: FORM_COL },
   tableHead: {
     minHeight: 0,
     paddingTop: SPACING_MD,
@@ -556,6 +603,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING_LG,
     paddingVertical: SPACING_SM,
   },
+  diff: { fontSize: 13, lineHeight: 16 },
   divider: { height: hairline, marginHorizontal: SPACING_LG },
   zone: { position: 'absolute', left: 0, top: 0, bottom: 0, width: ZONE_WIDTH },
   place: { fontSize: 17, lineHeight: 20 },
@@ -565,7 +613,7 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XS },
   legendDot: { width: SPACING_SM, height: SPACING_SM, borderRadius: RADIUS_FULL },
   formRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
-  formCells: { flexDirection: 'row', gap: SPACING_XS },
+  formCells: { flexDirection: 'row', gap: FORM_GAP },
   formCell: {
     width: FORM_CELL,
     height: FORM_CELL,

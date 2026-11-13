@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Icon, IconButton, Text } from '../ui'
 import { SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
-import { formatCountdown, type MatchdayFields } from './HomeKit'
+import { formatCountdown, matchKindLabel, type MatchdayFields } from './HomeKit'
 import { HeroSplit, HeroSurface, heroKickoff, useHeroColors, type RsvpSplit } from './HomeHero'
 
 export type { RsvpSplit }
@@ -29,7 +29,7 @@ export function CoachMatchCard({ event, locale, split, nowMs, onOpen, onShare }:
   const total = split.yes + split.maybe + split.no + split.open
   const isMatch = event.type === 'MATCH'
   const typeLabel = isMatch
-    ? t('homeHub.type.match', { defaultValue: 'Match' })
+    ? matchKindLabel(event.matchKind, t)
     : event.type === 'TRAINING'
       ? t('homeHub.type.training', { defaultValue: 'Training' })
       : t('homeHub.type.other', { defaultValue: 'Event' })

@@ -20,6 +20,7 @@ const SUPPORTED_SCENARIOS: readonly E2ELaunchScenario[] = [
   'player',
   'parent',
   'coach',
+  'coach-first-start',
   'club-admin',
   'free-agent',
   'signup-player',

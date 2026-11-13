@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
+  ActivityIndicator,
   BackHandler,
   Image,
   Platform,
@@ -21,6 +22,7 @@ import { useClubColors, useIsDark } from '../context/ClubThemeContext'
 import { onColor } from '../theme/club-theme'
 import { fonts, fontSize, hairline, space } from '../theme/tokens'
 import {
+  BUTTON_HEIGHT_LG,
   INPUT_HEIGHT,
   RADIUS_CARD,
   RADIUS_FULL,
@@ -111,6 +113,8 @@ export type OnboardingAction = {
   onPress: () => void
   disabled?: boolean
   loading?: boolean
+  /** Fill colour instead of ink (club-coloured "Weiter" on "Dein Verein"). */
+  color?: string
   testID?: string
 }
 
@@ -224,7 +228,9 @@ export function OnboardingScreen({
             },
           ]}
         >
-          {primary ? (
+          {primary?.color ? (
+            <ColorAction action={primary} color={primary.color} />
+          ) : primary ? (
             <Button
               label={primary.label}
               onPress={primary.onPress}
@@ -250,6 +256,35 @@ export function OnboardingScreen({
         </View>
       ) : null}
     </View>
+  )
+}
+
+/** 56pt pill in a given fill (the club colour), same shape as Button lg. */
+function ColorAction({ action, color }: { action: OnboardingAction; color: string }) {
+  const c = useClubColors()
+  const disabled = !!action.disabled && !action.loading
+  const fg = disabled ? c.textTertiary : onColor(color)
+  return (
+    <Pressable
+      onPress={action.onPress}
+      disabled={disabled || action.loading}
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      accessibilityState={{ disabled, busy: !!action.loading }}
+      style={({ pressed }) => [
+        styles.colorAction,
+        { backgroundColor: disabled ? c.surfaceSunken : color, opacity: pressed ? 0.9 : 1 },
+      ]}
+      testID={action.testID}
+    >
+      {action.loading ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <Text variant="body" weight="bold" color={fg} style={styles.colorActionLabel}>
+          {action.label}
+        </Text>
+      )}
+    </Pressable>
   )
 }
 
@@ -511,6 +546,15 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   field: { gap: space.xs + 2 },
+  colorAction: {
+    minHeight: BUTTON_HEIGHT_LG,
+    borderRadius: RADIUS_FULL,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+  },
+  colorActionLabel: { fontSize: fontSize.lg, lineHeight: 20 },
   input: {
     minHeight: INPUT_HEIGHT,
     borderRadius: RADIUS_INPUT,

@@ -1,23 +1,30 @@
 import { ClubOperationalRole } from '@anstoss/shared'
 
 /**
- * Vorschau und Vertretung: who may act as a team's coach, and the lookup the
+ * Vorschau und Vertretung: who may stand in for a coach, and the lookup the
  * team permission checks use to honour a running session.
+ *
+ * Scope (docs/redesign/handoff/REVAMP_HANDOFF.md): Vorstand (club OWNER or
+ * ADMIN) in any team; a Teammanager only in their own team. Until the
+ * per-team TEAM_MANAGER role lands, a Teammanager is a member holding the
+ * club-level TEAM_COORDINATOR operational role.
  */
+export type ActingScope = 'BOARD' | 'TEAM_MANAGER'
 
-/** Club roles that may start a stand-in session ("Vorstand und Teammanager"). */
-const ACTING_MEMBERSHIP_ROLES = new Set(['OWNER', 'ADMIN'])
-const ACTING_OPERATIONAL_ROLES = new Set<string>([
-  ClubOperationalRole.BOARD_MEMBER,
-  ClubOperationalRole.TEAM_COORDINATOR,
-])
-
-export function canStartActingSession(
+export function actingScopeFor(
   membership: { role: string; operationalRoles?: readonly string[] | null } | null | undefined,
-): boolean {
-  if (!membership) return false
-  if (ACTING_MEMBERSHIP_ROLES.has(membership.role)) return true
-  return (membership.operationalRoles ?? []).some((role) => ACTING_OPERATIONAL_ROLES.has(role))
+): ActingScope | null {
+  if (!membership) return null
+  if (membership.role === 'OWNER' || membership.role === 'ADMIN') return 'BOARD'
+  if ((membership.operationalRoles ?? []).includes(ClubOperationalRole.TEAM_COORDINATOR)) {
+    return 'TEAM_MANAGER'
+  }
+  return null
+}
+
+/** Attribution label: "Yemi (Vorstand) als Trainer". */
+export function actingAttribution(actorName: string, scope: ActingScope): string {
+  return `${actorName} (${scope === 'BOARD' ? 'Vorstand' : 'Teammanager'}) als Trainer`
 }
 
 /** Prisma `where` for the actor's running (not ended, not expired) sessions. */
@@ -35,15 +42,15 @@ type ActingLookupClient = {
 }
 
 /**
- * True when `userId` has a running coach session for `teamId` in `clubId`.
- * Server-enforced: callers must also require a current club membership, so
- * leaving the club ends the grant even before the session expires.
+ * The id of `userId`'s running coach session for `teamId` in `clubId`, or
+ * null. Server-enforced: callers must also require a current club membership,
+ * so leaving the club ends the grant even before the session expires.
  */
-export async function hasActiveCoachActingSession(
+export async function findActiveCoachActingSessionId(
   prisma: ActingLookupClient,
   input: { userId: string; teamId: string; clubId: string },
   now = new Date(),
-): Promise<boolean> {
+): Promise<string | null> {
   const session = await prisma.actingSession.findFirst({
     where: {
       ...activeActingSessionWhere(input.userId, now),
@@ -53,5 +60,5 @@ export async function hasActiveCoachActingSession(
     },
     select: { id: true },
   })
-  return Boolean(session)
+  return session?.id ?? null
 }

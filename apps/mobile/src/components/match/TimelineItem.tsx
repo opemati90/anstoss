@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
-import { Icon, IconName } from '../ui/Icon'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hairline, SPACING_MD, SPACING_SM, SPACING_XXS } from '../../theme/tokens'
 
@@ -21,16 +20,7 @@ export type TimelineItemProps = {
   isLast?: boolean
 }
 
-const ICONS: Record<TimelineEventKind, IconName> = {
-  goal: 'football',
-  sub: 'arrow.left.arrow.right',
-  yellow: 'card',
-  red: 'card',
-  pen: 'football',
-  own_goal: 'football',
-}
-
-const MINUTE_COL = 40
+const MINUTE_COL = 36
 const ROW_MIN = 52
 
 /**
@@ -53,7 +43,6 @@ export function TimelineItem({
   const label = conceded
     ? t('matchLive.kind.conceded', { defaultValue: 'Goal against' })
     : t(`matchLive.kind.${kind}`, { defaultValue: DEFAULT_LABELS[kind] })
-  const iconColor = kind === 'red' ? c.error : kind === 'yellow' ? c.warning : c.textSecondary
 
   return (
     <View
@@ -68,7 +57,7 @@ export function TimelineItem({
         {`${minute}'`}
       </Text>
       <View style={styles.who}>
-        <Text variant="subheadline" weight="semibold" numberOfLines={1}>
+        <Text variant="callout" weight="semibold" numberOfLines={1}>
           {player}
         </Text>
         {detail ? (
@@ -77,12 +66,10 @@ export function TimelineItem({
           </Text>
         ) : null}
       </View>
-      <View style={styles.kind}>
-        <Icon name={ICONS[kind]} size={14} color={iconColor} />
-        <Text variant="footnote" color="secondary">
-          {label}
-        </Text>
-      </View>
+      {/* Design 15: the kind as a muted word on the right ("Tor", "Gelb"). */}
+      <Text variant="footnote" color="secondary" style={styles.kind}>
+        {label}
+      </Text>
     </View>
   )
 }
@@ -101,7 +88,7 @@ const styles = StyleSheet.create({
     minHeight: ROW_MIN,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING_MD,
+    gap: SPACING_MD + SPACING_XXS,
     paddingVertical: SPACING_SM,
   },
   minute: {
@@ -110,5 +97,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   who: { flex: 1, minWidth: 0, gap: SPACING_XXS },
-  kind: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XXS * 2 },
+  kind: { flexShrink: 0 },
 })

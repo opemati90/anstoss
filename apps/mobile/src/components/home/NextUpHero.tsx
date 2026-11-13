@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, PressableScale, Text } from '../ui'
@@ -7,7 +8,9 @@ import {
   eventHeadline,
   formatShortDate,
   formatTime,
+  matchKindLabel,
 } from './HomeKit'
+import { DeclineReasonSheet } from '../rsvp/DeclineReasonSheet'
 import { HeroRsvp, HeroSurface, heroKickoff, useHeroColors } from './HomeHero'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
 
@@ -63,18 +66,24 @@ export function NextUpHero({
   const isCancelled = Boolean(event.cancelledAt)
 
   const answered = event.myRsvp && !event.myRsvpStale ? event.myRsvp : null
+  // Board 22: one confirmation line once answered; after an Absage the
+  // player can still add the reason ("Grund angeben").
   const statusLabel = event.myRsvpStale
     ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
     : answered === 'YES'
-      ? t('homeHub.player.youreIn', { defaultValue: "You're going" })
+      ? t('homeHub.player.confirmYes', {
+          defaultValue: "You're in. You're one of {{count}}.",
+          count: Math.max(1, event.yesCount),
+        })
       : answered === 'MAYBE'
-        ? t('homeHub.player.youreMaybe', { defaultValue: 'You said maybe' })
+        ? t('homeHub.player.confirmMaybe', { defaultValue: 'Please decide soon, your coach is planning.' })
         : answered === 'NO'
-          ? t('homeHub.player.youreOut', { defaultValue: "You're not going" })
+          ? t('homeHub.player.confirmNo', { defaultValue: "Declined. Your coach has been told." })
           : null
+  const [reasonOpen, setReasonOpen] = useState(false)
 
   const typeLabel = isMatch
-    ? t('homeHub.type.match', { defaultValue: 'Match' })
+    ? matchKindLabel(event.matchKind, t)
     : event.type === 'TRAINING'
       ? t('homeHub.type.training', { defaultValue: 'Training' })
       : t('homeHub.type.other', { defaultValue: 'Event' })
@@ -100,6 +109,9 @@ export function NextUpHero({
   ]
     .filter(Boolean)
     .join(' · ')
+
+  // "So vs. Rot-Weiß Köpenick III" — names the event in the Absage sheet.
+  const contextLabel = `${heroKickoff(event.date, locale).split(' ')[0]} ${versus}`
 
   const a11ySummary = [
     headline,
@@ -169,23 +181,39 @@ export function NextUpHero({
             onChange={onRsvp}
             disabled={rsvpPending}
             accessibilityLabel={t('homeHub.hero.yourReply', { defaultValue: 'Your reply' })}
+            contextLabel={contextLabel}
             testID="home-hero-rsvp"
           />
           {statusLabel ? (
             <View style={styles.statusRow}>
-              <Text variant="footnote" weight="medium" style={[styles.flex, { color: hero.fg }]}>
+              <Text variant="footnote" style={[styles.flex, { color: hero.fg }]}>
                 {statusLabel}
               </Text>
-              {event.yesCount > 0 ? (
-                <Text variant="footnote" tabular style={{ color: hero.muted }}>
-                  {t('homeHub.player.yesCount', {
-                    defaultValue: '{{count}} going',
-                    count: event.yesCount,
-                  })}
-                </Text>
+              {answered === 'NO' ? (
+                <PressableScale
+                  onPress={() => setReasonOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('homeHub.player.giveReason', { defaultValue: 'Add a reason' })}
+                  haptic="tapLight"
+                  style={styles.reasonLink}
+                  testID="home-hero-reason"
+                >
+                  <Text variant="footnote" weight="bold" style={{ color: hero.fg }}>
+                    {t('homeHub.player.giveReason', { defaultValue: 'Add a reason' })}
+                  </Text>
+                </PressableScale>
               ) : null}
             </View>
           ) : null}
+          <DeclineReasonSheet
+            visible={reasonOpen}
+            contextLabel={contextLabel}
+            onSubmit={(detail) => {
+              setReasonOpen(false)
+              onRsvp('NO', detail)
+            }}
+            onClose={() => setReasonOpen(false)}
+          />
         </View>
       )}
     </HeroSurface>
@@ -203,7 +231,9 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: space.sm,
     minHeight: 24,
   },
+  reasonLink: { minHeight: 44, justifyContent: 'center' },
 })

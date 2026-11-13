@@ -562,6 +562,21 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
             <HomeRow
               icon="square.grid.3x3"
               title={t('homeHub.coach.setLineup', { defaultValue: 'Set the lineup' })}
+              detail={
+                nextMatch.lineupDraft
+                  ? t(
+                      nextMatch.lineupDraft.published
+                        ? 'homeHub.coach.lineupPublished'
+                        : 'homeHub.coach.lineupDraft',
+                      {
+                        defaultValue: 'Draft {{formation}} · {{filled}} of {{slots}}',
+                        formation: nextMatch.lineupDraft.formation,
+                        filled: nextMatch.lineupDraft.filled,
+                        slots: nextMatch.lineupDraft.slots,
+                      },
+                    )
+                  : null
+              }
               onPress={goToLineup}
               showDivider
             />
@@ -583,6 +598,7 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
             onPress={() => openEvent(afterEvent.id)}
             accessibilityRole="button"
             haptic="tapLight"
+            wrapperStyle={styles.afterWrap}
             style={styles.afterText}
           >
             <Text variant="label">
@@ -590,7 +606,7 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
                 ? t('homeHub.coach.after', { defaultValue: 'After that' })
                 : t('homeHub.nextUp', { defaultValue: 'Next up' })}
             </Text>
-            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.afterTitle}>
+            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1} style={styles.afterTitle}>
               {[
                 `${eventHeadline(afterEvent)} ${heroKickoff(afterEvent.date, locale)}`,
                 (afterEvent.yesCount ?? 0) > 0
@@ -610,7 +626,7 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
             haptic="tapLight"
             style={styles.allLink}
           >
-            <Text variant="subheadline" weight="semibold" style={{ color: accentLink }}>
+            <Text variant="subheadline" weight="semibold" style={[styles.allLinkText, { color: accentLink }]}>
               {t('homeHub.allEvents', { defaultValue: 'All events' })}
             </Text>
           </PressableScale>
@@ -770,9 +786,11 @@ const styles = StyleSheet.create({
   actionText: { flex: 1, gap: space['2xs'] },
   rowTitle: { fontSize: 15 },
   after: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + SPACING_XXS, paddingHorizontal: space.xs },
-  afterText: { flex: 1, gap: space['2xs'], minHeight: 44, justifyContent: 'center' },
+  afterWrap: { flex: 1, minWidth: 0 },
+  afterText: { gap: space['2xs'], minHeight: 44, justifyContent: 'center' },
   afterTitle: { fontSize: 15 },
   allLink: { minHeight: 44, justifyContent: 'center' },
+  allLinkText: { fontSize: 14 },
   stale: {
     flexDirection: 'row',
     alignItems: 'center',

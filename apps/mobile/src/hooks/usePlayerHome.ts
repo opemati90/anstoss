@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router'
 import type {
   ImportedFixture,
   MyContributionSummary,
+  MySeasonSummary,
   RosterOpsSnapshot,
   StreaksResponse,
   TeamDutyAssignment,
@@ -32,6 +33,8 @@ export type HomeEvent = {
   fixtureId?: string | null
   carpoolEnabled?: boolean
   squadSize?: number
+  /** schemas/home.ts: LEAGUE | CUP | FRIENDLY | TOURNAMENT */
+  matchKind?: string | null
 }
 
 /**
@@ -43,6 +46,8 @@ export type HomeDues = {
   overdue: boolean
   /** Due date of the earliest owed item ("Beitrag Dezember · fällig 15.12."). */
   dueDate?: string | null
+  /** Plan of that earliest owed item ("Beitrag Jugend"). */
+  planName?: string | null
 }
 
 export type HomeAnnouncement = { id: string; title: string; body: string }
@@ -82,6 +87,8 @@ export type PlayerHomeData = {
   /** The caller's own open team duties (Trikotwäsche, Leibchen) from roster-ops. */
   duties: TeamDutyAssignment[]
   dues: HomeDues | null
+  /** The reader's own season (redesign 22); null until the API serves it. */
+  mySeason: MySeasonSummary | null
 }
 
 export type UsePlayerHomeResult = {
@@ -116,6 +123,7 @@ const EMPTY: PlayerHomeData = {
   seasonStats: null,
   duties: [],
   dues: null,
+  mySeason: null,
 }
 
 /** Enough to fill the hero plus a reply queue without over-fetching. */
@@ -176,7 +184,7 @@ export function usePlayerHome(
     }
     const seq = ++requestSeq.current
 
-    const [events, announcements, channels, streaks, seasonStats, teamFixtures, rosterOps, dues] =
+    const [events, announcements, channels, streaks, seasonStats, teamFixtures, rosterOps, dues, mySeason] =
       await Promise.all([
         keep(
           api<HomeEvent[]>(`/clubs/${clubId}/events?scope=upcoming&mine=1&limit=${EVENT_LIMIT}`),
@@ -194,6 +202,10 @@ export function usePlayerHome(
           ? keep(api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`))
           : Promise.resolve(null),
         keep(api<MyContributionSummary>(`/clubs/${clubId}/contributions/my`)),
+        // Contract: schemas/home.ts (BACKEND_GAPS "Contract for backend").
+        teamId
+          ? keep(api<MySeasonSummary>(`/clubs/${clubId}/teams/${teamId}/my-season`))
+          : Promise.resolve(null),
       ])
 
     if (seq !== requestSeq.current) return
@@ -243,6 +255,7 @@ export function usePlayerHome(
         seasonStats: seasonStats === FAILED ? prev.seasonStats : (seasonStats ?? null),
         duties: ops === undefined ? prev.duties : myOpenDuties(ops, userId),
         dues: contributions === undefined ? prev.dues : outstandingDues(contributions),
+        mySeason: mySeason === FAILED ? prev.mySeason : asSeason(mySeason),
       }
     })
     if (eventsFailed) {
@@ -388,6 +401,7 @@ export function outstandingDues(
   const byCurrency = new Map<string, number>()
   let overdue = false
   let earliest: number | null = null
+  let earliestPlan: string | null = null
   for (const item of items) {
     if (item.paymentReported) continue
     const due = new Date(item.dueDate).getTime()
@@ -401,14 +415,26 @@ export function outstandingDues(
     const currency = (item.currency || 'EUR').toUpperCase()
     byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + remaining)
     if (item.status === 'OVERDUE') overdue = true
-    if (Number.isFinite(due) && (earliest === null || due < earliest)) earliest = due
+    if (Number.isFinite(due) && (earliest === null || due < earliest)) {
+      earliest = due
+      earliestPlan = item.planName ?? null
+    }
   }
   if (byCurrency.size === 0) return null
   return {
     amounts: Array.from(byCurrency, ([currency, cents]) => ({ cents, currency })),
     overdue,
     dueDate: earliest === null ? null : new Date(earliest).toISOString(),
+    planName: earliestPlan,
   }
+}
+
+/** A season payload only counts when every figure is a number. */
+function asSeason(value: unknown): MySeasonSummary | null {
+  const v = value as Partial<MySeasonSummary> | null
+  if (!v || typeof v !== 'object') return null
+  const nums = [v.appearances, v.goals, v.trainingsAttended, v.trainingsTotal]
+  return nums.every((n) => typeof n === 'number') ? (v as MySeasonSummary) : null
 }
 
 function asArray<T>(value: unknown): T[] {

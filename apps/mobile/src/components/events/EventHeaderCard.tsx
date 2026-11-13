@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Linking, Pressable, StyleSheet, View } from 'react-native'
+import Svg, { Circle, Path } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import type { EventDetail } from '@anstoss/shared'
 import { Icon, SectionGroup, SoftIcon, Text, type IconName } from '../ui'
@@ -59,7 +60,18 @@ export function EventHeaderCard({ event, locale, topInset, leading, trailing }: 
   const date = new Date(event.date)
   const cancelled = Boolean(event.cancelledAt)
   const isMatch = event.type === 'MATCH'
-  const kindLine = [
+  // Design 13: "Kreisliga C · 11. Spieltag" when the match has a competition.
+  const competitionLine = event.competition
+    ? [
+        event.competition.name,
+        event.competition.matchday
+          ? t('eventFlow.detail.matchday', { n: event.competition.matchday })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null
+  const kindLine = competitionLine ?? [
     t(`eventFlow.type.${event.type}`),
     isMatch && event.homeAway ? t(event.homeAway === 'AWAY' ? 'eventFlow.away' : 'eventFlow.home') : null,
     event.team?.name ?? null,
@@ -94,6 +106,18 @@ export function EventHeaderCard({ event, locale, topInset, leading, trailing }: 
 
   return (
     <View style={[styles.hero, { backgroundColor: c.primary, paddingTop: topInset + SPACING_MD }]}>
+      {/* Design 13: a faint centre circle and halfway line, bottom right. */}
+      <Svg
+        width={PITCH_MARK}
+        height={PITCH_MARK}
+        viewBox="0 0 320 320"
+        fill="none"
+        style={styles.pitchMark}
+        pointerEvents="none"
+      >
+        <Circle cx={160} cy={160} r={110} stroke={hero.fg} strokeOpacity={0.07} strokeWidth={1.5} />
+        <Path d="M0 160h320" stroke={hero.fg} strokeOpacity={0.07} strokeWidth={1.5} />
+      </Svg>
       <View style={styles.topRow}>
         {leading}
         <View style={styles.actions}>{trailing}</View>
@@ -112,7 +136,11 @@ export function EventHeaderCard({ event, locale, topInset, leading, trailing }: 
           style={cancelled ? [styles.title, styles.struck] : styles.title}
           accessibilityRole="header"
         >
-          {eventDisplayTitle(event, t)}
+          {isMatch && event.opponent?.trim()
+            ? t(`eventFlow.matchTitleShort.${event.homeAway === 'AWAY' ? 'away' : 'home'}`, {
+                opponent: event.opponent.trim(),
+              })
+            : eventDisplayTitle(event, t)}
         </Text>
         {cancelled ? (
           <View style={[styles.cancelled, { backgroundColor: c.accent }]}>
@@ -155,20 +183,14 @@ export function EventInfoGroup({ event, locale }: { event: EventDetail; locale: 
   if (!event.meetingPoint && !event.location && !event.series && !event.notes) return null
   return (
     <SectionGroup>
-      {event.meetingPoint ? (
-        <PlaceRow
-          icon="mappin.and.ellipse"
-          label={t('eventFlow.detail.meetingPoint')}
-          value={event.meetingPoint}
-          routeLabel={t('eventFlow.detail.route', { defaultValue: 'Route' })}
-          mapLabel={t('eventFlow.detail.openMap')}
-        />
-      ) : null}
-      {event.location ? (
+      {/* Design 13: one place row, the venue with its details beneath
+          ("Kunstrasen · Kabine 3"), and "Route". */}
+      {event.location || event.meetingPoint ? (
         <PlaceRow
           icon="mappin"
           label={isMatch ? t('eventFlow.detail.venue') : t('eventFlow.detail.place')}
-          value={event.location}
+          value={(event.location || event.meetingPoint) ?? ''}
+          detail={event.location && event.meetingPoint ? event.meetingPoint : null}
           routeLabel={t('eventFlow.detail.route', { defaultValue: 'Route' })}
           mapLabel={t('eventFlow.detail.openMap')}
         />
@@ -206,12 +228,14 @@ function PlaceRow({
   icon,
   label,
   value,
+  detail,
   routeLabel,
   mapLabel,
 }: {
   icon: IconName
   label: string
   value: string
+  detail?: string | null
   routeLabel: string
   mapLabel: string
 }) {
@@ -220,7 +244,7 @@ function PlaceRow({
     <Pressable
       onPress={() => openMaps(value)}
       accessibilityRole="link"
-      accessibilityLabel={`${label}: ${value}`}
+      accessibilityLabel={[`${label}: ${value}`, detail].filter(Boolean).join(', ')}
       accessibilityHint={mapLabel}
       android_ripple={{ color: c.surfaceSunken }}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -230,18 +254,23 @@ function PlaceRow({
         <Text variant="callout" weight="semibold" color="primary" numberOfLines={2}>
           {value}
         </Text>
-        <Text variant="footnote" color="secondary" numberOfLines={1}>
-          {label}
-        </Text>
+        {detail ? (
+          <Text variant="footnote" color="secondary" numberOfLines={1}>
+            {detail}
+          </Text>
+        ) : null}
       </View>
-      <Text variant="subheadline" weight="semibold" color="tint">
+      <Text variant="subheadline" weight="semibold" color="tint" style={styles.route}>
         {routeLabel}
       </Text>
     </Pressable>
   )
 }
 
+const PITCH_MARK = 320
+
 const styles = StyleSheet.create({
+  pitchMark: { position: 'absolute', right: -120, bottom: -170 },
   hero: {
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SPACING_XXL + 2,
@@ -265,7 +294,8 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: SPACING_MD },
   stat: { flex: 1, gap: SPACING_XXS + 2 },
   statValue: { fontFamily: fonts.data, fontSize: 24, lineHeight: 26 },
-  shrink: { flex: 1, minWidth: 0 },
+  shrink: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  route: { fontSize: 14 },
   pressed: { opacity: 0.6 },
   row: {
     flexDirection: 'row',

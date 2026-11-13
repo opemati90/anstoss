@@ -133,11 +133,45 @@ function liveState(ctx: Ctx, eventId: string): MatchLiveStateDto {
       finishedAt: null,
       events: [],
       canRecord: false,
+      opponentColor: '#B23A3A',
     }
+    // Preview of design 15's running match: open /match-live?…&liveDemo=running.
+    if (runningDemoRequested()) seedRunningDemo(state, ctx)
     live.set(eventId, state)
   }
   const canRecord = ctx.scenario === 'coach' || ctx.scenario === 'club-admin'
   return { ...state, canRecord, events: [...state.events] }
+}
+
+function runningDemoRequested(): boolean {
+  try {
+    return typeof window !== 'undefined' && /[?&]liveDemo=running\b/.test(window.location?.search ?? '')
+  } catch {
+    return false
+  }
+}
+
+/** Second half, 63rd minute, 1:0 with a goal and a booking (design 15). */
+function seedRunningDemo(state: MatchLiveStateDto, ctx: Ctx) {
+  const at = (minAgo: number) => new Date(Date.now() - minAgo * 60_000).toISOString()
+  state.status = 'SECOND_HALF'
+  state.kickoffAt = at(63 + 15 - 1)
+  state.secondHalfAt = at(63 - 45 - 1)
+  const entry = (id: string, kind: MatchLiveEventDto['kind'], minute: number, name: string) => ({
+    id,
+    kind,
+    minute,
+    playerUserId: null,
+    playerName: name,
+    relatedUserId: null,
+    relatedName: null,
+    createdAt: at(63 - minute),
+  })
+  state.events = [
+    entry('live-demo-2', 'YELLOW', 41, ctx.nameFor?.('player-2') ?? 'Tomasz Nowak'),
+    entry('live-demo-1', 'GOAL', 23, ctx.nameFor?.('player-1') ?? 'Kofi Osei'),
+  ]
+  recount(state)
 }
 
 function recount(state: MatchLiveStateDto) {

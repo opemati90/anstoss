@@ -127,7 +127,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   const heroIsLive = heroFixture?.status === 'live'
   const heroOwesDecision = Boolean(
     heroEvent &&
-      (!heroEvent.myRsvp || heroEvent.myRsvpStale || isInCheckInWindow(heroEvent.date, nowMs)),
+    (!heroEvent.myRsvp || heroEvent.myRsvpStale || isInCheckInWindow(heroEvent.date, nowMs)),
   )
   const liveOwnsHero = Boolean(heroIsLive && !heroOwesDecision)
 
@@ -145,15 +145,12 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
     router.push({ pathname: '/event-detail', params: { eventId: event.id } })
   }, [])
 
-  const openMatch = useCallback(
-    (fixture: ImportedFixture) => {
-      router.push({
-        pathname: '/match-detail',
-        params: { fixtureId: fixture.id, teamId: fixture.teamId },
-      })
-    },
-    [],
-  )
+  const openMatch = useCallback((fixture: ImportedFixture) => {
+    router.push({
+      pathname: '/match-detail',
+      params: { fixtureId: fixture.id, teamId: fixture.teamId },
+    })
+  }, [])
 
   const openEventOrMatch = useCallback(
     (event: HomeEvent) => {
@@ -228,9 +225,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
   // "Termine warten auf dich": every later event still missing an answer.
   const awaiting = weekAhead.filter(
     (event) =>
-      event.id !== shownHero?.id &&
-      !event.cancelledAt &&
-      (!event.myRsvp || event.myRsvpStale),
+      event.id !== shownHero?.id && !event.cancelledAt && (!event.myRsvp || event.myRsvpStale),
   )
   const laterEvents = weekAhead.filter((event) => event.id !== shownHero?.id && !event.cancelledAt)
   const shortLabel = (event: HomeEvent) => {
@@ -247,24 +242,34 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
     return `${kind} ${formatShortDate(event.date, locale)}`
   }
 
-  const seasonDetail = [
-    (data.streaks?.attendanceWeeks ?? 0) > 0
-      ? t('home.pulse.streakWeeks', {
-          defaultValue: '{{count}} weeks in a row',
-          count: data.streaks?.attendanceWeeks ?? 0,
-        })
-      : null,
-    data.seasonStats && data.seasonStats.played > 0
-      ? t('homeHub.player.teamRecord', {
-          defaultValue: 'Team {{wins}}-{{draws}}-{{losses}}',
-          wins: data.seasonStats.wins,
-          draws: data.seasonStats.draws,
-          losses: data.seasonStats.losses,
-        })
-      : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const season = data.mySeason
+  const seasonDetail = season
+    ? t('homeHub.player.seasonLine', {
+        defaultValue:
+          '{{appearances}} games · {{goals}} goals · {{attended}} of {{total}} trainings',
+        appearances: season.appearances,
+        goals: season.goals,
+        attended: season.trainingsAttended,
+        total: season.trainingsTotal,
+      })
+    : [
+        (data.streaks?.attendanceWeeks ?? 0) > 0
+          ? t('home.pulse.streakWeeks', {
+              defaultValue: '{{count}} weeks in a row',
+              count: data.streaks?.attendanceWeeks ?? 0,
+            })
+          : null,
+        data.seasonStats && data.seasonStats.played > 0
+          ? t('homeHub.player.teamRecord', {
+              defaultValue: 'Team {{wins}}-{{draws}}-{{losses}}',
+              wins: data.seasonStats.wins,
+              draws: data.seasonStats.draws,
+              losses: data.seasonStats.losses,
+            })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
 
   const dues = data.dues && data.dues.amounts.length > 0 ? data.dues : null
   const duesAmount = dues
@@ -341,14 +346,14 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
       ),
     })
   }
-  if (seasonDetail) {
+  {
     rows.push({
       key: 'season',
       render: (divider) => (
         <HomeRow
           icon="person"
           title={t('home.player.seasonTitle', { defaultValue: 'Your season' })}
-          detail={seasonDetail}
+          detail={seasonDetail || null}
           onPress={() => router.push('/team-stats' as never)}
           showDivider={divider}
         />
@@ -365,7 +370,9 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
             dues.dueDate
               ? t('homeHub.duesMonth', {
                   defaultValue: 'Fee {{month}}',
-                  month: new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(dues.dueDate)),
+                  month: new Intl.DateTimeFormat(locale, { month: 'long' }).format(
+                    new Date(dues.dueDate),
+                  ),
                 })
               : t('homeHub.dues', { defaultValue: 'Membership fee' })
           }
@@ -382,7 +389,9 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
             .join(' · ')}
           trailing={
             <HomeTag
-              label={t(dues.overdue ? 'contributions.status.OVERDUE' : 'contributions.status.PENDING')}
+              label={t(
+                dues.overdue ? 'contributions.status.OVERDUE' : 'contributions.status.PENDING',
+              )}
               tone={dues.overdue ? 'alert' : 'neutral'}
             />
           }
@@ -421,7 +430,11 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
 
       {/* 2. One group: what waits for me, my jobs, my season, my fee. */}
       {rows.length > 0 ? (
-        <HomeCard>{rows.map((row, index) => <Fragment key={row.key}>{row.render(index > 0)}</Fragment>)}</HomeCard>
+        <HomeCard>
+          {rows.map((row, index) => (
+            <Fragment key={row.key}>{row.render(index > 0)}</Fragment>
+          ))}
+        </HomeCard>
       ) : null}
 
       {error ? (
@@ -442,7 +455,9 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
 
 /** "15.12." — day and month, as on the fee row. */
 function formatNumericDate(iso: string, locale: string): string {
-  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(iso))
+  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(
+    new Date(iso),
+  )
   return locale.startsWith('de') && !day.endsWith('.') ? `${day}.` : day
 }
 

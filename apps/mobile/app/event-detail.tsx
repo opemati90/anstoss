@@ -311,15 +311,9 @@ export default function EventDetailScreen() {
   // Fahrten only when the coach opened them; the API refuses seats otherwise.
   const showRides = Boolean(event?.carpoolEnabled)
   const showSquad = event?.type === 'MATCH'
-  const segments = useMemo(() => {
-    const list: Array<{ key: Segment; label: string }> = [
-      { key: 'responses', label: t('eventFlow.detail.tabResponses') },
-    ]
-    if (showSquad) list.push({ key: 'squad', label: t('eventFlow.detail.tabSquad') })
-    if (showRides) list.push({ key: 'rides', label: t('eventFlow.detail.tabRides') })
-    return list
-  }, [showRides, showSquad, t])
-  const activeSegment = segments.some((item) => item.key === segment) ? segment : 'responses'
+  // Kader and Fahrten open as sheets from rows under the squad list.
+  const activeSegment: Segment =
+    (segment === 'squad' && showSquad) || (segment === 'rides' && showRides) ? segment : 'responses'
 
   const riders: CarpoolRider[] = useMemo(() => {
     if (!event) return []
@@ -363,7 +357,9 @@ export default function EventDetailScreen() {
   // Everyone who plays answers for themselves, including a Spielertrainer or
   // a board member who plays; a parent who also plays gets both their own
   // answer and one per child.
-  const answersForSelf = event.viewer.isPlayer
+  // Coaches answer too (design 13 "Deine Antwort"): the API takes a reply
+  // from anyone on the team.
+  const answersForSelf = event.viewer.isPlayer || canManage
   const answersForChildren = event.children.length > 0
   const inCheckInWindow =
     nowMs >= startMs - CHECK_IN_BEFORE_MS && nowMs <= startMs + CHECK_IN_AFTER_MS
@@ -401,7 +397,18 @@ export default function EventDetailScreen() {
             </IconButton>
           }
           trailing={
-            <>
+            // Design 13 shows one share button. Managers get the share sheet
+            // with Bearbeiten · Duplizieren · Absagen next to Teilen.
+            canManage && !cancelled ? (
+              <IconButton
+                variant="onHero"
+                onPress={() => setMenuOpen(true)}
+                accessibilityLabel={t('eventFlow.manage.menu')}
+                testID="event-manage-menu"
+              >
+                <Icon name="square.and.arrow.up" size={20} color={hero.fg} />
+              </IconButton>
+            ) : (
               <IconButton
                 variant="onHero"
                 onPress={() => void share()}
@@ -410,17 +417,7 @@ export default function EventDetailScreen() {
               >
                 <Icon name="square.and.arrow.up" size={20} color={hero.fg} />
               </IconButton>
-              {canManage && !cancelled ? (
-                <IconButton
-                  variant="onHero"
-                  onPress={() => setMenuOpen(true)}
-                  accessibilityLabel={t('eventFlow.manage.menu')}
-                  testID="event-manage-menu"
-                >
-                  <Icon name="ellipsis" size={20} color={hero.fg} />
-                </IconButton>
-              ) : null}
-            </>
+            )
           }
         />
 
@@ -449,6 +446,7 @@ export default function EventDetailScreen() {
                 disabled={pendingRsvp != null}
                 contextLabel={contextLabel}
                 accessibilityLabel={t('eventFlow.detail.yourAnswer')}
+                showIcons={false}
                 testID="event-rsvp"
               />
               {event.myRsvp === 'NO' && (event.myRsvpReason || event.myRsvpNote) ? (
@@ -458,20 +456,22 @@ export default function EventDetailScreen() {
                     .join(' · ')}
                 </Text>
               ) : null}
-              <SectionGroup>
-                <View style={styles.switchRow}>
-                  <SoftIcon name="bell" />
-                  <Text variant="callout" weight="semibold" color="primary" style={styles.flex}>
-                    {t('eventFlow.detail.remindMe')}
-                  </Text>
-                  <Switch
-                    value={reminderOn}
-                    onValueChange={(value) => void toggleReminder(value)}
-                    trackColor={{ true: c.ink, false: c.borderStrong }}
-                    accessibilityLabel={t('eventFlow.detail.remindMe')}
-                  />
-                </View>
-              </SectionGroup>
+              {!canManage ? (
+                <SectionGroup>
+                  <View style={styles.switchRow}>
+                    <SoftIcon name="bell" />
+                    <Text variant="callout" weight="semibold" color="primary" style={styles.flex}>
+                      {t('eventFlow.detail.remindMe')}
+                    </Text>
+                    <Switch
+                      value={reminderOn}
+                      onValueChange={(value) => void toggleReminder(value)}
+                      trackColor={{ true: c.ink, false: c.borderStrong }}
+                      accessibilityLabel={t('eventFlow.detail.remindMe')}
+                    />
+                  </View>
+                </SectionGroup>
+              ) : null}
             </View>
           ) : null}
 
@@ -544,56 +544,45 @@ export default function EventDetailScreen() {
 
           <EventInfoGroup event={event} locale={locale} />
 
-          {segments.length > 1 ? (
-            <SegmentedControl<Segment>
-              segments={segments}
-              value={activeSegment}
-              onChange={setSegment}
-              testID="event-segments"
-            />
-          ) : null}
+          <ResponsesPanel
+            rsvps={event.rsvps}
+            members={event.members}
+            canManage={canManage}
+            remind={
+              canManage && !started && !cancelled
+                ? {
+                    onPress: () => void remind(),
+                    pending: reminding,
+                    cooldownUntil: remindCooldown,
+                    sentCount: remindSent,
+                  }
+                : null
+            }
+            onOpenAttendance={
+              canManage && started && !cancelled ? () => setAttendanceOpen(true) : null
+            }
+          />
 
-          {activeSegment === 'responses' ? (
-            <ResponsesPanel
-              rsvps={event.rsvps}
-              members={event.members}
-              canManage={canManage}
-              remind={
-                canManage && !started && !cancelled
-                  ? {
-                      onPress: () => void remind(),
-                      pending: reminding,
-                      cooldownUntil: remindCooldown,
-                      sentCount: remindSent,
-                    }
-                  : null
-              }
-              onOpenAttendance={
-                canManage && started && !cancelled ? () => setAttendanceOpen(true) : null
-              }
-            />
-          ) : null}
-          {activeSegment === 'squad' && clubId ? (
-            <SquadPanel
-              clubId={clubId}
-              event={event}
-              locale={locale}
-              onPublished={() => void fetchEvent()}
-              onOpenLineup={() =>
-                router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
-              }
-            />
-          ) : null}
-          {activeSegment === 'rides' && clubId ? (
-            <CarpoolBoard
-              clubId={clubId}
-              eventId={event.id}
-              eventDate={event.date}
-              meetingAt={event.meetingAt}
-              locale={locale}
-              riders={riders}
-              cancelled={cancelled}
-            />
+          {/* Below the design's list: Kader nomination (matches) and Fahrten. */}
+          {(showSquad && clubId) || (showRides && clubId) ? (
+            <SectionGroup>
+              {showSquad ? (
+                <ListRow
+                  title={t('eventFlow.detail.tabSquad')}
+                  left={<SoftIcon name="person.3" />}
+                  onPress={() => setSegment('squad')}
+                  testID="event-open-squad"
+                />
+              ) : null}
+              {showRides ? (
+                <ListRow
+                  title={t('eventFlow.detail.tabRides')}
+                  left={<SoftIcon name="car" />}
+                  onPress={() => setSegment('rides')}
+                  testID="event-open-rides"
+                />
+              ) : null}
+            </SectionGroup>
           ) : null}
         </View>
       </ScrollView>
@@ -616,7 +605,7 @@ export default function EventDetailScreen() {
                 variant="bordered"
                 size="lg"
                 fullWidth
-                leftIcon={<Icon name="football" size={18} color={c.textPrimary} />}
+                leftIcon={<Icon name="whistle" size={18} color={c.textPrimary} />}
                 accessibilityLabel={t('eventFlow.detail.liveTitle')}
                 accessibilityHint={t('eventFlow.detail.liveSubtitle')}
                 onPress={() =>
@@ -647,6 +636,41 @@ export default function EventDetailScreen() {
           ) : null}
         </View>
       ) : null}
+
+      <BottomSheet
+        visible={activeSegment !== 'responses'}
+        onClose={() => setSegment('responses')}
+        heightPct={88}
+      >
+        <ScrollView contentContainerStyle={styles.sheet}>
+          <Text variant="title3" weight="bold" color="primary">
+            {activeSegment === 'rides' ? t('eventFlow.detail.tabRides') : t('eventFlow.detail.tabSquad')}
+          </Text>
+          {activeSegment === 'squad' && clubId ? (
+            <SquadPanel
+              clubId={clubId}
+              event={event}
+              locale={locale}
+              onPublished={() => void fetchEvent()}
+              onOpenLineup={() => {
+                setSegment('responses')
+                router.push({ pathname: '/lineup-builder', params: { eventId: event.id } })
+              }}
+            />
+          ) : null}
+          {activeSegment === 'rides' && clubId ? (
+            <CarpoolBoard
+              clubId={clubId}
+              eventId={event.id}
+              eventDate={event.date}
+              meetingAt={event.meetingAt}
+              locale={locale}
+              riders={riders}
+              cancelled={cancelled}
+            />
+          ) : null}
+        </ScrollView>
+      </BottomSheet>
 
       {clubId ? (
         <AttendanceSheet

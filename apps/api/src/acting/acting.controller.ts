@@ -25,9 +25,9 @@ export class ActingController {
     return this.acting.start(clubId, user.id, startActingSessionSchema.parse(body))
   }
 
-  @Delete('clubs/:clubId/acting-sessions/current')
-  end(@CurrentUser() user: { id: string }, @Param('clubId') clubId: string) {
-    return this.acting.end(clubId, user.id)
+  @Delete('acting-sessions/:id')
+  end(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    return this.acting.end(id, user.id)
   }
 
   @Get('me/acting-session')

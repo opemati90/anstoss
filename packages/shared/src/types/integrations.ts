@@ -37,7 +37,15 @@ export interface TableSnapshotRow {
   points: number
   isPromotion: boolean
   isRelegation: boolean
+  /**
+   * Redesign 21: the club's last results, oldest → newest (max 5), as the
+   * scraper reads them from fussball.de. Absent on older snapshots.
+   */
+  form?: TableFormResult[]
 }
+
+/** W win, D draw, L loss (shown as S / U / N in German). */
+export type TableFormResult = 'W' | 'D' | 'L'
 
 export interface ExternalTeamLink {
   id: string
@@ -94,6 +102,10 @@ export interface ImportedFixture {
    */
   isHome?: boolean | null
   ownTeamName?: string | null
+  /** Redesign 21 header ("Berlin · Staffel 3"): Kreis/Bezirk of the league. */
+  region?: string | null
+  /** Redesign 21 header: Staffel within the league, e.g. "Staffel 3". */
+  division?: string | null
 }
 
 export interface FixtureOverlay {

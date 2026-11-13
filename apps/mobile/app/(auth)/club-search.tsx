@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { ClubSearchResponse, ClubSearchResult, PublicInvitePayload } from '@anstoss/shared'
+import type {
+  ClubSearchResponse,
+  ClubSearchResult,
+  PublicInvitePayload,
+  PublicRosterSlot,
+  PublicRosterSlotsResponse,
+} from '@anstoss/shared'
 import { FreeAgentVisibility } from '@anstoss/shared'
 import { api } from '../../src/api/client'
 import { Button, FilterChipRow, Icon, SegmentedControl, SoftIcon, Text } from '../../src/components/ui'
@@ -18,27 +24,30 @@ import { setWelcomeNotice } from '../../src/onboarding/welcomeNotice'
 import { clearOnboardingIntent } from '../../src/onboarding/intent'
 import {
   joinErrorKey,
+  splitJoinRoles,
   submitJoin,
   type CoachTeamRole,
   type JoinRole,
 } from '../../src/onboarding/joinClub'
 import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { JOIN_REJECTION_SEEN_PREFIX } from '../../src/onboarding/storageKeys'
-import { onboardingProgress } from '../../src/onboarding/steps'
 import {
   ChoiceRow,
   ClubCrest,
+  type CrestClub,
   HeaderTextButton,
   OnboardingScreen,
   OnboardingTextField,
 } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
-import { radius, space } from '../../src/theme/tokens'
-import { INPUT_HEIGHT, RADIUS_CARD, RADIUS_INPUT, SPACING_MD } from '../../src/theme/spacing'
+import { fonts, hairline, radius, space } from '../../src/theme/tokens'
+import { INPUT_HEIGHT, RADIUS_CARD, RADIUS_INPUT, SPACING_MD, SPACING_XXS } from '../../src/theme/spacing'
 
 const TEAM_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{10}$/
 const INVITE_CODE_RE = /^[A-Za-z0-9_-]{6,32}$/
 const DEBOUNCE_MS = 300
+/** Design: the Einladungscode field is 64 high (12 over a normal field). */
+const CODE_FIELD_HEIGHT = 64
 
 const INVITE_ROLE_KEYS: Record<PublicInvitePayload['role'], string> = {
   PLAYER: 'onboardingFlow.roles.player',
@@ -105,6 +114,15 @@ export default function ClubSearchScreen() {
   const onExpired = useSessionExpiryHandler()
   const isMember = memberships.length > 0
 
+  const c = useClubColors()
+  const params = useLocalSearchParams<{ code?: string }>()
+  const initialCode = Array.isArray(params.code) ? params.code[0] : params.code
+  const [stage, setStage] = useState<'find' | 'role'>('find')
+  const [code, setCode] = useState((initialCode ?? '').toUpperCase())
+  const [codeStatus, setCodeStatus] = useState<'idle' | 'loading' | 'done'>('idle')
+  const codeRequestId = useRef(0)
+  const [slots, setSlots] = useState<PublicRosterSlot[]>([])
+  const [claimSlot, setClaimSlot] = useState(true)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ClubSearchResult[]>([])
   const [teamMatch, setTeamMatch] = useState<TeamByCode | null>(null)
@@ -114,13 +132,13 @@ export default function ClubSearchScreen() {
   const requestId = useRef(0)
 
   const [selection, setSelection] = useState<SelectedClub | null>(null)
-  const [role, setRole] = useState<JoinRole | null>(null)
+  // Design: Spieler:in is ticked when the role question opens.
+  const [roles, setRoles] = useState<JoinRole[]>(['PLAYER'])
   const [coachRole, setCoachRole] = useState<CoachTeamRole>('ASSISTANT_COACH')
   const [teamId, setTeamId] = useState<string | null>(null)
   const [teams, setTeams] = useState<ClubTeam[] | null>(null)
   const [teamsFailed, setTeamsFailed] = useState(false)
   const [freeAgentOpen, setFreeAgentOpen] = useState(false)
-  const [inviteSelected, setInviteSelected] = useState(false)
   const [position, setPosition] = useState<string | null>(null)
   const [postalCode, setPostalCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -128,9 +146,15 @@ export default function ClubSearchScreen() {
   const [rejection, setRejection] = useState<LastDecision | null>(null)
 
   const trimmed = query.trim()
-  const { teamCode, inviteCode } = useMemo(() => classifySearchInput(query), [query])
+  const { teamCode, inviteCode } = useMemo(() => classifySearchInput(code), [code])
   const searchable = trimmed.length >= 2
-  const needsTeam = !!selection && role === 'COACH' && !selection.teamId
+  const coachPicked = roles.includes('COACH')
+  const needsTeam = !!selection && coachPicked && !selection.teamId
+  const { primary: primaryRole, additional: additionalRoles } = splitJoinRoles(roles)
+  const mySlot = useMemo(() => {
+    const me = normalizeName(user?.name)
+    return me ? slots.find((slot) => normalizeName(slot.fullName) === me) ?? null : null
+  }, [slots, user?.name])
 
   // Members opening "Verein finden" from home never carry a sign-up intent.
   useEffect(() => {
@@ -156,46 +180,67 @@ export default function ClubSearchScreen() {
     }
   }, [isMember])
 
+  // Name / place search (the second half of the screen).
   useEffect(() => {
     const id = ++requestId.current
     if (!searchable) {
       setResults([])
-      setTeamMatch(null)
-      setInviteMatch(null)
       setStatus('idle')
       return
     }
     setStatus('loading')
     const handle = setTimeout(async () => {
-      const searchCall = api<ClubSearchResponse>(
-        `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
-      )
-      const teamCall = teamCode
-        ? api<TeamByCode>(`/teams/by-code/${teamCode}`).catch(() => null)
-        : Promise.resolve(null)
-      const inviteCall = inviteCode
-        ? api<PublicInvitePayload>(`/public/invites/${encodeURIComponent(inviteCode)}`).catch(
-            () => null,
-          )
-        : Promise.resolve(null)
-      const [search, team, invite] = await Promise.allSettled([searchCall, teamCall, inviteCall])
-      if (id !== requestId.current) return
-      const teamValue = team.status === 'fulfilled' ? team.value : null
-      const inviteValue =
-        invite.status === 'fulfilled' && invite.value && invite.value.club ? invite.value : null
-      setTeamMatch(teamValue)
-      setInviteMatch(inviteValue)
-      if (search.status === 'fulfilled') {
-        setResults(search.value?.results ?? [])
+      try {
+        const search = await api<ClubSearchResponse>(
+          `/clubs/search?q=${encodeURIComponent(trimmed)}&limit=20`,
+        )
+        if (id !== requestId.current) return
+        setResults(search?.results ?? [])
         setStatus('done')
-      } else {
+      } catch {
+        if (id !== requestId.current) return
         setResults([])
-        // A code match is still useful even when the name search failed.
-        setStatus(teamValue || inviteValue ? 'done' : 'error')
+        setStatus('error')
       }
     }, DEBOUNCE_MS)
     return () => clearTimeout(handle)
-  }, [inviteCode, retryKey, searchable, teamCode, trimmed])
+  }, [retryKey, searchable, trimmed])
+
+  // Einladungscode: a team code (players, coaches) or a personal invite.
+  useEffect(() => {
+    const id = ++codeRequestId.current
+    setTeamMatch(null)
+    setInviteMatch(null)
+    setSlots([])
+    if (!teamCode && !inviteCode) {
+      setCodeStatus('idle')
+      return
+    }
+    setCodeStatus('loading')
+    const handle = setTimeout(async () => {
+      const [team, invite] = await Promise.all([
+        teamCode ? api<TeamByCode>(`/teams/by-code/${teamCode}`).catch(() => null) : null,
+        inviteCode
+          ? api<PublicInvitePayload>(`/public/invites/${encodeURIComponent(inviteCode)}`).catch(
+              () => null,
+            )
+          : null,
+      ])
+      if (id !== codeRequestId.current) return
+      setTeamMatch(team ?? null)
+      setInviteMatch(invite && invite.club ? invite : null)
+      setCodeStatus('done')
+      if (team && teamCode) {
+        // "Ich bin …": unclaimed roster slots (contract, BACKEND_GAPS). A
+        // server without the endpoint answers 404; the row just stays away.
+        const res = await api<PublicRosterSlotsResponse>(
+          `/public/teams/by-code/${teamCode}/roster-slots`,
+        ).catch(() => null)
+        if (id === codeRequestId.current) setSlots(res?.slots ?? [])
+      }
+    }, DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+  }, [inviteCode, teamCode])
 
   // Coaches pick the team they coach (the club needs to know which squad).
   useEffect(() => {
@@ -219,15 +264,23 @@ export default function ClubSearchScreen() {
     router.replace('/(auth)/welcome')
   }, [router, signOut])
 
-  function select(next: SelectedClub | null) {
-    setInviteSelected(false)
-    setSelection((current) => (current?.key === next?.key ? null : next))
-    setRole(null)
-    setTeamId(next?.teamId ?? null)
+  /** A club picked from the code or the search: on to "Was machst du bei …?". */
+  function select(next: SelectedClub) {
+    setSelection(next)
+    setRoles(['PLAYER'])
+    setTeamId(next.teamId ?? null)
     setTeams(null)
     setCoachRole('ASSISTANT_COACH')
     setFreeAgentOpen(false)
     setError(null)
+    setStage('role')
+  }
+
+  function toggleRole(next: JoinRole) {
+    setError(null)
+    setRoles((current) =>
+      current.includes(next) ? current.filter((r) => r !== next) : [...current, next],
+    )
   }
 
   function openClubSetup(params: Record<string, string>) {
@@ -238,23 +291,26 @@ export default function ClubSearchScreen() {
 
   // B2: joining as a parent is a guardian action (18+ on the account).
   const userAge = user?.dateOfBirth ? ageOn(new Date(user.dateOfBirth)) : null
-  const parentTooYoung = role === 'PARENT' && userAge !== null && userAge < 18
-  const joinReady = !!selection && !!role && (!needsTeam || !!teamId) && !parentTooYoung
+  const parentTooYoung = roles.includes('PARENT') && userAge !== null && userAge < 18
+  const joinReady =
+    !!selection && !!primaryRole && (!needsTeam || !!teamId) && !parentTooYoung
   const plzValid = /^\d{5}$/.test(postalCode)
   const listingReady = freeAgentOpen && !!position && plzValid
 
   async function sendRequest() {
-    if (!selection || !role || !joinReady || busy) return
+    if (!selection || !primaryRole || !joinReady || busy) return
     setBusy(true)
     setError(null)
     try {
       await submitJoin(
-        role,
+        primaryRole,
         {
           clubId: selection.clubId,
           teamId: teamId ?? selection.teamId ?? null,
           joinCode: selection.joinCode ?? null,
           coachRole,
+          rosterSlotId: selection.joinCode && claimSlot && mySlot ? mySlot.id : null,
+          additionalRoles,
         },
         user?.registrationRole,
       )
@@ -279,10 +335,9 @@ export default function ClubSearchScreen() {
       return
     }
     setSelection(null)
-    setRole(null)
     setFreeAgentOpen(false)
     setError(null)
-    setInviteSelected((open) => !open)
+    void redeemInvite()
   }
 
   async function redeemInvite() {
@@ -350,93 +405,100 @@ export default function ClubSearchScreen() {
     }
   }
 
-  const showEmpty =
-    status === 'done' && results.length === 0 && !teamMatch && !inviteMatch && searchable
+  const showEmpty = status === 'done' && results.length === 0 && searchable
+  const codeNotFound = codeStatus === 'done' && !teamMatch && !inviteMatch
 
-  const primary = inviteSelected && inviteMatch
+  const teamMatchClub: SelectedClub | null = teamMatch
     ? {
-        label: t('onboardingFlow.invite.joinCta'),
-        onPress: () => void redeemInvite(),
-        loading: busy,
-        testID: 'club-invite-join',
+        key: `code:${teamCode}`,
+        clubId: teamMatch.club.id,
+        name: teamMatch.club.name,
+        badgeUrl: teamMatch.club.badgeUrl ?? null,
+        primaryColor: teamMatch.club.primaryColor ?? null,
+        teamId: teamMatch.team.id,
+        teamName: teamMatch.team.displayName || teamMatch.team.name,
+        joinCode: teamCode,
       }
-    : selection
-    ? {
-        label: t('onboardingFlow.club.sendRequest'),
-        onPress: () => void sendRequest(),
-        disabled: !joinReady,
-        loading: busy,
-        testID: 'club-send-request',
-      }
-    : freeAgentOpen
-      ? {
-          label: t('onboardingFlow.club.freeAgentPublish'),
-          onPress: () => void publishListing(),
-          disabled: !listingReady,
-          loading: busy,
-          testID: 'club-free-agent-publish',
-        }
-      : undefined
+    : null
 
-  const footerNote = error || (selection && parentTooYoung) ? (
-    <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
-      {error ?? t('onboardingFlow.parentHandoff.parentTooYoung')}
-    </Text>
-  ) : selection && role ? (
-    <Text variant="caption1" color="tertiary" align="center">
-      {role === 'COACH' ? t('onboardingFlow.club.whatNextCoach') : t('onboardingFlow.club.whatNext')}
-    </Text>
-  ) : undefined
-
-  function renderClubRow(club: SelectedClub, body: string | undefined, testID: string) {
-    const open = selection?.key === club.key
+  if (stage === 'role' && selection) {
+    const roleFooter = error || parentTooYoung ? (
+      <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
+        {error ?? t('onboardingFlow.parentHandoff.parentTooYoung')}
+      </Text>
+    ) : undefined
     return (
-      <View key={club.key} style={styles.rowGroup}>
-        <ChoiceRow
-          accessibilityRole="button"
-          leading={<ClubCrest club={club} size={44} />}
-          title={club.name}
-          body={body}
-          selected={open}
-          trailing={
-            <Icon
-              name={open ? 'chevron.up' : 'chevron.down'}
-              size={18}
-              color="tertiary"
-            />
-          }
-          onPress={() => select(club)}
-          testID={testID}
-        />
-        {open ? (
-          <ClubThemeOverride club={club}>
-            <JoinChoice
-              club={club}
-              role={role}
-              onRole={(next) => {
-                setRole(next)
-                setError(null)
-              }}
-              coachRole={coachRole}
-              onCoachRole={setCoachRole}
-              needsTeam={needsTeam}
-              teams={teams}
-              teamsFailed={teamsFailed}
-              onRetryTeams={() => setTeams(null)}
-              teamId={teamId}
-              onTeam={setTeamId}
-            />
-          </ClubThemeOverride>
-        ) : null}
-      </View>
+      <ClubThemeOverride club={selection}>
+        <OnboardingScreen
+          title={t('onboardingFlow.role.title', { club: selection.name })}
+          progress={JOIN_PROGRESS_ROLE}
+          onBack={() => {
+            setStage('find')
+            setError(null)
+          }}
+          lead={<ClubCrest club={selection} size={48} />}
+          primary={{
+            label: t('onboardingFlow.role.cta'),
+            onPress: () => void sendRequest(),
+            disabled: !joinReady,
+            loading: busy,
+            testID: 'club-send-request',
+          }}
+          footerNote={roleFooter}
+          testID="club-join-question"
+        >
+          <RolePicker
+            roles={roles}
+            onToggle={toggleRole}
+            coachRole={coachRole}
+            onCoachRole={setCoachRole}
+            needsTeam={needsTeam}
+            teams={teams}
+            teamsFailed={teamsFailed}
+            onRetryTeams={() => setTeams(null)}
+            teamId={teamId}
+            onTeam={setTeamId}
+          />
+        </OnboardingScreen>
+      </ClubThemeOverride>
     )
   }
 
+  const primary = freeAgentOpen
+    ? {
+        label: t('onboardingFlow.club.freeAgentPublish'),
+        onPress: () => void publishListing(),
+        disabled: !listingReady,
+        loading: busy,
+        testID: 'club-free-agent-publish',
+      }
+    : inviteMatch
+      ? {
+          label: t('onboardingFlow.common.continue'),
+          onPress: openInvite,
+          loading: busy,
+          testID: 'club-invite-join',
+        }
+      : {
+          label: t('onboardingFlow.common.continue'),
+          onPress: () => {
+            if (teamMatchClub) select(teamMatchClub)
+          },
+          disabled: !teamMatchClub,
+          testID: 'club-continue',
+        }
+
+  const footerNote = error ? (
+    <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
+      {error}
+    </Text>
+  ) : undefined
+
   return (
     <OnboardingScreen
-      title={t('onboardingFlow.club.title')}
-      subtitle={t('onboardingFlow.club.subtitle')}
-      progress={isMember ? null : onboardingProgress('member', 'clubSearch')}
+      title={t('onboardingFlow.join.title')}
+      subtitle={t('onboardingFlow.join.subtitle')}
+      progress={JOIN_PROGRESS_FIND}
       onBack={isMember ? () => goBackOrReplace(router, '/(tabs)') : null}
       headerRight={
         isMember ? undefined : (
@@ -459,26 +521,74 @@ export default function ClubSearchScreen() {
         />
       ) : null}
 
+      <View style={styles.codeBlock}>
+        <Text variant="footnote" weight="semibold">
+          {t('onboardingFlow.join.codeLabel')}
+        </Text>
+        <CodeField
+          value={code}
+          onChangeText={(next) => {
+            setCode(next)
+            setError(null)
+          }}
+          label={t('onboardingFlow.join.codeLabel')}
+        />
+        {codeStatus === 'loading' ? (
+          <ActivityIndicator color={c.textTertiary} style={styles.codeSpinner} />
+        ) : null}
+        {inviteMatch ? (
+          <MatchRow
+            club={inviteMatch.club}
+            title={inviteMatch.club.name}
+            body={t('onboardingFlow.invite.roleLine', {
+              role: t(INVITE_ROLE_KEYS[inviteMatch.role]),
+              team: inviteMatch.team.displayName,
+            })}
+            onPress={openInvite}
+            testID="club-invite-match"
+          />
+        ) : null}
+        {teamMatch && teamMatchClub ? (
+          <MatchRow
+            club={teamMatchClub}
+            title={teamMatchClub.name}
+            body={teamMatchClub.teamName ?? undefined}
+            onPress={() => select(teamMatchClub)}
+            testID="club-team-match"
+          />
+        ) : null}
+        {teamMatch && mySlot ? (
+          <SlotClaimRow
+            title={
+              mySlot.jerseyNumber !== null
+                ? t('onboardingFlow.join.claimTitle', {
+                    name: mySlot.fullName,
+                    number: mySlot.jerseyNumber,
+                  })
+                : t('onboardingFlow.join.claimTitleNoNumber', { name: mySlot.fullName })
+            }
+            body={t('onboardingFlow.join.claimBody')}
+            checked={claimSlot}
+            onToggle={() => setClaimSlot((v) => !v)}
+          />
+        ) : null}
+        {codeNotFound ? (
+          <Text variant="footnote" color="error" accessibilityLiveRegion="polite">
+            {t('onboardingFlow.club.codeNotFound')}
+          </Text>
+        ) : null}
+      </View>
+
+      <OrDivider label={t('onboardingFlow.code.or')} />
+
       <SearchField
         value={query}
-        onChangeText={(next) => {
-          setQuery(next)
-          if (selection || inviteSelected) select(null)
-        }}
+        onChangeText={(next) => setQuery(next)}
         loading={status === 'loading'}
-        placeholder={t('onboardingFlow.club.searchPlaceholder')}
+        placeholder={t('onboardingFlow.join.searchPlaceholder')}
         label={t('onboardingFlow.club.searchLabel')}
         clearLabel={t('onboardingFlow.club.clear')}
       />
-
-      {status === 'idle' ? (
-        <View style={styles.tip}>
-          <Icon name="info.circle" size={18} color="tertiary" />
-          <Text variant="footnote" color="secondary" style={styles.tipText}>
-            {t('onboardingFlow.club.idleHint')}
-          </Text>
-        </View>
-      ) : null}
 
       {status === 'loading' ? <ResultSkeleton /> : null}
 
@@ -499,40 +609,6 @@ export default function ClubSearchScreen() {
         </View>
       ) : null}
 
-      {status === 'done' && inviteMatch ? (
-        <ChoiceRow
-          accessibilityRole="button"
-          leading={<ClubCrest club={inviteMatch.club} size={44} />}
-          title={t('onboardingFlow.club.inviteMatchTitle', { club: inviteMatch.club.name })}
-          body={t('onboardingFlow.invite.roleLine', {
-            role: t(INVITE_ROLE_KEYS[inviteMatch.role]),
-            team: inviteMatch.team.displayName,
-          })}
-          selected={inviteSelected}
-          onPress={openInvite}
-          testID="club-invite-match"
-        />
-      ) : null}
-
-      {status === 'done' && teamMatch
-        ? renderClubRow(
-            {
-              key: `code:${teamCode}`,
-              clubId: teamMatch.club.id,
-              name: teamMatch.club.name,
-              badgeUrl: teamMatch.club.badgeUrl ?? null,
-              primaryColor: teamMatch.club.primaryColor ?? null,
-              teamId: teamMatch.team.id,
-              teamName: teamMatch.team.displayName || teamMatch.team.name,
-              joinCode: teamCode,
-            },
-            t('onboardingFlow.club.teamMatchBody', {
-              team: teamMatch.team.displayName || teamMatch.team.name,
-            }),
-            'club-team-match',
-          )
-        : null}
-
       {status === 'done'
         ? results.map((club) => {
             const place = [club.city, club.association].filter(Boolean).join(' · ')
@@ -542,7 +618,7 @@ export default function ClubSearchScreen() {
                 <ChoiceRow
                   key={club.id}
                   accessibilityRole="button"
-                  leading={<ClubCrest club={club} size={44} />}
+                  leading={<ClubCrest club={club} size={36} />}
                   title={club.name}
                   body={[place, t('onboardingFlow.club.notOnAnstossSetup')].filter(Boolean).join('\n')}
                   onPress={() =>
@@ -552,18 +628,26 @@ export default function ClubSearchScreen() {
                 />
               )
             }
-            return renderClubRow(
-              {
-                key: club.id,
-                clubId: club.activeClubId,
-                name: club.name,
-                slug: club.slug,
-                city: club.city,
-                badgeUrl: club.badgeUrl,
-                primaryColor: club.primaryColor,
-              },
-              [place, t('onboardingFlow.club.onAnstoss')].filter(Boolean).join('\n'),
-              `find-club-row-${club.slug}`,
+            return (
+              <ChoiceRow
+                key={club.id}
+                accessibilityRole="button"
+                leading={<ClubCrest club={club} size={36} />}
+                title={club.name}
+                body={[place, t('onboardingFlow.club.onAnstoss')].filter(Boolean).join('\n')}
+                onPress={() =>
+                  select({
+                    key: club.id,
+                    clubId: club.activeClubId,
+                    name: club.name,
+                    slug: club.slug,
+                    city: club.city,
+                    badgeUrl: club.badgeUrl,
+                    primaryColor: club.primaryColor,
+                  })
+                }
+                testID={`find-club-row-${club.slug}`}
+              />
             )
           })
         : null}
@@ -574,18 +658,18 @@ export default function ClubSearchScreen() {
             {t('onboardingFlow.club.noResults', { query: trimmed })}
           </Text>
           <Text variant="footnote" color="secondary">
-            {teamCode
-              ? t('onboardingFlow.club.codeNotFound')
-              : t('onboardingFlow.club.noResultsHint')}
+            {t('onboardingFlow.club.noResultsHint')}
           </Text>
         </View>
       ) : null}
 
-      <View style={styles.more}>
+      {/* Secondary ways in (not on the board): a new club, a free agent
+          listing, a parent's setup code. */}
+      <View style={[styles.more, { backgroundColor: c.surface }]}>
         <MoreLink
           icon="building.2"
           label={t('onboardingFlow.club.createClub')}
-          onPress={() => openClubSetup(trimmed && !teamCode && !inviteCode ? { clubName: trimmed } : {})}
+          onPress={() => openClubSetup(trimmed ? { clubName: trimmed } : {})}
           testID="club-create-link"
         />
         {!isMember ? (
@@ -595,8 +679,6 @@ export default function ClubSearchScreen() {
             expanded={freeAgentOpen}
             onPress={() => {
               setSelection(null)
-              setRole(null)
-              setInviteSelected(false)
               setError(null)
               setFreeAgentOpen((open) => !open)
             }}
@@ -615,6 +697,7 @@ export default function ClubSearchScreen() {
           icon="figure.and.child.holdinghands"
           label={t('onboardingFlow.club.setupCode')}
           onPress={() => router.push('/(auth)/parent-handoff')}
+          last
           testID="club-setup-code-link"
         />
       </View>
@@ -622,11 +705,165 @@ export default function ClubSearchScreen() {
   )
 }
 
-/** Inline "Wie bist du dabei?" under the club row. */
-function JoinChoice({
+const JOIN_PROGRESS_FIND = { current: 1, total: 2 }
+const JOIN_PROGRESS_ROLE = { current: 2, total: 2 }
+
+function normalizeName(name: string | null | undefined): string {
+  return (name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** "oder" between the code and the search. */
+function OrDivider({ label }: { label: string }) {
+  const c = useClubColors()
+  return (
+    <View style={styles.or} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
+      <Text variant="footnote" color="secondary">
+        {label}
+      </Text>
+      <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
+    </View>
+  )
+}
+
+/** Large Barlow code field, 2pt ink outline (design: 64 high, tracked caps). */
+function CodeField({
+  value,
+  onChangeText,
+  label,
+}: {
+  value: string
+  onChangeText: (next: string) => void
+  label: string
+}) {
+  const c = useClubColors()
+  return (
+    <TextInput
+      value={value}
+      onChangeText={(next) => onChangeText(next.toUpperCase())}
+      accessibilityLabel={label}
+      autoCapitalize="characters"
+      autoCorrect={false}
+      autoComplete="off"
+      spellCheck={false}
+      maxLength={32}
+      selectionColor={c.ink}
+      placeholderTextColor={c.textTertiary}
+      style={[
+        styles.codeInput,
+        { color: c.textPrimary, backgroundColor: c.surface, borderColor: c.ink },
+      ]}
+      testID="find-club-code"
+    />
+  )
+}
+
+/** Club found for the code: crest, name, team, check. */
+function MatchRow({
   club,
-  role,
-  onRole,
+  title,
+  body,
+  onPress,
+  testID,
+}: {
+  club: CrestClub
+  title: string
+  body?: string
+  onPress: () => void
+  testID: string
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={body ? `${title}. ${body}` : title}
+      accessibilityState={{ selected: true }}
+      style={[styles.matchRow, { backgroundColor: c.surface }]}
+      testID={testID}
+    >
+      <ClubCrest club={club} size={28} />
+      <View style={styles.matchCopy}>
+        <Text variant="subheadline" weight="bold" numberOfLines={1} style={styles.size14}>
+          {title}
+        </Text>
+        {body ? (
+          <Text variant="caption1" weight="regular" color="secondary" numberOfLines={1}>
+            {body}
+          </Text>
+        ) : null}
+      </View>
+      <Icon name="checkmark" size={20} color={c.heroBg} />
+    </Pressable>
+  )
+}
+
+/** "Ich bin Kofi Osei, Nr. 9": claim the roster slot the captain created. */
+function SlotClaimRow({
+  title,
+  body,
+  checked,
+  onToggle,
+}: {
+  title: string
+  body: string
+  checked: boolean
+  onToggle: () => void
+}) {
+  const c = useClubColors()
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={`${title}. ${body}`}
+      style={[styles.claimRow, { backgroundColor: c.surface }]}
+      testID="club-slot-claim"
+    >
+      <Checkbox checked={checked} size={22} radius={CHECK_RADIUS_SM} />
+      <View style={styles.matchCopy}>
+        <Text variant="subheadline" weight="semibold" style={styles.size14}>
+          {title}
+        </Text>
+        <Text variant="caption1" weight="regular" color="secondary">
+          {body}
+        </Text>
+      </View>
+    </Pressable>
+  )
+}
+
+const CHECK_RADIUS_SM = 5
+const CHECK_RADIUS = 7
+
+function Checkbox({ checked, size = 24, radius: r = CHECK_RADIUS }: { checked: boolean; size?: number; radius?: number }) {
+  const c = useClubColors()
+  return (
+    <View
+      style={[
+        styles.check,
+        { width: size, height: size, borderRadius: r },
+        checked
+          ? { backgroundColor: c.ink }
+          : { borderWidth: 2, borderColor: c.borderControl },
+      ]}
+    >
+      {checked ? <Icon name="checkmark" size={14} color={c.onInk} /> : null}
+    </View>
+  )
+}
+
+const ROLE_ROWS: { key: JoinRole; title: string; body: string; testID: string }[] = [
+  { key: 'PLAYER', title: 'onboardingFlow.role.player', body: 'onboardingFlow.role.playerBody', testID: 'club-role-player' },
+  { key: 'COACH', title: 'onboardingFlow.role.coach', body: 'onboardingFlow.role.coachBody', testID: 'club-role-coach' },
+  { key: 'PARENT', title: 'onboardingFlow.role.parent', body: 'onboardingFlow.role.parentBody', testID: 'club-role-parent' },
+  { key: 'ADMIN', title: 'onboardingFlow.role.admin', body: 'onboardingFlow.role.adminBody', testID: 'club-role-admin' },
+]
+
+/** "Was machst du bei …?": multi-select role rows, the board confirms. */
+function RolePicker({
+  roles,
+  onToggle,
   coachRole,
   onCoachRole,
   needsTeam,
@@ -636,9 +873,8 @@ function JoinChoice({
   teamId,
   onTeam,
 }: {
-  club: SelectedClub
-  role: JoinRole | null
-  onRole: (role: JoinRole) => void
+  roles: JoinRole[]
+  onToggle: (role: JoinRole) => void
   coachRole: CoachTeamRole
   onCoachRole: (role: CoachTeamRole) => void
   needsTeam: boolean
@@ -651,28 +887,42 @@ function JoinChoice({
   const { t } = useTranslation()
   const c = useClubColors()
   return (
-    <View
-      style={[styles.choiceCard, { backgroundColor: c.surface }]}
-      testID="club-join-question"
-    >
-      <Text variant="label">
-        {club.teamName
-          ? t('onboardingFlow.club.roleQuestionTeam', { team: club.teamName })
-          : t('onboardingFlow.club.roleQuestionShort')}
-      </Text>
-      <FilterChipRow<JoinRole>
-        wrap
-        singleSelect
-        selected={role}
-        onToggle={onRole}
-        chips={[
-          { key: 'PLAYER', label: t('onboardingFlow.club.rolePlayerShort'), icon: 'football.fill', testID: 'club-role-player' },
-          { key: 'PARENT', label: t('onboardingFlow.club.roleParentShort'), icon: 'figure.and.child.holdinghands', testID: 'club-role-parent' },
-          { key: 'COACH', label: t('onboardingFlow.club.roleCoachShort'), icon: 'list.clipboard.fill', testID: 'club-role-coach' },
-        ]}
-      />
-      {role === 'COACH' ? (
-        <View style={styles.group}>
+    <View style={styles.roleBody}>
+      <View style={[styles.roleGroup, { backgroundColor: c.surface }]} accessibilityLabel={t('onboardingFlow.role.groupA11y')}>
+        {ROLE_ROWS.map((row, index) => {
+          const checked = roles.includes(row.key)
+          return (
+            <Pressable
+              key={row.key}
+              onPress={() => onToggle(row.key)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              accessibilityLabel={`${t(row.title)}. ${t(row.body)}`}
+              android_ripple={{ color: c.borderDefault }}
+              style={[
+                styles.roleRow,
+                index < ROLE_ROWS.length - 1 && {
+                  borderBottomWidth: hairline,
+                  borderBottomColor: c.borderSubtle,
+                },
+              ]}
+              testID={row.testID}
+            >
+              <View style={styles.roleCopy}>
+                <Text variant="body" weight="bold" style={styles.roleTitle}>
+                  {t(row.title)}
+                </Text>
+                <Text variant="footnote" color="secondary">
+                  {t(row.body)}
+                </Text>
+              </View>
+              <Checkbox checked={checked} />
+            </Pressable>
+          )
+        })}
+      </View>
+      {roles.includes('COACH') ? (
+        <View style={[styles.choiceCard, { backgroundColor: c.surface }]}>
           <Text variant="footnote" color="secondary">
             {t('onboardingFlow.club.coachRoleQuestion')}
           </Text>
@@ -684,42 +934,45 @@ function JoinChoice({
             value={coachRole}
             onChange={onCoachRole}
           />
+          {needsTeam ? (
+            <View style={styles.group}>
+              <Text variant="footnote" color="secondary">
+                {t('onboardingFlow.club.teamQuestion')}
+              </Text>
+              {teams === null && !teamsFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
+              {teamsFailed ? (
+                <Button
+                  label={t('onboardingFlow.common.retry')}
+                  variant="bordered"
+                  size="sm"
+                  onPress={onRetryTeams}
+                />
+              ) : null}
+              {teams && teams.length === 0 ? (
+                <Text variant="footnote" color="secondary">
+                  {t('onboardingFlow.club.noTeams')}
+                </Text>
+              ) : null}
+              {teams && teams.length > 0 ? (
+                <FilterChipRow<string>
+                  wrap
+                  singleSelect
+                  selected={teamId}
+                  onToggle={onTeam}
+                  chips={teams.map((team) => ({
+                    key: team.id,
+                    label: team.displayName,
+                    testID: `club-team-${team.id}`,
+                  }))}
+                />
+              ) : null}
+            </View>
+          ) : null}
         </View>
       ) : null}
-      {needsTeam ? (
-        <View style={styles.group}>
-          <Text variant="footnote" color="secondary">
-            {t('onboardingFlow.club.teamQuestion')}
-          </Text>
-          {teams === null && !teamsFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
-          {teamsFailed ? (
-            <Button
-              label={t('onboardingFlow.common.retry')}
-              variant="bordered"
-              size="sm"
-              onPress={onRetryTeams}
-            />
-          ) : null}
-          {teams && teams.length === 0 ? (
-            <Text variant="footnote" color="secondary">
-              {t('onboardingFlow.club.noTeams')}
-            </Text>
-          ) : null}
-          {teams && teams.length > 0 ? (
-            <FilterChipRow<string>
-              wrap
-              singleSelect
-              selected={teamId}
-              onToggle={onTeam}
-              chips={teams.map((team) => ({
-                key: team.id,
-                label: team.displayName,
-                testID: `club-team-${team.id}`,
-              }))}
-            />
-          ) : null}
-        </View>
-      ) : null}
+      <Text variant="footnote" color="secondary" style={styles.roleHint}>
+        {t('onboardingFlow.role.hint')}
+      </Text>
     </View>
   )
 }
@@ -814,12 +1067,15 @@ function MoreLink({
   label,
   onPress,
   expanded,
+  last,
   testID,
 }: {
   icon: string
   label: string
   onPress: () => void
   expanded?: boolean
+  /** Last row of the group: no hairline under it. */
+  last?: boolean
   testID?: string
 }) {
   const c = useClubColors()
@@ -830,7 +1086,10 @@ function MoreLink({
       accessibilityLabel={label}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
       android_ripple={{ color: c.borderDefault }}
-      style={[styles.moreLink, { backgroundColor: c.surface }]}
+      style={[
+        styles.moreLink,
+        !last && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
+      ]}
       testID={testID}
     >
       <SoftIcon name={icon} />
@@ -871,11 +1130,10 @@ function SearchField({
         {
           backgroundColor: c.surface,
           borderColor: focused ? c.ink : c.borderStrong,
-          borderWidth: focused ? 2 : 1,
         },
       ]}
     >
-      <Icon name="magnifyingglass" size={20} color={c.textTertiary} />
+      <Icon name="magnifyingglass" size={20} color={c.textSecondary} />
       <TextInput
         ref={inputRef}
         value={value}
@@ -887,7 +1145,6 @@ function SearchField({
         autoCapitalize="words"
         autoCorrect={false}
         autoComplete="off"
-        autoFocus
         returnKeyType="search"
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -938,17 +1195,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: INPUT_HEIGHT,
+    height: INPUT_HEIGHT,
     paddingHorizontal: space.md,
     borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    minHeight: INPUT_HEIGHT - 4,
-    paddingVertical: space.sm,
-    fontSize: 16,
+    height: INPUT_HEIGHT - 2,
+    paddingVertical: 0,
+    fontSize: 15,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
@@ -978,15 +1236,71 @@ const styles = StyleSheet.create({
   },
   group: { gap: space.sm },
   reason: { borderLeftWidth: 2, paddingLeft: space.sm, gap: space['2xs'] },
-  more: { marginTop: space.md, gap: space.sm },
-  moreLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING_MD,
-    minHeight: 60,
+  more: {
+    marginTop: space.sm,
     paddingHorizontal: space.md,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
   },
+  moreLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingVertical: SPACING_MD,
+  },
+  codeBlock: { gap: SPACING_MD - 2 },
+  codeSpinner: { alignSelf: 'center' },
+  codeInput: {
+    height: CODE_FIELD_HEIGHT,
+    borderWidth: 2,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+    paddingHorizontal: space.md,
+    fontFamily: fonts.display,
+    fontSize: 30,
+    letterSpacing: 6,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  or: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
+  orLine: { flex: 1, height: 1 },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD - 2,
+    paddingVertical: SPACING_MD - 2,
+    paddingHorizontal: SPACING_MD,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+  },
+  claimRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD,
+    minHeight: 44,
+    padding: SPACING_MD,
+    borderRadius: RADIUS_INPUT,
+    borderCurve: 'continuous',
+  },
+  matchCopy: { flex: 1, minWidth: 0 },
+  size14: { fontSize: 14, lineHeight: 19 },
+  check: { alignItems: 'center', justifyContent: 'center' },
+  roleBody: { gap: space.lg + 2 },
+  roleGroup: {
+    paddingHorizontal: space.md,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
+    minHeight: 68,
+    paddingVertical: SPACING_MD,
+  },
+  roleCopy: { flex: 1, minWidth: 0, gap: SPACING_XXS + 1 },
+  roleTitle: { fontSize: 16, lineHeight: 20 },
+  roleHint: { lineHeight: 20 },
   moreText: { flex: 1, minWidth: 0 },
 })

@@ -8,7 +8,7 @@ import { hexToRgba } from '../../theme/club-theme'
 import { INK, TEXT_WHITE } from '../../theme/colors'
 import { RADIUS_FULL, RADIUS_HERO, RADIUS_LG, RADIUS_MD, SPACING_LG, SPACING_XL, SPACING_XXS, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
-import { UnavailableReasonSheet, type AbsenceDetail } from '../events/UnavailableReasonSheet'
+import { DeclineReasonSheet as UnavailableReasonSheet, type AbsenceDetail } from '../rsvp/DeclineReasonSheet'
 import type { RsvpStatus } from '../events/RsvpControl'
 import { formatTime } from './HomeKit'
 
@@ -176,10 +176,13 @@ export const HeroRsvp = memo(function HeroRsvp({
   onChange,
   disabled = false,
   subjectName,
+  contextLabel,
   accessibilityLabel,
   testID,
 }: {
   value: RsvpStatus | null
+  /** Names the event in the Absage sheet ("So vs. Rot-Weiß Köpenick III"). */
+  contextLabel?: string | null
   onChange: (status: RsvpStatus, absence?: AbsenceDetail) => void
   disabled?: boolean
   subjectName?: string | null
@@ -247,6 +250,7 @@ export const HeroRsvp = memo(function HeroRsvp({
       <UnavailableReasonSheet
         visible={sheetOpen}
         subjectName={subjectName}
+        contextLabel={contextLabel}
         onSubmit={(detail) => {
           setSheetOpen(false)
           onChange('NO', detail)

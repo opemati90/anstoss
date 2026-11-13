@@ -51,7 +51,7 @@ import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 // ── Wechselbörse review fixes (H1/L2): trial-scoped reads + roster decisions.
 import { closeLinkedJoinRequest, resolveTrialSessionScope } from '../marketplace/trial-access'
 // Vorschau und Vertretung: a running stand-in session grants coach access.
-import { hasActiveCoachActingSession } from '../acting/acting-access'
+import { findActiveCoachActingSessionId } from '../acting/acting-access'
 
 const RsvpStatus = rsvpStatusSchema.enum
 const MAX_JOIN_CODE_RETRIES = 5
@@ -903,11 +903,12 @@ export class TeamsService {
     access: { team: { id: string; clubId: string }; membership: unknown },
   ): Promise<boolean> {
     if (!access.membership) return false
-    return hasActiveCoachActingSession(this.prisma as any, {
+    const sessionId = await findActiveCoachActingSessionId(this.prisma as any, {
       userId,
       teamId: access.team.id,
       clubId: access.team.clubId,
     })
+    return sessionId !== null
   }
 
   // ── ANS-38: Player Loans ─────────────────────────────────────

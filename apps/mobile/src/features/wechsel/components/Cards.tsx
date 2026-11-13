@@ -18,6 +18,7 @@ import {
   SPACING_XS,
 } from '../../../theme/tokens'
 import {
+  ageLabel,
   formatDate,
   formatSessionDay,
   formatTime,
@@ -344,6 +345,8 @@ export function PlayerRow({
   const { t } = useTranslation()
   const c = useClubColors()
   const meta = playerMeta(t, player)
+  // Design 22 row: "23 · Innenverteidiger" (foot stays in the label).
+  const shortMeta = [ageLabel(t, player, 'short'), positionLabel(t, player.position)].filter(Boolean).join(' · ')
   const available =
     player.availableFrom && new Date(player.availableFrom).getTime() > Date.now()
       ? t('spielerprofil.availableFromShort', { date: formatDate(player.availableFrom) })
@@ -377,9 +380,9 @@ export function PlayerRow({
           <Text variant="body" weight="bold" color="primary" numberOfLines={1}>
             {player.name}
           </Text>
-          {meta ? (
+          {shortMeta ? (
             <Text variant="footnote" color="primary" numberOfLines={1}>
-              {meta}
+              {shortMeta}
             </Text>
           ) : null}
           <Text variant="caption1" color="secondary" numberOfLines={2}>

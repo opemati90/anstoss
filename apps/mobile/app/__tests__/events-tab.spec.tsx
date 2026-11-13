@@ -58,6 +58,7 @@ jest.mock('react-i18next', () => ({
       if (key === 'eventFlow.time.kickoff') return `Kick-off ${options?.time}`
       if (key === 'eventFlow.matchTitle.away') return `Away at ${options?.opponent}`
       if (key === 'eventFlow.matchTitle.home') return `Home vs ${options?.opponent}`
+      if (key === 'eventFlow.matchTitleShort.home') return `vs. ${options?.opponent}`
       return map[key] ?? key
     },
   }),
@@ -234,7 +235,8 @@ describe('EventsScreen', () => {
     expect(await screen.findByText('Abschluss')).toBeTruthy()
     fireEvent.press(screen.getByText('eventFlow.list.filterMatches'))
     await waitFor(() => expect(screen.queryByText('Abschluss')).toBeNull())
-    expect(screen.getByText('Home vs SV Nord')).toBeTruthy()
+    // Coach rows use design 11's short match title.
+    expect(screen.getByText('vs. SV Nord')).toBeTruthy()
   })
 
   it('asks for a reason before sending an Absage', async () => {

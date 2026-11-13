@@ -14,6 +14,7 @@ import {
   SPACING_XXS,
 } from '../../theme/tokens'
 import { eventDisplayTitle, eventTimeLine, formatClock, type EventLike } from './eventFormat'
+import { matchKindLabel } from '../home/HomeKit'
 import { RsvpControl, type AbsenceDetail, type RsvpStatus } from './RsvpControl'
 
 export type EventRowEvent = EventLike & {
@@ -22,8 +23,8 @@ export type EventRowEvent = EventLike & {
   cancelledAt?: string | null
   cancelReason?: string | null
   myRsvpStale?: boolean
-  /** Linked fussball.de fixture: the coach list calls it a league match. */
-  fixtureId?: string | null
+  /** "Ligaspiel", "Pokalspiel"… on coach rows (schemas/home.ts). */
+  matchKind?: string | null
 }
 
 export type EventRowProps = {
@@ -94,8 +95,8 @@ export const EventRow = memo(function EventRow({
   const cancelled = Boolean(event.cancelledAt)
   const timeLine = compact ? formatClock(event.date, locale) : eventTimeLine(event, locale, t)
   const kind = [
-    compact && event.type === 'MATCH' && event.fixtureId
-      ? t('eventFlow.list.leagueMatch')
+    compact && event.type === 'MATCH' && event.matchKind
+      ? matchKindLabel(event.matchKind, t)
       : t(`eventFlow.type.${event.type}`),
     event.type === 'MATCH' && event.homeAway
       ? t(event.homeAway === 'AWAY' ? 'eventFlow.away' : 'eventFlow.home')

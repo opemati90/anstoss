@@ -12,6 +12,8 @@ import { CoachHome } from '../../src/components/home/CoachHome'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
+import { CombinedHome } from '../../src/components/home/CombinedHome'
+import { useHeldHats } from '../../src/components/home/useHeldHats'
 import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Button } from '../../src/components/ui'
@@ -51,6 +53,8 @@ function RoleAwareHome() {
     useAuth()
   const c = useClubColors()
   const { t } = useTranslation()
+  // Several held roles (player, coach, Vorstand) get one combined home.
+  const { hats, combined } = useHeldHats()
 
   const clubRole = activeClub?.role ?? null
   const teamRole = activeTeamAccess?.role ?? null
@@ -66,7 +70,7 @@ function RoleAwareHome() {
   const clubId = activeClub?.club.id ?? null
   // Each (role, club, team) gets a fresh home: a switch remounts the section
   // so no state, in-flight request or reminder of the previous team survives.
-  const sectionKey = `${role}:${clubId ?? ''}:${activeTeamId ?? ''}`
+  const sectionKey = `${combined ? 'COMBINED' : role}:${clubId ?? ''}:${activeTeamId ?? ''}`
 
   // The handle is tagged with the section that sent it; after a switch the
   // old section's handle is ignored until the new one reports in, so pull
@@ -79,6 +83,16 @@ function RoleAwareHome() {
   const refreshHandle = taggedHandle?.key === sectionKey ? taggedHandle : null
 
   const roleSection = useMemo(() => {
+    if (combined && clubId)
+      return (
+        <CombinedHome
+          key={sectionKey}
+          clubId={clubId}
+          teamId={activeTeamId}
+          hats={hats}
+          onRefreshStateChange={handleRefreshState}
+        />
+      )
     if (role === 'ADMIN' && clubId)
       return (
         <AdminHome
@@ -110,7 +124,7 @@ function RoleAwareHome() {
       return <ParentHome key={sectionKey} onRefreshStateChange={handleRefreshState} />
     if (role === 'FREE_AGENT') return <FreeAgentHome />
     return null
-  }, [role, clubId, activeTeamId, handleRefreshState, sectionKey])
+  }, [combined, hats, role, clubId, activeTeamId, handleRefreshState, sectionKey])
 
   return (
     <ScrollView

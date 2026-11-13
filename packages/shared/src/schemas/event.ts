@@ -236,3 +236,14 @@ export const carpoolSeatSchema = z.object({
   childUserId: z.string().min(1).optional(),
 })
 export type CarpoolSeatInput = z.infer<typeof carpoolSeatSchema>
+
+/**
+ * Redesign 13 (event hero): "Kreisliga C · 11. Spieltag". The league and
+ * matchday of a match, from the linked fussball.de fixture or typed by the
+ * coach. Proposed contract (docs/redesign/BACKEND_GAPS.md).
+ */
+export const eventCompetitionSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  matchday: z.number().int().min(1).max(99).nullable(),
+})
+export type EventCompetition = z.infer<typeof eventCompetitionSchema>

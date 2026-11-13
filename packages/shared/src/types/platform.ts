@@ -177,6 +177,16 @@ export interface ContributionMemberRecord {
   paidAt: string | null
   note: string | null
   lastReminderSentAt: string | null
+  /**
+   * Redesign 20 (Kasse) row meta, "Kontoauszug · 01.11." / "Bar beim Training".
+   * How the payment reached the club; absent on older APIs.
+   */
+  paymentMethod?: import('../schemas/home').ContributionPaymentMethod | null
+  /** Who settled it: matched from a bank statement import, or a treasurer tap. */
+  confirmedVia?: 'STATEMENT_IMPORT' | 'TREASURER' | null
+  /** Redesign 20 "Gemeldet": the member said they transferred (replaces the note marker). */
+  paymentReported?: boolean
+  reportedAt?: string | null
 }
 
 export interface ContributionSummary {
@@ -193,6 +203,8 @@ export interface ContributionOverview {
   summary: ContributionSummary
   plans: ContributionPlan[]
   members: ContributionMemberRecord[]
+  /** Redesign 20 month chip: the period shown ("2026-11"), from `?period=`. */
+  period?: string | null
 }
 
 export interface ContributionReminderDispatchResult {

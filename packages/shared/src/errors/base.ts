@@ -199,12 +199,12 @@ export class MatchLiveUnavailableError extends AppError {
 
 // ─── Vorschau und Vertretung (acting sessions) ──────────────
 
-/** Only club owners/admins, board members and team coordinators may act as a coach. */
+/** Only Vorstand (any team) and Teammanager (own team) may stand in for a coach. */
 export class ActingSessionForbiddenError extends AppError {
   readonly code = 'ACTING_SESSION_FORBIDDEN'
   readonly httpStatus = 403
   readonly isOperational = true
-  readonly userMessage = 'Only the club board or team managers can stand in for a coach.'
+  readonly userMessage = 'Only the club board, or a team manager for their own team, can stand in for a coach.'
 }
 
 /** The team to act for does not exist in this club. */

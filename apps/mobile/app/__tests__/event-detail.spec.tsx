@@ -107,7 +107,7 @@ describe('EventDetailScreen', () => {
 
     expect(await screen.findByText('eventFlow.detail.yourAnswer')).toBeTruthy()
     expect(screen.getByText('Parkplatz Vereinsheim')).toBeTruthy()
-    expect(screen.getByText('eventFlow.detail.tabResponses')).toBeTruthy()
+    // Design 13: one squad list; Kader and Fahrten open from rows below it.
     expect(screen.getByText('eventFlow.detail.tabSquad')).toBeTruthy()
     expect(screen.getByText('eventFlow.detail.tabRides')).toBeTruthy()
     // Grouped replies: open replies are listed by name.
@@ -115,7 +115,7 @@ describe('EventDetailScreen', () => {
     expect(screen.queryByTestId('event-manage-menu')).toBeNull()
   })
 
-  it('does not ask the coach for their own reply and puts actions in the header menu', async () => {
+  it('asks the coach for their own reply too (design 13) and puts actions behind the share button', async () => {
     mockApi.mockImplementation((path: string) =>
       Promise.resolve(
         path.endsWith('/events/match-1')
@@ -126,7 +126,8 @@ describe('EventDetailScreen', () => {
     const screen = render(<EventDetailScreen />)
 
     expect(await screen.findByTestId('event-manage-menu')).toBeTruthy()
-    expect(screen.queryByText('eventFlow.detail.yourAnswer')).toBeNull()
+    expect(screen.getByText('eventFlow.detail.yourAnswer')).toBeTruthy()
+    expect(screen.queryByText('eventFlow.detail.remindMe')).toBeNull()
     // The coach sees the reason behind an Absage.
     expect(screen.getByText(/Knie zwickt/)).toBeTruthy()
 

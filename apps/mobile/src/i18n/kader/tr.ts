@@ -239,6 +239,7 @@ export const kaderTr = {
     noTeamBody: 'Görevleri görmek için bir takım seç.',
   },
   matches: {
+    todayAt: "bugün {{time}}",
     title: 'Maçlar ve puan durumu',
     tabMatches: 'Maçlar',
     tabTable: 'Puan durumu',

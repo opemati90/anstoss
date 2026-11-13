@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth, type RoleMode } from '../../context/AuthContext'
+import { useViewAs } from '../../features/acting/store'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
 import { useInboxUnreadCount } from '../../hooks/useNotificationInbox'
 import { ClubSwitcher } from '../ClubSwitcher'
@@ -23,6 +24,7 @@ import {
 } from '../../theme/tokens'
 import { crestInitials } from '../match/MatchCrest'
 import { formatChildrenSummary, useChildrenSummary } from './childrenSummary'
+import { useHeldHats } from './useHeldHats'
 
 /**
  * The one identity row above every club tab (redesign screen 08 header).
@@ -51,8 +53,11 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
     memberships,
   } = useAuth()
   const children = useChildrenSummary()
+  const { hats, combined } = useHeldHats()
   const [clubSwitcherVisible, setClubSwitcherVisible] = useState(false)
   const [contextVisible, setContextVisible] = useState(false)
+  // Vorschau und Vertretung (board 31): "Vertretung · SV Spreewiese" while standing in.
+  const { acting: actingSession, preview: previewSession } = useViewAs()
 
   if (!activeClub) return null
 
@@ -66,7 +71,12 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
   const canSwitch = canSwitchRole || canSwitchTeam
 
   const teamName = activeTeamAccess?.team?.displayName || activeTeamAccess?.team?.name || null
-  const roleLabel = mode ? roleModeLabel(mode, t) : null
+  const roleLabel =
+    actingSession && !previewSession
+      ? t('acting.actingLabel')
+      : mode
+        ? roleModeLabel(mode, t)
+        : null
 
   const club = activeClub.club
   // Screen 08 header: "Trainer · SV Spreewiese" over "1. Herren ▾". Parents
@@ -74,17 +84,25 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
   // Players (screen 22) are greeted: "SV Spreewiese · 1. Herren" over
   // "Hi Kofi".
   const isPlayer = mode === 'PLAYER'
-  const firstName = user?.name?.trim().split(/\s+/)[0] ?? ''
+  const nameParts = user?.name?.trim().split(/\s+/) ?? []
+  const firstName = nameParts[0] ?? ''
   const greetPlayer = isPlayer && firstName.length > 0
   const overline = isParent
     ? [club.name, roleLabel].filter(Boolean).join(' · ')
     : greetPlayer
       ? [club.name, teamName].filter(Boolean).join(' · ')
       : [roleLabel, club.name].filter(Boolean).join(' · ')
+  // Board 25: parents are greeted as the family ("Hallo Familie Weber").
+  const familyName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : ''
+  // Board 28: several held roles — "Hi Kofi" over "Spieler · Kapitän ·
+  // Trainer · Vorstand" (name first, every hat listed).
+  const hatsLine = hats.map((hat) => t(`homeHub.hats.${hat}`)).join(' · ')
   const title = isParent
-    ? children.length > 0
-      ? formatChildrenSummary(children)
-      : club.name
+    ? familyName
+      ? t('homeHub.header.family', { defaultValue: 'Hello {{name}} family', name: familyName })
+      : children.length > 0
+        ? formatChildrenSummary(children)
+        : club.name
     : greetPlayer
       ? t('homeHub.header.hi', { defaultValue: 'Hi {{name}}', name: firstName })
       : teamName || club.name
@@ -124,17 +142,30 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
         style={({ pressed }) => [styles.identity, pressed && styles.pressed]}
         testID="club-header-identity"
       >
-        {overline ? (
-          <Text variant="caption1" weight="regular" color="secondary" numberOfLines={1} style={styles.overline}>
-            {overline}
-          </Text>
-        ) : null}
-        <View style={styles.titleRow}>
-          <Text variant="headline" weight="bold" color="primary" numberOfLines={1} style={styles.shrink}>
-            {title}
-          </Text>
-          {canOpenSheet ? <Icon name="chevron.down" size={16} color={c.textPrimary} /> : null}
-        </View>
+        {combined && firstName ? (
+          <>
+            <Text variant="headline" weight="bold" color="primary" numberOfLines={1} style={styles.shrink}>
+              {t('homeHub.header.hi', { defaultValue: 'Hi {{name}}', name: firstName })}
+            </Text>
+            <Text variant="caption1" weight="regular" color="secondary" numberOfLines={1} style={styles.overline}>
+              {hatsLine}
+            </Text>
+          </>
+        ) : (
+          <>
+            {overline ? (
+              <Text variant="caption1" weight="regular" color="secondary" numberOfLines={1} style={styles.overline}>
+                {overline}
+              </Text>
+            ) : null}
+            <View style={styles.titleRow}>
+              <Text variant="headline" weight="bold" color="primary" numberOfLines={1} style={styles.shrink}>
+                {title}
+              </Text>
+              {canOpenSheet ? <Icon name="chevron.down" size={16} color={c.textPrimary} /> : null}
+            </View>
+          </>
+        )}
       </Pressable>
 
       {/* Bell opens the notifications inbox; the dot marks unread entries. */}
