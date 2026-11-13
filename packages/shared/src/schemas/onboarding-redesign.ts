@@ -85,3 +85,27 @@ export const teamJoinCodeResponseSchema = z.object({
   expiresAt: z.string().datetime().nullable(),
 })
 export type TeamJoinCodeResponse = z.infer<typeof teamJoinCodeResponseSchema>
+
+// ── 07b Kader anlegen: role, captain and an invite per roster slot ─────────
+export const rosterSlotRoleSchema = z.enum(['PLAYER', 'COACH', 'PARENT'])
+export type RosterSlotRole = z.infer<typeof rosterSlotRoleSchema>
+
+/**
+ * Optional keys on each item of POST /clubs/:c/teams/:t/roster-slots (next to
+ * rosterSlotInputSchema's fullName / jerseyNumber / phone). With `email` or
+ * `phone` the server sends an invite and reports `inviteStatus: 'SENT'`.
+ */
+export const rosterSlotExtrasSchema = z.object({
+  role: rosterSlotRoleSchema.optional(),
+  isCaptain: z.boolean().optional(),
+  email: z.string().email().max(254).optional(),
+})
+export type RosterSlotExtras = z.infer<typeof rosterSlotExtrasSchema>
+
+/** Extra keys on each GET …/roster-slots item. */
+export const rosterSlotStatusSchema = z.object({
+  role: rosterSlotRoleSchema.optional(),
+  isCaptain: z.boolean().optional(),
+  inviteStatus: z.enum(['NONE', 'SENT']).optional(),
+})
+export type RosterSlotStatus = z.infer<typeof rosterSlotStatusSchema>

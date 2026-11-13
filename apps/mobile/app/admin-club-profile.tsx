@@ -15,6 +15,8 @@ import { FormInput } from '../src/components/FormInput'
 import { Button, Screen, SectionGroup, Text, getInitials } from '../src/components/ui'
 import { ensurePickerMediaAccess } from '../src/utils/mediaPermissions'
 import { CLUB_COLOR_PRESETS } from '../src/theme/clubColorPresets'
+import { useClubPlan } from '../src/hooks/useClubPlan'
+import { UpgradePrompt } from '../src/components/billing/UpgradePrompt'
 import { hairline, RADIUS_XL, RADIUS_FULL, space } from '../src/theme/tokens'
 
 const BADGE_SIZE = 512
@@ -35,6 +37,9 @@ export default function AdminClubProfileScreen() {
   const [color, setColor] = useState<string>(club?.primaryColor ?? CLUB_COLOR_PRESETS[0])
   const [badgeUri, setBadgeUri] = useState<string | null>(club?.badgeUrl ?? null)
   const [badgeDirty, setBadgeDirty] = useState(false)
+  // Club colours unlock with Verein; Kostenlos sees them read-only + upgrade prompt.
+  const clubPlan = useClubPlan()
+  const colorsLocked = Boolean(clubPlan.plan) && !clubPlan.has('clubColors')
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -175,6 +180,7 @@ export default function AdminClubProfileScreen() {
           accessibilityLabel={t('verein.profile.name')}
         />
 
+        {colorsLocked ? <UpgradePrompt feature="clubColors" testID="club-colors-upgrade" /> : null}
         <SectionGroup header={t('verein.profile.color')} footer={t('verein.profile.colorHint')}>
           <View style={styles.swatches}>
             {CLUB_COLOR_PRESETS.map((swatch, index) => {
@@ -183,7 +189,8 @@ export default function AdminClubProfileScreen() {
                 <Pressable
                   key={swatch}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected }}
+                  accessibilityState={{ selected, disabled: colorsLocked }}
+                  disabled={colorsLocked}
                   accessibilityLabel={t('verein.profile.colorOption', {
                     index: index + 1,
                     total: CLUB_COLOR_PRESETS.length,

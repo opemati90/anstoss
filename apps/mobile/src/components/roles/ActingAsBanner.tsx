@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
 import { Text } from '../ui'
@@ -12,7 +12,7 @@ import {
   setActingSession,
   useViewAs,
 } from '../../features/acting/store'
-import { RADIUS_FULL, SPACING_LG, SPACING_XL, SPACING_XS } from '../../theme/tokens'
+import { RADIUS_FULL, SPACING_LG, SPACING_SM, SPACING_XL, SPACING_XS } from '../../theme/tokens'
 
 /** Board 31 measures (ActingAs.dc.html). */
 const DOT_SIZE = 8
@@ -111,6 +111,24 @@ export function useActingAsBannerVisible(): boolean {
   const { preview, acting } = useViewAs()
   if (!activeClub) return false
   return Boolean(preview) || Boolean(acting && minutesLeft(acting.expiresAt) > 0)
+}
+
+/** Top gap the screens keep below the banner instead of the full safe-area inset. */
+export const ACTING_BANNER_CONTENT_INSET = SPACING_SM
+
+/**
+ * Wraps the tab content: while the banner covers the status bar, screens
+ * below it get a small top inset instead of the full safe-area inset.
+ */
+export function ActingInsetsBoundary({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets()
+  const visible = useActingAsBannerVisible()
+  if (!visible || !SafeAreaInsetsContext) return <>{children}</>
+  return (
+    <SafeAreaInsetsContext.Provider value={{ ...insets, top: ACTING_BANNER_CONTENT_INSET }}>
+      {children}
+    </SafeAreaInsetsContext.Provider>
+  )
 }
 
 const styles = StyleSheet.create({

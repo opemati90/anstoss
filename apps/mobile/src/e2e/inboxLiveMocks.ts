@@ -156,7 +156,7 @@ function seedRunningDemo(state: MatchLiveStateDto, ctx: Ctx) {
   const at = (minAgo: number) => new Date(Date.now() - minAgo * 60_000).toISOString()
   state.status = 'SECOND_HALF'
   state.kickoffAt = at(63 + 15 - 1)
-  state.secondHalfAt = at(63 - 45 - 1)
+  state.secondHalfAt = at(63 - 45 - 0.5)
   const entry = (id: string, kind: MatchLiveEventDto['kind'], minute: number, name: string) => ({
     id,
     kind,

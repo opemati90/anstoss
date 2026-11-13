@@ -128,7 +128,7 @@ export function PreviewCoverSheet({ visible, onClose }: { visible: boolean; onCl
   }, [clubId, visible])
 
   const ownTeam: ViewAsTeam | null = useMemo(() => {
-    const access = activeTeamAccess ?? teamsForActiveClub[0] ?? null
+    const access = activeTeamAccess ?? teamsForActiveClub?.[0] ?? null
     if (access && clubId) {
       return { id: access.team.id, name: access.team.displayName || access.team.name, clubId }
     }

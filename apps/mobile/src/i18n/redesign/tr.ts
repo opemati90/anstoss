@@ -291,6 +291,9 @@ export default {
     upcoming: "Yakında",
   },
   more: {
+    tablePlace: "{{place}}. sıra",
+    newCount: "{{count}} yeni",
+    roleCoach: "Antrenör",
     clubProfile: "Kulüp profili",
     inviteTeam: "Takımı davet et",
     openCount: "{{count}} açık",

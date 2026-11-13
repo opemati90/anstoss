@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
+import type { RosterSlotExtras, RosterSlotStatus } from '@anstoss/shared'
 import { api } from '../src/api/client'
-import { Avatar, Button, Icon, SegmentedControl, Text } from '../src/components/ui'
+import { Avatar, Button, FilterChipRow, Icon, SegmentedControl, Text } from '../src/components/ui'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { OnboardingScreen, OnboardingTextField } from '../src/onboarding/ui'
@@ -26,6 +28,24 @@ type RosterSlot = {
   fullName: string
   jerseyNumber: number | null
   claimedByUserId: string | null
+} & RosterSlotStatus
+
+/** Role chips on "Einzeln" (Kapitän = player + captain). */
+type SlotRoleChip = 'PLAYER' | 'CAPTAIN' | 'COACH' | 'PARENT'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+/** "Spieler · Kapitän · 6" */
+function slotMeta(t: TFunction, slot: RosterSlot): string {
+  const role =
+    slot.role === 'COACH'
+      ? t('onboardingFlow.addMembers.roleCoach')
+      : slot.role === 'PARENT'
+        ? t('onboardingFlow.addMembers.roleParent')
+        : t('onboardingFlow.addMembers.metaPlayer')
+  return [role, slot.isCaptain ? t('onboardingFlow.addMembers.roleCaptain') : null, slot.jerseyNumber]
+    .filter((part) => part !== null && part !== undefined && part !== '')
+    .join(' · ')
 }
 
 type Mode = 'one' | 'paste'
@@ -57,15 +77,20 @@ export default function AddMembersScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const c = useClubColors()
-  const { activeClub, activeTeamId } = useAuth()
+  const { activeClub, activeTeamId, user } = useAuth()
   const params = useLocalSearchParams<{ teamId?: string }>()
   const teamId = (Array.isArray(params.teamId) ? params.teamId[0] : params.teamId) ?? activeTeamId
   const clubId = activeClub?.club.id
-  const canManage = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  const isAdmin = activeClub?.role === 'OWNER' || activeClub?.role === 'ADMIN'
+  // Board 07b: admins and coaches (contract: coaches of the team may manage
+  // its roster slots, BACKEND_GAPS).
+  const canManage = isAdmin || activeClub?.role === 'COACH'
 
   const [mode, setMode] = useState<Mode>('one')
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
+  const [slotRole, setSlotRole] = useState<SlotRoleChip>('PLAYER')
+  const [contact, setContact] = useState('')
   const [paste, setPaste] = useState('')
   const [slots, setSlots] = useState<RosterSlot[] | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -89,7 +114,9 @@ export default function AddMembersScreen() {
     void load()
   }, [load])
 
-  async function create(rows: Array<{ fullName: string; jerseyNumber?: number }>) {
+  async function create(
+    rows: Array<{ fullName: string; jerseyNumber?: number; phone?: string } & RosterSlotExtras>,
+  ) {
     if (!base || rows.length === 0 || saving) return false
     setSaving(true)
     setError(null)
@@ -112,12 +139,20 @@ export default function AddMembersScreen() {
     const fullName = name.trim()
     if (!fullName) return
     const jersey = Number(number)
+    const reach = contact.trim()
     const ok = await create([
-      jersey >= 1 && jersey <= 99 ? { fullName, jerseyNumber: jersey } : { fullName },
+      {
+        fullName,
+        ...(jersey >= 1 && jersey <= 99 ? { jerseyNumber: jersey } : {}),
+        role: slotRole === 'CAPTAIN' ? 'PLAYER' : slotRole,
+        ...(slotRole === 'CAPTAIN' ? { isCaptain: true } : {}),
+        ...(reach ? (EMAIL_RE.test(reach) ? { email: reach } : { phone: reach }) : {}),
+      },
     ])
     if (ok) {
       setName('')
       setNumber('')
+      setContact('')
     }
   }
 
@@ -150,11 +185,7 @@ export default function AddMembersScreen() {
           'Enter players yourself. Anyone without an account takes over their profile later with the team code.',
       })}
       onBack={done}
-      headerRight={
-        <Text variant="caption1" weight="semibold" color="secondary">
-          {t('onboardingFlow.addMembers.optional', { defaultValue: 'Optional' })}
-        </Text>
-      }
+      headerLabel={t('onboardingFlow.addMembers.optional', { defaultValue: 'Optional' })}
       primary={{
         label: t('onboardingFlow.addMembers.done', { defaultValue: 'Done' }),
         onPress: done,
@@ -207,12 +238,36 @@ export default function AddMembersScreen() {
               />
             </View>
           </View>
+          <FilterChipRow<SlotRoleChip>
+            wrap
+            singleSelect
+            selected={slotRole}
+            onToggle={setSlotRole}
+            chips={[
+              { key: 'PLAYER', label: t('onboardingFlow.addMembers.metaPlayer'), testID: 'add-members-role-player' },
+              { key: 'CAPTAIN', label: t('onboardingFlow.addMembers.roleCaptain'), testID: 'add-members-role-captain' },
+              { key: 'COACH', label: t('onboardingFlow.addMembers.roleCoach'), testID: 'add-members-role-coach' },
+              { key: 'PARENT', label: t('onboardingFlow.addMembers.roleParent'), testID: 'add-members-role-parent' },
+            ]}
+          />
+          <OnboardingTextField
+            label={t('onboardingFlow.addMembers.contactLabel')}
+            value={contact}
+            onChangeText={setContact}
+            placeholder={t('onboardingFlow.addMembers.contactPlaceholder')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={254}
+            testID="add-members-contact"
+          />
           <Button
             label={t('onboardingFlow.addMembers.add', { defaultValue: 'Add' })}
             variant="bordered"
             size="md"
             fullWidth
             leftIcon={<Icon name="plus" size={18} color={c.textPrimary} />}
+            style={styles.addButton}
             onPress={() => void addOne()}
             disabled={!name.trim()}
             loading={saving}
@@ -255,7 +310,10 @@ export default function AddMembersScreen() {
 
       <View style={styles.section}>
         <Text variant="label" accessibilityRole="header">
-          {t('onboardingFlow.addMembers.count', { defaultValue: 'In the team · {{count}}', count: slots?.length ?? 0 })}
+          {t('onboardingFlow.addMembers.count', {
+            defaultValue: 'In the team · {{count}}',
+            count: (slots?.length ?? 0) + (user ? 1 : 0),
+          })}
         </Text>
         {slots === null && !loadFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
         {loadFailed ? (
@@ -266,8 +324,36 @@ export default function AddMembersScreen() {
             onPress={() => void load()}
           />
         ) : null}
-        {slots && slots.length > 0 ? (
+        {slots ? (
           <View style={[styles.group, { backgroundColor: c.surface }]}>
+            {user ? (
+              <View
+                style={[
+                  styles.row,
+                  slots.length > 0 && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
+                ]}
+                accessible
+                accessibilityLabel={`${user.name}, ${t('onboardingFlow.addMembers.you')}`}
+                testID="add-members-self"
+              >
+                <Avatar size={36} fallbackText={user.name ?? ''} tone="neutral" />
+                <View style={styles.rowCopy}>
+                  <Text variant="body" weight="semibold" numberOfLines={1}>
+                    {user.name}
+                  </Text>
+                  <Text variant="caption1" weight="regular" color="secondary">
+                    {isAdmin
+                      ? t('onboardingFlow.addMembers.metaBoard')
+                      : t('onboardingFlow.addMembers.roleCoach')}
+                  </Text>
+                </View>
+                <View style={[styles.tag, { backgroundColor: c.primary50 }]}>
+                  <Text variant="caption1" weight="bold" color="tint">
+                    {t('onboardingFlow.addMembers.you')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             {slots.map((slot, index) => (
               <View
                 key={slot.id}
@@ -291,30 +377,31 @@ export default function AddMembersScreen() {
               >
                 <Avatar size={36} fallbackText={slot.fullName} tone="neutral" />
                 <View style={styles.rowCopy}>
-                  <Text variant="subheadline" weight="semibold" numberOfLines={1}>
+                  <Text variant="body" weight="semibold" numberOfLines={1}>
                     {slot.fullName}
                   </Text>
-                  <Text variant="caption1" color="secondary">
-                    {slot.jerseyNumber
-                      ? t('onboardingFlow.addMembers.metaNumber', {
-                          defaultValue: 'Player · {{number}}',
-                          number: slot.jerseyNumber,
-                        })
-                      : t('onboardingFlow.addMembers.metaPlayer', { defaultValue: 'Player' })}
+                  <Text variant="caption1" weight="regular" color="secondary">
+                    {slotMeta(t, slot)}
                   </Text>
                 </View>
                 <View
                   style={[
                     styles.tag,
-                    slot.claimedByUserId
+                    slot.claimedByUserId || slot.inviteStatus === 'SENT'
                       ? { backgroundColor: c.surfaceMuted }
                       : { borderWidth: 1, borderColor: c.borderStrong },
                   ]}
                 >
-                  <Text variant="caption1" weight="bold" color={slot.claimedByUserId ? 'primary' : 'secondary'}>
+                  <Text
+                    variant="caption1"
+                    weight="bold"
+                    color={slot.claimedByUserId || slot.inviteStatus === 'SENT' ? 'primary' : 'secondary'}
+                  >
                     {slot.claimedByUserId
                       ? t('onboardingFlow.addMembers.claimed', { defaultValue: 'Has an account' })
-                      : t('onboardingFlow.addMembers.unclaimed', { defaultValue: 'No account' })}
+                      : slot.inviteStatus === 'SENT'
+                        ? t('onboardingFlow.addMembers.invited')
+                        : t('onboardingFlow.addMembers.unclaimed', { defaultValue: 'No account' })}
                   </Text>
                 </View>
               </View>
@@ -345,7 +432,8 @@ const styles = StyleSheet.create({
     lineHeight: fontSize.md * 1.5,
     textAlignVertical: 'top',
   },
-  section: { gap: SPACING_MD - 2, marginTop: space.sm },
+  section: { gap: SPACING_MD - 2, marginTop: space.xs },
+  addButton: { marginTop: 0 },
   group: { borderRadius: RADIUS_CARD, borderCurve: 'continuous', paddingHorizontal: space.md },
   row: {
     flexDirection: 'row',

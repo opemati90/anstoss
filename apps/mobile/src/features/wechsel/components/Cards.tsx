@@ -16,6 +16,7 @@ import {
   SPACING_MD,
   SPACING_SM,
   SPACING_XS,
+  SPACING_XXS,
 } from '../../../theme/tokens'
 import {
   ageLabel,
@@ -470,6 +471,9 @@ export function ChecklistRow({
   )
 }
 
+// Design 22: the inline Probetraining pill is 44pt tall.
+const INVITE_PILL = 44
+
 const styles = StyleSheet.create({
   card: {
     padding: SPACING_LG,
@@ -513,10 +517,10 @@ const styles = StyleSheet.create({
     gap: SPACING_MD + 2,
     paddingVertical: SPACING_MD,
   },
-  playerText: { flex: 1, minWidth: 0, gap: 2 },
+  playerText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
   pressed: { opacity: 0.6 },
   // Design: the .sm pill at 44pt tall.
-  invitePill: { height: 44, borderRadius: 22 },
+  invitePill: { height: INVITE_PILL, borderRadius: RADIUS_FULL },
   checkRow: {
     minHeight: 56,
     flexDirection: 'row',

@@ -2803,6 +2803,20 @@ function createOnboardingStaffClaim() {
   return e2eClaim
 }
 
+/** Board 07b mock roster (manager view), mutated by POST. */
+const e2eTeamRosterSlots: Array<{
+  id: string
+  fullName: string
+  jerseyNumber: number | null
+  claimedByUserId: string | null
+  role: string
+  isCaptain: boolean
+  inviteStatus: 'NONE' | 'SENT'
+}> = [
+  { id: 'slot-e2e-lukas', fullName: 'Lukas Becker', jerseyNumber: 6, claimedByUserId: null, role: 'PLAYER', isCaptain: true, inviteStatus: 'SENT' },
+  { id: 'slot-e2e-kofi', fullName: 'Kofi Osei', jerseyNumber: 9, claimedByUserId: null, role: 'PLAYER', isCaptain: false, inviteStatus: 'NONE' },
+]
+
 function handleOnboardingRequest(
   method: string,
   pathname: string,
@@ -2874,6 +2888,28 @@ function handleOnboardingRequest(
         ],
       },
     }
+  }
+
+  // Board 07b "Kader anlegen": the team's roster slots (manager view) with
+  // the redesign's role / captain / invite keys (contract, BACKEND_GAPS).
+  const teamRosterSlots = pathname.match(new RegExp(`^/clubs/${CLUB_ID}/teams/([^/]+)/roster-slots$`))
+  if (teamRosterSlots && method === 'GET') {
+    return { handled: true, ok: true, status: 200, body: clone(e2eTeamRosterSlots) }
+  }
+  if (teamRosterSlots && method === 'POST') {
+    const rows = Array.isArray(body.slots) ? (body.slots as Array<Record<string, unknown>>) : []
+    rows.forEach((row, index) => {
+      e2eTeamRosterSlots.push({
+        id: `slot-e2e-new-${Date.now()}-${index}`,
+        fullName: String(row.fullName ?? ''),
+        jerseyNumber: typeof row.jerseyNumber === 'number' ? row.jerseyNumber : null,
+        claimedByUserId: null,
+        role: (row.role as string) ?? 'PLAYER',
+        isCaptain: row.isCaptain === true,
+        inviteStatus: row.email || row.phone ? 'SENT' : 'NONE',
+      })
+    })
+    return { handled: true, ok: true, status: 201, body: { created: rows.length } }
   }
 
   // Board 07 "Hol dein Team rein": the admin's active join campaign, and the

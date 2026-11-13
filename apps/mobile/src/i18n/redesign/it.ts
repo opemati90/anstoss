@@ -291,6 +291,9 @@ export default {
     upcoming: "In arrivo",
   },
   more: {
+    tablePlace: "{{place}}º posto",
+    newCount: "{{count}} nuovi",
+    roleCoach: "Allenatore",
     clubProfile: "Profilo del club",
     inviteTeam: "Invita la squadra",
     openCount: "{{count}} aperte",

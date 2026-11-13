@@ -3,10 +3,12 @@ import { View, type ColorValue } from 'react-native'
 import { useEffect } from 'react'
 import { Redirect, Tabs, router, usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 // Vorschau und Vertretung: acting / preview banner above every tab (board 31)
 import {
+  ACTING_BANNER_CONTENT_INSET,
   ActingAsBanner,
+  ActingInsetsBoundary,
   useActingAsBannerVisible,
 } from '../../src/components/roles/ActingAsBanner'
 import { useAuth } from '../../src/context/AuthContext'
@@ -56,7 +58,7 @@ export default function TabLayout() {
   // While the acting/preview banner covers the status bar, screens below it
   // only keep a small top gap instead of the full safe-area inset.
   const bannerVisible = useActingAsBannerVisible()
-  const contentInsets = bannerVisible ? { ...insets, top: SPACING_SM } : insets
+  const topInset = bannerVisible ? ACTING_BANNER_CONTENT_INSET : insets.top
   const chatUnread = useInboxUnreadCount()
   // home revamp: one resolver for the header and the home screen (it honours
   // the active team role, e.g. a club PLAYER who is HEAD_COACH of a team).
@@ -107,13 +109,13 @@ export default function TabLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ActingAsBanner />
-      <SafeAreaInsetsContext.Provider value={contentInsets}>
+      <ActingInsetsBoundary>
       {/* 2026-11 redesign: the identity row (crest, club, team·role switcher,
           bell) belongs to Start; the other tabs lead with their own title. */}
       {activeClub && onHomeTab ? (
         <ClubHeader resolvedRoleMode={resolvedRoleMode} />
       ) : (
-        <View style={{ height: contentInsets.top, backgroundColor: theme.background }} />
+        <View style={{ height: topInset, backgroundColor: theme.background }} />
       )}
       <Tabs
         key={navigationMode}
@@ -303,7 +305,7 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      </SafeAreaInsetsContext.Provider>
+      </ActingInsetsBoundary>
     </View>
   )
 }

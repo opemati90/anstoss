@@ -967,6 +967,9 @@ function formatDate(value: string, locale: string) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
+// Design 20 row: name / meta / tag 3pt apart.
+const MEMBER_TEXT_GAP = 3
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: SCREEN_PADDING,
@@ -1017,7 +1020,7 @@ const styles = StyleSheet.create({
   },
   memberBodyWrap: { flex: 1, minWidth: 0 },
   memberBody: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + 2 },
-  memberText: { flex: 1, minWidth: 0, gap: 3 },
+  memberText: { flex: 1, minWidth: 0, gap: MEMBER_TEXT_GAP },
   memberAmount: { fontSize: 16, lineHeight: 20 },
   monthChip: {
     height: 36,

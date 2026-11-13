@@ -37,6 +37,7 @@ import {
 } from '../../../src/theme/tokens'
 import { useWechselAccess } from '../../../src/features/wechsel/hooks'
 import { useClubPlan } from '../../../src/hooks/useClubPlan'
+import { useMoreSummary } from '../../../src/hooks/useMoreSummary'
 import type { MyContributionSummary } from '@anstoss/shared'
 import { getAppLanguage, getLanguageLabel } from '../../../src/i18n'
 import { VerifiedPlayerCard } from '../../../src/components/profile/VerifiedPlayerCard'
@@ -272,15 +273,34 @@ export default function MoreScreen() {
   const teamName = activeTeamAccess?.team?.displayName || activeTeamAccess?.team?.name || null
   const teamId = activeTeamAccess?.team?.id ?? null
   const isCoach = Boolean(activeTeamAccess && COACH_TEAM_ROLES.has(activeTeamAccess.role))
+  // Board 18 row values: "4 offen", "Platz 4", "3 neu", "SVS-7K2Q".
+  const summary = useMoreSummary(duesClubId, teamId)
+  const clubOpenDues = summary?.openDues ?? null
 
   // ── Team ── (dues, table, transfer market, invite)
   const team: Row[] = [
-    ...(activeClub && !isFreeAgent
+    // Board 18: one "Beiträge" row. The treasurer lands on the Kasse with the
+    // club's open count; everyone else on their own dues.
+    ...(hasBillingAccess
+      ? [
+          {
+            key: 'treasury',
+            label: t('fees.title', { defaultValue: 'Dues' }),
+            icon: 'creditcard' as IconName,
+            value:
+              clubOpenDues != null && clubOpenDues > 0
+                ? t('more.openCount', { defaultValue: '{{count}} open', count: clubOpenDues })
+                : undefined,
+            onPress: () => router.push('/admin-billing' as never),
+          },
+        ]
+      : []),
+    ...(activeClub && !isFreeAgent && (!hasBillingAccess || openDues > 0)
       ? [
           {
             key: 'contributions',
-            label: t('contributions.myTitle'),
-            icon: 'banknote' as IconName,
+            label: hasBillingAccess ? t('contributions.myTitle') : t('fees.title', { defaultValue: 'Dues' }),
+            icon: 'creditcard' as IconName,
             value:
               openDues > 0
                 ? t('more.openCount', { defaultValue: '{{count}} open', count: openDues })
@@ -289,22 +309,16 @@ export default function MoreScreen() {
           },
         ]
       : []),
-    ...(hasBillingAccess
-      ? [
-          {
-            key: 'treasury',
-            label: t('more.treasury', { defaultValue: 'Treasury' }),
-            icon: 'eurosign.circle' as IconName,
-            onPress: () => router.push('/admin-billing' as never),
-          },
-        ]
-      : []),
     ...(activeClub && teamId
       ? [
           {
             key: 'table',
             label: t('more.tableAndFixtures', { defaultValue: 'Table and fixtures' }),
-            icon: 'trophy' as IconName,
+            icon: 'chart.bar' as IconName,
+            value:
+              summary?.tablePosition != null
+                ? t('more.tablePlace', { place: summary.tablePosition })
+                : undefined,
             onPress: () => router.push({ pathname: '/league-table', params: { teamId } } as never),
           },
         ]
@@ -315,6 +329,8 @@ export default function MoreScreen() {
             key: 'wechsel',
             label: t('more.transferList'),
             icon: 'arrow.left.arrow.right' as IconName,
+            value:
+              summary?.newFreeAgents ? t('more.newCount', { count: summary.newFreeAgents }) : undefined,
             onPress: () => router.push('/wechselboerse' as never),
           },
         ]
@@ -325,6 +341,7 @@ export default function MoreScreen() {
             key: 'invite',
             label: t('more.inviteTeam', { defaultValue: 'Invite team' }),
             icon: 'person.badge.plus' as IconName,
+            value: summary?.teamInviteCode ?? undefined,
             onPress: () =>
               router.push({ pathname: '/invite', params: { returnTo: '/(tabs)/more' } } as never),
           },
@@ -357,6 +374,32 @@ export default function MoreScreen() {
           },
         ]
       : []),
+    {
+      key: 'language',
+      label: t('more.language'),
+      icon: 'globe',
+      value: getLanguageLabel(getAppLanguage()),
+      onPress: () => router.push('/language' as never),
+    },
+    {
+      key: 'appearance',
+      label: t('profileHub.appearance'),
+      icon: 'circle.lefthalf.filled',
+      value: t(`profileHub.appearanceOption.${appearance}`),
+      onPress: () => setAppearanceOpen(true),
+    },
+    {
+      key: 'notifications',
+      label: t('notificationSettings.title'),
+      icon: 'bell',
+      onPress: () => router.push('/notification-settings'),
+    },
+  ]
+
+  // ── Konto ── (profile, legal, data, leaving)
+  const account: Row[] = [
+    // Club switching and founding live here so "Verein und App" keeps the
+    // design's four rows (Vereinsprofil, Sprache, Darstellung, Mitteilungen).
     ...(memberships.length > 1
       ? [
           {
@@ -394,30 +437,6 @@ export default function MoreScreen() {
           },
         ]
       : []),
-    {
-      key: 'language',
-      label: t('more.language'),
-      icon: 'globe',
-      value: getLanguageLabel(getAppLanguage()),
-      onPress: () => router.push('/language' as never),
-    },
-    {
-      key: 'appearance',
-      label: t('profileHub.appearance'),
-      icon: 'moon',
-      value: t(`profileHub.appearanceOption.${appearance}`),
-      onPress: () => setAppearanceOpen(true),
-    },
-    {
-      key: 'notifications',
-      label: t('notificationSettings.title'),
-      icon: 'bell',
-      onPress: () => router.push('/notification-settings'),
-    },
-  ]
-
-  // ── Konto ── (profile, legal, data, leaving)
-  const account: Row[] = [
     isFreeAgent
       ? {
           key: 'free-agent-profile',
@@ -473,8 +492,27 @@ export default function MoreScreen() {
     version: Constants.expoConfig?.version || '1.0.0',
   })
 
+  // Board 18 / handoff "hats": the profile line lists every held role.
+  const heldRoles = Array.from(
+    new Set(
+      [
+        activeTeamAccess?.role === 'PLAYER' ? t('teamRoles.PLAYER') : null,
+        ...(activeClub?.operationalRoles ?? [])
+          .filter((role) => role === 'CAPTAIN')
+          .map((role) => t(`clubStaff.operationalRole.${role}`)),
+        activeTeamAccess && COACH_TEAM_ROLES.has(activeTeamAccess.role) ? t('more.roleCoach') : null,
+        ...(activeClub?.operationalRoles ?? [])
+          .filter((role) => role !== 'CAPTAIN')
+          .map((role) => t(`clubStaff.operationalRole.${role}`)),
+        isClubAdmin ? t('clubStaff.operationalRole.BOARD_MEMBER') : null,
+        clubRole === 'PARENT' ? t('roles.PARENT') : null,
+      ].filter((role): role is string => Boolean(role)),
+    ),
+  )
   const roleSubtitle =
-    persona === 'COACH'
+    persona !== 'FREE_AGENT' && persona !== 'NONE' && heldRoles.length > 0
+      ? heldRoles.join(' · ')
+      : persona === 'COACH'
       ? [teamName, t(`teamRoles.${activeTeamAccess?.role ?? 'HEAD_COACH'}`)].filter(Boolean).join(' · ')
       : persona === 'ADMIN'
         ? [activeClub?.club.name, t(`verein.memberRole.${clubRole ?? 'ADMIN'}`)]
@@ -547,17 +585,6 @@ export default function MoreScreen() {
           />
         ) : null}
 
-        {persona === 'COACH' && teamName ? (
-          <SectionGroup header={t('profileHub.myTeam')}>
-            <ListRow
-              left={<SoftIcon name="person.2.fill" />}
-              title={teamName}
-              subtitle={t(`teamRoles.${activeTeamAccess?.role ?? 'HEAD_COACH'}`)}
-              showChevron
-              onPress={() => router.push('/(tabs)/squad' as never)}
-            />
-          </SectionGroup>
-        ) : null}
 
         {persona === 'PARENT' ? (
           <SectionGroup

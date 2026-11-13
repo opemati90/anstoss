@@ -485,7 +485,7 @@ export default function InviteScreen() {
           link: shareCode.link,
           meta: [
             teamLabel,
-            shareCode.days ? t('invite.share.validDays', { count: shareCode.days }) : null,
+            shareCode.days ? t('invite.board.validDays', { count: shareCode.days }) : null,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -522,7 +522,7 @@ export default function InviteScreen() {
         emptyAction={
           canInvite && selectedTeamId
             ? {
-                label: t('invite.share.createCode'),
+                label: t('invite.board.createCode'),
                 busy: isLoading,
                 onPress: () => void handleCreateInvite('LINK'),
               }
@@ -546,7 +546,7 @@ export default function InviteScreen() {
                   key: 'add',
                   icon: 'person.2',
                   title: t('invite.addRosterTitle'),
-                  body: t('invite.share.addRosterBody'),
+                  body: t('invite.board.addRosterBody'),
                   onPress: () =>
                     router.push({ pathname: '/add-members', params: { teamId: selectedTeamId } }),
                   testID: 'invite-add-members',
@@ -566,8 +566,8 @@ export default function InviteScreen() {
                 {
                   key: 'email',
                   icon: 'envelope',
-                  title: t('invite.share.byEmail'),
-                  body: t('invite.share.byEmailBody'),
+                  title: t('invite.board.byEmail'),
+                  body: t('invite.board.byEmailBody'),
                   onPress: () => setView('email'),
                   testID: 'invite-by-email',
                 },

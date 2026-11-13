@@ -241,7 +241,8 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
     )
   }
 
-  const ourName = event.team?.name ?? ''
+  // Design 15 names the club ("SV Spreewiese"), not the squad.
+  const ourName = activeClub?.club.name || event.team?.name || ''
   const theirName = state.opponent ?? event.opponent ?? ''
   const homeAway = state.homeAway ?? event.homeAway ?? null
   const ownSide: 'home' | 'away' = homeAway === 'AWAY' ? 'away' : 'home'
@@ -360,11 +361,6 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
               ))
             )}
           </View>
-          {canRecord && timeline.length > 0 ? (
-            <Text variant="footnote" color="secondary">
-              {t('matchLive.record.undoHint', { defaultValue: 'Long press to remove' })}
-            </Text>
-          ) : null}
         </View>
       </ScrollView>
 

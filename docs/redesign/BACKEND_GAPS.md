@@ -56,3 +56,10 @@ be complete, grouped by priority. Suggested shapes are starting points, not cont
 - **Copy buttons (MyDues, Invite):** add `expo-clipboard`.
 - **Sign in with Apple/Google (03):** not in scope of the email-OTP auth today.
 - **Lineup drag-and-drop from the bench (13):** the tap-a-spot picker is kept.
+
+## Contract for backend
+
+| Endpoint | Request | Response | Schema (packages/shared) | Status |
+|---|---|---|---|---|
+| `GET /clubs/:clubId/plan` (35 Abo, 19 Mehr row) | — (any club member) | `ClubPlan { clubId, tier: FREE\|PRO\|SCALE, source: NONE\|TRIAL\|PAID\|COMPLIMENTARY\|MIGRATED, trialEndsAt, trialUsed, limits {teams, players}, usage {teams, players}, prices { monthly, yearly: { amountCents, currency } }, features: Record<PlanFeature, boolean>, canManage, salesEmail? }` | `clubPlanSchema` (schemas/plan.ts) | Built: `apps/api/src/billing/plan.controller.ts` |
+| `POST /clubs/:clubId/plan/trial` (35 Abo) | `{}`; Vorstand (OWNER/ADMIN/BOARD_MEMBER) or Kassenwart (TREASURER) only, one trial per club | `ClubPlan` (PRO, source TRIAL, `trialEndsAt` = now + 30 days); 403 others, 409 used/already Verein | `startPlanTrialSchema` | Built: TRIAL `EntitlementGrant`, no card, expires to FREE |

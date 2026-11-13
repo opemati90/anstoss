@@ -101,7 +101,7 @@ export function ProgressSegments({ progress }: { progress: OnboardingProgress })
       accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: progress.total, now: progress.current }}
     >
-      <Text variant="caption1" weight="semibold" color="secondary" align="center" numberOfLines={1}>
+      <Text variant="footnote" weight="semibold" color="secondary" align="center" numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -125,6 +125,8 @@ export type OnboardingScreenProps = {
   /** Back arrow + Android back. `null` = one-way door: no arrow, back exits. */
   onBack?: (() => void) | null
   headerRight?: ReactNode
+  /** Quiet caption in the header middle instead of a step ("Optional"). */
+  headerLabel?: string
   /** Rendered above the title (crest, invite card). */
   lead?: ReactNode
   primary?: OnboardingAction
@@ -148,6 +150,7 @@ export function OnboardingScreen({
   progress,
   onBack,
   headerRight,
+  headerLabel,
   lead,
   primary,
   secondary,
@@ -192,7 +195,15 @@ export function OnboardingScreen({
           <View style={styles.backSpacer} />
         )}
         <View style={styles.headerMiddle}>
-          {progress ? <ProgressSegments progress={progress} /> : null}
+          {progress ? (
+            <ProgressSegments progress={progress} />
+          ) : headerLabel ? (
+            <View style={styles.progress}>
+              <Text variant="footnote" weight="semibold" color="secondary" align="center" numberOfLines={1}>
+                {headerLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.headerRight}>{headerRight}</View>
       </View>

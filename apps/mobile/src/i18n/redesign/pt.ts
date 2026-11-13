@@ -291,6 +291,9 @@ export default {
     upcoming: "Em breve",
   },
   more: {
+    tablePlace: "{{place}}º lugar",
+    newCount: "{{count}} novos",
+    roleCoach: "Treinador",
     clubProfile: "Perfil do clube",
     inviteTeam: "Convidar a equipa",
     openCount: "{{count}} em aberto",
