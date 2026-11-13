@@ -175,6 +175,13 @@ describe('EventDetailScreen', () => {
     })
   })
 
+  it('opens the coach-recorded live screen for a match without a fussball.de link', async () => {
+    mockApi.mockResolvedValue(detail())
+    const screen = render(<EventDetailScreen />)
+    fireEvent.press(await screen.findByTestId('event-open-match'))
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/match-live', params: { eventId: 'match-1' } })
+  })
+
   it('resolves a failed load to an error with retry', async () => {
     mockApi.mockRejectedValue(new Error('offline'))
     const screen = render(<EventDetailScreen />)

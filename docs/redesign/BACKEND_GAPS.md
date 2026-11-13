@@ -5,13 +5,17 @@ existing endpoints; elements whose data the API does not provide yet are hidden 
 fall back to the previous behaviour. This list is what the API needs for the design to
 be complete, grouped by priority. Suggested shapes are starting points, not contracts.
 
+## Done
+
+| Design | What shipped |
+|---|---|
+| 09 Mitteilungen | `InboxNotification` table; inbox-worthy pushes (events, Absagen, join requests, dues, trials, consent, moderation, fixture changes, full time) are stored per recipient even when the push is muted or in quiet hours; chat is excluded. `GET /me/notifications` (cursor), `GET /me/notifications/unread-count`, `POST /me/notifications/:id/read`, `POST /me/notifications/read-all`; 90-day retention worker. App: bell dot, `/notifications` screen with inline Annehmen/Ablehnen. |
+| 14 Live-Spiel | `MatchLive` + `MatchLiveEvent` on MATCH events (any match, with or without fussball.de). `GET/PATCH /clubs/:c/events/:e/live` (kick-off → half time → second half → full time), `POST …/live/events` (GOAL, CONCEDED, YELLOW, RED, SUB), `DELETE …/live/events/:id` (undo, score recounted). Coaches only for writes; `live:match` socket broadcast in room `live-event:{eventId}`; goal and full-time pushes. App: Tor / Gegentor / Karte / Wechsel with player picker, clock button, long-press undo; event detail's Live button opens it for every match. |
+
 ## P1 — visible gaps on core screens
 
 | Design | Element | Missing | Suggested shape |
 |---|---|---|---|
-| 09 Mitteilungen | Notifications inbox, unread dot on the bell | No notifications list (only preferences) | `GET /me/notifications?cursor=` → `{ id, kind, actor?, text, createdAt, readAt, target? }[]`; `POST /me/notifications/read-all`; `GET /me/notifications/unread-count` |
-| 14 Live-Spiel | Tor / Gegentor / Karte / Wechsel quick actions, Abpfiff | No client write path for live events; only the fussball.de poller broadcasts | `POST /fixtures/:id/live-events { kind, minute?, playerUserId?, playerOutUserId?, side? }` (coach), persisted as `FixtureLiveEvent`, rebroadcast as `live:event`; `PATCH /fixtures/:id/live-state { status }` |
-| 14 Live-Spiel | Minute on join | `live:state` never carries `minute` in `handleJoin` | Include `minute` in the join payload |
 | 11 Termin anlegen | "Team benachrichtigen" (auto-reminder 24h before) | No flag on Event | `rsvpAutoReminder: boolean` (default true) on create/update + scheduled `remind-rsvp` job |
 | 31/32 Vorschau, Vertretung | Read-only role preview; acting as the coach | No delegation model | `ActingSession { actorUserId, onBehalfOfRole, teamId, expiresAt }`; `POST/DELETE /clubs/:id/acting-sessions { teamId, role, minutes }`; audit "X (Vorstand) als Trainer"; notify head coach; server-enforced read-only preview |
 | 30 Mehrere Rollen | Combined multi-role home | Client only (data exists) | Frontend role resolution; no API change |

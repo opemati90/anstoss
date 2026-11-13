@@ -371,7 +371,9 @@ export default function EventDetailScreen() {
     event.viewer.isPlayer && !cancelled && inCheckInWindow && event.myRsvp !== 'NO'
   const nominatedPublished = Boolean(event.squadPublishedAt)
 
-  const showLive = Boolean(event.fixtureId && event.team)
+  // fussball.de-linked matches open the feed; every other match opens the
+  // coach-recorded live screen.
+  const showLive = event.type === 'MATCH' && !cancelled && Boolean(event.team)
   const showLineup = event.type === 'MATCH' && canManage && !cancelled
   const hasFooter = showLive || showLineup
   const contextLabel = `${new Intl.DateTimeFormat(locale, { weekday: 'short' })
@@ -618,10 +620,12 @@ export default function EventDetailScreen() {
                 accessibilityLabel={t('eventFlow.detail.liveTitle')}
                 accessibilityHint={t('eventFlow.detail.liveSubtitle')}
                 onPress={() =>
-                  router.push({
-                    pathname: '/match-detail',
-                    params: { fixtureId: event.fixtureId as string, teamId: event.team?.id ?? '' },
-                  })
+                  event.fixtureId
+                    ? router.push({
+                        pathname: '/match-detail',
+                        params: { fixtureId: event.fixtureId, teamId: event.team?.id ?? '' },
+                      })
+                    : router.push({ pathname: '/match-live', params: { eventId: event.id } })
                 }
                 testID="event-open-match"
               />

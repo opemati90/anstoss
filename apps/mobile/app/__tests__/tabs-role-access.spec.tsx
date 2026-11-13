@@ -66,6 +66,11 @@ function resetAuthState() {
   ]
 }
 
+// The club header's bell reads the inbox unread count; keep it off the network.
+jest.mock('../../src/api/client', () => ({
+  api: jest.fn().mockResolvedValue({ unreadCount: 0 }),
+  ApiError: class ApiError extends Error {},
+}))
 jest.mock('expo-router', () => {
   // eslint-disable-next-line no-useless-assignment
   const React = require('react')

@@ -14,6 +14,7 @@ import {
   BarlowCondensed_700Bold,
 } from '@expo-google-fonts/barlow-condensed'
 import { AuthProvider, useAuth } from '../src/context/AuthContext'
+import { openNotificationTarget } from '../src/lib/notificationRoute'
 // Chat revamp: gestures (swipe-to-reply, swipe actions) + native keyboard tracking.
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
@@ -175,6 +176,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
                   <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="add-members" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
                   <Stack.Screen
                     name="join/[...code]"
                     options={{ presentation: 'fullScreenModal' }}
@@ -334,103 +336,7 @@ export function PushDeepLinkHandler() {
       const target = memberships.find((m) => m.club?.id === data.clubId)
       if (target) setActiveClub(target)
     }
-    const action = data.type ?? data.kind
-    if (!action) {
-      // Trial pushes carry only an entity id; the trial detail serves the
-      // player and the club staff alike.
-      if (data.trialInviteId) {
-        router.push({ pathname: '/trial/[id]', params: { id: data.trialInviteId } })
-      }
-      return
-    }
-
-    switch (action) {
-      case 'dm':
-        if (data.conversationId) {
-          ensureClub()
-          router.push({
-            pathname: '/chat/[id]',
-            params: { id: data.conversationId, kind: 'dm' },
-          } as never)
-        }
-        break
-      case 'event':
-      case 'event_created':
-      case 'event_rsvp_reminder':
-        if (data.eventId) {
-          router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
-        }
-        break
-      case 'join_request':
-      case 'JOIN_REQUEST_REMINDER':
-        // Coaches/admins land on the pending-requests queue to act on it.
-        router.push('/pending-requests')
-        break
-      case 'join_approved':
-      case 'join_rejected':
-        // The requester just got a decision — drop them on home, which
-        // re-derives their membership/holding state.
-        router.push('/(tabs)' as never)
-        break
-      case 'GOAL_SCORED':
-      case 'MATCH_FINAL':
-        if (data.fixtureId) {
-          router.push({
-            pathname: '/match-detail',
-            params: {
-              fixtureId: data.fixtureId,
-              ...(data.teamId ? { teamId: data.teamId } : {}),
-            },
-          })
-        }
-        break
-      // club-admin revamp: a new chat report lands admins on the Meldungen queue.
-      case 'moderation_report':
-        router.push('/admin-reports' as never)
-        break
-      case 'TRIAL_INVITE':
-      case 'TRIAL_RESPONSE':
-        router.push('/(tabs)/invites' as never)
-        break
-      // Kader fix M2 (team agent): "you're up for Trikotwäsche" opens Aufgaben.
-      case 'TEAM_DUTY_ASSIGNED':
-        ensureClub()
-        router.push('/aufgaben')
-        break
-      case 'CONTRIBUTION_PAID':
-      case 'contribution':
-        // contribution-paid (self-pay/admin-marked) and contribution
-        // reminders both belong on the same screen — the user wants to
-        // see status + outstanding plans in one place.
-        router.push('/my-contributions')
-        break
-      case 'MEDIA_MESSAGE':
-      case 'MESSAGE_REPLY':
-      case 'MENTION':
-      case 'CHAT_MESSAGE':
-      case 'announcement':
-      case 'LINEUP_POSTED':
-        // Open the conversation itself when the push names its channel;
-        // otherwise land on the inbox, which lists it on top.
-        ensureClub()
-        if (data.channelId) {
-          router.push({
-            pathname: '/chat/[id]',
-            params: {
-              id: data.channelId,
-              kind: 'channel',
-              ...(data.teamId ? { teamId: data.teamId } : {}),
-            },
-          } as never)
-        } else {
-          router.push('/(tabs)/chat' as never)
-        }
-        break
-      default:
-        // Unknown payload — drop the deep-link, the tap still
-        // foregrounds the app which is a reasonable fallback.
-        break
-    }
+    openNotificationTarget(data, ensureClub)
   }, [lastNotification])
 
   return null

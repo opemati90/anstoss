@@ -12,6 +12,7 @@ import { ModalHeader } from '../src/components/ModalHeader'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
   MatchHero,
+  RecordedMatchLive,
   TimelineItem,
   type MatchStatus,
   type TimelineEventKind,
@@ -49,7 +50,17 @@ function eventKey(e: { minute?: number; kind: string; player?: string; side?: st
   return `${e.minute ?? 0}|${e.kind}|${(e.player || '').slice(0, 24).toLowerCase()}|${e.side ?? ''}`
 }
 
+/**
+ * Live match. `eventId` opens the coach-recorded match (any MATCH event);
+ * `fixtureId` + `teamId` open the fussball.de live feed.
+ */
 export default function MatchLiveScreen() {
+  const { eventId } = useLocalSearchParams<{ eventId?: string }>()
+  if (eventId) return <RecordedMatchLive eventId={eventId} />
+  return <FixtureMatchLive />
+}
+
+function FixtureMatchLive() {
   const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()

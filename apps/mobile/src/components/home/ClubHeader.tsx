@@ -7,6 +7,7 @@ import type { TFunction } from 'i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth, type RoleMode } from '../../context/AuthContext'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
+import { useInboxUnreadCount } from '../../hooks/useNotificationInbox'
 import { ClubSwitcher } from '../ClubSwitcher'
 import { BottomSheet, Icon, IconButton, ListRow, SectionGroup, Text } from '../ui'
 import {
@@ -15,6 +16,7 @@ import {
   SCREEN_PADDING,
   SPACING_LG,
   SPACING_MD,
+  SPACING_SM,
   SPACING_XS,
   SPACING_XXS,
   space,
@@ -33,6 +35,7 @@ import { formatChildrenSummary, useChildrenSummary } from './childrenSummary'
  */
 export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | null }) {
   const c = useClubColors()
+  const { unreadCount } = useInboxUnreadCount()
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const isDark = useIsDark()
@@ -124,14 +127,27 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
         </View>
       </Pressable>
 
-      {/* Bell keeps its target (notification settings): there is no
-          notifications inbox endpoint yet, so no unread dot either. */}
+      {/* Bell opens the notifications inbox; the dot marks unread entries. */}
       <IconButton
         variant="outlined"
-        accessibilityLabel={t('notifications.title', 'Notifications')}
-        onPress={() => router.push('/notification-settings' as never)}
+        accessibilityLabel={
+          unreadCount > 0
+            ? t('notificationsInbox.bellUnread', {
+                defaultValue: 'Notifications, {{count}} new',
+                count: unreadCount,
+              })
+            : t('notifications.title', 'Notifications')
+        }
+        onPress={() => router.push('/notifications' as never)}
+        testID="club-header-bell"
       >
         <Icon name="bell" size={20} color={c.textPrimary} />
+        {unreadCount > 0 ? (
+          <View
+            testID="club-header-bell-dot"
+            style={[styles.bellDot, { backgroundColor: c.alertDot, borderColor: c.surface }]}
+          />
+        ) : null}
       </IconButton>
 
       <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
@@ -283,4 +299,14 @@ const styles = StyleSheet.create({
   sheet: { gap: SPACING_LG },
   sheetHead: { gap: SPACING_XS + SPACING_XXS },
   radio: { width: 22, height: 22, borderRadius: RADIUS_FULL },
+  // 8pt dot ringed in the button surface, top-right of the bell glyph.
+  bellDot: {
+    position: 'absolute',
+    top: SPACING_SM + 2,
+    right: SPACING_SM + 3,
+    width: SPACING_SM + 2,
+    height: SPACING_SM + 2,
+    borderRadius: RADIUS_FULL,
+    borderWidth: 2,
+  },
 })

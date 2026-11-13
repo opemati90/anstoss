@@ -6,6 +6,8 @@ import { setChildrenSummary } from '../childrenSummary'
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }))
+const mockApi = jest.fn()
+jest.mock('../../../api/client', () => ({ api: (...args: unknown[]) => mockApi(...args) }))
 jest.mock('../../ClubSwitcher', () => ({ ClubSwitcher: () => null }))
 
 jest.mock('react-i18next', () => {
@@ -58,6 +60,8 @@ describe('ClubHeader', () => {
       memberships: [{}],
     }
     act(() => setChildrenSummary([]))
+    mockApi.mockReset()
+    mockApi.mockResolvedValue({ unreadCount: 0 })
   })
 
   it('collapses identity into one row: crest, "Role · Club" over the team, bell', () => {
@@ -67,9 +71,9 @@ describe('ClubHeader', () => {
     // Redesign screen 08: "Trainer · SV Spreewiese" over "1. Herren".
     expect(getByText('Player · SV Albatros')).toBeTruthy()
     expect(getByText('1. Herren')).toBeTruthy()
-    // The bell keeps its target (notification settings).
+    // The bell opens the notifications inbox.
     fireEvent.press(getByLabelText('Notifications'))
-    expect(require('expo-router').router.push).toHaveBeenCalledWith('/notification-settings')
+    expect(require('expo-router').router.push).toHaveBeenCalledWith('/notifications')
     // Crest + identity are ONE accessible element, not the club name twice.
     expect(getAllByLabelText('Player · SV Albatros, 1. Herren')).toHaveLength(1)
   })
@@ -103,5 +107,18 @@ describe('ClubHeader', () => {
     )
     expect(getByText('Leo · U15, Mia · U11')).toBeTruthy()
     expect(queryByText(/Senior Team/)).toBeNull()
+  })
+
+  it('shows an unread dot and count on the bell when the inbox has unread entries', async () => {
+    mockApi.mockResolvedValue({ unreadCount: 3 })
+    const screen = render(wrap(<ClubHeader resolvedRoleMode="COACH" />))
+    expect(await screen.findByTestId('club-header-bell-dot')).toBeTruthy()
+    expect(mockApi).toHaveBeenCalledWith('/me/notifications/unread-count')
+  })
+
+  it('shows no dot when everything is read', async () => {
+    const screen = render(wrap(<ClubHeader resolvedRoleMode="COACH" />))
+    await act(async () => {})
+    expect(screen.queryByTestId('club-header-bell-dot')).toBeNull()
   })
 })
