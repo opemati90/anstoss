@@ -15,7 +15,7 @@ import {
   SectionGroup,
   Text,
 } from '../../../components/ui'
-import { SPACING_LG, SPACING_MD, SPACING_SM } from '../../../theme/tokens'
+import { SCREEN_PADDING, SPACING_LG, SPACING_MD, SPACING_SM } from '../../../theme/tokens'
 import { buildQuery, paths, wechselApi, type TeamOption } from '../api'
 import { PlayerRow } from '../components/Cards'
 import { CardListSkeleton } from '../components/Primitives'
@@ -24,6 +24,8 @@ import { LEAGUE_OPTIONS, POSITIONS, leagueLabel, positionLabel } from '../format
 import { invalidateApi, useApiQuery } from '../query'
 
 const RADII = [10, 25, 50, 100] as const
+// Design 22: 18pt between header, chips, the group and the footnote.
+const BOARD_GAP = 18
 const PAGE = 20
 
 type InviteTarget = { id: string; name: string }
@@ -37,10 +39,19 @@ export function SpielersucheTab({
   clubId,
   teams = [],
   invitedProfileIds,
+  board = false,
+  radius: radiusProp,
 }: {
   clubId?: string | null
   teams?: TeamOption[]
   invitedProfileIds?: ReadonlySet<string>
+  /**
+   * Design 22 main view: position chips, the candidate group and the
+   * footnote only. Search, area and league move below the list.
+   */
+  board?: boolean
+  /** Board view: the search radius around the club (subtitle "in 10 km"). */
+  radius?: number
 } = {}) {
   const { t } = useTranslation()
   const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null)
@@ -72,7 +83,7 @@ export function SpielersucheTab({
   const [debounced, setDebounced] = useState('')
   const [position, setPosition] = useState<'ALL' | (typeof POSITIONS)[number]>('ALL')
   const [postalCode, setPostalCode] = useState<string | null>(null)
-  const [radius, setRadius] = useState<number>(25)
+  const [radius, setRadius] = useState<number>(radiusProp ?? 25)
   const [league, setLeague] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(PAGE)
   const [sheet, setSheet] = useState<'area' | 'league' | null>(null)
@@ -95,13 +106,14 @@ export function SpielersucheTab({
           query: debounced.length >= 2 ? debounced : null,
           position: position === 'ALL' ? null : position,
           postalCode,
-          radiusKm: postalCode ? radius : null,
+          // Board view: without a PLZ the server centres on the club's ground.
+          radiusKm: postalCode || board ? radius : null,
           league,
           pageSize,
           sort: 'recent',
         }),
       ),
-    [debounced, position, postalCode, radius, league, pageSize],
+    [debounced, position, postalCode, radius, league, pageSize, board],
   )
   const query = useApiQuery<FreeAgentListResponse>(path)
   const items = query.data?.items ?? []
@@ -139,9 +151,11 @@ export function SpielersucheTab({
   } else {
     body = (
       <>
-        <Text variant="footnote" color="secondary" tabular>
-          {t('wechsel.playersCount', { count: total })}
-        </Text>
+        {board ? null : (
+          <Text variant="footnote" color="secondary" tabular>
+            {t('wechsel.playersCount', { count: total })}
+          </Text>
+        )}
         <SectionGroup>
           {items.map((player) => (
             <PlayerRow
@@ -163,23 +177,20 @@ export function SpielersucheTab({
             onPress={() => setPageSize((size) => Math.min(size + PAGE, 50))}
           />
         ) : null}
+        {board ? (
+          <Text variant="footnote" color="secondary" style={styles.footnote}>
+            {t('wechsel.invitedFootnote')}
+          </Text>
+        ) : null}
       </>
     )
   }
 
-  return (
-    <View style={styles.root}>
-      <SearchBar value={text} onChangeText={setText} placeholder={t('wechsel.playersSearch')} />
-      <FilterChipRow
-        singleSelect
-        chips={[
-          { key: 'ALL' as const, label: t('wechsel.allPositions') },
-          ...POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key })),
-        ]}
-        selected={position}
-        onToggle={setPosition}
-      />
-      <View style={styles.filters}>
+  const search = (
+    <SearchBar value={text} onChangeText={setText} placeholder={t('wechsel.playersSearch')} />
+  )
+  const filters = (
+    <View style={styles.filters}>
         <Button
           size="sm"
           variant={postalCode ? 'tinted' : 'bordered'}
@@ -203,7 +214,33 @@ export function SpielersucheTab({
           onPress={() => setSheet('league')}
         />
       </View>
+  )
+
+  return (
+    <View style={[styles.root, board && styles.boardRoot]}>
+      {board ? null : search}
+      <FilterChipRow
+        singleSelect
+        chips={[
+          { key: 'ALL' as const, label: t('wechsel.allPositions') },
+          ...POSITIONS.map((key) => ({
+            key,
+            label: board ? t(`wechsel.positionChip.${key}`) : (positionLabel(t, key) ?? key),
+          })),
+        ]}
+        selected={position}
+        onToggle={setPosition}
+        style={board ? styles.bleed : undefined}
+        contentStyle={board ? styles.bleedContent : undefined}
+      />
+      {board ? null : filters}
       {body}
+      {board ? (
+        <View style={styles.boardTools}>
+          {search}
+          {filters}
+        </View>
+      ) : null}
 
       {canInvite && clubId ? (
         <InviteSheet
@@ -290,6 +327,12 @@ export function SpielersucheTab({
 
 const styles = StyleSheet.create({
   root: { gap: SPACING_MD },
+  boardRoot: { gap: BOARD_GAP },
+  // The chip row runs edge to edge like the design's scroller.
+  bleed: { marginHorizontal: -SCREEN_PADDING },
+  bleedContent: { paddingHorizontal: SCREEN_PADDING },
+  footnote: { lineHeight: 20 },
+  boardTools: { gap: SPACING_MD, marginTop: SPACING_SM },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_SM },
   sheet: { gap: SPACING_LG, paddingBottom: SPACING_SM },
 })

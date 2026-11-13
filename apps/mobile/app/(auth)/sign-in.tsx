@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { PublicInvitePayload } from '@anstoss/shared'
+import type { OAuthProvider, PublicInvitePayload } from '@anstoss/shared'
+import Svg, { Path } from 'react-native-svg'
 import { api } from '../../src/api/client'
 import { setPendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
@@ -11,12 +12,14 @@ import { Button, Text } from '../../src/components/ui'
 import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
 import type { PolicyKind } from '../../src/content/policies'
 import { useAuth } from '../../src/context/AuthContext'
-import { ClubThemeOverride } from '../../src/context/ClubThemeContext'
+import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
+import { OAuthNotAvailableYetError, signInWithOAuth } from '../../src/auth/oauth'
 import { sendCodeErrorKey, verifyCodeError } from '../../src/onboarding/errors'
 import { parseOnboardingIntent, setOnboardingIntent } from '../../src/onboarding/intent'
 import { onboardingProgress, pathForIntent } from '../../src/onboarding/steps'
 import { ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
+import { GOOGLE_MARK } from '../../src/theme/providerBrand'
 import { space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
@@ -65,6 +68,8 @@ export default function SignIn() {
   const [refocusKey, setRefocusKey] = useState(0)
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
   const [policy, setPolicy] = useState<PolicyKind | null>(null)
+  const [oauthNote, setOauthNote] = useState<string | null>(null)
+  const c = useClubColors()
   const verifyingRef = useRef(false)
   const emailRef = useRef<TextInput>(null)
 
@@ -105,6 +110,19 @@ export default function SignIn() {
       setError(t(sendCodeErrorKey(err)))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function oauth(provider: OAuthProvider) {
+    setOauthNote(null)
+    try {
+      await signInWithOAuth(provider)
+    } catch (err) {
+      if (err instanceof OAuthNotAvailableYetError) {
+        setOauthNote(t('onboardingFlow.code.oauthSoon'))
+        return
+      }
+      setOauthNote(t('onboardingFlow.common.networkError'))
     }
   }
 
@@ -269,6 +287,42 @@ export default function SignIn() {
           style={styles.sendButton}
           testID="sign-in-send"
         />
+        {!inviteCode ? (
+          <>
+            <OrDivider label={t('onboardingFlow.code.or')} />
+            <View style={styles.providers}>
+              <Button
+                label={t('onboardingFlow.code.apple')}
+                variant="bordered"
+                size="lg"
+                fullWidth
+                leftIcon={<AppleLogo color={c.textPrimary} />}
+                onPress={() => void oauth('apple')}
+                testID="sign-in-apple"
+              />
+              <Button
+                label={t('onboardingFlow.code.google')}
+                variant="bordered"
+                size="lg"
+                fullWidth
+                leftIcon={<GoogleLogo />}
+                onPress={() => void oauth('google')}
+                testID="sign-in-google"
+              />
+              {oauthNote ? (
+                <Text
+                  variant="footnote"
+                  color="secondary"
+                  align="center"
+                  accessibilityLiveRegion="polite"
+                  testID="sign-in-oauth-soon"
+                >
+                  {oauthNote}
+                </Text>
+              ) : null}
+            </View>
+          </>
+        ) : null}
       </OnboardingScreen>
     ) : (
       <OnboardingScreen
@@ -358,7 +412,46 @@ export default function SignIn() {
   )
 }
 
+/** "oder" between the email and the provider buttons. */
+function OrDivider({ label }: { label: string }) {
+  const c = useClubColors()
+  return (
+    <View style={styles.or} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
+      <Text variant="footnote" color="secondary">
+        {label}
+      </Text>
+      <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
+    </View>
+  )
+}
+
+function AppleLogo({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24">
+      <Path
+        fill={color}
+        d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.9-.8-3.1-.8C6.8 7.2 5 8.3 4.1 10c-2 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.4 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.5.9 2.4-1.4 3.3-2.7c1-1.5 1.5-3 1.5-3.1-.1 0-2.9-1.1-2.9-4.5zM14 5.6c.8-.9 1.3-2.2 1.1-3.5-1.1.1-2.4.8-3.2 1.7-.7.8-1.3 2.1-1.2 3.4 1.3.1 2.5-.7 3.3-1.6z"
+      />
+    </Svg>
+  )
+}
+
+function GoogleLogo() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24">
+      <Path fill={GOOGLE_MARK.blue} d="M22 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.6a4.8 4.8 0 0 1-2.1 3.1v2.6h3.4c2-1.8 3.1-4.5 3.1-7.5z" />
+      <Path fill={GOOGLE_MARK.green} d="M12 22c2.8 0 5.2-.9 6.9-2.5l-3.4-2.6c-.9.6-2.1 1-3.5 1-2.7 0-5-1.8-5.8-4.3H2.7v2.7A10 10 0 0 0 12 22z" />
+      <Path fill={GOOGLE_MARK.yellow} d="M6.2 13.6a6 6 0 0 1 0-3.8V7.1H2.7a10 10 0 0 0 0 9.2z" />
+      <Path fill={GOOGLE_MARK.red} d="M12 5.9c1.5 0 2.9.5 4 1.5l3-3A10 10 0 0 0 2.7 7.1l3.5 2.7C7 7.7 9.3 5.9 12 5.9z" />
+    </Svg>
+  )
+}
+
 const styles = StyleSheet.create({
+  or: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 4, marginTop: space.md - 2 },
+  orLine: { flex: 1, height: 1 },
+  providers: { gap: space.sm + 2, marginTop: space.md - 2 },
   inviteLead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   inviteCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
   codeActions: {

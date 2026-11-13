@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../it.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Anteprima e sostituzione",
+    entrySub: "Solo per direttivo e team manager",
+    sheetBody: "I tuoi ruoli restano sempre tutti attivi. Qui vedi l’app con altri occhi o sostituisci qualcuno per poco.",
+    choices: "Scelta",
+    previewLabel: "Anteprima",
+    actingLabel: "Sostituzione",
+    asPlayer: "Vedi come giocatore",
+    asParent: "Vedi come genitore",
+    readOnly: "{{team}} · sola lettura",
+    standIn: "Sostituire l’allenatore",
+    coachAway: "{{team}} · allenatore in ferie",
+    coachNamed: "{{team}} · allenatore: {{name}}",
+    noTeams: "Al momento non c’è nessuna squadra da sostituire.",
+    team: "Squadra",
+    duration: "Durata",
+    minutes: "{{count}} min",
+    logNote: "Tutto viene registrato come “{{name}} (direttivo) come allenatore”. L’allenatore principale viene informato.",
+    openPreview: "Apri anteprima",
+    startActing: "Sostituisci per {{count}} min",
+    startError: "Non è stato possibile avviare la sostituzione.",
+    bannerActing: "Agisci come allenatore · {{team}}",
+    bannerActingMeta: "Ancora {{count}} min · viene registrato",
+    bannerPreview: "Anteprima come {{role}} · {{team}}",
+    bannerPreviewMeta: "Sola lettura · modifiche bloccate",
+    rolePlayer: "giocatore",
+    roleParent: "genitore",
+    end: "Termina",
+    endActingA11y: "Termina sostituzione",
+    endPreviewA11y: "Termina anteprima",
+    readOnlyBlocked: "Nell’anteprima non puoi modificare nulla.",
+    fallbackName: "Direttivo",
+  },
   chatHub: {
     filter: {
       all: "Tutti",

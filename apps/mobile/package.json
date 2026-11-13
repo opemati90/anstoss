@@ -24,6 +24,7 @@
     "expo-application": "~57.0.3",
     "expo-audio": "~57.0.5",
     "expo-auth-session": "~57.0.12",
+    "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.18",
     "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",

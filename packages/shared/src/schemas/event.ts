@@ -22,6 +22,12 @@ const eventLogisticsShape = {
   carpoolEnabled: z.boolean().optional(),
   /** Length in minutes (Training 90). Lets calendars and the list show an end. */
   durationMin: z.number().int().min(15).max(600).nullable().optional(),
+  /**
+   * "Team benachrichtigen" (design 12): remind members who have not answered
+   * 24 h before the start. Default true on the server. Proposed contract,
+   * see docs/redesign/BACKEND_GAPS.md.
+   */
+  rsvpAutoReminder: z.boolean().optional(),
 }
 
 /**

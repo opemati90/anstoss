@@ -219,6 +219,8 @@ export interface MyContributionSummary {
   hasContributions: boolean
   /** Club bank-transfer details, when the club collects dues by transfer. */
   bankTransfer: ContributionBankTransfer | null
+  /** Redesign 26: paid periods, newest first. Absent on older APIs. */
+  history?: import('../schemas/home').ContributionHistoryEntry[]
 }
 
 export interface PublicInvitePayload {

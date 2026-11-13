@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Abo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}a{color:#0E3B2B}a:hover{color:#121A15}
+.scr{width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;background:#F6F5F1;color:#121A15;font-family:Inter,"IBM Plex Sans Arabic",system-ui,sans-serif}
+.pad{padding:60px 20px 108px;display:flex;flex-direction:column;gap:24px}
+.h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;line-height:1.1}
+.disp{font-family:"Barlow Condensed","IBM Plex Sans Arabic",sans-serif;font-weight:700;text-transform:uppercase;line-height:0.95}
+.lbl{margin:0;font-size:12px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#5B675F}
+.mut{color:#5B675F}
+.num{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+.grp{background:#FFFFFF;border-radius:20px;padding:0 16px;display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:14px;min-height:60px;padding:12px 0;box-sizing:border-box;border-bottom:1px solid #EDEBE4;text-decoration:none;color:#121A15;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;text-align:start;width:100%;cursor:pointer}
+.row.last{border-bottom:none}
+.ib{width:44px;height:44px;border-radius:22px;background:#FFFFFF;border:none;box-shadow:inset 0 0 0 1px #E4E2DA;display:flex;align-items:center;justify-content:center;color:#121A15;cursor:pointer;flex-shrink:0;text-decoration:none;position:relative}
+.ib.dark{background:rgba(255,255,255,0.12);box-shadow:none;color:#FFFFFF}
+.btn{height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:16px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;width:100%;box-sizing:border-box}
+.pri{background:#121A15;color:#FFFFFF}.acc{background:#D4F25C;color:#121A15}.sec{background:transparent;color:#121A15;box-shadow:inset 0 0 0 1px #CFCDC4}
+.sm{height:36px;padding:0 14px;border-radius:18px;font-size:13px;width:auto}
+.chip{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;border:none;box-shadow:inset 0 0 0 1px #D9D7CE;background:transparent;color:#121A15;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip.on{background:#121A15;color:#FFFFFF;box-shadow:none}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#ECEAE3;border-radius:16px;padding:4px}
+.sg{height:44px;border-radius:12px;border:none;background:transparent;color:#5B675F;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer}
+.sg.on{background:#FFFFFF;color:#121A15;box-shadow:0 1px 3px rgba(18,26,21,0.12)}
+.av{width:36px;height:36px;border-radius:18px;background:#E8E6DE;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.ic{width:40px;height:40px;border-radius:12px;background:#F1EFE9;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.tag{font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;white-space:nowrap}
+.fld{width:100%;height:52px;box-sizing:border-box;border-radius:14px;border:none;box-shadow:inset 0 0 0 1px #DEDCD3;background:#FFFFFF;padding:0 16px;font-family:inherit;font-size:16px;color:#121A15}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:84px;box-sizing:border-box;padding:8px 8px 24px;background:#FFFFFF;box-shadow:0 -1px 0 #E4E2DA;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#5B675F;font-size:11px;font-weight:500}
+.tab::after{content:"";width:4px;height:4px;border-radius:2px;background:transparent}
+.tab.on{color:#121A15;font-weight:700}.tab.on::after{background:#121A15}
+.stat{display:flex;flex-direction:column;gap:4px}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}</style>
+</helmet>
+<div class="scr">
+  <div class="pad" style="padding-bottom: 130px; gap: 20px">
+    <header style="display: flex; align-items: center; gap: 12px"><a href="More.dc.html" class="ib" aria-label="Zurück"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M15 5l-7 7 7 7"></path></svg></a><h1 class="h1" style="flex: 1; font-size: 26px">Abo</h1></header>
+    <div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 15px; font-weight: 700">Aktuell: Kostenlos</span><span class="tag" style="background: #F1EFE9; color: #3E4A43">Team-Limit erreicht</span></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Teams</span><span class="" style="font-weight: 700">1 von 1</span></div><div class="bar"><span style="flex: 100; background: #121A15"></span><span style="flex: 0; background: #E1DFD7"></span></div></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Spieler</span><span class="mut" style="font-weight: 500">22 von 30</span></div><div class="bar"><span style="flex: 73; background: #121A15"></span><span style="flex: 27; background: #E1DFD7"></span></div></div>
+    </div>
+    <div role="radiogroup" aria-label="Abrechnung" class="seg" style="grid-template-columns: repeat(2, minmax(0, 1fr))"><button role="radio" aria-checked="{{mOn}}" onClick="{{setM}}" class="{{mCls}}">Monatlich</button><button role="radio" aria-checked="{{yOn}}" onClick="{{setY}}" class="{{yCls}}">Jährlich</button></div>
+    <div style="background: #0E3B2B; color: #FFFFFF; border-radius: 28px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 20px; font-weight: 700">Verein</span><span class="tag" style="background: #D4F25C; color: #121A15">30 Tage gratis</span></div>
+      <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap"><span class="num" style="font-size: 52px; line-height: 1">{{price}}</span><span style="font-size: 14px; color: #C9D6CF">{{per}}</span></div>
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px"><sc-for list="{{feats}}" as="f" hint-placeholder-count="8"><li style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4"><span style="width: 20px; height: 20px; border-radius: 10px; background: #D4F25C; color: #121A15; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ><path d="M5 12l5 5 9-10"></path></svg></span>{{f.t}}</li></sc-for></ul>
+    </div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.5" class="mut">Pro Verein, nicht pro Kopf. Bei 22 Spielern keine 50 Cent pro Spieler im Monat. Abschluss durch Vorstand oder Kassenwart, monatlich kündbar.</p>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 20px 32px; background: #F6F5F1; box-shadow: 0 -1px 0 #E4E2DA; display: flex; flex-direction: column; gap: 8px"><a href="More.dc.html" class="btn acc">30 Tage kostenlos testen</a><span class="mut" style="font-size: 12px; text-align: center">Keine Karte nötig. Danach {{price}} {{per}}.</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { y: false }; }
+  renderVals() {
+    const feats = ["Bis zu 5 Teams und 150 Spieler", "Vereinsfarben und Wappen", "Live-Ticker und Aufstellung teilen", "Automatische Erinnerungen", "Spielplan und Tabelle importieren", "Beiträge im Blick mit GiroCode", "Chat-Übersetzung in 7 Sprachen", "Vorschau und Vertretung für den Vorstand"];
+    return { feats: feats.map((x) => ({ t: x })), price: this.state.y ? "109,90 €" : "10,99 €", per: this.state.y ? "pro Jahr · 2 Monate gratis" : "pro Monat",
+      mCls: "sg" + (this.state.y ? "" : " on"), yCls: "sg" + (this.state.y ? " on" : ""), mOn: this.state.y ? "false" : "true", yOn: this.state.y ? "true" : "false",
+      setM: () => this.setState({ y: false }), setY: () => this.setState({ y: true }) };
+  }
+}
+</script>
+</body>
+</html>

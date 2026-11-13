@@ -153,6 +153,8 @@ export interface Event {
   carpoolEnabled?: boolean
   /** Length in minutes, when the coach set one (Training default 90). */
   durationMin?: number | null
+  /** Remind open replies 24 h before the start (design 12). Absent = server default (on). */
+  rsvpAutoReminder?: boolean
   /**
    * The title was derived, not typed: render it in the reader's language
    * ("Heimspiel gegen X", "Training") instead of showing `title`, which then
@@ -195,6 +197,12 @@ export interface EventFeedItem extends Event {
   readiness?: EventReadiness | null
   /** Present when fetched with mine=1 and no teamId — multi-team home view */
   team?: { id: string; name: string } | null
+  /** Redesign 08/22: "Ligaspiel · Heim". Absent on older APIs. */
+  matchKind?: import('../schemas/home').MatchKind | null
+  /** Redesign 08: "Entwurf 4-2-3-1 · 9 von 11" (coaches only). */
+  lineupDraft?: import('../schemas/home').LineupDraftSummary | null
+  /** Redesign 25: carpool state for away matches. */
+  carpoolSummary?: import('../schemas/home').CarpoolSummary | null
 }
 
 export type EventReadinessStatus =
@@ -932,6 +940,8 @@ export interface ChildOverviewChild {
   userId: string | null
   name: string
   teams: Array<{ id: string; name: string; displayName: string }>
+  /** Redesign 25: photo consent for team pictures; absent on older APIs. */
+  photoConsent?: import('../schemas/home').PhotoConsentStatus | null
 }
 
 /** A pending team duty for the parent or one of their children. */
@@ -1066,6 +1076,11 @@ export interface FreeAgentListItem {
   age: number | null
   isMinor: boolean
   createdAt: string
+  /**
+   * Redesign 22 ("zuletzt Kreisliga B · 3 km"): straight-line distance from the
+   * searching club's ground, rounded to whole km. Absent on older APIs.
+   */
+  distanceKm?: number | null
 }
 
 export interface FreeAgentListResponse {

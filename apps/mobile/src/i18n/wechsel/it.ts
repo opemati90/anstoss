@@ -4,6 +4,17 @@ export default {
   wechsel: {
     title: 'Mercato giocatori',
     entryHint: 'Annunci, provini e trasferimenti',
+    nearbySubtitle: 'Giocatori svincolati entro {{km}} km',
+    invitedFootnote: 'Gli invitati vedono luogo e orario del prossimo allenamento. I contatti solo dopo la loro conferma.',
+    lastLeague: 'ultima categoria: {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'Altre sezioni',
+    positionChip: {
+      GK: 'Porta',
+      DEF: 'Difesa',
+      MID: 'Centrocampo',
+      FWD: 'Attacco',
+    },
     noAccessTitle: 'Solo per allenatori e dirigenza',
     noAccessBody:
       'Il mercato è aperto agli allenatori della squadra e agli amministratori del club. Chiedi l’accesso al tuo responsabile di settore.',

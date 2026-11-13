@@ -4,6 +4,17 @@ export default {
   wechsel: {
     title: 'Recrutamento',
     entryHint: 'Anúncios, treinos à experiência e transferências',
+    nearbySubtitle: 'Jogadores sem clube num raio de {{km}} km',
+    invitedFootnote: 'Os convidados veem o local e a hora do próximo treino. Contactos só depois de aceitarem.',
+    lastLeague: 'último escalão: {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'Outras secções',
+    positionChip: {
+      GK: 'Baliza',
+      DEF: 'Defesa',
+      MID: 'Meio-campo',
+      FWD: 'Ataque',
+    },
     noAccessTitle: 'Só para treinadores e direção',
     noAccessBody:
       'O recrutamento está disponível para os treinadores da equipa e os administradores do clube. Se precisares de acesso, fala com o coordenador da tua secção.',

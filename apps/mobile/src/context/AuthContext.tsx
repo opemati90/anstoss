@@ -49,6 +49,8 @@ import {
   roleModePreferenceKey,
 } from '../onboarding/storageKeys'
 import { noteServerLanguage } from '../i18n'
+// Vorschau und Vertretung: preview / stand-in sessions present a role + team.
+import { resetViewAs, useViewAs } from '../features/acting/store'
 
 type User = {
   id: string
@@ -773,6 +775,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearOnboardingIntent(),
       ])
       await clearAuthSession({ unregisterPush: true })
+      resetViewAs()
     },
     [clearAuthSession],
   )
@@ -903,6 +906,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await setSessionToken(result.token)
   }, [e2eSession, user?.email, user?.id])
 
+  // Vorschau und Vertretung (redesign 29/31): a read-only preview or a
+  // stand-in coach session presents its role and team to every screen. The
+  // underlying memberships stay untouched; ending it restores the real mode.
+  const viewAs = useViewAs()
+  const viewAsOverride = useMemo(() => {
+    if (!activeClub) return null
+    const clubId = activeClub.club.id
+    const source = viewAs.preview && viewAs.preview.team.clubId === clubId
+      ? {
+          mode: viewAs.preview.mode,
+          role: viewAs.preview.mode,
+          team: viewAs.preview.team,
+        }
+      : viewAs.acting && viewAs.acting.clubId === clubId
+        ? {
+            mode: 'COACH' as const,
+            role: 'HEAD_COACH',
+            team: { id: viewAs.acting.teamId, name: viewAs.acting.teamName, clubId },
+          }
+        : null
+    if (!source) return null
+    const access: TeamMember = {
+      id: `view-as-${source.role.toLowerCase()}-${source.team.id}`,
+      role: source.role,
+      phase: 'FULL',
+      status: 'ACTIVE',
+      team: {
+        id: source.team.id,
+        name: source.team.name,
+        displayName: source.team.name,
+        clubId,
+        ageGroup: null,
+      },
+    }
+    return {
+      activeRoleMode: source.mode as RoleMode,
+      activeTeamId: source.team.id,
+      activeTeamAccess: access,
+      teamsForActiveClub: [access],
+    }
+  }, [activeClub, viewAs.acting, viewAs.preview])
+
   return (
     <AuthContext.Provider
       value={{
@@ -931,6 +976,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser,
         reauthenticate,
         completeOnboarding,
+        ...viewAsOverride,
       }}
     >
       {children}

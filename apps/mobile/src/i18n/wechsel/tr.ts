@@ -4,6 +4,17 @@ export default {
   wechsel: {
     title: 'Transfer Merkezi',
     entryHint: 'İlanlar, deneme antrenmanları ve kulüp değişiklikleri',
+    nearbySubtitle: '{{km}} km çevrede kulübü olmayan oyuncular',
+    invitedFootnote: 'Davet edilenler bir sonraki antrenmanın yerini ve saatini görür. İletişim bilgileri ancak kabul ettiklerinde.',
+    lastLeague: 'son lig: {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'Diğer bölümler',
+    positionChip: {
+      GK: 'Kale',
+      DEF: 'Defans',
+      MID: 'Orta saha',
+      FWD: 'Hücum',
+    },
     noAccessTitle: 'Yalnızca antrenörler ve yönetim için',
     noAccessBody:
       'Transfer Merkezi’ni takımın antrenörleri ve kulüp yöneticileri görür. Erişime ihtiyacın varsa şube sorumlusuna sor.',

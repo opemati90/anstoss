@@ -4,6 +4,17 @@ export default {
   wechsel: {
     title: 'Transfer market',
     entryHint: 'Player searches, trial sessions and transfers',
+    nearbySubtitle: 'Players without a club within {{km}} km',
+    invitedFootnote: 'Invited players see the place and time of the next training. Contact details only after they accept.',
+    lastLeague: 'last played {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'More sections',
+    positionChip: {
+      GK: 'Goal',
+      DEF: 'Defence',
+      MID: 'Midfield',
+      FWD: 'Attack',
+    },
     noAccessTitle: 'For coaches and the committee',
     noAccessBody:
       'Only coaches and club admins can see the transfer market. Ask your section head if you need access.',

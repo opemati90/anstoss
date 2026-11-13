@@ -5,7 +5,16 @@ import { useTranslation } from 'react-i18next'
 import type { PlayerSearch, TrialInvite } from '@anstoss/shared'
 import { EmptyState } from '../../src/components/EmptyState'
 import { ClubScreenHeader } from '../../src/components/club/ClubScreenHeader'
-import { Button, FilterChipRow, Screen } from '../../src/components/ui'
+import {
+  Badge,
+  BottomSheet,
+  Button,
+  Icon,
+  IconButton,
+  ListRow,
+  Screen,
+  SectionGroup,
+} from '../../src/components/ui'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import {
   SCREEN_PADDING,
@@ -27,7 +36,9 @@ import { invalidateApi, useApiQuery } from '../../src/features/wechsel/query'
 import { OPEN_STATUSES } from '../../src/features/wechsel/status'
 
 type Segment = 'gesuche' | 'spieler' | 'probetraining' | 'wechsel'
-const SEGMENTS: Segment[] = ['gesuche', 'spieler', 'probetraining', 'wechsel']
+const SEGMENTS: Segment[] = ['spieler', 'gesuche', 'probetraining', 'wechsel']
+/** Design 22: "Vereinslose Spieler in 10 km Umkreis". */
+const BOARD_RADIUS_KM = 10
 
 /**
  * Wechselbörse (redesign 21): outlined back + title header, horizontal ink
@@ -45,10 +56,11 @@ export default function WechselboerseScreen() {
   const access = useWechselAccess()
   const initial = SEGMENTS.includes(params.tab as Segment)
     ? (params.tab as Segment)
-    : 'probetraining'
+    : 'spieler'
   const [segment, setSegment] = useState<Segment>(initial)
   const [gesuchOpen, setGesuchOpen] = useState(false)
   const [creatingGesuch, setCreatingGesuch] = useState(false)
+  const [desksOpen, setDesksOpen] = useState(false)
   const insets = useSafeAreaInsetsSafe()
 
   useEffect(() => {
@@ -86,12 +98,55 @@ export default function WechselboerseScreen() {
     [trials.data],
   )
 
+  const deskLabel: Record<Segment, string> = {
+    gesuche: t('wechsel.tabGesuche'),
+    spieler: t('wechsel.tabSpieler'),
+    probetraining: t('wechsel.tabProbetraining'),
+    wechsel: t('wechsel.tabWechsel'),
+  }
+  const deskCount: Record<Segment, number> = {
+    gesuche: counts.gesuche,
+    spieler: 0,
+    probetraining: counts.probetraining,
+    wechsel: counts.wechsel,
+  }
+  const otherOpen = counts.gesuche + counts.probetraining + counts.wechsel
+
+  // Design 22: back + title + one muted line. The main view is the player
+  // search ("Vereinslose Spieler in 10 km Umkreis"); Gesuche, Probetraining
+  // and Wechsel sit behind the trailing button.
   const header = (
     <ClubScreenHeader
       title={t('wechsel.title')}
-      subtitle={t('wechsel.entryHint')}
+      subtitle={
+        segment === 'spieler'
+          ? t('wechsel.nearbySubtitle', { km: BOARD_RADIUS_KM })
+          : deskLabel[segment]
+      }
       titleSize={24}
       fallbackHref="/(tabs)"
+      right={
+        access.canManage ? (
+          <View>
+            <IconButton
+              variant="outlined"
+              accessibilityLabel={
+                otherOpen > 0 ? `${t('wechsel.desksA11y')}, ${otherOpen}` : t('wechsel.desksA11y')
+              }
+              onPress={() => setDesksOpen(true)}
+              testID="wechsel-desks"
+            >
+              <Icon name="ellipsis" size="md" color="primary" />
+            </IconButton>
+            {otherOpen > 0 ? (
+              <View
+                pointerEvents="none"
+                style={[styles.dot, { backgroundColor: c.alertDot, borderColor: c.background }]}
+              />
+            ) : null}
+          </View>
+        ) : undefined
+      }
     />
   )
 
@@ -148,35 +203,18 @@ export default function WechselboerseScreen() {
         showsVerticalScrollIndicator={false}
       >
         {header}
-        <FilterChipRow
-          singleSelect
-          chips={[
-            {
-              key: 'gesuche' as const,
-              label: t('wechsel.tabGesuche'),
-              count: counts.gesuche || undefined,
-            },
-            { key: 'spieler' as const, label: t('wechsel.tabSpieler') },
-            {
-              key: 'probetraining' as const,
-              label: t('wechsel.tabProbetraining'),
-              count: counts.probetraining || undefined,
-            },
-            {
-              key: 'wechsel' as const,
-              label: t('wechsel.tabWechsel'),
-              count: counts.wechsel || undefined,
-            },
-          ]}
-          selected={segment}
-          onToggle={setSegment}
-        />
         <View style={styles.body}>
           {segment === 'gesuche' ? (
             <GesucheTab clubId={clubId} query={searches} teams={teams} />
           ) : null}
           {segment === 'spieler' ? (
-            <SpielersucheTab clubId={clubId} teams={teams} invitedProfileIds={invitedProfileIds} />
+            <SpielersucheTab
+              clubId={clubId}
+              teams={teams}
+              invitedProfileIds={invitedProfileIds}
+              board
+              radius={BOARD_RADIUS_KM}
+            />
           ) : null}
           {segment === 'probetraining' ? (
             <ProbetrainingTab
@@ -198,7 +236,7 @@ export default function WechselboerseScreen() {
             {
               backgroundColor: c.background,
               borderTopColor: c.borderDefault,
-              paddingBottom: SPACING_XL + insets.bottom,
+              paddingBottom: FOOTER_BOTTOM + insets.bottom,
             },
           ]}
         >
@@ -207,11 +245,33 @@ export default function WechselboerseScreen() {
             size="lg"
             fullWidth
             label={t('wechsel.publishSearch', { defaultValue: 'Publish a search' })}
+            leftIcon={<Icon name="megaphone" size={18} color="primary" />}
             onPress={() => setGesuchOpen(true)}
             testID="wechsel-publish-search"
           />
         </View>
       ) : null}
+      <BottomSheet visible={desksOpen} onClose={() => setDesksOpen(false)} heightPct="auto">
+        <View style={styles.desks}>
+          <SectionGroup>
+            {SEGMENTS.map((key) => (
+              <ListRow
+                key={key}
+                title={deskLabel[key]}
+                right={deskCount[key] > 0 ? <Badge label={String(deskCount[key])} variant="club" /> : undefined}
+                accessibilityLabel={deskCount[key] > 0 ? `${deskLabel[key]}, ${deskCount[key]}` : deskLabel[key]}
+                selected={segment === key}
+                showChevron
+                onPress={() => {
+                  setSegment(key)
+                  setDesksOpen(false)
+                }}
+                testID={`wechsel-desk-${key}`}
+              />
+            ))}
+          </SectionGroup>
+        </View>
+      </BottomSheet>
       <GesuchSheet
         visible={gesuchOpen}
         onClose={() => setGesuchOpen(false)}
@@ -223,14 +283,29 @@ export default function WechselboerseScreen() {
   )
 }
 
+// Design 22: 18pt rhythm; footer padding 12 / 32 (incl. home indicator).
+const BOARD_GAP = 18
+const FOOTER_BOTTOM = SPACING_XL
+const DOT = 10
+
 const styles = StyleSheet.create({
   content: {
-    gap: SPACING_LG,
+    gap: BOARD_GAP,
     paddingHorizontal: SCREEN_PADDING,
-    paddingTop: SPACING_LG,
+    paddingTop: SPACING_MD,
     paddingBottom: SPACING_XXL,
   },
   body: { gap: SPACING_LG },
+  desks: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_MD, paddingBottom: SPACING_XL },
+  dot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    borderWidth: 2,
+  },
   footer: {
     position: 'absolute',
     left: 0,

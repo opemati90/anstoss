@@ -4,6 +4,17 @@ export default {
   wechsel: {
     title: 'Bourse aux joueurs',
     entryHint: 'Annonces, essais et mutations',
+    nearbySubtitle: 'Joueurs sans club à {{km}} km à la ronde',
+    invitedFootnote: 'Les invités voient le lieu et l’heure du prochain entraînement. Coordonnées seulement après leur accord.',
+    lastLeague: 'dernier niveau : {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'Autres rubriques',
+    positionChip: {
+      GK: 'Gardien',
+      DEF: 'Défense',
+      MID: 'Milieu',
+      FWD: 'Attaque',
+    },
     noAccessTitle: 'Réservé aux entraîneurs et au bureau',
     noAccessBody:
       'La bourse aux joueurs est réservée aux entraîneurs de l’équipe et aux administrateurs du club. Demande l’accès à ton responsable de section.',

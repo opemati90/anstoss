@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   type TextInputProps,
 } from 'react-native'
+import Svg, { Path, Text as SvgText } from 'react-native-svg'
 import { useKeyboardState } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -326,45 +327,51 @@ export function clubInitials(name: string): string {
   )
 }
 
-/** Club crest, or the initials on the club colour when there is no badge. */
+/**
+ * Club crest: the badge when there is one, otherwise the design's shield in
+ * the club colour with a lime inner line and the initials. `size` is the
+ * width; the shield keeps the design's 40:44 aspect.
+ */
 export function ClubCrest({ club, size = 56 }: { club: CrestClub; size?: number }) {
   const c = useClubColors()
   const fill = club.primaryColor && /^#[0-9A-Fa-f]{6}$/.test(club.primaryColor)
     ? club.primaryColor
-    : c.primary
-  const shape = {
-    width: size,
-    height: size,
-    borderRadius: size * 0.28,
-    borderCurve: 'continuous' as const,
-  }
+    : c.heroBg
+  const height = Math.round((size * 44) / 40)
   if (club.badgeUrl) {
     return (
       <Image
         source={{ uri: club.badgeUrl }}
-        style={[shape, { backgroundColor: c.surfaceSunken }]}
+        style={{ width: size, height }}
+        resizeMode="contain"
         accessibilityIgnoresInvertColors
         accessible={false}
       />
     )
   }
   return (
-    <View style={[shape, styles.crestFallback, { backgroundColor: fill }]} accessible={false}>
-      <Text
-        style={{
-          color: onColor(fill),
-          fontFamily: fonts.heading,
-          fontSize: Math.round(size * 0.36),
-          lineHeight: Math.round(size * 0.44),
-          includeFontPadding: false,
-        }}
-        allowFontScaling={false}
-      >
-        {clubInitials(club.name)}
-      </Text>
+    <View accessible={false} style={{ width: size, height }}>
+      <Svg width={size} height={height} viewBox="0 0 40 44">
+        <Path d={SHIELD_OUTER} fill={fill} />
+        <Path d={SHIELD_INNER} fill="none" stroke={c.accent} strokeOpacity={0.55} strokeWidth={1} />
+        <SvgText
+          x={20}
+          y={25.5}
+          textAnchor="middle"
+          fontFamily={fonts.display}
+          fontWeight="700"
+          fontSize={12.5}
+          fill={onColor(fill)}
+        >
+          {clubInitials(club.name).slice(0, 3)}
+        </SvgText>
+      </Svg>
     </View>
   )
 }
+
+const SHIELD_OUTER = 'M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z'
+const SHIELD_INNER = 'M20 5 34 9.8v10.2c0 8.6-6 15.2-14 18.6C12 35.2 6 28.6 6 20V9.8z'
 
 /** Selectable row (role choice, search result). */
 export function ChoiceRow({
@@ -515,7 +522,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
-  crestFallback: { alignItems: 'center', justifyContent: 'center' },
   choice: {
     flexDirection: 'row',
     alignItems: 'center',

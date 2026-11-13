@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../tr.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Önizleme ve vekalet",
+    entrySub: "Yalnızca yönetim ve takım sorumluları için",
+    sheetBody: "Kendi rollerin her zaman etkin. Burada uygulamaya başka gözlerle bakabilir ya da kısa süre vekalet edebilirsin.",
+    choices: "Seçim",
+    previewLabel: "Önizleme",
+    actingLabel: "Vekalet",
+    asPlayer: "Oyuncu olarak gör",
+    asParent: "Veli olarak gör",
+    readOnly: "{{team}} · salt okunur",
+    standIn: "Antrenöre vekalet et",
+    coachAway: "{{team}} · antrenör izinde",
+    coachNamed: "{{team}} · antrenör: {{name}}",
+    noTeams: "Şu anda vekalet edilecek takım yok.",
+    team: "Takım",
+    duration: "Süre",
+    minutes: "{{count}} dk",
+    logNote: "Her şey “{{name}} (yönetim) antrenör olarak” diye kaydedilir. Baş antrenör bilgilendirilir.",
+    openPreview: "Önizlemeyi aç",
+    startActing: "{{count}} dk vekalet et",
+    startError: "Vekalet başlatılamadı.",
+    bannerActing: "Antrenör olarak işlem yapıyorsun · {{team}}",
+    bannerActingMeta: "Kalan {{count}} dk · kaydediliyor",
+    bannerPreview: "Önizleme: {{role}} · {{team}}",
+    bannerPreviewMeta: "Salt okunur · değişiklikler kilitli",
+    rolePlayer: "oyuncu",
+    roleParent: "veli",
+    end: "Bitir",
+    endActingA11y: "Vekaleti bitir",
+    endPreviewA11y: "Önizlemeyi bitir",
+    readOnlyBlocked: "Önizlemede hiçbir şeyi değiştiremezsin.",
+    fallbackName: "Yönetim",
+  },
   chatHub: {
     filter: {
       all: "Tümü",

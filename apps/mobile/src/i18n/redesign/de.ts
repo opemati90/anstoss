@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../de.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Vorschau und Vertretung",
+    entrySub: "Nur für Vorstand und Teammanager",
+    sheetBody: "Deine eigenen Rollen sind immer alle aktiv. Hier siehst du die App mit anderen Augen oder springst kurz ein.",
+    choices: "Auswahl",
+    previewLabel: "Vorschau",
+    actingLabel: "Vertretung",
+    asPlayer: "Als Spieler ansehen",
+    asParent: "Als Eltern ansehen",
+    readOnly: "{{team}} · nur lesen",
+    standIn: "Trainer vertreten",
+    coachAway: "{{team}} · Trainer im Urlaub",
+    coachNamed: "{{team}} · Trainer: {{name}}",
+    noTeams: "Gerade gibt es kein Team zum Vertreten.",
+    team: "Team",
+    duration: "Dauer",
+    minutes: "{{count}} Min",
+    logNote: "Alles wird als „{{name}} (Vorstand) als Trainer“ protokolliert. Der Cheftrainer wird informiert.",
+    openPreview: "Vorschau öffnen",
+    startActing: "Für {{count}} Min vertreten",
+    startError: "Die Vertretung konnte nicht gestartet werden.",
+    bannerActing: "Du handelst als Trainer · {{team}}",
+    bannerActingMeta: "Noch {{count}} Min · wird protokolliert",
+    bannerPreview: "Vorschau als {{role}} · {{team}}",
+    bannerPreviewMeta: "Nur lesen · Änderungen sind gesperrt",
+    rolePlayer: "Spieler",
+    roleParent: "Eltern",
+    end: "Beenden",
+    endActingA11y: "Vertretung beenden",
+    endPreviewA11y: "Vorschau beenden",
+    readOnlyBlocked: "In der Vorschau kannst du nichts ändern.",
+    fallbackName: "Vorstand",
+  },
   chatHub: {
     filter: {
       all: "Alle",
@@ -246,7 +280,11 @@ export default {
       unclaimed: "Ohne Konto",
     },
     code: {
+      apple: "Mit Apple fortfahren",
       emailLabel: "E-Mail",
+      google: "Mit Google fortfahren",
+      oauthSoon: "Bald verfügbar. Melde dich bis dahin mit deiner E-Mail an.",
+      or: "oder",
       legalAnd: " und die ",
       legalPrefix: "Mit dem Fortfahren akzeptierst du die ",
       legalPrivacy: "Datenschutzerklärung",
@@ -263,6 +301,7 @@ export default {
     },
     language: {
       apply: "Übernehmen",
+      previewBody: "Termine, Zusagen, Aufstellung, Chat und Beiträge an einem Ort.",
       note: "Gilt auch für Mitteilungen und E-Mails.",
       preview: "Vorschau",
     },

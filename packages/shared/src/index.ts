@@ -25,8 +25,12 @@ export * from './schemas/live'
 // Vorschau und Vertretung: acting sessions (stand-in coach)
 export * from './schemas/acting'
 export * from './schemas/roster-slot'
+// Onboarding redesign: OAuth, roster-slot claim, multi-role join, club claim extras
+export * from './schemas/onboarding-redesign'
 export * from './schemas/managed-sub-profile'
 export * from './schemas/chat'
+// 2026-11 redesign: home contract additions (match kind, lineup draft, season, dues history)
+export * from './schemas/home'
 export * from './errors/base'
 export * from './utils/iban'
 export * from './utils/wechsel'

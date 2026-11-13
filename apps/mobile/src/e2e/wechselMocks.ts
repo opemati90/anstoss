@@ -284,6 +284,8 @@ function toListItem(profile: FreeAgentProfile): FreeAgentListItem {
     age: profile.isMinor ? null : profile.age,
     isMinor: profile.isMinor,
     createdAt: profile.createdAt,
+    // Redesign 22: a stable 1–9 km distance per PLZ for the preview.
+    distanceKm: profile.postalCode ? (Number(profile.postalCode.slice(-2)) % 9) + 1 : null,
   }
 }
 

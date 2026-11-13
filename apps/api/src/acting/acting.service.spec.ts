@@ -37,10 +37,10 @@ function build(opts: {
     team: {
       findFirst: jest.fn().mockResolvedValue(opts.team === undefined ? TEAM : opts.team),
       findMany: jest.fn().mockResolvedValue([
-        { id: 't-h1', displayName: '1. Herren', name: 'Herren', access: [{ userId: 'actor', role: 'HEAD_COACH', absence: 'NONE', absenceUntil: null, user: { name: 'Yemi' } }] },
-        { id: 't-h2', displayName: 'Herren II', name: 'Herren II', access: [{ userId: 'c2', role: 'HEAD_COACH', absence: 'NONE', absenceUntil: null, user: { name: 'Tom' } }] },
-        { id: 't-aj', displayName: 'A-Jugend', name: 'U19', access: [{ userId: 'c3', role: 'HEAD_COACH', absence: 'AWAY', absenceUntil: null, user: { name: 'Jonas' } }] },
-        { id: 't-e', displayName: 'E-Jugend', name: 'U11', access: [] },
+        { id: 't-h1', displayName: '1. Herren', name: 'Herren', access: [{ userId: 'actor', role: 'HEAD_COACH', user: { name: 'Yemi' } }], members: [] },
+        { id: 't-h2', displayName: 'Herren II', name: 'Herren II', access: [{ userId: 'c2', role: 'HEAD_COACH', user: { name: 'Tom' } }], members: [{ userId: 'c2', absence: 'NONE', absenceUntil: null }] },
+        { id: 't-aj', displayName: 'A-Jugend', name: 'U19', access: [{ userId: 'c3', role: 'HEAD_COACH', user: { name: 'Jonas' } }], members: [{ userId: 'c3', absence: 'AWAY', absenceUntil: null }] },
+        { id: 't-e', displayName: 'E-Jugend', name: 'U11', access: [], members: [] },
       ]),
     },
     user: { findUnique: jest.fn().mockResolvedValue({ name: 'Yemi Adeyemi' }) },

@@ -42,6 +42,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Vorschau und Vertretung: while a read-only preview ("Als Spieler ansehen")
+ * runs, every write is refused on the client before it leaves the device.
+ */
+export class PreviewReadOnlyError extends ApiError {
+  constructor(path: string) {
+    super(`Read-only preview: ${path} was not sent`, 403, 'preview_read_only')
+    this.name = 'PreviewReadOnlyError'
+  }
+}
+
+let _writeBlocker: ((method: string, path: string) => boolean) | null = null
+
+/** Installed by the preview store; returns true when a request must not be sent. */
+export function setWriteBlocker(fn: ((method: string, path: string) => boolean) | null) {
+  _writeBlocker = fn
+}
+
 type RequestOptions = {
   method?: string
   body?: unknown
@@ -124,6 +142,7 @@ export async function api<T = unknown>(
 
   const token = await getToken()
   const { method = 'GET', body, headers = {} } = options
+  if (_writeBlocker?.(method.toUpperCase(), path)) throw new PreviewReadOnlyError(path)
   const e2eResponse = handleE2EApiRequest(path, { method, body })
 
   if (e2eResponse.handled) {

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Spielerprofil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}a{color:#0E3B2B}a:hover{color:#121A15}
+.scr{width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;background:#F6F5F1;color:#121A15;font-family:Inter,"IBM Plex Sans Arabic",system-ui,sans-serif}
+.pad{padding:60px 20px 108px;display:flex;flex-direction:column;gap:24px}
+.h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;line-height:1.1}
+.disp{font-family:"Barlow Condensed","IBM Plex Sans Arabic",sans-serif;font-weight:700;text-transform:uppercase;line-height:0.95}
+.lbl{margin:0;font-size:12px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#5B675F}
+.mut{color:#5B675F}
+.num{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+.grp{background:#FFFFFF;border-radius:20px;padding:0 16px;display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:14px;min-height:60px;padding:12px 0;box-sizing:border-box;border-bottom:1px solid #EDEBE4;text-decoration:none;color:#121A15;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;text-align:start;width:100%;cursor:pointer}
+.row.last{border-bottom:none}
+.ib{width:44px;height:44px;border-radius:22px;background:#FFFFFF;border:none;box-shadow:inset 0 0 0 1px #E4E2DA;display:flex;align-items:center;justify-content:center;color:#121A15;cursor:pointer;flex-shrink:0;text-decoration:none;position:relative}
+.ib.dark{background:rgba(255,255,255,0.12);box-shadow:none;color:#FFFFFF}
+.btn{height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:16px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;width:100%;box-sizing:border-box}
+.pri{background:#121A15;color:#FFFFFF}.acc{background:#D4F25C;color:#121A15}.sec{background:transparent;color:#121A15;box-shadow:inset 0 0 0 1px #CFCDC4}
+.sm{height:36px;padding:0 14px;border-radius:18px;font-size:13px;width:auto}
+.chip{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;border:none;box-shadow:inset 0 0 0 1px #D9D7CE;background:transparent;color:#121A15;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip.on{background:#121A15;color:#FFFFFF;box-shadow:none}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#ECEAE3;border-radius:16px;padding:4px}
+.sg{height:44px;border-radius:12px;border:none;background:transparent;color:#5B675F;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer}
+.sg.on{background:#FFFFFF;color:#121A15;box-shadow:0 1px 3px rgba(18,26,21,0.12)}
+.av{width:36px;height:36px;border-radius:18px;background:#E8E6DE;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.ic{width:40px;height:40px;border-radius:12px;background:#F1EFE9;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.tag{font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;white-space:nowrap}
+.fld{width:100%;height:52px;box-sizing:border-box;border-radius:14px;border:none;box-shadow:inset 0 0 0 1px #DEDCD3;background:#FFFFFF;padding:0 16px;font-family:inherit;font-size:16px;color:#121A15}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:84px;box-sizing:border-box;padding:8px 8px 24px;background:#FFFFFF;box-shadow:0 -1px 0 #E4E2DA;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#5B675F;font-size:11px;font-weight:500}
+.tab::after{content:"";width:4px;height:4px;border-radius:2px;background:transparent}
+.tab.on{color:#121A15;font-weight:700}.tab.on::after{background:#121A15}
+.stat{display:flex;flex-direction:column;gap:4px}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}</style>
+</helmet>
+<div class="scr">
+  <div class="pad" style="padding-bottom: 36px; gap: 22px">
+    <header style="display: flex; justify-content: space-between"><a href="Squad.dc.html" class="ib" aria-label="Zurück"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M15 5l-7 7 7 7"></path></svg></a><button class="ib" aria-label="Bearbeiten"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></button></header>
+    <div style="display: flex; align-items: flex-end; gap: 18px">
+      <span class="num" style="font-size: 96px; line-height: 0.8; color: {{club}}">9</span>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px"><h1 class="h1" style="font-size: 28px">Kofi Osei</h1><span style="font-size: 14px" class="mut">Stürmer · Kapitän · seit 2023</span></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <a href="Chat.dc.html" class="btn pri" style="height: 48px; font-size: 15px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M4 5h16v11H8l-4 4z"></path></svg>Nachricht</a>
+      <a href="#rollen" class="btn sec" style="height: 48px; font-size: 15px">Rollen</a>
+    </div>
+    <section id="rollen" style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; justify-content: space-between"><h2 class="lbl">Rollen in 1. Herren</h2><span style="font-size: 12px" class="mut">Vergibt der Vorstand</span></div>
+      <div role="group" aria-label="Rollen" style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{roles}}" as="r" hint-placeholder-count="6"><button role="switch" aria-checked="{{r.on}}" onClick="{{r.pick}}" class="{{r.cls}}">{{r.label}}</button></sc-for></div>
+    </section>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-radius: 20px; padding: 18px 16px">
+      <div class="stat"><span class="num" style="font-size: 32px; line-height: 1">9</span><span style="font-size: 12px" class="mut">Einsätze</span></div>
+      <div class="stat"><span class="num" style="font-size: 32px; line-height: 1">6</span><span style="font-size: 12px" class="mut">Tore</span></div>
+      <div class="stat"><span class="num" style="font-size: 32px; line-height: 1">3</span><span style="font-size: 12px" class="mut">Vorlagen</span></div>
+    </div>
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; justify-content: space-between"><h2 class="lbl">Training · letzte 8</h2><span style="font-size: 13px; font-weight: 600">7 von 8</span></div>
+      <div style="display: flex; gap: 4px" role="img" aria-label="7 von 8 Trainings besucht"><sc-for list="{{att}}" as="a" hint-placeholder-count="8"><span style="{{a.s}}"></span></sc-for></div>
+    </section>
+    <div class="grp">
+      <a href="MyDues.dc.html" class="row"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18M7 15h3"></path></svg></span><span style="flex: 1; font-size: 15px; font-weight: 600">Beiträge</span><span class="tag" style="background: #EEF1E6; color: #2E3B13">Aktuell</span><span class="mut" style="display: flex"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M9 6l6 6-6 6"></path></svg></span></a>
+      <div class="row last"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"></path></svg></span><span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Spielerpass</span><span style="font-size: 12px" class="mut">Gültig bis 30.06.2027</span></span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"club": {"editor": "color", "default": "#0E3B2B", "options": ["#0E3B2B", "#7A1F2B", "#123A5C", "#1F2A44"], "section": "Vereinsfarbe"}, "$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { r: { player: true, captain: true } }; }
+  renderVals() {
+    const roles = [["player","Spieler"],["captain","Kapitän"],["coach","Trainer"],["manager","Teammanager"],["treasurer","Kassenwart"],["board","Vorstand"]].map(([id,label]) => { const on = !!this.state.r[id];
+      return { label, on: on ? "true" : "false", cls: "chip" + (on ? " on" : ""), pick: () => { const r = Object.assign({}, this.state.r); r[id] = !on; this.setState({ r }); } }; });
+    const club = this.props.club ?? "#0E3B2B";
+    const att = [1,1,1,0,1,1,1,1].map((v, i) => ({ s: "flex: 1; height: 28px; border-radius: 6px; background: " + (v ? club : "#E1DFD7") }));
+    return { club, att, roles };
+  }
+}
+</script>
+</body>
+</html>

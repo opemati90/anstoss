@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../pt.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Pré-visualização e substituição",
+    entrySub: "Só para a direção e gestores de equipa",
+    sheetBody: "Todas as tuas funções estão sempre ativas. Aqui vês a app com outros olhos ou substituis alguém por pouco tempo.",
+    choices: "Escolha",
+    previewLabel: "Pré-visualização",
+    actingLabel: "Substituição",
+    asPlayer: "Ver como jogador",
+    asParent: "Ver como encarregado",
+    readOnly: "{{team}} · só leitura",
+    standIn: "Substituir o treinador",
+    coachAway: "{{team}} · treinador de férias",
+    coachNamed: "{{team}} · treinador: {{name}}",
+    noTeams: "Neste momento não há nenhuma equipa para substituir.",
+    team: "Equipa",
+    duration: "Duração",
+    minutes: "{{count}} min",
+    logNote: "Tudo fica registado como “{{name}} (direção) como treinador”. O treinador principal é informado.",
+    openPreview: "Abrir pré-visualização",
+    startActing: "Substituir durante {{count}} min",
+    startError: "Não foi possível iniciar a substituição.",
+    bannerActing: "Estás a agir como treinador · {{team}}",
+    bannerActingMeta: "Faltam {{count}} min · fica registado",
+    bannerPreview: "Pré-visualização como {{role}} · {{team}}",
+    bannerPreviewMeta: "Só leitura · alterações bloqueadas",
+    rolePlayer: "jogador",
+    roleParent: "encarregado",
+    end: "Terminar",
+    endActingA11y: "Terminar substituição",
+    endPreviewA11y: "Terminar pré-visualização",
+    readOnlyBlocked: "Na pré-visualização não podes alterar nada.",
+    fallbackName: "Direção",
+  },
   chatHub: {
     filter: {
       all: "Todos",

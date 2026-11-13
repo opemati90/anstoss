@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../fr.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Aperçu et remplacement",
+    entrySub: "Réservé au comité et aux responsables d’équipe",
+    sheetBody: "Tous tes rôles restent toujours actifs. Ici, tu vois l’appli avec d’autres yeux ou tu remplaces quelqu’un un moment.",
+    choices: "Choix",
+    previewLabel: "Aperçu",
+    actingLabel: "Remplacement",
+    asPlayer: "Voir en tant que joueur",
+    asParent: "Voir en tant que parent",
+    readOnly: "{{team}} · lecture seule",
+    standIn: "Remplacer l’entraîneur",
+    coachAway: "{{team}} · entraîneur en vacances",
+    coachNamed: "{{team}} · entraîneur : {{name}}",
+    noTeams: "Aucune équipe à remplacer pour le moment.",
+    team: "Équipe",
+    duration: "Durée",
+    minutes: "{{count}} min",
+    logNote: "Tout est enregistré comme « {{name}} (comité) en tant qu’entraîneur ». L’entraîneur principal est informé.",
+    openPreview: "Ouvrir l’aperçu",
+    startActing: "Remplacer pendant {{count}} min",
+    startError: "Le remplacement n’a pas pu démarrer.",
+    bannerActing: "Tu agis en tant qu’entraîneur · {{team}}",
+    bannerActingMeta: "Encore {{count}} min · enregistré",
+    bannerPreview: "Aperçu en tant que {{role}} · {{team}}",
+    bannerPreviewMeta: "Lecture seule · modifications bloquées",
+    rolePlayer: "joueur",
+    roleParent: "parent",
+    end: "Terminer",
+    endActingA11y: "Terminer le remplacement",
+    endPreviewA11y: "Terminer l’aperçu",
+    readOnlyBlocked: "Tu ne peux rien modifier dans l’aperçu.",
+    fallbackName: "Comité",
+  },
   chatHub: {
     filter: {
       all: "Tous",

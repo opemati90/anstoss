@@ -348,39 +348,45 @@ export function PlayerRow({
     player.availableFrom && new Date(player.availableFrom).getTime() > Date.now()
       ? t('spielerprofil.availableFromShort', { date: formatDate(player.availableFrom) })
       : t('spielerprofil.availableNow')
+  const league = leagueLabel(t, player.highestLeague)
+  // Design 22: "zuletzt Kreisliga B · 3 km". Club and availability stay in
+  // the screen-reader label and on the profile.
   const levelLine = [
-    leagueLabel(t, player.highestLeague),
-    player.currentClubName ?? t('spielerprofil.noClub'),
-    available,
+    league ? t('wechsel.lastLeague', { league }) : (player.currentClubName ?? t('spielerprofil.noClub')),
+    player.distanceKm != null ? t('wechsel.distanceKm', { km: player.distanceKm }) : null,
   ]
     .filter(Boolean)
     .join(' · ')
+  const a11y = [player.name, meta, levelLine, player.currentClubName ?? t('spielerprofil.noClub'), available]
+    .filter(Boolean)
+    .join(', ')
 
+  // The invite pill sits beside the pressable body, never inside it: a
+  // button nested in a button is invalid on web (and reads twice on iOS).
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${player.name}, ${meta}, ${levelLine}`}
-      onPress={onPress}
-      android_ripple={{ color: c.borderSubtle, foreground: true }}
-      style={({ pressed }) => [
-        styles.playerRow,
-        { backgroundColor: pressed ? c.surfaceSunken : 'transparent' },
-      ]}
-    >
-      <Avatar size={44} tone="neutral" src={player.avatarUrl} fallbackText={player.name} />
-      <View style={styles.flex}>
-        <Text variant="subheadline" weight="bold" color="primary" numberOfLines={1}>
-          {player.name}
-        </Text>
-        {meta ? (
-          <Text variant="footnote" color="primary" numberOfLines={1}>
-            {meta}
+    <View style={styles.playerRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={a11y}
+        onPress={onPress}
+        android_ripple={{ color: c.borderSubtle, foreground: true }}
+        style={({ pressed }) => [styles.playerBody, pressed && styles.pressed]}
+      >
+        <Avatar size={44} tone="neutral" src={player.avatarUrl} fallbackText={player.name} />
+        <View style={styles.playerText}>
+          <Text variant="body" weight="bold" color="primary" numberOfLines={1}>
+            {player.name}
           </Text>
-        ) : null}
-        <Text variant="caption1" color="secondary" numberOfLines={1}>
-          {levelLine}
-        </Text>
-      </View>
+          {meta ? (
+            <Text variant="footnote" color="primary" numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
+          <Text variant="caption1" color="secondary" numberOfLines={2}>
+            {levelLine}
+          </Text>
+        </View>
+      </Pressable>
       {onInvite ? (
         <Button
           size="sm"
@@ -393,11 +399,12 @@ export function PlayerRow({
           }
           disabled={invited}
           onPress={onInvite}
+          style={styles.invitePill}
         />
       ) : (
         <Icon name="chevron.right" size="sm" color="tertiary" />
       )}
-    </Pressable>
+    </View>
   )
 }
 
@@ -494,8 +501,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING_MD,
     paddingHorizontal: SPACING_LG,
+  },
+  playerBody: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
     paddingVertical: SPACING_MD,
   },
+  playerText: { flex: 1, minWidth: 0, gap: 2 },
+  pressed: { opacity: 0.6 },
+  // Design: the .sm pill at 44pt tall.
+  invitePill: { height: 44, borderRadius: 22 },
   checkRow: {
     minHeight: 56,
     flexDirection: 'row',

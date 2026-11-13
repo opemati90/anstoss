@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Sprache wählen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}a{color:#0E3B2B}a:hover{color:#121A15}
+.scr{width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;background:#F6F5F1;color:#121A15;font-family:Inter,"IBM Plex Sans Arabic",system-ui,sans-serif}
+.pad{padding:60px 20px 108px;display:flex;flex-direction:column;gap:24px}
+.h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;line-height:1.1}
+.disp{font-family:"Barlow Condensed","IBM Plex Sans Arabic",sans-serif;font-weight:700;text-transform:uppercase;line-height:0.95}
+.lbl{margin:0;font-size:12px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#5B675F}
+.mut{color:#5B675F}
+.num{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+.grp{background:#FFFFFF;border-radius:20px;padding:0 16px;display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:14px;min-height:60px;padding:12px 0;box-sizing:border-box;border-bottom:1px solid #EDEBE4;text-decoration:none;color:#121A15;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;text-align:start;width:100%;cursor:pointer}
+.row.last{border-bottom:none}
+.ib{width:44px;height:44px;border-radius:22px;background:#FFFFFF;border:none;box-shadow:inset 0 0 0 1px #E4E2DA;display:flex;align-items:center;justify-content:center;color:#121A15;cursor:pointer;flex-shrink:0;text-decoration:none;position:relative}
+.ib.dark{background:rgba(255,255,255,0.12);box-shadow:none;color:#FFFFFF}
+.btn{height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:16px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;width:100%;box-sizing:border-box}
+.pri{background:#121A15;color:#FFFFFF}.acc{background:#D4F25C;color:#121A15}.sec{background:transparent;color:#121A15;box-shadow:inset 0 0 0 1px #CFCDC4}
+.sm{height:36px;padding:0 14px;border-radius:18px;font-size:13px;width:auto}
+.chip{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;border:none;box-shadow:inset 0 0 0 1px #D9D7CE;background:transparent;color:#121A15;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip.on{background:#121A15;color:#FFFFFF;box-shadow:none}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#ECEAE3;border-radius:16px;padding:4px}
+.sg{height:44px;border-radius:12px;border:none;background:transparent;color:#5B675F;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer}
+.sg.on{background:#FFFFFF;color:#121A15;box-shadow:0 1px 3px rgba(18,26,21,0.12)}
+.av{width:36px;height:36px;border-radius:18px;background:#E8E6DE;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.ic{width:40px;height:40px;border-radius:12px;background:#F1EFE9;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.tag{font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;white-space:nowrap}
+.fld{width:100%;height:52px;box-sizing:border-box;border-radius:14px;border:none;box-shadow:inset 0 0 0 1px #DEDCD3;background:#FFFFFF;padding:0 16px;font-family:inherit;font-size:16px;color:#121A15}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:84px;box-sizing:border-box;padding:8px 8px 24px;background:#FFFFFF;box-shadow:0 -1px 0 #E4E2DA;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#5B675F;font-size:11px;font-weight:500}
+.tab::after{content:"";width:4px;height:4px;border-radius:2px;background:transparent}
+.tab.on{color:#121A15;font-weight:700}.tab.on::after{background:#121A15}
+.stat{display:flex;flex-direction:column;gap:4px}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}</style>
+</helmet>
+<div class="scr" dir="{{dir}}" lang="{{lang}}">
+  <div class="pad" style="padding-bottom: 32px; gap: 20px">
+    <header style="display: flex; align-items: center; gap: 12px">
+      <a href="Main.dc.html" class="ib" aria-label="Zurück"><span style="display: flex; {{flip}}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M15 5l-7 7 7 7"></path></svg></span></a>
+      <h1 class="h1" style="font-size: 26px">{{cur.t}}</h1>
+    </header>
+    <div role="radiogroup" aria-label="Sprache" class="grp">
+      <sc-for list="{{langs}}" as="l" hint-placeholder-count="7">
+        <button role="radio" aria-checked="{{l.on}}" onClick="{{l.pick}}" class="{{l.cls}}" style="min-height: 54px; padding: 8px 0">
+          <span class="num" style="width: 30px; font-size: 15px; color: #5B675F">{{l.code}}</span>
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 1px"><span dir="{{l.dir}}" style="font-size: 16px; font-weight: 600">{{l.name}}</span><span style="font-size: 12px; color: #5B675F">{{l.en}}</span></span>
+          <span style="{{l.dot}}"></span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="border-radius: 20px; background: #0E3B2B; color: #FFFFFF; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+      <span class="lbl" style="color: #D4F25C">Vorschau</span>
+      <span class="disp" style="font-size: 34px; white-space: pre-line">{{cur.h}}</span>
+      <span style="font-size: 13px; line-height: 1.5; color: #C9D6CF">{{cur.s}}</span>
+      <span class="btn acc" style="height: 44px; font-size: 14px; border-radius: 22px">{{cur.c}}</span>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #5B675F">{{cur.note}}</p>
+    <a href="Main.dc.html" class="btn pri" style="margin-top: auto">{{cur.a}}</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { l: "de" }; }
+  renderVals() {
+    const L = {
+      de: { n: "Deutsch", e: "German", t: "Sprache", h: "Dein Verein.\nEin Anpfiff.", s: "Termine, Zusagen, Aufstellung, Chat und Beiträge an einem Ort.", c: "Verein beitreten", a: "Übernehmen", note: "Gilt auch für Mitteilungen und E-Mails." },
+      en: { n: "English", e: "English", t: "Language", h: "Your club.\nOne kickoff.", s: "Fixtures, availability, lineups, chat and dues in one place.", c: "Join a club", a: "Apply", note: "Also applies to notifications and emails." },
+      tr: { n: "Türkçe", e: "Turkish", t: "Dil", h: "Kulübün.\nTek düdük.", s: "Maçlar, katılım, kadro, sohbet ve aidatlar tek yerde.", c: "Kulübe katıl", a: "Uygula", note: "Bildirimler ve e-postalar için de geçerlidir." },
+      es: { n: "Español", e: "Spanish", t: "Idioma", h: "Tu club.\nUn pitido inicial.", s: "Partidos, asistencia, alineaciones, chat y cuotas en un solo lugar.", c: "Unirse a un club", a: "Aplicar", note: "También para notificaciones y correos." },
+      fr: { n: "Français", e: "French", t: "Langue", h: "Ton club.\nUn coup d'envoi.", s: "Matchs, présences, compos, chat et cotisations au même endroit.", c: "Rejoindre un club", a: "Appliquer", note: "S'applique aussi aux notifications et e-mails." },
+      pt: { n: "Português", e: "Portuguese", t: "Idioma", h: "O teu clube.\nUm só apito.", s: "Jogos, presenças, convocatórias, chat e quotas num só lugar.", c: "Entrar num clube", a: "Aplicar", note: "Também se aplica a notificações e e-mails." },
+      ar: { n: "العربية", e: "Arabic", t: "اللغة", h: "ناديك.\nصافرة واحدة.", s: "المباريات والحضور والتشكيلة والدردشة والاشتراكات في مكان واحد.", c: "انضم إلى نادٍ", a: "تطبيق", note: "ينطبق أيضًا على الإشعارات والبريد الإلكتروني." }
+    };
+    const cur = L[this.state.l];
+    const rtl = this.state.l === "ar";
+    const ids = ["de","en","tr","es","fr","pt","ar"];
+    const langs = ids.map((id, i) => {
+      const on = this.state.l === id;
+      return { name: L[id].n, en: L[id].e, code: id.toUpperCase(), on: on ? "true" : "false", pick: () => this.setState({ l: id }),
+        cls: "row" + (i === ids.length - 1 ? " last" : ""),
+        dot: "width: 22px; height: 22px; border-radius: 11px; box-sizing: border-box; flex-shrink: 0; " + (on ? "border: 7px solid #121A15" : "border: 2px solid #B9BDB5"),
+        dir: id === "ar" ? "rtl" : "ltr" };
+    });
+    return { langs, cur, dir: rtl ? "rtl" : "ltr", lang: this.state.l, flip: rtl ? "transform: scaleX(-1)" : "" };
+  }
+}
+</script>
+</body>
+</html>

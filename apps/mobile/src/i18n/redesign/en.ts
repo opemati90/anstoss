@@ -1,6 +1,40 @@
 // Strings added by the 2026-11 Anstoss Redesign, deep-merged over the
 // base locale (see ../en.ts). Edit like any locale file.
 export default {
+  // Vorschau und Vertretung (redesign 29/31)
+  acting: {
+    entryTitle: "Preview and stand-in",
+    entrySub: "Board and team managers only",
+    sheetBody: "All your own roles are always active. Here you can see the app through other eyes or briefly step in.",
+    choices: "Choice",
+    previewLabel: "Preview",
+    actingLabel: "Stand-in",
+    asPlayer: "View as player",
+    asParent: "View as parent",
+    readOnly: "{{team}} · read only",
+    standIn: "Stand in for the coach",
+    coachAway: "{{team}} · coach on holiday",
+    coachNamed: "{{team}} · coach: {{name}}",
+    noTeams: "There is no team to stand in for right now.",
+    team: "Team",
+    duration: "Duration",
+    minutes: "{{count}} min",
+    logNote: "Everything is logged as “{{name}} (board) as coach”. The head coach is notified.",
+    openPreview: "Open preview",
+    startActing: "Stand in for {{count}} min",
+    startError: "The stand-in could not be started.",
+    bannerActing: "You are acting as coach · {{team}}",
+    bannerActingMeta: "{{count}} min left · being logged",
+    bannerPreview: "Preview as {{role}} · {{team}}",
+    bannerPreviewMeta: "Read only · changes are locked",
+    rolePlayer: "player",
+    roleParent: "parent",
+    end: "End",
+    endActingA11y: "End stand-in",
+    endPreviewA11y: "End preview",
+    readOnlyBlocked: "You can't change anything in the preview.",
+    fallbackName: "Board",
+  },
   chatHub: {
     filter: {
       all: "All",

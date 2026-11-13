@@ -5,6 +5,17 @@ export default {
   wechsel: {
     title: 'Wechselbörse',
     entryHint: 'Gesuche, Probetrainings und Vereinswechsel',
+    nearbySubtitle: 'Vereinslose Spieler in {{km}} km Umkreis',
+    invitedFootnote: 'Eingeladene sehen Ort und Zeit des nächsten Trainings. Kontaktdaten erst nach ihrer Zusage.',
+    lastLeague: 'zuletzt {{league}}',
+    distanceKm: '{{km}} km',
+    desksA11y: 'Weitere Bereiche',
+    positionChip: {
+      GK: 'Tor',
+      DEF: 'Abwehr',
+      MID: 'Mittelfeld',
+      FWD: 'Angriff',
+    },
     noAccessTitle: 'Nur für Trainer und Vorstand',
     noAccessBody:
       'Die Wechselbörse sehen nur Trainer und Vereinsadmins. Frag deinen Abteilungsleiter, wenn du Zugang brauchst.',

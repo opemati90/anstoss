@@ -77,39 +77,35 @@ export class ActingService {
             role: { in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH] },
             ...activeTeamAccessWhere(),
           },
-          select: {
-            userId: true,
-            role: true,
-            absence: true,
-            absenceUntil: true,
-            user: { select: { name: true } },
-          },
+          select: { userId: true, role: true, user: { select: { name: true } } },
         },
+        // Kader: holiday / suspension lives on the roster row.
+        members: { select: { userId: true, absence: true, absenceUntil: true } },
       },
       orderBy: { createdAt: 'asc' },
-    })) as Array<{
+    })) as unknown as Array<{
       id: string
       displayName: string | null
       name: string
       access: Array<{
         userId: string
         role: string
-        absence: string | null
-        absenceUntil: Date | null
         user: { name: string | null } | null
       }>
+      members: Array<{ userId: string; absence: string | null; absenceUntil: Date | null }>
     }>
     const now = new Date()
     const items = teams
       .filter((team) => !team.access.some((access) => access.userId === userId))
       .map((team) => {
         const head = team.access.find((access) => access.role === TeamRole.HEAD_COACH) ?? null
+        const roster = head ? team.members.find((m) => m.userId === head.userId) : undefined
         return {
           teamId: team.id,
           teamName: team.displayName || team.name,
           headCoachName: head?.user?.name ?? null,
-          coachAway: head
-            ? effectiveAbsence(head.absence, head.absenceUntil, now).absence === 'AWAY'
+          coachAway: roster
+            ? effectiveAbsence(roster.absence, roster.absenceUntil, now).absence === 'AWAY'
             : false,
         }
       })

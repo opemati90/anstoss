@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Termin anlegen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}a{color:#0E3B2B}a:hover{color:#121A15}
+.scr{width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;background:#F6F5F1;color:#121A15;font-family:Inter,"IBM Plex Sans Arabic",system-ui,sans-serif}
+.pad{padding:60px 20px 108px;display:flex;flex-direction:column;gap:24px}
+.h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;line-height:1.1}
+.disp{font-family:"Barlow Condensed","IBM Plex Sans Arabic",sans-serif;font-weight:700;text-transform:uppercase;line-height:0.95}
+.lbl{margin:0;font-size:12px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#5B675F}
+.mut{color:#5B675F}
+.num{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+.grp{background:#FFFFFF;border-radius:20px;padding:0 16px;display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:14px;min-height:60px;padding:12px 0;box-sizing:border-box;border-bottom:1px solid #EDEBE4;text-decoration:none;color:#121A15;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;text-align:start;width:100%;cursor:pointer}
+.row.last{border-bottom:none}
+.ib{width:44px;height:44px;border-radius:22px;background:#FFFFFF;border:none;box-shadow:inset 0 0 0 1px #E4E2DA;display:flex;align-items:center;justify-content:center;color:#121A15;cursor:pointer;flex-shrink:0;text-decoration:none;position:relative}
+.ib.dark{background:rgba(255,255,255,0.12);box-shadow:none;color:#FFFFFF}
+.btn{height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:16px;text-decoration:none;border:none;cursor:pointer;font-family:inherit;width:100%;box-sizing:border-box}
+.pri{background:#121A15;color:#FFFFFF}.acc{background:#D4F25C;color:#121A15}.sec{background:transparent;color:#121A15;box-shadow:inset 0 0 0 1px #CFCDC4}
+.sm{height:36px;padding:0 14px;border-radius:18px;font-size:13px;width:auto}
+.chip{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;border:none;box-shadow:inset 0 0 0 1px #D9D7CE;background:transparent;color:#121A15;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip.on{background:#121A15;color:#FFFFFF;box-shadow:none}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#ECEAE3;border-radius:16px;padding:4px}
+.sg{height:44px;border-radius:12px;border:none;background:transparent;color:#5B675F;font-weight:600;font-size:14px;font-family:inherit;cursor:pointer}
+.sg.on{background:#FFFFFF;color:#121A15;box-shadow:0 1px 3px rgba(18,26,21,0.12)}
+.av{width:36px;height:36px;border-radius:18px;background:#E8E6DE;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.ic{width:40px;height:40px;border-radius:12px;background:#F1EFE9;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#121A15}
+.tag{font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;white-space:nowrap}
+.fld{width:100%;height:52px;box-sizing:border-box;border-radius:14px;border:none;box-shadow:inset 0 0 0 1px #DEDCD3;background:#FFFFFF;padding:0 16px;font-family:inherit;font-size:16px;color:#121A15}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:84px;box-sizing:border-box;padding:8px 8px 24px;background:#FFFFFF;box-shadow:0 -1px 0 #E4E2DA;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:#5B675F;font-size:11px;font-weight:500}
+.tab::after{content:"";width:4px;height:4px;border-radius:2px;background:transparent}
+.tab.on{color:#121A15;font-weight:700}.tab.on::after{background:#121A15}
+.stat{display:flex;flex-direction:column;gap:4px}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px}</style>
+</helmet>
+<div class="scr">
+  <div class="pad" style="padding-bottom: 120px; gap: 20px">
+    <header style="display: flex; align-items: center; justify-content: space-between"><a href="Calendar.dc.html" style="font-size: 15px; font-weight: 600; min-height: 44px; display: flex; align-items: center">Abbrechen</a><h1 style="margin: 0; font-size: 17px; font-weight: 700">Neuer Termin</h1><span style="width: 72px"></span></header>
+    <div role="tablist" aria-label="Art" class="seg"><sc-for list="{{types}}" as="t" hint-placeholder-count="3"><button role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" class="{{t.cls}}">{{t.label}}</button></sc-for></div>
+    <sc-if value="{{isMatch}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 6px"><label for="opp" style="font-size: 13px; font-weight: 600">Gegner</label><input id="opp" class="fld" placeholder="z. B. BSC Rehberge II"></div></sc-if>
+    <sc-if value="{{notMatch}}" hint-placeholder-val="{{ true }}"><div style="display: flex; flex-direction: column; gap: 6px"><label for="ti" style="font-size: 13px; font-weight: 600">Titel</label><input id="ti" class="fld" value="Abschluss und Standards"></div></sc-if>
+    <div class="grp">
+      <button class="row"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span><span style="flex: 1; font-size: 15px; font-weight: 600">Datum</span><span style="font-size: 15px" class="mut">Di, 17. Nov.</span></button>
+      <button class="row"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span style="flex: 1; font-size: 15px; font-weight: 600">Zeit</span><span class="num" style="font-size: 18px">18:30 – 20:00</span></button>
+      <button class="row"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="9" r="2.5"></circle></svg></span><span style="flex: 1; font-size: 15px; font-weight: 600">Ort</span><span style="font-size: 15px" class="mut">Platz 2, Dammweg</span></button>
+      <div class="row last"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M17 2l3 3-3 3"></path><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"></path><path d="M20 13v2a4 4 0 0 1-4 4H4"></path></svg></span><span style="flex: 1; font-size: 15px; font-weight: 600">Jede Woche</span><button role="switch" aria-checked="{{rep}}" aria-label="Jede Woche wiederholen" onClick="{{toggleRep}}" style="{{repS}}"><span style="width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.2)"></span></button></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px"><span style="font-size: 13px; font-weight: 600">Treffpunkt vorher</span><div role="radiogroup" aria-label="Treffpunkt vorher" style="display: flex; gap: 8px"><sc-for list="{{meets}}" as="m" hint-placeholder-count="4"><button role="radio" aria-checked="{{m.on}}" onClick="{{m.pick}}" class="{{m.cls}}">{{m.label}}</button></sc-for></div></div>
+    <div class="grp"><div class="row last"><span class="ic"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span><span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Team benachrichtigen</span><span style="font-size: 12px" class="mut">Erinnerung 24 h vorher an Offene</span></span><button role="switch" aria-checked="{{ntf}}" aria-label="Team benachrichtigen" onClick="{{toggleNtf}}" style="{{ntfS}}"><span style="width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.2)"></span></button></div></div>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 20px 32px; background: #F6F5F1; box-shadow: 0 -1px 0 #E4E2DA"><a href="Calendar.dc.html" class="btn pri">Termin speichern</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"club": {"editor": "color", "default": "#0E3B2B", "options": ["#0E3B2B", "#7A1F2B", "#123A5C", "#1F2A44"], "section": "Vereinsfarbe"}, "$preview": {"width": 390, "height": 844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { t: "training", rep: true, meet: 30, notify: true }; }
+  renderVals() {
+    const types = [["training","Training"],["match","Spiel"],["other","Sonstiges"]].map(([id,label]) => ({ label, on: this.state.t === id ? "true" : "false", cls: "sg" + (this.state.t === id ? " on" : ""), pick: () => this.setState({ t: id }) }));
+    const meets = [15,30,45,60].map((m) => ({ label: m + " min", on: this.state.meet === m ? "true" : "false", cls: "chip" + (this.state.meet === m ? " on" : ""), pick: () => this.setState({ meet: m }) }));
+    const sw = (on) => "width: 52px; height: 32px; border-radius: 16px; border: none; padding: 3px; cursor: pointer; display: flex; justify-content: " + (on ? "flex-end" : "flex-start") + "; background: " + (on ? "#121A15" : "#D9D7CE");
+    return { types, meets, isMatch: this.state.t === "match", notMatch: this.state.t !== "match",
+      rep: this.state.rep ? "true" : "false", repS: sw(this.state.rep), toggleRep: () => this.setState({ rep: !this.state.rep }),
+      ntf: this.state.notify ? "true" : "false", ntfS: sw(this.state.notify), toggleNtf: () => this.setState({ notify: !this.state.notify }) };
+  }
+}
+</script>
+</body>
+</html>

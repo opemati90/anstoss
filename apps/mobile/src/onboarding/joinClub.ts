@@ -1,7 +1,20 @@
 import { RegistrationRole } from '@anstoss/shared'
 import { api, ApiError } from '../api/client'
 
-export type JoinRole = 'PLAYER' | 'PARENT' | 'COACH'
+/** ADMIN = "Vorstand": a staff-access request for the board role. */
+export type JoinRole = 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN'
+
+/** Board order on "Was machst du bei …?"; the first ticked one is primary. */
+export const JOIN_ROLE_ORDER: readonly JoinRole[] = ['PLAYER', 'COACH', 'PARENT', 'ADMIN']
+
+/** Primary role (the request the server handles today) and the rest. */
+export function splitJoinRoles(roles: readonly JoinRole[]): {
+  primary: JoinRole | null
+  additional: JoinRole[]
+} {
+  const ordered = JOIN_ROLE_ORDER.filter((role) => roles.includes(role))
+  return { primary: ordered[0] ?? null, additional: ordered.slice(1) }
+}
 
 /** M4: a coach says which role they have in the team. */
 export type CoachTeamRole = 'HEAD_COACH' | 'ASSISTANT_COACH'
@@ -13,12 +26,18 @@ export type JoinTarget = {
   joinCode?: string | null
   /** Coaches only; defaults to Co-Trainer. */
   coachRole?: CoachTeamRole
+  /** "Ich bin …, Nr. 9": the roster slot claimed while joining (contract only). */
+  rosterSlotId?: string | null
+  /** The other roles ticked besides the primary one (contract only). */
+  additionalRoles?: JoinRole[]
 }
 
-const REGISTRATION_ROLE: Record<JoinRole, RegistrationRole> = {
+const REGISTRATION_ROLE: Record<JoinRole, RegistrationRole | null> = {
   PLAYER: RegistrationRole.PLAYER,
   PARENT: RegistrationRole.PARENT,
   COACH: RegistrationRole.COACH,
+  // The board role is granted with the staff request, not self-declared.
+  ADMIN: null,
 }
 
 /**
@@ -32,14 +51,20 @@ export function buildJoinProfilePatch(
   role: JoinRole,
   currentRegistrationRole: string | null | undefined,
 ): { registrationRole?: RegistrationRole } {
-  return currentRegistrationRole === REGISTRATION_ROLE[role]
-    ? {}
-    : { registrationRole: REGISTRATION_ROLE[role] }
+  const next = REGISTRATION_ROLE[role]
+  return !next || currentRegistrationRole === next ? {} : { registrationRole: next }
 }
 
 /** The one server call that turns a choice on Verein finden into a request. */
 export async function sendJoinRequest(role: JoinRole, target: JoinTarget): Promise<void> {
   const coachRole: CoachTeamRole = target.coachRole ?? 'ASSISTANT_COACH'
+  // Contract keys (BACKEND_GAPS): servers without them strip them quietly.
+  const extras = {
+    ...(target.rosterSlotId ? { rosterSlotId: target.rosterSlotId } : {}),
+    ...(target.additionalRoles && target.additionalRoles.length > 0
+      ? { additionalRoles: target.additionalRoles }
+      : {}),
+  }
   if (target.joinCode && (role === 'PLAYER' || role === 'COACH')) {
     await api('/onboarding/join-team', {
       method: 'POST',
@@ -47,6 +72,7 @@ export async function sendJoinRequest(role: JoinRole, target: JoinTarget): Promi
         joinCode: target.joinCode,
         role,
         ...(role === 'COACH' ? { teamRole: coachRole } : {}),
+        ...extras,
       },
     })
     return
@@ -60,13 +86,21 @@ export async function sendJoinRequest(role: JoinRole, target: JoinTarget): Promi
         desiredRole: 'COACH',
         requestedTeamIds: [target.teamId],
         teamRoles: [coachRole],
+        ...extras,
       },
+    })
+    return
+  }
+  if (role === 'ADMIN') {
+    await api(`${clubPath}/staff-access-requests`, {
+      method: 'POST',
+      body: { desiredRole: 'ADMIN', requestedTeamIds: [], teamRoles: [], ...extras },
     })
     return
   }
   await api(`${clubPath}/join-requests`, {
     method: 'POST',
-    body: { role, ...(target.teamId ? { teamId: target.teamId } : {}) },
+    body: { role, ...(target.teamId ? { teamId: target.teamId } : {}), ...extras },
   })
 }
 

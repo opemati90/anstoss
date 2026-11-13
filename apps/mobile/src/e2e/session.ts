@@ -189,6 +189,8 @@ type E2EApiState = {
       iban: string
       reference: string | null
     } | null
+    /** 2026-11 redesign home contract (schemas/home.ts). */
+    history?: ContributionHistoryEntry[]
   }
   voiceMemos: Array<{
     id: string
@@ -670,6 +672,9 @@ function createEvents(): EventFeedItem[] {
       fixtureId: 'fixture-1',
       squadPublishedAt: nowIso(-1, 20, 0),
       durationMin: 105,
+      // 2026-11 redesign home contract (schemas/home.ts)
+      matchKind: 'LEAGUE',
+      lineupDraft: { formation: '4-3-3', filled: 11, slots: 11, published: true },
     },
     // Away match with the Fahrten board open.
     {
@@ -696,6 +701,10 @@ function createEvents(): EventFeedItem[] {
       meetingPoint: 'Parkplatz Vereinsheim',
       carpoolEnabled: true,
       durationMin: 105,
+      // 2026-11 redesign home contract (schemas/home.ts)
+      matchKind: 'LEAGUE',
+      lineupDraft: { formation: '4-2-3-1', filled: 9, slots: 11 },
+      carpoolSummary: { seeking: 2, seatsFree: 1, myRideSeats: null },
     },
     // Training series Di + Do 19:00. "Tuesday session" is referenced by
     // Maestro flows, so the first occurrence keeps that title.
@@ -1368,55 +1377,50 @@ function createFreeAgentProfile(): FreeAgentProfile {
 }
 
 function createMyContributions(): E2EApiState['myContributions'] {
-  // Three plans on the player view: a current monthly due (PENDING),
-  // an annual one already paid (PAID), and an overdue one to exercise
-  // the chase / pay-now affordances.
+  // 2026-11 redesign (screen 26): this month's fee open, the yearly kit levy
+  // and the last three months paid, with how each payment came in.
   const today = new Date()
   const dueSoon = new Date(today.getFullYear(), today.getMonth(), 28).toISOString()
   const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 5).toISOString()
-  const overdueDate = new Date(today.getFullYear(), today.getMonth() - 1, 28).toISOString()
+  const monthStart = (back: number, day: number) =>
+    new Date(today.getFullYear(), today.getMonth() - back, day, 12).toISOString()
+  const period = (back: number) => monthStart(back, 1).slice(0, 7)
   return {
     hasContributions: true,
     items: [
       {
         planId: 'plan-monthly',
-        planName: 'Membership fee',
+        planName: 'Mitgliedsbeitrag',
         amount: 2500,
         currency: 'EUR',
         cadence: 'MONTHLY',
         dueDate: dueSoon,
-        status: 'PAID',
-        paidAmount: 2500,
-        paidAt: lastMonth,
-      },
-      {
-        planId: 'plan-trikot',
-        planName: 'Jersey levy',
-        amount: 4500,
-        currency: 'EUR',
-        cadence: 'YEARLY',
-        dueDate: overdueDate,
-        status: 'OVERDUE',
+        status: 'PENDING',
         paidAmount: null,
         paidAt: null,
       },
       {
-        planId: 'plan-annual',
-        planName: 'Annual fee',
-        amount: 12000,
+        planId: 'plan-trikot',
+        planName: 'Trikotumlage',
+        amount: 4500,
         currency: 'EUR',
         cadence: 'YEARLY',
         dueDate: lastMonth,
         status: 'PAID',
-        paidAmount: 12000,
+        paidAmount: 4500,
         paidAt: lastMonth,
       },
     ],
     bankTransfer: {
       accountHolder: 'SV Albatros e.V.',
       iban: 'DE89370400440532013000',
-      reference: 'Mitgliedsbeitrag',
+      reference: 'Beitrag Julian Becker',
     },
+    history: [
+      { planId: 'plan-monthly', planName: 'Mitgliedsbeitrag', period: period(1), amount: 2500, currency: 'EUR', paidAt: monthStart(1, 3), method: 'CASH' },
+      { planId: 'plan-monthly', planName: 'Mitgliedsbeitrag', period: period(2), amount: 2500, currency: 'EUR', paidAt: monthStart(2, 2), method: 'TRANSFER' },
+      { planId: 'plan-monthly', planName: 'Mitgliedsbeitrag', period: period(3), amount: 2500, currency: 'EUR', paidAt: monthStart(3, 1), method: 'TRANSFER' },
+    ],
   }
 }
 
@@ -3491,8 +3495,9 @@ function handleEventFlowRequest(
     const [leo, mia] = E2E_PARENT_KIDS
     const body = {
       children: [
-        { userId: leo.userId, name: leo.name, teams: [{ id: TEAM_ID, name: 'U15', displayName: 'U15 I' }] },
-        { userId: mia.userId, name: mia.name, teams: [{ id: 'team-u11', name: 'U11', displayName: 'U11 I' }] },
+        // photoConsent: 2026-11 redesign home contract (schemas/home.ts)
+        { userId: leo.userId, name: leo.name, teams: [{ id: TEAM_ID, name: 'U15', displayName: 'U15 I' }], photoConsent: 'PENDING' as const },
+        { userId: mia.userId, name: mia.name, teams: [{ id: 'team-u11', name: 'U11', displayName: 'U11 I' }], photoConsent: 'GRANTED' as const },
       ],
       duties: [
         dutyRow('duty-parent-kit', TEAM_ID, 'U15 I', { id: session.user.id, name: session.user.name }, 'JERSEY_CLEANUP', nowIso(3, 18, 0), null),

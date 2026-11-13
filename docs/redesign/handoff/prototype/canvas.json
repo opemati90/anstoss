@@ -1,0 +1,417 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "ActingAs.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "32 Vertretung aktiv",
+   "w": 390,
+   "x": 940,
+   "y": 6320
+  },
+  "AddMembers.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "07b Kader anlegen (optional)",
+   "w": 390,
+   "x": 940,
+   "y": 1264
+  },
+  "Calendar.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "10 Termine",
+   "w": 390,
+   "x": 940,
+   "y": 2528
+  },
+  "Chat.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "15 Chat",
+   "w": 390,
+   "x": 0,
+   "y": 3792
+  },
+  "ClubSetup.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "06 Verein anlegen",
+   "w": 390,
+   "x": 0,
+   "y": 1264
+  },
+  "CreateEvent.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "11 Termin anlegen",
+   "w": 390,
+   "x": 1410,
+   "y": 2528
+  },
+  "DeclineSheet.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "24 Absage begründen",
+   "w": 390,
+   "x": 940,
+   "y": 5056
+  },
+  "ErrorState.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "28 Fehler und Offline",
+   "w": 390,
+   "x": 940,
+   "y": 7584
+  },
+  "Event.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "12 Termin und Zusagen",
+   "w": 390,
+   "x": 1880,
+   "y": 2528
+  },
+  "Fees.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "19 Kasse",
+   "w": 390,
+   "x": 1880,
+   "y": 3792
+  },
+  "Home.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "08 Start Trainer",
+   "w": 390,
+   "x": 0,
+   "y": 2528
+  },
+  "HomeCombined.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "30 Start mit mehreren Rollen",
+   "w": 390,
+   "x": 0,
+   "y": 6320
+  },
+  "HomeDark.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "29 Dark Mode",
+   "w": 390,
+   "x": 1410,
+   "y": 7584
+  },
+  "HomeEmpty.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "26 Erster Start",
+   "w": 390,
+   "x": 0,
+   "y": 7584
+  },
+  "HomeLoading.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "27 Lädt",
+   "w": 390,
+   "x": 470,
+   "y": 7584
+  },
+  "Invite.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "07 Team einladen",
+   "w": 390,
+   "x": 470,
+   "y": 1264
+  },
+  "Join.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "04 Verein beitreten",
+   "w": 390,
+   "x": 1410,
+   "y": 0
+  },
+  "Language.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "02 Sprache",
+   "w": 390,
+   "x": 470,
+   "y": 0
+  },
+  "LeagueTable.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "20 Tabelle",
+   "w": 390,
+   "x": 2350,
+   "y": 3792
+  },
+  "Lineup.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "13 Aufstellung",
+   "w": 390,
+   "x": 2350,
+   "y": 2528
+  },
+  "LiveMatch.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "14 Live-Spiel",
+   "w": 390,
+   "x": 2820,
+   "y": 2528
+  },
+  "Main.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "01 Willkommen",
+   "w": 390,
+   "x": 0,
+   "y": 0
+  },
+  "More.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "18 Mehr",
+   "w": 390,
+   "x": 1410,
+   "y": 3792
+  },
+  "MyDues.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "26 Meine Beiträge",
+   "w": 390,
+   "x": 1880,
+   "y": 5056
+  },
+  "Notifications.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "09 Mitteilungen",
+   "w": 390,
+   "x": 470,
+   "y": 2528
+  },
+  "Parent.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "25 Start Eltern",
+   "w": 390,
+   "x": 1410,
+   "y": 5056
+  },
+  "Player.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "22 Start Spieler",
+   "w": 390,
+   "x": 0,
+   "y": 5056
+  },
+  "PlayerCalendar.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "23 Termine Spieler",
+   "w": 390,
+   "x": 470,
+   "y": 5056
+  },
+  "PlayerProfile.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "17 Spielerprofil",
+   "w": 390,
+   "x": 940,
+   "y": 3792
+  },
+  "Role.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "05 Rolle",
+   "w": 390,
+   "x": 1880,
+   "y": 0
+  },
+  "RoleSwitch.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "31 Vorschau und Vertretung",
+   "w": 390,
+   "x": 470,
+   "y": 6320
+  },
+  "SignIn.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "03 Anmelden",
+   "w": 390,
+   "x": 940,
+   "y": 0
+  },
+  "Squad.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "16 Kader",
+   "w": 390,
+   "x": 470,
+   "y": 3792
+  },
+  "WebDesktop.dc.html": {
+   "h": 7150,
+   "is_interactive": true,
+   "title": "Website Desktop",
+   "w": 1440,
+   "x": 0,
+   "y": 8848
+  },
+  "WebMobile.dc.html": {
+   "h": 9150,
+   "is_interactive": true,
+   "title": "Website Mobil",
+   "w": 390,
+   "x": 1520,
+   "y": 8848
+  },
+  "Wechselboerse.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "21 Wechselbörse",
+   "w": 390,
+   "x": 2820,
+   "y": 3792
+  },
+  "Plan.dc.html": {
+   "x": 3290,
+   "y": 3792,
+   "w": 390,
+   "h": 844,
+   "title": "Abo",
+   "is_interactive": true
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-11-13T12:00:00Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "view": "canvas"
+ },
+ "notes": {
+  "r1": {
+   "kind": "title1",
+   "maxW": 2270,
+   "text": "Einstieg und Sprache",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "r2": {
+   "kind": "title1",
+   "maxW": 1330,
+   "text": "Verein anlegen und Kader eintragen",
+   "w": 240,
+   "x": 0,
+   "y": 964
+  },
+  "r3": {
+   "kind": "title1",
+   "maxW": 3210,
+   "text": "Trainer: Spieltag planen",
+   "w": 240,
+   "x": 0,
+   "y": 2228
+  },
+  "r4": {
+   "kind": "title1",
+   "maxW": 3680,
+   "text": "Team, Kader und Kasse",
+   "w": 240,
+   "x": 0,
+   "y": 3492
+  },
+  "r5": {
+   "kind": "title1",
+   "maxW": 2270,
+   "text": "Spieler und Eltern",
+   "w": 240,
+   "x": 0,
+   "y": 4756
+  },
+  "r6": {
+   "kind": "title1",
+   "maxW": 1800,
+   "text": "Zustände und Dark Mode",
+   "w": 240,
+   "x": 0,
+   "y": 7284
+  },
+  "r7": {
+   "kind": "title1",
+   "maxW": 1330,
+   "text": "Mehrere Rollen, Vorschau und Vertretung",
+   "w": 240,
+   "x": 0,
+   "y": 6020
+  },
+  "web": {
+   "kind": "title1",
+   "maxW": 1910,
+   "text": "Website: anstoss.io in 7 Sprachen",
+   "w": 240,
+   "x": 0,
+   "y": 8548
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Language.dc.html",
+  "SignIn.dc.html",
+  "Join.dc.html",
+  "Role.dc.html",
+  "ClubSetup.dc.html",
+  "Invite.dc.html",
+  "AddMembers.dc.html",
+  "Home.dc.html",
+  "Notifications.dc.html",
+  "Calendar.dc.html",
+  "CreateEvent.dc.html",
+  "Event.dc.html",
+  "Lineup.dc.html",
+  "LiveMatch.dc.html",
+  "Chat.dc.html",
+  "Squad.dc.html",
+  "PlayerProfile.dc.html",
+  "More.dc.html",
+  "Fees.dc.html",
+  "LeagueTable.dc.html",
+  "Wechselboerse.dc.html",
+  "Plan.dc.html",
+  "Player.dc.html",
+  "PlayerCalendar.dc.html",
+  "DeclineSheet.dc.html",
+  "Parent.dc.html",
+  "MyDues.dc.html",
+  "HomeCombined.dc.html",
+  "RoleSwitch.dc.html",
+  "HomeEmpty.dc.html",
+  "ActingAs.dc.html",
+  "HomeLoading.dc.html",
+  "ErrorState.dc.html",
+  "HomeDark.dc.html",
+  "WebDesktop.dc.html",
+  "WebMobile.dc.html"
+ ],
+ "pages": [],
+ "title": "Anstoss Redesign"
+}
