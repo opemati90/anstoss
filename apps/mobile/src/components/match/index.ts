@@ -1,4 +1,6 @@
 export { MatchHero } from './MatchHero'
+export { MatchCrest, crestInitials } from './MatchCrest'
+export type { MatchCrestProps } from './MatchCrest'
 export type { MatchHeroProps, MatchHeroSide } from './MatchHero'
 export { MatchSegmentControl } from './MatchSegmentControl'
 export type { MatchSegmentControlProps, MatchSegment } from './MatchSegmentControl'

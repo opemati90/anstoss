@@ -64,6 +64,11 @@ export function buildClubTheme(
     primaryPressed,
     primary50,
     onPrimary: onColor(primary),
+    // The hero keeps the raw club colour in both modes (DESIGN.md → Color).
+    heroBg: club?.primary && /^#[0-9a-fA-F]{6}$/.test(club.primary) ? club.primary : base.heroBg,
+    onHeroBg: onColor(
+      club?.primary && /^#[0-9a-fA-F]{6}$/.test(club.primary) ? club.primary : base.heroBg,
+    ),
     // Legacy aliases
     clubPrimary: primary,
     clubPrimaryLight: primary50,

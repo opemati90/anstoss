@@ -41,10 +41,9 @@ import type {
   RosterOpsMemberSummary,
   RosterOpsSnapshot,
 } from '@anstoss/shared'
-import { useMatchTokens } from '../src/theme/matchTokens'
 import { TEXT_WHITE } from '../src/theme/colors'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { elevation, fonts, hairline, radius, space } from '../src/theme/tokens'
+import { elevation, fonts, hairline, radius, RADIUS_CARD, space, SPACING_LG } from '../src/theme/tokens'
 
 type Tab = 'timeline' | 'lineup' | 'stats' | 'facts'
 
@@ -68,7 +67,6 @@ export default function MatchDetailScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
   const c = useClubColors()
-  const tokens = useMatchTokens()
   const { fixtureId, teamId, tab: tabParam } = useLocalSearchParams<{
     fixtureId: string
     teamId: string
@@ -312,7 +310,7 @@ export default function MatchDetailScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.card, { backgroundColor: tokens.cardSurface }]}>
+        <View style={[styles.card, { backgroundColor: c.background }]}>
           <View style={styles.segmentWrap}>
             <MatchSegmentControl
               segments={segments}
@@ -510,7 +508,7 @@ function LiveTickerSection({
         </View>
       ) : (
         <View
-          style={[styles.tickerCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+          style={[styles.tickerCard, { backgroundColor: c.surface }]}
         >
           {events.map((ev, idx) => (
             <TimelineItem
@@ -520,6 +518,7 @@ function LiveTickerSection({
               player={ev.player}
               detail={ev.detail}
               side={ev.side}
+              ownSide={typeof fixture.isHome === 'boolean' ? (fixture.isHome ? 'home' : 'away') : null}
               isLast={idx === events.length - 1}
             />
           ))}
@@ -1308,10 +1307,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tickerCard: {
-    borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderRadius: RADIUS_CARD,
+    paddingHorizontal: SPACING_LG,
     overflow: 'hidden',
-    ...elevation.card,
   },
   scraperAttribution: {
     marginTop: space.xs,

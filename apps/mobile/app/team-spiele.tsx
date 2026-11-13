@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,23 +14,40 @@ import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
-import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
 import { ErrorState } from '../src/components/ErrorState'
 import { DashboardSkeleton } from '../src/components/Skeleton'
-import { Screen, SegmentedControl, StatusPill, Text } from '../src/components/ui'
-import { hairline, radius, space } from '../src/theme/tokens'
+import { Icon, IconButton, Screen, SegmentedControl, StatusPill, Text } from '../src/components/ui'
+import { hexToRgba } from '../src/theme/club-theme'
+import { goBackOrReplace } from '../src/utils/navigation'
+import {
+  hairline,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_XXL,
+  SPACING_XXS,
+} from '../src/theme/tokens'
 import { isOwnTableRow, ownTeamNameOf, splitFixtures } from '../src/components/squad/fixtureSide'
 import { resolveIsTeamCoach } from '../src/components/squad/useIsTeamCoach'
 
 type Tab = 'spiele' | 'tabelle'
 type FormResult = 'W' | 'D' | 'L'
 
+const ZONE_WIDTH = 3
+const FORM_CELL = 16
+const ROW_MIN = 50
+const FIXTURE_ROW_MIN = 60
+const DATE_COL = 76
+
 /**
- * Spiele & Tabelle — the team's fussball.de fixtures and league table on
- * one screen behind a segmented control. Replaces the unreachable
- * team-matches screen and the floating "table" button that led to a second
- * screen. /league-table redirects here with tab=tabelle.
+ * Spiele & Tabelle (design 20 Tabelle) — the team's fussball.de league table
+ * and fixtures behind a segmented control. /league-table redirects here
+ * with tab=tabelle.
  */
 export default function TeamSpieleScreen() {
   const { t } = useTranslation()
@@ -48,14 +64,13 @@ export default function TeamSpieleScreen() {
     teamRole: teamId === activeTeamId ? activeTeamAccess?.role : null,
   })
   const [tab, setTab] = useState<Tab>(params.tab === 'tabelle' ? 'tabelle' : 'spiele')
-  // Narrow phone or large text: drop the S/U/N columns so the team name
-  // keeps its room; numeric columns grow with the font scale so digits
-  // never clip.
+  // Numeric columns grow with the font scale so digits never clip; on a
+  // narrow phone at large text the Sp column drops so the name keeps room.
   const { width, fontScale } = useWindowDimensions()
   const scale = Math.min(Math.max(fontScale, 1), 2)
-  const compactTable = width / scale < 380
-  const col = { width: Math.round(26 * scale) }
-  const wideCol = { width: Math.round(34 * scale) }
+  const compactTable = width / scale < 340
+  const numCol = { width: Math.round(28 * scale) }
+  const placeCol = { width: Math.round(22 * scale) }
 
   const [upcoming, setUpcoming] = useState<ImportedFixture[]>([])
   const [recent, setRecent] = useState<ImportedFixture[]>([])
@@ -131,13 +146,79 @@ export default function TeamSpieleScreen() {
   )
   const table = (tableSource?.tableSnapshot ?? []) as TableSnapshotRow[]
 
+  // Header: league + season from the fixtures (design: "Kreisliga C" /
+  // "… · Saison 26/27"). Region and Staffel are not in the feed.
+  const leagueFixture = tableSource ?? recent[0] ?? upcoming[0] ?? null
+  const headerTitle = leagueFixture?.competition || t('kader.matches.title')
+  const headerSeason = leagueFixture?.season
+    ? t('kader.matches.season', { defaultValue: 'Season {{season}}', season: leagueFixture.season })
+    : null
+
+  // Source line: fussball.de and when the shown data was last scraped.
+  const sourceStamp = useMemo(() => {
+    const list = tab === 'tabelle' ? (tableSource ? [tableSource] : []) : [...upcoming, ...recent]
+    const latest = list.reduce<number | null>((max, f) => {
+      const ts = new Date(f.lastSeenAt).getTime()
+      return Number.isFinite(ts) && (max == null || ts > max) ? ts : max
+    }, null)
+    if (latest == null) return null
+    return new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+      minute: '2-digit',
+    }).format(new Date(latest))
+  }, [tab, tableSource, upcoming, recent, locale])
+
   const retry = () => {
     setLoading(true)
     setError(false)
     void load()
   }
 
-  const header = <ModalHeader mode="back" title={t('kader.matches.title')} />
+  const header = (
+    <View style={styles.header}>
+      <IconButton
+        variant="outlined"
+        onPress={() => goBackOrReplace(router, '/')}
+        accessibilityLabel={t('common.back')}
+      >
+        <Icon name="chevron.left" size={20} color="primary" />
+      </IconButton>
+      <View style={styles.flex}>
+        <Text variant="title2" weight="bold" numberOfLines={1} accessibilityRole="header">
+          {headerTitle}
+        </Text>
+        {headerSeason ? (
+          <Text variant="caption1" color="secondary" numberOfLines={1}>
+            {headerSeason}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  )
+
+  const footnote = (showFormLegend: boolean) =>
+    sourceStamp || showFormLegend ? (
+      <Text variant="caption1" color="secondary">
+        {[
+          showFormLegend
+            ? t('kader.matches.formLegend', {
+                defaultValue: 'W Win · D Draw · L Loss.',
+              })
+            : null,
+          sourceStamp
+            ? t('kader.matches.source', {
+                defaultValue: 'Source: fussball.de, updated {{when}}.',
+                when: sourceStamp,
+              })
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      </Text>
+    ) : null
 
   const body = () => {
     if (loading) return <DashboardSkeleton />
@@ -166,107 +247,90 @@ export default function TeamSpieleScreen() {
           <EmptyState icon="chart.bar" title={t('matches.tableEmpty')} description={t('matches.tableEmptyBody')} />
         )
       }
+      const hasZones = table.some((r) => r.isPromotion || r.isRelegation)
       return (
         <View style={styles.block}>
-          {tableSource?.competition ? (
-            <Text variant="footnote" weight="semibold" color="secondary" style={styles.caption}>
-              {tableSource.competition}
-            </Text>
-          ) : null}
-          <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            <View style={[styles.tableRow, { borderBottomColor: c.borderSubtle }]}>
-              <View style={styles.placeCol}>
-                <View style={styles.zone} />
-                <Text variant="caption1" color="tertiary" tabular>
-                  #
+          <View style={[styles.group, { backgroundColor: c.surface }]}>
+            <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: c.borderSubtle }]}>
+              <Text variant="caption1" weight="semibold" color="secondary" style={placeCol}>
+                #
+              </Text>
+              <Text variant="caption1" weight="semibold" color="secondary" style={styles.flex}>
+                {t('kader.matches.colClub', { defaultValue: 'Club' })}
+              </Text>
+              {compactTable ? null : (
+                <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
+                  {t('matches.colP')}
                 </Text>
-              </View>
-              <Text variant="caption1" color="tertiary" style={styles.teamCol}>
-                {t('matches.colTeam')}
-              </Text>
-              {(compactTable ? (['colP'] as const) : (['colP', 'colW', 'colD', 'colL'] as const)).map(
-                (key) => (
-                  <Text key={key} variant="caption1" color="tertiary" tabular style={[styles.numCol, col]}>
-                    {t(`matches.${key}`)}
-                  </Text>
-                ),
               )}
-              <Text variant="caption1" color="tertiary" tabular style={[styles.numCol, wideCol]}>
-                {t('matches.colGD')}
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
+                {t('kader.matches.colDiff', { defaultValue: 'Diff' })}
               </Text>
-              <Text variant="caption1" color="tertiary" tabular style={[styles.ptsCol, wideCol]}>
+              <Text variant="caption1" weight="semibold" color="secondary" style={[styles.num, numCol]}>
                 {t('matches.colPts')}
               </Text>
             </View>
             {table.map((row, index) => {
               const own = isOwnTableRow(row.team, ownTeamName)
+              const nextOwn = isOwnTableRow(table[index + 1]?.team ?? '', ownTeamName)
+              const fg = own ? c.onPrimary : c.textPrimary
+              const muted = own ? hexToRgba(c.onPrimary, 0.78) : c.textSecondary
               return (
-                <View
-                  key={`${row.place}-${index}`}
-                  accessible
-                  accessibilityLabel={t('kader.matches.tableRowA11y', {
-                    place: row.place,
-                    team: row.team,
-                    points: row.points,
-                    games: row.games,
-                  })}
-                  style={[
-                    styles.tableRow,
-                    index < table.length - 1 && { borderBottomColor: c.borderSubtle },
-                    own && { backgroundColor: c.surfaceSunken },
-                  ]}
-                >
-                  <View style={styles.placeCol}>
-                    <View
-                      style={[
-                        styles.zone,
-                        row.isPromotion && { backgroundColor: c.success },
-                        row.isRelegation && { backgroundColor: c.error },
-                      ]}
-                    />
-                    <Text variant="footnote" weight={own ? 'bold' : 'regular'} color="primary" tabular>
+                <Fragment key={`${row.place}-${index}`}>
+                  <View
+                    accessible
+                    accessibilityLabel={t('kader.matches.tableRowA11y', {
+                      place: row.place,
+                      team: row.team,
+                      points: row.points,
+                      games: row.games,
+                    })}
+                    style={[styles.tableRow, own && { backgroundColor: c.primary }]}
+                  >
+                    {row.isPromotion || row.isRelegation ? (
+                      <View
+                        style={[
+                          styles.zone,
+                          { backgroundColor: row.isPromotion ? c.success : c.error },
+                        ]}
+                      />
+                    ) : null}
+                    <Text variant="data" style={[styles.place, placeCol, { color: fg }]}>
                       {row.place}
                     </Text>
-                  </View>
-                  <View style={[styles.teamCol, styles.teamCell]}>
-                    {row.img ? <Image source={{ uri: row.img }} style={styles.logo} /> : null}
                     <Text
-                      variant="footnote"
-                      weight={own ? 'bold' : 'regular'}
-                      color={own ? 'tint' : 'primary'}
+                      variant="subheadline"
+                      weight={own ? 'bold' : 'medium'}
                       numberOfLines={1}
-                      style={styles.flex}
+                      style={[styles.flex, { color: fg }]}
                     >
                       {row.team}
                     </Text>
-                  </View>
-                  {(compactTable ? [row.games] : [row.games, row.won, row.draw, row.lost]).map((value, i) => (
-                    <Text key={i} variant="footnote" color="secondary" tabular style={[styles.numCol, col]}>
-                      {value}
+                    {compactTable ? null : (
+                      <Text variant="footnote" tabular style={[styles.num, numCol, { color: muted }]}>
+                        {row.games}
+                      </Text>
+                    )}
+                    <Text variant="footnote" tabular style={[styles.num, numCol, { color: muted }]}>
+                      {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
                     </Text>
-                  ))}
-                  <Text variant="footnote" color="secondary" tabular style={[styles.numCol, wideCol]}>
-                    {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
-                  </Text>
-                  <Text
-                    variant="footnote"
-                    weight="bold"
-                    color={own ? 'tint' : 'primary'}
-                    tabular
-                    style={[styles.ptsCol, wideCol]}
-                  >
-                    {row.points}
-                  </Text>
-                </View>
+                    <Text variant="data" style={[styles.num, styles.points, numCol, { color: fg }]}>
+                      {row.points}
+                    </Text>
+                  </View>
+                  {index < table.length - 1 && !own && !nextOwn ? (
+                    <View style={[styles.divider, { backgroundColor: c.borderSubtle }]} />
+                  ) : null}
+                </Fragment>
               )
             })}
           </View>
-          {table.some((r) => r.isPromotion || r.isRelegation) ? (
+          {hasZones ? (
             <View style={styles.legend}>
               {table.some((r) => r.isPromotion) ? (
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: c.success }]} />
-                  <Text variant="footnote" color="secondary">
+                  <Text variant="caption1" color="secondary">
                     {t('matches.promotion')}
                   </Text>
                 </View>
@@ -274,13 +338,14 @@ export default function TeamSpieleScreen() {
               {table.some((r) => r.isRelegation) ? (
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: c.error }]} />
-                  <Text variant="footnote" color="secondary">
+                  <Text variant="caption1" color="secondary">
                     {t('matches.relegation')}
                   </Text>
                 </View>
               ) : null}
             </View>
           ) : null}
+          {footnote(false)}
         </View>
       )
     }
@@ -301,18 +366,8 @@ export default function TeamSpieleScreen() {
       <View style={styles.block}>
         {form.length > 0 ? (
           <View style={styles.formRow}>
-            <Text variant="footnote" weight="semibold" color="secondary">
-              {t('matches.form')}
-            </Text>
-            <View style={styles.formBadges}>
-              {form.map((result, i) => (
-                <StatusPill
-                  key={i}
-                  label={t(result === 'W' ? 'matches.colW' : result === 'L' ? 'matches.colL' : 'matches.colD')}
-                  tone={result === 'W' ? 'success' : result === 'L' ? 'error' : 'neutral'}
-                />
-              ))}
-            </View>
+            <Text variant="label">{t('matches.form')}</Text>
+            <FormStrip results={form} />
           </View>
         ) : null}
         {upcoming.length > 0 ? (
@@ -321,21 +376,23 @@ export default function TeamSpieleScreen() {
         {recent.length > 0 ? (
           <FixtureGroup title={t('matches.recent')} fixtures={recent} locale={locale} />
         ) : null}
+        {footnote(form.length > 0)}
       </View>
     )
   }
 
   return (
-    <Screen header={header} padded={false}>
+    <Screen scroll={false} padded={false} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
+        {header}
         <SegmentedControl<Tab>
           segments={[
-            { key: 'spiele', label: t('kader.matches.tabMatches'), testID: 'team-spiele-tab-matches' },
             { key: 'tabelle', label: t('kader.matches.tabTable'), testID: 'team-spiele-tab-table' },
+            { key: 'spiele', label: t('kader.matches.tabMatches'), testID: 'team-spiele-tab-matches' },
           ]}
           value={tab}
           onChange={setTab}
@@ -343,6 +400,48 @@ export default function TeamSpieleScreen() {
         {body()}
       </ScrollView>
     </Screen>
+  )
+}
+
+/** The design's form squares: W solid ink, D quiet fill, L outline. */
+function FormStrip({ results }: { results: FormResult[] }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const letter = (r: FormResult) =>
+    t(r === 'W' ? 'matches.colW' : r === 'L' ? 'matches.colL' : 'matches.colD')
+  return (
+    <View
+      style={styles.formCells}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`${t('matches.form')}: ${results.map(letter).join(' ')}`}
+    >
+      {results.map((r, i) => (
+        <View
+          key={i}
+          style={[
+            styles.formCell,
+            r === 'W'
+              ? { backgroundColor: c.ink }
+              : r === 'D'
+                ? { backgroundColor: c.borderStrong }
+                : { borderWidth: 1, borderColor: c.borderControl },
+          ]}
+        >
+          <Text
+            variant="caption1"
+            weight="bold"
+            style={[
+              styles.formLetter,
+              { color: r === 'W' ? c.onInk : r === 'D' ? c.textPrimary : c.textSecondary },
+            ]}
+            maxFontSizeMultiplier={1}
+          >
+            {letter(r)}
+          </Text>
+        </View>
+      ))}
+    </View>
   )
 }
 
@@ -358,11 +457,11 @@ function FixtureGroup({
   const { t } = useTranslation()
   const c = useClubColors()
   return (
-    <View style={styles.group}>
-      <Text variant="footnote" weight="semibold" color="secondary" style={styles.caption}>
+    <View style={styles.section}>
+      <Text variant="label" accessibilityRole="header">
         {title}
       </Text>
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+      <View style={[styles.group, styles.groupPadded, { backgroundColor: c.surface }]}>
         {fixtures.map((fixture, index) => {
           const kickoff = new Date(fixture.kickoffAt)
           const date = new Intl.DateTimeFormat(locale, {
@@ -375,7 +474,11 @@ function FixtureGroup({
           // Unknown side: show both names and no Heim/Auswärts claim.
           const side = typeof fixture.isHome === 'boolean' ? fixture.isHome : null
           const opponent =
-            side === null ? `${fixture.homeTeam} – ${fixture.awayTeam}` : side ? fixture.awayTeam : fixture.homeTeam
+            side === null
+              ? `${fixture.homeTeam} – ${fixture.awayTeam}`
+              : side
+                ? t('kader.matches.vsOpponent', { defaultValue: 'vs. {{team}}', team: fixture.awayTeam })
+                : t('kader.matches.atOpponent', { defaultValue: 'at {{team}}', team: fixture.homeTeam })
           return (
             <Pressable
               key={fixture.id}
@@ -393,33 +496,25 @@ function FixtureGroup({
               }
               style={({ pressed }) => [
                 styles.fixture,
-                index > 0 && { borderTopWidth: hairline, borderTopColor: c.borderSubtle },
-                pressed && { backgroundColor: c.surfaceSunken },
+                index < fixtures.length - 1 && {
+                  borderBottomWidth: hairline,
+                  borderBottomColor: c.borderSubtle,
+                },
+                pressed && { opacity: 0.6 },
               ]}
             >
-              <View style={styles.flex}>
-                <Text variant="footnote" color="secondary" tabular>
-                  {hasResult ? date : `${date} · ${time}`}
-                </Text>
-                <Text variant="body" weight="semibold" color="primary" numberOfLines={2}>
-                  {opponent}
-                </Text>
-                <Text variant="footnote" color="secondary">
-                  {[
-                    side === null ? null : side ? t('kader.matches.home') : t('kader.matches.away'),
-                    fixture.competition,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Text>
-              </View>
-              {hasResult ? (
-                <Text variant="headline" weight="bold" color="primary" tabular>
-                  {`${fixture.resultHome}:${fixture.resultAway}`}
-                </Text>
-              ) : fixture.status === 'live' ? (
+              <Text variant="footnote" color="secondary" tabular style={styles.dateCol}>
+                {date}
+              </Text>
+              <Text variant="subheadline" weight="semibold" numberOfLines={2} style={styles.flex}>
+                {opponent}
+              </Text>
+              {fixture.status === 'live' ? (
                 <StatusPill label={t('fussball.status.live')} tone="error" />
               ) : null}
+              <Text variant="data" style={styles.result}>
+                {hasResult ? `${fixture.resultHome}:${fixture.resultAway}` : time}
+              </Text>
             </Pressable>
           )
         })}
@@ -430,48 +525,62 @@ function FixtureGroup({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space['2xl'],
-    gap: space.lg,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING_MD,
+    paddingBottom: SPACING_XXL * 2,
+    gap: SPACING_LG + SPACING_XXS,
   },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
   flex: { flex: 1, minWidth: 0 },
-  block: { gap: space.lg },
-  group: { gap: space.sm },
-  caption: { paddingHorizontal: space.xs },
-  card: {
-    borderRadius: radius.lg,
+  block: { gap: SPACING_LG },
+  section: { gap: SPACING_MD },
+  group: {
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
-  formRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
-  formBadges: { flexDirection: 'row', gap: space.xs },
-  fixture: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
+  groupPadded: { paddingHorizontal: SPACING_LG },
+  tableHead: {
+    minHeight: 0,
+    paddingTop: SPACING_MD,
+    paddingBottom: SPACING_SM,
+    borderBottomWidth: hairline,
+    marginHorizontal: SPACING_LG,
+    paddingHorizontal: 0,
   },
   tableRow: {
-    minHeight: 44,
+    minHeight: ROW_MIN,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-    paddingRight: space.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: 'transparent',
+    gap: SPACING_SM + SPACING_XXS,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_SM,
   },
-  placeCol: { minWidth: 36, flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'stretch' },
-  zone: { width: 3, alignSelf: 'stretch' },
-  teamCol: { flex: 1, minWidth: 0 },
-  teamCell: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  logo: { width: 16, height: 16, borderRadius: radius.sm },
-  numCol: { textAlign: 'center' },
-  ptsCol: { textAlign: 'right' },
-  legend: { flexDirection: 'row', gap: space.md, paddingHorizontal: space.xs },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  legendDot: { width: 8, height: 8, borderRadius: radius.full },
+  divider: { height: hairline, marginHorizontal: SPACING_LG },
+  zone: { position: 'absolute', left: 0, top: 0, bottom: 0, width: ZONE_WIDTH },
+  place: { fontSize: 17, lineHeight: 20 },
+  num: { textAlign: 'right' },
+  points: { fontSize: 18, lineHeight: 22 },
+  legend: { flexDirection: 'row', gap: SPACING_LG, paddingHorizontal: SPACING_XS },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XS },
+  legendDot: { width: SPACING_SM, height: SPACING_SM, borderRadius: RADIUS_FULL },
+  formRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
+  formCells: { flexDirection: 'row', gap: SPACING_XS },
+  formCell: {
+    width: FORM_CELL,
+    height: FORM_CELL,
+    borderRadius: SPACING_XS,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formLetter: { fontSize: 10, lineHeight: 12 },
+  fixture: {
+    minHeight: FIXTURE_ROW_MIN,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + SPACING_XXS,
+    paddingVertical: SPACING_MD,
+  },
+  dateCol: { width: DATE_COL },
+  result: { fontSize: 20, lineHeight: 24 },
 })

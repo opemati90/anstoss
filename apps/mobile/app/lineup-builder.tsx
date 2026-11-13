@@ -6,19 +6,38 @@ import {
   Pressable,
   ScrollView,
   Share,
+  StatusBar,
   StyleSheet,
   View,
 } from 'react-native'
+import Svg, { Circle, Path, Rect } from 'react-native-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
-import { useClubColors } from '../src/context/ClubThemeContext'
+import { useClubColors, useIsDark } from '../src/context/ClubThemeContext'
+import { useReducedMotion } from '../src/hooks/useReducedMotion'
 import { useMatchTokens } from '../src/theme/matchTokens'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
-import { BottomSheet, Button, Icon, Text } from '../src/components/ui'
-import { fonts, hairline, radius, space } from '../src/theme/tokens'
+import { BottomSheet, Button, Icon, IconButton, Text } from '../src/components/ui'
+import {
+  elevation,
+  hairline,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_INPUT,
+  RADIUS_LG,
+  RADIUS_SM,
+  RADIUS_XL,
+  SCREEN_PADDING,
+  SPACING_LG,
+  SPACING_MD,
+  SPACING_SM,
+  SPACING_XS,
+  SPACING_XXS,
+  SPACING_XXXL,
+} from '../src/theme/tokens'
 import { hexToRgba } from '../src/theme/club-theme'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import {
@@ -36,21 +55,14 @@ import { getAppLanguage, getAppLocale } from '../src/i18n'
 const FORMATION_OPTIONS = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2'] as const
 type FormationKey = (typeof FORMATION_OPTIONS)[number]
 
-const PITCH_ASPECT = 0.78
-const TOKEN_SIZE = 36
-
 const withAlpha = hexToRgba
-
-function lastNameInitial(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 1) return parts[0].slice(0, 3)
-  return parts[parts.length - 1].slice(0, 6)
-}
 
 export default function LineupBuilderScreen() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId } = useAuth()
   const c = useClubColors()
+  const isDark = useIsDark()
+  const reduceMotion = useReducedMotion()
   const matchTokens = useMatchTokens()
   const insets = useSafeAreaInsetsSafe()
   const params = useLocalSearchParams<{
@@ -81,6 +93,10 @@ export default function LineupBuilderScreen() {
   // attention without feeling shouty.
   useEffect(() => {
     if (hint && !hintDismissed) {
+      if (reduceMotion) {
+        hintScale.setValue(1)
+        return
+      }
       hintScale.setValue(0.97)
       Animated.timing(hintScale, {
         toValue: 1,
@@ -89,7 +105,7 @@ export default function LineupBuilderScreen() {
         useNativeDriver: true,
       }).start()
     }
-  }, [hint, hintDismissed, hintScale])
+  }, [hint, hintDismissed, hintScale, reduceMotion])
 
   const [savedLineup, setSavedLineup] = useState<EventLineup | null>(null)
 
@@ -403,136 +419,158 @@ export default function LineupBuilderScreen() {
     }
   }
 
-  if (loading) {
+  // ── Design 13 "Aufstellung": a dark stage with the club-coloured pitch. ──
+  // The stage is ink in light mode and the page background in dark mode;
+  // copy on it stays light in both. Everything derives from theme tokens.
+  const stageBg = isDark ? c.background : c.ink
+  const stageFg = isDark ? c.textPrimary : c.onInk
+  const stageMuted = c.onHeroMuted
+  const stageTile = withAlpha(stageFg, 0.06)
+  const stageLine = withAlpha(stageFg, 0.18)
+  const pitchFg = c.onPrimary
+  const pitchLine = withAlpha(pitchFg, 0.2)
+  const chipBg = matchTokens.statusInverseBg
+  const chipFg = matchTokens.statusInverseText
+
+  const backLabel = t('common.back')
+  const title = t('lineup.title', { defaultValue: 'Lineup' })
+
+  if (loading || !clubId || !teamId) {
     return (
       <View style={[styles.root, { backgroundColor: c.background }]}>
-        <ModalHeader
-          title={t('lineup.title', { defaultValue: 'Build XI' })}
-          mode="back"
-          onClose={() => router.back()}
-        />
-        <View style={styles.loadingWrap}>
-          <Text variant="footnote" color="secondary">
-            {t('common.loading')}
-          </Text>
-        </View>
+        <ModalHeader title={title} mode="back" onClose={() => router.back()} />
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <Text variant="footnote" color="secondary">
+              {t('common.loading')}
+            </Text>
+          </View>
+        ) : (
+          <EmptyState
+            icon="person.2"
+            title={t('lineup.noTeamTitle', { defaultValue: 'No team selected' })}
+            description={t('lineup.noTeamBody', {
+              defaultValue: 'Join a team to build and post a lineup.',
+            })}
+          />
+        )}
       </View>
     )
   }
 
-  if (!clubId || !teamId) {
-    return (
-      <View style={[styles.root, { backgroundColor: c.background }]}>
-        <ModalHeader
-          title={t('lineup.title', { defaultValue: 'Build XI' })}
-          mode="back"
-          onClose={() => router.back()}
-        />
-        <EmptyState
-          icon="person.2"
-          title={t('lineup.noTeamTitle', { defaultValue: 'No team selected' })}
-          description={t('lineup.noTeamBody', {
-            defaultValue: 'Join a team to build and post a lineup.',
-          })}
-        />
-      </View>
-    )
-  }
+  const subtitle = event
+    ? [
+        new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
+          weekday: 'short',
+          day: '2-digit',
+          month: '2-digit',
+        }).format(new Date(event.date)),
+        eventDisplayTitle(event, t),
+      ].join(' · ')
+    : t('eventFlow.lineup.headlineFallback')
+
+  const benchPlayers = bench
+    .map((id) => playersById.get(id))
+    .filter((p): p is SquadPlayer => Boolean(p))
+  const pool = squad.filter((p) => !usedIds.has(p.userId) && !bench.includes(p.userId))
 
   return (
-    <View style={[styles.root, { backgroundColor: c.background }]}>
-      <ModalHeader
-        title={t('lineup.title', { defaultValue: 'Build XI' })}
-        mode="back"
-        onClose={() => router.back()}
-      />
+    <View style={[styles.root, { backgroundColor: stageBg }]}>
+      <StatusBar barStyle="light-content" />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING_MD }]}>
+        <IconButton variant="onHero" onPress={() => router.back()} accessibilityLabel={backLabel}>
+          <Icon name="chevron.left" size={20} color={stageFg} />
+        </IconButton>
+        <View style={styles.headerCopy}>
+          <Text
+            variant="display"
+            style={[styles.headerTitle, { color: stageFg }]}
+            accessibilityRole="header"
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          <Text variant="caption1" numberOfLines={1} style={{ color: stageMuted }}>
+            {subtitle}
+          </Text>
+        </View>
+        <Button
+          label={t('lineup.postToTeam', { defaultValue: 'To the team' })}
+          accessibilityLabel={
+            isComplete
+              ? t('lineup.saveAndPost', { defaultValue: 'Save & post lineup' })
+              : t('lineup.fillFirst', {
+                  defaultValue: '{{remaining}} more to fill',
+                  remaining: 11 - startersFilled,
+                })
+          }
+          variant="accent"
+          size="sm"
+          leftIcon={<Icon name="square.and.arrow.up" size={16} color={c.onAccent} />}
+          loading={saving}
+          disabled={saving || !isComplete}
+          onPress={saveAndPost}
+          style={styles.headerAction}
+        />
+      </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: SPACING_XXXL + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
-          {t('lineup.eyebrow', { defaultValue: 'LINEUP · COACH' })}
-        </Text>
-        <Text variant="title1" color="primary" weight="semibold" style={styles.title}>
-          {event
-            ? t('eventFlow.lineup.headline', {
-                title: eventDisplayTitle(event, t),
-                date: new Intl.DateTimeFormat(getAppLocale(getAppLanguage()), {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                }).format(new Date(event.date)),
-              })
-            : t('eventFlow.lineup.headlineFallback')}
-        </Text>
-        <Text variant="footnote" color="secondary" style={styles.subtitle}>
-          {t('lineup.body', {
-            defaultValue:
-              'Tap any spot to pick a player. Suggested XI rotates fairly across attendance and minutes played.',
-          })}
-        </Text>
-
-        {/* Formation segmented pills */}
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {t('lineup.formationLabel', { defaultValue: 'FORMATION' })}
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.formationRow}
+        {/* Formation picker */}
+        <View
+          style={styles.formationRow}
+          accessibilityRole="tablist"
+          accessibilityLabel={t('lineup.shareFormationLabel', { defaultValue: 'Formation' })}
         >
           {FORMATION_OPTIONS.map((option) => {
             const active = formation === option
             return (
               <Pressable
                 key={option}
-                accessibilityRole="button"
+                accessibilityRole="tab"
                 accessibilityLabel={option}
                 accessibilityState={{ selected: active }}
                 onPress={() => setFormation(option)}
-                style={[
+                hitSlop={{ top: 3, bottom: 3 }}
+                style={({ pressed }) => [
                   styles.formationChip,
                   active
-                    ? { backgroundColor: c.textPrimary, borderColor: c.textPrimary }
-                    : { borderColor: c.borderStrong, backgroundColor: c.surface },
+                    ? { backgroundColor: stageFg }
+                    : { borderWidth: 1, borderColor: stageLine },
+                  pressed && { opacity: 0.7 },
                 ]}
               >
                 <Text
-                  style={[
-                    styles.formationChipText,
-                    { color: active ? c.textInverse : c.textPrimary },
-                  ]}
+                  variant="data"
+                  style={[styles.formationText, { color: active ? stageBg : stageMuted }]}
+                  maxFontSizeMultiplier={1.2}
                 >
                   {option}
                 </Text>
               </Pressable>
             )
           })}
-        </ScrollView>
+        </View>
 
-        {/* Fairness hint banner — entrance pop + club-color left accent */}
+        {/* Fairness hint */}
         {hint && !hintDismissed ? (
           <Animated.View
             style={[
               styles.hintCard,
-              {
-                backgroundColor: withAlpha(c.primary, 0.08),
-                borderColor: withAlpha(c.primary, 0.3),
-                transform: [{ scale: hintScale }],
-              },
+              { backgroundColor: stageTile, transform: [{ scale: hintScale }] },
             ]}
           >
-            <View style={[styles.hintAccent, { backgroundColor: c.primary }]} />
-            <View style={[styles.hintBubble, { backgroundColor: c.primary }]}>
-              <Icon name="sparkles" size={14} color="inverse" />
+            <View style={[styles.hintBubble, { backgroundColor: c.accent }]}>
+              <Icon name="sparkles" size={14} color={c.onAccent} />
             </View>
             <View style={styles.hintCopy}>
-              <Text style={[styles.hintLabel, { color: c.primary }]}>
+              <Text variant="label" style={{ color: stageMuted }}>
                 {t('lineup.fairnessLabel', { defaultValue: 'FAIRNESS BOOST' })}
               </Text>
-              <Text variant="footnote" color="primary" weight="semibold" numberOfLines={2}>
+              <Text variant="footnote" weight="semibold" numberOfLines={2} style={{ color: stageFg }}>
                 {t('lineup.rotateInBody', {
                   defaultValue: '{{name}} only played {{pct}}% of available minutes. Rotate in?',
                   name: hint.name,
@@ -540,50 +578,41 @@ export default function LineupBuilderScreen() {
                 })}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('common.dismiss', { defaultValue: 'Dismiss' })}
+            <IconButton
               onPress={() => setHintDismissed(true)}
-              hitSlop={8}
-              style={({ pressed }) => [pressed && { opacity: 0.5 }]}
+              accessibilityLabel={t('common.dismiss', { defaultValue: 'Dismiss' })}
             >
-              <Icon name="xmark" size={14} color={c.textSecondary} />
-            </Pressable>
+              <Icon name="xmark" size={14} color={stageMuted} />
+            </IconButton>
           </Animated.View>
         ) : null}
 
         {/* Pitch */}
-        <View
-          style={[
-            styles.pitch,
-            {
-              backgroundColor: matchTokens.pitchFill,
-              borderColor: c.borderDefault,
-            },
-          ]}
-        >
-          {/* halfway + center circle decorations */}
-          <View style={[styles.halfwayLine, { backgroundColor: matchTokens.heroLineStrong }]} />
-          <View style={[styles.centerCircle, { borderColor: matchTokens.heroLineStrong }]} />
-          <View
-            style={[
-              styles.penaltyArea,
-              styles.penaltyTop,
-              { borderColor: matchTokens.heroLineStrong },
-            ]}
-          />
-          <View
-            style={[
-              styles.penaltyArea,
-              styles.penaltyBottom,
-              { borderColor: matchTokens.heroLineStrong },
-            ]}
-          />
+        <View style={[styles.pitch, { backgroundColor: c.primary }]}>
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 350 480"
+            preserveAspectRatio="none"
+            style={StyleSheet.absoluteFill}
+            fill="none"
+            stroke={pitchLine}
+            strokeWidth={1.5}
+          >
+            <Rect x={12} y={12} width={326} height={456} rx={6} />
+            <Path d="M12 240h326" />
+            <Circle cx={175} cy={240} r={44} />
+            <Rect x={95} y={12} width={160} height={64} />
+            <Rect x={140} y={12} width={70} height={22} />
+            <Rect x={95} y={404} width={160} height={64} />
+            <Rect x={140} y={446} width={70} height={22} />
+          </Svg>
 
           {slots.map((slot) => {
             const userId = xi[slot.id]
             const player = userId ? playersById.get(userId) : null
             const filled = !!player
+            const top = Math.min(92, Math.max(9, 96 - slot.depth * 100))
             return (
               <Pressable
                 key={slot.id}
@@ -602,232 +631,190 @@ export default function LineupBuilderScreen() {
                 }
                 onPress={() => setPickerSlot(slot)}
                 style={({ pressed }) => [
-                  styles.token,
-                  {
-                    left: `${slot.lateral * 100}%`,
-                    bottom: `${slot.depth * 100}%`,
-                    backgroundColor: filled ? c.primary : matchTokens.tokenEmptyFill,
-                    borderColor: filled ? c.primary : matchTokens.tokenEmptyBorder,
-                    transform: [{ translateX: -TOKEN_SIZE / 2 }, { translateY: TOKEN_SIZE / 2 }],
-                  },
+                  styles.slot,
+                  { left: `${slot.lateral * 100}%`, top: `${top}%` },
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text
+                <View
                   style={[
-                    styles.tokenNumber,
-                    { color: filled ? matchTokens.tokenText : matchTokens.tokenEmptyText },
+                    styles.slotChip,
+                    filled
+                      ? [{ backgroundColor: chipBg }, elevation.card]
+                      : { borderWidth: 1.5, borderStyle: 'dashed', borderColor: withAlpha(pitchFg, 0.7) },
                   ]}
                 >
-                  {filled
-                    ? player?.jerseyNumber != null
-                      ? String(player.jerseyNumber)
-                      : '·'
-                    : slot.id.replace(/[^A-Z]/g, '').slice(0, 3) || '+'}
-                </Text>
-                {filled ? (
                   <Text
-                    style={[
-                      styles.tokenName,
-                      {
-                        color: matchTokens.tokenText,
-                        textShadowColor: matchTokens.pitchLabelShadow,
-                      },
-                    ]}
-                    numberOfLines={1}
+                    variant="data"
+                    style={[styles.slotNumber, { color: filled ? chipFg : pitchFg }]}
+                    maxFontSizeMultiplier={1}
                   >
-                    {lastNameInitial(player!.name)}
+                    {filled
+                      ? player?.jerseyNumber != null
+                        ? String(player.jerseyNumber)
+                        : initialsOf(player!.name)
+                      : '+'}
                   </Text>
-                ) : null}
+                </View>
+                <Text
+                  variant="caption1"
+                  weight="semibold"
+                  numberOfLines={1}
+                  style={[styles.slotName, { color: pitchFg }]}
+                  maxFontSizeMultiplier={1.2}
+                >
+                  {filled ? lastName(player!.name) : t('lineup.openSlot', { defaultValue: 'Open' })}
+                </Text>
               </Pressable>
             )
           })}
         </View>
 
         <View style={styles.pitchActionRow}>
-          <View style={styles.pitchStatus}>
-            <Text variant="caption2" color="tertiary" tabular>
-              {t('lineup.startersCount', {
-                defaultValue: '{{count}}/11 starters',
-                count: startersFilled,
-              })}
-            </Text>
+          <Text variant="caption1" tabular style={{ color: stageMuted }}>
+            {t('lineup.startersCount', {
+              defaultValue: '{{count}}/11 starters',
+              count: startersFilled,
+            })}
+          </Text>
+          <View style={styles.pitchActions}>
+            {isComplete ? (
+              <Button
+                label={t('lineup.shareLineup', { defaultValue: 'Share lineup' })}
+                variant="onHero"
+                size="sm"
+                onPress={handleShare}
+              />
+            ) : null}
+            <Button
+              label={t('lineup.suggest', { defaultValue: 'Suggest XI' })}
+              variant="onHero"
+              size="sm"
+              leftIcon={<Icon name="sparkles" size={14} color={stageFg} />}
+              onPress={applySuggestion}
+            />
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={applySuggestion}
-            style={({ pressed }) => [
-              styles.suggestBtn,
-              { borderColor: c.borderStrong, backgroundColor: c.surface },
-              pressed && { opacity: 0.5 },
-            ]}
-          >
-            <Icon name="sparkles" size={12} color={c.textPrimary} />
-            <Text style={[styles.suggestBtnText, { color: c.textPrimary }]}>
-              {t('lineup.suggest', { defaultValue: 'Suggest XI' })}
-            </Text>
-          </Pressable>
         </View>
 
         {/* Bench */}
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {t('lineup.benchLabel', { defaultValue: 'BENCH' })}
-          {'  '}
-          <Text style={[styles.countTag, { color: c.textTertiary }]}>{String(bench.length)}/7</Text>
-        </Text>
-        {bench.length === 0 ? (
-          <View
-            style={[
-              styles.emptyBench,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            <Text variant="footnote" color="secondary">
-              {t('lineup.benchEmpty', {
-                defaultValue: 'Tap a player below to add them to the bench.',
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text variant="label" style={{ color: stageMuted }}>
+              {t('lineup.benchCount', {
+                defaultValue: 'Bench · {{count}}',
+                count: benchPlayers.length,
               })}
             </Text>
+            <Text variant="caption1" style={{ color: stageMuted }}>
+              {benchPlayers.length > 0
+                ? t('lineup.benchHint', { defaultValue: 'Tap to remove' })
+                : null}
+            </Text>
           </View>
-        ) : (
-          <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            {bench.map((id, idx) => {
-              const p = playersById.get(id)
-              if (!p) return null
-              return (
+          {benchPlayers.length === 0 ? (
+            <View style={[styles.benchEmpty, { backgroundColor: stageTile }]}>
+              <Text variant="footnote" align="center" style={{ color: stageMuted }}>
+                {t('lineup.benchEmpty', {
+                  defaultValue: 'Tap a player below to add them to the bench.',
+                })}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.benchGrid}>
+              {benchPlayers.map((p) => (
                 <Pressable
-                  key={id}
+                  key={p.userId}
                   accessibilityRole="button"
                   accessibilityLabel={t('lineup.removeFromBench', {
                     defaultValue: 'Remove {{name}}',
                     name: p.name,
                   })}
-                  onPress={() => toggleBench(id)}
+                  onPress={() => toggleBench(p.userId)}
                   style={({ pressed }) => [
-                    styles.row,
-                    idx > 0 && {
-                      borderTopWidth: hairline,
-                      borderTopColor: c.borderDefault,
-                    },
-                    pressed && { backgroundColor: c.surfaceSunken ?? c.background },
+                    styles.benchTile,
+                    { backgroundColor: stageTile },
+                    pressed && { opacity: 0.6 },
                   ]}
                 >
-                  <PlayerAvatar player={p} c={c} />
-                  <View style={styles.rowCopy}>
-                    <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    <PlayerStatsLine player={p} t={t} c={c} />
-                  </View>
-                  <View style={[styles.removePill, { borderColor: withAlpha(c.error, 0.4) }]}>
-                    <Icon name="xmark" size={11} color={c.error} />
-                  </View>
-                </Pressable>
-              )
-            })}
-          </View>
-        )}
-
-        {/* Squad pool (people not in XI or bench) */}
-        <Text style={[styles.sectionLabel, { color: c.textTertiary }]}>
-          {t('lineup.squadLabel', { defaultValue: 'SQUAD' })}
-        </Text>
-        <View style={[styles.list, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-          {squad
-            .filter((p) => !usedIds.has(p.userId) && !bench.includes(p.userId))
-            .map((p, idx) => (
-              <Pressable
-                key={p.userId}
-                accessibilityRole="button"
-                accessibilityLabel={t('lineup.addToBench', {
-                  defaultValue: 'Add {{name}} to bench',
-                  name: p.name,
-                })}
-                disabled={p.unavailable}
-                onPress={() => toggleBench(p.userId)}
-                style={({ pressed }) => [
-                  styles.row,
-                  idx > 0 && {
-                    borderTopWidth: hairline,
-                    borderTopColor: c.borderDefault,
-                  },
-                  pressed && { backgroundColor: c.surfaceSunken ?? c.background },
-                  p.unavailable && { opacity: 0.55 },
-                ]}
-              >
-                <PlayerAvatar player={p} c={c} />
-                <View style={styles.rowCopy}>
-                  <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
-                    {p.name}
-                    {p.unavailable ? (
-                      <Text variant="caption2" color="secondary">
-                        {'  '}·{'  '}
-                        {t('lineup.injuredTag', { defaultValue: 'unavailable' })}
-                      </Text>
-                    ) : null}
+                  <Text variant="data" style={[styles.benchNumber, { color: stageFg }]} maxFontSizeMultiplier={1}>
+                    {p.jerseyNumber != null ? String(p.jerseyNumber) : initialsOf(p.name)}
                   </Text>
-                  <PlayerStatsLine player={p} t={t} c={c} />
-                </View>
-                <Icon name="plus" size={14} color={p.unavailable ? c.textTertiary : c.primary} />
-              </Pressable>
-            ))}
+                  <Text
+                    variant="caption1"
+                    numberOfLines={1}
+                    style={[styles.benchName, { color: stageMuted }]}
+                    maxFontSizeMultiplier={1.2}
+                  >
+                    {lastName(p.name)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
-        <Text style={[styles.footnote, { color: c.textTertiary }]}>
+        {/* Squad pool (people not in XI or bench) */}
+        {pool.length > 0 ? (
+          <View style={styles.section}>
+            <Text variant="label" style={{ color: stageMuted }}>
+              {t('lineup.squadLabel', { defaultValue: 'SQUAD' })}
+            </Text>
+            <View style={[styles.poolGroup, { backgroundColor: stageTile }]}>
+              {pool.map((p, idx) => (
+                <Pressable
+                  key={p.userId}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('lineup.addToBench', {
+                    defaultValue: 'Add {{name}} to bench',
+                    name: p.name,
+                  })}
+                  accessibilityState={{ disabled: p.unavailable }}
+                  disabled={p.unavailable}
+                  onPress={() => toggleBench(p.userId)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    idx < pool.length - 1 && {
+                      borderBottomWidth: hairline,
+                      borderBottomColor: stageLine,
+                    },
+                    pressed && { opacity: 0.6 },
+                    p.unavailable && { opacity: 0.5 },
+                  ]}
+                >
+                  <View style={[styles.avatar, { backgroundColor: stageTile }]}>
+                    <Text variant="data" style={[styles.avatarText, { color: stageFg }]} maxFontSizeMultiplier={1}>
+                      {p.jerseyNumber != null ? String(p.jerseyNumber) : initialsOf(p.name)}
+                    </Text>
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <Text variant="subheadline" weight="semibold" numberOfLines={1} style={{ color: stageFg }}>
+                      {p.name}
+                    </Text>
+                    <Text variant="caption1" numberOfLines={1} style={{ color: stageMuted }}>
+                      {[
+                        `${Math.round(p.attendance * 100)}% ${t('lineup.attendShort', { defaultValue: 'att' })}`,
+                        `${Math.round(p.minutesShare * 100)}% ${t('lineup.minsShort', { defaultValue: 'mins' })}`,
+                        p.position,
+                        p.unavailable ? t('lineup.injuredTag', { defaultValue: 'unavailable' }) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </View>
+                  <Icon name="plus" size={18} color={p.unavailable ? stageMuted : c.accent} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <Text variant="caption1" align="center" style={{ color: stageMuted }}>
           {t('lineup.footer', {
             defaultValue:
               'Saving posts a pinned lineup announcement to the team channel. Players RSVP-confirm their slot from the post.',
           })}
         </Text>
       </ScrollView>
-
-      <View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: c.background,
-            borderTopColor: c.borderDefault,
-            paddingBottom: space.lg + insets.bottom,
-          },
-        ]}
-      >
-        <Button
-          label={
-            isComplete
-              ? t('lineup.saveAndPost', {
-                  defaultValue: 'Save & post lineup',
-                })
-              : t('lineup.fillFirst', {
-                  defaultValue: '{{remaining}} more to fill',
-                  remaining: 11 - startersFilled,
-                })
-          }
-          variant="filled"
-          size="lg"
-          fullWidth
-          loading={saving}
-          disabled={saving || !isComplete}
-          onPress={saveAndPost}
-        />
-        {isComplete ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('lineup.shareLineup', {
-              defaultValue: 'Share lineup',
-            })}
-            onPress={handleShare}
-            style={({ pressed }) => [
-              styles.shareGhost,
-              { borderColor: c.borderStrong, backgroundColor: c.surface },
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Icon name="square.and.arrow.up" size={12} color={c.textPrimary} />
-            <Text style={[styles.shareGhostText, { color: c.textPrimary }]}>
-              {t('lineup.shareLineup', { defaultValue: 'Share lineup' })}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
 
       {/* Player picker sheet */}
       <BottomSheet visible={!!pickerSlot} onClose={() => setPickerSlot(null)}>
@@ -836,12 +823,12 @@ export default function LineupBuilderScreen() {
             contentContainerStyle={styles.pickerContent}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+            <Text variant="label">
               {t('lineup.pickerEyebrow', {
                 defaultValue: 'PICK A PLAYER',
               })}
             </Text>
-            <Text variant="title3" color="primary" weight="bold" style={styles.title}>
+            <Text variant="title3" color="primary" weight="bold" style={styles.sheetTitle}>
               {pickerSlot?.id} ·{' '}
               {pickerSlot
                 ? t(`lineup.position.${pickerSlot.position}`, {
@@ -849,7 +836,7 @@ export default function LineupBuilderScreen() {
                   })
                 : ''}
             </Text>
-            <Text variant="footnote" color="secondary" style={styles.subtitle}>
+            <Text variant="footnote" color="secondary" style={styles.sheetBody}>
               {t('lineup.pickerBody', {
                 defaultValue:
                   'Sorted by best fit and fairness. Tap to assign. Tap the slot again to clear.',
@@ -857,38 +844,30 @@ export default function LineupBuilderScreen() {
             </Text>
 
             {pickerSlot && xi[pickerSlot.id] ? (
-              <Pressable
-                accessibilityRole="button"
+              <Button
+                label={t('lineup.clearSlot', { defaultValue: 'Clear this spot' })}
+                variant="bordered"
+                size="md"
+                fullWidth
+                leftIcon={<Icon name="xmark" size={14} color={c.error} />}
                 onPress={() => {
                   if (pickerSlot) clearSlot(pickerSlot.id)
                   setPickerSlot(null)
                 }}
-                style={({ pressed }) => [
-                  styles.clearBtn,
-                  { borderColor: withAlpha(c.error, 0.4) },
-                  pressed && { opacity: 0.5 },
-                ]}
-              >
-                <Icon name="xmark" size={12} color={c.error} />
-                <Text style={[styles.clearBtnText, { color: c.error }]}>
-                  {t('lineup.clearSlot', { defaultValue: 'Clear this spot' })}
-                </Text>
-              </Pressable>
+                style={styles.sheetGap}
+              />
             ) : null}
 
-            <View
-              style={[
-                styles.list,
-                { backgroundColor: c.surface, borderColor: c.borderDefault, marginTop: space.sm },
-              ]}
-            >
-              {eligibleForSlot(pickerSlot).map((p, idx) => {
+            <View style={[styles.sheetGroup, { backgroundColor: c.background }]}>
+              {eligibleForSlot(pickerSlot).map((p, idx, arr) => {
                 const sameSlot = pickerSlot && xi[pickerSlot.id] === p.userId
+                const fits = pickerSlot?.position === p.position
                 return (
                   <Pressable
                     key={p.userId}
                     accessibilityRole="button"
                     accessibilityLabel={p.name}
+                    accessibilityState={{ disabled: p.unavailable, selected: !!sameSlot }}
                     disabled={p.unavailable}
                     onPress={() => {
                       if (pickerSlot) assignToSlot(pickerSlot.id, p.userId)
@@ -896,49 +875,43 @@ export default function LineupBuilderScreen() {
                     }}
                     style={({ pressed }) => [
                       styles.row,
-                      idx > 0 && {
-                        borderTopWidth: hairline,
-                        borderTopColor: c.borderDefault,
+                      idx < arr.length - 1 && {
+                        borderBottomWidth: hairline,
+                        borderBottomColor: c.borderSubtle,
                       },
-                      pressed && { backgroundColor: c.surfaceSunken ?? c.background },
-                      p.unavailable && { opacity: 0.55 },
-                      sameSlot && { backgroundColor: withAlpha(c.primary, 0.08) },
+                      pressed && { opacity: 0.6 },
+                      p.unavailable && { opacity: 0.5 },
                     ]}
                   >
-                    <PlayerAvatar player={p} c={c} />
+                    <View style={[styles.avatar, { backgroundColor: c.surfaceMuted }]}>
+                      <Text variant="data" style={styles.avatarText} maxFontSizeMultiplier={1}>
+                        {p.jerseyNumber != null ? String(p.jerseyNumber) : initialsOf(p.name)}
+                      </Text>
+                    </View>
                     <View style={styles.rowCopy}>
-                      <Text variant="footnote" color="primary" weight="semibold" numberOfLines={1}>
+                      <Text variant="subheadline" weight="semibold" numberOfLines={1}>
                         {p.name}
                         {sameSlot ? (
-                          <Text variant="caption2" color="primary">
-                            {'  '}·{'  '}
+                          <Text variant="caption1" color="secondary">
+                            {'  ·  '}
                             {t('lineup.currentTag', { defaultValue: 'current' })}
                           </Text>
                         ) : null}
                       </Text>
-                      <PlayerStatsLine player={p} t={t} c={c} />
+                      <Text variant="caption1" color="secondary" numberOfLines={1}>
+                        {`${Math.round(p.attendance * 100)}% ${t('lineup.attendShort', { defaultValue: 'att' })} · ${Math.round(p.minutesShare * 100)}% ${t('lineup.minsShort', { defaultValue: 'mins' })}`}
+                      </Text>
                     </View>
                     <View
                       style={[
-                        styles.posBadge,
-                        {
-                          borderColor:
-                            pickerSlot?.position === p.position ? c.primary : c.borderDefault,
-                          backgroundColor:
-                            pickerSlot?.position === p.position
-                              ? withAlpha(c.primary, 0.12)
-                              : 'transparent',
-                        },
+                        styles.posTag,
+                        { backgroundColor: fits ? c.ink : c.surfaceMuted },
                       ]}
                     >
                       <Text
-                        style={[
-                          styles.posBadgeText,
-                          {
-                            color:
-                              pickerSlot?.position === p.position ? c.primary : c.textSecondary,
-                          },
-                        ]}
+                        variant="caption1"
+                        weight="bold"
+                        style={{ color: fits ? c.onInk : c.textSecondary }}
                       >
                         {p.position}
                       </Text>
@@ -950,11 +923,11 @@ export default function LineupBuilderScreen() {
 
             <Button
               label={t('common.cancel')}
-              variant="ghost"
+              variant="plain"
               size="lg"
               fullWidth
               onPress={() => setPickerSlot(null)}
-              style={{ marginTop: space.md }}
+              style={styles.sheetGap}
             />
           </ScrollView>
         </View>
@@ -970,28 +943,23 @@ export default function LineupBuilderScreen() {
         heightPct="auto"
       >
         <View style={styles.shareSheetBody}>
-          <Text style={[styles.eyebrow, { color: c.textTertiary }]}>
+          <Text variant="label">
             {t('lineup.shareSheetEyebrow', { defaultValue: 'LINEUP POSTED' })}
           </Text>
-          <Text variant="title3" color="primary" weight="bold" style={styles.title}>
+          <Text variant="title3" color="primary" weight="bold">
             {t('lineup.shareSheetTitle', {
               defaultValue: 'Pinned in #team · share anywhere?',
             })}
           </Text>
-          <Text variant="footnote" color="secondary" style={styles.subtitle}>
+          <Text variant="footnote" color="secondary">
             {t('lineup.shareSheetBody', {
               defaultValue:
                 'The team channel already has the announcement. Send to a parents WhatsApp group, family iMessage, or wherever else.',
             })}
           </Text>
 
-          <View
-            style={[
-              styles.sharePreview,
-              { backgroundColor: c.surface, borderColor: c.borderDefault },
-            ]}
-          >
-            <Text style={[styles.sharePreviewText, { color: c.textPrimary }]} numberOfLines={14}>
+          <View style={[styles.sharePreview, { backgroundColor: c.surfaceMuted }]}>
+            <Text variant="footnote" numberOfLines={14}>
               {buildShareText()}
             </Text>
           </View>
@@ -1001,13 +969,14 @@ export default function LineupBuilderScreen() {
             variant="filled"
             size="lg"
             fullWidth
+            leftIcon={<Icon name="square.and.arrow.up" size={18} color={c.onInk} />}
             onPress={async () => {
               await handleShare()
             }}
           />
           <Button
             label={t('common.done', { defaultValue: 'Done' })}
-            variant="ghost"
+            variant="plain"
             size="lg"
             fullWidth
             onPress={() => {
@@ -1021,364 +990,190 @@ export default function LineupBuilderScreen() {
   )
 }
 
-function PlayerAvatar({ player, c }: { player: SquadPlayer; c: ReturnType<typeof useClubColors> }) {
-  const initials = player.name
+function lastName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  return parts[parts.length - 1] ?? name
+}
+
+function initialsOf(name: string): string {
+  return name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase())
     .join('')
-  return (
-    <View
-      style={[
-        styles.avatar,
-        {
-          backgroundColor: c.surfaceSunken ?? c.background,
-          borderColor: c.borderDefault,
-        },
-      ]}
-    >
-      {player.jerseyNumber != null ? (
-        <Text style={[styles.avatarText, { color: c.textPrimary }]} tabular>
-          {String(player.jerseyNumber)}
-        </Text>
-      ) : (
-        <Text style={[styles.avatarText, { color: c.textPrimary }]}>{initials}</Text>
-      )}
-    </View>
-  )
 }
 
-function PlayerStatsLine({
-  player,
-  t,
-  c,
-}: {
-  player: SquadPlayer
-  t: ReturnType<typeof useTranslation>['t']
-  c: ReturnType<typeof useClubColors>
-}) {
-  return (
-    <View style={styles.statsLine}>
-      <Text variant="caption2" color="tertiary" tabular>
-        {Math.round(player.attendance * 100)}% {t('lineup.attendShort', { defaultValue: 'att' })}
-      </Text>
-      <Text style={[styles.statsDot, { color: c.textTertiary }]}>·</Text>
-      <Text variant="caption2" color="tertiary" tabular>
-        {Math.round(player.minutesShare * 100)}% {t('lineup.minsShort', { defaultValue: 'mins' })}
-      </Text>
-      <Text style={[styles.statsDot, { color: c.textTertiary }]}>·</Text>
-      <Text variant="caption2" color="tertiary">
-        {player.position}
-      </Text>
-    </View>
-  )
-}
+const SLOT_WIDTH = 76
+const SLOT_CHIP = 42
+const BENCH_TILE_HEIGHT = 58
+const FORMATION_CHIP_HEIGHT = 38
+const HINT_BUBBLE = 32
+const AVATAR = 36
+// Design pitch is 350×480 on a 390pt phone.
+const PITCH_ASPECT = 350 / 480
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space['2xl'] * 3,
-    gap: space.sm,
-  },
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: space.lg,
+    padding: SPACING_LG,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SPACING_LG,
+  },
+  headerCopy: { flex: 1, minWidth: 0 },
+  headerTitle: { fontSize: 24 },
+  headerAction: { minHeight: 44 },
+  content: {
+    paddingHorizontal: SCREEN_PADDING,
+    gap: SPACING_LG,
   },
 
-  eyebrow: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  title: { letterSpacing: -0.3, marginTop: space['2xs'] },
-  subtitle: { marginTop: space.xs, lineHeight: 18 },
-
-  sectionLabel: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-    marginTop: space.sm,
-    marginLeft: space.xs,
-    marginBottom: -space.xs,
-  },
-  countTag: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 0.2,
-  },
-
-  formationRow: {
-    paddingVertical: space.xs + space['2xs'],
-    paddingRight: space.md,
-    gap: space.sm,
-  },
+  formationRow: { flexDirection: 'row', gap: SPACING_XS + SPACING_XXS },
   formationChip: {
-    paddingHorizontal: space.md - space['2xs'],
-    paddingVertical: space.sm,
-    borderRadius: radius.full,
-    borderWidth: 1,
+    flex: 1,
+    height: FORMATION_CHIP_HEIGHT,
+    borderRadius: RADIUS_FULL,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  formationChipText: {
-    fontSize: 13,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
+  formationText: { fontSize: 17, lineHeight: 20 },
 
   hintCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + space['2xs'],
-    padding: space.sm + space['2xs'],
-    paddingLeft: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: space.xs,
-    overflow: 'hidden',
-  },
-  hintAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
+    gap: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    paddingLeft: SPACING_LG,
+    borderRadius: RADIUS_CARD,
   },
   hintBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
+    width: HINT_BUBBLE,
+    height: HINT_BUBBLE,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hintCopy: { flex: 1, gap: space['2xs'] },
-  hintLabel: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    letterSpacing: 1.2,
-    fontWeight: '700',
-  },
+  hintCopy: { flex: 1, gap: SPACING_XXS },
 
   pitch: {
     width: '100%',
     aspectRatio: PITCH_ASPECT,
-    borderRadius: radius.lg,
-    borderWidth: hairline,
+    borderRadius: RADIUS_XL + SPACING_XS,
+    borderCurve: 'continuous',
     overflow: 'hidden',
-    position: 'relative',
-    marginTop: space.sm,
   },
-  halfwayLine: {
+  slot: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    height: 1,
+    width: SLOT_WIDTH,
+    marginLeft: -SLOT_WIDTH / 2,
+    marginTop: -SLOT_CHIP / 2,
+    alignItems: 'center',
+    gap: SPACING_XS,
   },
-  centerCircle: {
-    position: 'absolute',
-    width: '22%',
-    aspectRatio: 1,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    left: '39%',
-    top: '46%',
-  },
-  penaltyArea: {
-    position: 'absolute',
-    left: '20%',
-    width: '60%',
-    height: '14%',
-    borderWidth: 1,
-  },
-  penaltyTop: { top: 0, borderTopWidth: 0 },
-  penaltyBottom: { bottom: 0, borderBottomWidth: 0 },
-  token: {
-    position: 'absolute',
-    width: TOKEN_SIZE,
-    height: TOKEN_SIZE,
-    borderRadius: TOKEN_SIZE / 2,
-    borderWidth: 1.5,
+  slotChip: {
+    width: SLOT_CHIP,
+    height: SLOT_CHIP,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tokenNumber: {
-    fontSize: 12,
-    fontFamily: fonts.data,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  tokenName: {
-    position: 'absolute',
-    top: TOKEN_SIZE,
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    width: 60,
-    textAlign: 'center',
-    textShadowRadius: 2,
-  },
+  slotNumber: { fontSize: 19, lineHeight: 22 },
+  slotName: { fontSize: 11, lineHeight: 14, textAlign: 'center' },
 
   pitchActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: space.sm,
-    gap: space.sm + space['2xs'],
+    gap: SPACING_SM,
   },
-  pitchStatus: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
-  suggestBtn: {
+  pitchActions: { flexDirection: 'row', gap: SPACING_SM },
+
+  section: { gap: SPACING_SM + SPACING_XXS },
+  sectionHead: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: space.xs + space['2xs'],
-    paddingHorizontal: space.sm + space.xs,
-    paddingVertical: space.sm,
-    borderRadius: radius.full,
-    borderWidth: 1,
+    gap: SPACING_SM,
   },
-  suggestBtnText: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+  benchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_SM },
+  benchTile: {
+    width: '18%',
+    flexGrow: 1,
+    maxWidth: '19%',
+    height: BENCH_TILE_HEIGHT,
+    borderRadius: RADIUS_LG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING_XXS,
+  },
+  benchNumber: { fontSize: 19, lineHeight: 20 },
+  benchName: { fontSize: 11, lineHeight: 14, paddingHorizontal: SPACING_XS },
+  benchEmpty: {
+    paddingVertical: SPACING_LG,
+    paddingHorizontal: SPACING_LG,
+    borderRadius: RADIUS_LG,
   },
 
-  list: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    overflow: 'hidden',
-    marginTop: space.sm,
-  },
-  emptyBench: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    alignItems: 'center',
-    marginTop: space.sm,
+  poolGroup: {
+    borderRadius: RADIUS_CARD,
+    paddingHorizontal: SPACING_LG,
   },
   row: {
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm + space['2xs'],
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space['2xs'],
+    gap: SPACING_MD + SPACING_XXS,
+    paddingVertical: SPACING_MD,
   },
-  rowCopy: { flex: 1, gap: space['2xs'] },
+  rowCopy: { flex: 1, minWidth: 0, gap: SPACING_XXS },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    borderWidth: hairline,
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: 12,
-    fontFamily: fonts.data,
-    fontWeight: '700',
-  },
-  statsLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs + space['2xs'] },
-  statsDot: { fontSize: 12, fontFamily: fonts.label },
-
-  removePill: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    borderWidth: 1,
+  avatarText: { fontSize: 16, lineHeight: 18 },
+  posTag: {
+    paddingHorizontal: SPACING_SM,
+    paddingVertical: SPACING_XS,
+    borderRadius: RADIUS_SM,
+    minWidth: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  posBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    minWidth: 38,
-    alignItems: 'center',
-  },
-  posBadgeText: {
-    fontSize: 12,
-    fontFamily: fonts.label,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-
-  footnote: {
-    fontSize: 12,
-    fontFamily: fonts.body,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: space.sm,
-  },
-
-  footer: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    borderTopWidth: hairline,
-    gap: space.sm,
-  },
-  shareGhost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs + space['2xs'],
-    paddingVertical: space.sm + space.xs,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  shareGhostText: {
-    fontSize: 13,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-
-  shareSheetBody: {
-    paddingTop: space.sm,
-    paddingBottom: space.md,
-    gap: space.sm,
-  },
-  sharePreview: {
-    borderRadius: radius.md,
-    borderWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + space.xs,
-  },
-  sharePreviewText: {
-    fontSize: 12,
-    fontFamily: fonts.data,
-    lineHeight: 18,
   },
 
   pickerInner: { flex: 1 },
   pickerContent: {
-    paddingTop: space.md,
-    paddingBottom: space.md,
+    paddingTop: SPACING_LG,
+    paddingBottom: SPACING_LG,
+    gap: SPACING_SM,
   },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs + space['2xs'],
-    paddingVertical: space.sm + space['2xs'],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    marginTop: space.sm,
+  sheetTitle: { marginTop: SPACING_XXS },
+  sheetBody: { marginBottom: SPACING_XS },
+  sheetGap: { marginTop: SPACING_SM },
+  sheetGroup: {
+    borderRadius: RADIUS_CARD,
+    paddingHorizontal: SPACING_LG,
+    marginTop: SPACING_SM,
   },
-  clearBtnText: {
-    fontSize: 13,
-    fontFamily: fonts.label,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+
+  shareSheetBody: {
+    paddingTop: SPACING_SM,
+    paddingBottom: SPACING_LG,
+    gap: SPACING_SM,
+  },
+  sharePreview: {
+    borderRadius: RADIUS_INPUT,
+    paddingHorizontal: SPACING_LG,
+    paddingVertical: SPACING_MD,
   },
 })

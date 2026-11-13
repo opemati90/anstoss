@@ -1,8 +1,9 @@
 import { StyleSheet, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { Icon, IconName } from '../ui/Icon'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { fontSize, fonts, hairline, radius, space } from '../../theme/tokens'
+import { hairline, SPACING_MD, SPACING_SM, SPACING_XXS } from '../../theme/tokens'
 
 export type TimelineEventKind = 'goal' | 'sub' | 'yellow' | 'red' | 'pen' | 'own_goal'
 
@@ -12,137 +13,102 @@ export type TimelineItemProps = {
   player: string
   detail?: string
   side: 'home' | 'away'
+  /**
+   * Which side is the viewer's club. When set, a goal for the other side
+   * reads "Gegentor" (design 14 Spielverlauf). Unknown → plain "Tor".
+   */
+  ownSide?: 'home' | 'away' | null
   isLast?: boolean
 }
 
 const ICONS: Record<TimelineEventKind, IconName> = {
   goal: 'football',
-  sub: 'swap-horizontal',
-  yellow: 'square',
-  red: 'square',
+  sub: 'arrow.left.arrow.right',
+  yellow: 'card',
+  red: 'card',
   pen: 'football',
   own_goal: 'football',
 }
 
-const LABELS: Record<TimelineEventKind, string> = {
-  goal: 'Goal',
-  sub: 'Substitution',
-  yellow: 'Yellow card',
-  red: 'Red card',
-  pen: 'Penalty',
-  own_goal: 'Own goal',
-}
+const MINUTE_COL = 40
+const ROW_MIN = 52
 
+/**
+ * One row of the Spielverlauf group: Barlow minute, who, and what
+ * (design 14). Rendered inside a white radius-20 group; `isLast` drops the
+ * divider.
+ */
 export function TimelineItem({
   minute,
   kind,
   player,
   detail,
   side,
+  ownSide,
   isLast,
 }: TimelineItemProps) {
-  const colors = useClubColors()
-  const accent = kind === 'red' ? colors.error : kind === 'yellow' ? colors.warning : colors.primary
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const conceded = (kind === 'goal' || kind === 'pen') && ownSide != null && side !== ownSide
+  const label = conceded
+    ? t('matchLive.kind.conceded', { defaultValue: 'Goal against' })
+    : t(`matchLive.kind.${kind}`, { defaultValue: DEFAULT_LABELS[kind] })
+  const iconColor = kind === 'red' ? c.error : kind === 'yellow' ? c.warning : c.textSecondary
 
   return (
-    <View style={styles.row}>
-      <View style={styles.minuteCol}>
-        <View style={[styles.minutePill, { backgroundColor: colors.surfaceSunken }]}>
-          <Text style={[styles.minuteText, { color: colors.textPrimary }]}>{minute}'</Text>
-        </View>
-      </View>
-
-      <View style={styles.timelineCol}>
-        <View style={[styles.dot, { backgroundColor: accent }]} />
-        {!isLast && <View style={[styles.line, { backgroundColor: colors.borderDefault }]} />}
-      </View>
-
-      <View
-        style={[
-          styles.body,
-          side === 'away' && { alignItems: 'flex-end' },
-        ]}
-      >
-        <View style={styles.bodyTop}>
-          <Icon name={ICONS[kind]} size={14} color={accent} />
-          <Text
-            style={[
-              styles.label,
-              { color: colors.textSecondary },
-            ]}
-          >
-            {LABELS[kind]}
-          </Text>
-        </View>
-        <Text style={[styles.player, { color: colors.textPrimary }]}>{player}</Text>
+    <View
+      accessible
+      accessibilityLabel={`${minute}'. ${label}. ${player}${detail ? `, ${detail}` : ''}`}
+      style={[
+        styles.row,
+        !isLast && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
+      ]}
+    >
+      <Text variant="data" tabular style={styles.minute}>
+        {`${minute}'`}
+      </Text>
+      <View style={styles.who}>
+        <Text variant="subheadline" weight="semibold" numberOfLines={1}>
+          {player}
+        </Text>
         {detail ? (
-          <Text style={[styles.detail, { color: colors.textTertiary }]}>{detail}</Text>
+          <Text variant="caption1" color="secondary" numberOfLines={1}>
+            {detail}
+          </Text>
         ) : null}
+      </View>
+      <View style={styles.kind}>
+        <Icon name={ICONS[kind]} size={14} color={iconColor} />
+        <Text variant="footnote" color="secondary">
+          {label}
+        </Text>
       </View>
     </View>
   )
 }
 
+const DEFAULT_LABELS: Record<TimelineEventKind, string> = {
+  goal: 'Goal',
+  sub: 'Substitution',
+  yellow: 'Yellow',
+  red: 'Red',
+  pen: 'Penalty',
+  own_goal: 'Own goal',
+}
+
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-  },
-  minuteCol: {
-    width: 44,
-    alignItems: 'center',
-    paddingTop: space['2xs'],
-  },
-  minutePill: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space['2xs'] + 1,
-    borderRadius: radius.full,
-  },
-  minuteText: {
-    fontFamily: fonts.data,
-    fontSize: fontSize['2xs'],
-    fontWeight: '600',
-  },
-  timelineCol: {
-    width: 24,
-    alignItems: 'center',
-    paddingTop: space.xs + space['2xs'],
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.full,
-  },
-  line: {
-    width: hairline,
-    flex: 1,
-    minHeight: 32,
-    marginTop: space['2xs'],
-  },
-  body: {
-    flex: 1,
-    gap: space['2xs'],
-  },
-  bodyTop: {
+    minHeight: ROW_MIN,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs + space['2xs'],
+    gap: SPACING_MD,
+    paddingVertical: SPACING_SM,
   },
-  label: {
-    fontFamily: fonts.label,
-    fontSize: fontSize['2xs'],
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+  minute: {
+    width: MINUTE_COL,
+    fontSize: 18,
+    lineHeight: 22,
   },
-  player: {
-    fontFamily: fonts.heading,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  detail: {
-    fontFamily: fonts.body,
-    fontSize: fontSize.xs,
-  },
+  who: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  kind: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XXS * 2 },
 })

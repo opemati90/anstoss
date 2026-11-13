@@ -94,7 +94,11 @@ export const lightTheme = {
   onInk: TEXT_WHITE,
   accent: ACCENT,
   onAccent: INK,
-  // Muted text on a club-coloured hero; the hero itself uses `primary`.
+  // Club-coloured hero surface (welcome, next-up, live match). Unlike
+  // `primary` it is never contrast-adjusted, so the club colour reads true in
+  // both modes; text on it uses `onHeroBg`, muted copy `onHeroMuted`.
+  heroBg: DEFAULT_PRIMARY,
+  onHeroBg: TEXT_WHITE,
   onHeroMuted: ON_HERO_MUTED,
   alertDot: ALERT_DOT,
 
@@ -155,6 +159,8 @@ export const darkTheme = {
   onInk: '#0B100D',
   accent: ACCENT,
   onAccent: INK,
+  heroBg: DEFAULT_PRIMARY,
+  onHeroBg: TEXT_WHITE,
   onHeroMuted: ON_HERO_MUTED,
   alertDot: ALERT_DOT,
 
