@@ -90,7 +90,7 @@ export const EventRow = memo(function EventRow({
     .toUpperCase()
   const dayNumber = String(date.getDate())
   const title =
-    compact && event.type === 'MATCH' && event.opponent?.trim()
+    event.type === 'MATCH' && event.opponent?.trim()
       ? t(`eventFlow.matchTitleShort.${event.homeAway === 'AWAY' ? 'away' : 'home'}`, {
           opponent: event.opponent.trim(),
         })
@@ -98,7 +98,7 @@ export const EventRow = memo(function EventRow({
   const cancelled = Boolean(event.cancelledAt)
   const timeLine = compact ? formatClock(event.date, locale) : eventTimeLine(event, locale, t)
   const kind = [
-    compact && event.type === 'MATCH' && event.matchKind
+    event.type === 'MATCH' && event.matchKind
       ? matchKindLabel(event.matchKind, t)
       : t(`eventFlow.type.${event.type}`),
     event.type === 'MATCH' && event.homeAway
