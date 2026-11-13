@@ -531,6 +531,12 @@ export const MessageBubble = memo(function MessageBubble({
                 )}
               </View>
             </Pressable>
+            {/* Board 15: "Gelesen von 14" under the last of my bubbles in a channel. */}
+            {isOwn && isGroupChat && _lastInGroup && !isDeleted && (message.readCount ?? 0) > 0 ? (
+              <Text variant="caption1" color="secondary" style={styles.readCount} testID={`chat-read-count-${message.id}`}>
+                {t('chatThread.readBy', { count: message.readCount })}
+              </Text>
+            ) : null}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -685,6 +691,7 @@ function AnnouncementCard({
 export const MESSAGE_HEIGHT = 72
 
 const styles = StyleSheet.create({
+  readCount: { marginTop: space.xs, paddingHorizontal: space.xs },
   row: { paddingHorizontal: SCREEN_PADDING },
   rowInner: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   rowOwn: { justifyContent: 'flex-end' },

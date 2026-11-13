@@ -168,7 +168,8 @@ export const RsvpControl = memo(function RsvpControl({
         {OPTIONS.map((option, index) => {
           const isActive = value === option.status
           const label = labels[index]
-          const fg = isActive ? c.onPrimary : compact ? c.textPrimary : c.textSecondary
+          // Board 23: the chosen pill in a row is ink, like every selected chip.
+          const fg = isActive ? (compact ? c.onInk : c.onPrimary) : compact ? c.textPrimary : c.textSecondary
           return (
             <Pressable
               key={option.status}
@@ -186,7 +187,7 @@ export const RsvpControl = memo(function RsvpControl({
                 layout === 'column' && styles.segmentColumn,
                 compact
                   ? isActive
-                    ? { backgroundColor: c.primary, borderColor: c.primary }
+                    ? { backgroundColor: c.ink, borderColor: c.ink }
                     : { backgroundColor: 'transparent', borderColor: c.borderStrong }
                   : isActive
                     ? { backgroundColor: c.primary }

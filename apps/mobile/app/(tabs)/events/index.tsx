@@ -241,16 +241,16 @@ export default function EventsScreen() {
             .map((event) => ({ kind: 'team' as const, key: event.id, event })),
     [childEvents, events, filter, isParent],
   )
-  // Coaches see design 11's single white group (no month labels); players
-  // and parents keep the month sections.
+  // Coaches (design 11) and players (design 23) see one white group with
+  // no month labels; parents keep the month sections across children.
   const sections = useMemo<MonthSection[]>(
     () =>
-      canManage
+      !isParent
         ? rows.length > 0
           ? [{ key: 'all', title: '', data: rows }]
           : []
         : buildMonthSections(rows, locale),
-    [canManage, locale, rows],
+    [isParent, locale, rows],
   )
 
   const openEvent = (eventId: string) =>
@@ -301,7 +301,8 @@ export default function EventsScreen() {
       {canManage && scope === 'upcoming' ? (
         <WeekStrip events={events} locale={locale} />
       ) : null}
-      {!isParent ? (
+      {/* Players answer the upcoming list (design 23): no filter chips. */}
+      {canManage ? (
         <FilterChipRow<ListFilter>
           chips={[
             { key: 'all', label: t('eventFlow.list.filterAll', { defaultValue: 'All' }) },
@@ -328,7 +329,8 @@ export default function EventsScreen() {
           </Text>
         </View>
       ) : null}
-      {liveFixture ? (
+      {/* The live score is a coach row here; players see it on Start. */}
+      {liveFixture && canManage ? (
         <Pressable
           onPress={() =>
             router.push({

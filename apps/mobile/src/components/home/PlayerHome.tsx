@@ -23,11 +23,11 @@ import {
   HomeTag,
   InlineError,
   formatDayTime,
-  formatMoney,
   formatShortDate,
 } from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
 import { useDutyTasks } from './HomeTasks'
+import { formatDues } from '../club/DuesTag'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 
 export type PlayerHomeProps = {
@@ -273,7 +273,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
 
   const dues = data.dues && data.dues.amounts.length > 0 ? data.dues : null
   const duesAmount = dues
-    ? dues.amounts.map((entry) => formatMoney(entry.cents, entry.currency, locale)).join(' + ')
+    ? dues.amounts.map((entry) => formatDues(entry.cents, entry.currency, locale)).join(' + ')
     : ''
 
   type GroupRow = { key: string; render: (divider: boolean) => ReactNode }

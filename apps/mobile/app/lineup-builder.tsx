@@ -432,7 +432,7 @@ export default function LineupBuilderScreen() {
   const stageMuted = c.onHeroMuted
   const stageTile = withAlpha(stageFg, 0.06)
   const stageLine = withAlpha(stageFg, 0.18)
-  const pitchFg = c.onPrimary
+  const pitchFg = c.onHeroBg
   const pitchLine = withAlpha(pitchFg, 0.2)
   const chipBg = matchTokens.statusInverseBg
   const chipFg = matchTokens.statusInverseText
@@ -578,7 +578,7 @@ export default function LineupBuilderScreen() {
         </View>
 
         {/* Pitch */}
-        <View style={[styles.pitch, { backgroundColor: c.primary, height: pitchHeight }]}>
+        <View style={[styles.pitch, { backgroundColor: c.heroBg, height: pitchHeight }]}>
           <Svg
             width="100%"
             height="100%"

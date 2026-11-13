@@ -7,13 +7,14 @@ import * as Haptics from 'expo-haptics'
 import { useTranslation } from 'react-i18next'
 import type { InboxItem } from '@anstoss/shared'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { hairline, radius, SCREEN_PADDING, space } from '../../theme/tokens'
 import { Icon, Text, type IconName } from '../ui'
 import { ConversationAvatar } from './ConversationAvatar'
 import { badgeLabel, formatInboxTime, isMuted } from './inboxModel'
 
-export const INBOX_AVATAR_SIZE = 52
-export const INBOX_ROW_MIN_HEIGHT = 72
+// Board 15 density: 44pt avatars, 64pt rows, 20pt page gutter.
+export const INBOX_AVATAR_SIZE = 44
+export const INBOX_ROW_MIN_HEIGHT = 64
 const ACTION_WIDTH = 80
 
 type Props = {
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: space.md,
+    paddingLeft: SCREEN_PADDING,
     gap: space.sm + space.xs,
     minHeight: INBOX_ROW_MIN_HEIGHT,
   },
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     paddingVertical: space.sm + space['2xs'],
-    paddingRight: space.md,
+    paddingRight: SCREEN_PADDING,
     gap: space['2xs'],
     borderBottomWidth: hairline,
     alignSelf: 'stretch',

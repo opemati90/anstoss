@@ -18,6 +18,7 @@ export default {
       typingMany_other: '{{count}} Personen schreiben …',
       peerLeft: 'Hat den Verein verlassen',
     },
+    readBy: "Gelesen von {{count}}",
     read: {
       pending: 'Wird gesendet',
       sent: 'Gesendet',

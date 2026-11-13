@@ -320,6 +320,14 @@ export default {
     treasury: "Tesouraria",
   },
   mydues: {
+    copied: "Copiado",
+    copy: "Copiar",
+    method: {
+      CASH: "Dinheiro no treino",
+      OTHER: "Outro",
+      SEPA: "Débito direto",
+      TRANSFER: "Transferência",
+    },
     dueShort: "vence {{date}}",
     footnote: "O dinheiro vai diretamente para o teu clube. A Anstoss só mostra o estado.",
     iTransferred: "Já transferi",

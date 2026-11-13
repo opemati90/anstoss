@@ -17,6 +17,7 @@ export default {
       typingMany_other: '{{count}} people are typing…',
       peerLeft: 'Left the club',
     },
+    readBy: "Read by {{count}}",
     read: {
       pending: 'Sending',
       sent: 'Sent',

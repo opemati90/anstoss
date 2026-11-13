@@ -320,6 +320,14 @@ export default {
     treasury: "Kasa",
   },
   mydues: {
+    copied: "Kopyalandı",
+    copy: "Kopyala",
+    method: {
+      CASH: "Antrenmanda nakit",
+      OTHER: "Diğer",
+      SEPA: "Otomatik ödeme",
+      TRANSFER: "Havale",
+    },
     dueShort: "son tarih {{date}}",
     footnote: "Para doğrudan kulübüne gider. Anstoss yalnızca durumu gösterir.",
     iTransferred: "Havale yaptım",

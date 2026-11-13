@@ -17,6 +17,7 @@ export default {
       typingMany_other: '{{count}} kişi yazıyor…',
       peerLeft: 'Kulüpten ayrıldı',
     },
+    readBy: "{{count}} kişi okudu",
     read: {
       pending: 'Gönderiliyor',
       sent: 'Gönderildi',

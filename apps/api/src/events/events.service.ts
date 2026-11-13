@@ -676,8 +676,6 @@ export class EventsService {
         eventId: event.id,
         clubId: ctx.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
-        // Inbox rows lead with the person's name (avatar + bold name).
-        actorName: responder?.name ?? '',
       },
       ctx.excludeUserId,
       { clubId: ctx.clubId, category: 'events', inboxType: type },
@@ -1511,6 +1509,8 @@ export class EventsService {
         eventId: event.id,
         clubId: event.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
+        // Inbox rows lead with the person's name (avatar + bold name).
+        actorName: responder?.name ?? '',
       },
       // category so an organizer who muted events doesn't get RSVP pings
       // (matches notifyEventCreated; without it the events mute was bypassed).

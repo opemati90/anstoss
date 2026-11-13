@@ -349,13 +349,15 @@ describe('Verein finden', () => {
     expect(classifySearchInput('SV Albatros')).toEqual({ teamCode: null, inviteCode: null })
   })
 
-  it('H4: picks the role inline on the club row and sends from the same screen, no DOB asked', async () => {
+  it('H4: a club opens "Was machst du bei …?" and sends from there, no DOB asked', async () => {
     searchApi()
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     await waitFor(() => screen.getByTestId('find-club-row-sv-albatros'))
     fireEvent.press(screen.getByTestId('find-club-row-sv-albatros'))
     expect(screen.getByTestId('club-join-question')).toBeTruthy()
+    // Board 05: Spieler:in starts ticked; untick it, tick Elternteil.
+    fireEvent.press(screen.getByTestId('club-role-player'))
     fireEvent.press(screen.getByTestId('club-role-parent'))
     expect(screen.queryByTestId('dob-day')).toBeNull()
     await act(async () => {
@@ -383,9 +385,10 @@ describe('Verein finden', () => {
         : undefined,
     )
     const screen = render(<ClubSearchScreen />)
-    fireEvent.changeText(screen.getByTestId('find-club-search'), 'SVAB2345HX')
+    fireEvent.changeText(screen.getByTestId('find-club-code'), 'SVAB2345HX')
     await waitFor(() => screen.getByTestId('club-team-match'))
     fireEvent.press(screen.getByTestId('club-team-match'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
     fireEvent.press(screen.getByTestId('club-role-coach'))
     await act(async () => {
       fireEvent.press(screen.getByTestId('club-send-request'))
@@ -477,6 +480,39 @@ describe('club setup', () => {
       expect.objectContaining({ body: expect.objectContaining({ directoryEntryId: 'dir-7' }) }),
     )
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
+  })
+
+  it('sends the board-06 extras (DFB number, Zweitfarbe) with the claim', async () => {
+    mockParams = { directoryEntryId: 'dir-7', clubName: 'TSV Linden 1899' }
+    mockApi.mockImplementation(async (path: string) =>
+      path === '/club-claims/first' ? { id: 'claim-1' } : { results: [] },
+    )
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-number-input'), '01012345')
+    fireEvent.press(screen.getByLabelText('onboardingFlow.clubSetup.colors.gold'))
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'Herren I')
+    fireEvent.changeText(
+      screen.getByTestId('club-setup-link-input'),
+      'https://www.fussball.de/mannschaft/tsv-linden',
+    )
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('club-setup-submit'))
+    })
+    expect(mockApi).toHaveBeenCalledWith(
+      '/club-claims/first',
+      expect.objectContaining({
+        body: expect.objectContaining({ federationClubNumber: '01012345', secondaryColor: '#E8B92E' }),
+      }),
+    )
+  })
+
+  it('auto-darkens a light Hauptfarbe for text and says so', () => {
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.press(screen.getByTestId('club-setup-colour-custom'))
+    fireEvent.changeText(screen.getByTestId('club-setup-colour-hex'), 'F2A33A')
+    expect(screen.getByTestId('club-setup-colour-adjusted')).toBeTruthy()
+    fireEvent.changeText(screen.getByTestId('club-setup-colour-hex'), '#12')
+    expect(screen.getByText('onboardingFlow.clubSetup.customHexInvalid')).toBeTruthy()
   })
 
   it('names the colours for screen readers', () => {

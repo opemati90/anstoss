@@ -232,6 +232,7 @@ export default function AddMembersScreen() {
                 value={number}
                 onChangeText={(raw) => setNumber(raw.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad"
+                placeholder="9"
                 maxLength={2}
                 style={styles.numberInput}
                 testID="add-members-number"

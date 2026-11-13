@@ -320,6 +320,14 @@ export default {
     treasury: "Caisse",
   },
   mydues: {
+    copied: "Copié",
+    copy: "Copier",
+    method: {
+      CASH: "Espèces à l'entraînement",
+      OTHER: "Autre",
+      SEPA: "Prélèvement",
+      TRANSFER: "Virement",
+    },
     dueShort: "échéance {{date}}",
     footnote: "L’argent va directement à ton club. Anstoss affiche seulement le statut.",
     iTransferred: "J’ai fait le virement",

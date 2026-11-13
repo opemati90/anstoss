@@ -6,7 +6,7 @@ import { useClubColors } from '../../context/ClubThemeContext'
 import { HeaderTextButton, OnboardingScreen } from '../../onboarding/ui'
 import type { OnboardingProgress } from '../../onboarding/steps'
 import { QR_BACKGROUND, QR_FOREGROUND } from '../../theme/colors'
-import { RADIUS_CARD, SPACING_MD, SPACING_XS, hairline, space } from '../../theme/tokens'
+import { RADIUS_CARD, RADIUS_FULL, SPACING_MD, SPACING_XS, hairline, space } from '../../theme/tokens'
 
 export type InviteShareCode = {
   code: string
@@ -106,24 +106,20 @@ export function InviteShare({
       </View>
 
       <View style={styles.actions}>
-        <Button
+        <ActionPill
           label={t('invite.board.share')}
-          variant="accent"
-          size="lg"
+          icon="square.and.arrow.up"
+          tone="accent"
           disabled={!code}
-          leftIcon={<Icon name="square.and.arrow.up" size={18} color={c.onAccent} />}
           onPress={onShare}
-          style={styles.action}
           testID="invite-share-button"
         />
-        <Button
+        <ActionPill
           label={copied ? t('invite.board.copied') : t('invite.board.copy')}
-          variant="bordered"
-          size="lg"
+          icon={copied ? 'checkmark' : 'link'}
+          tone="outline"
           disabled={!code}
-          leftIcon={<Icon name={copied ? 'checkmark' : 'link'} size={18} color={c.textPrimary} />}
           onPress={onCopy}
-          style={styles.action}
           testID="invite-copy-link"
         />
       </View>
@@ -164,7 +160,50 @@ export function InviteShare({
   )
 }
 
+/** Board 07's half-width 52pt pills (Teilen / Link kopieren), 15/700. */
+function ActionPill({
+  label,
+  icon,
+  tone,
+  disabled,
+  onPress,
+  testID,
+}: {
+  label: string
+  icon: string
+  tone: 'accent' | 'outline'
+  disabled?: boolean
+  onPress: () => void
+  testID?: string
+}) {
+  const c = useClubColors()
+  const fg = disabled ? c.textTertiary : tone === 'accent' ? c.onAccent : c.textPrimary
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      style={({ pressed }) => [
+        styles.pill,
+        tone === 'accent'
+          ? { backgroundColor: disabled ? c.surfaceSunken : c.accent }
+          : { borderWidth: 1, borderColor: c.borderStrong },
+        pressed && styles.pressed,
+      ]}
+      testID={testID}
+    >
+      <Icon name={icon} size={18} color={fg} />
+      <Text variant="body" weight="bold" color={fg} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
 const QR_SIZE = 126
+const PILL_HEIGHT = 52
 
 const styles = StyleSheet.create({
   card: {
@@ -177,7 +216,17 @@ const styles = StyleSheet.create({
   placeholder: { width: QR_SIZE, height: QR_SIZE },
   code: { fontSize: 36, lineHeight: 40, letterSpacing: 5.8 },
   actions: { flexDirection: 'row', gap: SPACING_MD - 2 },
-  action: { flex: 1 },
+  pill: {
+    flex: 1,
+    height: PILL_HEIGHT,
+    borderRadius: RADIUS_FULL,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING_XS * 2,
+    paddingHorizontal: SPACING_MD,
+  },
+  pressed: { opacity: 0.85 },
   group: {
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',

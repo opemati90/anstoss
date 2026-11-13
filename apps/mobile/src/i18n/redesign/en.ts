@@ -320,6 +320,14 @@ export default {
     treasury: "Treasury",
   },
   mydues: {
+    copied: "Copied",
+    copy: "Copy",
+    method: {
+      CASH: "Cash at training",
+      OTHER: "Other",
+      SEPA: "Direct debit",
+      TRANSFER: "Bank transfer",
+    },
     dueShort: "due {{date}}",
     footnote: "The money goes straight to your club. Anstoss only shows the status.",
     iTransferred: "I have transferred",

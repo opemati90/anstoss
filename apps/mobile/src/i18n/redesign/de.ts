@@ -338,6 +338,14 @@ export default {
     treasury: "Kasse",
   },
   mydues: {
+    copied: "Kopiert",
+    copy: "Kopieren",
+    method: {
+      CASH: "Bar beim Training",
+      OTHER: "Sonstiges",
+      SEPA: "Lastschrift",
+      TRANSFER: "Überweisung",
+    },
     dueShort: "fällig {{date}}",
     footnote: "Das Geld geht direkt an deinen Verein. Anstoss zeigt nur den Stand.",
     iTransferred: "Ich habe überwiesen",

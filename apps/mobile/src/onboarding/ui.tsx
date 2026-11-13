@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.xl,
   },
-  lead: { marginBottom: space.lg },
+  lead: { marginBottom: space.md },
   title: { marginBottom: space.sm },
   subtitle: { lineHeight: SUBTITLE_LINE_HEIGHT },
   pageFooter: { marginTop: AUTO, paddingTop: space.lg },

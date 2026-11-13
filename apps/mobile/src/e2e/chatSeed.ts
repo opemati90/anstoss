@@ -229,6 +229,8 @@ export function buildE2EChatMessages(
     messageType: 'TEXT',
     createdAt: iso(offset, now),
     readByMe: true,
+    // Board 15 "Gelesen von 14": receipts per message (shown on own bubbles).
+    readCount: 14,
     ...extra,
   })
 

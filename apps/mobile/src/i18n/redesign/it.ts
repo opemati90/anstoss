@@ -320,6 +320,14 @@ export default {
     treasury: "Cassa",
   },
   mydues: {
+    copied: "Copiato",
+    copy: "Copia",
+    method: {
+      CASH: "Contanti all'allenamento",
+      OTHER: "Altro",
+      SEPA: "Addebito diretto",
+      TRANSFER: "Bonifico",
+    },
     dueShort: "scadenza {{date}}",
     footnote: "Il denaro va direttamente al tuo club. Anstoss mostra solo lo stato.",
     iTransferred: "Ho fatto il bonifico",

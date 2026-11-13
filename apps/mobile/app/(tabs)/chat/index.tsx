@@ -18,7 +18,14 @@ import { markConversationRead, muteConversation } from '../../../src/api/chat'
 import { EmptyState } from '../../../src/components/EmptyState'
 import { ErrorState } from '../../../src/components/ErrorState'
 import { Skeleton } from '../../../src/components/Skeleton'
-import { FilterChipRow, IconButton, Icon, SearchBar, Text, type FilterChip } from '../../../src/components/ui'
+import {
+  FilterChipRow,
+  IconButton,
+  Icon,
+  SearchBar,
+  Text,
+  type FilterChip,
+} from '../../../src/components/ui'
 import { InboxRow, INBOX_AVATAR_SIZE } from '../../../src/components/chat/InboxRow'
 import { openConversation } from '../../../src/components/chat/chatRoutes'
 import {
@@ -35,7 +42,14 @@ import {
   sortInbox,
   typingPreview,
 } from '../../../src/components/chat/inboxModel'
-import { hairline, INPUT_HEIGHT, RADIUS_INPUT, SCREEN_PADDING, space, TAB_BAR_CLEARANCE } from '../../../src/theme/tokens'
+import {
+  hairline,
+  INPUT_HEIGHT,
+  RADIUS_INPUT,
+  SCREEN_PADDING,
+  space,
+  TAB_BAR_CLEARANCE,
+} from '../../../src/theme/tokens'
 
 /** Scroll offset over which the large title hands over to the compact bar. */
 const COLLAPSE_START = 24
@@ -60,6 +74,8 @@ export default function ChatInboxScreen() {
     extrapolate: 'clamp',
   })
   const [query, setQuery] = useState('')
+  // Board 15 shows no search field; it opens from the header instead.
+  const [searchOpen, setSearchOpen] = useState(false)
   const [bucket, setBucket] = useState<InboxBucket>('ALL')
   const [refreshing, setRefreshing] = useState(false)
   const clubId = activeClub?.club.id ?? null
@@ -214,14 +230,28 @@ export default function ChatInboxScreen() {
         <Text variant="largeTitle" color="primary" accessibilityRole="header" style={styles.title}>
           {t('chatHub.title')}
         </Text>
-        <IconButton
-          variant="outlined"
-          onPress={() => router.push('/chat/new' as never)}
-          accessibilityLabel={t('chatHub.newChat')}
-          testID="chat-compose"
-        >
-          <Icon name="pencil" size="md" color={c.textPrimary} />
-        </IconButton>
+        <View style={styles.headerActions}>
+          <IconButton
+            variant={searchOpen ? 'outlined' : 'plain'}
+            onPress={() => {
+              if (searchOpen) setQuery('')
+              setSearchOpen((open) => !open)
+            }}
+            accessibilityLabel={t('chatHub.searchPlaceholder')}
+            accessibilityState={{ expanded: searchOpen }}
+            testID="chat-search-toggle"
+          >
+            <Icon name="magnifyingglass" size="md" color={c.textPrimary} />
+          </IconButton>
+          <IconButton
+            variant="outlined"
+            onPress={() => router.push('/chat/new' as never)}
+            accessibilityLabel={t('chatHub.newChat')}
+            testID="chat-compose"
+          >
+            <Icon name="square.and.pencil" size="md" color={c.textPrimary} />
+          </IconButton>
+        </View>
       </View>
       {chips.length > 2 ? (
         <FilterChipRow<InboxBucket>
@@ -233,17 +263,20 @@ export default function ChatInboxScreen() {
           testID="chat-filter"
         />
       ) : null}
-      <SearchBar
-        value={query}
-        onChangeText={setQuery}
-        placeholder={t('chatHub.searchPlaceholder')}
-        autoCorrect={false}
-        autoCapitalize="none"
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-        containerStyle={styles.search}
-        testID="chat-inbox-search"
-      />
+      {searchOpen || query ? (
+        <SearchBar
+          autoFocus
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('chatHub.searchPlaceholder')}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          containerStyle={styles.search}
+          testID="chat-inbox-search"
+        />
+      ) : null}
     </View>
   )
 
@@ -267,7 +300,11 @@ export default function ChatInboxScreen() {
       pointerEvents="none"
       style={[
         styles.compactBar,
-        { backgroundColor: c.background, borderBottomColor: c.borderSubtle, opacity: compactOpacity },
+        {
+          backgroundColor: c.background,
+          borderBottomColor: c.borderSubtle,
+          opacity: compactOpacity,
+        },
       ]}
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
@@ -351,7 +388,11 @@ export default function ChatInboxScreen() {
 
 function InboxSkeleton() {
   return (
-    <View style={styles.skeleton} accessibilityLabel="" importantForAccessibility="no-hide-descendants">
+    <View
+      style={styles.skeleton}
+      accessibilityLabel=""
+      importantForAccessibility="no-hide-descendants"
+    >
       {Array.from({ length: 7 }).map((_, index) => (
         <View key={index} style={styles.skeletonRow}>
           <Skeleton shape="circle" width={INBOX_AVATAR_SIZE} height={INBOX_AVATAR_SIZE} />
@@ -393,6 +434,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   listContent: { paddingBottom: space.lg + TAB_BAR_CLEARANCE },
   searchEmpty: { paddingHorizontal: space.lg, paddingVertical: space.xl },
   centerText: { textAlign: 'center' },

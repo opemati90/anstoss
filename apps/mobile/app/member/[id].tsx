@@ -260,7 +260,7 @@ export default function MemberProfileScreen() {
           <View style={styles.action}>
             <Button
               label={t('kader.profile.message')}
-              leftIcon={<Icon name="bubble.left" size={18} color={c.onInk} />}
+              leftIcon={<Icon name="bubble" size={18} color={c.onInk} />}
               onPress={openMessage}
               disabled={!member || !canMessageMember(member)}
               fullWidth

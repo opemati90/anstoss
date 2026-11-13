@@ -69,7 +69,24 @@ describe('AddMembersScreen', () => {
     })
     expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/teams/team-1/roster-slots', {
       method: 'POST',
-      body: { slots: [{ fullName: 'Lukas Becker', jerseyNumber: 6 }] },
+      body: { slots: [{ fullName: 'Lukas Becker', jerseyNumber: 6, role: 'PLAYER' }] },
+    })
+  })
+
+  it('board 07b: Kapitän and a contact go with the slot (contract keys)', async () => {
+    const screen = render(<AddMembersScreen />)
+    await waitFor(() => screen.getByText('Kofi Osei'))
+    fireEvent.changeText(screen.getByTestId('add-members-name'), 'Lukas Becker')
+    fireEvent.press(screen.getByTestId('add-members-role-captain'))
+    fireEvent.changeText(screen.getByTestId('add-members-contact'), 'lukas@example.de')
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('add-members-add'))
+    })
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/teams/team-1/roster-slots', {
+      method: 'POST',
+      body: {
+        slots: [{ fullName: 'Lukas Becker', role: 'PLAYER', isCaptain: true, email: 'lukas@example.de' }],
+      },
     })
   })
 
