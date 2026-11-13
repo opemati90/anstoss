@@ -39,6 +39,7 @@ jest.mock('../auth/sessionToken', () => ({
 
 jest.mock('../api/client', () => ({
   API_URL: 'http://api.test',
+  setWriteBlocker: jest.fn(),
   api: (...args: unknown[]) => mockApi(...args),
   setTokenGetter: (...args: unknown[]) => mockSetTokenGetter(...args),
   setSignOutHandler: (handler: (() => Promise<void>) | null) => {

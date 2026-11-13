@@ -66,6 +66,8 @@ const SAMPLE: Record<string, unknown> = {
   childName: 'Mia',
   accessRevoked: true,
   count: 3,
+  actorName: 'Mara Schulte',
+  minutes: 30,
 }
 
 describe('server locale coverage', () => {
