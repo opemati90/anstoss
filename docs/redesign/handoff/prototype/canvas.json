@@ -210,6 +210,14 @@
    "x": 1410,
    "y": 5056
   },
+  "Plan.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "title": "Abo",
+   "w": 390,
+   "x": 3290,
+   "y": 3792
+  },
   "Player.dc.html": {
    "h": 844,
    "is_interactive": true,
@@ -272,15 +280,15 @@
    "title": "Website Desktop",
    "w": 1440,
    "x": 0,
-   "y": 8848
+   "y": 10112
   },
   "WebMobile.dc.html": {
-   "h": 9150,
+   "h": 8000,
    "is_interactive": true,
    "title": "Website Mobil",
    "w": 390,
    "x": 1520,
-   "y": 8848
+   "y": 10112
   },
   "Wechselboerse.dc.html": {
    "h": 844,
@@ -290,12 +298,44 @@
    "x": 2820,
    "y": 3792
   },
-  "Plan.dc.html": {
-   "x": 3290,
-   "y": 3792,
+  "StudioHome.dc.html": {
+   "x": 0,
+   "y": 8848,
    "w": 390,
    "h": 844,
-   "title": "Abo",
+   "title": "Studio Start",
+   "is_interactive": true
+  },
+  "StudioEditor.dc.html": {
+   "x": 470,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Studio Editor",
+   "is_interactive": true
+  },
+  "BrandKit.dc.html": {
+   "x": 940,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Brand-Kit",
+   "is_interactive": true
+  },
+  "StudioLocked.dc.html": {
+   "x": 1410,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "Studio im Gratis-Plan",
+   "is_interactive": true
+  },
+  "Credits.dc.html": {
+   "x": 1880,
+   "y": 8848,
+   "w": 390,
+   "h": 844,
+   "title": "KI-Credits",
    "is_interactive": true
   }
  },
@@ -370,7 +410,14 @@
    "text": "Website: anstoss.io in 7 Sprachen",
    "w": 240,
    "x": 0,
-   "y": 8548
+   "y": 9812
+  },
+  "studio": {
+   "x": 0,
+   "y": 8548,
+   "text": "Matchday Studio (Verein-Abo)",
+   "kind": "title1",
+   "maxW": 2270
   }
  },
  "order": [
@@ -409,6 +456,11 @@
   "HomeLoading.dc.html",
   "ErrorState.dc.html",
   "HomeDark.dc.html",
+  "StudioHome.dc.html",
+  "StudioEditor.dc.html",
+  "BrandKit.dc.html",
+  "StudioLocked.dc.html",
+  "Credits.dc.html",
   "WebDesktop.dc.html",
   "WebMobile.dc.html"
  ],

@@ -65,7 +65,7 @@
 class Component extends DCLogic {
   constructor(p) { super(p); this.state = { y: false }; }
   renderVals() {
-    const feats = ["Bis zu 5 Teams und 150 Spieler", "Vereinsfarben und Wappen", "Live-Ticker und Aufstellung teilen", "Automatische Erinnerungen", "Spielplan und Tabelle importieren", "Beiträge im Blick mit GiroCode", "Chat-Übersetzung in 7 Sprachen", "Vorschau und Vertretung für den Vorstand"];
+    const feats = ["Bis zu 5 Teams und 150 Spieler", "Vereinsfarben und Wappen", "Live-Ticker und Aufstellung teilen", "Matchday Studio mit 100 KI-Credits im Monat", "Automatische Erinnerungen", "Spielplan und Tabelle importieren", "Beiträge im Blick mit GiroCode", "Chat-Übersetzung in 7 Sprachen", "Vorschau und Vertretung für den Vorstand"];
     return { feats: feats.map((x) => ({ t: x })), price: this.state.y ? "109,90 €" : "10,99 €", per: this.state.y ? "pro Jahr · 2 Monate gratis" : "pro Monat",
       mCls: "sg" + (this.state.y ? "" : " on"), yCls: "sg" + (this.state.y ? " on" : ""), mOn: this.state.y ? "false" : "true", yOn: this.state.y ? "true" : "false",
       setM: () => this.setState({ y: false }), setY: () => this.setState({ y: true }) };

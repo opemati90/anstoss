@@ -143,5 +143,6 @@ Unchanged from the previous doctrine: ease-out enter, 150 to 250ms tab transitio
 | 2026-11-13 | Clubs and teams define primary and secondary colors, with custom hex | Not every club fits a preset; youth teams often wear different kits. |
 | 2026-11-13 | Vorstand, Teammanager and Kapitän can enter the roster for others | Many clubs are set up by one person before others join; placeholders are claimed later. |
 | 2026-11-13 | Two plans: Kostenlos and Verein (10,99 € per month per club) | Free is enough for one team to adopt; the club pays once it spreads. Per club keeps it under 50 cents per player. |
+| 2026-11-13 | Matchday Studio in the Verein plan | Clubs post lineups and results by hand today; branded, auto-filled graphics are a clear reason to pay. |
 | 2026-11-13 | Dues are tracked, never collected | Members pay the club directly via GiroCode; Anstoss shows status only and stays out of payment flows. |
 | 2026-11-13 | Languages: de, en, tr, es, fr, pt, ar | Spanish and Arabic added; Arabic ships with full RTL. |

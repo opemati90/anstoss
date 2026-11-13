@@ -75,6 +75,7 @@ One person can be player, captain, coach and Vorstand at the same time. All held
 | Trainer (head or assistant) | Create and edit events, lineup, live match, Kader, invite |
 | Teammanager | Team settings, team colors, add and remove members, team dues status, preview and cover within own team |
 | Kassenwart | Club dues tracking, statement import, confirm payments |
+| Medienwart | Matchday Studio, brand kit, connected social accounts |
 | Vorstand | Club settings, members, assign roles, all teams, preview and cover in any team |
 
 ### UI rules
@@ -139,7 +140,7 @@ Two plans, priced per club. They map onto the existing `PlanTier` and `PLAN_LIMI
 |---|---|---|
 | Price | 0 €, forever | 10,99 € per month or 109,90 € per year, incl. VAT |
 | Limits | 1 team, 30 players (unchanged) | 5 teams, 150 players (unchanged) |
-| Included | Events and answers, team chat, squad, lineup, parents and consents | Everything in Kostenlos, plus club colors and crest, live ticker and lineup sharing, automatic reminders, fixture and table import, dues tracking with GiroCode, chat translation, Vorschau und Vertretung |
+| Included | Events and answers, team chat, squad, lineup, parents and consents | Everything in Kostenlos, plus club colors and crest, live ticker and lineup sharing, Matchday Studio with 100 AI credits a month, automatic reminders, fixture and table import, dues tracking with GiroCode, chat translation, Vorschau und Vertretung |
 
 - Trial: 30 days of Verein, no card. At the end, the club drops to Kostenlos; existing data stays, gated features become read-only.
 - Child consent and safety features are never gated.
@@ -148,6 +149,60 @@ Two plans, priced per club. They map onto the existing `PlanTier` and `PLAN_LIMI
 - Gate features through `ClubEntitlementsService` feature flags, not scattered tier checks. Show an inline upgrade prompt that links to the Abo screen when a free club touches a paid feature.
 - Billing uses the existing Stripe integration for the club subscription only. Before shipping in-app purchase buttons, confirm App Store and Google Play rules for selling subscriptions inside the app. The safe default is to sell on the website and show plan status in the app.
 - In-app: new `Abo` screen (`prototype/Plan.dc.html`) from Mehr, showing current plan, usage against limits, monthly/yearly toggle and the trial call to action. Only Vorstand and Kassenwart can start or change a plan.
+
+## Matchday Studio (Verein plan only)
+
+Branded social media graphics, filled from match data, for the club's own channels. Prototypes: `StudioHome`, `StudioEditor`, `BrandKit`, `StudioLocked`.
+
+**Who:** Vorstand, Teammanager, Kapitän and the new club operational role `MEDIA_MANAGER` (Medienwart). Free clubs see `StudioLocked` with an upgrade path to Abo. Prototypes also include `Credits`.
+
+**Entry points:** Mehr › Matchday Studio; camera button on Lineup; "Posten" next to Abpfiff on LiveMatch; a "Jetzt dran" suggestion on Studio home after kickoff, halftime, goals and the final whistle.
+
+**Templates (v1):** Spieltag, Aufstellung, Halbzeit, Endstand, Tor, Spieler des Spiels, News, Sponsor-Dank, Clip-Overlay.
+
+**Match data binding:** nothing in a template is fixed text.
+- Source of truth is the match record: `match-live` events (goals with scorer and minute, cards, subs), halftime and final score, opponent, date, time, venue, home or away, lineup and formation.
+- Home and away order follows the fixture: home team first, on the left. In RTL the order mirrors.
+- Outcome drives wording and caption tone: win "Sieg!", draw "Unentschieden", loss "Endstand" with a respectful caption. Never mock the opponent.
+- Edge cases: 0 own goals hides the scorers line and disables the Tor template; own goals by the opponent show as "Eigentor"; abandoned or cancelled matches show "Abgebrochen" or "Abgesagt"; penalties shoot-outs show "n.E." with the shoot-out score.
+- If no live data was entered, the editor shows "Ergebnis eintragen" with goal steppers, writes the result back to the match after confirmation, and the graphic updates.
+- Every text field stays editable; edits apply to that graphic only and do not change the match record.
+
+**Formats:** 1:1, 4:5 (default, Instagram feed) and 9:16 (Story, Reels, TikTok). Layout scales with the canvas, not separate designs.
+
+**Editor pattern:** dark workspace (`#0B100D`) with the graphic centred and format pills above it; a chalk bottom panel with four tools (Vorlage, Stil, Ergebnis, Elemente), one visible at a time; "Weiter" opens the share step (caption, channel toggles, post). Match this exactly; do not stack all controls on one screen.
+
+**Graphic system (all templates):** header with crest, club name and competition line; template body; footer with a hairline, social handle and a "Präsentiert von" sponsor block. Score layouts use the broadcast pattern: both crests with short codes, score centred in condensed display type, outlined background numerals at low contrast. All sizes are relative to the graphic width so one template renders every format. Each element (sponsor, handle, competition line) can be switched off.
+
+**Styles:** three per club in v1 (Flutlicht, Derby, Kreide), all derived from the brand kit, so no two clubs look the same.
+
+**Brand kit:** crest, sponsor logos (background removed on upload), club colors (from club setup), one of three font pairings, social handle, hashtags, connected accounts.
+
+**AI, used where it saves time:**
+- "Vorlagen-Set mit KI erstellen": generates the club's styles from crest and colors (layout choices, accent use, pattern), stored as editable template JSON, not flat images.
+- "KI-Varianten": three alternatives for the current graphic.
+- Player photo cutout for Tor and Spieler des Spiels.
+- Caption writing in the club's language with handle and hashtags, "Neu schreiben" for another take. Captions are suggestions; nothing posts without a tap.
+
+**AI credits:**
+- Verein includes 100 credits per club per month, reset on the 1st, not carried over.
+- Costs: KI-Variante 1, caption 1, photo cutout 2, AI template set 20. Templates, manual edits, rendering and posting cost nothing.
+- Packs (one-off, incl. VAT): 100 for 4,99 €, 300 for 11,99 €, 1.000 for 29,99 €. Purchased credits last 12 months and are spent after the monthly allowance.
+- Who can buy: Vorstand, Kassenwart, Medienwart. Balance chip on Studio home and editor; each AI button shows its cost; at zero, AI buttons turn into "Credits holen".
+- Store as a ledger per club (`creditGrant`, `creditSpend` with action, actor, graphic id), never a mutable counter. Refund automatically when a generation fails.
+- Purchase through the existing Stripe integration on the web. In the apps, credits are a consumable digital good: confirm App Store and Google Play rules before offering purchase inside the app.
+- Review pricing against real AI cost per action after the first month.
+
+**Rendering:** render on the server from template JSON to PNG and MP4 (for clip overlays), so output is identical across devices and in all seven languages including Arabic RTL. Keep finished graphics in a club archive.
+
+**Clips:** v1 overlays a score bug, crest and sponsor on a clip the user uploads (9:16, up to 60 seconds). Automatic highlight cutting is out of scope.
+
+**Sharing:** native share sheet always works (Instagram, WhatsApp, Facebook, TikTok, save). Direct posting and scheduling for Instagram professional accounts and Facebook pages through the Meta Graph API, connected in the brand kit. Check each platform's current API terms before shipping.
+
+**Consent and privacy (blocking rules):**
+- Players without photo consent are never placed in a graphic; their name is used only if they have not opted out of public naming.
+- Minors require the existing parental consent (`child-consent`) for photo and name.
+- Show who created and posted each graphic in the archive.
 
 ## Website (apps/web)
 
@@ -172,8 +227,9 @@ The marketing site moves to the Flutlicht style and seven languages. Reference: 
 5. **Team and club:** Chat, Squad, PlayerProfile, More, Fees, LeagueTable, Wechselbörse.
 6. **Onboarding:** Welcome, Language, SignIn, Join, Role, ClubSetup, Invite, HomeEmpty.
 7. **Languages:** es and ar files, RTL pass on every screen.
-8. **Website:** rebuild `apps/web` as specified above.
-9. **Polish:** empty, loading, error and offline states on every list screen; dark mode pass; accessibility and contrast pass (`scripts/check-contrast.ts`).
+8. **Matchday Studio:** brand kit, template renderer, editor, AI set and captions, sharing, consent rules.
+9. **Website:** rebuild `apps/web` as specified above.
+10. **Polish:** empty, loading, error and offline states on every list screen; dark mode pass; accessibility and contrast pass (`scripts/check-contrast.ts`).
 
 ## Acceptance criteria
 
