@@ -243,7 +243,12 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
 
   const ourName = event.team?.name ?? ''
   const theirName = state.opponent ?? event.opponent ?? ''
-  const ownSide: 'home' | 'away' = state.homeAway === 'AWAY' ? 'away' : 'home'
+  const homeAway = state.homeAway ?? event.homeAway ?? null
+  const ownSide: 'home' | 'away' = homeAway === 'AWAY' ? 'away' : 'home'
+  // Same score from our side, mapped by the event's home/away when the live
+  // state does not carry it.
+  const scoreHome = ownSide === 'away' ? state.goalsAgainst : state.goalsFor
+  const scoreAway = ownSide === 'away' ? state.goalsFor : state.goalsAgainst
   const [homeName, awayName] = ownSide === 'away' ? [theirName, ourName] : [ourName, theirName]
   const heroStatus =
     state.status === 'NOT_STARTED' ? 'scheduled' : state.status === 'FINISHED' ? 'final' : 'live'
@@ -265,8 +270,8 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
           home={{ name: homeName }}
           away={{ name: awayName }}
           status={heroStatus}
-          scoreHome={state.scoreHome}
-          scoreAway={state.scoreAway}
+          scoreHome={scoreHome}
+          scoreAway={scoreAway}
           minute={running ? minute ?? undefined : undefined}
           stage={
             state.status === 'HALF_TIME'

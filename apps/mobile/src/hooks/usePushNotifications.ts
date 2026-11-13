@@ -42,7 +42,9 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     useState<Notifications.NotificationResponse | null>(null)
 
   useEffect(() => {
-    if (!token) {
+    // Native push only: expo-notifications has no web implementation, and the
+    // web build is used for previews.
+    if (!token || Platform.OS === 'web') {
       setExpoPushToken(null)
       setRegistrationStatus('idle')
       setRegistrationError(null)

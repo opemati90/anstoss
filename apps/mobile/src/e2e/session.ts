@@ -31,6 +31,7 @@ import {
   type RosterOpsSnapshot,
 } from '@anstoss/shared'
 // ── chat revamp: inbox, conversations, members, contacts, polls ──
+import { handleInboxLiveMock, resetInboxLiveMocks } from './inboxLiveMocks'
 import { handleE2EChatRequest } from './chatMocks'
 // ── club-admin revamp: consistent club-admin world + missing shared mocks ──
 import {
@@ -2563,6 +2564,7 @@ export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
 
   const scenario = buildScenario(name)
   resetClubAdminWorld() // club-admin revamp
+  resetInboxLiveMocks() // redesign: inbox + live match mocks
   e2eClaim = null // onboarding revamp: claims never leak across personas
   e2eTeamGroups = seedTeamGroupsFor(name)
   e2eRemovedMemberUserIds = new Set()
@@ -2578,6 +2580,7 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
   }
 
   const scenario = buildPostSignupSession(registrationRole)
+  resetInboxLiveMocks() // redesign: inbox + live match mocks
   e2eClaim = null // onboarding revamp
   e2eTeamGroups = seedTeamGroupsFor(scenario.scenario)
   e2eRemovedMemberUserIds = new Set()
@@ -3819,6 +3822,19 @@ export function handleE2EApiRequest(
   const guardianConsentResponse = handleGuardianConsentRequest(currentSession, method, pathname)
   if (guardianConsentResponse) return guardianConsentResponse
   // ── end privacy ──
+
+  // Redesign: notifications inbox and coach-recorded live match.
+  const inboxLive = handleInboxLiveMock({
+    scenario: session.scenario,
+    pathname,
+    method,
+    query,
+    body: options.body,
+    clubId: CLUB_ID,
+    teamId: TEAM_ID,
+    nameFor: (userId) => eventFlowMembers().find((m) => m.userId === userId)?.name ?? null,
+  })
+  if (inboxLive) return inboxLive
 
   // Events revamp: event flow mocks take precedence over the older handlers.
   const eventFlowResponse = handleEventFlowRequest(method, pathname, query, options)

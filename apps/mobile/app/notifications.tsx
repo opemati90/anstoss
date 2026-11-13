@@ -23,9 +23,14 @@ import {
   SPACING_SM,
   SPACING_XL,
   SPACING_XS,
+  SPACING_XXS,
+  SPACING_XXXL,
 } from '../src/theme/tokens'
 
 type Section = { key: 'today' | 'week' | 'older'; title: string; data: InboxNotification[] }
+
+// The text column starts after the 40pt icon well and the row gap.
+const TEXT_INDENT = SPACING_XXXL + SPACING_SM + SPACING_MD + SPACING_XXS
 
 const ICONS: Array<[RegExp, IconName]> = [
   [/^JOIN_/, 'person.badge.plus'],
@@ -122,14 +127,28 @@ export default function NotificationsScreen() {
           testID="inbox-mark-all-read"
         />
       ) : null}
-      <IconButton
-        accessibilityLabel={t('notificationsInbox.settings', { defaultValue: 'Notification settings' })}
-        onPress={() => router.push('/notification-settings' as never)}
-        testID="inbox-settings"
-      >
-        <Icon name="gearshape" size={20} color={c.textSecondary} />
-      </IconButton>
     </View>
+  )
+
+  // Settings live at the end of the list, so the header stays as designed
+  // (back, title, "Alle gelesen") and the title never truncates.
+  const settingsRow = (
+    <Pressable
+      onPress={() => router.push('/notification-settings' as never)}
+      accessibilityRole="button"
+      testID="inbox-settings"
+      style={({ pressed }) => [
+        styles.settingsRow,
+        { backgroundColor: c.surface },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <SoftIcon name="gearshape" />
+      <Text variant="subheadline" weight="semibold" style={styles.title}>
+        {t('notificationsInbox.settings', { defaultValue: 'Notification settings' })}
+      </Text>
+      <Icon name="chevron.right" size={18} color={c.textSecondary} />
+    </Pressable>
   )
 
   if (inbox.loading) {
@@ -176,7 +195,12 @@ export default function NotificationsScreen() {
             })}
           />
         }
-        ListFooterComponent={inbox.loadingMore ? <ActivityIndicator color={c.textSecondary} /> : null}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            {inbox.loadingMore ? <ActivityIndicator color={c.textSecondary} /> : null}
+            {settingsRow}
+          </View>
+        }
         renderSectionHeader={({ section }) => (
           <Text variant="label" accessibilityRole="header" style={styles.sectionLabel}>
             {section.title}
@@ -214,34 +238,6 @@ export default function NotificationsScreen() {
                       {item.body}
                     </Text>
                   ) : null}
-                  {isJoinRequest ? (
-                    decided ? (
-                      <Text variant="footnote" weight="semibold" color="secondary">
-                        {decided === 'approved'
-                          ? t('notificationsInbox.approved', { defaultValue: 'Accepted' })
-                          : t('notificationsInbox.rejected', { defaultValue: 'Declined' })}
-                      </Text>
-                    ) : (
-                      <View style={styles.actions}>
-                        <Button
-                          label={t('notificationsInbox.approve', { defaultValue: 'Accept' })}
-                          size="sm"
-                          loading={actingId === item.id}
-                          disabled={actingId !== null}
-                          onPress={() => void decideJoinRequest(item, 'approve')}
-                          testID={`inbox-approve-${item.id}`}
-                        />
-                        <Button
-                          label={t('notificationsInbox.reject', { defaultValue: 'Decline' })}
-                          size="sm"
-                          variant="bordered"
-                          disabled={actingId !== null}
-                          onPress={() => void decideJoinRequest(item, 'reject')}
-                          testID={`inbox-reject-${item.id}`}
-                        />
-                      </View>
-                    )
-                  ) : null}
                 </View>
                 <View style={styles.meta}>
                   <Text variant="caption1" color="secondary" tabular>
@@ -250,6 +246,34 @@ export default function NotificationsScreen() {
                   {unread ? <View style={[styles.dot, { backgroundColor: c.alertDot }]} /> : null}
                 </View>
               </Pressable>
+              {isJoinRequest ? (
+                decided ? (
+                  <Text variant="footnote" weight="semibold" color="secondary" style={styles.decided}>
+                    {decided === 'approved'
+                      ? t('notificationsInbox.approved', { defaultValue: 'Accepted' })
+                      : t('notificationsInbox.rejected', { defaultValue: 'Declined' })}
+                  </Text>
+                ) : (
+                  <View style={styles.actions}>
+                    <Button
+                      label={t('notificationsInbox.approve', { defaultValue: 'Accept' })}
+                      size="sm"
+                      loading={actingId === item.id}
+                      disabled={actingId !== null}
+                      onPress={() => void decideJoinRequest(item, 'approve')}
+                      testID={`inbox-approve-${item.id}`}
+                    />
+                    <Button
+                      label={t('notificationsInbox.reject', { defaultValue: 'Decline' })}
+                      size="sm"
+                      variant="bordered"
+                      disabled={actingId !== null}
+                      onPress={() => void decideJoinRequest(item, 'reject')}
+                      testID={`inbox-reject-${item.id}`}
+                    />
+                  </View>
+                )
+              ) : null}
               {!last ? <View style={[styles.divider, { backgroundColor: c.borderSubtle }]} /> : null}
             </View>
           )
@@ -315,7 +339,20 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING_MD + 2, minHeight: 60, paddingVertical: SPACING_MD },
   text: { flex: 1, minWidth: 0, gap: SPACING_XS },
-  actions: { flexDirection: 'row', gap: SPACING_SM, marginTop: SPACING_XS },
+  // Indented under the text column (40pt icon well + gap), outside the row's
+  // tap target so the buttons are not nested inside another button.
+  actions: { flexDirection: 'row', gap: SPACING_SM, marginLeft: TEXT_INDENT, paddingBottom: SPACING_MD },
+  decided: { marginLeft: TEXT_INDENT, paddingBottom: SPACING_MD },
+  footer: { gap: SPACING_MD, paddingTop: SPACING_XL },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingHorizontal: SPACING_LG,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+  },
   meta: { alignItems: 'flex-end', gap: SPACING_XS },
   dot: { width: SPACING_SM, height: SPACING_SM, borderRadius: RADIUS_FULL },
   divider: { height: hairline },
