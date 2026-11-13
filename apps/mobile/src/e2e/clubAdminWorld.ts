@@ -688,10 +688,8 @@ function handleSharedMissingRoutes(
     ])
   }
   if (method === 'GET' && pathname === '/ownership-transfers/mine') return ok([])
-  // home revamp: parent home overview (real route; no linked children here).
-  if (method === 'GET' && pathname === '/me/children-overview') {
-    return ok({ children: [], duties: [], announcements: [] })
-  }
+  // /me/children-overview is answered by session.ts (parent persona: Leo
+  // and Mia with duties and photo consent); answering it here hid that data.
   if (method === 'GET' && /^\/clubs\/[^/]+\/teams\/[^/]+\/season-stats$/.test(pathname)) {
     // Same shape as TeamsService.getTeamSeasonStats (the old shape here
     // crashed team-stats for every persona because this handler runs first).

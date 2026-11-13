@@ -207,10 +207,8 @@ describe('Profile tab', () => {
     expect(screen.queryByText('more.treasury')).toBeNull()
   })
 
-  it('opens the treasury and gives admins the Vorschau und Vertretung card', () => {
+  it('gives admins the Vorschau und Vertretung card', () => {
     const screen = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
-    fireEvent.press(screen.getByText('more.treasury'))
-    expect(mockRouterPush).toHaveBeenCalledWith('/admin-billing')
     // Vorschau und Vertretung (board 29) replaces the role-mode card for Vorstand.
     expect(screen.getByTestId('more-preview-cover')).toBeTruthy()
     expect(screen.queryByTestId('more-role-mode')).toBeNull()

@@ -249,21 +249,18 @@ export default function KaderScreen() {
     router.push({ pathname: '/dm-chat', params: { userId: member.userId, userName: member.name } })
   }
 
-  /** Row press: nothing at all when there is nothing to do (H2). */
+  /**
+   * Row press (board 16 → 17): every squad member opens their profile;
+   * trials and pending requests open the requests sheet. Editing and the
+   * private chat live on the profile (edit icon, Rollen, Nachricht).
+   */
   const rowPress = (member: KaderMember) => {
-    if (member.isSelf && !isCoach) return () => setSelfOpen(true)
     if (member.phase === 'TRIAL' || member.status === 'PENDING') return () => openMember(member)
-    if (isCoach && !member.isCoach) return () => openMember(member)
-    return canMessageMember(member) ? () => openMember(member) : undefined
+    return () => router.push({ pathname: '/member/[id]', params: { id: member.userId } })
   }
 
-  const rowHint = (member: KaderMember) => {
-    if (isCoach && !member.isCoach) return t('kader.row.editHint')
-    if (member.isSelf) return undefined
-    return canMessageMember(member)
-      ? t('kader.row.messageHint')
-      : (messageBlockedLabel(t, member.messageBlockedReason) ?? undefined)
-  }
+  const rowHint = (member: KaderMember) =>
+    member.phase === 'TRIAL' || member.status === 'PENDING' ? undefined : t('kader.row.profileHint')
 
   if (!activeClub || !activeTeamId) {
     return (

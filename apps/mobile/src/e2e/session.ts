@@ -1469,7 +1469,8 @@ function createMyContributions(): E2EApiState['myContributions'] {
   // 2026-11 redesign (screen 26): this month's fee open, the yearly kit levy
   // and the last three months paid, with how each payment came in.
   const today = new Date()
-  const dueSoon = new Date(today.getFullYear(), today.getMonth(), 28).toISOString()
+  // Due within the home's two-week window so Start shows the fee row.
+  const dueSoon = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10, 12).toISOString()
   const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 5).toISOString()
   const monthStart = (back: number, day: number) =>
     new Date(today.getFullYear(), today.getMonth() - back, day, 12).toISOString()

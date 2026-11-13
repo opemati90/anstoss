@@ -59,6 +59,11 @@ export default {
       away: "bei {{opponent}}",
       home: "vs. {{opponent}}",
     },
+    // Board 24 chip copy.
+    reason: {
+      personal: "Familie",
+      work: "Arbeit",
+    },
     absence: {
       coachOnly: "nur der Trainer sieht den Grund",
       title: "Warum sagst du ab?",

@@ -15,7 +15,13 @@ import {
   SPACING_XL,
   SPACING_XS,
 } from '../../theme/tokens'
-import { ABSENCE_REASON_CHIPS, type RsvpReasonKey } from '../events/eventFormat'
+import type { RsvpReasonKey } from '../events/eventFormat'
+
+/**
+ * Board 24's six chips: Arbeit, Krank, Verletzt, Urlaub, Familie, Sonstiges.
+ * "Gesperrt" is set by the coach, not chosen by the player, so it has no chip.
+ */
+const DECLINE_REASON_CHIPS: RsvpReasonKey[] = ['work', 'sick', 'injured', 'vacation', 'personal', 'other']
 
 export type AbsenceDetail = { reason?: RsvpReasonKey; note?: string }
 
@@ -83,7 +89,7 @@ export function DeclineReasonSheet({
         </View>
 
         <View style={styles.chips} accessibilityRole="radiogroup">
-          {ABSENCE_REASON_CHIPS.map((key) => {
+          {DECLINE_REASON_CHIPS.map((key) => {
             const selected = reason === key
             const label = t(`eventFlow.reason.${key}`)
             return (
@@ -197,7 +203,8 @@ const styles = StyleSheet.create({
   },
   counter: { alignSelf: 'flex-end' },
   actions: { flexDirection: 'row', gap: SPACING_MD - 2 },
-  // Design 24: Abbrechen 1fr, Absage senden 1.6fr.
+  // Design 24: Abbrechen 1fr, Absage senden 1.6fr; 1.5 keeps "Abbrechen"
+  // on one line inside the lg pill's 24pt insets.
   cancel: { flex: 1 },
-  confirm: { flex: 1.6 },
+  confirm: { flex: 1.5 },
 })

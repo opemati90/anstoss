@@ -119,9 +119,12 @@ export function ClubHeader({ resolvedRoleMode }: { resolvedRoleMode: RoleMode | 
       {/* The crest is a second tap target for the club switcher; screen
           readers reach the same action through the identity button. */}
       <Pressable
-        accessible={false}
+        accessibilityRole="button"
+        accessibilityLabel={t('clubSwitcher.title')}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
+        aria-hidden
+        focusable={false}
         disabled={!hasMultipleClubs}
         onPress={() => setClubSwitcherVisible(true)}
         style={({ pressed }) => [pressed && styles.pressed]}

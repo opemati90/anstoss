@@ -384,13 +384,13 @@ export default function MoreScreen() {
     {
       key: 'appearance',
       label: t('profileHub.appearance'),
-      icon: 'circle.lefthalf.filled',
+      icon: 'moon',
       value: t(`profileHub.appearanceOption.${appearance}`),
       onPress: () => setAppearanceOpen(true),
     },
     {
       key: 'notifications',
-      label: t('notificationSettings.title'),
+      label: t('notificationsInbox.title'),
       icon: 'bell',
       onPress: () => router.push('/notification-settings'),
     },
