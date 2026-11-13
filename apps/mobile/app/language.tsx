@@ -1,128 +1,218 @@
-import { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Screen, Text, Icon, SectionGroup, ListRow } from '../src/components/ui'
-import { ModalHeader } from '../src/components/ModalHeader'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Button, Icon, IconButton, Text } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import i18n, { APP_LANGUAGES, setAppLanguage, getAppLanguage, type AppLanguage } from '../src/i18n'
+import { useOnboardingHero } from '../src/onboarding/WelcomeHero'
 import {
-  setAppLanguage,
-  getAppLanguage,
-  type AppLanguage,
-} from '../src/i18n'
-import { hairline, radius, space } from '../src/theme/tokens'
+  RADIUS_CARD,
+  RADIUS_FULL,
+  SCREEN_PADDING,
+  SPACING_MD,
+  SPACING_XXS,
+  hairline,
+  space,
+} from '../src/theme/tokens'
 
-type Choice = {
-  value: AppLanguage
-  flag: string
-  native: string
-  english: string
+/** Native name (what the speaker looks for) and the English name below it. */
+const LANGUAGE_NAMES: Record<AppLanguage, { native: string; english: string }> = {
+  de: { native: 'Deutsch', english: 'German' },
+  en: { native: 'English', english: 'English' },
+  fr: { native: 'Français', english: 'French' },
+  it: { native: 'Italiano', english: 'Italian' },
+  pt: { native: 'Português', english: 'Portuguese' },
+  tr: { native: 'Türkçe', english: 'Turkish' },
 }
 
+/**
+ * Sprache (2026-11 redesign): radio rows with the language code, a club-green
+ * preview card that already speaks the picked language, and "Übernehmen".
+ * The app switches only on apply, so the preview is the safe place to look.
+ */
 export default function LanguageScreen() {
   const { t } = useTranslation()
   const c = useClubColors()
-  const [current, setCurrent] = useState<AppLanguage>(() => getAppLanguage())
+  const { bg: hero, fg: onHero } = useOnboardingHero()
+  const insets = useSafeAreaInsets()
+  const [current] = useState<AppLanguage>(() => getAppLanguage())
+  const [picked, setPicked] = useState<AppLanguage>(current)
+  const [applying, setApplying] = useState(false)
 
-  const choices: Choice[] = [
-    { value: 'de', flag: '🇩🇪', native: 'Deutsch', english: 'German' },
-    { value: 'en', flag: '🇬🇧', native: 'English', english: 'English' },
-    { value: 'fr', flag: '🇫🇷', native: 'Français', english: 'French' },
-    { value: 'pt', flag: '🇵🇹', native: 'Português', english: 'Portuguese' },
-    { value: 'it', flag: '🇮🇹', native: 'Italiano', english: 'Italian' },
-    { value: 'tr', flag: '🇹🇷', native: 'Türkçe', english: 'Turkish' },
-  ]
+  // The preview and the screen chrome read in the picked language.
+  const tp = useMemo(() => i18n.getFixedT(picked), [picked])
 
-  const handlePick = async (value: AppLanguage) => {
-    if (value === current) return
-    setCurrent(value)
-    await setAppLanguage(value)
-    setTimeout(() => router.back(), 180)
+  const apply = async () => {
+    if (picked === current) {
+      router.back()
+      return
+    }
+    setApplying(true)
+    try {
+      await setAppLanguage(picked)
+    } finally {
+      setApplying(false)
+    }
+    router.back()
   }
 
   return (
-    <Screen
-      header={
-        <ModalHeader
-          title={t('more.language', { defaultValue: 'Language' })}
-          mode="back"
-        />
-      }
-      padded={false}
-    >
+    <View style={[styles.root, { backgroundColor: c.background }]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.md }]}
         showsVerticalScrollIndicator={false}
       >
-        <SectionGroup>
-          {choices.map((choice) => {
-            const active = current === choice.value
+        <View style={styles.header}>
+          <IconButton
+            variant="outlined"
+            onPress={() => router.back()}
+            accessibilityLabel={t('common.back')}
+          >
+            <Icon name="chevron.left" size={20} color={c.textPrimary} />
+          </IconButton>
+          <Text variant="title2" accessibilityRole="header" style={styles.title}>
+            {tp('more.language', { defaultValue: 'Language' })}
+          </Text>
+        </View>
+
+        <View
+          style={[styles.group, { backgroundColor: c.surface }]}
+          accessibilityRole="radiogroup"
+          accessibilityLabel={t('more.language', { defaultValue: 'Language' })}
+        >
+          {APP_LANGUAGES.map((code, index) => {
+            const active = picked === code
+            const name = LANGUAGE_NAMES[code]
             return (
-              <ListRow
-                key={choice.value}
-                left={
-                  <View
-                    style={[
-                      styles.flagBubble,
-                      { backgroundColor: c.surfaceSunken ?? c.background },
-                    ]}
-                  >
-                    <Text style={styles.flag}>{choice.flag}</Text>
-                  </View>
-                }
-                title={choice.native}
-                accessibilityLabel={`${choice.native} (${choice.english})`}
-                selected={active}
-                onPress={() => void handlePick(choice.value)}
-                right={
-                  active ? (
-                    <View style={[styles.checkBubble, { backgroundColor: c.primary }]}>
-                      <Icon name="checkmark" size={14} color="inverse" />
-                    </View>
-                  ) : (
-                    <View
-                      style={[
-                        styles.checkBubble,
-                        styles.checkBubbleEmpty,
-                        { borderColor: c.borderStrong },
-                      ]}
-                    />
-                  )
-                }
-              />
+              <Pressable
+                key={code}
+                onPress={() => setPicked(code)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${name.native} (${name.english})`}
+                android_ripple={{ color: c.borderDefault }}
+                style={[
+                  styles.row,
+                  index < APP_LANGUAGES.length - 1 && {
+                    borderBottomWidth: hairline,
+                    borderBottomColor: c.borderSubtle,
+                  },
+                ]}
+                testID={`language-${code}`}
+              >
+                <Text variant="data" color="secondary" style={styles.code}>
+                  {code.toUpperCase()}
+                </Text>
+                <View style={styles.rowCopy}>
+                  <Text variant="body" weight="semibold">
+                    {name.native}
+                  </Text>
+                  <Text variant="caption1" color="secondary">
+                    {name.english}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.radio,
+                    active
+                      ? { borderWidth: 7, borderColor: c.ink }
+                      : { borderWidth: 2, borderColor: c.borderControl },
+                  ]}
+                />
+              </Pressable>
             )
           })}
-        </SectionGroup>
+        </View>
+
+        <View
+          style={[styles.preview, { backgroundColor: hero }]}
+          accessible
+          accessibilityLabel={`${tp('onboardingFlow.language.preview', { defaultValue: 'Preview' })}: ${tp(
+            'onboardingFlow.welcome.claim',
+            { defaultValue: 'Your club.\nOne kickoff.' },
+          )}`}
+        >
+          <Text variant="label" color={c.accent}>
+            {tp('onboardingFlow.language.preview', { defaultValue: 'Preview' })}
+          </Text>
+          <Text variant="display" color={onHero} style={styles.previewTitle}>
+            {tp('onboardingFlow.welcome.claim', { defaultValue: 'Your club.\nOne kickoff.' })}
+          </Text>
+          <Text variant="caption1" color={c.onHeroMuted}>
+            {tp('onboardingFlow.welcome.claimBody', {
+              defaultValue:
+                'Fixtures, availability, lineups, chat and dues in one place. No more group-chat chaos.',
+            })}
+          </Text>
+          <View style={[styles.previewButton, { backgroundColor: c.accent }]}>
+            <Text variant="subheadline" weight="bold" color={c.onAccent}>
+              {tp('onboardingFlow.common.continue')}
+            </Text>
+          </View>
+        </View>
+
+        <Text variant="caption1" color="secondary">
+          {tp('onboardingFlow.language.note', {
+            defaultValue: 'Also applies to notifications and emails.',
+          })}
+        </Text>
       </ScrollView>
-    </Screen>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+        <Button
+          label={tp('onboardingFlow.language.apply', { defaultValue: 'Apply' })}
+          onPress={() => void apply()}
+          loading={applying}
+          size="lg"
+          fullWidth
+          testID="language-apply"
+        />
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   scroll: { flex: 1 },
   content: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    paddingBottom: space['2xl'] * 2,
-    flexGrow: 1,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: space.lg,
+    gap: SPACING_MD + 8,
   },
-
-  flagBubble: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.sm,
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
+  title: { flex: 1, minWidth: 0 },
+  group: {
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
+    paddingHorizontal: space.md,
+  },
+  row: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + 2,
+    paddingVertical: space.sm,
+  },
+  code: { width: 30, fontSize: 15, lineHeight: 18 },
+  rowCopy: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  radio: { width: 22, height: 22, borderRadius: RADIUS_FULL },
+  preview: {
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+    padding: SPACING_MD + 6,
+    gap: SPACING_MD - 2,
+  },
+  previewTitle: { fontSize: 34, lineHeight: 34 },
+  previewButton: {
+    minHeight: 44,
+    borderRadius: RADIUS_FULL,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: space.xs,
   },
-  flag: { fontSize: 17 },
-  checkBubble: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkBubbleEmpty: { borderWidth: hairline, backgroundColor: 'transparent' },
+  footer: { paddingHorizontal: SCREEN_PADDING, paddingTop: space.sm },
 })

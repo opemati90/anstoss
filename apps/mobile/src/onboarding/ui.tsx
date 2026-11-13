@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   TextInput,
   View,
@@ -14,11 +15,18 @@ import {
 import { useKeyboardState } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Button, Icon, Text } from '../components/ui'
-import { useClubColors } from '../context/ClubThemeContext'
+import { Button, Icon, IconButton, Text } from '../components/ui'
+import { useClubColors, useIsDark } from '../context/ClubThemeContext'
 import { onColor } from '../theme/club-theme'
-import { fonts, fontSize, hairline, radius, space } from '../theme/tokens'
-import { RADIUS_INPUT } from '../theme/spacing'
+import { fonts, fontSize, hairline, space } from '../theme/tokens'
+import {
+  INPUT_HEIGHT,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  RADIUS_INPUT,
+  RADIUS_MD,
+  SCREEN_PADDING,
+} from '../theme/spacing'
 import type { OnboardingProgress } from './steps'
 
 /**
@@ -72,29 +80,27 @@ export function useAndroidBack(handler: (() => boolean) | null | undefined) {
   }, [])
 }
 
+/**
+ * "Schritt 2 von 4" in the header (2026-11 redesign: a quiet step label
+ * instead of the segmented bar). Still a progressbar for screen readers.
+ */
 export function ProgressSegments({ progress }: { progress: OnboardingProgress }) {
-  const c = useClubColors()
   const { t } = useTranslation()
+  const label = t('onboardingFlow.progressA11y', {
+    current: progress.current,
+    total: progress.total,
+  })
   return (
     <View
       style={styles.progress}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={t('onboardingFlow.progressA11y', {
-        current: progress.current,
-        total: progress.total,
-      })}
+      accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: progress.total, now: progress.current }}
     >
-      {Array.from({ length: progress.total }, (_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.segment,
-            { backgroundColor: index < progress.current ? c.primary : c.borderDefault },
-          ]}
-        />
-      ))}
+      <Text variant="caption1" weight="semibold" color="secondary" align="center" numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   )
 }
@@ -146,6 +152,7 @@ export function OnboardingScreen({
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const keyboardInset = useKeyboardInset()
+  const isDark = useIsDark()
 
   useAndroidBack(
     onBack
@@ -161,18 +168,18 @@ export function OnboardingScreen({
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]} testID={testID}>
-      <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
+      {/* The welcome hero switches to light content; every step after it is
+          on the page background again. */}
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
         {onBack ? (
-          <Pressable
+          <IconButton
+            variant="outlined"
             onPress={onBack}
-            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
-            hitSlop={8}
-            android_ripple={{ color: c.borderDefault, borderless: true }}
-            style={styles.back}
           >
-            <Icon name="chevron.left" size={24} color={c.textPrimary} />
-          </Pressable>
+            <Icon name="chevron.left" size={20} color={c.textPrimary} />
+          </IconButton>
         ) : (
           <View style={styles.backSpacer} />
         )}
@@ -256,14 +263,14 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
   const [focused, setFocused] = useState(false)
   return (
     <View style={styles.field}>
-      <Text variant="subheadline" weight="semibold" color="secondary">
+      <Text variant="caption1" weight="semibold" color="primary">
         {label}
       </Text>
       <TextInput
         ref={ref}
         accessibilityLabel={label}
         placeholderTextColor={c.textTertiary}
-        selectionColor={c.primary}
+        selectionColor={c.ink}
         onFocus={(event) => {
           setFocused(true)
           onFocus?.(event)
@@ -277,8 +284,8 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
           {
             color: c.textPrimary,
             backgroundColor: c.surface,
-            borderColor: error ? c.error : focused ? c.primary : c.borderDefault,
-            borderWidth: focused || error ? 2 : hairline * 2,
+            borderColor: error ? c.error : focused ? c.ink : c.borderStrong,
+            borderWidth: focused || error ? 2 : 1,
           },
           style,
         ]}
@@ -289,7 +296,7 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="footnote" color="tertiary">
+        <Text variant="caption1" color="secondary">
           {hint}
         </Text>
       ) : null}
@@ -389,34 +396,37 @@ export function ChoiceRow({
       style={({ pressed }) => [
         styles.choice,
         {
-          backgroundColor: selected ? c.primary50 : pressed ? c.surfaceSunken : c.surface,
-          borderColor: selected ? c.primary : c.borderDefault,
-          borderWidth: selected ? 2 : hairline * 2,
+          backgroundColor: pressed ? c.surfaceMuted : c.surface,
+          borderColor: selected ? c.ink : 'transparent',
+          borderWidth: 2,
         },
       ]}
     >
       {leading ??
         (icon ? (
-          <View style={[styles.choiceIcon, { backgroundColor: selected ? c.primary : c.surfaceSunken }]}>
-            <Icon name={icon} size={20} color={selected ? c.onPrimary : c.textPrimary} />
+          <View style={[styles.choiceIcon, { backgroundColor: selected ? c.ink : c.surfaceMuted }]}>
+            <Icon name={icon} size={20} color={selected ? c.onInk : c.textPrimary} />
           </View>
         ) : null)}
       <View style={styles.choiceCopy}>
-        <Text variant="headline" weight="semibold">
+        <Text variant="headline" weight="bold">
           {title}
         </Text>
         {body ? (
-          <Text variant="footnote" color="secondary">
+          <Text variant="caption1" color="secondary">
             {body}
           </Text>
         ) : null}
       </View>
       {trailing ??
         (accessibilityRole === 'radio' ? (
-          <Icon
-            name={selected ? 'checkmark.circle.fill' : 'ellipse-outline'}
-            size={22}
-            color={selected ? c.primary : c.borderStrong}
+          <View
+            style={[
+              styles.radio,
+              selected
+                ? { borderWidth: 7, borderColor: c.ink }
+                : { borderWidth: 2, borderColor: c.borderControl },
+            ]}
           />
         ) : (
           <Icon name="chevron.right" size={18} color={c.textTertiary} />
@@ -437,7 +447,7 @@ export function HeaderTextButton({ label, onPress }: { label: string; onPress: (
       android_ripple={{ color: c.borderDefault, borderless: true }}
       style={styles.headerTextButton}
     >
-      <Text variant="subheadline" weight="semibold" color="secondary">
+      <Text variant="subheadline" weight="semibold" color="tint">
         {label}
       </Text>
     </Pressable>
@@ -449,14 +459,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.sm,
+    paddingHorizontal: SCREEN_PADDING,
     gap: space.sm,
-  },
-  back: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backSpacer: { width: 44, height: 44 },
   headerMiddle: { flex: 1, minWidth: 0 },
@@ -468,41 +472,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   progress: {
-    flexDirection: 'row',
-    gap: space.xs,
+    minHeight: 44,
     alignItems: 'center',
-  },
-  segment: {
-    flex: 1,
-    height: 4,
-    borderRadius: radius.full,
+    justifyContent: 'center',
   },
   scroll: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: space.md,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: space.lg,
     paddingBottom: space.xl,
   },
   lead: { marginBottom: space.lg },
   title: { marginBottom: space.sm },
   subtitle: { marginBottom: space.xs },
-  body: { marginTop: space.lg, gap: space.md },
+  body: { marginTop: space.lg + space.xs, gap: space.md - 2 },
   footer: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: space.md - 4,
     borderTopWidth: hairline,
     gap: space.xs,
   },
-  field: { gap: space.xs },
+  field: { gap: space.xs + 2 },
   input: {
-    minHeight: 56,
+    minHeight: INPUT_HEIGHT,
     borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     fontFamily: fonts.body,
-    fontSize: fontSize.xl,
+    fontSize: fontSize.md,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
@@ -511,16 +510,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    minHeight: 64,
+    minHeight: 68,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + space.xs,
-    borderRadius: radius.lg,
+    paddingVertical: space.md - 4,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
   },
+  radio: { width: 22, height: 22, borderRadius: RADIUS_FULL },
   choiceIcon: {
     width: 40,
     height: 40,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_MD,
     alignItems: 'center',
     justifyContent: 'center',
   },

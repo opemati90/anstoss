@@ -12,9 +12,17 @@ import { onboardingProgress } from '../../src/onboarding/steps'
 import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { ChoiceRow, ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
-import { onColor } from '../../src/theme/club-theme'
+import { ensureLightModeContrast, onColor } from '../../src/theme/club-theme'
 import { CLUB_COLOR_PRESET_NAMES, CLUB_COLOR_PRESETS } from '../../src/theme/clubColorPresets'
-import { hairline, radius, space } from '../../src/theme/tokens'
+import {
+  RADIUS_CARD,
+  RADIUS_FULL,
+  SPACING_MD,
+  SPACING_XS,
+  fonts,
+  hairline,
+  space,
+} from '../../src/theme/tokens'
 
 /** Traditional Vereinsfarben (shared with Vereinsprofil & Farben). */
 export const CLUB_COLOURS: readonly string[] = CLUB_COLOR_PRESETS.slice(0, 8)
@@ -24,6 +32,8 @@ function colourNameKey(hex: string): string {
   const index = CLUB_COLOR_PRESETS.indexOf(hex as (typeof CLUB_COLOR_PRESETS)[number])
   return `onboardingFlow.clubSetup.colors.${CLUB_COLOR_PRESET_NAMES[index] ?? 'black'}`
 }
+
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/
 
 const OFFICIAL_LINK_RE = /^https:\/\/(?:[^/]+\.)?(?:fussball\.de|dfb\.de|fupa\.net)\/.+/i
 
@@ -64,7 +74,17 @@ export default function ClubSetupScreen() {
   const [link, setLink] = useState(state.officialTeamUrl ?? '')
   const [linkTouched, setLinkTouched] = useState(false)
   const [roles, setRoles] = useState<TeamRole[]>(state.adminTeamRoles ?? [])
-  const [colour, setColour] = useState(state.clubPrimaryColor ?? CLUB_COLOURS[0])
+  const initialColour = state.clubPrimaryColor ?? CLUB_COLOURS[0]
+  const [colour, setColour] = useState(initialColour)
+  // "Eigene Farbe": a hex code, e.g. from the club crest. The draft keeps the
+  // last valid value; an invalid entry never reaches the claim.
+  const [customOpen, setCustomOpen] = useState(!CLUB_COLOURS.includes(initialColour))
+  const [customHex, setCustomHex] = useState(
+    CLUB_COLOURS.includes(initialColour) ? '#' : initialColour,
+  )
+  const customInvalid = customOpen && customHex.length > 1 && !HEX_RE.test(customHex)
+  // What the app will actually use for text and buttons on light surfaces.
+  const usableColour = ensureLightModeContrast(colour)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -206,7 +226,7 @@ export default function ClubSetupScreen() {
         />
 
         <View style={styles.group}>
-          <Text variant="subheadline" weight="semibold" color="secondary">
+          <Text variant="label" accessibilityRole="header">
             {t('onboardingFlow.clubSetup.participation')}
           </Text>
           <View style={styles.chips}>
@@ -227,21 +247,85 @@ export default function ClubSetupScreen() {
         </View>
 
         <View style={styles.group}>
-          <Text variant="subheadline" weight="semibold" color="secondary">
+          <Text variant="label" accessibilityRole="header">
             {t('onboardingFlow.clubSetup.colorsTitle')}
           </Text>
-          <View style={styles.swatches}>
+          <View style={styles.swatches} accessibilityRole="radiogroup">
             {CLUB_COLOURS.map((hex) => (
               <Swatch
                 key={hex}
                 hex={hex}
-                selected={colour === hex}
+                selected={!customOpen && colour === hex}
                 label={t(colourNameKey(hex))}
-                onPress={() => setColour(hex)}
+                onPress={() => {
+                  setCustomOpen(false)
+                  setColour(hex)
+                }}
               />
             ))}
+            <Swatch
+              hex={null}
+              selected={customOpen}
+              label={t('onboardingFlow.clubSetup.customColour', { defaultValue: 'Custom main colour' })}
+              onPress={() => setCustomOpen(true)}
+              testID="club-setup-colour-custom"
+            />
           </View>
-          <Text variant="footnote" color="tertiary">
+          {customOpen ? (
+            <OnboardingTextField
+              label={t('onboardingFlow.clubSetup.customHexLabel', {
+                defaultValue: 'Hex code, e.g. from the club crest',
+              })}
+              value={customHex}
+              onChangeText={(raw) => {
+                const next = `#${raw.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6)}`.toUpperCase()
+                setCustomHex(next)
+                if (HEX_RE.test(next)) setColour(next)
+              }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              spellCheck={false}
+              maxLength={7}
+              error={
+                customInvalid
+                  ? t('onboardingFlow.clubSetup.customHexInvalid', {
+                      defaultValue: 'Please use the format #RRGGBB.',
+                    })
+                  : null
+              }
+              style={styles.hexInput}
+              testID="club-setup-colour-hex"
+            />
+          ) : null}
+          {usableColour.toUpperCase() !== colour.toUpperCase() ? (
+            <Text variant="caption1" color="secondary" testID="club-setup-colour-adjusted">
+              {t('onboardingFlow.clubSetup.colourAdjusted', {
+                defaultValue: 'Too light for white text. For text we use {{hex}}.',
+                hex: usableColour.toUpperCase(),
+              })}
+            </Text>
+          ) : null}
+          <View
+            style={[styles.preview, { backgroundColor: usableColour }]}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+          >
+            <View style={styles.previewCopy}>
+              <Text variant="caption1" color={onColor(usableColour)} style={styles.previewEyebrow}>
+                {t('onboardingFlow.language.preview', { defaultValue: 'Preview' })}
+              </Text>
+              <Text
+                variant="display"
+                color={onColor(usableColour)}
+                style={styles.previewTitle}
+                numberOfLines={1}
+              >
+                {clubName.trim() || t('onboardingFlow.clubSetup.clubLabel')}
+              </Text>
+            </View>
+            <ClubCrest club={{ ...previewClub, primaryColor: usableColour }} size={44} />
+          </View>
+          <Text variant="caption1" color="secondary">
             {t('onboardingFlow.clubSetup.colorsHint')}
           </Text>
         </View>
@@ -298,7 +382,7 @@ function ClubField({
 
   if (directoryEntryId) {
     return (
-      <View style={[styles.picked, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}>
+      <View style={[styles.picked, { backgroundColor: c.surface }]}>
         <ClubCrest club={previewClub} size={48} />
         <View style={styles.pickedCopy}>
           <Text variant="caption1" color="secondary">
@@ -372,17 +456,17 @@ function Chip({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? c.primary50 : c.surface,
-          borderColor: selected ? c.primary : c.borderDefault,
+          backgroundColor: selected ? c.ink : 'transparent',
+          borderColor: selected ? c.ink : c.borderStrong,
         },
       ]}
     >
       <Icon
-        name={selected ? 'checkmark.circle.fill' : 'ellipse-outline'}
-        size={18}
-        color={selected ? c.primary : c.textTertiary}
+        name={selected ? 'checkmark' : 'plus'}
+        size={16}
+        color={selected ? c.onInk : c.textPrimary}
       />
-      <Text variant="subheadline" weight="semibold">
+      <Text variant="subheadline" weight="semibold" color={selected ? c.onInk : 'primary'}>
         {label}
       </Text>
     </Pressable>
@@ -394,11 +478,14 @@ function Swatch({
   selected,
   label,
   onPress,
+  testID,
 }: {
-  hex: string
+  /** `null` = the "Eigene Farbe" swatch. */
+  hex: string | null
   selected: boolean
   label: string
   onPress: () => void
+  testID?: string
 }) {
   const c = useClubColors()
   return (
@@ -408,14 +495,24 @@ function Swatch({
       accessibilityState={{ selected }}
       accessibilityLabel={label}
       hitSlop={4}
-      android_ripple={{ color: hex, borderless: true }}
-      style={[
-        styles.swatch,
-        { borderColor: selected ? c.textPrimary : 'transparent' },
-      ]}
+      android_ripple={{ color: c.borderDefault, borderless: true }}
+      style={[styles.swatch, { borderColor: selected ? c.ink : 'transparent' }]}
+      testID={testID}
     >
-      <View style={[styles.swatchFill, { backgroundColor: hex }]}>
-        {selected ? <Icon name="checkmark" size={18} color={onColor(hex)} /> : null}
+      <View
+        style={[
+          styles.swatchFill,
+          {
+            backgroundColor: hex ?? c.surfaceMuted,
+            borderColor: c.borderDefault,
+          },
+        ]}
+      >
+        {hex === null ? (
+          <Icon name="paintbrush" size={18} color={c.textPrimary} />
+        ) : selected ? (
+          <Icon name="checkmark" size={18} color={onColor(hex)} />
+        ) : null}
       </View>
     </Pressable>
   )
@@ -427,34 +524,47 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: SPACING_XS + 2,
     minHeight: 44,
-    paddingHorizontal: space.md,
-    borderRadius: radius.full,
-    borderWidth: hairline * 2,
+    paddingHorizontal: SPACING_MD + 2,
+    borderRadius: RADIUS_FULL,
+    borderWidth: 1,
   },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_MD - 2 },
   swatch: {
     width: 48,
     height: 48,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
     borderWidth: 2,
     padding: space['2xs'],
   },
   swatchFill: {
     flex: 1,
-    borderRadius: radius.full,
+    borderRadius: RADIUS_FULL,
+    borderWidth: hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  hexInput: { fontFamily: fonts.data, fontSize: 22, letterSpacing: 1.6 },
+  preview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.md,
+    padding: space.md,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+  },
+  previewCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
+  previewEyebrow: { opacity: 0.75 },
+  previewTitle: { fontSize: 30, lineHeight: 30 },
   picked: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     padding: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   pickedCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
   change: { minHeight: 44, justifyContent: 'center' },

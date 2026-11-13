@@ -75,12 +75,10 @@ export function OtpCellInput({
                   borderColor: hasError
                     ? colors.error
                     : isActive
-                      ? colors.primary
-                      : isFilled
-                        ? colors.textPrimary
-                        : colors.border,
-                  borderWidth: isActive ? 2 : 1.5,
-                  backgroundColor: colors.surfaceSunken,
+                      ? colors.ink
+                      : colors.borderStrong,
+                  borderWidth: isActive || hasError ? 2 : 1,
+                  backgroundColor: colors.surface,
                 },
               ]}
             >
@@ -93,7 +91,7 @@ export function OtpCellInput({
                 {d}
               </Text>
               {isActive && !isFilled ? (
-                <View style={[styles.caret, { backgroundColor: colors.primary }]} />
+                <View style={[styles.caret, { backgroundColor: colors.ink }]} />
               ) : null}
             </View>
           )
@@ -140,7 +138,7 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     minWidth: 0,
-    maxWidth: 52,
+    maxWidth: 56,
     minHeight: CELL_HEIGHT,
     paddingVertical: space.xs,
     borderRadius: RADIUS_INPUT,
@@ -150,8 +148,8 @@ const styles = StyleSheet.create({
   },
   digit: {
     fontFamily: fonts.data,
-    fontSize: fontSize['2xl'],
-    lineHeight: fontSize['2xl'] * 1.3,
+    fontSize: fontSize['2xl'] + 4,
+    lineHeight: (fontSize['2xl'] + 4) * 1.2,
     fontWeight: '700',
     textAlign: 'center',
     textAlignVertical: 'center',

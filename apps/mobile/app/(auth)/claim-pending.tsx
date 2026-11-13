@@ -9,7 +9,7 @@ import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { Button, Icon, Text } from '../../src/components/ui'
 import { FormInput } from '../../src/components/FormInput'
-import { radius, space } from '../../src/theme/tokens'
+import { radius, space, RADIUS_CARD } from '../../src/theme/tokens'
 
 type Claim = {
   id: string
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   copy: { maxWidth: 420, alignSelf: 'center' },
   card: {
     borderWidth: 1,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     padding: space.lg,
     gap: space.sm,
   },

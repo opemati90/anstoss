@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Banner, Button, Icon, Text } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useClubColors } from '../context/ClubThemeContext'
-import { hairline, radius, space } from '../theme/tokens'
+import { radius, space, RADIUS_CARD } from '../theme/tokens'
 import { clearWelcomeNotice, readWelcomeNotice, type WelcomeNotice } from './welcomeNotice'
 
 /**
@@ -105,9 +105,8 @@ const styles = StyleSheet.create({
   card: {
     gap: space.sm,
     padding: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   step: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   stepText: { flex: 1, minWidth: 0 },

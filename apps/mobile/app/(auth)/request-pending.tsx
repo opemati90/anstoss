@@ -12,7 +12,7 @@ import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { JOIN_REJECTION_SEEN_PREFIX } from '../../src/onboarding/storageKeys'
 import { setWelcomeNotice } from '../../src/onboarding/welcomeNotice'
 import { ClubCrest, HeaderTextButton, OnboardingScreen } from '../../src/onboarding/ui'
-import { hairline, radius, space } from '../../src/theme/tokens'
+import { radius, space, RADIUS_CARD } from '../../src/theme/tokens'
 
 type ActiveJoinRequest = {
   request: {
@@ -442,13 +442,12 @@ const styles = StyleSheet.create({
   card: {
     gap: space.sm,
     padding: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   step: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   stepText: { flex: 1, minWidth: 0 },
   skeleton: { gap: space.sm },
-  skeletonLine: { height: 64, borderRadius: radius.lg },
+  skeletonLine: { height: 64, borderRadius: RADIUS_CARD },
   errorBlock: { gap: space.sm, alignItems: 'flex-start' },
 })

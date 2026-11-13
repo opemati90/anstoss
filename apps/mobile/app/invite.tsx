@@ -18,40 +18,20 @@ import { useClubColors } from '../src/context/ClubThemeContext'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { FormInput } from '../src/components/FormInput'
-import { Screen, Button, Text, BottomSheet } from '../src/components/ui'
+import { Screen, Button, Text, BottomSheet, Icon, SoftIcon } from '../src/components/ui'
 import { isValidEmail } from '../src/utils/email'
 import {
   space,
   radius,
-  elevation,
   TAB_BAR_CLEARANCE,
   hairline,
+  RADIUS_CARD,
+  RADIUS_FULL,
+  SCREEN_PADDING,
+  SPACING_MD,
+  SPACING_XL,
 } from '../src/theme/tokens'
 import { BORDER_DEFAULT, QR_BACKGROUND, QR_FOREGROUND } from '../src/theme/colors'
-
-function withAlpha(hex: string, alpha: number): string {
-  // Tolerant alpha helper: works for #RGB, #RRGGBB, and rgb()/rgba() inputs.
-  if (hex.startsWith('rgb')) {
-    return hex.replace(/rgba?\(([^)]+)\)/, (_, body) => {
-      const parts = String(body)
-        .split(',')
-        .map((p) => p.trim())
-        .slice(0, 3)
-      return `rgba(${parts.join(', ')}, ${alpha})`
-    })
-  }
-  if (!hex.startsWith('#')) return hex
-  let h = hex.slice(1)
-  if (h.length === 3)
-    h = h
-      .split('')
-      .map((ch) => ch + ch)
-      .join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
 
 type TeamGroupResponse = {
   id: string
@@ -456,8 +436,7 @@ export default function InviteScreen() {
           <View
             style={[
               styles.emptyCard,
-              elevation.card,
-              { borderColor: c.borderDefault, backgroundColor: c.surface },
+              { borderColor: 'transparent', backgroundColor: c.surface },
             ]}
           >
             <Text variant="headline" weight="semibold" color="primary">
@@ -480,7 +459,7 @@ export default function InviteScreen() {
       contentStyle={styles.content}
     >
       <View style={styles.hero}>
-        <Text variant="title2" weight="semibold" color="primary" style={styles.title}>
+        <Text variant="title1" color="primary" accessibilityRole="header" style={styles.title}>
           {isCoachInvite
             ? t('clubStaff.inviteCoach', { defaultValue: 'Invite coach' })
             : t('invite.heroTitle', { defaultValue: 'Invite players' })}
@@ -498,31 +477,48 @@ export default function InviteScreen() {
 
       {campaigns.length > 0 ? (
         <View style={[styles.section, styles.campaignSection]}>
-          <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+          <Text variant="label" style={styles.sectionLabel}>
             {t('invite.activeLinks', { defaultValue: 'Active join links' })}
           </Text>
           {campaigns.map((campaign) => (
             <View
               key={campaign.id}
-              style={[styles.campaignRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+              style={[styles.codeCard, { backgroundColor: c.surface }]}
+              testID={`invite-campaign-${campaign.id}`}
             >
-              <View style={styles.campaignCopy}>
-                <Text variant="footnote" weight="semibold" numberOfLines={1}>
-                  {campaign.team.displayName}
-                </Text>
-                <Text variant="caption2" color="secondary">
-                  {campaign.useCount}/{campaign.maxUses} · {new Date(campaign.expiresAt).toLocaleDateString()}
-                </Text>
+              <Text variant="dataLarge" color="primary" style={styles.codeValue} selectable>
+                {campaign.code}
+              </Text>
+              <Text variant="caption1" color="secondary" align="center">
+                {t('invite.campaignMeta', {
+                  defaultValue: '{{team}} · valid until {{date}} · {{used}}/{{max}} used',
+                  team: campaign.team.displayName,
+                  date: new Date(campaign.expiresAt).toLocaleDateString(),
+                  used: campaign.useCount,
+                  max: campaign.maxUses,
+                })}
+              </Text>
+              <View style={styles.codeActions}>
+                <Button
+                  label={t('invite.share', { defaultValue: 'Share' })}
+                  variant="accent"
+                  size="md"
+                  leftIcon={<Icon name="square.and.arrow.up" size={18} color={c.onAccent} />}
+                  onPress={() => void shareCampaign(campaign)}
+                  style={styles.codeAction}
+                />
+                <Button
+                  label={t('invite.showQr', { defaultValue: 'QR' })}
+                  variant="bordered"
+                  size="md"
+                  leftIcon={<Icon name="qrcode" size={18} color={c.textPrimary} />}
+                  onPress={() => setQrCampaign(campaign)}
+                  style={styles.codeAction}
+                />
               </View>
               <Button
-                label={t('invite.showQr', { defaultValue: 'QR' })}
-                variant="bordered"
-                size="sm"
-                onPress={() => setQrCampaign(campaign)}
-              />
-              <Button
                 label={t('invite.revokeLink', { defaultValue: 'Revoke' })}
-                variant="bordered"
+                variant="plain"
                 size="sm"
                 onPress={() => void revokeCampaign(campaign)}
               />
@@ -531,41 +527,66 @@ export default function InviteScreen() {
         </View>
       ) : null}
 
+      {!isCoachInvite && selectedTeamId ? (
+        <View style={[styles.rowGroup, { backgroundColor: c.surface }]}>
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/add-members', params: { teamId: selectedTeamId } })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={t('invite.addRosterTitle', { defaultValue: 'Add the squad yourself' })}
+            style={[styles.groupRow, { borderBottomColor: c.borderSubtle, borderBottomWidth: hairline }]}
+            testID="invite-add-members"
+          >
+            <SoftIcon name="person.badge.plus" />
+            <View style={styles.groupRowCopy}>
+              <Text variant="subheadline" weight="semibold">
+                {t('invite.addRosterTitle', { defaultValue: 'Add the squad yourself' })}
+              </Text>
+              <Text variant="caption1" color="secondary">
+                {t('invite.addRosterBody', {
+                  defaultValue: 'Optional: enter players yourself',
+                })}
+              </Text>
+            </View>
+            <Icon name="chevron.right" size={16} color={c.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/fussball-link')}
+            accessibilityRole="button"
+            accessibilityLabel={t('invite.fussballTitle', {
+              defaultValue: 'Get the squad from fussball.de',
+            })}
+            style={styles.groupRow}
+            testID="invite-fussball-link"
+          >
+            <SoftIcon name="link" />
+            <View style={styles.groupRowCopy}>
+              <Text variant="subheadline" weight="semibold">
+                {t('invite.fussballTitle', { defaultValue: 'Get the squad from fussball.de' })}
+              </Text>
+              <Text variant="caption1" color="secondary">
+                {t('invite.fussballBody', { defaultValue: 'Fixtures and table included' })}
+              </Text>
+            </View>
+            <Icon name="chevron.right" size={16} color={c.textSecondary} />
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Step indicator — three dots, current one filled, prior ones
           show a checkmark colour. Compact, lives directly under the
           hero. */}
-      <View style={styles.stepIndicator}>
-        {[1, 2, 3].map((n) => {
-          const isCurrent = n === step
-          const isDone = n < step
-          return (
-            <View
-              key={n}
-              style={[
-                styles.stepDot,
-                {
-                  backgroundColor: isCurrent
-                    ? c.primary
-                    : isDone
-                      ? withAlpha(c.primary, 0.12)
-                      : c.surfaceSunken,
-                  borderColor: isCurrent || isDone ? c.primary : c.borderDefault,
-                },
-              ]}
-            >
-              <Text
-                variant="caption1"
-                weight="semibold"
-                style={{
-                  color: isCurrent ? c.textInverse : isDone ? c.primary : c.textTertiary,
-                }}
-              >
-                {n}
-              </Text>
-            </View>
-          )
-        })}
-        <Text variant="footnote" color="secondary" style={styles.stepCaption}>
+      <View
+        style={styles.stepIndicator}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 3, now: step }}
+      >
+        <Text variant="caption1" weight="semibold" color="secondary">
+          {t('onboardingFlow.progressA11y', { current: step, total: 3 })}
+        </Text>
+        <Text variant="headline" weight="bold">
           {step === 1
             ? t('invite.step1Title', { defaultValue: 'Pick squad' })
             : step === 2
@@ -577,7 +598,7 @@ export default function InviteScreen() {
       {step === 1 ? (
         <>
           <View style={styles.section}>
-            <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+            <Text variant="label" style={styles.sectionLabel}>
               {t('invite.teamLabel')}
             </Text>
             {/* Collapsed-team summary chip. Shows up once a team is picked.
@@ -592,7 +613,7 @@ export default function InviteScreen() {
                 })}
                 style={[
                   styles.teamSummary,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                  { borderColor: 'transparent', backgroundColor: c.surface },
                 ]}
               >
                 <View style={styles.teamSummaryText}>
@@ -614,8 +635,7 @@ export default function InviteScreen() {
               <View
                 style={[
                   styles.emptyCard,
-                  elevation.card,
-                  { borderColor: c.borderDefault, backgroundColor: c.surface },
+                      { borderColor: 'transparent', backgroundColor: c.surface },
                 ]}
               >
                 <Text variant="headline" weight="semibold" color="primary">
@@ -644,11 +664,8 @@ export default function InviteScreen() {
                       key={team.id}
                       style={[
                         styles.optionCard,
-                        { borderColor: c.borderDefault, backgroundColor: c.surface },
-                        isActive && {
-                          borderColor: c.primary,
-                          backgroundColor: c.primary50,
-                        },
+                        { borderColor: 'transparent', backgroundColor: c.surface },
+                        isActive && { borderColor: c.ink },
                       ]}
                       onPress={() => {
                         setSelectedTeamId(team.id)
@@ -675,7 +692,7 @@ export default function InviteScreen() {
 
           {isCoachInvite ? (
             <View style={styles.section}>
-              <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+              <Text variant="label" style={styles.sectionLabel}>
                 {t('invite.coachRoleLabel', { defaultValue: 'COACH ROLE' })}
               </Text>
               <View style={styles.segmentRow}>
@@ -695,8 +712,8 @@ export default function InviteScreen() {
                       key={option.value}
                       style={[
                         styles.segment,
-                        { borderColor: c.borderDefault, backgroundColor: c.surface },
-                        isActive && { borderColor: c.primary, backgroundColor: c.primary },
+                        { borderColor: c.borderStrong, backgroundColor: 'transparent' },
+                        isActive && { borderColor: c.ink, backgroundColor: c.ink },
                       ]}
                       onPress={() => setRole(option.value)}
                       accessibilityRole="button"
@@ -706,7 +723,7 @@ export default function InviteScreen() {
                       <Text
                         variant="callout"
                         weight={isActive ? 'semibold' : 'medium'}
-                        color={isActive ? 'inverse' : 'primary'}
+                        color={isActive ? c.onInk : 'primary'}
                       >
                         {option.label}
                       </Text>
@@ -725,7 +742,7 @@ export default function InviteScreen() {
 
           {!isCoachInvite ? (
           <View style={styles.section}>
-            <Text variant="caption2" color="tertiary" style={styles.sectionLabel}>
+            <Text variant="label" style={styles.sectionLabel}>
               {t('invite.phaseLabel')}
             </Text>
             <View style={styles.segmentRow}>
@@ -736,12 +753,8 @@ export default function InviteScreen() {
                     key={option.value}
                     style={[
                       styles.segment,
-                      { borderColor: c.borderDefault, backgroundColor: c.surface },
-                      isActive && {
-                        borderColor: c.primary,
-                        backgroundColor: c.primary,
-                        ...elevation.card,
-                      },
+                      { borderColor: c.borderStrong, backgroundColor: 'transparent' },
+                      isActive && { borderColor: c.ink, backgroundColor: c.ink },
                     ]}
                     onPress={() => setPhase(option.value)}
                     accessibilityRole="button"
@@ -751,7 +764,7 @@ export default function InviteScreen() {
                     <Text
                       variant="callout"
                       weight={isActive ? 'semibold' : 'medium'}
-                      color={isActive ? 'inverse' : 'primary'}
+                      color={isActive ? c.onInk : 'primary'}
                     >
                       {t(option.labelKey)}
                     </Text>
@@ -759,7 +772,7 @@ export default function InviteScreen() {
                       <View
                         style={[
                           styles.trialDot,
-                          { backgroundColor: isActive ? c.textInverse : c.warning },
+                          { backgroundColor: isActive ? c.onInk : c.warning },
                         ]}
                       />
                     ) : null}
@@ -867,11 +880,8 @@ export default function InviteScreen() {
                         key={member.user.id}
                         style={[
                           styles.optionCard,
-                          { borderColor: c.borderDefault, backgroundColor: c.surface },
-                          isSelected && {
-                            borderColor: c.primary,
-                            backgroundColor: c.primary50,
-                          },
+                          { borderColor: 'transparent', backgroundColor: c.surface },
+                          isSelected && { borderColor: c.ink },
                         ]}
                         onPress={() =>
                           setSelectedPlayerUserId((current) =>
@@ -910,10 +920,10 @@ export default function InviteScreen() {
                 <View
                   style={[
                     styles.linkedChildCard,
-                    { borderColor: c.borderDefault, backgroundColor: c.surface },
+                    { borderColor: 'transparent', backgroundColor: c.surface },
                   ]}
                 >
-                  <Text variant="caption2" color="tertiary" style={styles.linkedChildLabel}>
+                  <Text variant="label">
                     {t('invite.childLinkedLabel')}
                   </Text>
                   <Text variant="headline" weight="semibold" color="primary">
@@ -932,11 +942,10 @@ export default function InviteScreen() {
             <View
               style={[
                 styles.summaryCard,
-                elevation.card,
-                { borderColor: c.borderDefault, backgroundColor: c.surface },
+                  { borderColor: 'transparent', backgroundColor: c.surface },
               ]}
             >
-              <Text variant="caption2" color="tertiary" style={styles.summaryEyebrow}>
+              <Text variant="label">
                 {t('invite.summaryLabel')}
               </Text>
               <Text variant="title3" weight="semibold" color="primary">
@@ -1068,11 +1077,11 @@ export default function InviteScreen() {
                 backgroundColor={QR_BACKGROUND}
               />
             </View>
-            <View style={[styles.manualCode, { backgroundColor: c.surfaceSunken }]}>
-              <Text variant="caption2" color="tertiary">
+            <View style={[styles.manualCode, { backgroundColor: c.surfaceMuted }]}>
+              <Text variant="label">
                 {t('invite.manualCodeLabel', { defaultValue: 'Manual code' })}
               </Text>
-              <Text variant="title3" weight="bold" color="primary" style={styles.manualCodeValue}>
+              <Text variant="dataLarge" color="primary" style={styles.manualCodeValue}>
                 {qrCampaign.code}
               </Text>
             </View>
@@ -1092,20 +1101,16 @@ export default function InviteScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space.md, paddingBottom: TAB_BAR_CLEARANCE },
+  content: { padding: SCREEN_PADDING, paddingBottom: TAB_BAR_CLEARANCE },
   hero: { marginBottom: space.xl, gap: space.xs },
   title: { letterSpacing: -0.3 },
   section: { marginBottom: space.lg },
-  sectionLabel: {
-    marginBottom: space.sm,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
+  sectionLabel: { marginBottom: space.sm },
   teamSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     borderWidth: hairline,
     paddingHorizontal: space.md,
@@ -1118,23 +1123,8 @@ const styles = StyleSheet.create({
     gap: space['2xs'],
   },
   stepIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
+    gap: space['2xs'],
     marginBottom: space.lg,
-  },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    borderWidth: hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCaption: {
-    marginLeft: space.xs,
-    flex: 1,
-    minWidth: 0,
   },
   stepNavRow: {
     flexDirection: 'row',
@@ -1147,8 +1137,8 @@ const styles = StyleSheet.create({
   },
   optionGrid: { gap: space.sm },
   optionCard: {
-    borderWidth: hairline,
-    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     padding: space.md,
     gap: space['2xs'],
@@ -1156,9 +1146,9 @@ const styles = StyleSheet.create({
   segmentRow: { flexDirection: 'row', gap: space.sm },
   segment: {
     flex: 1,
-    minHeight: 52,
-    borderWidth: hairline,
-    borderRadius: radius.lg,
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
@@ -1182,26 +1172,18 @@ const styles = StyleSheet.create({
   },
   linkedChildCard: {
     borderWidth: hairline,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     padding: space.md,
     gap: space['2xs'],
   },
-  linkedChildLabel: {
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
   summaryCard: {
     borderWidth: hairline,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     padding: space.md,
     marginBottom: space.lg,
     gap: space.xs,
-  },
-  summaryEyebrow: {
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
   },
   summaryBodySpaced: { marginTop: space.xs },
   secondaryButtonSpacing: {
@@ -1254,17 +1236,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   campaignSection: { gap: space.sm },
-  campaignRow: {
-    minHeight: 56,
+  codeCard: {
+    borderRadius: RADIUS_CARD + 4,
+    borderCurve: 'continuous',
+    padding: SPACING_XL + 2,
+    alignItems: 'center',
+    gap: SPACING_MD,
+  },
+  codeValue: { letterSpacing: 5, textAlign: 'center' },
+  codeActions: { flexDirection: 'row', gap: SPACING_MD - 2, alignSelf: 'stretch' },
+  codeAction: { flex: 1 },
+  rowGroup: {
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+    paddingHorizontal: space.md,
+    marginBottom: space.lg,
+  },
+  groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    borderWidth: hairline,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    gap: SPACING_MD + 2,
+    minHeight: 60,
+    paddingVertical: SPACING_MD,
   },
-  campaignCopy: { flex: 1, minWidth: 0 },
+  groupRowCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
   qrSheet: {
     paddingTop: space.md,
     paddingBottom: space.xl,
@@ -1285,11 +1280,11 @@ const styles = StyleSheet.create({
   manualCode: {
     width: '100%',
     minHeight: 64,
-    borderRadius: radius.md,
+    borderRadius: RADIUS_CARD,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  manualCodeValue: { letterSpacing: 3 },
+  manualCodeValue: { letterSpacing: 5 },
 })

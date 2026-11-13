@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult, PublicInvitePayload } from '@anstoss/shared'
 import { FreeAgentVisibility } from '@anstoss/shared'
 import { api } from '../../src/api/client'
-import { Button, FilterChipRow, Icon, SegmentedControl, Text } from '../../src/components/ui'
+import { Button, FilterChipRow, Icon, SegmentedControl, SoftIcon, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
@@ -33,8 +33,8 @@ import {
   OnboardingTextField,
 } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
-import { hairline, radius, space } from '../../src/theme/tokens'
-import { RADIUS_INPUT } from '../../src/theme/spacing'
+import { radius, space } from '../../src/theme/tokens'
+import { INPUT_HEIGHT, RADIUS_CARD, RADIUS_INPUT, SPACING_MD } from '../../src/theme/spacing'
 
 const TEAM_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{10}$/
 const INVITE_CODE_RE = /^[A-Za-z0-9_-]{6,32}$/
@@ -652,10 +652,10 @@ function JoinChoice({
   const c = useClubColors()
   return (
     <View
-      style={[styles.choiceCard, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[styles.choiceCard, { backgroundColor: c.surface }]}
       testID="club-join-question"
     >
-      <Text variant="subheadline" weight="semibold" color="secondary">
+      <Text variant="label">
         {club.teamName
           ? t('onboardingFlow.club.roleQuestionTeam', { team: club.teamName })
           : t('onboardingFlow.club.roleQuestionShort')}
@@ -740,7 +740,7 @@ function FreeAgentQuickListing({
   const plzInvalid = postalCode.length > 0 && !/^\d{5}$/.test(postalCode)
   return (
     <View
-      style={[styles.choiceCard, { backgroundColor: c.surface, borderColor: c.borderSubtle }]}
+      style={[styles.choiceCard, { backgroundColor: c.surface }]}
       testID="club-free-agent-form"
     >
       <Text variant="footnote" color="secondary">
@@ -780,7 +780,7 @@ function RejectionNotice({ decision, onDismiss }: { decision: LastDecision; onDi
   const c = useClubColors()
   return (
     <View
-      style={[styles.choiceCard, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
+      style={[styles.choiceCard, { backgroundColor: c.surface }]}
       accessibilityLiveRegion="polite"
       testID="club-rejection-notice"
     >
@@ -830,13 +830,18 @@ function MoreLink({
       accessibilityLabel={label}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
       android_ripple={{ color: c.borderDefault }}
-      style={styles.moreLink}
+      style={[styles.moreLink, { backgroundColor: c.surface }]}
       testID={testID}
     >
-      <Icon name={icon} size={18} color={c.primary} />
-      <Text variant="subheadline" weight="semibold" color="tint" style={styles.moreText}>
+      <SoftIcon name={icon} />
+      <Text variant="subheadline" weight="semibold" style={styles.moreText}>
         {label}
       </Text>
+      <Icon
+        name={expanded ? 'chevron.up' : expanded === false ? 'chevron.down' : 'chevron.right'}
+        size={16}
+        color={c.textSecondary}
+      />
     </Pressable>
   )
 }
@@ -865,8 +870,8 @@ function SearchField({
         styles.search,
         {
           backgroundColor: c.surface,
-          borderColor: focused ? c.primary : c.borderDefault,
-          borderWidth: focused ? 2 : hairline * 2,
+          borderColor: focused ? c.ink : c.borderStrong,
+          borderWidth: focused ? 2 : 1,
         },
       ]}
     >
@@ -877,7 +882,7 @@ function SearchField({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={c.textTertiary}
-        selectionColor={c.primary}
+        selectionColor={c.ink}
         accessibilityLabel={label}
         autoCapitalize="words"
         autoCorrect={false}
@@ -933,7 +938,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: 56,
+    minHeight: INPUT_HEIGHT,
     paddingHorizontal: space.md,
     borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
@@ -941,9 +946,9 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     minWidth: 0,
-    minHeight: 52,
+    minHeight: INPUT_HEIGHT - 4,
     paddingVertical: space.sm,
-    fontSize: 18,
+    fontSize: 16,
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
@@ -958,24 +963,30 @@ const styles = StyleSheet.create({
     gap: space.md,
     minHeight: 72,
     paddingHorizontal: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   skeletonCrest: { width: 44, height: 44, borderRadius: RADIUS_INPUT, borderCurve: 'continuous' },
   skeletonLines: { flex: 1, gap: space.sm },
   skeletonLine: { height: 12, borderRadius: radius.sm },
   rowGroup: { gap: space.sm },
   choiceCard: {
-    gap: space.sm,
+    gap: SPACING_MD,
     padding: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
   },
   group: { gap: space.sm },
   reason: { borderLeftWidth: 2, paddingLeft: space.sm, gap: space['2xs'] },
-  more: { marginTop: space.md, gap: space.xs },
-  moreLink: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48 },
+  more: { marginTop: space.md, gap: space.sm },
+  moreLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD,
+    minHeight: 60,
+    paddingHorizontal: space.md,
+    borderRadius: RADIUS_CARD,
+    borderCurve: 'continuous',
+  },
   moreText: { flex: 1, minWidth: 0 },
 })

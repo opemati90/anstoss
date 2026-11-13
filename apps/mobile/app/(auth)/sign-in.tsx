@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { StyleSheet, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { PublicInvitePayload } from '@anstoss/shared'
@@ -7,7 +7,7 @@ import { api } from '../../src/api/client'
 import { setPendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
 import { OtpCellInput } from '../../src/components/wizard/OtpCellInput'
-import { Button, Text } from '../../src/components/ui'
+import { Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride } from '../../src/context/ClubThemeContext'
 import { sendCodeErrorKey, verifyCodeError } from '../../src/onboarding/errors'
@@ -242,11 +242,6 @@ export default function SignIn() {
           loading: busy,
           testID: 'sign-in-verify',
         }}
-        secondary={{
-          label: t('onboardingFlow.code.changeEmail'),
-          onPress: changeEmail,
-          testID: 'sign-in-change-email',
-        }}
         testID="sign-in-code"
       >
         <OtpCellInput
@@ -269,19 +264,41 @@ export default function SignIn() {
             {notice}
           </Text>
         ) : null}
-        <Button
-          label={
-            cooldown > 0
-              ? t('onboardingFlow.code.resendIn', { seconds: cooldown })
-              : t('onboardingFlow.code.resend')
-          }
-          variant="plain"
-          size="sm"
-          disabled={cooldown > 0}
-          onPress={() => void resend()}
-          testID="sign-in-resend"
-        />
-        <Text variant="footnote" color="tertiary" align="center">
+        <View style={styles.codeActions}>
+          <Pressable
+            onPress={changeEmail}
+            accessibilityRole="button"
+            accessibilityLabel={t('onboardingFlow.code.changeEmail')}
+            hitSlop={4}
+            style={styles.codeAction}
+            testID="sign-in-change-email"
+          >
+            <Text variant="subheadline" weight="semibold" color="tint">
+              {t('onboardingFlow.code.changeEmail')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void resend()}
+            disabled={cooldown > 0}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: cooldown > 0 }}
+            hitSlop={4}
+            style={styles.codeAction}
+            testID="sign-in-resend"
+          >
+            <Text
+              variant="subheadline"
+              weight={cooldown > 0 ? 'regular' : 'semibold'}
+              color={cooldown > 0 ? 'secondary' : 'tint'}
+              tabular
+            >
+              {cooldown > 0
+                ? t('onboardingFlow.code.resendIn', { seconds: cooldown })
+                : t('onboardingFlow.code.resend')}
+            </Text>
+          </Pressable>
+        </View>
+        <Text variant="caption1" color="secondary">
           {t('onboardingFlow.code.spamHint')}
         </Text>
       </OnboardingScreen>
@@ -293,4 +310,12 @@ export default function SignIn() {
 const styles = StyleSheet.create({
   inviteLead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   inviteCopy: { flex: 1, minWidth: 0, gap: space['2xs'] },
+  codeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: space.md,
+  },
+  codeAction: { minHeight: 44, justifyContent: 'center' },
 })

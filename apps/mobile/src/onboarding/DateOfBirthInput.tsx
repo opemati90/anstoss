@@ -3,8 +3,8 @@ import { StyleSheet, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../components/ui'
 import { useClubColors } from '../context/ClubThemeContext'
-import { fonts, fontSize, hairline, space } from '../theme/tokens'
-import { RADIUS_INPUT } from '../theme/spacing'
+import { fonts, fontSize, space } from '../theme/tokens'
+import { INPUT_HEIGHT, RADIUS_INPUT } from '../theme/spacing'
 
 export type DobParts = { day: string; month: string; year: string }
 
@@ -142,7 +142,7 @@ export function DateOfBirthInput({
               maxLength={meta[segment].max}
               placeholder={meta[segment].placeholder}
               placeholderTextColor={c.textTertiary}
-              selectionColor={c.primary}
+              selectionColor={c.ink}
               accessibilityLabel={meta[segment].label}
               testID={`dob-${segment}`}
               style={[
@@ -150,8 +150,8 @@ export function DateOfBirthInput({
                 {
                   color: c.textPrimary,
                   backgroundColor: c.surface,
-                  borderColor: error ? c.error : focused === segment ? c.primary : c.borderDefault,
-                  borderWidth: error || focused === segment ? 2 : hairline * 2,
+                  borderColor: error ? c.error : focused === segment ? c.ink : c.borderStrong,
+                  borderWidth: error || focused === segment ? 2 : 1,
                 },
               ]}
             />
@@ -166,7 +166,7 @@ export function DateOfBirthInput({
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="footnote" color="tertiary">
+        <Text variant="caption1" color="secondary">
           {hint}
         </Text>
       ) : null}
@@ -180,13 +180,13 @@ const styles = StyleSheet.create({
   cell: { flex: 2, minWidth: 0 },
   yearCell: { flex: 3, minWidth: 0 },
   input: {
-    minHeight: 56,
+    minHeight: INPUT_HEIGHT,
     borderRadius: RADIUS_INPUT,
     borderCurve: 'continuous',
     paddingHorizontal: space.sm,
     paddingVertical: space.sm,
     fontFamily: fonts.data,
-    fontSize: fontSize.xl,
+    fontSize: fontSize['2xl'],
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
