@@ -9,37 +9,19 @@
     <meta property="og:title" content="Anstoss - Konto löschen" />
     <meta property="og:description" content="So löschst du dein Anstoss-Konto und deine Daten, in der App oder per Anfrage." />
     <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
-    <link rel="stylesheet" href="./styles.css?v=20260629-cookie" />
-    <style>
-      .deletion-list {
-        padding-left: 20px;
-      }
-      .deletion-list li {
-        margin-bottom: 10px;
-        line-height: 1.6;
-      }
-      .deletion-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 22px;
-      }
-      .deletion-actions a {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        border: 1px solid var(--border-strong);
-        padding: 12px 18px;
-        font-weight: 700;
-      }
-      .deletion-actions a.primary {
-        background: var(--ink);
-        color: var(--paper);
-        border-color: var(--ink);
-      }
-    </style>
+    <meta name="theme-color" content="#0E3B2B" />
+    <link rel="icon" type="image/png" href="./anstoss-mark.png" />
+    <link rel="stylesheet" href="./styles.css?v=20261113" />
   </head>
   <body>
+    <header class="topbar">
+      <div class="wrap">
+        <nav class="nav" aria-label="Hauptnavigation">
+          <a href="./" class="brand" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
+          <a class="back" href="./">Startseite <span aria-hidden="true">→</span></a>
+        </nav>
+      </div>
+    </header>
     <main class="page narrow">
       <section class="panel">
         <p class="eyebrow">Account deletion / Konto löschen</p>
@@ -120,6 +102,6 @@
         </p>
       </section>
     </main>
-    <script src="./cookie-consent.js?v=20260629-cookie"></script>
+    <script src="./cookie-consent.js?v=20261113"></script>
   </body>
 </html>

@@ -9,108 +9,19 @@
     <meta property="og:title" content="Anstoss - Impressum, Datenschutz, AGB" />
     <meta property="og:description" content="Impressum, Datenschutzerklärung, AGB und Cookie-Hinweise der Anstoss App." />
     <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
-    <link rel="stylesheet" href="./styles.css?v=20260629-cookie" />
-    <style>
-      .legal-nav {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 20px;
-      }
-      .legal-nav a {
-        display: inline-block;
-        padding: 8px 18px;
-        border: 1px solid var(--border-strong);
-        border-radius: 6px;
-        text-decoration: none;
-        color: var(--accent);
-        font-size: 0.9rem;
-        font-weight: 500;
-        transition:
-          background 0.15s,
-          border-color 0.15s;
-      }
-      .legal-nav a:hover {
-        background: var(--accent-soft);
-        border-color: var(--accent);
-      }
-      .legal-section {
-        scroll-margin-top: 32px;
-      }
-      .legal-section h2 {
-        margin-bottom: 4px;
-      }
-      .section-date {
-        color: var(--muted);
-        font-size: 0.85rem;
-        margin-bottom: 24px;
-      }
-      .lang-block {
-        margin-bottom: 40px;
-      }
-      .lang-label {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 2px 8px;
-        margin-bottom: 16px;
-      }
-      .legal-section address {
-        font-style: normal;
-        line-height: 1.7;
-      }
-      .legal-section table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 16px 0;
-        font-size: 0.9rem;
-      }
-      .legal-section th,
-      .legal-section td {
-        text-align: left;
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--border);
-      }
-      .legal-section th {
-        font-weight: 600;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-      .legal-section tbody tr:hover {
-        background: var(--accent-soft);
-      }
-      .legal-section ul {
-        padding-left: 20px;
-      }
-      .legal-section li {
-        margin-bottom: 8px;
-        line-height: 1.6;
-      }
-      .divider {
-        border: none;
-        border-top: 1px solid var(--border);
-        margin: 48px 0;
-      }
-      @media (max-width: 600px) {
-        .legal-section table {
-          font-size: 0.8rem;
-        }
-        .legal-section th,
-        .legal-section td {
-          padding: 8px 8px;
-        }
-      }
-    </style>
+    <meta name="theme-color" content="#0E3B2B" />
+    <link rel="icon" type="image/png" href="./anstoss-mark.png" />
+    <link rel="stylesheet" href="./styles.css?v=20261113" />
   </head>
   <body>
+    <header class="topbar">
+      <div class="wrap">
+        <nav class="nav" aria-label="Hauptnavigation">
+          <a href="./" class="brand" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
+          <a class="back" href="./">Startseite <span aria-hidden="true">→</span></a>
+        </nav>
+      </div>
+    </header>
     <main class="page narrow">
       <!-- Header & Navigation -->
       <section class="panel">
@@ -124,7 +35,11 @@
             available in German and English.</em
           >
         </p>
-        <nav class="legal-nav">
+        <p class="notice">
+          Die deutsche Fassung ist verbindlich. Übersetzungen dienen nur der Information.<br />
+          The German version is legally binding. Translations are provided for information only.
+        </p>
+        <nav class="legal-nav" aria-label="Rechtliches">
           <a href="#impressum">Impressum</a>
           <a href="#datenschutz">Datenschutz</a>
           <a href="#nutzungsbedingungen">Nutzungsbedingungen</a>
@@ -428,7 +343,7 @@
             werden, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
           </p>
 
-          <h3>9. Cookies</h3>
+          <h3 id="cookies">9. Cookies</h3>
           <p><strong>Mobile App:</strong> Die Anstoss-App verwendet keine Cookies.</p>
           <p>
             <strong>Website:</strong> Diese Website verwendet ausschließlich technisch notwendige
@@ -921,6 +836,6 @@
         </div>
       </section>
     </main>
-    <script src="./cookie-consent.js?v=20260629-cookie"></script>
+    <script src="./cookie-consent.js?v=20261113"></script>
   </body>
 </html>

@@ -9,121 +9,24 @@
     <meta property="og:title" content="Anstoss - Verein anlegen" />
     <meta property="og:description" content="Lege deinen Verein in wenigen Minuten an: Teams, Farben und Einladungen für Spieler und Trainer." />
     <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
-    <link rel="stylesheet" href="./styles.css?v=20260629-cookie" />
-    <style>
-      .signup-shell {
-        max-width: 640px;
-        margin: 0 auto;
-        padding: clamp(48px, 12vw, 96px) clamp(20px, 5vw, 32px) clamp(64px, 14vw, 128px);
-      }
-      .signup-card {
-        background: var(--paper);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-xl);
-        box-shadow: var(--shadow-md);
-        padding: clamp(24px, 6vw, 40px);
-      }
-      .signup-back {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-family: "Geist Mono", monospace;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        color: var(--muted);
-        margin-bottom: 24px;
-      }
-      .signup-back:hover { color: var(--ink); }
-      .signup-eyebrow {
-        font-family: "Geist Mono", monospace;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.18em;
-        color: var(--primary);
-        margin: 0 0 12px;
-      }
-      .signup-title {
-        font-size: clamp(28px, 6vw, 40px);
-        line-height: 1.1;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin: 0 0 12px;
-      }
-      .signup-lede {
-        font-size: clamp(15px, 4vw, 17px);
-        line-height: 1.5;
-        color: var(--muted);
-        margin: 0 0 32px;
-      }
-      .signup-form {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-      }
-      .signup-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .signup-field > span {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--ink);
-      }
-      .signup-field input,
-      .signup-field textarea {
-        width: 100%;
-        font-family: inherit;
-        font-size: 16px;
-        color: var(--ink);
-        background: var(--bone);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-md);
-        padding: 14px 16px;
-        outline: none;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      }
-      .signup-field textarea {
-        resize: vertical;
-        min-height: 120px;
-      }
-      .signup-field input:focus,
-      .signup-field textarea:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px var(--primary-50);
-      }
-      .signup-submit {
-        margin-top: 8px;
-        background: var(--ink);
-        color: var(--paper);
-        font-family: inherit;
-        font-size: 16px;
-        font-weight: 600;
-        border: none;
-        border-radius: 999px;
-        padding: 16px 24px;
-        cursor: pointer;
-        transition: transform 0.15s ease, background 0.15s ease;
-      }
-      .signup-submit:hover { background: var(--primary-ink); }
-      .signup-submit:active { transform: translateY(1px); }
-      .signup-hint {
-        font-size: 13px;
-        color: var(--muted);
-        margin: 16px 0 0;
-        line-height: 1.5;
-      }
-      .signup-hint a { color: var(--primary); text-decoration: underline; }
-    </style>
+    <meta name="theme-color" content="#0E3B2B" />
+    <link rel="icon" type="image/png" href="./anstoss-mark.png" />
+    <link rel="stylesheet" href="./styles.css?v=20261113" />
   </head>
   <body>
-    <main class="signup-shell">
-      <div class="signup-card">
-        <a class="signup-back" href="./" data-i18n="signup.back">← Zurück</a>
-        <p class="signup-eyebrow" data-i18n="signup.eyebrow">Verein anlegen</p>
+    <header class="topbar">
+      <div class="wrap">
+        <nav class="nav" aria-label="Hauptnavigation">
+          <a href="./" class="brand" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
+          <a class="back" href="./">Startseite <span aria-hidden="true">→</span></a>
+        </nav>
+      </div>
+    </header>
+    <main class="page">
+      <div class="panel signup-card">
+        <p class="eyebrow" data-i18n="signup.eyebrow">Verein anlegen</p>
         <h1 class="signup-title" data-i18n="signup.title">Pilot-Anfrage stellen</h1>
-        <p class="signup-lede" data-i18n="signup.lede">
+        <p class="lede" data-i18n="signup.lede">
           Sag uns kurz, wer Ihr seid. Wir melden uns innerhalb von 24 Stunden mit einem Onboarding-Termin.
         </p>
 
@@ -184,7 +87,7 @@
             ></textarea>
           </label>
 
-          <button class="signup-submit" type="submit" data-i18n="signup.submit">
+          <button class="btn btn-pri block" type="submit" data-i18n="signup.submit">
             Anfrage senden
           </button>
 
@@ -196,7 +99,7 @@
       </div>
     </main>
 
-    <script src="./i18n.js?v=20260629-cookie"></script>
-    <script src="./cookie-consent.js?v=20260629-cookie"></script>
+    <script src="./i18n.js?v=20261113"></script>
+    <script src="./cookie-consent.js?v=20261113"></script>
   </body>
 </html>

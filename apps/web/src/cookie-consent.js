@@ -59,7 +59,7 @@
 
   function getLanguage() {
     const lang = document.documentElement.getAttribute('lang') || navigator.language || 'de'
-    return lang.toLowerCase().startsWith('en') ? 'en' : 'de'
+    return lang.toLowerCase().startsWith('de') ? 'de' : 'en'
   }
 
   function getChoice() {

@@ -214,11 +214,8 @@ function setInviteStatus(invite) {
 
 function renderInvite(invite, code) {
   document.title = `${invite.club.name} - Einladung - Anstoss`
-  document.documentElement.style.setProperty('--accent', invite.club.primaryColor)
-  document.documentElement.style.setProperty(
-    '--accent-soft',
-    `${invite.club.primaryColor}12`,
-  )
+  // Club colour drives the invite hero (Flutlicht: lime stays the action accent).
+  document.documentElement.style.setProperty('--club', invite.club.primaryColor)
 
   setInviteMeta(invite)
   setInviteNarrative(invite)

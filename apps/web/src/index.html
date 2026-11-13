@@ -1,363 +1,191 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" dir="ltr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title data-i18n="title">Anstoss - Eine App für deinen Fußballverein</title>
-    <meta
-      name="description"
-      data-i18n-attr="content"
-      data-i18n="description"
-      content="Anstoss bündelt Spielplan, Aufstellungen, Live-Scores und Mannschafts-Chat in einer App mit den Vereinsfarben deines Clubs."
-    />
-    <meta property="og:title" content="Anstoss - Eine App für deinen Fußballverein" />
-    <meta
-      property="og:description"
-      content="Spielplan, Aufstellungen, Live-Scores und Team-Chat. White-Label für deinen Verein."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://anstoss.io/" />
-    <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anstoss – Dein Verein. Ein Anpfiff.</title>
+    <meta name="description" content="Termine, Zusagen, Aufstellung, Live-Ticker, Chat und Beiträge in einer App. In euren Vereinsfarben, ohne WhatsApp-Chaos." />
+    <meta name="theme-color" content="#0E3B2B" />
     <link rel="canonical" href="https://anstoss.io/" />
-    <meta name="theme-color" content="#0B1114" />
-    <link rel="icon" href="./anstoss-mark.png" type="image/png" />
-    <link rel="apple-touch-icon" href="./anstoss-mark.png" />
-    <link rel="preload" as="image" href="./welcome-stadium.webp" type="image/webp" fetchpriority="high" />
-    <link rel="stylesheet" href="./styles.css?v=20260629-cookie" />
+    <link rel="alternate" hreflang="de" href="https://anstoss.io/?lang=de" />
+    <link rel="alternate" hreflang="en" href="https://anstoss.io/?lang=en" />
+    <link rel="alternate" hreflang="tr" href="https://anstoss.io/?lang=tr" />
+    <link rel="alternate" hreflang="es" href="https://anstoss.io/?lang=es" />
+    <link rel="alternate" hreflang="fr" href="https://anstoss.io/?lang=fr" />
+    <link rel="alternate" hreflang="pt" href="https://anstoss.io/?lang=pt" />
+    <link rel="alternate" hreflang="ar" href="https://anstoss.io/?lang=ar" />
+    <link rel="alternate" hreflang="x-default" href="https://anstoss.io/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anstoss" />
+    <meta property="og:url" content="https://anstoss.io/" />
+    <meta property="og:title" content="Anstoss – Dein Verein. Ein Anpfiff." />
+    <meta property="og:description" content="Termine, Zusagen, Aufstellung, Live-Ticker, Chat und Beiträge in einer App. In euren Vereinsfarben, ohne WhatsApp-Chaos." />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" href="./anstoss-mark.png" />
+    <link rel="preload" href="./fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="./styles.css?v=20261113" />
   </head>
-  <body>
-    <header class="site-nav">
-      <a href="./" class="brand" aria-label="Anstoss">
-        <img class="brand-mark" src="./anstoss-mark.png" alt="" />
-        <span class="brand-word">Anstoss</span>
-      </a>
-
-      <nav class="nav-links" aria-label="Hauptnavigation">
-        <a href="#features" data-i18n="nav.features">Funktionen</a>
-        <a href="#preview" data-i18n="nav.preview">Vorschau</a>
-        <a href="#faq" data-i18n="nav.faq">FAQ</a>
-      </nav>
-
-      <div class="nav-right">
-        <div class="lang-switch" role="group" aria-label="Sprache wählen">
-          <button type="button" data-lang="de" aria-pressed="true">DE</button>
-          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+  <body data-site="home">
+    <a class="skip" href="#features" data-t="skip">Zum Inhalt</a>
+    <header class="hero" id="top">
+      <svg aria-hidden="true" class="lines" viewBox="0 0 800 800" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"><rect x="1" y="1" width="798" height="798"/><path d="M0 400h800"/><circle cx="400" cy="400" r="150"/><rect x="240" y="1" width="320" height="130"/><rect x="240" y="669" width="320" height="130"/></svg>
+      <div class="wrap">
+        <nav class="nav" aria-label="Hauptnavigation" data-t-aria="a_nav">
+          <a href="#top" class="brand" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
+          <div class="navlinks"><a href="#features" data-t="nav_features">Funktionen</a><a href="#clubs" data-t="nav_clubs">Für Vereine</a><a href="#pricing" data-t="nav_pricing">Preise</a><a href="#faq" data-t="nav_faq">FAQ</a></div>
+          <div class="navend">
+            <label for="lang" class="sr" data-t="a_lang">Sprache</label>
+            <span class="langsel"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><select id="lang" autocomplete="off"><option value="de" selected>Deutsch</option><option value="en">English</option><option value="tr">Türkçe</option><option value="es">Español</option><option value="fr">Français</option><option value="pt">Português</option><option value="ar">العربية</option></select></span>
+            <a href="#download" class="btn btn-acc sm navcta" data-t="nav_cta">App laden</a>
+          </div>
+        </nav>
+        <div class="hero-in">
+          <div class="hero-copy">
+            <p class="eyebrow" data-t="eyebrow">Für Amateurvereine</p>
+            <h1 class="disp h1x" data-t="h1">Dein Verein.
+Ein Anpfiff.</h1>
+            <p class="lede" data-t="lede">Termine, Zusagen, Aufstellung, Live-Ticker, Chat und Beiträge in einer App. In euren Vereinsfarben, ohne WhatsApp-Chaos.</p>
+            <div id="download" class="stores">
+              <!-- TODO: swap for the official, localised App Store / Google Play badge artwork once supplied. -->
+              <a href="https://apps.apple.com/app/anstoss/id6761143230" class="store" rel="noopener"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="#121A15"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.9-.8-3.1-.8C6.8 7.2 5 8.3 4.1 10c-2 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.4 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.5.9 2.4-1.4 3.3-2.7c1-1.5 1.5-3 1.5-3.1-.1 0-2.9-1.1-2.9-4.5zM14 5.6c.8-.9 1.3-2.2 1.1-3.5-1.1.1-2.4.8-3.2 1.7-.7.8-1.3 2.1-1.2 3.4 1.3.1 2.5-.7 3.3-1.6z"/></svg>App Store</a>
+              <a href="https://play.google.com/store/apps/details?id=com.renuirug.anstoss" class="store" rel="noopener"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="#121A15"><path d="M4 2.5v19l10.5-9.5zM15.7 13.1l2.8 2.6-11.6 6.6zM15.7 10.9 6.9 1.7l11.6 6.6zM19.6 9l2.4 1.4c.9.6.9 2.6 0 3.2L19.6 15l-3-3z"/></svg>Google Play</a>
+            </div>
+            <a href="./signup.html" class="clublink"><span data-t="club">Verein anlegen</span><span class="flip" aria-hidden="true">→</span></a>
+          </div>
+          <div class="phones">
+            <div class="phone back" role="img" aria-label="App-Vorschau" data-t-aria="preview"><div class="scrn"><span class="notch"></span><div class="mk"><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-rsvp"><span class="on" data-t="m_yes">Dabei</span><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span></div></div></div></div></div>
+            <div class="phone front" role="img" aria-label="App-Vorschau" data-t-aria="preview"><div class="scrn"><span class="notch"></span><div class="mk"><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-bar"><span></span><span></span><span></span></div><span class="mk-count" data-t="m_count">14 dabei · 3 vielleicht · 5 offen</span></div><div class="mk-row"><span data-t="m_open5">5 haben nicht geantwortet</span><span class="mk-pill" data-t="m_remind">Erinnern</span></div><div class="mk-row"><span dir="ltr">4-2-3-1 · 9/11</span><span class="mut flip" aria-hidden="true">›</span></div></div></div></div>
+          </div>
         </div>
-        <a class="nav-cta" href="#download" data-i18n="nav.cta">App herunterladen</a>
-        <button class="nav-burger" type="button" aria-label="Menü" aria-expanded="false">
-          <span></span><span></span><span></span>
-        </button>
       </div>
     </header>
 
     <main>
-      <section class="hero">
-        <div class="hero-photo" aria-hidden="true"></div>
-        <div class="hero-scrim" aria-hidden="true"></div>
+      <div class="wrap"><ul class="trust" data-list="trust"><li><span class="tick"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Hosting in der EU</span></li><li><span class="tick"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>DSGVO-konform</span></li><li><span class="tick"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Kein Geld über die App</span></li><li><span class="tick"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>7 Sprachen</span></li></ul></div>
 
-        <div class="hero-inner">
-          <div class="hero-copy" data-reveal>
-            <p class="eyebrow" data-i18n="hero.eyebrow">Die App für Amateurvereine</p>
-            <h1 data-i18n-html="hero.h1">Dein Verein.<br />Alles an einem Ort.</h1>
-            <p class="lede" data-i18n="hero.lede">
-              Spielplan, Aufstellung, Live-Ticker und Teamchat in einer App. Gebaut für
-              Amateurclubs, Eltern und Trainer.
-            </p>
-            <div class="actions">
-              <a class="btn btn-primary" href="#download" data-i18n="hero.cta1"
-                ><span>App herunterladen</span></a
-              >
-              <a class="btn btn-ghost" href="./signup.html" data-i18n="hero.cta2"
-                ><span>Verein anlegen</span></a
-              >
+      <section id="features" class="sect">
+        <div class="wrap two">
+          <div class="col">
+            <h2 class="h2" data-t="roles_h2">Jede Rolle sieht, was sie braucht.</h2>
+            <p class="sub" data-t="roles_sub">Eine Person kann Spieler, Kapitän, Trainer und Vorstand zugleich sein. Anstoss zeigt alles in einer Ansicht.</p>
+            <div role="tablist" aria-label="Rollen" data-t-aria="a_roles" class="rtabs" data-list="roletabs"><button type="button" role="tab" class="chip" id="rtab-0" aria-controls="rpanel" aria-selected="true" tabindex="0" data-role-tab="0">Trainer</button><button type="button" role="tab" class="chip" id="rtab-1" aria-controls="rpanel" aria-selected="false" tabindex="-1" data-role-tab="1">Spieler</button><button type="button" role="tab" class="chip" id="rtab-2" aria-controls="rpanel" aria-selected="false" tabindex="-1" data-role-tab="2">Eltern</button><button type="button" role="tab" class="chip" id="rtab-3" aria-controls="rpanel" aria-selected="false" tabindex="-1" data-role-tab="3">Vorstand</button></div>
+            <div role="tabpanel" id="rpanel" aria-labelledby="rtab-0" class="rpanel">
+              <h3 class="h3" data-role-title>Den Spieltag im Griff</h3>
+              <ul class="bul" data-role-bullets><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Termine in Sekunden anlegen, auch wöchentlich</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Sehen, wer kommt, und Offene mit einem Tap erinnern</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Aufstellung bauen und direkt ans Team schicken</span></li></ul>
             </div>
           </div>
-
-          <aside class="hero-panel shell" data-reveal>
-            <div class="hero-panel-core">
-              <div class="hero-panel-photo" aria-hidden="true"></div>
-              <div class="hero-panel-copy">
-                <p class="panel-kicker" data-i18n="panel.kicker">Clubbetrieb</p>
-                <h2 data-i18n="panel.h2">Alles bleibt beim Verein.</h2>
-                <p data-i18n="panel.copy">
-                  Vereinsfarben, Rollen, Teams und Spieltage werden in einem klaren Flow geführt.
-                </p>
-              </div>
-              <div class="panel-stats" aria-label="Anstoss Vorteile">
-                <div>
-                  <span data-i18n="panel.stat.1.label">Teams</span>
-                  <strong data-i18n="panel.stat.1.value">Mehrere Kader</strong>
-                </div>
-                <div>
-                  <span data-i18n="panel.stat.2.label">Daten</span>
-                  <strong data-i18n="panel.stat.2.value">EU gehostet</strong>
-                </div>
-              </div>
-            </div>
-          </aside>
+          <div class="stage"><div class="phone" role="img" aria-label="App-Vorschau" data-t-aria="preview"><div class="scrn"><span class="notch"></span><div class="mk" data-role-mock="0"><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-bar"><span></span><span></span><span></span></div><span class="mk-count" data-t="m_count">14 dabei · 3 vielleicht · 5 offen</span></div><div class="mk-row"><span data-t="m_open5">5 haben nicht geantwortet</span><span class="mk-pill" data-t="m_remind">Erinnern</span></div><div class="mk-row"><span dir="ltr">4-2-3-1 · 9/11</span><span class="mut flip" aria-hidden="true">›</span></div></div><div class="mk" data-role-mock="1" hidden><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-rsvp"><span class="on" data-t="m_yes">Dabei</span><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span></div></div></div><div class="mk" data-role-mock="2" hidden><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-chips"><span class="on">Emil</span><span>Lina</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-rsvp"><span class="on" data-t="m_yes">Dabei</span><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span></div></div><div class="mk-row"><span data-t="m_car">Fahrgemeinschaft</span><span class="mk-pill" data-t="m_remind">Erinnern</span></div></div><div class="mk" data-role-mock="3" hidden><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-money"><span class="mk-k" data-t="m_in">Eingegangen</span><span class="num big">450 €</span><div class="mk-bar"><span></span><span></span></div><span class="mk-foot"><span data-t="m_out">Offen</span>: <span dir="ltr">100 €</span></span></div><div class="mk-row"><span>Mert Y.</span><span class="num">25 €</span></div><div class="mk-row"><span>Paul K.</span><span class="num">45 €</span></div></div></div></div></div>
         </div>
       </section>
 
-      <section id="features" class="features section-pad">
-        <div class="section-head section-head-left" data-reveal>
-          <h2 data-i18n="feat.h2">Alles, was den Spieltag bewegt.</h2>
-          <p class="section-sub" data-i18n="feat.sub">
-            Anstoss ersetzt die losen Chats, Tabellen, PDF-Listen und Nachfragen, die im
-            Amateurfußball jede Woche Zeit kosten.
-          </p>
-        </div>
-        <div class="feature-bento">
-          <article class="feature-shell feature-large" data-reveal>
-            <div class="feature-core feature-core-dark">
-              <span class="feature-token" data-i18n="feat.1.token">Matchday</span>
-              <h3 data-i18n="feat.1.t">Aufstellung, RSVP und Live-Ticker</h3>
-              <p data-i18n="feat.1.b">
-                Trainer planen den Kader, Spieler sagen zu, Eltern sehen Zeiten und der Live-Ticker
-                bleibt direkt beim Team.
-              </p>
-            </div>
-          </article>
-          <article class="feature-shell feature-photo" data-reveal>
-            <div class="feature-photo-core" aria-hidden="true"></div>
-          </article>
-          <article class="feature-shell" data-reveal>
-            <div class="feature-core">
-              <span class="feature-token" data-i18n="feat.2.token">Chat</span>
-              <h3 data-i18n="feat.2.t">Teamchat ohne Tool-Wechsel</h3>
-              <p data-i18n="feat.2.b">
-                Nachrichten, Medien und Übersetzung sitzen neben dem Spielplan, nicht in einer
-                privaten Chatgruppe.
-              </p>
-            </div>
-          </article>
-          <article class="feature-shell" data-reveal>
-            <div class="feature-core feature-core-accent">
-              <span class="feature-token" data-i18n="feat.3.token">Rollen</span>
-              <h3 data-i18n="feat.3.t">Klare Sicht für jede Rolle</h3>
-              <p data-i18n="feat.3.b">
-                Spieler, Trainer, Eltern und Vereinsadmins sehen genau das, was für ihren Alltag
-                relevant ist.
-              </p>
-            </div>
-          </article>
-          <article class="feature-shell" data-reveal>
-            <div class="feature-core">
-              <span class="feature-token" data-i18n="feat.4.token">Verein</span>
-              <h3 data-i18n="feat.4.t">Mehrere Teams in einem Club</h3>
-              <p data-i18n="feat.4.b">
-                Erste, Jugend, Frauen, Senioren und Elternkanäle laufen unter einem Verein, ohne
-                getrennte Inseln.
-              </p>
-            </div>
-          </article>
-          <article class="feature-shell feature-wide" data-reveal>
-            <div class="feature-core">
-              <span class="feature-token" data-i18n="feat.5.token">Beiträge</span>
-              <h3 data-i18n="feat.5.t">Mitgliedschaft und Nachweise</h3>
-              <p data-i18n="feat.5.b">
-                Vereinsadmins behalten Beiträge, Belege und offene Aufgaben im Blick. Der MVP
-                bleibt einfach, aber nicht blind.
-              </p>
-            </div>
-          </article>
+      <section id="clubs" class="sect tint">
+        <div class="wrap two rev">
+          <div class="stage"><div class="phone" role="img" aria-label="App-Vorschau" data-t-aria="preview"><div class="scrn"><span class="notch"></span><div class="mk"><div class="mk-head"><svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg><span>SV Spreewiese</span></div><div class="mk-hero"><span class="mk-k" data-t="m_next">Als Nächstes</span><span class="disp mk-kick" data-t="m_kick">So 14:00</span><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span><div class="mk-rsvp"><span class="on" data-t="m_yes">Dabei</span><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span></div></div></div></div></div></div>
+          <div class="col">
+            <svg role="img" aria-label="Wappen" data-t-aria="a_crest" width="72" height="79" viewBox="0 0 40 44"><path class="crest" d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"/><path d="M20 5 34 9.8v10.2c0 8.6-6 15.2-14 18.6C12 35.2 6 28.6 6 20V9.8z" fill="none" stroke="#D4F25C" stroke-opacity="0.6" stroke-width="1"/><text x="20" y="25.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="12.5" fill="#FFFFFF">SVS</text></svg>
+            <h2 class="h2" data-t="brand_h2">Euer Verein ist die Marke.</h2>
+            <p class="sub" data-t="brand_sub">Wappen und Vereinsfarben prägen die ganze App. Probier es aus.</p>
+            <span class="lbl" id="pick-lbl" data-t="brand_pick">Vereinsfarbe wählen</span>
+            <div role="radiogroup" aria-labelledby="pick-lbl" class="swatches"><button type="button" role="radio" class="swatch" aria-checked="true" tabindex="0" aria-label="#0E3B2B" data-swatch="#0E3B2B" style="background:#0E3B2B"></button><button type="button" role="radio" class="swatch" aria-checked="false" tabindex="-1" aria-label="#7A1F2B" data-swatch="#7A1F2B" style="background:#7A1F2B"></button><button type="button" role="radio" class="swatch" aria-checked="false" tabindex="-1" aria-label="#123A5C" data-swatch="#123A5C" style="background:#123A5C"></button><button type="button" role="radio" class="swatch" aria-checked="false" tabindex="-1" aria-label="#1F2A44" data-swatch="#1F2A44" style="background:#1F2A44"></button><button type="button" role="radio" class="swatch" aria-checked="false" tabindex="-1" aria-label="#5B2A86" data-swatch="#5B2A86" style="background:#5B2A86"></button><button type="button" role="radio" class="swatch" aria-checked="false" tabindex="-1" aria-label="#B4511E" data-swatch="#B4511E" style="background:#B4511E"></button></div>
+          </div>
         </div>
       </section>
 
-      <section id="preview" class="identity section-pad">
-        <div class="identity-grid">
-          <div class="identity-media shell" data-reveal>
-            <div class="identity-photo" aria-hidden="true"></div>
-          </div>
-          <div class="identity-copy" data-reveal>
-            <h2 data-i18n="prev.h2">Dein Club ist die Marke.</h2>
-            <p class="section-sub" data-i18n-html="prev.sub">
-              Anstoss ist <em>White-Label</em>: Farben, Wappen, Teams und Rollen gehören dem
-              Verein. Die App tritt zurück.
-            </p>
-            <div class="identity-list">
-              <div>
-                <strong data-i18n="prev.item.1.t">Vereinsfarben</strong>
-                <span data-i18n="prev.item.1.b">Jede Mannschaft wirkt wie euer eigener digitaler Raum.</span>
-              </div>
-              <div>
-                <strong data-i18n="prev.item.2.t">Saisonkontext</strong>
-                <span data-i18n="prev.item.2.b">Spielplan, Tabelle und Form bleiben am Team sichtbar.</span>
-              </div>
-              <div>
-                <strong data-i18n="prev.item.3.t">Datenschutz</strong>
-                <span data-i18n="prev.item.3.b">Rollen und EU-Hosting sind Teil des Produkts, nicht Kleingedrucktes.</span>
-              </div>
+      <section class="sect" aria-labelledby="flow-h">
+        <div class="wrap">
+          <h2 class="h2" id="flow-h" style="max-width: 760px" data-t="flow_h2">Vom Termin bis zum Abpfiff.</h2>
+          <ol class="flow" data-list="flow"><li><span class="num fnum">01</span><h3 class="h3s">Termin anlegen</h3><p class="mut">Training oder Spiel, mit Treffpunkt und Erinnerung.</p></li><li><span class="num fnum">02</span><h3 class="h3s">Zusagen sammeln</h3><p class="mut">Das Team antwortet mit einem Tap. Du siehst sofort, wer fehlt.</p></li><li><span class="num fnum">03</span><h3 class="h3s">Aufstellung teilen</h3><p class="mut">Formation wählen, Spieler einsetzen, ans Team senden.</p></li><li><span class="num fnum">04</span><h3 class="h3s">Live begleiten</h3><p class="mut">Tore und Wechsel erfassen, alle sind dabei.</p></li></ol>
+        </div>
+      </section>
+
+      <section class="sect" style="padding-top: 0" aria-labelledby="dues-h">
+        <div class="wrap">
+          <div class="dues">
+            <div class="col">
+              <h2 class="h2" id="dues-h" data-t="dues_h2">Beiträge im Blick. Das Geld bleibt beim Verein.</h2>
+              <p class="sub" data-t="dues_b">Mitglieder überweisen direkt aufs Vereinskonto, per GiroCode in der Banking-App. Anstoss zeigt nur, wer bezahlt hat.</p>
+              <ul class="bul light" data-list="dues_p"><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>GiroCode mit allen Angaben vorausgefüllt</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Kontoauszug in Sekunden abgleichen</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Offene mit einem Tap erinnern</span></li></ul>
+            </div>
+            <div class="qrcard">
+              <svg role="img" aria-label="GiroCode" width="132" height="132" viewBox="0 0 37 37" shape-rendering="crispEdges"><path fill="#121A15" d="M0 0h7v1h-7zM9 0h1v1h-1zM11 0h1v1h-1zM13 0h1v1h-1zM20 0h3v1h-3zM26 0h3v1h-3zM30 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM10 1h2v1h-2zM13 1h5v1h-5zM19 1h7v1h-7zM30 1h1v1h-1zM36 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM9 2h3v1h-3zM13 2h2v1h-2zM17 2h2v1h-2zM24 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM30 2h1v1h-1zM32 2h3v1h-3zM36 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM9 3h3v1h-3zM16 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM25 3h4v1h-4zM30 3h1v1h-1zM32 3h3v1h-3zM36 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM10 4h1v1h-1zM12 4h2v1h-2zM15 4h1v1h-1zM18 4h1v1h-1zM20 4h2v1h-2zM23 4h1v1h-1zM28 4h1v1h-1zM30 4h1v1h-1zM32 4h3v1h-3zM36 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h2v1h-2zM15 5h2v1h-2zM19 5h1v1h-1zM24 5h4v1h-4zM30 5h1v1h-1zM36 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM30 6h7v1h-7zM9 7h4v1h-4zM15 7h1v1h-1zM18 7h1v1h-1zM24 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM5 8h2v1h-2zM8 8h1v1h-1zM12 8h2v1h-2zM15 8h1v1h-1zM17 8h2v1h-2zM20 8h8v1h-8zM29 8h1v1h-1zM31 8h1v1h-1zM1 9h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h6v1h-6zM14 9h2v1h-2zM17 9h1v1h-1zM20 9h2v1h-2zM25 9h3v1h-3zM29 9h3v1h-3zM33 9h1v1h-1zM35 9h1v1h-1zM6 10h2v1h-2zM9 10h2v1h-2zM12 10h3v1h-3zM16 10h1v1h-1zM19 10h1v1h-1zM22 10h1v1h-1zM27 10h2v1h-2zM30 10h3v1h-3zM35 10h2v1h-2zM0 11h2v1h-2zM3 11h1v1h-1zM8 11h4v1h-4zM13 11h3v1h-3zM18 11h6v1h-6zM25 11h3v1h-3zM29 11h1v1h-1zM31 11h3v1h-3zM35 11h2v1h-2zM1 12h2v1h-2zM4 12h3v1h-3zM11 12h1v1h-1zM17 12h2v1h-2zM21 12h1v1h-1zM25 12h2v1h-2zM28 12h1v1h-1zM30 12h2v1h-2zM34 12h1v1h-1zM36 12h1v1h-1zM3 13h1v1h-1zM5 13h1v1h-1zM8 13h1v1h-1zM10 13h1v1h-1zM13 13h5v1h-5zM19 13h1v1h-1zM21 13h1v1h-1zM24 13h1v1h-1zM27 13h3v1h-3zM34 13h1v1h-1zM36 13h1v1h-1zM1 14h4v1h-4zM6 14h1v1h-1zM9 14h2v1h-2zM12 14h3v1h-3zM17 14h2v1h-2zM21 14h3v1h-3zM28 14h3v1h-3zM32 14h1v1h-1zM34 14h2v1h-2zM0 15h1v1h-1zM3 15h2v1h-2zM7 15h1v1h-1zM9 15h5v1h-5zM15 15h2v1h-2zM18 15h1v1h-1zM22 15h3v1h-3zM26 15h1v1h-1zM29 15h1v1h-1zM31 15h3v1h-3zM0 16h1v1h-1zM2 16h5v1h-5zM8 16h2v1h-2zM12 16h1v1h-1zM18 16h2v1h-2zM25 16h5v1h-5zM31 16h2v1h-2zM35 16h1v1h-1zM0 17h1v1h-1zM2 17h3v1h-3zM8 17h4v1h-4zM13 17h1v1h-1zM15 17h8v1h-8zM25 17h3v1h-3zM29 17h1v1h-1zM31 17h1v1h-1zM33 17h1v1h-1zM2 18h2v1h-2zM6 18h1v1h-1zM8 18h1v1h-1zM10 18h3v1h-3zM15 18h3v1h-3zM19 18h1v1h-1zM21 18h2v1h-2zM24 18h1v1h-1zM26 18h3v1h-3zM32 18h1v1h-1zM34 18h3v1h-3zM0 19h1v1h-1zM3 19h3v1h-3zM8 19h1v1h-1zM10 19h5v1h-5zM17 19h1v1h-1zM21 19h1v1h-1zM28 19h3v1h-3zM34 19h3v1h-3zM0 20h1v1h-1zM2 20h1v1h-1zM5 20h2v1h-2zM9 20h2v1h-2zM13 20h5v1h-5zM19 20h3v1h-3zM23 20h2v1h-2zM26 20h3v1h-3zM30 20h1v1h-1zM34 20h3v1h-3zM2 21h1v1h-1zM4 21h2v1h-2zM7 21h1v1h-1zM9 21h2v1h-2zM15 21h4v1h-4zM21 21h1v1h-1zM24 21h4v1h-4zM31 21h1v1h-1zM33 21h2v1h-2zM36 21h1v1h-1zM0 22h2v1h-2zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h4v1h-4zM18 22h2v1h-2zM21 22h1v1h-1zM25 22h2v1h-2zM31 22h1v1h-1zM34 22h3v1h-3zM0 23h5v1h-5zM7 23h2v1h-2zM10 23h1v1h-1zM12 23h1v1h-1zM14 23h9v1h-9zM24 23h1v1h-1zM27 23h2v1h-2zM31 23h3v1h-3zM35 23h2v1h-2zM2 24h2v1h-2zM5 24h2v1h-2zM11 24h1v1h-1zM13 24h2v1h-2zM17 24h4v1h-4zM22 24h1v1h-1zM26 24h1v1h-1zM28 24h3v1h-3zM33 24h1v1h-1zM36 24h1v1h-1zM1 25h1v1h-1zM3 25h3v1h-3zM10 25h1v1h-1zM13 25h1v1h-1zM15 25h4v1h-4zM21 25h4v1h-4zM28 25h1v1h-1zM34 25h2v1h-2zM0 26h1v1h-1zM3 26h1v1h-1zM6 26h2v1h-2zM10 26h2v1h-2zM13 26h1v1h-1zM19 26h2v1h-2zM23 26h3v1h-3zM27 26h4v1h-4zM36 26h1v1h-1zM1 27h1v1h-1zM4 27h1v1h-1zM7 27h2v1h-2zM10 27h1v1h-1zM12 27h2v1h-2zM15 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM21 27h3v1h-3zM25 27h2v1h-2zM30 27h2v1h-2zM0 28h3v1h-3zM5 28h2v1h-2zM8 28h5v1h-5zM14 28h1v1h-1zM17 28h3v1h-3zM21 28h1v1h-1zM24 28h1v1h-1zM27 28h7v1h-7zM8 29h1v1h-1zM11 29h2v1h-2zM14 29h3v1h-3zM20 29h1v1h-1zM23 29h3v1h-3zM28 29h1v1h-1zM32 29h2v1h-2zM35 29h1v1h-1zM0 30h7v1h-7zM9 30h1v1h-1zM12 30h1v1h-1zM16 30h1v1h-1zM18 30h1v1h-1zM21 30h2v1h-2zM24 30h1v1h-1zM26 30h1v1h-1zM28 30h1v1h-1zM30 30h1v1h-1zM32 30h1v1h-1zM34 30h3v1h-3zM0 31h1v1h-1zM6 31h1v1h-1zM8 31h2v1h-2zM11 31h4v1h-4zM16 31h2v1h-2zM21 31h1v1h-1zM28 31h1v1h-1zM32 31h4v1h-4zM0 32h1v1h-1zM2 32h3v1h-3zM6 32h1v1h-1zM9 32h1v1h-1zM11 32h3v1h-3zM15 32h4v1h-4zM21 32h3v1h-3zM26 32h1v1h-1zM28 32h6v1h-6zM35 32h2v1h-2zM0 33h1v1h-1zM2 33h3v1h-3zM6 33h1v1h-1zM8 33h1v1h-1zM11 33h1v1h-1zM15 33h2v1h-2zM19 33h1v1h-1zM21 33h6v1h-6zM28 33h1v1h-1zM32 33h1v1h-1zM35 33h2v1h-2zM0 34h1v1h-1zM2 34h3v1h-3zM6 34h1v1h-1zM10 34h3v1h-3zM14 34h2v1h-2zM17 34h1v1h-1zM19 34h1v1h-1zM24 34h3v1h-3zM30 34h4v1h-4zM36 34h1v1h-1zM0 35h1v1h-1zM6 35h1v1h-1zM9 35h1v1h-1zM11 35h2v1h-2zM16 35h1v1h-1zM19 35h3v1h-3zM25 35h4v1h-4zM31 35h2v1h-2zM0 36h7v1h-7zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM15 36h2v1h-2zM18 36h2v1h-2zM21 36h2v1h-2zM25 36h1v1h-1zM28 36h1v1h-1zM32 36h1v1h-1zM34 36h3v1h-3z"/></svg>
+              <div class="meta"><span class="num amt">25 €</span><span class="rcpt">SV Spreewiese 1921 e.V.</span><span class="mut iban" dir="ltr">DE89 3704 0044 0532 0130 00</span></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="club-flow section-pad">
-        <div class="section-head section-head-left" data-reveal>
-          <h2 data-i18n="split.h2">Vom Probetraining bis zum Spieltag.</h2>
-          <p class="section-sub" data-i18n="split.sub">
-            Der wichtigste Weg ist kurz: Club finden, beitreten, mitspielen. Admins behalten Teams,
-            Rollen und Kommunikation im Griff.
-          </p>
-        </div>
-        <div class="flow-grid">
-          <article data-reveal>
-            <h3 data-i18n="split.li.1.t">Club finden</h3>
-            <p data-i18n="split.li.1.b">
-              Spieler suchen ihren Verein oder lösen eine Einladung ein. Clubseiten zeigen nur
-              öffentliche Informationen.
-            </p>
-          </article>
-          <article data-reveal>
-            <h3 data-i18n="split.li.2.t">Team beitreten</h3>
-            <p data-i18n="split.li.2.b">
-              Trainer und Admins bestätigen Rollen. Eltern können sauber von Spielergruppen getrennt
-              werden.
-            </p>
-          </article>
-          <article data-reveal>
-            <h3 data-i18n="split.li.3.t">Woche steuern</h3>
-            <p data-i18n="split.li.3.b">
-              Training, Spiel, Aufstellung, Chat und Beiträge laufen in einem wiederholbaren
-              Vereinsrhythmus.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section id="faq" class="faq section-pad">
-        <div class="section-head" data-reveal>
-          <p class="section-eyebrow" data-i18n="faq.eyebrow">Häufige Fragen</p>
-          <h2 data-i18n="faq.h2">Schnell beantwortet.</h2>
-        </div>
-        <div class="faq-grid">
-          <details data-reveal>
-            <summary data-i18n="faq.q1">Funktioniert Anstoss auch ohne externe Teamdaten?</summary>
-            <p data-i18n="faq.a1">
-              Ja. Du kannst Termine und Aufstellungen manuell pflegen. Eine externe
-              Teamdaten-Anbindung ist optional und unterstützt den Spielplan-Import, wenn sie
-              verfügbar ist.
-            </p>
-          </details>
-          <details data-reveal>
-            <summary data-i18n="faq.q2">Wer hat Zugriff auf welche Daten?</summary>
-            <p data-i18n="faq.a2">
-              Anstoss trennt Rollen klar: Spieler sehen ihre Mannschaft, Eltern den Eltern-Kanal,
-              Trainer ihren Kader und Vereinsadmins den ganzen Verein.
-            </p>
-          </details>
-          <details data-reveal>
-            <summary data-i18n="faq.q3">Werden Chat-Nachrichten übersetzt?</summary>
-            <p data-i18n="faq.a3">
-              Ja, automatisch in die Sprache der Empfänger. Die Übersetzung läuft über unsere
-              selbst gehostete Infrastruktur in der EU.
-            </p>
-          </details>
-          <details data-reveal>
-            <summary data-i18n="faq.q4">Können Kinder unter 16 Anstoss nutzen?</summary>
-            <p data-i18n="faq.a4">
-              Ja, mit Einwilligung der Erziehungsberechtigten gemäß DSGVO Art. 8.
-            </p>
-          </details>
-          <details data-reveal>
-            <summary data-i18n="faq.q5">Wie lösche ich mein Konto?</summary>
-            <p data-i18n="faq.a5">
-              Unter „Mehr > Daten > Konto löschen" oder über anstoss.io/account-deletion.
-            </p>
-          </details>
-          <details data-reveal>
-            <summary data-i18n="faq.q6">Auf welchen Plattformen läuft Anstoss?</summary>
-            <p data-i18n="faq.a6">
-              iOS und Android. Eine Tablet- und Web-App folgt nach dem MVP-Launch.
-            </p>
-          </details>
-        </div>
-      </section>
-
-      <section id="download" class="download section-pad">
-        <div class="download-inner shell" data-reveal>
-          <div class="download-core">
-            <h2 data-i18n="dl.h2">App herunterladen und Verein starten.</h2>
-            <p class="section-sub" data-i18n="dl.sub">
-              Lade Anstoss, lege deinen Verein an und lade den ersten Trainer ein. Spieler werden
-              über ihre Telefonnummer zugeordnet.
-            </p>
-            <div class="store-row">
-              <a
-                class="store-badge"
-                href="https://apps.apple.com/app/anstoss/id6761143230"
-                target="_blank"
-                rel="noopener"
-                aria-label="Im App Store laden"
-              >
-                <span class="store-badge-text">
-                  <span class="store-badge-tiny" data-i18n="dl.appstore.tiny">Lade im</span>
-                  <span class="store-badge-big">App Store</span>
-                </span>
-              </a>
-              <a
-                class="store-badge"
-                href="https://play.google.com/store/apps/details?id=com.renuirug.anstoss"
-                target="_blank"
-                rel="noopener"
-                aria-label="Bei Google Play laden"
-              >
-                <span class="store-badge-text">
-                  <span class="store-badge-tiny" data-i18n="dl.playstore.tiny"
-                    >Hol es bei</span
-                  >
-                  <span class="store-badge-big">Google Play</span>
-                </span>
-              </a>
+      <section id="pricing" class="sect tint" aria-labelledby="pr-h">
+        <div class="wrap">
+          <div class="prhead">
+            <div class="col" style="gap: 14px"><h2 class="h2" id="pr-h" data-t="pr_h2">Ein fairer Preis für den ganzen Verein.</h2><p class="sub" data-t="pr_sub">Starte kostenlos mit einem Team. Upgrade, wenn der Verein mitzieht.</p></div>
+            <div role="radiogroup" aria-label="Abrechnung" data-t-aria="a_billing" class="seg">
+              <button type="button" role="radio" class="sg" aria-checked="true" tabindex="0" data-billing="month"><span data-t="pr_month">Monatlich</span></button>
+              <button type="button" role="radio" class="sg" aria-checked="false" tabindex="-1" data-billing="year"><span data-t="pr_year">Jährlich</span> <span class="save" data-t="pr_save">2 Monate gratis</span></button>
             </div>
           </div>
+          <div class="plans">
+            <div class="plan">
+              <div class="plantop"><h3 class="h3" data-t="free_name">Kostenlos</h3><span class="mut for" data-t="free_for">Für ein Team zum Start</span></div>
+              <div class="price"><span class="num pnum" data-t="free_price">0 €</span><span class="mut" data-t="free_per">für immer</span></div>
+              <a href="./signup.html" class="btn btn-out block" data-t="free_cta">Kostenlos starten</a>
+              <ul class="bul" data-list="free_feats"><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>1 Team, bis 30 Spieler</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Termine und Zusagen</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Team-Chat</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Kader und Aufstellung</span></li><li><span class="tick"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Eltern und Einwilligungen</span></li></ul>
+            </div>
+            <div class="plan pro">
+              <div class="plantop"><span class="name"><h3 class="h3" data-t="club_name">Verein</h3><span class="tag" style="background: #D4F25C; color: #121A15" data-t="rec">Empfohlen</span></span><span class="for" data-t="club_for">Für den ganzen Verein</span></div>
+              <div class="price" aria-live="polite"><span class="num pnum" data-price>10,99 €</span><span class="per" data-per>pro Monat</span></div>
+              <a href="./signup.html" class="btn btn-acc block" data-t="club_cta">30 Tage kostenlos testen</a>
+              <ul class="bul light" data-list="club_feats"><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Bis zu 5 Teams und 150 Spieler</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Vereinsfarben und Wappen</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Live-Ticker und Aufstellung teilen</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Automatische Erinnerungen</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Spielplan und Tabelle importieren</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Beiträge im Blick mit GiroCode</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Chat-Übersetzung in 7 Sprachen</span></li><li><span class="tick lime"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span>Vorschau und Vertretung für den Vorstand</span></li></ul>
+            </div>
+          </div>
+          <div class="prfoot"><p class="note" data-t="pr_note">Pro Verein, nicht pro Kopf. Bei 22 Spielern keine 50 Cent pro Spieler im Monat.</p><p class="mut fine"><span data-t="pr_fine">Preise inkl. MwSt. Monatlich kündbar. Keine Karte für den Test.</span> <a href="mailto:kontakt@anstoss.io" data-t="pr_big">Mehr als 5 Teams? Schreib uns.</a></p></div>
         </div>
       </section>
 
-      <footer class="site-footer">
-        <div class="footer-cols">
-          <div class="footer-col footer-brand">
-            <img class="brand-mark" src="./anstoss-mark.png" alt="Anstoss" />
-            <p data-i18n="footer.tagline">
-              Anstoss bündelt Spielbetrieb, Kommunikation und Mitgliedschaft für Amateurvereine in
-              Deutschland.
-            </p>
+      <section class="sect" aria-labelledby="lang-h">
+        <div class="wrap two">
+          <div class="col">
+            <h2 class="h2" id="lang-h" data-t="lang_h2">Jeder liest in seiner Sprache.</h2>
+            <p class="sub" data-t="lang_b">Die App spricht Deutsch, Englisch, Türkisch, Spanisch, Französisch, Portugiesisch und Arabisch. Chat-Nachrichten werden automatisch übersetzt.</p>
+            <div class="pills" role="group" aria-label="Sprache" data-t-aria="a_lang"><button type="button" class="chip" data-lang-pill="de" lang="de" aria-pressed="true">Deutsch</button><button type="button" class="chip" data-lang-pill="en" lang="en" aria-pressed="false">English</button><button type="button" class="chip" data-lang-pill="tr" lang="tr" aria-pressed="false">Türkçe</button><button type="button" class="chip" data-lang-pill="es" lang="es" aria-pressed="false">Español</button><button type="button" class="chip" data-lang-pill="fr" lang="fr" aria-pressed="false">Français</button><button type="button" class="chip" data-lang-pill="pt" lang="pt" aria-pressed="false">Português</button><button type="button" class="chip" data-lang-pill="ar" lang="ar" aria-pressed="false">العربية</button></div>
           </div>
-          <div class="footer-col">
-            <p class="footer-col-head" data-i18n="footer.product">Produkt</p>
-            <a href="#features" data-i18n="footer.product.features">Funktionen</a>
-            <a href="./signup.html" data-i18n="footer.product.signup">Verein anlegen</a>
-            <a href="./join.html" data-i18n="footer.product.join">Einladung einlösen</a>
-          </div>
-          <div class="footer-col">
-            <p class="footer-col-head" data-i18n="footer.legal">Rechtliches</p>
-            <a href="./legal.html#impressum" data-i18n="footer.legal.imprint">Impressum</a>
-            <a href="./legal.html#datenschutz" data-i18n="footer.legal.privacy">Datenschutz</a>
-            <a href="./legal.html#agb" data-i18n="footer.legal.terms">AGB</a>
-            <a href="./legal.html#cookies" data-i18n="footer.legal.cookies">Cookies</a>
-          </div>
-          <div class="footer-col">
-            <p class="footer-col-head" data-i18n="footer.contact">Kontakt</p>
-            <a href="mailto:hallo@anstoss.io">hallo@anstoss.io</a>
-            <p class="footer-note" data-i18n="footer.responseTime">Antwort innerhalb eines Werktags.</p>
-            <a href="./account-deletion.html" data-i18n="footer.accountDeletion">Konto löschen</a>
+          <div class="chat">
+            <div class="msg"><span class="av">KO</span><div class="body"><span class="mut who">Kofi Osei</span><span class="bub" dir="ltr" lang="de">Wer nimmt die Bälle mit?</span></div></div>
+            <div class="msg" data-translated hidden><span class="av ghost" aria-hidden="true">KO</span><div class="body"><span class="bub tr" data-t="m_msg">Wer nimmt die Bälle mit?</span><span class="mut from" data-t="lang_from">Original</span></div></div>
           </div>
         </div>
-        <p class="footer-fineprint" data-i18n-html="footer.fineprint">
-          © <span id="year"></span> Anstoss. Eine App für deinen Fußballverein.
-        </p>
-      </footer>
-      <!-- Sticky contact/download bar, phones only (see .mobile-cta). -->
-      <div class="mobile-cta" aria-label="Quick actions">
-        <a class="mobile-cta__primary" href="#download" data-i18n="nav.cta">App herunterladen</a>
-        <a class="mobile-cta__secondary" href="mailto:hallo@anstoss.io" data-i18n="footer.contact">Kontakt</a>
-      </div>
+      </section>
+
+      <section id="faq" class="sect tint" aria-labelledby="faq-h">
+        <div class="wrap faqgrid">
+          <h2 class="h2" id="faq-h" data-t="faq_h2">Häufige Fragen</h2>
+          <div class="grp" data-list="faq"><details class="qa" name="faq" open><summary><span>Brauchen wir externe Spielplandaten?</span><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></summary><p>Nein. Termine und Aufstellungen lassen sich auch manuell pflegen. Der Import des Spielplans ist optional.</p></details><details class="qa" name="faq"><summary><span>Wer sieht welche Daten?</span><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></summary><p>Spieler sehen ihr Team, Eltern ihre Kinder, Trainer ihren Kader und der Vorstand den ganzen Verein.</p></details><details class="qa" name="faq"><summary><span>Zieht Anstoss Beiträge ein?</span><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></summary><p>Nein. Mitglieder zahlen direkt an den Verein. Anstoss zeigt nur den Stand.</p></details><details class="qa" name="faq"><summary><span>Können Kinder unter 16 Anstoss nutzen?</span><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></summary><p>Ja, mit Einwilligung der Erziehungsberechtigten nach DSGVO Art. 8.</p></details><details class="qa" name="faq"><summary><span>Auf welchen Geräten läuft Anstoss?</span><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></summary><p>Auf iPhone und Android.</p></details></div>
+        </div>
+      </section>
+
+      <section class="sect" style="padding-top: 0" aria-labelledby="cta-h">
+        <div class="wrap">
+          <div class="cta">
+            <svg aria-hidden="true" class="ctalines" viewBox="0 0 400 400" fill="none" stroke="#FFFFFF" stroke-opacity="0.09" stroke-width="1.5"><circle cx="200" cy="200" r="120"/><path d="M0 200h400"/></svg>
+            <h2 class="disp ctah" id="cta-h" data-t="cta_h2">Bereit für den Anpfiff?</h2>
+            <p class="sub" data-t="cta_b">Verein in zwei Minuten anlegen, Code teilen, fertig.</p>
+            <div class="ctabtns"><a href="./signup.html" class="btn btn-acc" data-t="club">Verein anlegen</a><a href="#download" class="btn btn-ghost-light" data-t="nav_cta">App laden</a></div>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <script src="./i18n.js?v=20260629-cookie"></script>
-    <script src="./cookie-consent.js?v=20260629-cookie"></script>
+    <footer class="wrap foot">
+      <a href="#top" class="mark" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
+      <nav aria-label="Rechtliches" data-t-aria="a_legal" class="footlinks"><a href="./legal.html#impressum" data-t="foot.0">Impressum</a><a href="./legal.html#datenschutz" data-t="foot.1">Datenschutz</a><a href="./account-deletion.html" data-t="foot.2">Konto löschen</a><button type="button" data-cookie-settings data-t="a_cookies">Cookie-Einstellungen</button></nav>
+      <span class="mut copy">© 2026 Renuir UG (haftungsbeschränkt)</span>
+    </footer>
+
+    <script src="./i18n.js?v=20261113"></script>
+    <script src="./site.js?v=20261113"></script>
+    <script src="./cookie-consent.js?v=20261113"></script>
   </body>
 </html>
