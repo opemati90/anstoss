@@ -4,6 +4,7 @@ import type { StyleProp, TextStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import type { ClubTheme } from '../../theme/club-theme'
 import { iconSize as iconSizes } from '../../theme/tokens'
+import { DesignIconGlyph, resolveDesignGlyph } from './designIcons'
 
 /**
  * Single icon API for the app. Call sites reference semantic icon names
@@ -321,6 +322,20 @@ export function Icon({
   // no weight concept, so we silently accept the prop now to keep call
   // sites stable across the future swap.
   void _weight
+  const design = resolveDesignGlyph(name)
+  if (design) {
+    return (
+      <DesignIconGlyph
+        glyph={design.glyph}
+        active={design.active}
+        size={resolveSize(size)}
+        color={resolveColor(color, c)}
+        style={style as never}
+        accessibilityLabel={accessibilityLabel}
+        testID={testID}
+      />
+    )
+  }
   return (
     <Ionicons
       name={resolveName(name)}

@@ -115,16 +115,16 @@ interface VariantStyle {
 const VARIANTS: Record<TextVariant, VariantStyle> = {
   largeTitle: {
     fontSize: FONT_SIZE_DISPLAY,
-    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_DISPLAY,
+    lineHeight: FONT_SIZE_DISPLAY * 1.1,
     fontFamily: FONT_FAMILY_BOLD,
-    letterSpacing: LETTER_SPACING_TIGHTER,
+    letterSpacing: -0.75,
     defaultWeight: 'bold',
   },
   title1: {
     fontSize: FONT_SIZE_DISPLAY,
-    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_DISPLAY,
+    lineHeight: FONT_SIZE_DISPLAY * 1.1,
     fontFamily: FONT_FAMILY_BOLD,
-    letterSpacing: LETTER_SPACING_TIGHT,
+    letterSpacing: -0.75,
     defaultWeight: 'bold',
   },
   title2: {
@@ -178,18 +178,18 @@ const VARIANTS: Record<TextVariant, VariantStyle> = {
   },
   caption1: {
     fontSize: FONT_SIZE_CAPTION,
-    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_RELAXED,
+    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_NORMAL,
     fontFamily: FONT_FAMILY_MEDIUM,
-    letterSpacing: LETTER_SPACING_WIDE,
+    letterSpacing: LETTER_SPACING_NORMAL,
     defaultWeight: 'medium',
   },
   // caption2 used to be the 10pt micro size. It now shares the 13pt caption
   // floor; FONT_SIZE_MICRO (12) is reserved for tab labels and count badges.
   caption2: {
     fontSize: FONT_SIZE_CAPTION,
-    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_RELAXED,
+    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_NORMAL,
     fontFamily: FONT_FAMILY_MEDIUM,
-    letterSpacing: LETTER_SPACING_WIDE,
+    letterSpacing: LETTER_SPACING_NORMAL,
     defaultWeight: 'medium',
   },
   data: {

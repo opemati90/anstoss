@@ -27,13 +27,15 @@ export const FONT_FAMILY_BOLD = 'Inter_700Bold'
 export const FONT_FAMILY_DISPLAY = 'BarlowCondensed_700Bold'
 export const FONT_FAMILY_DISPLAY_SEMIBOLD = 'BarlowCondensed_600SemiBold'
 
-// ─── Font Sizes (iOS text-style aligned; 12pt floor) ───────────────────────
-export const FONT_SIZE_DISPLAY = ms(32)
-export const FONT_SIZE_H1 = ms(28)
-export const FONT_SIZE_H2 = ms(21)
-export const FONT_SIZE_BODY = ms(17)
-export const FONT_SIZE_BODY_SMALL = ms(15)
-export const FONT_SIZE_CAPTION = ms(13)
+// ─── Font Sizes (Anstoss Redesign scale; 12pt floor) ──────────────────────
+// Page title 30 · section heading 20 · row title / body 15 · meta 13 ·
+// caption, label 12. Matches the 2026-11 design boards 1:1.
+export const FONT_SIZE_DISPLAY = ms(30)
+export const FONT_SIZE_H1 = ms(24)
+export const FONT_SIZE_H2 = ms(20)
+export const FONT_SIZE_BODY = ms(15)
+export const FONT_SIZE_BODY_SMALL = ms(13)
+export const FONT_SIZE_CAPTION = ms(12)
 // Floor for any readable text. Nothing in the app renders below 12pt.
 export const FONT_SIZE_MICRO = ms(12)
 
@@ -119,8 +121,8 @@ export const TextStyles = {
   caption: {
     fontFamily: FONT_FAMILY_MEDIUM,
     fontSize: FONT_SIZE_CAPTION,
-    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_RELAXED,
-    letterSpacing: LETTER_SPACING_WIDE,
+    lineHeight: FONT_SIZE_CAPTION * LINE_HEIGHT_NORMAL,
+    letterSpacing: LETTER_SPACING_NORMAL,
     color: TEXT_SECONDARY,
   },
   micro: {

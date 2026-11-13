@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stack, router } from 'expo-router'
-import { Linking, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
+import { Linking, Platform, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
@@ -35,6 +35,14 @@ import { fonts, fontSize, lineHeight, radius, space } from '../src/theme/tokens'
 import { darkTheme, lightTheme } from '../src/theme/colors'
 
 initSentry()
+
+// Web preview only: drop the browser focus ring on text inputs. Inputs draw
+// their own focused border (2pt ink) like on iOS/Android.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = 'input:focus, textarea:focus { outline: none; }'
+  document.head.appendChild(style)
+}
 
 void SplashScreen.preventAutoHideAsync().catch(() => {})
 

@@ -57,3 +57,18 @@ describe('Icon map integrity', () => {
     expect(broken).toEqual([])
   })
 })
+
+describe('Icon design glyphs (2026-11 redesign)', () => {
+  beforeEach(() => mockIonicons.mockClear())
+
+  it('renders the design line icon instead of Ionicons for redesign names', () => {
+    const { toJSON } = render(<Icon name="calendar.fill" size={22} testID="ic" />)
+    expect(mockIonicons).not.toHaveBeenCalled()
+    expect(JSON.stringify(toJSON())).toContain('ic')
+  })
+
+  it('falls back to Ionicons for names without a design glyph', () => {
+    render(<Icon name="trophy" />)
+    expect(mockIonicons).toHaveBeenCalledWith(expect.objectContaining({ name: 'trophy-outline' }))
+  })
+})

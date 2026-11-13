@@ -56,14 +56,14 @@ export const card = {
 // Kreisliga crowd reading schedules at the pitch in sunlight.
 export const fontSize = {
   '2xs': 12,
-  xs: 13,
-  sm: 15,
-  md: 17,
-  lg: 18,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
-  display: 34,
+  xs: 12,
+  sm: 13,
+  md: 15,
+  lg: 16,
+  xl: 18,
+  '2xl': 22,
+  '3xl': 30,
+  display: 32,
 } as const
 
 export const letterSpacing = {

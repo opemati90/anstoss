@@ -34,8 +34,10 @@ function isSupportedScenario(value: string | undefined): value is E2ELaunchScena
 }
 
 export default function E2EBootstrapScreen() {
-  const params = useLocalSearchParams<{ scenario?: string | string[] }>()
+  const params = useLocalSearchParams<{ scenario?: string | string[]; lang?: string | string[] }>()
   const scenario = Array.isArray(params.scenario) ? params.scenario[0] : params.scenario
+  // Optional `lang` (e.g. `&lang=de`) for design reviews; English otherwise.
+  const lang = Array.isArray(params.lang) ? params.lang[0] : params.lang
   const palette = useColorScheme() === 'dark' ? darkTheme : lightTheme
   const { refreshUser } = useAuth()
 
@@ -48,7 +50,7 @@ export default function E2EBootstrapScreen() {
     const nextScenario = isSupportedScenario(scenario) ? scenario : 'signed-out'
 
     void (async () => {
-      await setAppLanguage('en')
+      await setAppLanguage(lang === 'de' ? 'de' : 'en')
 
       if (nextScenario === 'signed-out') {
         await clearSessionToken().catch(() => {})
@@ -65,7 +67,7 @@ export default function E2EBootstrapScreen() {
       if (router.canDismiss()) router.dismissAll()
       router.replace('/')
     })()
-  }, [refreshUser, scenario])
+  }, [lang, refreshUser, scenario])
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
