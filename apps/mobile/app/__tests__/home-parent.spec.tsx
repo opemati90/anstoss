@@ -200,9 +200,9 @@ describe('ParentHome', () => {
     )
   })
 
-  it('links the carpool board for an away match', async () => {
-    const { findByLabelText } = render(wrap(<ParentHome />))
-    fireEvent.press(await findByLabelText('Carpool'))
+  it('offers a seat on the carpool board for an away match', async () => {
+    const { findByText } = render(wrap(<ParentHome />))
+    fireEvent.press(await findByText('Offer a seat'))
     expect(mockedPush).toHaveBeenCalledWith({
       pathname: '/carpool',
       params: { fixtureId: 'fixture-9', eventId: 'leo-match' },
@@ -250,12 +250,13 @@ describe('ParentHome', () => {
     expect(getAllByText(/^U15 · by /)).toHaveLength(1)
     fireEvent.press(getByText('Jersey wash'))
     expect(mockedPush).toHaveBeenCalledWith('/aufgaben')
-    expect(getByText('Family fees')).toBeTruthy()
-    expect(getByText(/45\.00 outstanding/)).toBeTruthy()
+    // Board 25: the fee is one row in the same group, plan name plus tag.
+    expect(getByText('Familienbeitrag')).toBeTruthy()
+    expect(getByText('contributions.status.OVERDUE')).toBeTruthy()
     expect(queryByText('Announcements')).toBeNull()
   })
 
-  it('shows announcements when there are some', async () => {
+  it('keeps announcements off Start (board 25) and calls only real routes', async () => {
     mockHomeData({
       announcements: [
         {
@@ -268,10 +269,9 @@ describe('ParentHome', () => {
         },
       ],
     })
-    const { findByText, getByText } = render(wrap(<ParentHome />))
-    expect(await findByText('Announcements')).toBeTruthy()
-    expect(await findByText('Team photo day')).toBeTruthy()
-    expect(getByText('U15 · Saturday 10:00')).toBeTruthy()
+    const { findByText, queryByText } = render(wrap(<ParentHome />))
+    expect(await findByText('Reply for Leo')).toBeTruthy()
+    expect(queryByText('Team photo day')).toBeNull()
     // Only real API routes are called.
     const paths = mockedApi.mock.calls.map(([path]) => String(path))
     expect(paths.some((path) => path.includes('children-announcements'))).toBe(false)
@@ -324,7 +324,7 @@ describe('ParentHome', () => {
         </>,
       ),
     )
-    expect(await findByText(/Leo · U15/)).toBeTruthy()
+    expect(await findByText('Reply for Leo')).toBeTruthy()
     await waitFor(() => expect(summary).toBe('Leo · U15/U17, Mia · U11'))
   })
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, fireEvent, waitFor } from '@testing-library/react-native'
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { PlayerHome } from '../../src/components/home/PlayerHome'
 
@@ -145,7 +145,6 @@ describe('PlayerHome', () => {
   it('renders the next-event RSVP hero', async () => {
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await findByText('Monday training')).toBeTruthy()
-    expect(await findByText('Are you in?')).toBeTruthy()
     expect(await findByText('eventFlow.rsvp.yes')).toBeTruthy()
     expect(await findByText('eventFlow.rsvp.maybe')).toBeTruthy()
     expect(await findByText('eventFlow.rsvp.no')).toBeTruthy()
@@ -169,7 +168,7 @@ describe('PlayerHome', () => {
     expect(await findByText(/See you tomorrow/)).toBeTruthy()
   })
 
-  it('renders a cancelled event struck through, with the reason and no reply control', async () => {
+  it('never asks for an answer to a cancelled event', async () => {
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
         return Promise.resolve([
@@ -202,22 +201,22 @@ describe('PlayerHome', () => {
       if (path.includes('/announcements')) return Promise.resolve([])
       return Promise.resolve(null)
     })
-    const { findByText, queryByText, queryAllByText } = render(
+    const { findByText, queryByTestId, queryAllByText } = render(
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByText('Wednesday training')).toBeTruthy()
-    expect(await findByText(/Cancelled · Pitch frozen/)).toBeTruthy()
-    // A cancelled event owes nobody an answer: no reply badge, and the only
-    // reply control on screen is the hero's (Monday, already answered, which
-    // keeps its control so the answer can be changed).
-    expect(queryByText(/to answer/)).toBeNull()
+    expect(await findByText('Monday training')).toBeTruthy()
+    // A cancelled event owes nobody an answer: no "Termine warten auf dich"
+    // row, and the only reply control is the hero's (Monday, already
+    // answered, which keeps its control so the answer can be changed).
+    expect(queryByTestId('player-home-awaiting')).toBeNull()
     expect(queryAllByText('eventFlow.rsvp.maybe')).toHaveLength(1)
   })
 
-  it('renders announcement titles', async () => {
-    const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-    expect(await findByText('Club BBQ')).toBeTruthy()
+  it('keeps team announcements off Start (board 22; they live in the chat)', async () => {
+    const { findByText, queryByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
+    expect(await findByText('Monday training')).toBeTruthy()
+    expect(queryByText('Club BBQ')).toBeNull()
   })
 
   it('opens event detail from the check-in action window', async () => {
@@ -280,7 +279,8 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('Pitch arrival')).toBeTruthy()
-    expect(await findByText('Are you in?')).toBeTruthy()
+    // Board 22: the in-hero segmented asks; no extra prompt line.
+    expect(await findByText('eventFlow.rsvp.maybe')).toBeTruthy()
     expect(queryByText('Open check-in')).toBeNull()
   })
 
@@ -325,8 +325,9 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('Live match')).toBeTruthy()
-    expect(await findByText('Are you in?')).toBeTruthy()
-    expect(await findByText('1-0')).toBeTruthy()
+    // Board 22: the in-hero segmented asks; no extra prompt line.
+    expect(await findByText('eventFlow.rsvp.maybe')).toBeTruthy()
+    expect(await findByText('SV Albatros 1:0 FC Nord')).toBeTruthy()
     expect(queryByText('Open live match')).toBeNull()
   })
 
@@ -371,7 +372,7 @@ describe('PlayerHome', () => {
     )
 
     expect(await findByText('Open check-in')).toBeTruthy()
-    expect(await findByText('2-1')).toBeTruthy()
+    expect(await findByText('SV Albatros 2:1 FC Nord')).toBeTruthy()
     expect(queryByText('Open live match')).toBeNull()
   })
 
@@ -414,11 +415,10 @@ describe('PlayerHome', () => {
     })
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
 
-    expect(await findByText('SV Albatros')).toBeTruthy()
-    expect(await findByText('1-0')).toBeTruthy()
+    expect(await findByText('SV Albatros 1:0 FC Nord')).toBeTruthy()
   })
 
-  it('collapses a live-match action and event into one decisive hero', async () => {
+  it('shows an answered live match as one compact score row', async () => {
     const eventDate = new Date(Date.now() + 3 * 86400000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -455,13 +455,15 @@ describe('PlayerHome', () => {
       return Promise.resolve(null)
     })
 
-    const { findByText, queryByText, queryAllByText } = render(
+    const { findByTestId, queryByText } = render(
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByText('Open live match')).toBeTruthy()
-    expect(queryByText('Match is live')).toBeNull()
-    expect(queryAllByText('FC Nord')).toHaveLength(1)
+    // The answered live match is one compact score row, not a second card.
+    const live = await findByTestId('player-home-live')
+    expect(live).toBeTruthy()
+    expect(queryByText('SV Albatros 2:1 FC Nord')).toBeTruthy()
+    expect(queryByText('Open live match')).toBeNull()
   })
 
   it('keeps unrelated team events visible and prefers the next linked live fixture', async () => {
@@ -535,16 +537,13 @@ describe('PlayerHome', () => {
       return Promise.resolve(null)
     })
 
-    const { findByLabelText, findByText, queryAllByText } = render(
+    const { findByLabelText, getByTestId } = render(
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
     expect(await findByLabelText(/Team A vs A United, live/)).toBeTruthy()
-    // The live match is represented once: the score card plus the decision
-    // card for it. It must never also appear as a row in the week list.
-    expect(queryAllByText('Team A live event')).toHaveLength(1)
-    expect(await findByText('Team B live event')).toBeTruthy()
-    expect(await findByText('Team C training')).toBeTruthy()
+    // Team C's unanswered training still waits for an answer.
+    expect(getByTestId('player-home-awaiting')).toBeTruthy()
   })
 
   it('shows a live fixture when the kickoff event has aged out of upcoming events', async () => {
@@ -576,8 +575,7 @@ describe('PlayerHome', () => {
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
 
-    expect(await findByText('SV Albatros')).toBeTruthy()
-    expect(await findByText('2-1')).toBeTruthy()
+    expect(await findByText('SV Albatros 2:1 FC Nord')).toBeTruthy()
     expect(
       queryByText('Your upcoming matches will appear here. Ask your coach to schedule your first event.'),
     ).toBeNull()
@@ -624,7 +622,7 @@ describe('PlayerHome', () => {
     })
   })
 
-  it('routes linked matches from the multi-team week list to match detail', async () => {
+  it('sends everything after the hero to the calendar once all is answered', async () => {
     const kickoffAt = new Date(Date.now() + 2 * 86400000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -671,12 +669,9 @@ describe('PlayerHome', () => {
     const { router } = require('expo-router')
     const { findByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
 
-    fireEvent.press(await findByText('Team B Cup'))
+    fireEvent.press(await findByText('All answered'))
 
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/match-detail',
-      params: { fixtureId: 'fixture-team-2', teamId: 'team-2' },
-    })
+    expect(router.push).toHaveBeenCalledWith('/(tabs)/events')
   })
 
   describe('matchday logistics, jobs and fees', () => {
@@ -767,23 +762,24 @@ describe('PlayerHome', () => {
     it('leads the hero with the opponent, Away, kick-off and meeting time and place', async () => {
       mockMatchday()
       const { findByText, getByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-      // Redesign screen 22: "Next up · Match · Away", "Sa 15:00", "vs <opponent>",
+      // Redesign screen 22: "Next up · Match", "Sa 15:00", "vs <opponent>",
       // "Meet 13:30 · <place>".
       expect(await findByText('vs SV Babelsberg 03')).toBeTruthy()
-      expect(getByText(/Away/)).toBeTruthy()
+      expect(getByText('Next up · Match')).toBeTruthy()
       expect(getByText(/15:00/)).toBeTruthy()
       expect(getByText('Meet 13:30 · Vereinsheim')).toBeTruthy()
     })
 
     it("shows only the player's own jobs and the fee owed", async () => {
       mockMatchday()
-      const { findByText, getByText, queryByText } = render(
+      const { findByText, getByTestId, queryByText } = render(
         wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
       )
-      expect(await findByText('My jobs')).toBeTruthy()
-      expect(getByText('Jersey wash')).toBeTruthy()
+      expect(await findByText('Jersey wash')).toBeTruthy()
       expect(queryByText('Bib wash')).toBeNull()
-      const fee = getByText(/45\.00 outstanding/)
+      // One group row: "Beitrag <Monat>", amount and due date, tag.
+      const fee = getByTestId('player-home-dues')
+      expect(within(fee).getByText('contributions.status.OVERDUE')).toBeTruthy()
       fireEvent.press(fee)
       const { router } = require('expo-router')
       expect(router.push).toHaveBeenCalledWith('/my-contributions')
@@ -794,12 +790,12 @@ describe('PlayerHome', () => {
         duties: [],
         dues: { hasContributions: true, bankTransfer: null, items: [] },
       })
-      const { findByText, queryByText } = render(
+      const { findByText, queryByText, queryByTestId } = render(
         wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
       )
       expect(await findByText('vs SV Babelsberg 03')).toBeTruthy()
-      expect(queryByText('My jobs')).toBeNull()
-      expect(queryByText(/outstanding/)).toBeNull()
+      expect(queryByText('Jersey wash')).toBeNull()
+      expect(queryByTestId('player-home-dues')).toBeNull()
     })
   })
 })

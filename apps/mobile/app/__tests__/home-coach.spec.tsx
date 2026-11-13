@@ -255,13 +255,14 @@ describe('CoachHome', () => {
   })
 
   it('spells the squad split out instead of bare numbers', async () => {
-    const { findByText, getByText, getByLabelText } = renderCoach()
+    const { findByText, getByText, getByLabelText, queryByText } = renderCoach()
     const hidden = { includeHiddenElements: true }
     expect(await findByText('13 going', hidden)).toBeTruthy()
     expect(getByText('1 maybe', hidden)).toBeTruthy()
     expect(getByText('3 no reply', hidden)).toBeTruthy()
     // Absagen take no bar segment but are still counted.
-    expect(getByText('1 declined', hidden)).toBeTruthy()
+    // Board 08 shows dabei · vielleicht · offen; Absagen stay in the spoken label.
+    expect(queryByText('1 declined', hidden)).toBeNull()
     expect(getByLabelText('13 going, 1 maybe, 3 no reply, 1 declined')).toBeTruthy()
   })
 

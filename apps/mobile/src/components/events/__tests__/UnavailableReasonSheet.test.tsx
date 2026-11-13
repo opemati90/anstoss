@@ -80,11 +80,12 @@ describe('UnavailableReasonSheet', () => {
 
   beforeEach(() => jest.clearAllMocks())
 
-  it('renders a chip for every reason the API accepts, including Gesperrt and Sonstiges', () => {
+  it("renders board 24's six chips; Gesperrt is the coach's call, not a player chip", () => {
     render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
-    for (const key of ['injured', 'sick', 'work', 'vacation', 'personal', 'suspended', 'other']) {
+    for (const key of ['work', 'sick', 'injured', 'vacation', 'personal', 'other']) {
       expect(screen.getByTestId(`absence-reason-${key}`)).toBeTruthy()
     }
+    expect(screen.queryByTestId('absence-reason-suspended')).toBeNull()
   })
 
   it('Abbrechen closes without sending an Absage', () => {
@@ -114,10 +115,10 @@ describe('UnavailableReasonSheet', () => {
 
   it('submits the chosen reason and the trimmed note', () => {
     render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
-    fireEvent.press(screen.getByTestId('absence-reason-suspended'))
-    fireEvent.changeText(screen.getByTestId('absence-note'), '  Rote Karte letzte Woche  ')
+    fireEvent.press(screen.getByTestId('absence-reason-work'))
+    fireEvent.changeText(screen.getByTestId('absence-note'), '  Spätschicht bis 15 Uhr  ')
     fireEvent.press(screen.getByTestId('absence-confirm'))
-    expect(onSubmit).toHaveBeenCalledWith({ reason: 'suspended', note: 'Rote Karte letzte Woche' })
+    expect(onSubmit).toHaveBeenCalledWith({ reason: 'work', note: 'Spätschicht bis 15 Uhr' })
   })
 
   it('tapping a chosen chip again clears it', () => {
@@ -128,11 +129,9 @@ describe('UnavailableReasonSheet', () => {
     expect(onSubmit).toHaveBeenCalledWith({})
   })
 
-  it('"without reason" never sends a reason or note', () => {
+  it('sends without a reason when no chip is chosen (a reason is never required)', () => {
     render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
-    fireEvent.press(screen.getByTestId('absence-reason-injured'))
-    fireEvent.changeText(screen.getByTestId('absence-note'), 'Knie')
-    fireEvent.press(screen.getByTestId('absence-skip'))
+    fireEvent.press(screen.getByTestId('absence-confirm'))
     expect(onSubmit).toHaveBeenCalledWith({})
   })
 })

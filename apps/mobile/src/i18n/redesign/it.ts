@@ -136,9 +136,9 @@ export default {
       hi: "Ciao {{name}}",
     },
     player: {
-      awaiting: "{{count}} eventi ti aspettano",
-      awaiting_one: "{{count}} evento ti aspetta",
-      awaiting_other: "{{count}} eventi ti aspettano",
+      awaiting: "Eventi ti aspettano",
+      awaiting_one: "Un evento ti aspetta",
+      awaiting_other: "Eventi ti aspettano",
       confirmMaybe: "Decidi presto, l'allenatore sta pianificando.",
       confirmNo: "Assenza inviata. L'allenatore è informato.",
       confirmYes: "Ci sei. Sei uno dei {{count}}.",

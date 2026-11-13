@@ -174,7 +174,7 @@ describe('EventsScreen', () => {
     )
     const screen = render(<EventsScreen />)
 
-    const row = await screen.findByLabelText(/Away at SV Babelsberg 03.*Meet .*Kick-off/)
+    const row = await screen.findByLabelText(/matchTitleShort.away.*Meet .*Kick-off/)
     fireEvent.press(row)
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/event-detail',

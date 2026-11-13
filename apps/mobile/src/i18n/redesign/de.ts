@@ -151,9 +151,9 @@ export default {
       hi: "Hi {{name}}",
     },
     player: {
-      awaiting: "{{count}} Termine warten auf dich",
-      awaiting_one: "{{count}} Termin wartet auf dich",
-      awaiting_other: "{{count}} Termine warten auf dich",
+      awaiting: "Termine warten auf dich",
+      awaiting_one: "Termin wartet auf dich",
+      awaiting_other: "Termine warten auf dich",
       confirmMaybe: "Bitte entscheide dich bald, der Trainer plant.",
       confirmNo: "Abgesagt. Der Trainer ist informiert.",
       confirmYes: "Zugesagt. Du bist einer von {{count}}.",

@@ -3,7 +3,7 @@
  * home kit. Each block names the finding it pins down.
  */
 import React from 'react'
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, within } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { PlayerHome } from '../PlayerHome'
 import { HomeSkeleton } from '../HomeSkeleton'
@@ -129,7 +129,6 @@ describe('#1 a failed refresh keeps the home', () => {
       ),
     )
     expect(await view.findByText('Monday training', {}, { timeout: 3000 })).toBeTruthy()
-    expect(view.getByText('Club BBQ')).toBeTruthy()
 
     // Offline now: every request fails.
     mockApi.mockImplementation(() => Promise.reject(new Error('offline')))
@@ -139,7 +138,6 @@ describe('#1 a failed refresh keeps the home', () => {
 
     expect(await view.findByText(/^Last updated /, {}, { timeout: 3000 })).toBeTruthy()
     expect(view.getByText('Monday training')).toBeTruthy()
-    expect(view.getByText('Club BBQ')).toBeTruthy()
     expect(view.queryByText("Couldn't load your week")).toBeNull()
   })
 })
@@ -175,30 +173,19 @@ describe('#11 realtime upserts refresh quietly', () => {
   })
 })
 
-describe('#9/#10 "This week" is the next seven days', () => {
-  it('counts and lists only this week, links to all events, and names each reply group', async () => {
+describe('#9/#10 board 22: one row for every event still waiting for an answer', () => {
+  it('counts the later unanswered events in a lime circle and links to the calendar', async () => {
     const view = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await view.findByText('Monday training')).toBeTruthy()
-    // Hero = Monday; the list holds Tuesday + Thursday, not the one in 12 days.
-    expect(view.getByText('This week · 2 to answer')).toBeTruthy()
-    expect(view.queryByText('Training in two weeks')).toBeNull()
+    // Hero = Monday; the row counts Tuesday, Thursday and the one in 12 days.
+    const row = view.getByTestId('player-home-awaiting')
+    expect(within(row).getByText('3')).toBeTruthy()
+    // The answers themselves live on the hero and in the calendar.
+    expect(view.queryByText('Tuesday training')).toBeNull()
 
-    fireEvent.press(view.getByLabelText('All events'))
+    fireEvent.press(row)
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/(tabs)/events')
-
-    type Node = { type: unknown; props: Record<string, unknown> }
-    const groups = view.UNSAFE_root.findAll(
-      (node: Node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup',
-    )
-    expect(
-      groups.some((g: Node) => String(g.props.accessibilityLabel).startsWith('Tuesday training, ')),
-    ).toBe(true)
-    // Each answer also carries the event as its hint (iOS reads no group label).
-    const radios = view.getAllByRole('radio')
-    expect(radios.some((r) => String(r.props.accessibilityHint).startsWith('Tuesday training, '))).toBe(
-      true,
-    )
   })
 
   it('eventsThisWeek drops anything past seven days', () => {

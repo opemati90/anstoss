@@ -154,10 +154,7 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
   // One card per child: the next non-cancelled event on that child's calendar.
   const childCards = useMemo(() => {
     const byChild = new Map<string, { next: ChildEvent; more: number }>()
-    const byDate = [...events].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    )
-    for (const ev of byDate) {
+    for (const ev of events) {
       if (ev.cancelledAt) continue
       const key = ev.childUserId ?? `team:${ev.teamName}`
       const entry = byChild.get(key)

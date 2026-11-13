@@ -136,9 +136,9 @@ export default {
       hi: "Merhaba {{name}}",
     },
     player: {
-      awaiting: "{{count}} etkinlik seni bekliyor",
-      awaiting_one: "{{count}} etkinlik seni bekliyor",
-      awaiting_other: "{{count}} etkinlik seni bekliyor",
+      awaiting: "Seni bekleyen etkinlikler",
+      awaiting_one: "Seni bekleyen etkinlik",
+      awaiting_other: "Seni bekleyen etkinlikler",
       confirmMaybe: "Lütfen yakında karar ver, antrenör plan yapıyor.",
       confirmNo: "Katılmıyorsun. Antrenöre bildirildi.",
       confirmYes: "Katılıyorsun. {{count}} kişiden birisin.",

@@ -929,7 +929,10 @@ function createParentEvents(): CrossTeamEventItem[] {
     ...overrides,
   })
   // ── end home revamp ──
+  // Chronological like the API: Leo's away match (Sunday) comes first, so
+  // the parent home shows the carpool row of board 25.
   return [
+    row(byId('event-match-away'), E2E_PARENT_KIDS[0]),
     row(byId('event-match-next'), E2E_PARENT_KIDS[0]),
     row(
       u11('event-u11-training', {
@@ -953,7 +956,6 @@ function createParentEvents(): CrossTeamEventItem[] {
       E2E_PARENT_KIDS[1],
       'YES',
     ),
-    row(byId('event-match-away'), E2E_PARENT_KIDS[0]),
     {
       ...row(byId('event-training-later'), E2E_PARENT_KIDS[0]),
       id: 'event-parent-second',
@@ -3675,6 +3677,10 @@ function handleEventFlowRequest(
   // (ChildrenOverview). Leo plays U15 (and the senior team's event), Mia U11;
   // duties are TeamDutyAssignment rows, one of them the parent's own.
   if (method === 'GET' && pathname === '/me/children-overview') {
+    // Only the parent persona has linked children.
+    if (session.scenario !== 'parent') {
+      return { handled: true, ok: true, status: 200, body: { children: [], duties: [], announcements: [] } }
+    }
     const stamp = nowIso(-2, 12, 0)
     const dutyRow = (
       id: string,
