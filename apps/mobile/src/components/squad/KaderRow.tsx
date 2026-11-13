@@ -162,7 +162,7 @@ export function KaderRow({ member, onPress, isFirst, isLast, actionHint, attenda
           {attendance.map((on, index) => (
             <View
               key={index}
-              style={[styles.bar, { backgroundColor: on ? c.primary : c.surfaceSunken }]}
+              style={[styles.bar, { backgroundColor: on ? c.primary : c.borderDefault }]}
             />
           ))}
         </View>

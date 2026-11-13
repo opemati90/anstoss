@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
@@ -64,6 +64,9 @@ export type EventRowProps = {
  * the coach's count ("14 dabei") or, for players and parents, the answer pills
  * right under it.
  */
+/** From this font scale the meta line may wrap instead of clipping the place. */
+const LARGE_TEXT_SCALE = 1.3
+
 export const EventRow = memo(function EventRow({
   event,
   locale,
@@ -110,6 +113,7 @@ export const EventRow = memo(function EventRow({
       ? `${timeLine} · ${t('eventFlow.list.rescheduled')}`
       : [timeLine, event.location].filter(Boolean).join(' · ')
   const contextLabel = `${weekday} · ${title}`
+  const { fontScale } = useWindowDimensions()
 
   return (
     <View
@@ -180,14 +184,14 @@ export const EventRow = memo(function EventRow({
             >
               {title}
             </Text>
-            {/* M5: never truncated (compact rows lead with the time, so only the
-                place can clip). At 320pt or font scale 2.0 the time line
-                wraps instead of hiding the kickoff. */}
+            {/* M5: the time leads, so only the place can clip (board 23 keeps
+                the meta on one line). At large font scales the line wraps
+                instead of hiding the kickoff. */}
             <Text
               variant="footnote"
               color={event.myRsvpStale && !cancelled && !compact ? 'tint' : 'secondary'}
               tabular
-              numberOfLines={compact ? 1 : undefined}
+              numberOfLines={compact || fontScale < LARGE_TEXT_SCALE ? 1 : undefined}
               style={compact ? styles.metaCompact : undefined}
               testID={testID ? `${testID}-time` : undefined}
             >

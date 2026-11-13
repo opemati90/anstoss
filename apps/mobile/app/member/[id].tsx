@@ -353,7 +353,7 @@ export default function MemberProfileScreen() {
             ).map((on, index) => (
               <View
                 key={index}
-                style={[styles.square, { backgroundColor: on ? c.primary : c.surfaceSunken }]}
+                style={[styles.square, { backgroundColor: on ? c.primary : c.borderDefault }]}
               />
             ))}
           </View>
