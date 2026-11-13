@@ -35,16 +35,17 @@ jest.mock('expo-router', () => {
   }
 })
 
-jest.mock('@expo-google-fonts/dm-sans', () => ({
+jest.mock('@expo-google-fonts/inter', () => ({
   useFonts: jest.fn(() => [true]),
-  DMSans_400Regular: {},
-  DMSans_500Medium: {},
-  DMSans_600SemiBold: {},
-  DMSans_700Bold: {},
+  Inter_400Regular: {},
+  Inter_500Medium: {},
+  Inter_600SemiBold: {},
+  Inter_700Bold: {},
 }))
 
-jest.mock('@expo-google-fonts/geist-mono', () => ({
-  GeistMono_400Regular: {},
+jest.mock('@expo-google-fonts/barlow-condensed', () => ({
+  BarlowCondensed_600SemiBold: {},
+  BarlowCondensed_700Bold: {},
 }))
 
 const mockSetActiveClub = jest.fn()

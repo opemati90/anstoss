@@ -16,24 +16,29 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { Haptics } from '../../utils/haptics'
 import {
   elevation,
-  hairline,
   spring,
   SPACING_SM,
   BUTTON_HEIGHT_SM,
   BUTTON_HEIGHT_MD,
+  BUTTON_HEIGHT_LG,
   BUTTON_PADDING_HORIZONTAL,
   RADIUS_BUTTON,
   FONT_SIZE_BODY,
   FONT_SIZE_BODY_SMALL,
+  FONT_SIZE_CAPTION,
   FONT_FAMILY_BOLD,
 } from '../../theme/tokens'
 
 /**
- * Button variants:
- *   filled      — solid club tint, inverse label, shadowed (hero CTAs)
- *   tinted      — 10% tint background, tint label (secondary CTAs)
- *   plain       — no background, tint label (tertiary CTAs)
- *   bordered    — surface bg, hairline border, primary label (cards)
+ * Button variants (2026-11 redesign: 56pt pills, ink as the main action):
+ *   filled      — solid ink, inverse label (the screen's main action)
+ *   accent      — lime signal fill, ink label (the one action on a
+ *                 club-coloured hero or dark surface)
+ *   onHero      — transparent with a light outline, for a second action on a
+ *                 club-coloured surface
+ *   tinted      — 10% club tint background, tint label
+ *   plain       — no background, club-tint label (tertiary CTAs)
+ *   bordered    — transparent, 1pt outline, ink label (secondary CTAs)
  *   destructive — solid error red, inverse label
  *
  * Legacy aliases (kept so existing call sites keep compiling):
@@ -43,6 +48,8 @@ import {
  */
 export type ButtonVariant =
   | 'filled'
+  | 'accent'
+  | 'onHero'
   | 'tinted'
   | 'plain'
   | 'bordered'
@@ -70,19 +77,21 @@ export interface ButtonProps extends AccessibilityProps {
 
 // Renuir-derived pill dimensions. `lg` adds ~8pt over md to retain the three-
 // step spec; `md` is the canonical Renuir button height (46).
+// sm is the compact inline pill (36pt visual, hit area padded to 44);
+// lg is the full-width 56pt screen action.
 const HEIGHTS: Record<ButtonSize, number> = {
-  sm: BUTTON_HEIGHT_SM,
+  sm: BUTTON_HEIGHT_SM - 4,
   md: BUTTON_HEIGHT_MD,
-  lg: BUTTON_HEIGHT_MD + 8,
+  lg: BUTTON_HEIGHT_LG,
 }
 const H_PADDING: Record<ButtonSize, number> = {
-  sm: BUTTON_PADDING_HORIZONTAL - 4,
-  md: BUTTON_PADDING_HORIZONTAL,
-  lg: BUTTON_PADDING_HORIZONTAL + 4,
+  sm: BUTTON_PADDING_HORIZONTAL - 2,
+  md: BUTTON_PADDING_HORIZONTAL + 4,
+  lg: BUTTON_PADDING_HORIZONTAL + 8,
 }
 const FONT_SIZES: Record<ButtonSize, number> = {
-  sm: FONT_SIZE_BODY_SMALL,
-  md: FONT_SIZE_BODY,
+  sm: FONT_SIZE_CAPTION,
+  md: FONT_SIZE_BODY_SMALL,
   lg: FONT_SIZE_BODY,
 }
 
@@ -139,13 +148,16 @@ export function Button({
   // label, no border. `loading` is excluded: a button mid-request keeps its
   // filled identity so the spinner stays legible and the CTA doesn't flinch.
   const isWaitingOnInput = !!disabled && !loading
-  const mutedFill = effectiveVariant === 'filled' || effectiveVariant === 'destructive'
+  const mutedFill =
+    effectiveVariant === 'filled' ||
+    effectiveVariant === 'accent' ||
+    effectiveVariant === 'destructive'
 
   // minHeight, not height: at large Dynamic Type / Android font scale the
   // label wraps to a second line and the pill grows instead of clipping.
   const containerStyle: ViewStyle = {
     minHeight: HEIGHTS[size],
-    paddingVertical: size === 'sm' ? 6 : 10,
+    paddingVertical: size === 'sm' ? 4 : 10,
     paddingHorizontal: H_PADDING[size],
     backgroundColor:
       isWaitingOnInput && mutedFill ? c.surfaceSunken : palette.bg,
@@ -183,6 +195,7 @@ export function Button({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={isDisabled}
+        hitSlop={size === 'sm' ? 4 : undefined}
         style={[styles.base, containerStyle]}
         {...a11y}
       >
@@ -247,10 +260,24 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
   switch (variant) {
     case 'filled':
       return {
-        bg: c.primary,
-        fg: c.textInverse,
-        border: c.primary,
+        bg: c.ink,
+        fg: c.onInk,
+        border: c.ink,
         borderWidth: 0,
+      }
+    case 'accent':
+      return {
+        bg: c.accent,
+        fg: c.onAccent,
+        border: c.accent,
+        borderWidth: 0,
+      }
+    case 'onHero':
+      return {
+        bg: 'transparent',
+        fg: '#FFFFFF',
+        border: 'rgba(255, 255, 255, 0.32)',
+        borderWidth: 1,
       }
     case 'tinted':
       return {
@@ -268,10 +295,10 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
       }
     case 'bordered':
       return {
-        bg: c.surface,
+        bg: 'transparent',
         fg: c.textPrimary,
         border: c.borderStrong,
-        borderWidth: hairline,
+        borderWidth: 1,
       }
     case 'destructive':
       return {

@@ -4,12 +4,15 @@ import { Linking, StatusBar, StyleSheet, Text, View, useColorScheme } from 'reac
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_600SemiBold,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans'
-import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono'
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter'
+import {
+  BarlowCondensed_600SemiBold,
+  BarlowCondensed_700Bold,
+} from '@expo-google-fonts/barlow-condensed'
 import { AuthProvider, useAuth } from '../src/context/AuthContext'
 // Chat revamp: gestures (swipe-to-reply, swipe actions) + native keyboard tracking.
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -36,11 +39,12 @@ void SplashScreen.preventAutoHideAsync().catch(() => {})
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_600SemiBold,
-    DMSans_700Bold,
-    GeistMono_400Regular,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    BarlowCondensed_600SemiBold,
+    BarlowCondensed_700Bold,
   })
   const [i18nReady, setI18nReady] = useState(false)
   const [startupTimedOut, setStartupTimedOut] = useState(false)

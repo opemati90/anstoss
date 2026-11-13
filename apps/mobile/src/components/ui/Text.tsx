@@ -27,6 +27,11 @@ import {
   FONT_FAMILY_REGULAR,
   FONT_FAMILY_MEDIUM,
   FONT_FAMILY_BOLD,
+  FONT_FAMILY_SEMIBOLD,
+  FONT_FAMILY_DISPLAY,
+  FONT_SIZE_HERO,
+  FONT_SIZE_MICRO,
+  LINE_HEIGHT_HERO,
 } from '../../theme/typography'
 
 /**
@@ -49,8 +54,10 @@ import {
  *   footnote        →  bodySmall      →  14
  *   caption1        →  caption        →  12
  *   caption2        →  caption (wide) →  13
- *   data            →  h2 mono        →  20 (Geist Mono)
- *   dataLarge       →  display mono   →  32 (Geist Mono)
+ *   data            →  numbers        →  23 (Barlow Condensed)
+ *   dataLarge       →  numbers        →  36 (Barlow Condensed)
+ *   display         →  hero headline  →  54 (Barlow Condensed, caps)
+ *   label           →  section label  →  12 (Inter semibold, caps)
  */
 export type TextVariant =
   | 'largeTitle'
@@ -66,6 +73,8 @@ export type TextVariant =
   | 'caption2'
   | 'data'
   | 'dataLarge'
+  | 'display'
+  | 'label'
 
 export type TextColor =
   | 'primary'
@@ -100,6 +109,7 @@ interface VariantStyle {
   letterSpacing: number
   defaultWeight: TextWeight
   isMono?: boolean
+  uppercase?: boolean
 }
 
 const VARIANTS: Record<TextVariant, VariantStyle> = {
@@ -183,29 +193,49 @@ const VARIANTS: Record<TextVariant, VariantStyle> = {
     defaultWeight: 'medium',
   },
   data: {
-    fontSize: FONT_SIZE_H2,
-    lineHeight: FONT_SIZE_H2 * LINE_HEIGHT_TIGHT,
+    fontSize: FONT_SIZE_H2 + 3,
+    lineHeight: (FONT_SIZE_H2 + 3) * LINE_HEIGHT_TIGHT,
     fontFamily: fonts.data,
     letterSpacing: LETTER_SPACING_NORMAL,
-    defaultWeight: 'regular',
+    defaultWeight: 'bold',
     isMono: true,
   },
   dataLarge: {
-    fontSize: FONT_SIZE_DISPLAY,
-    lineHeight: FONT_SIZE_DISPLAY * LINE_HEIGHT_DISPLAY,
+    fontSize: FONT_SIZE_DISPLAY + 4,
+    lineHeight: (FONT_SIZE_DISPLAY + 4) * LINE_HEIGHT_TIGHT,
     fontFamily: fonts.data,
-    letterSpacing: LETTER_SPACING_TIGHT,
-    defaultWeight: 'regular',
+    letterSpacing: LETTER_SPACING_NORMAL,
+    defaultWeight: 'bold',
     isMono: true,
+  },
+  // Condensed uppercase headline (welcome claim, next-up kick-off). Size it
+  // per use with `style={{ fontSize }}`; lineHeight follows via LINE_HEIGHT_HERO.
+  display: {
+    fontSize: FONT_SIZE_HERO,
+    lineHeight: FONT_SIZE_HERO * LINE_HEIGHT_HERO,
+    fontFamily: FONT_FAMILY_DISPLAY,
+    letterSpacing: LETTER_SPACING_NORMAL,
+    defaultWeight: 'bold',
+    isMono: true,
+    uppercase: true,
+  },
+  // Section label above a group ("VOR DEM SPIEL").
+  label: {
+    fontSize: FONT_SIZE_MICRO,
+    lineHeight: FONT_SIZE_MICRO * LINE_HEIGHT_NORMAL,
+    fontFamily: FONT_FAMILY_SEMIBOLD,
+    letterSpacing: 0.85,
+    defaultWeight: 'semibold',
+    uppercase: true,
   },
 }
 
-// DM Sans weight → loaded font family name
+// Inter weight → loaded font family name
 const WEIGHT_BODY: Record<TextWeight, string> = {
-  regular: 'DMSans_400Regular',
-  medium: 'DMSans_500Medium',
-  semibold: 'DMSans_600SemiBold',
-  bold: 'DMSans_700Bold',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
 }
 
 function resolveFontFamily(
@@ -247,6 +277,8 @@ const MAX_FONT_SCALE: Record<TextVariant, number> = {
   caption2: 1.6,
   data: 1.3,
   dataLarge: 1.2,
+  display: 1.2,
+  label: 1.6,
 }
 
 export function Text({
@@ -271,12 +303,19 @@ export function Text({
     lineHeight: v.lineHeight,
     fontFamily: resolveFontFamily(v, weight),
     letterSpacing: tracking != null ? letterSpacing[tracking] : v.letterSpacing,
-    color: resolveColor(color, c),
+    color: resolveColor(color ?? (variant === 'label' ? 'secondary' : undefined), c),
     textAlign: align,
     opacity: muted ? 0.72 : undefined,
+    textTransform: v.uppercase ? 'uppercase' : undefined,
     ...(v.isMono || tabular
       ? { fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] }
       : null),
+  }
+
+  // A display headline resized per use keeps its solid leading.
+  const flat = StyleSheet.flatten(style as TextStyle | TextStyle[] | undefined)
+  if (variant === 'display' && flat?.fontSize && flat.lineHeight == null) {
+    composed.lineHeight = flat.fontSize * LINE_HEIGHT_HERO
   }
 
   return (
@@ -295,4 +334,3 @@ export { VARIANTS as TEXT_VARIANTS }
 
 Text.displayName = 'Text'
 
-void StyleSheet

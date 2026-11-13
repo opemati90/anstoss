@@ -3,27 +3,27 @@ import { StyleSheet, View } from 'react-native'
 import { Icon, type IconName } from './Icon'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
-import { DEFAULT_PRIMARY, SURFACE_SUNKEN } from '../../theme/colors'
+import { DEFAULT_PRIMARY, SURFACE_MUTED } from '../../theme/colors'
 
 export interface SoftIconProps {
   name: IconName
-  /** Glyph and wash color. Defaults to the club primary. */
+  /**
+   * Glyph and wash colour. Omit it for the default neutral well (muted
+   * surface, ink glyph) that rows use; pass a colour for a tinted well.
+   */
   color?: string
-  /** Outer square size. Defaults to 32pt. */
+  /** Outer square size. Defaults to 40pt. */
   size?: number
 }
 
-export function SoftIcon({ name, color, size = 32 }: SoftIconProps) {
+export function SoftIcon({ name, color, size = 40 }: SoftIconProps) {
   const c = useClubColors()
-  const fallbackTint =
-    typeof c.primary === 'string' && c.primary.length > 0 ? c.primary : DEFAULT_PRIMARY
-  const fallbackWash =
-    typeof c.surfaceSunken === 'string' && c.surfaceSunken.length > 0
-      ? c.surfaceSunken
-      : SURFACE_SUNKEN
-  const tint = typeof color === 'string' && color.length > 0 ? color : fallbackTint
+  const hasColor = typeof color === 'string' && color.length > 0
+  const neutralWash =
+    typeof c.surfaceMuted === 'string' && c.surfaceMuted.length > 0 ? c.surfaceMuted : SURFACE_MUTED
+  const tint = hasColor ? color : c.textPrimary || DEFAULT_PRIMARY
   // Guard against any non-hex value reaching hexToRgba.
-  const wash = tint.startsWith('#') ? hexToRgba(tint, 0.12) : fallbackWash
+  const wash = hasColor && tint.startsWith('#') ? hexToRgba(tint, 0.12) : neutralWash
   return (
     <View
       style={[

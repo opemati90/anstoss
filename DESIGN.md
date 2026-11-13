@@ -1,8 +1,10 @@
 # Design System — Anstoss
 
-> Doctrine as of 2026-04-17: Anstoss adopts the **Renuir design system** end-to-end
-> (tokens, primitives, state components, sheet/drawer patterns). The Industrial/Utilitarian
-> doctrine from 2026-03-21 is retired — see Decisions Log.
+> Doctrine as of 2026-11-13: the **Anstoss Redesign** (pitch green, ink, lime;
+> Inter + Barlow Condensed) replaces the Renuir look. The Renuir token *structure*
+> (`useClubColors()`, `TextStyles`, `Spacing`/`Radius`, primitives) is kept; its
+> values and fonts change. Source design: the "Anstoss Redesign" canvas (34 screens).
+> See Decisions Log.
 
 ## Product Context
 - **What this is:** White-label mobile app platform for amateur football clubs in Germany/Europe
@@ -19,17 +21,20 @@
 ## Typography
 
 **Stack:**
-- **DM Sans** — all interface text. Regular (400) / Medium (500) / Bold (700).
-- **Geist Mono** — kept exclusively for numeric data displays (match scores, kick-off times, stat values, dues amounts). Use via the `StatCard` component or explicit `fontFamily="geist-mono"`.
+- **Inter** — all interface text. Regular (400) / Medium (500) / SemiBold (600) / Bold (700).
+- **Barlow Condensed** (Bold, uppercase for headlines) — the display face. Hero headlines
+  (`<Text variant="display">`, 54–66pt, solid leading), and every number that must read at a
+  glance: kick-off times, scores, RSVP counts, dues, codes (`variant="data" | "dataLarge"`, `fonts.data`).
 
-**Loading:** Both loaded via `expo-font` at app root. DM Sans: `@expo-google-fonts/dm-sans`. Geist Mono: local asset.
+**Loading:** both via `expo-font` at app root (`@expo-google-fonts/inter`, `@expo-google-fonts/barlow-condensed`).
 
 **Scale (7-step, responsive via `ms()`):** source of truth is `apps/mobile/src/theme/typography.ts`.
 
 | Token | Base px | Use |
 |---|---|---|
-| `display` | 32 | Hero text, onboarding, empty-state headlines |
-| `h1` | 24 | Screen titles, section headers |
+| `hero` | 54 | Barlow Condensed caps: welcome claim, next-up kick-off |
+| `display` | 32 | Large Inter titles |
+| `h1` | 28 | Screen titles (Inter Bold, tight tracking) |
 | `h2` | 20 | Card titles, dialog headers |
 | `body` | 16 | Body text, form field labels, buttons |
 | `bodySmall` | 14 | Secondary text, timestamps, metadata |
@@ -44,9 +49,24 @@
 
 ## Color
 
-### Approach: club-adaptive primary over Renuir neutrals
+### Approach: ink actions, club-coloured heroes, one lime signal
 
-Neutrals and semantic colors are fixed (Renuir palette). The `primary` slot is populated at runtime from the club badge / club setup color picker. Dark mode is first-class — `useColors()` returns the active theme object.
+- **Ink** (`ink` `#121A15`, `onInk` white) carries the main action on every screen: filled
+  buttons, selected chips, the active tab. It does not change with the club.
+- **Club colour** (`primary`, default pitch green `#0E3B2B`) is the identity: the welcome
+  screen, the crest, the next-up hero card, links. One club-coloured hero per screen.
+- **Lime** (`accent` `#D4F25C`, `onAccent` ink) is the signal: the one action on a
+  club-coloured hero (`<Button variant="accent">`) and highlights on dark surfaces.
+- Text on a club hero is white; secondary copy there is `onHeroMuted` `#C9D6CF`.
+- `alertDot` `#D9480F` marks unread/attention (bell, chat badge).
+
+Neutrals: page `background` `#F6F5F1`, `surface` white (no border on light), `surfaceSunken`
+`#ECEAE3` (segmented tracks), `surfaceMuted` `#F1EFE9` (icon wells, quiet tags), text
+`#121A15` / `#5B675F`, borders `#EDEBE4` (row dividers) / `#E4E2DA` / `#CFCDC4` (outlines).
+
+Dark: page `#0B100D`, surface `#151C17`, raised `#1F2821`, text `#ECEFEA` / `#97A39C`,
+borders `#232C25` / `#2A342D` / `#343E37`; `ink` flips to `#ECEFEA` with dark text. The club
+hero keeps the raw club colour in dark mode.
 
 ### Tokens — light theme (source: `apps/mobile/src/theme/colors.ts`)
 
@@ -119,14 +139,15 @@ Source: `spacing.ts → Radius`.
 
 | Token | Base px | Use |
 |---|---|---|
-| `sm` | 8 | Badges, chips, pills |
-| `md` | 12 | Inputs |
-| `lg` | 16 | Cards, modals |
-| `xl` | 20 | Bottom sheets, hero cards |
-| `full` | 9999 | Avatars, circular buttons |
-| `button` | 12 | Primary buttons — matches `md` radius for consistency with segmented controls, inputs, and cards |
-| `card` | 16 | Cards (equivalent to `lg`) |
-| `input` | 12 | Inputs (equivalent to `md`) |
+| `sm` | 8 | Tags |
+| `md` | 12 | Icon wells, segmented thumb |
+| `lg` | 16 | Segmented track |
+| `xl` | 20 | Bottom sheets |
+| `full` | 9999 | Buttons, chips, avatars, icon buttons |
+| `button` | full | All buttons are pills (56pt `lg`, 48pt `md`, 36pt `sm`) |
+| `card` | 20 | Cards and row groups |
+| `hero` | 28 | Club-coloured hero card |
+| `input` | 14 | Inputs (52pt tall) |
 
 ## Motion
 - **Easing:** ease-out on enter, ease-in on exit, ease-in-out on move.
@@ -139,15 +160,18 @@ Source: `spacing.ts → Radius`.
 
 Each primitive is a thin wrapper around Renuir's visual language, styled with the new tokens.
 
-- **Button** — primary / secondary / tertiary. Uses `primary` for filled, `borderStrong` for outlined, `textPrimary` for ghost. Height `BUTTON_HEIGHT_MD = 46`. Radius `button = 12` — matches segmented controls, inputs, and cards so the whole interface has one radius language.
+- **Button** — `filled` (ink), `accent` (lime, on heroes), `onHero` (white outline on club colour), `bordered` (1pt outline), `tinted`/`plain` (club tint), `destructive`. Pills; `lg` 56pt for screen actions.
 - **Text** — variant prop maps to `TextStyles` key. Always prefer this over raw `<Text>`.
 - **Card** — radius `card = 16`, padding `CARD_PADDING = 16`, subtle shadow.
 - **Badge / StatusPill** — uppercase `tag` TextStyle, `letterSpacing: 1.0`, radius `sm`. Colored backgrounds come from the semantic `*Bg` tokens.
 - **Avatar** — circular, fallback = first two letters of the user's name in DM Sans Bold on `primary`.
 - **IconButton / PressableScale** — Ionicons only. 40×40 hit area minimum. Scale pulse on press.
 - **ListRow** — left slot (avatar/icon) + title + subtitle + right slot (chevron / timestamp / badge).
-- **SegmentedControl / FilterChipRow** — caption-sized labels, `primary50` background on the active segment.
-- **SectionHeader / SectionGroup** — `caption` style uppercase label, then grouped rows with `surface` background and `borderSubtle` between.
+- **SegmentedControl** — `surfaceSunken` track (radius 16, 4pt inset), white 44pt thumb (radius 12, soft shadow), semibold labels.
+- **FilterChipRow** — 36pt outlined pills (44pt hit area); selected = solid ink.
+- **SectionHeader / SectionGroup** — `label` text style (12pt semibold caps), then a white radius-20 group with rows inset 16 and `borderSubtle` dividers.
+- **IconButton** — `variant="outlined"` is the 44pt white circle used for back/bell in headers; `onHero` for club surfaces.
+- **SoftIcon** — 40pt neutral well (`surfaceMuted`, ink glyph); pass `color` for a tinted well.
 - **Banner / Divider** — banners use semantic `*Bg` with matching text color.
 - **Screen (root wrapper)** — safe-area, StatusBar tuned to theme, background = `background`.
 - **StatCard** — Geist Mono for the value, `caption` for the label, `h2` for the delta.
@@ -207,4 +231,5 @@ Each primitive is a thin wrapper around Renuir's visual language, styled with th
 | 2026-09-11 | **RSVP answers use one accent, not three semantic colours** | Yes/Maybe/No is a *choice*, not three alert states. Green/amber/red put three competing hues on the app's busiest control, made colour the sole carrier of meaning (fails greyscale and colour-blind readers), and broke the one-accent rule the rest of the app follows. Icon + club-primary fill carries selection instead. Supersedes the old "filled semantic background" RSVP spec. |
 | 2026-09-11 | **Player home is a decision surface, not a card stack** | Home rendered five identically-weighted bordered cards with no identity and no hierarchy. Rebuilt as: identity row → one loud Next-up hero with inline RSVP → outstanding-reply queue → quiet week list → season strip → team pulse. Only one surface per screen may use `primary` as a full background (live match). |
 | 2026-09-11 | **Emoji are content, never iconography** | `⚽ 💧 🍰 👟 🔄` were acting as interface icons in 7 screens; they ignore the type ramp, the theme, and Dynamic Type. All moved to the `Icon` primitive. Emoji remain legitimate in chat reactions and user-authored content. An `Icon` map-integrity test now fails the build on a glyph name that does not exist. |
+| 2026-11-13 | **Anstoss Redesign replaces the Renuir look** | The product owner approved the 34-screen redesign as the new doctrine. Inter + Barlow Condensed replace DM Sans + Geist Mono; ink (not the club colour) carries the main action so every Vereinsfarbe gets the same legible buttons; the club colour moves to identity surfaces (welcome, crest, next-up hero); lime is the single signal accent. Structure (tokens, primitives, `useClubColors()`) unchanged. |
 | 2026-04-17 | Dark mode promoted to first-class | Renuir tokens include `lightTheme` / `darkTheme`. All new components must consume `useColors()` rather than raw color constants. |

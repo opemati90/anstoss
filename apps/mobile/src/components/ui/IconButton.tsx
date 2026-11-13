@@ -1,8 +1,15 @@
 import React from 'react'
 import { Pressable, StyleSheet, View, ViewStyle, AccessibilityProps } from 'react-native'
 import { RADIUS_FULL } from '../../theme/tokens'
+import { useClubColors } from '../../context/ClubThemeContext'
 
 export interface IconButtonProps extends AccessibilityProps {
+  /**
+   * plain    — bare 44pt hit area (default; toolbars, inline actions)
+   * outlined — 44pt white circle with a 1pt ring (screen headers: back, bell)
+   * onHero   — translucent white circle for club-coloured surfaces
+   */
+  variant?: 'plain' | 'outlined' | 'onHero'
   onPress?: () => void
   children: React.ReactNode
   disabled?: boolean
@@ -18,6 +25,7 @@ export interface IconButtonProps extends AccessibilityProps {
 }
 
 export function IconButton({
+  variant = 'plain',
   onPress,
   children,
   disabled,
@@ -25,6 +33,13 @@ export function IconButton({
   testID,
   ...a11y
 }: IconButtonProps) {
+  const c = useClubColors()
+  const surface: ViewStyle | null =
+    variant === 'outlined'
+      ? { backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderDefault }
+      : variant === 'onHero'
+        ? { backgroundColor: 'rgba(255, 255, 255, 0.12)' }
+        : null
   return (
     <Pressable
       accessibilityRole="button"
@@ -35,6 +50,7 @@ export function IconButton({
       hitSlop={4}
       style={({ pressed }) => [
         styles.base,
+        surface,
         { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 },
         style,
       ]}

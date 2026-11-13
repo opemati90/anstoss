@@ -1,3 +1,4 @@
+import { ms } from '../../src/theme/scale'
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
 import TabLayout from '../(tabs)/_layout'
@@ -177,6 +178,7 @@ describe('TabLayout', () => {
         elevation: 0,
       }),
     )
-    expect(Number(screenOptions?.tabBarStyle?.height)).toBeLessThan(85)
+    // 2026-11 redesign: 84pt bar at the 390pt baseline, scaled by ms().
+    expect(Number(screenOptions?.tabBarStyle?.height)).toBeLessThanOrEqual(ms(84))
   })
 })

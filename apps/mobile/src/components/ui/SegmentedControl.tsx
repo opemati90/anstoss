@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { elevation, hairline, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
+import { RADIUS_LG, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Text } from './Text'
 
@@ -59,7 +59,9 @@ export function SegmentedControl<T extends string = string>({
     }).start()
   }, [selectedIndex, reduceMotion, translate])
 
-  const segmentWidth = segments.length > 0 ? trackWidth / segments.length : 0
+  const n = segments.length
+  const segmentWidth =
+    n > 0 ? (trackWidth - TRACK_PAD * 2 - SEG_GAP * (n - 1)) / n : 0
 
   const handleLayout = (e: LayoutChangeEvent) => {
     setTrackWidth(e.nativeEvent.layout.width)
@@ -79,30 +81,29 @@ export function SegmentedControl<T extends string = string>({
         styles.track,
         {
           backgroundColor: c.surfaceSunken,
-          borderColor: c.borderSubtle,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         },
         style,
       ]}
       accessibilityRole="tablist"
     >
-      {segmentWidth > 0 ? (
+      {trackWidth > 0 && segmentWidth > 0 ? (
         <Animated.View
           pointerEvents="none"
           style={[
             styles.thumb,
             {
-              width: segmentWidth - 4,
+              width: segmentWidth,
               backgroundColor: c.surface,
               transform: [
                 {
                   translateX: translate.interpolate({
                     inputRange: segments.map((_, i) => i),
-                    outputRange: segments.map((_, i) => 2 + i * segmentWidth),
+                    outputRange: segments.map((_, i) => TRACK_PAD + i * (segmentWidth + SEG_GAP)),
                   }),
                 },
               ],
-              ...elevation.pill,
+              ...thumbShadow,
             },
           ]}
         />
@@ -121,7 +122,7 @@ export function SegmentedControl<T extends string = string>({
           >
             <Text
               variant="subheadline"
-              weight={selected ? 'semibold' : 'medium'}
+              weight="semibold"
               color={selected ? 'primary' : 'secondary'}
               numberOfLines={1}
             >
@@ -134,30 +135,42 @@ export function SegmentedControl<T extends string = string>({
   )
 }
 
-const TRACK_HEIGHT = 44
+// 44pt segments inside a 4pt-padded track (52pt overall).
+const SEGMENT_HEIGHT = 44
+const TRACK_PAD = 4
+const SEG_GAP = 4
+const TRACK_HEIGHT = SEGMENT_HEIGHT + TRACK_PAD * 2
+
+const thumbShadow = {
+  shadowColor: '#121A15',
+  shadowOpacity: 0.12,
+  shadowRadius: 3,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+}
 
 const styles = StyleSheet.create({
   track: {
     height: TRACK_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS_MD,
+    gap: SEG_GAP,
+    borderRadius: RADIUS_LG,
     borderCurve: 'continuous',
-    borderWidth: hairline,
-    // eslint-disable-next-line no-restricted-syntax -- TODO Pass 3 spacing
-    padding: 3,
+    padding: TRACK_PAD,
     position: 'relative',
   },
   thumb: {
     position: 'absolute',
-    top: 3,
-    bottom: 3,
-    borderRadius: RADIUS_MD - 2,
+    top: TRACK_PAD,
+    bottom: TRACK_PAD,
+    left: 0,
+    borderRadius: RADIUS_MD,
     borderCurve: 'continuous',
   },
   segment: {
     flex: 1,
-    height: TRACK_HEIGHT - 6,
+    height: SEGMENT_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING_SM,

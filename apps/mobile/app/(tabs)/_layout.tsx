@@ -1,5 +1,5 @@
 import { SPACING_XXS } from '../../src/theme/spacing'
-import { View, type ColorValue } from 'react-native'
+import { Text as RNText, View, type ColorValue } from 'react-native'
 import { useEffect } from 'react'
 import { Redirect, Tabs, router, usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +17,7 @@ import {
   FONT_FAMILY_MEDIUM,
   hairline,
   SPACING_MD,
-  SPACING_XS,
+  SPACING_SM,
   TAB_BAR_HEIGHT,
   TAB_ICON_SIZE,
 } from '../../src/theme/tokens'
@@ -107,22 +107,43 @@ export default function TabLayout() {
             flex: 1,
             backgroundColor: theme.background,
           },
-          tabBarActiveTintColor: theme.primary,
-          tabBarInactiveTintColor: theme.textTertiary,
+          // 2026-11 redesign: ink marks the active tab (bold label + dot),
+          // never the club colour, so every Vereinsfarbe reads the same.
+          tabBarActiveTintColor: theme.ink,
+          tabBarInactiveTintColor: theme.textSecondary,
           tabBarStyle: {
             backgroundColor: theme.surface,
-            borderTopColor: theme.borderSubtle,
+            borderTopColor: theme.borderDefault,
             borderTopWidth: hairline,
             height: TAB_BAR_HEIGHT,
             paddingBottom: SPACING_MD,
-            paddingTop: SPACING_XS,
+            paddingTop: SPACING_SM,
             elevation: 0,
           },
-          tabBarLabelStyle: {
-            fontFamily: FONT_FAMILY_MEDIUM,
-            fontSize: 12,
-            letterSpacing: 0,
-          },
+          tabBarLabel: ({ focused, color, children }) => (
+            <View style={{ alignItems: 'center', gap: SPACING_XXS + 1 }}>
+              <RNText
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
+                style={{
+                  color: typeof color === 'string' ? color : theme.textSecondary,
+                  fontFamily: focused ? FONT_FAMILY_BOLD : FONT_FAMILY_MEDIUM,
+                  fontSize: 11,
+                  letterSpacing: 0,
+                }}
+              >
+                {children}
+              </RNText>
+              <View
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: focused ? theme.ink : 'transparent',
+                }}
+              />
+            </View>
+          ),
           tabBarItemStyle: {
             paddingTop: SPACING_XXS,
           },
@@ -194,8 +215,8 @@ export default function TabLayout() {
             tabBarBadgeStyle:
               chatUnread > 0
                 ? {
-                    backgroundColor: theme.primary,
-                    color: theme.textInverse,
+                    backgroundColor: theme.alertDot,
+                    color: '#FFFFFF',
                     fontSize: 12,
                     fontFamily: FONT_FAMILY_BOLD,
                   }

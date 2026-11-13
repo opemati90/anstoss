@@ -16,7 +16,7 @@ export const SPACING_XXXL = ms(32)
 export const SPACING_BACK = ms(40)
 
 // Component-specific spacing
-export const SCREEN_PADDING = ms(24)
+export const SCREEN_PADDING = ms(20)
 export const BODY_PADDING = ms(20)
 export const CARD_PADDING = ms(16)
 export const BUTTON_PADDING_HORIZONTAL = ms(16)
@@ -39,8 +39,10 @@ export const RADIUS_XL = ms(20)
 export const RADIUS_FULL = 9999
 // Shape rule: actions are pills, cards 16, inputs 12.
 export const RADIUS_BUTTON = RADIUS_FULL
-export const RADIUS_CARD = ms(16)
-export const RADIUS_INPUT = ms(12)
+// Grouped surfaces (cards, row groups) are 20; heroes 28; inputs 14.
+export const RADIUS_CARD = ms(20)
+export const RADIUS_HERO = ms(28)
+export const RADIUS_INPUT = ms(14)
 
 // Icon sizes
 export const ICON_SM = ms(16)
@@ -51,16 +53,17 @@ export const ICON_XXL = ms(32)
 
 // Button heights
 export const BUTTON_HEIGHT_SM = ms(40)
-export const BUTTON_HEIGHT_MD = ms(50)
+export const BUTTON_HEIGHT_MD = ms(48)
+export const BUTTON_HEIGHT_LG = ms(56)
 
 // Input heights
-export const INPUT_HEIGHT = ms(50)
+export const INPUT_HEIGHT = ms(52)
 
 // Tab bar
 // Compact enough to keep content visible, while retaining a 44pt minimum
 // interactive target once the safe-area inset and label are included.
-export const TAB_BAR_HEIGHT = ms(78)
-export const TAB_ICON_SIZE = ms(24)
+export const TAB_BAR_HEIGHT = ms(84)
+export const TAB_ICON_SIZE = ms(22)
 export const TAB_BUTTON_SIZE = ms(58)
 
 // Back button
@@ -89,6 +92,7 @@ export const Radius = {
   full: RADIUS_FULL,
   button: RADIUS_BUTTON,
   card: RADIUS_CARD,
+  hero: RADIUS_HERO,
   input: RADIUS_INPUT,
 } as const
 

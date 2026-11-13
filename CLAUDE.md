@@ -24,8 +24,8 @@ Turborepo monorepo:
 ## Design System
 
 Always read `DESIGN.md` before making any visual or UI decisions.
-Renuir-derived editorial doctrine (adopted 2026-04-17). DM Sans + Geist Mono (data).
-Club-adaptive `primary` over Renuir neutrals. Dark mode first-class via `useColors()`.
+Anstoss Redesign doctrine (adopted 2026-11-13). Inter + Barlow Condensed (display, numbers).
+Ink actions, club-coloured heroes, lime accent. Dark mode first-class via `useColors()`.
 Tokens live in `apps/mobile/src/theme/`. Do not deviate without explicit user approval.
 
 ## Engineering Rules

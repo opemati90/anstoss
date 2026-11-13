@@ -2,9 +2,9 @@ import React from 'react'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import {
-  elevation,
   hairline,
   RADIUS_CARD,
+  SPACING_LG,
   SPACING_MD,
   SPACING_SM,
   SPACING_XS,
@@ -33,25 +33,24 @@ export function SectionGroup({
 
   const containerStyle: ViewStyle = {
     backgroundColor: c.surface,
-    borderColor: c.borderDefault,
-    borderWidth: hairline,
     borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: 'hidden',
-    ...elevation.card,
   }
 
   return (
     <View style={[styles.wrapper, style]}>
       {header ? (
         <View style={styles.header}>
-          <Text
-            variant={headerPlain ? 'subheadline' : 'footnote'}
-            color="secondary"
-            weight={headerPlain ? 'regular' : 'semibold'}
-          >
-            {header}
-          </Text>
+          {headerPlain ? (
+            <Text variant="subheadline" color="secondary">
+              {header}
+            </Text>
+          ) : (
+            <Text variant="label" accessibilityRole="header">
+              {header}
+            </Text>
+          )}
         </View>
       ) : null}
       <View style={[containerStyle, contentStyle]}>
@@ -80,16 +79,17 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   header: {
-    paddingHorizontal: SPACING_SM,
+    paddingHorizontal: SPACING_XS,
     paddingTop: SPACING_SM,
-    paddingBottom: SPACING_XS,
+    paddingBottom: SPACING_MD,
   },
   footer: {
     paddingHorizontal: SPACING_SM,
     paddingTop: SPACING_XS,
   },
+  // Rows are inset 16 from the group edge; the divider spans that inset.
   divider: {
     height: hairline,
-    marginLeft: SPACING_MD,
+    marginHorizontal: SPACING_LG,
   },
 })

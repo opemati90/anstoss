@@ -25,7 +25,7 @@ Turborepo monorepo:
 ## Design System
 
 Always read `DESIGN.md` before making any visual or UI decisions.
-Industrial/Utilitarian aesthetic. DM Sans + Geist Mono. Club-adaptive warm grays.
+Anstoss Redesign (2026-11-13). Inter + Barlow Condensed. Ink actions, club-coloured heroes, lime accent.
 Do not deviate without explicit user approval.
 
 ## Engineering Rules

@@ -1,9 +1,11 @@
 /**
  * Typography tokens — adapted from Renuir's typography.ts.
  *
- * DM Sans only for interface text. Geist Mono is reserved for numeric data
- * (match scores, kick-off times, dues amounts) and is not declared here —
- * use `fonts.data` from tokens.ts.
+ * Inter for all interface text. Barlow Condensed (bold, uppercase) is the
+ * display face: hero headlines, kick-off times, scores, dues and every other
+ * number that has to read from a distance (2026-11 redesign). Use
+ * `TextStyles.hero` / `<Text variant="display">` for headlines and
+ * `fonts.data` / `<Text variant="data">` for numbers.
  *
  * TextStyles bake in a default color (TEXT_PRIMARY / TEXT_SECONDARY / etc.).
  * Components that need dark-mode-aware color override it from useClubColors().
@@ -17,13 +19,17 @@ import {
 } from './colors'
 
 // ─── Font Families ───────────────────────────────────────────────────────────
-export const FONT_FAMILY_REGULAR = 'DMSans_400Regular'
-export const FONT_FAMILY_MEDIUM = 'DMSans_500Medium'
-export const FONT_FAMILY_BOLD = 'DMSans_700Bold'
+export const FONT_FAMILY_REGULAR = 'Inter_400Regular'
+export const FONT_FAMILY_MEDIUM = 'Inter_500Medium'
+export const FONT_FAMILY_SEMIBOLD = 'Inter_600SemiBold'
+export const FONT_FAMILY_BOLD = 'Inter_700Bold'
+// Display / numeric face
+export const FONT_FAMILY_DISPLAY = 'BarlowCondensed_700Bold'
+export const FONT_FAMILY_DISPLAY_SEMIBOLD = 'BarlowCondensed_600SemiBold'
 
 // ─── Font Sizes (iOS text-style aligned; 12pt floor) ───────────────────────
 export const FONT_SIZE_DISPLAY = ms(32)
-export const FONT_SIZE_H1 = ms(26)
+export const FONT_SIZE_H1 = ms(28)
 export const FONT_SIZE_H2 = ms(21)
 export const FONT_SIZE_BODY = ms(17)
 export const FONT_SIZE_BODY_SMALL = ms(15)
@@ -35,6 +41,13 @@ export const FONT_SIZE_MICRO = ms(12)
 // the loudest piece of data on the screen and benefit from being bigger than
 // `display`. Used in MatchHero and live ticker only.
 export const FONT_SIZE_SCORE = ms(38)
+
+// Condensed display headlines: the welcome claim and the next-up kick-off.
+// Barlow Condensed is narrow, so these sit well above the Inter scale.
+export const FONT_SIZE_HERO = ms(54)
+export const FONT_SIZE_HERO_LARGE = ms(66)
+// Display headlines are set solid; Barlow's caps carry no descenders.
+export const LINE_HEIGHT_HERO = 0.98
 
 // ─── Letter Spacing ─────────────────────────────────────────────────────────
 export const LETTER_SPACING_TIGHTER = -0.5
@@ -145,6 +158,24 @@ export const TextStyles = {
     letterSpacing: 0.6,
     textTransform: 'uppercase' as const,
   },
+  // Section label above a group: 12pt semibold caps, wide tracking.
+  label: {
+    fontFamily: FONT_FAMILY_SEMIBOLD,
+    fontSize: FONT_SIZE_MICRO,
+    lineHeight: FONT_SIZE_MICRO * LINE_HEIGHT_NORMAL,
+    letterSpacing: 0.85,
+    textTransform: 'uppercase' as const,
+    color: TEXT_SECONDARY,
+  },
+  // Condensed uppercase display headline (welcome, next-up hero).
+  hero: {
+    fontFamily: FONT_FAMILY_DISPLAY,
+    fontSize: FONT_SIZE_HERO,
+    lineHeight: FONT_SIZE_HERO * LINE_HEIGHT_HERO,
+    letterSpacing: 0,
+    textTransform: 'uppercase' as const,
+    color: TEXT_PRIMARY,
+  },
 } as const
 
 export const Typography = {
@@ -178,7 +209,9 @@ export const Typography = {
   family: {
     regular: FONT_FAMILY_REGULAR,
     medium: FONT_FAMILY_MEDIUM,
+    semibold: FONT_FAMILY_SEMIBOLD,
     bold: FONT_FAMILY_BOLD,
+    display: FONT_FAMILY_DISPLAY,
   },
   styles: TextStyles,
 } as const

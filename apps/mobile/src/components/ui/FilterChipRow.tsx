@@ -9,7 +9,6 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import {
-  hairline,
   RADIUS_FULL,
   SPACING_SM,
   SPACING_XS,
@@ -72,13 +71,15 @@ export function FilterChipRow<T extends string = string>({
     >
       {chips.map((chip) => {
         const isActive = selectedSet.has(chip.key)
-        const bg = isActive ? c.primary50 : c.surface
-        const fgColor = isActive ? c.primary : c.textSecondary
-        const borderColor = isActive ? c.primary : c.borderDefault
+        // Selected chips are solid ink; the rest are outlined on the page.
+        const bg = isActive ? c.ink : 'transparent'
+        const fgColor = isActive ? c.onInk : c.textPrimary
+        const borderColor = isActive ? c.ink : c.borderStrong
         return (
           <Pressable
             key={chip.key}
             onPress={() => handlePress(chip.key)}
+            hitSlop={4}
             testID={chip.testID}
             accessibilityRole={singleSelect ? 'tab' : 'button'}
             accessibilityState={{ selected: isActive }}
@@ -96,7 +97,7 @@ export function FilterChipRow<T extends string = string>({
             ) : null}
             <Text
               variant="subheadline"
-              weight={isActive ? 'semibold' : 'medium'}
+              weight="semibold"
               color={fgColor}
               numberOfLines={1}
             >
@@ -107,16 +108,14 @@ export function FilterChipRow<T extends string = string>({
                 style={[
                   styles.countPill,
                   {
-                    backgroundColor: isActive
-                      ? c.primary
-                      : c.textTertiary,
+                    backgroundColor: isActive ? c.accent : c.textTertiary,
                   },
                 ]}
               >
                 <Text
                   variant="caption2"
                   weight="bold"
-                  color={c.textInverse}
+                  color={isActive ? c.onAccent : c.textInverse}
                   tabular
                 >
                   {chip.count}
@@ -165,7 +164,8 @@ function WrapContainer({ children, style, contentStyle, testID, accessibilityRol
   )
 }
 
-const CHIP_HEIGHT = 44
+// 36pt visual pill; hitSlop on each chip brings the touch target to 44pt.
+const CHIP_HEIGHT = 36
 
 const styles = StyleSheet.create({
   content: {
@@ -182,10 +182,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING_XS,
-    paddingHorizontal: SPACING_MD,
+    paddingHorizontal: SPACING_MD + 2,
     borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    borderWidth: 1,
   },
   pressed: {
     transform: [{ scale: 0.97 }],

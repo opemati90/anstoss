@@ -7,9 +7,16 @@ import {
   space,
   CARD_PADDING,
   RADIUS_CARD,
+  RADIUS_HERO,
   SPACING_SM,
-  SPACING_XL,
 } from '../../theme/tokens'
+
+/** True for the dark theme's near-black page colour. */
+function isDark(hex: string): boolean {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false
+  const v = parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)
+  return v < 3 * 64
+}
 
 type CardPadding = keyof typeof space | 'none' | 'compact' | 'card' | 'hero'
 
@@ -47,10 +54,14 @@ export function Card({
   const resolved = resolveSurface(surface, variant, elevated)
 
   const surfaceStyles: ViewStyle = {
+    // 2026-11 redesign: white surfaces sit on the warm page without a
+    // border; contrast with the background carries the edge. Dark mode keeps
+    // a hairline because charcoal-on-charcoal needs it. `borderless` stays
+    // for call sites that already opt out.
     backgroundColor: c.surface,
     borderColor: c.borderDefault,
-    borderWidth: borderless ? 0 : hairline,
-    borderRadius: resolved === 'hero' ? SPACING_XL : RADIUS_CARD,
+    borderWidth: borderless || !isDark(c.background) ? 0 : hairline,
+    borderRadius: resolved === 'hero' ? RADIUS_HERO : RADIUS_CARD,
     borderCurve: 'continuous',
     overflow: resolved === 'grouped' ? 'hidden' : undefined,
     padding: paddingValue,

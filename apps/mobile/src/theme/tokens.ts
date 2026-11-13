@@ -137,10 +137,12 @@ export const lineHeight = {
 } as const
 
 export const fonts = {
-  body: 'DMSans_400Regular',
-  label: 'DMSans_500Medium',
-  heading: 'DMSans_700Bold',
-  data: 'GeistMono_400Regular',
+  body: 'Inter_400Regular',
+  label: 'Inter_500Medium',
+  heading: 'Inter_700Bold',
+  // Numbers (kick-off, scores, dues) use the condensed display face.
+  data: 'BarlowCondensed_700Bold',
+  display: 'BarlowCondensed_700Bold',
 } as const
 
 export const iconSize = {

@@ -88,7 +88,7 @@
     "zod": "3.25.76"
   },
   "dependencies": {
-    "@expo-google-fonts/dm-sans": "^0.4.2",
-    "@expo-google-fonts/geist-mono": "^0.4.1"
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2"
   }
 }
