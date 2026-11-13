@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_CARD, hairline, radius, space } from '../../theme/tokens'
 import { HomeSection } from './HomeKit'
 
 type SeasonStats = {
@@ -254,9 +254,8 @@ function FormDot({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     overflow: 'hidden',
   },
   cardPadded: { padding: space.md, gap: space.sm + 4 },

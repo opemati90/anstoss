@@ -2,6 +2,7 @@ import React from 'react'
 import { Pressable, StyleSheet, View, ViewStyle, AccessibilityProps } from 'react-native'
 import { RADIUS_FULL } from '../../theme/tokens'
 import { useClubColors } from '../../context/ClubThemeContext'
+import { hexToRgba } from '../../theme/club-theme'
 
 export interface IconButtonProps extends AccessibilityProps {
   /**
@@ -38,7 +39,7 @@ export function IconButton({
     variant === 'outlined'
       ? { backgroundColor: c.surface, borderWidth: 1, borderColor: c.borderDefault }
       : variant === 'onHero'
-        ? { backgroundColor: 'rgba(255, 255, 255, 0.12)' }
+        ? { backgroundColor: hexToRgba(c.onHeroBg, 0.12) }
         : null
   return (
     <Pressable

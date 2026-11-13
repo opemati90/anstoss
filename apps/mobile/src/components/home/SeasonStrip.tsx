@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
-import { hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_CARD, hairline, radius, space } from '../../theme/tokens'
 import { HomeSection } from './HomeKit'
 import type { StreaksResponse } from '@anstoss/shared'
 import type { TeamSeasonStats } from '../../hooks/usePlayerHome'
@@ -185,9 +185,8 @@ const styles = StyleSheet.create({
     minHeight: 104,
     paddingHorizontal: space.md,
     paddingVertical: space.md,
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
     gap: space['2xs'],
   },
   tileValueRow: { marginTop: space.xs },

@@ -7,6 +7,7 @@ import chatThreadFr from './chatThread/fr' // chat revamp: conversation screen
 import { statesFr } from './states.fr'
 import { deepMerge } from './deepMerge'
 import generated from './generated/fr'
+import redesign from './redesign/fr' // 2026-11 Anstoss Redesign strings
 
 const base = {
   // Screen-reader labels. Leaving these in English makes the app
@@ -3116,4 +3117,4 @@ const base = {
   },
 } as const
 
-export default deepMerge(base, generated) as typeof base
+export default deepMerge(deepMerge(base, generated), redesign) as typeof base

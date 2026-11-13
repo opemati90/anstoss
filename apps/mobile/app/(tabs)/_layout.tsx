@@ -78,6 +78,8 @@ export default function TabLayout() {
   }, [isFreeAgent, pathname, vereinVisible])
   // ── end M5 ──
 
+  const onHomeTab = pathname === '/' || pathname === '/(tabs)' || pathname === '/index'
+
   if (shouldExitClubTabs) {
     return <Redirect href="/account-next-step" />
   }
@@ -95,9 +97,13 @@ export default function TabLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {!activeClub && <View style={{ height: insets.top, backgroundColor: theme.background }} />}
-      {/* home revamp: one identity row (crest, club, team·role pill, bell). */}
-      {activeClub ? <ClubHeader resolvedRoleMode={resolvedRoleMode} /> : null}
+      {/* 2026-11 redesign: the identity row (crest, club, team·role switcher,
+          bell) belongs to Start; the other tabs lead with their own title. */}
+      {activeClub && onHomeTab ? (
+        <ClubHeader resolvedRoleMode={resolvedRoleMode} />
+      ) : (
+        <View style={{ height: insets.top, backgroundColor: theme.background }} />
+      )}
       <Tabs
         key={navigationMode}
         detachInactiveScreens={false}

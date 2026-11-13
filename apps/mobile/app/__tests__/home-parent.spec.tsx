@@ -165,13 +165,16 @@ describe('ParentHome', () => {
     dateNowSpy.mockRestore()
   })
 
-  it("shows one card per child, named with the child's own team", async () => {
+  it("offers one chip per child, named with the child's own team, and one hero for the chosen child", async () => {
     const { findByText, getByText, queryByText } = render(wrap(<ParentHome />))
+    // Redesign screen 25: child chips, then the chosen child's hero.
     expect(await findByText('Leo · U15')).toBeTruthy()
     expect(getByText('Mia · U11')).toBeTruthy()
-    expect(getByText('SV Babelsberg 03')).toBeTruthy()
+    expect(getByText(/SV Babelsberg 03/)).toBeTruthy()
     expect(getByText('Reply for Leo')).toBeTruthy()
-    expect(getByText('Reply for Mia')).toBeTruthy()
+    expect(queryByText('Reply for Mia')).toBeNull()
+    fireEvent.press(getByText('Mia · U11'))
+    expect(await findByText('Reply for Mia')).toBeTruthy()
     // The parent's own membership never labels the card.
     expect(queryByText(/Senior/)).toBeNull()
   })
@@ -179,9 +182,8 @@ describe('ParentHome', () => {
   it('shows kick-off and the meeting time and place for the child', async () => {
     const { findByText, getByText } = render(wrap(<ParentHome />))
     expect(await findByText('Leo · U15')).toBeTruthy()
-    expect(getByText('15:00')).toBeTruthy()
-    expect(getByText('13:30')).toBeTruthy()
-    expect(getByText('Vereinsheim')).toBeTruthy()
+    expect(getByText(/15:00/)).toBeTruthy()
+    expect(getByText('Meet 13:30 · Vereinsheim')).toBeTruthy()
   })
 
   it('answers on behalf of the child through rsvp-proxy', async () => {
@@ -322,7 +324,7 @@ describe('ParentHome', () => {
         </>,
       ),
     )
-    expect(await findByText('Leo · U15')).toBeTruthy()
+    expect(await findByText(/Leo · U15/)).toBeTruthy()
     await waitFor(() => expect(summary).toBe('Leo · U15/U17, Mia · U11'))
   })
 

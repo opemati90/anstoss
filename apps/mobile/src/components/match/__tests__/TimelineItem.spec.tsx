@@ -8,12 +8,12 @@ describe('TimelineItem', () => {
     const screen = render(
       <TimelineItem minute={63} kind="goal" player="RW Köpenick" side="away" ownSide="home" />,
     )
-    expect(screen.getByLabelText(/63'.*Goal against.*RW Köpenick/)).toBeTruthy()
+    expect(screen.getByLabelText(/63'.*Gegentor.*RW Köpenick/)).toBeTruthy()
   })
 
   it('keeps a plain goal label when our side is unknown', () => {
     const screen = render(<TimelineItem minute={23} kind="goal" player="Kofi Osei" side="home" />)
-    expect(screen.getByLabelText(/23'.*Goal.*Kofi Osei/)).toBeTruthy()
+    expect(screen.getByLabelText(/23'.*Tor.*Kofi Osei/)).toBeTruthy()
     expect(screen.queryByText('Goal against')).toBeNull()
     expect(screen.getByText("23'")).toBeTruthy()
   })

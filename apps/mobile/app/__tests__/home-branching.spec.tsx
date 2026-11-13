@@ -276,7 +276,7 @@ describe('HomeScreen branching', () => {
     expect(await findByText('FREE AGENT HOME')).toBeTruthy()
   })
 
-  it('keeps 16pt gutters and tab-bar clearance on the scroll view', () => {
+  it('keeps the screen gutters (SCREEN_PADDING, 20pt base) and tab-bar clearance on the scroll view', () => {
     authState.activeClub = {
       role: 'PLAYER',
       club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
@@ -285,7 +285,7 @@ describe('HomeScreen branching', () => {
     const { UNSAFE_getByType } = render(wrap(<HomeScreen />))
     const { ScrollView, StyleSheet } = require('react-native')
     const style = StyleSheet.flatten(UNSAFE_getByType(ScrollView).props.contentContainerStyle)
-    expect(style.paddingHorizontal).toBe(16)
+    expect(style.paddingHorizontal).toBe(require('../../src/theme/tokens').SCREEN_PADDING)
     expect(style.paddingBottom).toBeGreaterThan(0)
   })
 })

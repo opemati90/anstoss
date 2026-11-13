@@ -60,17 +60,18 @@ describe('ClubHeader', () => {
     act(() => setChildrenSummary([]))
   })
 
-  it('collapses identity into one row: crest, club, team · role, bell', () => {
+  it('collapses identity into one row: crest, "Role · Club" over the team, bell', () => {
     const { getByText, getAllByLabelText, getByLabelText } = render(
       wrap(<ClubHeader resolvedRoleMode="PLAYER" />),
     )
-    expect(getByText('SV Albatros')).toBeTruthy()
-    expect(getByText('1. Herren · Player')).toBeTruthy()
-    expect(getByLabelText('Notifications')).toBeTruthy()
-    // Crest initials use the club colour fill (drawn, but not announced).
-    expect(getByText('SA', { includeHiddenElements: true })).toBeTruthy()
-    // Crest + club name are ONE accessible element, not the name twice.
-    expect(getAllByLabelText('SV Albatros')).toHaveLength(1)
+    // Redesign screen 08: "Trainer · SV Spreewiese" over "1. Herren".
+    expect(getByText('Player · SV Albatros')).toBeTruthy()
+    expect(getByText('1. Herren')).toBeTruthy()
+    // The bell keeps its target (notification settings).
+    fireEvent.press(getByLabelText('Notifications'))
+    expect(require('expo-router').router.push).toHaveBeenCalledWith('/notification-settings')
+    // Crest + identity are ONE accessible element, not the club name twice.
+    expect(getAllByLabelText('Player · SV Albatros, 1. Herren')).toHaveLength(1)
   })
 
   it('opens one sheet to switch team and role when there is a choice', () => {
@@ -80,7 +81,7 @@ describe('ClubHeader', () => {
       teamsForActiveClub: [team('t1', '1. Herren'), team('t2', 'A-Jugend')],
     }
     const { getByLabelText, getByText } = render(wrap(<ClubHeader resolvedRoleMode="PLAYER" />))
-    fireEvent.press(getByLabelText('1. Herren · Player'))
+    fireEvent.press(getByLabelText('Player · SV Albatros, 1. Herren'))
     expect(getByText('Team and role')).toBeTruthy()
     fireEvent.press(getByText('A-Jugend'))
     expect(mockSetActiveTeam).toHaveBeenCalledWith('t2')
@@ -93,7 +94,7 @@ describe('ClubHeader', () => {
       activeTeamAccess: team('senior', 'Senior Team'),
     }
     const { getByText, queryByText } = render(wrap(<ClubHeader resolvedRoleMode="PARENT" />))
-    expect(getByText('Parent')).toBeTruthy()
+    expect(getByText('SV Albatros · Parent')).toBeTruthy()
     act(() =>
       setChildrenSummary([
         { id: 'leo', name: 'Leo', team: 'U15' },

@@ -17,7 +17,7 @@ import { EmptyState } from '../../src/components/EmptyState'
 import { Button } from '../../src/components/ui'
 // onboarding revamp: verification banner, "Kind hinzufügen" to-do, welcome notice.
 import { HomeOnboardingNotices } from '../../src/onboarding/HomeOnboardingNotices'
-import { space, TAB_BAR_CLEARANCE } from '../../src/theme/tokens'
+import { SCREEN_PADDING, space, TAB_BAR_CLEARANCE } from '../../src/theme/tokens'
 
 type RefreshHandle = { refresh: () => void; refreshing: boolean }
 
@@ -177,9 +177,9 @@ function RoleAwareHome() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   crash: { paddingHorizontal: space.md, paddingTop: space.md },
-  // 16pt screen gutters, 24pt between sections (set by each role home). The
-  // header already ends 12pt above, so 4pt here keeps 16pt to the first section.
-  content: { paddingHorizontal: space.md, paddingTop: space.xs },
+  // 2026-11 redesign: 20pt screen gutters (`.pad`), 24pt between sections
+  // (set by each role home). The header already ends 12pt above.
+  content: { paddingHorizontal: SCREEN_PADDING, paddingTop: space.sm },
   body: { gap: space.lg },
   fallback: { paddingTop: space['2xl'], gap: space.lg },
 })

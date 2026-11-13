@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { RADIUS_LG, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
+import { INK, RADIUS_LG, RADIUS_MD, SPACING_SM } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { Text } from './Text'
 
@@ -142,7 +142,7 @@ const SEG_GAP = 4
 const TRACK_HEIGHT = SEGMENT_HEIGHT + TRACK_PAD * 2
 
 const thumbShadow = {
-  shadowColor: '#121A15',
+  shadowColor: INK,
   shadowOpacity: 0.12,
   shadowRadius: 3,
   shadowOffset: { width: 0, height: 1 },

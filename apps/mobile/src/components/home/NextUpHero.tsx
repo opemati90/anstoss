@@ -1,24 +1,15 @@
 import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, PressableScale, Text } from '../ui'
-import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { SPACING_XL, SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
+import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 import {
-  RsvpControl,
-  rsvpTone,
-  type AbsenceDetail,
-  type RsvpStatus,
-} from '../events/RsvpControl'
-import {
-  HomeAwayChip,
-  KickoffBlock,
-  LocationLine,
-  TypeChip,
   eventHeadline,
   formatCountdown,
   formatShortDate,
   formatTime,
 } from './HomeKit'
+import { HeroRsvp, HeroSurface, heroKickoff, useHeroColors } from './HomeHero'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
 
 export type NextUpHeroProps = {
@@ -45,12 +36,13 @@ export function isInCheckInWindow(eventDate: string, nowMs: number): boolean {
 }
 
 /**
- * "Next up": the one surface on home allowed to be large.
+ * "Next up" as the club-coloured hero (redesign screen 22).
  *
  * It answers the three questions a player has about the next thing, in the
  * order they ask them: what is it and against whom, when do I have to be
  * there (Treffpunkt before Anstoß), and am I coming. The reply is answered in
- * place; inside the arrival window it becomes check-in.
+ * place on the hero's own segmented control; inside the arrival window it
+ * becomes check-in.
  */
 export function NextUpHero({
   event,
@@ -60,7 +52,7 @@ export function NextUpHero({
   onRsvp,
   onOpen,
 }: NextUpHeroProps) {
-  const c = useClubColors()
+  const hero = useHeroColors()
   const { t } = useTranslation()
 
   const inCheckInWindow = isInCheckInWindow(event.date, nowMs)
@@ -72,9 +64,7 @@ export function NextUpHero({
   const meeting = formatTime(event.meetingAt, locale)
   const isCancelled = Boolean(event.cancelledAt)
 
-  const needsReply = !event.myRsvp || Boolean(event.myRsvpStale)
   const answered = event.myRsvp && !event.myRsvpStale ? event.myRsvp : null
-  const answerTone = answered ? rsvpTone(answered, c) : null
   const statusLabel = event.myRsvpStale
     ? t('event.rescheduledHint', { defaultValue: 'Time changed · confirm your reply' })
     : answered === 'YES'
@@ -85,13 +75,35 @@ export function NextUpHero({
           ? t('homeHub.player.youreOut', { defaultValue: "You're not going" })
           : t('home.player.areYouIn', { defaultValue: 'Are you in?' })
 
+  const typeLabel = isMatch
+    ? t('homeHub.type.match', { defaultValue: 'Match' })
+    : event.type === 'TRAINING'
+      ? t('homeHub.type.training', { defaultValue: 'Training' })
+      : t('homeHub.type.other', { defaultValue: 'Event' })
+  const venue =
+    isMatch && event.homeAway
+      ? event.homeAway === 'HOME'
+        ? t('homeHub.home', { defaultValue: 'Home' })
+        : t('homeHub.away', { defaultValue: 'Away' })
+      : null
+  const kicker = [t('homeHub.nextUp', { defaultValue: 'Next up' }), typeLabel, venue]
+    .filter(Boolean)
+    .join(' · ')
+  const versus =
+    isMatch && event.opponent
+      ? t('homeHub.hero.versus', { defaultValue: 'vs {{opponent}}', opponent: event.opponent })
+      : headline
+  const place = event.meetingPoint || event.location || null
+  const meetLine = [
+    meeting ? t('homeHub.hero.meetAt', { defaultValue: 'Meet {{time}}', time: meeting }) : null,
+    place,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const a11ySummary = [
     headline,
-    event.homeAway === 'AWAY'
-      ? t('homeHub.away', { defaultValue: 'Away' })
-      : event.homeAway === 'HOME'
-        ? t('homeHub.home', { defaultValue: 'Home' })
-        : null,
+    venue,
     `${dateLabel} ${kickoff}`,
     meeting ? t('homeHub.meetShort', { defaultValue: 'Meet {{time}}', time: meeting }) : null,
   ]
@@ -99,7 +111,7 @@ export function NextUpHero({
     .join(', ')
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+    <HeroSurface style={styles.hero}>
       <PressableScale
         onPress={onOpen}
         accessibilityRole="button"
@@ -107,72 +119,72 @@ export function NextUpHero({
         haptic="tapLight"
         style={styles.body}
       >
-        <View style={styles.chipRow}>
-          <TypeChip type={event.type} />
-          {isMatch ? <HomeAwayChip homeAway={event.homeAway} /> : null}
+        <View style={styles.topRow}>
+          <Text variant="footnote" weight="semibold" style={[styles.flex, { color: hero.muted }]} numberOfLines={1}>
+            {kicker}
+          </Text>
           {countdown && !isCancelled ? (
-            <Text variant="footnote" weight="medium" color="secondary" tabular style={styles.countdown}>
+            <Text variant="footnote" weight="semibold" tabular style={{ color: hero.muted }}>
               {countdown}
             </Text>
           ) : null}
         </View>
-
         <Text
-          variant="title2"
-          weight="bold"
-          color={isCancelled ? 'tertiary' : 'primary'}
-          numberOfLines={2}
-          style={isCancelled ? styles.struck : undefined}
+          variant="display"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={[styles.kickoff, { color: hero.fg }, isCancelled ? styles.struck : {}]}
         >
-          {headline}
+          {heroKickoff(event.date, locale)}
         </Text>
-
-        <KickoffBlock event={event} locale={locale} />
-        <LocationLine event={event} />
+        <Text
+          variant="headline"
+          weight="semibold"
+          numberOfLines={2}
+          style={[{ color: hero.fg }, isCancelled ? styles.struck : {}]}
+        >
+          {versus}
+        </Text>
+        {meetLine ? (
+          <Text variant="footnote" numberOfLines={2} style={{ color: hero.muted }}>
+            {meetLine}
+          </Text>
+        ) : null}
       </PressableScale>
 
-      <View style={[styles.actionZone, { borderTopColor: c.borderSubtle }]}>
-        {isCancelled ? (
-          <View style={styles.statusRow}>
-            <Icon name="xmark.circle.fill" size={18} color={c.error} />
-            <Text variant="subheadline" weight="semibold" color="secondary" style={styles.flex}>
-              {t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}
-              {event.cancelReason ? ` · ${event.cancelReason}` : ''}
-            </Text>
-          </View>
-        ) : inCheckInWindow && event.myRsvp === 'YES' ? (
-          <Button
-            label={t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
-            onPress={onOpen}
-            fullWidth
-            hapticTone="tapMedium"
+      {isCancelled ? (
+        <View style={styles.statusRow}>
+          <Icon name="xmark.circle.fill" size={18} color={hero.fg} />
+          <Text variant="subheadline" weight="semibold" style={[styles.flex, { color: hero.fg }]}>
+            {t('event.manage.cancelledBanner', { defaultValue: 'Cancelled' })}
+            {event.cancelReason ? ` · ${event.cancelReason}` : ''}
+          </Text>
+        </View>
+      ) : inCheckInWindow && event.myRsvp === 'YES' ? (
+        <Button
+          label={t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
+          onPress={onOpen}
+          variant="accent"
+          size="lg"
+          fullWidth
+          hapticTone="tapMedium"
+        />
+      ) : (
+        <View style={styles.reply}>
+          <HeroRsvp
+            value={event.myRsvp}
+            onChange={onRsvp}
+            disabled={rsvpPending}
+            accessibilityLabel={t('homeHub.hero.yourReply', { defaultValue: 'Your reply' })}
+            testID="home-hero-rsvp"
           />
-        ) : (
-          <>
+          {statusLabel ? (
             <View style={styles.statusRow}>
-              {answerTone ? (
-                <Icon
-                  name={
-                    answered === 'YES'
-                      ? 'checkmark.circle.fill'
-                      : answered === 'MAYBE'
-                        ? 'questionmark.circle.fill'
-                        : 'xmark.circle.fill'
-                  }
-                  size={18}
-                  color={answerTone.fg}
-                />
-              ) : null}
-              <Text
-                variant="subheadline"
-                weight="semibold"
-                color={needsReply ? 'primary' : 'secondary'}
-                style={styles.flex}
-              >
+              <Text variant="footnote" weight="medium" style={[styles.flex, { color: hero.fg }]}>
                 {statusLabel}
               </Text>
               {event.yesCount > 0 ? (
-                <Text variant="footnote" color="secondary" tabular>
+                <Text variant="footnote" tabular style={{ color: hero.muted }}>
                   {t('homeHub.player.yesCount', {
                     defaultValue: '{{count}} going',
                     count: event.yesCount,
@@ -180,48 +192,21 @@ export function NextUpHero({
                 </Text>
               ) : null}
             </View>
-            <RsvpControl
-              value={event.myRsvp}
-              onChange={onRsvp}
-              disabled={rsvpPending}
-              testID="home-hero-rsvp"
-            />
-          </>
-        )}
-      </View>
-    </View>
+          ) : null}
+        </View>
+      )}
+    </HeroSurface>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  body: {
-    paddingHorizontal: space.md,
-    paddingTop: space.md,
-    paddingBottom: space.md,
-    gap: space.sm + 4,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  countdown: { marginStart: 'auto' },
+  hero: { gap: SPACING_XL },
+  body: { gap: SPACING_XS + SPACING_XXS },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  kickoff: { fontSize: 50 },
   flex: { flex: 1 },
   struck: { textDecorationLine: 'line-through' },
-  actionZone: {
-    borderTopWidth: hairline,
-    paddingHorizontal: space.md,
-    paddingTop: space.sm + 4,
-    paddingBottom: space.md,
-    gap: space.sm + 4,
-  },
+  reply: { gap: space.sm + 4 },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',

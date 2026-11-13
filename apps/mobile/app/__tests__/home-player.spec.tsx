@@ -767,13 +767,12 @@ describe('PlayerHome', () => {
     it('leads the hero with the opponent, Away, kick-off and meeting time and place', async () => {
       mockMatchday()
       const { findByText, getByText } = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
-      expect(await findByText('SV Babelsberg 03')).toBeTruthy()
-      expect(getByText('Away')).toBeTruthy()
-      expect(getByText('Kick-off')).toBeTruthy()
-      expect(getByText('15:00')).toBeTruthy()
-      expect(getByText('Meet')).toBeTruthy()
-      expect(getByText('13:30')).toBeTruthy()
-      expect(getByText('Vereinsheim')).toBeTruthy()
+      // Redesign screen 22: "Next up · Match · Away", "Sa 15:00", "vs <opponent>",
+      // "Meet 13:30 · <place>".
+      expect(await findByText('vs SV Babelsberg 03')).toBeTruthy()
+      expect(getByText(/Away/)).toBeTruthy()
+      expect(getByText(/15:00/)).toBeTruthy()
+      expect(getByText('Meet 13:30 · Vereinsheim')).toBeTruthy()
     })
 
     it("shows only the player's own jobs and the fee owed", async () => {
@@ -798,7 +797,7 @@ describe('PlayerHome', () => {
       const { findByText, queryByText } = render(
         wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
       )
-      expect(await findByText('SV Babelsberg 03')).toBeTruthy()
+      expect(await findByText('vs SV Babelsberg 03')).toBeTruthy()
       expect(queryByText('My jobs')).toBeNull()
       expect(queryByText(/outstanding/)).toBeNull()
     })

@@ -5,7 +5,7 @@ import { Icon, PressableScale, Text } from '../ui'
 import { LiveStatusPill } from '../match'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { hexToRgba } from '../../theme/club-theme'
-import { hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_HERO, hairline, space } from '../../theme/tokens'
 
 export type LiveMatchCardProps = {
   fixture: ImportedFixture
@@ -38,7 +38,7 @@ export function LiveMatchCard({ fixture, showOpenAction, onPress }: LiveMatchCar
         awayScore: fixture.resultAway ?? 0,
       })}
       haptic="tapLight"
-      style={[styles.card, { backgroundColor: c.primary }]}
+      style={[styles.card, { backgroundColor: c.heroBg }]}
     >
       <View style={styles.head}>
         <LiveStatusPill status="live" inverse />
@@ -46,7 +46,7 @@ export function LiveMatchCard({ fixture, showOpenAction, onPress }: LiveMatchCar
           variant="footnote"
           weight="medium"
           numberOfLines={2}
-          style={[styles.competition, { color: hexToRgba(c.onPrimary, 0.8) }]}
+          style={[styles.competition, { color: hexToRgba(c.onHeroBg, 0.8) }]}
         >
           {fixture.competition}
         </Text>
@@ -57,29 +57,29 @@ export function LiveMatchCard({ fixture, showOpenAction, onPress }: LiveMatchCar
           variant="subheadline"
           weight="semibold"
           numberOfLines={2}
-          style={[styles.team, { color: c.onPrimary }]}
+          style={[styles.team, { color: c.onHeroBg }]}
         >
           {fixture.homeTeam}
         </Text>
-        <Text variant="title1" weight="bold" tabular style={{ color: c.onPrimary }}>
+        <Text variant="title1" weight="bold" tabular style={{ color: c.onHeroBg }}>
           {fixture.resultHome ?? 0}-{fixture.resultAway ?? 0}
         </Text>
         <Text
           variant="subheadline"
           weight="semibold"
           numberOfLines={2}
-          style={[styles.team, styles.teamRight, { color: c.onPrimary }]}
+          style={[styles.team, styles.teamRight, { color: c.onHeroBg }]}
         >
           {fixture.awayTeam}
         </Text>
       </View>
 
       {showOpenAction ? (
-        <View style={[styles.footer, { borderTopColor: hexToRgba(c.onPrimary, 0.22) }]}>
-          <Text variant="subheadline" weight="semibold" style={{ color: c.onPrimary }}>
+        <View style={[styles.footer, { borderTopColor: hexToRgba(c.onHeroBg, 0.22) }]}>
+          <Text variant="subheadline" weight="semibold" style={{ color: c.onHeroBg }}>
             {t('home.player.openLive', { defaultValue: 'Open live match' })}
           </Text>
-          <Icon name="chevron.right" size={14} color={c.onPrimary} />
+          <Icon name="chevron.right" size={14} color={c.onHeroBg} />
         </View>
       ) : null}
     </PressableScale>
@@ -88,7 +88,7 @@ export function LiveMatchCard({ fixture, showOpenAction, onPress }: LiveMatchCar
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_HERO,
     borderCurve: 'continuous',
     paddingHorizontal: space.md,
     paddingVertical: space.md,

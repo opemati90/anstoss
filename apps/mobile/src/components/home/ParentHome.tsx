@@ -5,26 +5,24 @@ import { useTranslation } from 'react-i18next'
 import { RSVP, type ChildrenOverview, type MyContributionSummary } from '@anstoss/shared'
 import { api, API_URL } from '../../api/client'
 import { useEventsSocket } from '../../hooks/useEventsSocket'
-import { Avatar, Icon, PressableScale, Text } from '../ui'
+import { FilterChipRow, Icon, PressableScale, Text } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { SPACING_LG, SPACING_XS, SPACING_XXS, hairline, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { SILENT_REFRESH_DEBOUNCE_MS, outstandingDues } from '../../hooks/usePlayerHome'
-import { RsvpControl, type AbsenceDetail, type RsvpStatus } from '../events/RsvpControl'
+import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
+import { HeroRsvp, HeroSurface, heroKickoff, useHeroColors } from './HomeHero'
 import {
   EmptyCard,
-  HomeAwayChip,
   HomeCard,
   HomeRow,
   HomeSection,
   InlineError,
-  KickoffBlock,
-  LocationLine,
-  TypeChip,
   eventHeadline,
+  formatCountdown,
   formatShortDate,
-  useAccentText,
+  formatTime,
 } from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
 import { HomeSkeleton } from './HomeSkeleton'
@@ -164,6 +162,10 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
     }
     return Array.from(byChild.values())
   }, [events])
+
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const selectedCard =
+    childCards.find(({ next }) => cardKey(next) === selectedKey) ?? childCards[0] ?? null
 
   // Share "Leo · U15/U17, Mia · U11" with the header: every linked child
   // (also those with nothing planned) and every team they play on.
@@ -345,21 +347,32 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           actionLabel={t('homeHub.parent.linkCta', { defaultValue: 'Link child' })}
           onAction={() => router.push(LINK_CHILD_ROUTE as never)}
         />
-      ) : childCards.length > 0 ? (
-        <HomeSection title={t('homeHub.nextUp', { defaultValue: 'Next up' })}>
-          <View style={styles.childCards}>
-            {childCards.map(({ next, more }) => (
-              <ChildCard
-                key={`${next.childUserId ?? next.teamName}-${next.id}`}
-                event={next}
-                more={more}
-                locale={locale}
-                pending={Boolean(pendingIds[`${next.childUserId}-${next.id}`])}
-                onRsvp={(status, absence) => void onChildRsvp(next, status, absence)}
-              />
-            ))}
-          </View>
-        </HomeSection>
+      ) : childCards.length > 0 && selectedCard ? (
+        <View style={styles.childCards}>
+          {childCards.length > 1 ? (
+            <FilterChipRow
+              chips={childCards.map(({ next }) => ({
+                key: cardKey(next),
+                label: next.childName
+                  ? `${firstName(next.childName)} · ${teamLabel(next)}`
+                  : teamLabel(next),
+              }))}
+              selected={cardKey(selectedCard.next)}
+              onToggle={(key) => setSelectedKey(key)}
+              singleSelect
+              testID="parent-child-chips"
+            />
+          ) : null}
+          <ChildCard
+            key={`${selectedCard.next.childUserId ?? selectedCard.next.teamName}-${selectedCard.next.id}`}
+            event={selectedCard.next}
+            more={selectedCard.more}
+            locale={locale}
+            nowMs={Date.now()}
+            pending={Boolean(pendingIds[`${selectedCard.next.childUserId}-${selectedCard.next.id}`])}
+            onRsvp={(status, absence) => void onChildRsvp(selectedCard.next, status, absence)}
+          />
+        </View>
       ) : (
         <EmptyCard
           icon="calendar"
@@ -420,17 +433,18 @@ function ChildCard({
   event,
   more,
   locale,
+  nowMs,
   pending,
   onRsvp,
 }: {
   event: ChildEvent
   more: number
   locale: string
+  nowMs: number
   pending: boolean
   onRsvp: (status: RsvpStatus, absence?: AbsenceDetail) => void
 }) {
-  const c = useClubColors()
-  const accent = useAccentText()
+  const hero = useHeroColors()
   const { t } = useTranslation()
   const team = teamLabel(event)
   const child = firstName(event.childName) || team
@@ -438,93 +452,104 @@ function ChildCard({
   const isAway = event.type === 'MATCH' && event.homeAway === 'AWAY'
   const carpool = isAway && Boolean(event.carpoolEnabled || event.fixtureId)
   const moreLabel = t('homeHub.parent.moreEvents', { defaultValue: '+{{count}} more', count: more })
+  const countdown = formatCountdown(event.date, nowMs, locale, t)
+  const meeting = formatTime(event.meetingAt, locale)
+  const place = event.meetingPoint || event.location || null
+  const meetLine = [
+    meeting ? t('homeHub.hero.meetAt', { defaultValue: 'Meet {{time}}', time: meeting }) : null,
+    place,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const replyFor = t('homeHub.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-      <View style={styles.childHead}>
-        <Avatar size="sm" fallbackText={child.slice(0, 1).toUpperCase()} />
-        <Text variant="headline" weight="semibold" color="primary" style={styles.flex} numberOfLines={2}>
-          {event.childName ? `${child} · ${team}` : team}
-        </Text>
-        {more > 0 ? (
-          <PressableScale
-            onPress={() => router.push(SCHEDULE_ROUTE as never)}
-            accessibilityRole="button"
-            accessibilityLabel={moreLabel}
-            haptic="tapLight"
-            style={styles.more}
-          >
-            <Text variant="subheadline" weight="semibold" tabular style={{ color: accent }}>
-              {moreLabel}
-            </Text>
-          </PressableScale>
-        ) : null}
-      </View>
-
-      <PressableScale
-        onPress={() =>
-          router.push({ pathname: '/event-detail', params: { eventId: event.id } } as never)
-        }
-        accessibilityRole="button"
-        accessibilityLabel={t('home.parent.actionOpenEventA11y', {
-          defaultValue: 'Open {{title}} for {{child}}',
-          title: eventHeadline(event),
-          child,
-        })}
-        haptic="tapLight"
-        style={[styles.body, { borderTopColor: c.borderSubtle }]}
-      >
-        <View style={styles.chipRow}>
-          <TypeChip type={event.type} />
-          {event.type === 'MATCH' ? <HomeAwayChip homeAway={event.homeAway} /> : null}
-        </View>
-        <Text variant="title3" weight="bold" color="primary" numberOfLines={2}>
-          {eventHeadline(event)}
-        </Text>
-        <KickoffBlock event={event} locale={locale} compact />
-        <LocationLine event={event} />
-      </PressableScale>
-
-      {canAnswer ? (
-        <View style={[styles.reply, { borderTopColor: c.borderSubtle }]}>
-          <Text variant="subheadline" weight="semibold" color="primary">
-            {t('homeHub.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })}
-          </Text>
-          <RsvpControl
-            value={event.childRsvp ?? null}
-            onChange={onRsvp}
-            disabled={pending}
-            subjectName={child}
-            accessibilityLabel={t('homeHub.parent.replyFor', { defaultValue: 'Reply for {{child}}', child })}
-            testID={`parent-rsvp-${event.childUserId}`}
-          />
-        </View>
-      ) : null}
-
-      {carpool ? (
+    <View style={styles.childCards}>
+      <HeroSurface style={styles.hero}>
         <PressableScale
           onPress={() =>
-            router.push({
-              pathname: '/carpool',
-              params: event.fixtureId
-                ? { fixtureId: event.fixtureId, eventId: event.id }
-                : { eventId: event.id },
-            } as never)
+            router.push({ pathname: '/event-detail', params: { eventId: event.id } } as never)
           }
           accessibilityRole="button"
-          accessibilityLabel={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
+          accessibilityLabel={t('home.parent.actionOpenEventA11y', {
+            defaultValue: 'Open {{title}} for {{child}}',
+            title: eventHeadline(event),
+            child,
+          })}
           haptic="tapLight"
-          style={[styles.carpool, { borderTopColor: c.borderSubtle }]}
+          style={styles.heroBody}
         >
-          <Icon name="car.fill" size={17} color={accent} />
-          <Text variant="subheadline" weight="semibold" style={[styles.flex, { color: accent }]}>
-            {t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
+          <View style={styles.heroTop}>
+            <Text variant="footnote" weight="semibold" numberOfLines={2} style={[styles.flex, { color: hero.muted }]}>
+              {[event.childName ? `${child} · ${team}` : team, eventHeadline(event)].join(' · ')}
+            </Text>
+            {countdown ? (
+              <Text variant="footnote" weight="semibold" style={{ color: hero.muted }}>
+                {countdown}
+              </Text>
+            ) : null}
+          </View>
+          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={[styles.kickoff, { color: hero.fg }]}>
+            {heroKickoff(event.date, locale)}
           </Text>
-          <Icon name="chevron.right" size={14} color="tertiary" />
+          {meetLine ? (
+            <Text variant="footnote" numberOfLines={2} style={{ color: hero.muted }}>
+              {meetLine}
+            </Text>
+          ) : null}
         </PressableScale>
+
+        {canAnswer ? (
+          <View style={styles.reply}>
+            <Text variant="footnote" weight="semibold" style={{ color: hero.fg }}>
+              {replyFor}
+            </Text>
+            <HeroRsvp
+              value={event.childRsvp ?? null}
+              onChange={onRsvp}
+              disabled={pending}
+              subjectName={child}
+              accessibilityLabel={replyFor}
+              testID={`parent-rsvp-${event.childUserId}`}
+            />
+          </View>
+        ) : null}
+      </HeroSurface>
+
+      {carpool || more > 0 ? (
+        <HomeCard>
+          {carpool ? (
+            <HomeRow
+              icon="car.fill"
+              title={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
+              accessibilityLabel={t('homeHub.parent.carpool', { defaultValue: 'Carpool' })}
+              onPress={() =>
+                router.push({
+                  pathname: '/carpool',
+                  params: event.fixtureId
+                    ? { fixtureId: event.fixtureId, eventId: event.id }
+                    : { eventId: event.id },
+                } as never)
+              }
+            />
+          ) : null}
+          {more > 0 ? (
+            <HomeRow
+              icon="calendar"
+              title={moreLabel}
+              accessibilityLabel={moreLabel}
+              showDivider={carpool}
+              onPress={() => router.push(SCHEDULE_ROUTE as never)}
+            />
+          ) : null}
+        </HomeCard>
       ) : null}
     </View>
   )
+}
+
+function cardKey(event: ChildEvent): string {
+  return event.childUserId ?? `team:${event.teamName}`
 }
 
 function firstName(name: string | undefined | null): string {
@@ -564,42 +589,13 @@ function TeamEventsListener({
 
 const styles = StyleSheet.create({
   root: { gap: space.lg },
-  childCards: { gap: space.sm + space.xs },
+  childCards: { gap: space.md + 4 },
   flex: { flex: 1 },
-  card: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: hairline,
-    overflow: 'hidden',
-  },
-  childHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm + 4,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 4,
-    minHeight: 56,
-  },
-  more: { minHeight: 44, justifyContent: 'center', paddingHorizontal: space.xs },
-  body: {
-    borderTopWidth: hairline,
-    padding: space.md,
-    gap: space.sm + 4,
-  },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
-  reply: {
-    borderTopWidth: hairline,
-    padding: space.md,
-    gap: space.sm + 4,
-  },
-  carpool: {
-    borderTopWidth: hairline,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm + 4,
-    paddingHorizontal: space.md,
-    minHeight: 52,
-  },
+  hero: { gap: SPACING_LG + SPACING_XXS },
+  heroBody: { gap: SPACING_XS + SPACING_XXS },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  kickoff: { fontSize: 50 },
+  reply: { gap: space.sm },
   stale: {
     flexDirection: 'row',
     alignItems: 'center',

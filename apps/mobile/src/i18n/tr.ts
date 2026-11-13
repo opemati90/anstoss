@@ -5,7 +5,10 @@ import clubAdminTr from './clubAdmin/tr'
 import wechselTr from './wechsel/tr'
 import chatThreadTr from './chatThread/tr' // chat revamp: conversation screen
 import { statesTr } from './states.tr'
-export default {
+import { deepMerge } from './deepMerge'
+import redesign from './redesign/tr' // 2026-11 Anstoss Redesign strings
+
+const base = {
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
   a11y: {
@@ -3487,3 +3490,5 @@ export default {
     moreRowSubtitle: 'Çocukların için verdiğin onayları gör veya geri çek',
   },
 }
+
+export default deepMerge(base, redesign) as typeof base

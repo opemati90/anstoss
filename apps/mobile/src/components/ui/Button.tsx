@@ -11,7 +11,7 @@ import {
   AccessibilityProps,
 } from 'react-native'
 import { useClubColors } from '../../context/ClubThemeContext'
-import type { ClubTheme } from '../../theme/club-theme'
+import { hexToRgba, type ClubTheme } from '../../theme/club-theme'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { Haptics } from '../../utils/haptics'
 import {
@@ -275,8 +275,8 @@ function resolvePalette(variant: ButtonVariant, c: ClubTheme): Palette {
     case 'onHero':
       return {
         bg: 'transparent',
-        fg: '#FFFFFF',
-        border: 'rgba(255, 255, 255, 0.32)',
+        fg: c.onHeroBg,
+        border: hexToRgba(c.onHeroBg, 0.32),
         borderWidth: 1,
       }
     case 'tinted':

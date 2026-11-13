@@ -3,7 +3,7 @@ import React from 'react'
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useClubColors } from '../context/ClubThemeContext'
 import {
-  RADIUS_LG,
+  RADIUS_FULL,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
@@ -48,8 +48,10 @@ export function EmptyState({
   testID,
 }: EmptyStateProps) {
   const c = useClubColors()
-  const iconColor = tint ?? c.primary
-  const iconSize = compact ? 36 : 52
+  // 2026-11 redesign: a neutral icon well (`.ic`) with an ink glyph; a
+  // caller-supplied tint still colours the glyph.
+  const iconColor = tint ?? c.textPrimary
+  const iconSize = compact ? 26 : 32
 
   return (
     <View
@@ -69,9 +71,9 @@ export function EmptyState({
           style={[
             styles.iconTile,
             {
-              width: iconSize + 16,
-              height: iconSize + 16,
-              backgroundColor: hexWithAlpha(iconColor, 0.1),
+              width: iconSize + 24,
+              height: iconSize + 24,
+              backgroundColor: tint ? hexWithAlpha(tint, 0.1) : c.surfaceMuted,
             },
           ]}
         >
@@ -79,7 +81,8 @@ export function EmptyState({
         </View>
       )}
       <Text
-        variant={compact ? 'title3' : 'title2'}
+        variant="title3"
+        weight="bold"
         color="primary"
         align="center"
         style={styles.title}
@@ -139,7 +142,7 @@ const styles = StyleSheet.create({
     height: 98,
   },
   iconTile: {
-    borderRadius: RADIUS_LG,
+    borderRadius: RADIUS_FULL,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

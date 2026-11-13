@@ -11,14 +11,14 @@ import { api, ApiError, API_URL } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useEventsSocket } from '../../hooks/useEventsSocket'
 import { SILENT_REFRESH_DEBOUNCE_MS } from '../../hooks/usePlayerHome'
-import { Icon, PressableScale, Text } from '../ui'
-import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, space } from '../../theme/tokens'
+import { Button, Icon, PressableScale, Text } from '../ui'
+import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
+import { RADIUS_MD, SPACING_MD, SPACING_XXS, hairline, space } from '../../theme/tokens'
 import { AnnounceSheet } from './AnnounceSheet'
 import { CoachMatchCard, type RsvpSplit } from './CoachMatchCard'
+import { CoachFirstStart } from './CoachFirstStart'
+import { heroKickoff } from './HomeHero'
 import { SeasonStatsCard } from './SeasonStatsCard'
-import { TeamPulse } from './TeamPulse'
-import { WeekRows } from './WeekRows'
 import { HomeSkeleton } from './HomeSkeleton'
 import {
   EmptyCard,
@@ -26,12 +26,13 @@ import {
   HomeRow,
   HomeSection,
   InlineError,
+  eventHeadline,
   formatDayTime,
   formatShortDate,
+  useAccentText,
 } from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
 import { isInCheckInWindow } from './NextUpHero'
-import type { HomeAnnouncement, HomeChannel } from '../../hooks/usePlayerHome'
 import {
   buildEventReadinessShareText,
   formatEventReadinessWhen,
@@ -57,12 +58,16 @@ type AttentionItem = {
 }
 
 /**
- * The coach's home: the next match and whether there is a team for it, what
- * needs the coach's attention, this week's sessions with their reply counts,
- * the team channel, and the season last and folded away.
+ * The coach's home (redesign screen 08): the next match as the club hero with
+ * the squad's answers, a "Vor dem Spiel" group (chase open replies, lineup,
+ * announce the meeting point), what else the data proves needs the coach,
+ * then one quiet "Danach" line and the season folded away.
  */
 export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomeProps) {
   const c = useClubColors()
+  const isDark = useIsDark()
+  const linkOnBackground = useAccentText('background')
+  const accentLink = isDark ? c.accent : linkOnBackground
   const { t } = useTranslation()
   const locale = useHomeLocale()
   const { token, activeClub, activeTeamAccess } = useAuth()
@@ -70,8 +75,6 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
   const [upcoming, setUpcoming] = useState<EventItem[]>([])
   const [fixtures, setFixtures] = useState<ImportedFixture[]>([])
   const [ops, setOps] = useState<RosterOpsSnapshot | null>(null)
-  const [teamChannel, setTeamChannel] = useState<HomeChannel | null>(null)
-  const [announcements, setAnnouncements] = useState<HomeAnnouncement[]>([])
   const [loaded, setLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(false)
@@ -95,8 +98,6 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
     setUpcoming([])
     setFixtures([])
     setOps(null)
-    setTeamChannel(null)
-    setAnnouncements([])
     setError(false)
     setLoaded(false)
   }, [teamId])
@@ -109,22 +110,15 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
       return
     }
     const base = `/clubs/${clubId}/events?teamId=${teamId}&scope=upcoming`
-    const [events, snapshot, fixtureList, channels, anns] = await Promise.all([
+    const [events, snapshot, fixtureList] = await Promise.all([
       api<EventFeedItem[]>(`${base}&limit=10`).catch(() => null),
       api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null),
       api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=10`).catch(
         () => null,
       ),
-      api<HomeChannel[]>(`/teams/${teamId}/channels`).catch(() => null),
-      api<HomeAnnouncement[]>(`/clubs/${clubId}/announcements?limit=3`).catch(() => null),
     ])
     if (seq !== requestSeq.current) return
     // A failed sub-request keeps what is on screen (stale-while-revalidate).
-    if (channels !== null) {
-      const channelList = Array.isArray(channels) ? channels : []
-      setTeamChannel(channelList.find((ch) => ch.kind === 'TEAM') ?? channelList[0] ?? null)
-    }
-    if (anns !== null) setAnnouncements(Array.isArray(anns) ? anns : [])
     if (fixtureList !== null) setFixtures(Array.isArray(fixtureList) ? fixtureList : [])
     if (snapshot !== null) setOps(isSnapshot(snapshot) ? snapshot : null)
     if (events === null) {
@@ -177,12 +171,6 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
     onRefreshStateChange?.({ refresh, refreshing })
   }, [onRefreshStateChange, refresh, refreshing])
 
-  const weekEndMs = Date.now() + 7 * 24 * 60 * 60 * 1000
-  const thisWeek = useMemo(
-    () => upcoming.filter((event) => new Date(event.date).getTime() <= weekEndMs),
-    // weekEndMs changes every render; the list only needs to follow the data.
-    [upcoming],
-  )
   const nextMatch = useMemo(
     () => upcoming.find((event) => event.type === 'MATCH' && !event.cancelledAt) ?? null,
     [upcoming],
@@ -309,70 +297,15 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
     }
   }, [clubId, load, locale, nextMatch, t])
 
-  // ─── Match card actions ──────────────────────────────────────────────────
+  // ─── "Vor dem Spiel" state ───────────────────────────────────────────────
 
   const nudge = nextMatch?.readiness?.nudge ?? null
   const cooldownUntil =
     nudge?.reason === 'cooldown' && nudge.nextAvailableAt ? nudge.nextAvailableAt : null
   const openCount = split?.open ?? 0
   const inArrival = nextMatch ? isInCheckInWindow(nextMatch.date, Date.now()) : false
-
-  const lineupLabel = t('homeHub.coach.lineup', { defaultValue: 'Lineup' })
   const splitTotal = split ? split.yes + split.maybe + split.no + split.open : 0
-  const matchActions = (() => {
-    if (!nextMatch) return null
-    // No one in the squad yet: nobody can reply until players are invited.
-    if (splitTotal === 0 && (squadCount ?? 0) === 0) {
-      return {
-        primary: {
-          label: t('home.actionInvite', { defaultValue: 'Invite players' }),
-          onPress: () => router.push('/invite' as never),
-        },
-        secondary: {
-          label: t('homeHub.coach.openEvent', { defaultValue: 'Details' }),
-          onPress: () => openEvent(nextMatch.id),
-        },
-        note: null,
-      }
-    }
-    if (inArrival) {
-      return {
-        primary: {
-          label: t('home.coach.actionAttendanceCta', { defaultValue: 'Open attendance' }),
-          onPress: () => openEvent(nextMatch.id, true),
-        },
-        secondary: { label: lineupLabel, onPress: goToLineup },
-        note: null,
-      }
-    }
-    if (openCount > 0 && !cooldownUntil) {
-      return {
-        primary: {
-          label: t('homeHub.coach.remind', {
-            defaultValue: 'Remind {{count}} players',
-            count: openCount,
-          }),
-          onPress: () => void remind(),
-          loading: nudging,
-        },
-        secondary: { label: lineupLabel, onPress: goToLineup },
-        note: null,
-      }
-    }
-    return {
-      primary: { label: lineupLabel, onPress: goToLineup },
-      secondary: {
-        label: t('homeHub.coach.openEvent', { defaultValue: 'Details' }),
-        onPress: () => openEvent(nextMatch.id),
-      },
-      note: cooldownUntil
-        ? t('homeHub.coach.remindCooldown', {
-            defaultValue: 'Reminder sent. You can send the next one from {{time}}.',
-            time: formatDayTime(cooldownUntil, locale),
-          })
-        : null,
-    }
-  })()
+  const squadEmpty = splitTotal === 0 && (squadCount ?? 0) === 0
 
   // ─── Attention: only things the loaded data proves need the coach ───────
 
@@ -487,6 +420,12 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
+  // The quiet "Danach" line: the next event after the hero's match.
+  const afterEvent = useMemo(
+    () => upcoming.find((event) => event.id !== nextMatch?.id && !event.cancelledAt) ?? null,
+    [nextMatch?.id, upcoming],
+  )
+
   if (!loaded) return <HomeSkeleton variant="coach" />
 
   if (error && upcoming.length === 0) {
@@ -503,22 +442,91 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
     )
   }
 
+  // First start (redesign screen 26): nobody in the squad and nothing planned.
+  if (teamId && upcoming.length === 0 && ops && squadCount === 0) {
+    return (
+      <View style={styles.root}>
+        <CoachFirstStart teamId={teamId} />
+      </View>
+    )
+  }
+
+  const replyRow = (() => {
+    if (!nextMatch) return null
+    if (squadEmpty) {
+      return (
+        <ActionRow
+          icon="person.badge.plus"
+          title={t('homeHub.coach.squadEmpty', { defaultValue: 'No players in the squad yet' })}
+          action={{
+            label: t('homeHub.coach.inviteShort', { defaultValue: 'Invite' }),
+            a11y: t('home.actionInvite', { defaultValue: 'Invite players' }),
+            onPress: () => router.push('/invite' as never),
+          }}
+        />
+      )
+    }
+    if (inArrival) {
+      return (
+        <HomeRow
+          icon="checklist"
+          title={t('home.coach.actionAttendanceCta', { defaultValue: 'Open attendance' })}
+          onPress={() => openEvent(nextMatch.id, true)}
+        />
+      )
+    }
+    if (openCount > 0 && !cooldownUntil) {
+      return (
+        <ActionRow
+          icon="bubble"
+          title={t('homeHub.coach.openReplies', {
+            defaultValue: '{{count}} haven\'t replied yet',
+            count: openCount,
+          })}
+          action={{
+            label: t('homeHub.coach.remindShort', { defaultValue: 'Remind' }),
+            a11y: t('homeHub.coach.remind', {
+              defaultValue: 'Remind {{count}} players',
+              count: openCount,
+            }),
+            onPress: () => void remind(),
+            loading: nudging,
+          }}
+        />
+      )
+    }
+    return (
+      <ActionRow
+        icon="bubble"
+        title={
+          cooldownUntil
+            ? t('homeHub.coach.remindSent', { defaultValue: 'Reminder sent' })
+            : t('homeHub.coach.allReplied', { defaultValue: 'Everyone has replied' })
+        }
+        detail={
+          cooldownUntil
+            ? t('homeHub.coach.remindCooldown', {
+                defaultValue: 'Reminder sent. You can send the next one from {{time}}.',
+                time: formatDayTime(cooldownUntil, locale),
+              })
+            : null
+        }
+        done
+      />
+    )
+  })()
+
   return (
     <View style={styles.root}>
-      {/* 1. Next match readiness. */}
-      {nextMatch && split && matchActions ? (
-        <HomeSection title={t('homeHub.coach.nextMatch', { defaultValue: 'Next match' })}>
-          <CoachMatchCard
-            event={nextMatch}
-            locale={locale}
-            split={split}
-            primary={matchActions.primary}
-            secondary={matchActions.secondary}
-            note={matchActions.note}
-            onOpen={() => openEvent(nextMatch.id)}
-            onShare={nextMatch.readiness ? () => void shareBriefing() : undefined}
-          />
-        </HomeSection>
+      {/* 1. The next match as the club hero. */}
+      {nextMatch && split ? (
+        <CoachMatchCard
+          event={nextMatch}
+          locale={locale}
+          split={split}
+          onOpen={() => openEvent(nextMatch.id)}
+          onShare={nextMatch.readiness ? () => void shareBriefing() : undefined}
+        />
       ) : teamId ? (
         <EmptyCard
           icon="calendar"
@@ -546,7 +554,29 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
         />
       ) : null}
 
-      {/* 2. Needs attention. */}
+      {/* 2. Before the match: replies, lineup, meeting point. */}
+      {nextMatch ? (
+        <HomeSection title={t('homeHub.coach.beforeMatch', { defaultValue: 'Before the match' })}>
+          <HomeCard>
+            {replyRow}
+            <HomeRow
+              icon="square.grid.3x3"
+              title={t('homeHub.coach.setLineup', { defaultValue: 'Set the lineup' })}
+              onPress={goToLineup}
+              showDivider
+            />
+            <HomeRow
+              icon="megaphone"
+              title={t('homeHub.coach.announceMeeting', { defaultValue: 'Announce meeting point' })}
+              detail={t('homeHub.coach.announceMeetingBody', { defaultValue: 'Posts in the team chat' })}
+              onPress={() => setAnnounceVisible(true)}
+              showDivider
+            />
+          </HomeCard>
+        </HomeSection>
+      ) : null}
+
+      {/* 3. Needs attention: only what the data proves. */}
       {attention.length > 0 ? (
         <HomeSection title={t('homeHub.coach.attention', { defaultValue: 'Needs attention' })}>
           <HomeCard>
@@ -565,25 +595,46 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
         </HomeSection>
       ) : null}
 
-      {/* 3. This week. */}
-      {teamId ? (
-        <WeekRows
-          events={thisWeek}
-          locale={locale}
-          squadSize={squadCount}
-          onCreate={goToCreateEvent}
-          emptyLabel={t('homeHub.coach.weekEmpty', {
-            defaultValue: 'Nothing planned this week. Add a training so the team can reply.',
-          })}
-        />
+      {/* 4. The quiet next line, and the way to the full calendar. */}
+      {afterEvent ? (
+        <View style={styles.after}>
+          <PressableScale
+            onPress={() => openEvent(afterEvent.id)}
+            accessibilityRole="button"
+            haptic="tapLight"
+            style={styles.afterText}
+          >
+            <Text variant="label">
+              {nextMatch && new Date(afterEvent.date).getTime() >= new Date(nextMatch.date).getTime()
+                ? t('homeHub.coach.after', { defaultValue: 'After that' })
+                : t('homeHub.nextUp', { defaultValue: 'Next up' })}
+            </Text>
+            <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.afterTitle}>
+              {[
+                `${eventHeadline(afterEvent)} ${heroKickoff(afterEvent.date, locale)}`,
+                (afterEvent.yesCount ?? 0) > 0
+                  ? t('homeHub.hero.goingCount', {
+                      defaultValue: '{{count}} going',
+                      count: afterEvent.yesCount ?? 0,
+                    })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => router.push('/(tabs)/events' as never)}
+            accessibilityRole="link"
+            haptic="tapLight"
+            style={styles.allLink}
+          >
+            <Text variant="subheadline" weight="semibold" style={{ color: accentLink }}>
+              {t('homeHub.allEvents', { defaultValue: 'All events' })}
+            </Text>
+          </PressableScale>
+        </View>
       ) : null}
-
-      {/* 4. Team pulse + announce. */}
-      <TeamPulse
-        channel={teamChannel}
-        announcements={announcements}
-        onAnnounce={teamId ? () => setAnnounceVisible(true) : undefined}
-      />
 
       {/* 5. Season, folded away. */}
       {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} collapsible /> : null}
@@ -611,6 +662,56 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
           visible={announceVisible}
           onClose={() => setAnnounceVisible(false)}
         />
+      ) : null}
+    </View>
+  )
+}
+
+/**
+ * A "Vor dem Spiel" row whose action is a lime sm pill ("Erinnern"), or a
+ * check once it is done. Not one big button: the pill is the only target.
+ */
+function ActionRow({
+  icon,
+  title,
+  detail,
+  action,
+  done,
+}: {
+  icon: string
+  title: string
+  detail?: string | null
+  action?: { label: string; a11y: string; onPress: () => void; loading?: boolean }
+  done?: boolean
+}) {
+  const c = useClubColors()
+  const isDark = useIsDark()
+  return (
+    <View style={styles.actionRow}>
+      <View style={[styles.well, { backgroundColor: c.surfaceMuted }]}>
+        <Icon name={icon} size={18} color={c.textPrimary} />
+      </View>
+      <View style={styles.actionText} accessible>
+        <Text variant="subheadline" weight="semibold" color="primary" style={styles.rowTitle}>
+          {title}
+        </Text>
+        {detail ? (
+          <Text variant="footnote" color="secondary">
+            {detail}
+          </Text>
+        ) : null}
+      </View>
+      {action ? (
+        <Button
+          label={action.label}
+          accessibilityLabel={action.a11y}
+          onPress={action.onPress}
+          loading={action.loading}
+          variant="accent"
+          size="sm"
+        />
+      ) : done ? (
+        <Icon name="checkmark" size={20} color={isDark ? c.accent : c.primary} />
       ) : null}
     </View>
   )
@@ -650,6 +751,27 @@ function isSnapshot(value: unknown): value is RosterOpsSnapshot {
 
 const styles = StyleSheet.create({
   root: { gap: space.lg },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + SPACING_XXS,
+    paddingVertical: space.md - 4,
+    minHeight: 60,
+  },
+  well: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS_MD,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: { flex: 1, gap: space['2xs'] },
+  rowTitle: { fontSize: 15 },
+  after: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + SPACING_XXS, paddingHorizontal: space.xs },
+  afterText: { flex: 1, gap: space['2xs'], minHeight: 44, justifyContent: 'center' },
+  afterTitle: { fontSize: 15 },
+  allLink: { minHeight: 44, justifyContent: 'center' },
   stale: {
     flexDirection: 'row',
     alignItems: 'center',

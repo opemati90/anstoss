@@ -248,9 +248,10 @@ describe('CoachHome', () => {
 
   it('leads with the next match and its kick-off time', async () => {
     const { findByText, getAllByText, getByText } = renderCoach()
-    expect(await findByText('Next match')).toBeTruthy()
+    // Redesign screen 08: the match is the club hero, then "Before the match".
+    expect(await findByText('Before the match')).toBeTruthy()
     expect(getAllByText('vs FC Nord').length).toBeGreaterThan(0)
-    expect(getByText('Kick-off')).toBeTruthy()
+    expect(getByText('Match')).toBeTruthy()
   })
 
   it('spells the squad split out instead of bare numbers', async () => {
@@ -258,14 +259,16 @@ describe('CoachHome', () => {
     const hidden = { includeHiddenElements: true }
     expect(await findByText('13 going', hidden)).toBeTruthy()
     expect(getByText('1 maybe', hidden)).toBeTruthy()
-    expect(getByText('1 not going', hidden)).toBeTruthy()
     expect(getByText('3 no reply', hidden)).toBeTruthy()
-    expect(getByLabelText('13 going · 1 maybe · 1 not going · 3 no reply')).toBeTruthy()
+    // Absagen take no bar segment but are still counted.
+    expect(getByText('1 declined', hidden)).toBeTruthy()
+    expect(getByLabelText('13 going, 1 maybe, 3 no reply, 1 declined')).toBeTruthy()
   })
 
   it('makes reminding the open replies the primary action', async () => {
-    const { findByText } = renderCoach()
-    fireEvent.press(await findByText('Remind 3 players'))
+    const { findByLabelText, getByText } = renderCoach()
+    fireEvent.press(await findByLabelText('Remind 3 players'))
+    expect(getByText("3 haven't replied yet")).toBeTruthy()
     const { api } = require('../../src/api/client')
     await waitFor(() => {
       expect(api).toHaveBeenCalledWith('/clubs/c1/events/m1/remind-rsvp', { method: 'POST' })
@@ -277,7 +280,7 @@ describe('CoachHome', () => {
 
   it('opens the lineup builder with the linked fixture from the secondary action', async () => {
     const { findByText } = renderCoach()
-    fireEvent.press(await findByText('Lineup'))
+    fireEvent.press(await findByText('Set the lineup'))
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/lineup-builder',
@@ -301,10 +304,10 @@ describe('CoachHome', () => {
           }
         : event,
     )
-    const { findByText, queryByText } = renderCoach()
+    const { findByText, queryByLabelText } = renderCoach()
     expect(await findByText(/Reminder sent\. You can send the next one from/)).toBeTruthy()
-    expect(queryByText('Remind 3 players')).toBeNull()
-    expect(await findByText('Lineup')).toBeTruthy()
+    expect(queryByLabelText('Remind 3 players')).toBeNull()
+    expect(await findByText('Set the lineup')).toBeTruthy()
   })
 
   it('opens attendance as the primary action once kick-off is close', async () => {
@@ -326,14 +329,14 @@ describe('CoachHome', () => {
     await waitFor(() => expect(mockShare).toHaveBeenCalled())
   })
 
-  it('lists this week with tabular yes/squad ratios and an add action', async () => {
-    const { findByText, getByLabelText } = renderCoach()
-    expect(await findByText('This week')).toBeTruthy()
-    expect(await findByText('Tuesday training')).toBeTruthy()
-    expect(await findByText('13/20')).toBeTruthy()
-    fireEvent.press(getByLabelText('Event'))
+  it('ends with one quiet line for the next other event and a link to all events', async () => {
+    const { findByText } = renderCoach()
+    // The recovery training falls before the match, so it is "Next up".
+    expect(await findByText('Next up')).toBeTruthy()
+    expect(await findByText(/Recovery training/)).toBeTruthy()
+    fireEvent.press(await findByText('All events'))
     const { router } = require('expo-router')
-    expect(router.push).toHaveBeenCalledWith('/create-event')
+    expect(router.push).toHaveBeenCalledWith('/(tabs)/events')
   })
 
   it('surfaces only what the data proves needs attention', async () => {
@@ -379,7 +382,7 @@ describe('CoachHome', () => {
     // No duty ever assigned: the team does not run the rota, no nag.
     mockRosterOps = mockDefaultRosterOps({ kit: { pending: [], recent: [] } })
     const first = renderCoach()
-    expect(await first.findByText('Next match')).toBeTruthy()
+    expect(await first.findByText('Before the match')).toBeTruthy()
     expect(first.queryByText(/No one on kit wash for/)).toBeNull()
     first.unmount()
 
@@ -400,7 +403,7 @@ describe('CoachHome', () => {
       },
     })
     const second = renderCoach()
-    expect(await second.findByText('Next match')).toBeTruthy()
+    expect(await second.findByText('Before the match')).toBeTruthy()
     expect(second.queryByText(/No one on kit wash for/)).toBeNull()
     second.unmount()
 
@@ -455,8 +458,8 @@ describe('CoachHome', () => {
         ? { ...event, yesCount: 0, maybeCount: 0, noCount: 0, readiness: undefined, squadSize: 0 }
         : event,
     )
-    const { findByText } = renderCoach()
-    fireEvent.press(await findByText('Invite players'))
+    const { findByLabelText } = renderCoach()
+    fireEvent.press(await findByLabelText('Invite players'))
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/invite')
   })
@@ -500,7 +503,7 @@ describe('CoachHome', () => {
 
   it('hides the attention section when nothing needs the coach', async () => {
     const { findByText, queryByText } = renderCoach()
-    expect(await findByText('Next match')).toBeTruthy()
+    expect(await findByText('Before the match')).toBeTruthy()
     expect(queryByText('Needs attention')).toBeNull()
   })
 
@@ -526,17 +529,29 @@ describe('CoachHome', () => {
     expect(await findByText('Create event')).toBeTruthy()
   })
 
+  it('shows the first-start checklist when the squad is empty and nothing is planned', async () => {
+    mockUpcomingEvents = []
+    mockRosterOps = mockDefaultRosterOps({ squadCount: 0, squad: [] })
+    const { findByText, getByText, getByLabelText } = renderCoach()
+    // Redesign screen 26.
+    expect(await findByText('Welcome, coach.')).toBeTruthy()
+    expect(getByText('Club created')).toBeTruthy()
+    fireEvent.press(getByLabelText(/Invite your team/))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/invite')
+  })
+
   it('shows an inline error with retry when the schedule fails to load', async () => {
     mockEventsFail = true
     const { findByText, getByLabelText } = renderCoach()
     expect(await findByText("Couldn't load your team's week")).toBeTruthy()
     mockEventsFail = false
     fireEvent.press(getByLabelText('Try again'))
-    expect(await findByText('Next match')).toBeTruthy()
+    expect(await findByText('Before the match')).toBeTruthy()
   })
 
-  it('offers Announce on the team section', async () => {
+  it('offers announcing the meeting point before the match', async () => {
     const { findByLabelText } = renderCoach()
-    expect(await findByLabelText('Announce')).toBeTruthy()
+    fireEvent.press(await findByLabelText(/Announce meeting point/))
   })
 })

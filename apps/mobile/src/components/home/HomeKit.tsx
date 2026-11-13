@@ -3,7 +3,7 @@ import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle }
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, PressableScale, Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { hairline, radius, space } from '../../theme/tokens'
+import { RADIUS_CARD, RADIUS_MD, SPACING_MD, SPACING_XXS, hairline, radius, space } from '../../theme/tokens'
 import { textSafeAccent } from '../../theme/club-theme'
 
 /**
@@ -60,7 +60,7 @@ export function HomeSection({
   return (
     <View style={styles.section} testID={testID}>
       <View style={styles.sectionHead}>
-        <Text variant="caption1" weight="medium" color="secondary" style={styles.sectionTitle}>
+        <Text variant="label" accessibilityRole="header" style={styles.sectionTitle}>
           {title}
         </Text>
         {actionLabel && onAction ? (
@@ -92,7 +92,7 @@ export function HomeCard({
 }) {
   const c = useClubColors()
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }, style]}>
+    <View style={[styles.card, { backgroundColor: c.surface }, style]}>
       {children}
     </View>
   )
@@ -122,24 +122,20 @@ export function HomeRow({
   showDivider?: boolean
 }) {
   const c = useClubColors()
-  const well =
-    tone === 'accent'
-      ? { bg: c.primary50, fg: c.primary }
-      : tone === 'success'
-        ? { bg: c.successBg, fg: c.success }
-        : tone === 'warning'
-          ? { bg: c.warningBg, fg: c.warning }
-          : tone === 'error'
-            ? { bg: c.errorBg, fg: c.error }
-            : { bg: c.surfaceSunken, fg: c.textSecondary }
+  // 2026-11 redesign: every row uses the neutral 40pt well (`.ic`); only a
+  // warning or error keeps its semantic glyph colour so it is not missed.
+  const well = {
+    bg: c.surfaceMuted,
+    fg: tone === 'warning' ? c.warning : tone === 'error' ? c.error : c.textPrimary,
+  }
 
   const body = (
     <>
       <View style={[styles.iconWell, { backgroundColor: well.bg }]}>
-        <Icon name={icon} size={17} color={well.fg} />
+        <Icon name={icon} size={18} color={well.fg} />
       </View>
       <View style={styles.rowText}>
-        <Text variant="callout" weight="semibold" color="primary" numberOfLines={2}>
+        <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={2} style={styles.rowTitle}>
           {title}
         </Text>
         {detail ? (
@@ -149,7 +145,7 @@ export function HomeRow({
         ) : null}
       </View>
       {trailing}
-      {onPress ? <Icon name="chevron.right" size={14} color="tertiary" /> : null}
+      {onPress ? <Icon name="chevron.right" size={16} color="secondary" /> : null}
     </>
   )
 
@@ -193,7 +189,9 @@ export function InlineError({
   return (
     <HomeCard style={styles.errorCard}>
       <View style={styles.errorHead}>
-        <Icon name="exclamationmark.circle.fill" size={20} color={c.error} />
+        <View style={[styles.iconWell, { backgroundColor: c.surfaceMuted }]}>
+          <Icon name="exclamationmark.circle" size={18} color={c.textPrimary} />
+        </View>
         <View style={styles.rowText}>
           <Text variant="callout" weight="semibold" color="primary">
             {title}
@@ -211,10 +209,10 @@ export function InlineError({
           accessibilityRole="button"
           accessibilityLabel={t('homeHub.retry', { defaultValue: 'Try again' })}
           haptic="tapLight"
-          style={[styles.retry, { borderColor: c.borderControl }]}
+          style={[styles.retry, { backgroundColor: c.ink }]}
         >
-          <Icon name="arrow.clockwise" size={15} color={c.textPrimary} />
-          <Text variant="subheadline" weight="semibold" color="primary">
+          <Icon name="arrow.clockwise" size={15} color={c.onInk} />
+          <Text variant="subheadline" weight="bold" style={{ color: c.onInk }}>
             {t('homeHub.retry', { defaultValue: 'Try again' })}
           </Text>
         </PressableScale>
@@ -240,10 +238,10 @@ export function EmptyCard({
   const c = useClubColors()
   return (
     <HomeCard style={styles.emptyCard}>
-      <View style={[styles.emptyIcon, { backgroundColor: c.surfaceSunken }]}>
-        <Icon name={icon} size={20} color={c.textSecondary} />
+      <View style={[styles.emptyIcon, { backgroundColor: c.surfaceMuted }]}>
+        <Icon name={icon} size={24} color={c.textPrimary} />
       </View>
-      <Text variant="callout" weight="semibold" color="primary" align="center">
+      <Text variant="title3" weight="bold" color="primary" align="center">
         {title}
       </Text>
       {body ? (
@@ -262,7 +260,6 @@ export function EmptyCard({
 
 export function TypeChip({ type }: { type?: string }) {
   const c = useClubColors()
-  const accentOnTint = useAccentText('tint')
   const { t } = useTranslation()
   const isMatch = type === 'MATCH'
   const label =
@@ -275,20 +272,18 @@ export function TypeChip({ type }: { type?: string }) {
     <View
       style={[
         styles.chip,
-        isMatch
-          ? { backgroundColor: c.primary50 }
-          : { backgroundColor: c.surfaceSunken },
+        { backgroundColor: c.surfaceMuted },
       ]}
     >
       <Icon
         name={isMatch ? 'football' : type === 'TRAINING' ? 'whistle' : 'calendar'}
         size={13}
-        color={isMatch ? accentOnTint : c.textSecondary}
+        color={isMatch ? c.textPrimary : c.textSecondary}
       />
       <Text
         variant="caption1"
         weight="semibold"
-        style={{ color: isMatch ? accentOnTint : c.textSecondary }}
+        style={{ color: isMatch ? c.textPrimary : c.textSecondary }}
       >
         {label}
       </Text>
@@ -571,7 +566,7 @@ export function formatMoney(cents: number, currency: string, locale: string): st
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
+  section: { gap: space.sm + 4 },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -579,7 +574,7 @@ const styles = StyleSheet.create({
     minHeight: 28,
     paddingHorizontal: space.xs,
   },
-  sectionTitle: { flexShrink: 1, letterSpacing: 0 },
+  sectionTitle: { flexShrink: 1 },
   sectionAction: {
     minHeight: 44,
     marginVertical: -8,
@@ -588,38 +583,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
   },
+  // `.grp`: white, radius 20, no border on light; rows inset 16.
   card: {
-    borderRadius: radius.lg,
+    borderRadius: RADIUS_CARD,
     borderCurve: 'continuous',
-    borderWidth: hairline,
+    paddingHorizontal: space.md,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md - 4,
-    paddingHorizontal: space.md,
+    gap: SPACING_MD + SPACING_XXS,
     paddingVertical: space.md - 4,
     minHeight: 60,
   },
+  rowTitle: { fontSize: 15 },
   iconWell: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS_MD,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowText: { flex: 1, gap: space['2xs'] },
-  errorCard: { padding: space.md, gap: space.md },
-  errorHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md - 4 },
+  errorCard: { paddingVertical: space.md, gap: space.md },
+  errorHead: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + SPACING_XXS },
   retry: {
     alignSelf: 'flex-start',
     minHeight: 44,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.md + 4,
     borderRadius: radius.full,
     borderCurve: 'continuous',
-    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs + 2,
@@ -627,12 +622,12 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     paddingHorizontal: space.lg,
-    paddingVertical: space.lg,
-    gap: space.sm,
+    paddingVertical: space.xl,
+    gap: space.sm + 4,
   },
   emptyIcon: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
