@@ -148,14 +148,17 @@ describe('Profile tab', () => {
     expect(mockUseStreaks).toHaveBeenCalledWith({ enabled: true })
   })
 
-  it('coaches see a team card, not streaks', () => {
+  it('coaches see a profile card listing their roles, not streaks', () => {
     const screen = renderMore({
       role: 'COACH',
       team: { role: 'HEAD_COACH', team: { displayName: 'Herren I' } },
     })
     expect(screen.queryByText('player-card')).toBeNull()
     expect(screen.getByTestId('profile-card-coach')).toBeTruthy()
-    expect(screen.getByText('Herren I · teamRoles.HEAD_COACH')).toBeTruthy()
+    // Board 18: the profile line lists every held role ("Trainer").
+    expect(screen.getByText('more.roleCoach')).toBeTruthy()
+    // The separate "Mein Team" group is gone (the Kader tab covers it).
+    expect(screen.queryByText('profileHub.myTeam')).toBeNull()
     expect(mockUseStreaks).toHaveBeenCalledWith({ enabled: false })
   })
 
@@ -194,8 +197,9 @@ describe('Profile tab', () => {
       'more.sectionClubApp',
       'profileHub.sectionAccount',
       'profileHub.editProfile',
-      'notificationSettings.title',
-      'contributions.myTitle',
+      'notificationsInbox.title',
+      // Board 18: one "Beiträge" row; for players it opens their own dues.
+      'fees.title',
       'more.language',
       'profileHub.appearance',
       'more.legal',
@@ -205,6 +209,8 @@ describe('Profile tab', () => {
     expect(screen.queryByText('rankings.title')).toBeNull()
     // Players without billing rights see their own dues, not the treasury.
     expect(screen.queryByText('more.treasury')).toBeNull()
+    fireEvent.press(screen.getByText('fees.title'))
+    expect(mockRouterPush).toHaveBeenCalledWith('/my-contributions')
   })
 
   it('gives admins the Vorschau und Vertretung card', () => {

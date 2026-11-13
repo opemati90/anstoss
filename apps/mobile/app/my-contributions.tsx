@@ -3,7 +3,12 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-nativ
 import { useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import QRCode from 'react-native-qrcode-svg'
-import type { MyContributionItem, MyContributionSummary } from '@anstoss/shared'
+import * as Clipboard from 'expo-clipboard'
+import type {
+  ContributionHistoryEntry,
+  MyContributionItem,
+  MyContributionSummary,
+} from '@anstoss/shared'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { ApiError, api } from '../src/api/client'
@@ -17,6 +22,7 @@ import { DuesTag, formatDues, type DuesTagTone } from '../src/components/club/Du
 import { Button, PressableScale, SectionGroup, Text } from '../src/components/ui'
 import {
   RADIUS_CARD,
+  RADIUS_FULL,
   SCREEN_PADDING,
   SPACING_LG,
   SPACING_MD,
@@ -28,7 +34,8 @@ import {
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 
 const SETTLED = new Set(['PAID', 'WAIVED', 'EXEMPT'])
-const QR_SIZE = 112
+// Board 26: the GiroCode sits beside the instructions in an 18pt card.
+const QR_SIZE = 96
 
 function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
@@ -69,6 +76,24 @@ function girocodePayload(
   ].join('\n')
 }
 
+/** Handoff "Dues": reference `Beitrag MM/YYYY Vorname Nachname`. */
+function transferReference(item: MyContributionItem, memberName: string | null | undefined) {
+  const due = new Date(item.dueDate)
+  const period = Number.isFinite(due.getTime())
+    ? `${String(due.getMonth() + 1).padStart(2, '0')}/${due.getFullYear()}`
+    : ''
+  return ['Beitrag', period, memberName?.trim()].filter(Boolean).join(' ').slice(0, 140)
+}
+
+/** "November" for a monthly fee, else the plan's own name. */
+function periodTitle(item: MyContributionItem, locale: string) {
+  if (item.cadence !== 'MONTHLY') return item.planName
+  const due = new Date(item.dueDate)
+  return Number.isFinite(due.getTime())
+    ? new Intl.DateTimeFormat(locale, { month: 'long' }).format(due)
+    : item.planName
+}
+
 function statusTag(
   t: (key: string, options?: Record<string, unknown>) => string,
   item: MyContributionItem,
@@ -89,7 +114,7 @@ function statusTag(
  */
 export default function MyContributionsScreen() {
   const { t, i18n } = useTranslation()
-  const { activeClub } = useAuth()
+  const { activeClub, user } = useAuth()
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
   const locale = i18n.language
@@ -212,6 +237,8 @@ export default function MyContributionsScreen() {
     openItems.find((i) => i.planId === focusPlanId) ?? openItems[0] ?? settledItems[0] ?? null
   const otherOpen = openItems.filter((i) => i !== current)
   const bank = data?.bankTransfer ?? null
+  // Paid periods (schemas/home.ts); absent on older APIs.
+  const history = Array.isArray(data?.history) ? data.history : []
 
   return (
     <View style={[styles.root, { backgroundColor: c.background, paddingTop: insets.top }]}>
@@ -260,7 +287,7 @@ export default function MyContributionsScreen() {
                 <PaymentCard
                   holder={bank.accountHolder}
                   iban={bank.iban}
-                  reference={bank.reference ?? current.planName}
+                  reference={transferReference(current, user?.name)}
                   amount={current.amount}
                   currency={current.currency}
                 />
@@ -300,7 +327,13 @@ export default function MyContributionsScreen() {
                 </SectionGroup>
               ) : null}
 
-              {settledItems.length > 0 && settledItems[0] !== current ? (
+              {history.length > 0 ? (
+                <SectionGroup header={t('contributions.summaryPaid')}>
+                  {history.map((entry) => (
+                    <HistoryRow key={`${entry.planId}-${entry.period}`} entry={entry} locale={locale} />
+                  ))}
+                </SectionGroup>
+              ) : settledItems.length > 0 && settledItems[0] !== current ? (
                 <SectionGroup header={t('contributions.summaryPaid')}>
                   {settledItems.map((item) => (
                     <DuesRow key={item.planId} item={item} locale={locale} />
@@ -331,7 +364,7 @@ function CurrentDue({ item, locale }: { item: MyContributionItem; locale: string
     ? item.paidAt
       ? `${item.planName} · ${t('fees.paidOn', { defaultValue: 'Paid {{date}}', date: formatDate(item.paidAt, locale) })}`
       : item.planName
-    : `${item.planName} · ${t('mydues.dueShort', { defaultValue: 'due {{date}}', date: formatDate(item.dueDate, locale) })}`
+    : `${periodTitle(item, locale)} · ${t('mydues.dueShort', { defaultValue: 'due {{date}}', date: formatDate(item.dueDate, locale) })}`
   return (
     <View style={styles.currentRow} testID="my-dues-current">
       <View style={styles.currentStat}>
@@ -369,10 +402,25 @@ function PaymentCard({
   const { t } = useTranslation()
   const c = useClubColors()
   const payload = girocodePayload(holder, iban, amount, currency, reference)
-  const fields = [
+  const [copied, setCopied] = useState<string | null>(null)
+  const copy = async (key: string, value: string) => {
+    try {
+      await Clipboard.setStringAsync(value)
+      setCopied(key)
+    } catch {
+      // Clipboard unavailable (old web browser): the value stays selectable.
+    }
+  }
+  const fields: Array<{ key: string; label: string; value: string; mono?: boolean; copy?: string }> = [
     { key: 'holder', label: t('mydues.recipient', { defaultValue: 'Recipient' }), value: holder },
-    { key: 'iban', label: t('contributions.bankTransfer.iban'), value: groupIban(iban), mono: true },
-    { key: 'reference', label: t('contributions.bankTransfer.reference'), value: reference },
+    {
+      key: 'iban',
+      label: t('contributions.bankTransfer.iban'),
+      value: groupIban(iban),
+      mono: true,
+      copy: iban.replace(/\s+/g, ''),
+    },
+    { key: 'reference', label: t('contributions.bankTransfer.reference'), value: reference, copy: reference },
   ]
   return (
     <View style={[styles.payCard, { backgroundColor: c.surface }]} testID="my-dues-payment">
@@ -385,7 +433,7 @@ function PaymentCard({
           >
             <QRCode value={payload} size={QR_SIZE} color={c.textPrimary} backgroundColor={c.surface} />
           </View>
-          <Text variant="caption1" color="secondary" style={styles.flex}>
+          <Text variant="footnote" color="secondary" style={[styles.flex, styles.qrHint]}>
             {t('mydues.qrHint', {
               defaultValue: 'Choose “photo transfer” in your banking app and scan. Everything is prefilled.',
             })}
@@ -404,17 +452,58 @@ function PaymentCard({
               },
             ]}
           >
-            <Text variant="caption1" color="secondary">
-              {field.label}
-            </Text>
-            <Text variant="subheadline" weight="semibold" color="primary" selectable tabular={field.mono}>
-              {field.value}
-            </Text>
+            <View style={styles.payText}>
+              <Text variant="caption1" weight="regular" color="secondary">
+                {field.label}
+              </Text>
+              <Text variant="subheadline" weight="semibold" color="primary" selectable tabular={field.mono} style={styles.payValue}>
+                {field.value}
+              </Text>
+            </View>
+            {field.copy ? (
+              <PressableScale
+                onPress={() => void copy(field.key, field.copy as string)}
+                accessibilityRole="button"
+                accessibilityLabel={`${field.label} ${t('mydues.copy', { defaultValue: 'Copy' })}`}
+                haptic="tapLight"
+                style={[styles.copyChip, { borderColor: c.borderStrong }]}
+                testID={`my-dues-copy-${field.key}`}
+              >
+                <Text variant="subheadline" weight="semibold" color="primary">
+                  {copied === field.key
+                    ? t('mydues.copied', { defaultValue: 'Copied' })
+                    : t('mydues.copy', { defaultValue: 'Copy' })}
+                </Text>
+              </PressableScale>
+            ) : null}
           </View>
         ))}
       </View>
-      <Text variant="caption1" color="tertiary">
-        {t('contributions.bankTransfer.copyHint')}
+    </View>
+  )
+}
+
+/** "November · Bar beim Training · 03.11." with the amount in Barlow. */
+function HistoryRow({ entry, locale }: { entry: ContributionHistoryEntry; locale: string }) {
+  const { t } = useTranslation()
+  const c = useClubColors()
+  const [year, month] = entry.period.split('-').map(Number)
+  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, (month || 1) - 1, 1))
+  const method = entry.method ? t(`mydues.method.${entry.method}`) : null
+  const meta = [method, formatDate(entry.paidAt, locale)].filter(Boolean).join(' · ')
+  const amount = formatDues(entry.amount, entry.currency, locale)
+  return (
+    <View style={styles.duesRow} accessible accessibilityLabel={`${monthName}, ${amount}, ${meta}`}>
+      <View style={styles.flex}>
+        <Text variant="subheadline" weight="semibold" color="primary" numberOfLines={1} style={styles.payValue}>
+          {monthName}
+        </Text>
+        <Text variant="caption1" weight="regular" color="secondary" numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      <Text variant="data" align="right" style={{ color: c.textPrimary, fontSize: 18, lineHeight: 22 }}>
+        {amount}
       </Text>
     </View>
   )
@@ -474,7 +563,7 @@ const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: SCREEN_PADDING, paddingTop: SPACING_LG, paddingBottom: SPACING_SM },
   content: {
     paddingHorizontal: SCREEN_PADDING,
-    paddingTop: SPACING_MD,
+    paddingTop: SPACING_SM,
     gap: SPACING_XL,
   },
   currentRow: {
@@ -484,14 +573,32 @@ const styles = StyleSheet.create({
     gap: SPACING_MD,
   },
   currentStat: { flex: 1, minWidth: 0, gap: SPACING_XS },
+  // Board 26: white card, radius 24, padding 18, 14 between QR and rows.
   payCard: {
-    borderRadius: RADIUS_CARD,
+    borderRadius: RADIUS_CARD + SPACING_XS,
     borderCurve: 'continuous',
-    padding: SPACING_LG,
-    gap: SPACING_MD,
+    padding: SPACING_LG + SPACING_XXS,
+    gap: SPACING_MD + SPACING_XXS,
   },
   qrRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING_LG },
-  payField: { minHeight: 60, justifyContent: 'center', paddingVertical: SPACING_MD, gap: SPACING_XXS },
+  qrHint: { lineHeight: 20 },
+  payField: {
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_MD + SPACING_XXS,
+    paddingVertical: SPACING_MD,
+  },
+  payText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
+  payValue: { fontSize: 15 },
+  copyChip: {
+    height: 36,
+    paddingHorizontal: SPACING_MD + SPACING_XXS,
+    borderRadius: RADIUS_FULL,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   duesRow: {
     flexDirection: 'row',
     alignItems: 'center',

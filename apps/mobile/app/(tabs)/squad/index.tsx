@@ -40,7 +40,7 @@ import { useIsTeamCoach } from '../../../src/components/squad/useIsTeamCoach'
 import { attendanceFor, useTrainingAttendance } from '../../../src/components/squad/useTrainingAttendance'
 import { RequestsSheet } from '../../../src/components/squad/RequestsSheet'
 import { SelfStatusSheet } from '../../../src/components/squad/SelfStatusSheet'
-import { lineLabel, messageBlockedLabel } from '../../../src/components/squad/format'
+import { lineLabel } from '../../../src/components/squad/format'
 import {
   buildKader,
   canMessageMember,

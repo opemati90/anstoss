@@ -204,7 +204,7 @@ export default function MemberProfileScreen() {
       <Screen padded={false} edges={['top', 'left', 'right']}>
         <View style={styles.content}>
           {header}
-          <EmptyState icon="person.fill" title={t('kader.profile.notFound')} />
+          <EmptyState icon="person.fill" title={t('kader.profile.notFound')} description="" />
         </View>
       </Screen>
     )
