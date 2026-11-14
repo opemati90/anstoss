@@ -147,6 +147,9 @@ jobs:
         working-directory: apps/api
 
       - name: Run API tests with coverage
+        env:
+          # ts-jest coverage exceeds Node's default ~2 GB heap on this suite.
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npx jest --coverage --runInBand
         working-directory: apps/api
 
