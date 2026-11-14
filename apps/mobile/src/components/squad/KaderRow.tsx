@@ -16,8 +16,8 @@ type KaderRowProps = {
   isLast: boolean
   /** Hint read after the row's facts, e.g. "Bearbeiten" or "Nachricht". */
   actionHint?: string
-  /** Last trainings, oldest → newest (true = attended). Null hides the bars. */
-  attendance?: boolean[] | null
+  /** Last trainings, oldest → newest. Null slots have no recorded evidence. */
+  attendance?: Array<boolean | null> | null
   testID?: string
 }
 
@@ -57,7 +57,15 @@ function tagColors(tone: TagTone, c: ClubTheme): { bg: string; fg: string } {
  * sit under the name in a wrapping meta row instead of fighting the name for
  * horizontal space.
  */
-export function KaderRow({ member, onPress, isFirst, isLast, actionHint, attendance, testID }: KaderRowProps) {
+export function KaderRow({
+  member,
+  onPress,
+  isFirst,
+  isLast,
+  actionHint,
+  attendance,
+  testID,
+}: KaderRowProps) {
   const { t } = useTranslation()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())
@@ -80,16 +88,18 @@ export function KaderRow({ member, onPress, isFirst, isLast, actionHint, attenda
     loanOutLabel(t, member, locale),
   ].filter(Boolean) as string[]
   const tags: Array<{ label: string; tone: TagTone }> = [
-    shortPill ? { label: shortPill, tone: AVAILABILITY_TONE[member.availability.kind] ?? 'quiet' } : null,
+    shortPill
+      ? { label: shortPill, tone: AVAILABILITY_TONE[member.availability.kind] ?? 'quiet' }
+      : null,
     member.phase === 'TRIAL' ? { label: t('kader.row.trial'), tone: 'club' as const } : null,
     member.isNew ? { label: t('kader.row.new'), tone: 'club' as const } : null,
-    member.operationalStatus === 'INACTIVE' ? { label: t('kader.row.inactive'), tone: 'quiet' as const } : null,
+    member.operationalStatus === 'INACTIVE'
+      ? { label: t('kader.row.inactive'), tone: 'quiet' as const }
+      : null,
   ].filter(Boolean) as Array<{ label: string; tone: TagTone }>
 
   const attended = attendance ? attendance.filter(Boolean).length : 0
-  const attendanceLabel = attendance
-    ? t('kader.row.attendance', { count: attended, total: attendance.length })
-    : null
+  const attendanceLabel = attendance ? t('kader.row.checkIns', { count: attended }) : null
 
   const a11y = [
     member.jerseyNumber != null ? t('kader.row.numberA11y', { number: member.jerseyNumber }) : null,
@@ -134,7 +144,11 @@ export function KaderRow({ member, onPress, isFirst, isLast, actionHint, attenda
         <Text variant="body" weight="semibold" color="primary" numberOfLines={2}>
           {member.name}
           {member.isSelf ? (
-            <Text variant="body" weight="regular" color="tertiary">{`  ${t('kader.row.you')}`}</Text>
+            <Text
+              variant="body"
+              weight="regular"
+              color="tertiary"
+            >{`  ${t('kader.row.you')}`}</Text>
           ) : null}
         </Text>
         {meta.length > 0 ? (
@@ -162,7 +176,15 @@ export function KaderRow({ member, onPress, isFirst, isLast, actionHint, attenda
           {attendance.map((on, index) => (
             <View
               key={index}
-              style={[styles.bar, { backgroundColor: on ? c.primary : c.surfaceSunken }]}
+              style={[
+                styles.bar,
+                { backgroundColor: on ? c.primary : c.surfaceSunken },
+                on === null && {
+                  backgroundColor: 'transparent',
+                  borderWidth: hairline,
+                  borderColor: c.borderDefault,
+                },
+              ]}
             />
           ))}
         </View>

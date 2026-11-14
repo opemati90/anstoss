@@ -41,6 +41,7 @@ jest.mock('../api/client', () => ({
   API_URL: 'http://api.test',
   api: (...args: unknown[]) => mockApi(...args),
   setTokenGetter: (...args: unknown[]) => mockSetTokenGetter(...args),
+  setWriteBlocker: jest.fn(),
   setSignOutHandler: (handler: (() => Promise<void>) | null) => {
     mockRegisteredSignOutHandler = handler
   },

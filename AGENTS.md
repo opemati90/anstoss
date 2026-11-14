@@ -30,6 +30,12 @@ Do not deviate without explicit user approval.
 
 ## Engineering Rules
 
+- Compare incoming Claude/Codex changes with the current implementation before
+  integration. Adopt only genuinely new/missing functionality or demonstrably
+  better implementations. Preserve verified fixes; do not blanket-merge WIP,
+  duplicate components/translation namespaces, or replace working behavior just
+  because the incoming commit is newer. Record decisions and test the result.
+
 - Prisma tenant-scoping middleware on ALL tenant-scoped models
 - JIT user creation from the email-OTP session JWT — no webhook dependency
 - Socket.io must use Upstash Redis adapter

@@ -218,7 +218,8 @@ describe('AdminBillingScreen', () => {
         })
       }
 
-      if (path === '/clubs/club-1/contributions') {
+      // Board 20 month chip: the overview is read per period (?period=YYYY-MM).
+      if (path.startsWith('/clubs/club-1/contributions?period=')) {
         return Promise.resolve({
           settings: {
             clubId: 'club-1',
@@ -293,7 +294,7 @@ describe('AdminBillingScreen', () => {
       expect(screen.queryByText(/store build/i)).toBeNull()
       expect(screen.getByText('Launch access included')).toBeTruthy()
       expect(screen.getByText('Annual youth fee')).toBeTruthy()
-      expect(screen.getByText('Max Mustermann')).toBeTruthy()
+      expect(screen.getByText(/Max Mustermann/)).toBeTruthy()
     })
 
     fireEvent.press(screen.getByText('Add plan'))
@@ -338,12 +339,13 @@ describe('AdminBillingScreen', () => {
     }
     mockApi.mockImplementation((path: string) => {
       if (path === '/clubs/club-1/billing/status') return Promise.resolve(null)
-      if (path === '/clubs/club-1/contributions') return Promise.resolve(overview)
+      // Board 20 month chip: the overview is read per period (?period=YYYY-MM).
+      if (path.startsWith('/clubs/club-1/contributions?period=')) return Promise.resolve(overview)
       return Promise.resolve(overview)
     })
 
     const screen = render(<AdminBillingScreen />)
-    await waitFor(() => expect(screen.getByText('Max Mustermann')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Max Mustermann/)).toBeTruthy())
     fireEvent.press(screen.getByLabelText('fees.markPaidA11y'))
     await waitFor(() =>
       expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/contributions/members/user-1/status', {

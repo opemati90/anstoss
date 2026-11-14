@@ -58,12 +58,12 @@ export function InviteShare({
   const c = useClubColors()
   return (
     <OnboardingScreen
-      title={t('invite.share.title')}
-      subtitle={t('invite.share.subtitle')}
+      title={t('invite.shareScreen.title')}
+      subtitle={t('invite.shareScreen.subtitle')}
       progress={progress}
       onBack={onBack}
-      headerRight={onLater ? <HeaderTextButton label={t('invite.share.later')} onPress={onLater} /> : undefined}
-      primary={{ label: t('invite.share.done'), onPress: onDone, testID: 'invite-done' }}
+      headerRight={onLater ? <HeaderTextButton label={t('invite.shareScreen.later')} onPress={onLater} /> : undefined}
+      primary={{ label: t('invite.shareScreen.done'), onPress: onDone, testID: 'invite-done' }}
       testID="invite-share"
     >
       <View style={[styles.card, { backgroundColor: c.surface }]} testID="invite-code-card">
@@ -72,7 +72,7 @@ export function InviteShare({
             <View
               accessible
               accessibilityRole="image"
-              accessibilityLabel={t('invite.share.qrA11y')}
+              accessibilityLabel={t('invite.shareScreen.qrA11y')}
             >
               <QRCode
                 value={code.link}
@@ -100,14 +100,14 @@ export function InviteShare({
           />
         ) : (
           <Text variant="footnote" color="secondary" align="center">
-            {t('invite.share.noCode')}
+            {t('invite.shareScreen.noCode')}
           </Text>
         )}
       </View>
 
       <View style={styles.actions}>
         <Button
-          label={t('invite.share.share')}
+          label={t('invite.shareScreen.share')}
           variant="accent"
           size="lg"
           disabled={!code}
@@ -117,7 +117,7 @@ export function InviteShare({
           testID="invite-share-button"
         />
         <Button
-          label={copied ? t('invite.share.copied') : t('invite.share.copy')}
+          label={copied ? t('invite.shareScreen.copied') : t('invite.shareScreen.copy')}
           variant="bordered"
           size="lg"
           disabled={!code}

@@ -186,6 +186,8 @@ PODS:
     - ExpoModulesCore
   - ExpoAudio (57.0.5):
     - ExpoModulesCore
+  - ExpoClipboard (57.0.2):
+    - ExpoModulesCore
   - ExpoCrypto (57.0.3):
     - ExpoModulesCore
   - ExpoDevice (57.0.2):
@@ -2693,6 +2695,7 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../../../node_modules/expo-asset/ios`)
   - ExpoAudio (from `../../../node_modules/expo-audio/ios`)
+  - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoCrypto (from `../../../node_modules/expo-crypto/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoDocumentPicker (from `../../../node_modules/expo-document-picker/ios`)
@@ -2847,6 +2850,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-asset/ios"
   ExpoAudio:
     :path: "../../../node_modules/expo-audio/ios"
+  ExpoClipboard:
+    :path: "../../../node_modules/expo-clipboard/ios"
   ExpoCrypto:
     :path: "../../../node_modules/expo-crypto/ios"
   ExpoDevice:
@@ -3100,6 +3105,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 7a59e803916fbfd1b96c75ff91ea8dddac7e722f
   ExpoAsset: b3999ffb3d4049b6c870708c60ea2209ace9f170
   ExpoAudio: edc9230b788be6f65238a53907d5c176b57a7ce0
+  ExpoClipboard: 15b8cc88075d7c50af165ed8fca0a76915903bba
   ExpoCrypto: 3ba3d7fcf244a3ae8cb888c5759e0db70ecc236d
   ExpoDevice: 5c638e530304a51992263ab5c1cab726f992b9dc
   ExpoDocumentPicker: fe03a24855e39af0f9b5aee17e7eb4813f6e44a6

@@ -346,6 +346,20 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
       ),
     })
   }
+  const latestAnnouncement = data.announcements[0]
+  if (latestAnnouncement) {
+    rows.push({
+      key: 'announcement',
+      render: (divider) => (
+        <HomeRow
+          icon="megaphone"
+          title={latestAnnouncement.title}
+          detail={latestAnnouncement.body}
+          showDivider={divider}
+        />
+      ),
+    })
+  }
   {
     rows.push({
       key: 'season',

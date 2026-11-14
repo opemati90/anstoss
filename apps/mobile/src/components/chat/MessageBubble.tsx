@@ -17,7 +17,7 @@ import type { ChatMessage } from '../../hooks/useChat'
 import { useSignedChatMediaUrl } from '../../hooks/useSignedChatMediaUrl'
 import { hexToRgba } from '../../theme/club-theme'
 import { CHAT_MEDIA_SCRIM, CHAT_ON_MEDIA } from '../../theme/chat'
-import { fonts, hairline, RADIUS_CARD, radius, SCREEN_PADDING, space } from '../../theme/tokens'
+import { hairline, RADIUS_CARD, radius, SCREEN_PADDING, space } from '../../theme/tokens'
 import * as Haptics from '../../utils/haptics'
 import { Avatar, Icon, SoftIcon } from '../ui'
 import { Text } from '../ui/Text'
@@ -319,9 +319,6 @@ export const MessageBubble = memo(function MessageBubble({
       {ticks}
     </View>
   )
-  // Invisible copy of the meta so the last text line leaves room for it.
-  const metaSpacer = `${isEdited ? `${t('chatThread.edited')} ` : ''}${time}${isOwn ? '   ' : ''}`
-
   const isMedia = !isDeleted && (messageType === 'IMAGE' || messageType === 'VIDEO')
   const meta_ = message.attachmentMeta ?? null
   const mediaWidth = Math.min(260, maxBubbleWidth - space.sm)
@@ -337,7 +334,6 @@ export const MessageBubble = memo(function MessageBubble({
   const body = isDeleted ? (
     <Text variant="body" style={[styles.italic, { color: onBubbleMuted }]}>
       {t('chat.messageDeleted')}
-      <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
     </Text>
   ) : messageType === 'IMAGE' ? (
     <MediaImage
@@ -389,7 +385,6 @@ export const MessageBubble = memo(function MessageBubble({
   ) : (
     <Text variant="body" style={{ color: onBubble }} selectable={false}>
       {displayContent}
-      <Text variant="caption1" style={styles.spacer} accessible={false}>{`  ${metaSpacer}`}</Text>
     </Text>
   )
 
@@ -397,6 +392,9 @@ export const MessageBubble = memo(function MessageBubble({
     !isDeleted && (messageType === 'IMAGE' || messageType === 'VIDEO' || messageType === 'FILE') && message.content
       ? message.content
       : null
+  // Only uncaptioned photos/videos overlay their metadata. Text, captions,
+  // translations and reactions must reserve real layout space for the time.
+  const overlayMeta = isMedia && !captionText
 
   const a11yLabel = [
     isGroupChat && !isOwn ? senderName : null,
@@ -478,7 +476,6 @@ export const MessageBubble = memo(function MessageBubble({
               {captionText ? (
                 <Text variant="body" style={[styles.caption, { color: onBubble }]}>
                   {captionText}
-                  <Text variant="caption1" style={styles.spacer}>{`  ${metaSpacer}`}</Text>
                 </Text>
               ) : null}
 
@@ -508,16 +505,15 @@ export const MessageBubble = memo(function MessageBubble({
               ) : null}
 
               <View
+                testID={`message-meta-${message.id}`}
                 style={[
-                  styles.metaDock,
-                  (messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText && styles.metaOnMedia,
-                  (messageType === 'IMAGE' || messageType === 'VIDEO') &&
-                    !captionText && { backgroundColor: hexToRgba(CHAT_MEDIA_SCRIM, 0.4) },
+                  overlayMeta ? styles.metaOnMedia : styles.metaFooter,
+                  overlayMeta && { backgroundColor: hexToRgba(CHAT_MEDIA_SCRIM, 0.4) },
                 ]}
                 importantForAccessibility="no-hide-descendants"
                 accessibilityElementsHidden
               >
-                {(messageType === 'IMAGE' || messageType === 'VIDEO') && !captionText ? (
+                {overlayMeta ? (
                   <View style={styles.meta}>
                     <Text variant="caption1" tabular style={[styles.metaTime, styles.onMediaText]}>
                       {time}
@@ -531,6 +527,11 @@ export const MessageBubble = memo(function MessageBubble({
                 )}
               </View>
             </Pressable>
+            {isOwn && isGroupChat && _lastInGroup && !isDeleted && (message.readCount ?? 0) > 0 ? (
+              <Text variant="caption1" color="secondary" style={styles.readCount} testID={`chat-read-count-${message.id}`}>
+                {t('chatThread.readBy', { count: message.readCount })}
+              </Text>
+            ) : null}
           </View>
         </Animated.View>
       </GestureDetector>
@@ -685,6 +686,7 @@ function AnnouncementCard({
 export const MESSAGE_HEIGHT = 72
 
 const styles = StyleSheet.create({
+  readCount: { marginTop: space.xs, paddingHorizontal: space.xs },
   row: { paddingHorizontal: SCREEN_PADDING },
   rowInner: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   rowOwn: { justifyContent: 'flex-end' },
@@ -705,13 +707,13 @@ const styles = StyleSheet.create({
   mediaInset: { paddingHorizontal: space.xs },
   sender: { paddingHorizontal: space['2xs'] },
   caption: { paddingHorizontal: space.xs, paddingTop: space.xs },
-  spacer: { color: 'transparent', fontFamily: fonts.data },
   italic: { fontStyle: 'italic' },
   center: { textAlign: 'center' },
   flex: { flex: 1, minWidth: 0 },
   translation: { marginTop: space['2xs'] },
-  metaDock: { position: 'absolute', right: space.sm + space.xs + 2, bottom: space.sm },
+  metaFooter: { alignSelf: 'flex-end', marginTop: space['2xs'], maxWidth: '100%' },
   metaOnMedia: {
+    position: 'absolute',
     right: space.sm,
     bottom: space.sm,
     paddingHorizontal: space.xs + space['2xs'],
@@ -719,7 +721,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   onMediaText: { color: CHAT_ON_MEDIA },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: space['2xs'] + 1 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: space['2xs'] + 1 },
   metaTime: { fontSize: 12, lineHeight: 16 },
   ticks: { flexDirection: 'row', alignItems: 'center' },
   tickOverlap: { marginLeft: -7 },

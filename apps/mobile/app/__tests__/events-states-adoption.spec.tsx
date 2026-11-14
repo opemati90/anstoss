@@ -55,8 +55,8 @@ describe('Events screen — full state cycle', () => {
   it('resolves an empty list to the composed empty state', async () => {
     mockApi.mockResolvedValue([])
     const { findByText } = render(<EventsScreen />)
-    expect(await findByText('eventFlow.list.emptyTitle')).toBeTruthy()
-    expect(await findByText('eventFlow.list.emptyCoachBody')).toBeTruthy()
+    expect(await findByText('eventFlow.list.emptyDayTitle')).toBeTruthy()
+    expect(await findByText('eventFlow.list.emptyDayBody')).toBeTruthy()
   })
 
   it('resolves a failed load to an inline error with retry, never a stuck skeleton', async () => {

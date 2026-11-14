@@ -100,7 +100,7 @@ export default function KaderScreen() {
   const [selfOpen, setSelfOpen] = useState(false)
 
   const isCoach = useIsTeamCoach()
-  const { attendance, reload: reloadAttendance } = useTrainingAttendance(clubId, activeTeamId, ROW_TRAININGS)
+  const { attendance, reload: reloadAttendance } = useTrainingAttendance(clubId, activeTeamId, ROW_TRAININGS, isCoach)
   // Ignore responses for a team the user has already switched away from.
   const teamRef = useRef(activeTeamId)
   teamRef.current = activeTeamId

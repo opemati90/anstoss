@@ -62,7 +62,8 @@ export function MatchHero({
   const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsets()
-  const onHero = c.onPrimary
+  // True club colour in both modes (heroBg is never contrast-lifted).
+  const onHero = c.onHeroBg
   const onHeroMuted = hexToRgba(onHero, 0.78)
 
   const showScore = scoreHome != null && scoreAway != null
@@ -85,7 +86,7 @@ export function MatchHero({
     <View
       style={[
         styles.hero,
-        { backgroundColor: c.primary, paddingTop: insets.top + SPACING_MD },
+        { backgroundColor: c.heroBg, paddingTop: insets.top + SPACING_MD },
       ]}
     >
       <View style={styles.chrome}>

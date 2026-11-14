@@ -177,8 +177,7 @@ export function DesignIconGlyph({
       strokeLinecap="round"
       strokeLinejoin="round"
       style={style}
-      accessibilityLabel={accessibilityLabel}
-      accessible={Boolean(accessibilityLabel)}
+      {...(accessibilityLabel ? { accessible: true, accessibilityLabel } : null)}
       testID={testID}
     >
       {glyph.shapes.map((s, i) =>

@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { BackHandler } from 'react-native'
+import { BackHandler, Platform } from 'react-native'
 import InviteScreen from '../invite'
 
 const mockDismissTo = jest.fn()
@@ -50,6 +50,7 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: () => ({
     returnTo: '/(tabs)/more',
+    mode: 'email',
   }),
 }))
 
@@ -121,9 +122,13 @@ describe('InviteScreen dismissal', () => {
       return { remove: jest.fn() } as any
     })
 
+    // Hardware back is Android-only (BackHandler is not supported on web).
+    const originalOS = Platform.OS
+    Platform.OS = 'android'
     await act(async () => {
       tree = renderer.create(<InviteScreen />)
     })
+    Platform.OS = originalOS
 
     const closeButton = tree!.root.findByProps({ accessibilityLabel: 'Schliessen' })
 

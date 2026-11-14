@@ -4,12 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, Icon, PressableScale, Text } from '../ui'
 import { SPACING_XL, SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
-import {
-  eventHeadline,
-  formatShortDate,
-  formatTime,
-  matchKindLabel,
-} from './HomeKit'
+import { eventHeadline, formatShortDate, formatTime, matchKindLabel } from './HomeKit'
 import { DeclineReasonSheet } from '../rsvp/DeclineReasonSheet'
 import { HeroRsvp, HeroSurface, heroKickoff, useHeroColors } from './HomeHero'
 import type { HomeEvent } from '../../hooks/usePlayerHome'
@@ -46,14 +41,7 @@ export function isInCheckInWindow(eventDate: string, nowMs: number): boolean {
  * place on the hero's own segmented control; inside the arrival window it
  * becomes check-in.
  */
-export function NextUpHero({
-  event,
-  locale,
-  nowMs,
-  rsvpPending,
-  onRsvp,
-  onOpen,
-}: NextUpHeroProps) {
+export function NextUpHero({ event, locale, nowMs, rsvpPending, onRsvp, onOpen }: NextUpHeroProps) {
   const hero = useHeroColors()
   const { t } = useTranslation()
 
@@ -76,9 +64,11 @@ export function NextUpHero({
           count: Math.max(1, event.yesCount),
         })
       : answered === 'MAYBE'
-        ? t('homeHub.player.confirmMaybe', { defaultValue: 'Please decide soon, your coach is planning.' })
+        ? t('homeHub.player.confirmMaybe', {
+            defaultValue: 'Please decide soon, your coach is planning.',
+          })
         : answered === 'NO'
-          ? t('homeHub.player.confirmNo', { defaultValue: "Declined. Your coach has been told." })
+          ? t('homeHub.player.confirmNo', { defaultValue: 'Declined. Your coach has been told.' })
           : null
   const [reasonOpen, setReasonOpen] = useState(false)
 
@@ -93,9 +83,9 @@ export function NextUpHero({
         ? t('homeHub.home', { defaultValue: 'Home' })
         : t('homeHub.away', { defaultValue: 'Away' })
       : null
-  // Screen 22: "Als Nächstes · Ligaspiel" — no countdown or venue on the
-  // player hero; the time and the Treffpunkt line say when to be there.
-  const kicker = [t('homeHub.nextUp', { defaultValue: 'Next up' }), typeLabel]
+  // Keep home/away visible: the opponent's name alone does not tell a player
+  // which pitch they need to travel to.
+  const kicker = [t('homeHub.nextUp', { defaultValue: 'Next up' }), typeLabel, venue]
     .filter(Boolean)
     .join(' · ')
   const versus =
@@ -165,7 +155,7 @@ export function NextUpHero({
             {event.cancelReason ? ` · ${event.cancelReason}` : ''}
           </Text>
         </View>
-      ) : inCheckInWindow && event.myRsvp === 'YES' ? (
+      ) : inCheckInWindow && answered === 'YES' ? (
         <Button
           label={t('home.player.openCheckIn', { defaultValue: 'Open check-in' })}
           onPress={onOpen}
@@ -193,7 +183,9 @@ export function NextUpHero({
                 <PressableScale
                   onPress={() => setReasonOpen(true)}
                   accessibilityRole="button"
-                  accessibilityLabel={t('homeHub.player.giveReason', { defaultValue: 'Add a reason' })}
+                  accessibilityLabel={t('homeHub.player.giveReason', {
+                    defaultValue: 'Add a reason',
+                  })}
                   haptic="tapLight"
                   style={styles.reasonLink}
                   testID="home-hero-reason"

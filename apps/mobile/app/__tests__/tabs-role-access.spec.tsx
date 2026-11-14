@@ -132,6 +132,7 @@ jest.mock('@expo/vector-icons', () => ({
 }))
 
 jest.mock('react-native-safe-area-context', () => ({
+  ...require('react-native-safe-area-context/jest/mock').default,
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
 

@@ -4,7 +4,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { ParentHome } from '../../src/components/home/ParentHome'
 import { api } from '../../src/api/client'
-import { useChildrenSummary, formatChildrenSummary } from '../../src/components/home/childrenSummary'
+import {
+  useChildrenSummary,
+  formatChildrenSummary,
+} from '../../src/components/home/childrenSummary'
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 
@@ -98,8 +101,16 @@ function childEvents() {
 }
 
 const LINKED_CHILDREN = [
-  { userId: 'kid-leo', name: 'Leo Becker', teams: [{ id: 't-u15', name: 'U15', displayName: 'Jugend — U15' }] },
-  { userId: 'kid-mia', name: 'Mia Becker', teams: [{ id: 't-u11', name: 'U11', displayName: 'Jugend — U11' }] },
+  {
+    userId: 'kid-leo',
+    name: 'Leo Becker',
+    teams: [{ id: 't-u15', name: 'U15', displayName: 'Jugend — U15' }],
+  },
+  {
+    userId: 'kid-mia',
+    name: 'Mia Becker',
+    teams: [{ id: 't-u11', name: 'U11', displayName: 'Jugend — U11' }],
+  },
 ]
 
 /** TeamDutyAssignment + teamName/childUserId, as GET /me/children-overview returns it. */
@@ -170,6 +181,9 @@ describe('ParentHome', () => {
     // Redesign screen 25: child chips, then the chosen child's hero.
     expect(await findByText('Leo · U15')).toBeTruthy()
     expect(getByText('Mia · U11')).toBeTruthy()
+    // The earliest event is selected, not the API's first row.
+    expect(getByText('Reply for Mia')).toBeTruthy()
+    fireEvent.press(getByText('Leo · U15'))
     expect(getByText(/SV Babelsberg 03/)).toBeTruthy()
     expect(getByText('Reply for Leo')).toBeTruthy()
     expect(queryByText('Reply for Mia')).toBeNull()
@@ -181,13 +195,14 @@ describe('ParentHome', () => {
 
   it('shows kick-off and the meeting time and place for the child', async () => {
     const { findByText, getByText } = render(wrap(<ParentHome />))
-    expect(await findByText('Leo · U15')).toBeTruthy()
+    fireEvent.press(await findByText('Leo · U15'))
     expect(getByText(/15:00/)).toBeTruthy()
     expect(getByText('Meet 13:30 · Vereinsheim')).toBeTruthy()
   })
 
   it('answers on behalf of the child through rsvp-proxy', async () => {
-    const { findAllByLabelText } = render(wrap(<ParentHome />))
+    const { findAllByLabelText, findByText } = render(wrap(<ParentHome />))
+    fireEvent.press(await findByText('Leo · U15'))
     const [leoYes] = await findAllByLabelText('Leo: eventFlow.rsvp.yes')
     fireEvent.press(leoYes)
     await waitFor(
@@ -201,8 +216,9 @@ describe('ParentHome', () => {
   })
 
   it('links the carpool board for an away match', async () => {
-    const { findByLabelText } = render(wrap(<ParentHome />))
-    fireEvent.press(await findByLabelText('Carpool'))
+    const { findByTestId, findByText } = render(wrap(<ParentHome />))
+    fireEvent.press(await findByText('Leo · U15'))
+    fireEvent.press(await findByTestId('parent-offer-seat'))
     expect(mockedPush).toHaveBeenCalledWith({
       pathname: '/carpool',
       params: { fixtureId: 'fixture-9', eventId: 'leo-match' },
@@ -250,8 +266,9 @@ describe('ParentHome', () => {
     expect(getAllByText(/^U15 · by /)).toHaveLength(1)
     fireEvent.press(getByText('Jersey wash'))
     expect(mockedPush).toHaveBeenCalledWith('/aufgaben')
-    expect(getByText('Family fees')).toBeTruthy()
-    expect(getByText(/45\.00 outstanding/)).toBeTruthy()
+    expect(getByText('Familienbeitrag')).toBeTruthy()
+    fireEvent.press(getByText(/45\.00/))
+    expect(mockedPush).toHaveBeenCalledWith('/my-contributions')
     expect(queryByText('Announcements')).toBeNull()
   })
 
@@ -269,7 +286,6 @@ describe('ParentHome', () => {
       ],
     })
     const { findByText, getByText } = render(wrap(<ParentHome />))
-    expect(await findByText('Announcements')).toBeTruthy()
     expect(await findByText('Team photo day')).toBeTruthy()
     expect(getByText('U15 · Saturday 10:00')).toBeTruthy()
     // Only real API routes are called.
@@ -308,7 +324,11 @@ describe('ParentHome', () => {
             { id: 't-u17', name: 'U17', displayName: 'U17' },
           ],
         },
-        { userId: 'kid-mia', name: 'Mia Becker', teams: [{ id: 't-u11', name: 'U11', displayName: 'U11' }] },
+        {
+          userId: 'kid-mia',
+          name: 'Mia Becker',
+          teams: [{ id: 't-u11', name: 'U11', displayName: 'U11' }],
+        },
       ],
     })
     let summary = ''
@@ -324,7 +344,7 @@ describe('ParentHome', () => {
         </>,
       ),
     )
-    expect(await findByText(/Leo · U15/)).toBeTruthy()
+    expect(await findByText('Reply for Leo')).toBeTruthy()
     await waitFor(() => expect(summary).toBe('Leo · U15/U17, Mia · U11'))
   })
 

@@ -112,7 +112,11 @@ jest.mock('../../src/components/home/FreeAgentHome', () => ({
 jest.mock('@sentry/react-native', () => ({ captureException: jest.fn() }))
 
 jest.mock('../../src/components/sponsors/SponsorStrip', () => ({
-  SponsorStrip: () => null,
+  SponsorStrip: () => {
+    const React = require('react')
+    const { Text } = require('react-native')
+    return React.createElement(Text, null, 'HOME SPONSORS')
+  },
 }))
 
 jest.mock('../../src/components/TeamSwitcher', () => ({
@@ -158,6 +162,18 @@ describe('HomeScreen branching', () => {
   afterEach(() => {
     mockPlayerHomeThrows = false
   })
+
+  it.each(['OWNER', 'COACH', 'PLAYER', 'PARENT'])(
+    'does not show the sponsor section on the %s home',
+    (role) => {
+      authState.activeClub = {
+        role,
+        club: { id: 'c1', name: 'FC QA', badgeUrl: null, primaryColor: '#000' },
+      }
+      const { queryByText } = render(wrap(<HomeScreen />))
+      expect(queryByText('HOME SPONSORS')).toBeNull()
+    },
+  )
 
   it('shrinks a crashing role home to an inline error with a working retry', async () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {})

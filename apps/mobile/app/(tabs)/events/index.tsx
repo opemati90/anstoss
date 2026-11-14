@@ -18,21 +18,20 @@ import { Banner, FilterChipRow, Icon, Text } from '../../../src/components/ui'
 import { LiveStatusPill } from '../../../src/components/match'
 import { EventRow } from '../../../src/components/events/EventRow'
 import type { AbsenceDetail, RsvpStatus } from '../../../src/components/events/RsvpControl'
-import { monthKey, sameLocalDay } from '../../../src/components/events/eventFormat'
+import { monthKey } from '../../../src/components/events/eventFormat'
+import { ScheduleDateStrip, localDateKey } from '../../../src/components/events/ScheduleDateStrip'
 import { Haptics } from '../../../src/utils/haptics'
 import { getAppLanguage, getAppLocale } from '../../../src/i18n'
 import {
   fonts,
   RADIUS_CARD,
   RADIUS_FULL,
-  RADIUS_INPUT,
   SCREEN_PADDING,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
   SPACING_XL,
   SPACING_XS,
-  SPACING_XXS,
   TAB_BAR_CLEARANCE,
 } from '../../../src/theme/tokens'
 
@@ -71,6 +70,12 @@ export default function EventsScreen() {
       : roleMode === 'COACH'
 
   const [filter, setFilter] = useState<ListFilter>('all')
+  const selectionContext = `${clubId}:${activeTeamId}:${roleMode}`
+  const [dateSelection, setDateSelection] = useState<{ context: string; day: string | null } | null>(null)
+  const selectedDay = !isParent && filter !== 'past'
+    ? dateSelection?.context === selectionContext ? dateSelection.day : localDateKey(new Date())
+    : null
+  const selectDay = (day: string | null) => setDateSelection({ context: selectionContext, day })
   const scope: EventScope = filter === 'past' ? 'past' : 'upcoming'
   const [events, setEvents] = useState<EventFeedItem[]>([])
   const [childEvents, setChildEvents] = useState<CrossTeamEventItem[]>([])
@@ -238,8 +243,9 @@ export default function EventsScreen() {
           }))
         : events
             .filter((event) => filter === 'all' || filter === 'past' || event.type === filter)
+            .filter((event) => !selectedDay || localDateKey(new Date(event.date)) === selectedDay)
             .map((event) => ({ kind: 'team' as const, key: event.id, event })),
-    [childEvents, events, filter, isParent],
+    [childEvents, events, filter, isParent, selectedDay],
   )
   // Coaches see design 11's single white group (no month labels); players
   // and parents keep the month sections.
@@ -298,8 +304,8 @@ export default function EventsScreen() {
           </Pressable>
         ) : null}
       </View>
-      {canManage && scope === 'upcoming' ? (
-        <WeekStrip events={events} locale={locale} />
+      {!isParent && scope === 'upcoming' ? (
+        <ScheduleDateStrip key={selectionContext} events={loaded ? events : []} locale={locale} selectedDay={selectedDay} onSelect={selectDay} />
       ) : null}
       {!isParent ? (
         <FilterChipRow<ListFilter>
@@ -310,10 +316,23 @@ export default function EventsScreen() {
             { key: 'past', label: t('eventFlow.list.past') },
           ]}
           selected={filter}
-          onToggle={setFilter}
+          onToggle={(next) => {
+            setFilter(next)
+            if (next === 'all' || next === 'past') selectDay(null)
+          }}
           singleSelect
           testID="events-filter"
         />
+      ) : null}
+      {selectedDay ? (
+        <View style={styles.titleRow} testID="events-date-selection">
+          <Text variant="subheadline" weight="semibold" style={styles.flex}>
+            {new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(new Date(`${selectedDay}T12:00:00`))}
+          </Text>
+          <Pressable onPress={() => selectDay(null)} accessibilityRole="button" accessibilityLabel={t('eventFlow.list.clearDay')} testID="events-clear-day" style={styles.clearDay}>
+            <Icon name="xmark" size={18} color={c.textPrimary} />
+          </Pressable>
+        </View>
       ) : null}
       {showReplyStatus ? (
         <View style={styles.status} accessible accessibilityRole="text">
@@ -455,21 +474,25 @@ export default function EventsScreen() {
                 icon="calendar"
                 illustration="emptyEvents"
                 title={
-                  isParent
+                  selectedDay
+                    ? t('eventFlow.list.emptyDayTitle')
+                    : isParent
                     ? t('eventFlow.list.emptyParentTitle')
                     : scope === 'past'
                       ? t('eventFlow.list.emptyPastTitle')
                       : t('eventFlow.list.emptyTitle')
                 }
                 description={
-                  isParent
+                  selectedDay
+                    ? t('eventFlow.list.emptyDayBody')
+                    : isParent
                     ? t('eventFlow.list.emptyParentBody')
                     : canManage
                       ? t('eventFlow.list.emptyCoachBody')
                       : t('eventFlow.list.emptyPlayerBody')
                 }
-                actionLabel={canManage && scope === 'upcoming' ? t('eventFlow.list.create') : undefined}
-                onAction={canManage && scope === 'upcoming' ? () => router.push('/create-event') : undefined}
+                actionLabel={selectedDay ? t('eventFlow.list.clearDay') : canManage && scope === 'upcoming' ? t('eventFlow.list.create') : undefined}
+                onAction={selectedDay ? () => selectDay(null) : canManage && scope === 'upcoming' ? () => router.push('/create-event') : undefined}
               />
             </View>
           ) : null
@@ -512,61 +535,6 @@ function summaryExtra(
   return open > 0 ? t('eventFlow.list.openCount', { count: open }) : null
 }
 
-/**
- * Design 10's week strip: the next seven days, today in ink, a club-colour
- * dot under days with an event. Decorative for screen readers; the list
- * below carries the same information.
- */
-function WeekStrip({ events, locale }: { events: EventFeedItem[]; locale: string }) {
-  const c = useClubColors()
-  const days = useMemo(() => {
-    const start = new Date()
-    start.setHours(12, 0, 0, 0)
-    return Array.from({ length: 7 }, (_, offset) => {
-      const day = new Date(start)
-      day.setDate(start.getDate() + offset)
-      return {
-        key: day.toDateString(),
-        weekday: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(day).replace('.', ''),
-        number: String(day.getDate()),
-        today: offset === 0,
-        busy: events.some((event) => !event.cancelledAt && sameLocalDay(event.date, day)),
-      }
-    })
-  }, [events, locale])
-  return (
-    <View
-      style={[styles.week, { backgroundColor: c.surface }]}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      testID="events-week"
-    >
-      {days.map((day) => {
-        const fg = day.today ? c.onInk : c.textPrimary
-        return (
-          <View
-            key={day.key}
-            style={[styles.weekDay, day.today && { backgroundColor: c.ink }]}
-          >
-            <Text variant="caption1" weight="semibold" color={fg} style={styles.weekLabel}>
-              {day.weekday}
-            </Text>
-            <Text variant="data" color={fg} style={styles.weekNumber}>
-              {day.number}
-            </Text>
-            <View
-              style={[
-                styles.weekDot,
-                { backgroundColor: day.busy ? (day.today ? c.onInk : c.primary) : 'transparent' },
-              ]}
-            />
-          </View>
-        )
-      })}
-    </View>
-  )
-}
-
 function buildMonthSections(rows: Row[], locale: string): MonthSection[] {
   const groups = new Map<string, Row[]>()
   for (const row of rows) {
@@ -604,24 +572,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  week: {
-    flexDirection: 'row',
-    gap: SPACING_XXS,
-    padding: SPACING_SM,
-    borderRadius: RADIUS_CARD,
-    borderCurve: 'continuous',
-  },
-  weekDay: {
-    flex: 1,
-    alignItems: 'center',
-    gap: SPACING_XS,
-    paddingVertical: SPACING_SM,
-    borderRadius: RADIUS_INPUT,
-    borderCurve: 'continuous',
-  },
-  weekLabel: { opacity: 0.7 },
-  weekNumber: { fontFamily: fonts.data, fontSize: 21, lineHeight: 22 },
-  weekDot: { width: 5, height: 5, borderRadius: RADIUS_FULL },
+  clearDay: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   status: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD - 2 },
   statusDot: { width: 8, height: 8, borderRadius: RADIUS_FULL, borderWidth: 1 },
   monthHeader: {

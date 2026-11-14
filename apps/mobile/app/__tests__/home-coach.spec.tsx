@@ -260,8 +260,8 @@ describe('CoachHome', () => {
     expect(await findByText('13 going', hidden)).toBeTruthy()
     expect(getByText('1 maybe', hidden)).toBeTruthy()
     expect(getByText('3 no reply', hidden)).toBeTruthy()
-    // Absagen take no bar segment but are still counted.
-    expect(getByText('1 declined', hidden)).toBeTruthy()
+    // The three visual segments describe availability; declined responses
+    // remain in the accessible total rather than becoming a fourth segment.
     expect(getByLabelText('13 going, 1 maybe, 3 no reply, 1 declined')).toBeTruthy()
   })
 

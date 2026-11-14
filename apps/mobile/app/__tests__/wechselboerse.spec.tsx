@@ -184,10 +184,15 @@ describe('Wechselbörse', () => {
     expect(mockApi).not.toHaveBeenCalled()
   })
 
-  it('opens on the trial pipeline and invites a requester to a training', async () => {
+  it('reaches the trial pipeline from the desks sheet and invites a requester', async () => {
     mockAuth.mockReturnValue(adminAuth())
     routeApi()
     const screen = render(<WechselboerseScreen />)
+
+    // Board 22: the player search is the main view; the other desks sit
+    // behind the header button.
+    fireEvent.press(screen.getByTestId('wechsel-desks'))
+    fireEvent.press(await screen.findByTestId('wechsel-desk-probetraining'))
 
     expect(await screen.findByText('Niklas Schulz')).toBeTruthy()
     fireEvent.press(screen.getByLabelText('wechsel.actionInvite: Niklas Schulz'))
@@ -207,7 +212,8 @@ describe('Wechselbörse', () => {
     routeApi()
     const screen = render(<WechselboerseScreen />)
 
-    fireEvent.press(screen.getByText('wechsel.tabGesuche'))
+    fireEvent.press(screen.getByTestId('wechsel-desks'))
+    fireEvent.press(await screen.findByTestId('wechsel-desk-gesuche'))
     expect(await screen.findByText('Herren II sucht Torwart, Kreisliga A.')).toBeTruthy()
     fireEvent.press(screen.getByText('wechsel.gesuchMarkFilled'))
 
@@ -224,7 +230,7 @@ describe('Wechselbörse', () => {
     routeApi()
     const screen = render(<WechselboerseScreen />)
 
-    fireEvent.press(screen.getByText('wechsel.tabSpieler'))
+    // Opens on the player search (board 22).
     expect(await screen.findByText('Daniel A.')).toBeTruthy()
     expect(screen.getByTestId('wechsel-publish-search')).toBeTruthy()
     fireEvent.press(await screen.findByLabelText('wechsel.tabProbetraining, Daniel A.'))

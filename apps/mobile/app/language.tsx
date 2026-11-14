@@ -16,14 +16,14 @@ import {
   space,
 } from '../src/theme/tokens'
 
-/** Native name (what the speaker looks for) and the English name below it. */
-const LANGUAGE_NAMES: Record<AppLanguage, { native: string; english: string }> = {
-  de: { native: 'Deutsch', english: 'German' },
-  en: { native: 'English', english: 'English' },
-  fr: { native: 'Français', english: 'French' },
-  it: { native: 'Italiano', english: 'Italian' },
-  pt: { native: 'Português', english: 'Portuguese' },
-  tr: { native: 'Türkçe', english: 'Turkish' },
+/** Autonyms remain recognizable even when the reader chose the wrong language. */
+const LANGUAGE_NAMES: Record<AppLanguage, string> = {
+  de: 'Deutsch',
+  en: 'English',
+  fr: 'Français',
+  it: 'Italiano',
+  pt: 'Português',
+  tr: 'Türkçe',
 }
 
 /**
@@ -91,7 +91,7 @@ export default function LanguageScreen() {
                 onPress={() => setPicked(code)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={`${name.native} (${name.english})`}
+                accessibilityLabel={`${name} (${tp(`onboardingFlow.language.names.${code}`)})`}
                 android_ripple={{ color: c.borderDefault }}
                 style={[
                   styles.row,
@@ -107,10 +107,10 @@ export default function LanguageScreen() {
                 </Text>
                 <View style={styles.rowCopy}>
                   <Text variant="body" weight="semibold" style={styles.rowName}>
-                    {name.native}
+                    {name}
                   </Text>
                   <Text variant="caption1" color="secondary">
-                    {name.english}
+                    {tp(`onboardingFlow.language.names.${code}`)}
                   </Text>
                 </View>
                 <View
@@ -128,11 +128,6 @@ export default function LanguageScreen() {
 
         <View
           style={[styles.preview, { backgroundColor: hero }]}
-          accessible
-          accessibilityLabel={`${tp('onboardingFlow.language.preview', { defaultValue: 'Preview' })}: ${tp(
-            'onboardingFlow.welcome.claim',
-            { defaultValue: 'Your club.\nOne kickoff.' },
-          )}`}
         >
           <Text variant="label" color={c.accent}>
             {tp('onboardingFlow.language.preview', { defaultValue: 'Preview' })}

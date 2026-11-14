@@ -2,6 +2,7 @@ import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import EventsScreen from '../(tabs)/events/index'
 import { api } from '../../src/api/client'
+import { calendarDays, localDateKey } from '../../src/components/events/ScheduleDateStrip'
 
 const mockRouterPush = jest.fn()
 const authState: {
@@ -92,6 +93,15 @@ jest.mock('../../src/i18n', () => ({
 
 const mockApi = api as jest.Mock
 
+// Existing feed assertions exercise the complete agenda, not today's filter.
+function renderAgenda() {
+  const screen = render(<EventsScreen />)
+  if (authState.activeRoleMode !== 'PARENT') {
+    fireEvent.press(screen.getByText('eventFlow.list.filterAll'))
+  }
+  return screen
+}
+
 function makeEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'event-1',
@@ -131,6 +141,59 @@ describe('EventsScreen', () => {
     mockApi.mockResolvedValue([])
   })
 
+  it.each(['COACH', 'PLAYER'] as const)('starts %s with today visibly selected, including its honest empty state', async (role) => {
+    setRole(role)
+    const screen = render(<EventsScreen />)
+    expect(screen.getByTestId(`events-day-${localDateKey(new Date())}`).props.accessibilityState.selected).toBe(true)
+    expect(await screen.findByText('eventFlow.list.emptyDayTitle')).toBeTruthy()
+  })
+
+  it.each(['COACH', 'PLAYER'] as const)('lets %s filter by day, open an event and clear back to all dates', async (role) => {
+    setRole(role)
+    const days = calendarDays(new Date(), 4)
+    mockApi.mockImplementation((path: string) => Promise.resolve(
+      path.startsWith('/clubs/club-1/events?') ? [
+        makeEvent({ id: 'first', title: 'First session', date: days[1].toISOString() }),
+        makeEvent({ id: 'second', title: 'Second session', date: days[2].toISOString() }),
+      ] : [],
+    ))
+    const screen = renderAgenda()
+    expect(await screen.findByText('First session')).toBeTruthy()
+    if (role === 'PLAYER') expect(screen.queryByTestId('events-create')).toBeNull()
+    fireEvent.press(screen.getByTestId(`events-day-${localDateKey(days[2])}`))
+    expect(screen.getByTestId(`events-day-${localDateKey(days[2])}`).props.accessibilityState.selected).toBe(true)
+    expect(screen.queryByText('First session')).toBeNull()
+    fireEvent.press(screen.getByRole('button', { name: /Second session/ }))
+    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/event-detail', params: { eventId: 'second' } })
+    fireEvent.press(screen.getByTestId('events-clear-day'))
+    expect(screen.getByText('First session')).toBeTruthy()
+    fireEvent.press(screen.getByTestId(`events-day-${localDateKey(days[3])}`))
+    expect(screen.getByText('eventFlow.list.emptyDayTitle')).toBeTruthy()
+    expect(screen.queryByText('Second session')).toBeNull()
+    fireEvent.press(screen.getByText('eventFlow.list.filterAll'))
+    expect(screen.getByText('Second session')).toBeTruthy()
+  })
+
+  it.each(['COACH', 'PLAYER'] as const)('combines %s type and date filters and clears the selected day for past events', async (role) => {
+    setRole(role)
+    const day = calendarDays(new Date(), 2)[1]
+    mockApi.mockImplementation((path: string) => Promise.resolve(
+      path.startsWith('/clubs/club-1/events?') ? [
+        makeEvent({ title: 'Morning session', date: day.toISOString() }),
+        makeEvent({ id: 'match', type: 'MATCH', title: 'Evening derby', date: day.toISOString() }),
+      ] : [],
+    ))
+    const screen = renderAgenda()
+    await screen.findByText('Morning session')
+    fireEvent.press(screen.getByTestId(`events-day-${localDateKey(day)}`))
+    fireEvent.press(screen.getByText('eventFlow.list.filterMatches'))
+    expect(screen.queryByText('Morning session')).toBeNull()
+    expect(screen.getByText('Evening derby')).toBeTruthy()
+    fireEvent.press(screen.getByText('Past'))
+    await waitFor(() => expect(screen.queryByTestId('events-date-selection')).toBeNull())
+    expect(screen.queryByTestId('events-week')).toBeNull()
+  })
+
   it('gives coaches the + in the header and a reply summary instead of a control', async () => {
     setRole('COACH')
     mockApi.mockImplementation((path: string) =>
@@ -140,7 +203,7 @@ describe('EventsScreen', () => {
           : [],
       ),
     )
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
 
     // Design 10: the Zusagen as one number ("12 dabei"); open replies are read out.
     expect(await screen.findByText('12')).toBeTruthy()
@@ -172,7 +235,7 @@ describe('EventsScreen', () => {
           : [],
       ),
     )
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
 
     const row = await screen.findByLabelText(/Away at SV Babelsberg 03.*Meet .*Kick-off/)
     fireEvent.press(row)
@@ -192,7 +255,7 @@ describe('EventsScreen', () => {
       if (init?.method === 'PUT') return Promise.resolve({})
       return Promise.resolve(path.startsWith('/clubs/club-1/events?') ? [makeEvent()] : [])
     })
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
 
     fireEvent.press(await screen.findByLabelText('In'))
 
@@ -215,7 +278,7 @@ describe('EventsScreen', () => {
           : [],
       ),
     )
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
     expect(await screen.findByText('eventFlow.list.awaitingReply')).toBeTruthy()
   })
 
@@ -231,7 +294,7 @@ describe('EventsScreen', () => {
           : [],
       ),
     )
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
     expect(await screen.findByText('Abschluss')).toBeTruthy()
     fireEvent.press(screen.getByText('eventFlow.list.filterMatches'))
     await waitFor(() => expect(screen.queryByText('Abschluss')).toBeNull())
@@ -245,7 +308,7 @@ describe('EventsScreen', () => {
       if (init?.method === 'PUT') return Promise.resolve({})
       return Promise.resolve(path.startsWith('/clubs/club-1/events?') ? [makeEvent()] : [])
     })
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
 
     fireEvent.press(await screen.findByLabelText('Out'))
     expect(mockApi).not.toHaveBeenCalledWith(expect.stringContaining('/rsvp'), expect.anything())
@@ -289,7 +352,7 @@ describe('EventsScreen', () => {
       }
       return Promise.resolve([])
     })
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
 
     expect(await screen.findByText("Your children's schedule")).toBeTruthy()
     expect(screen.getByText('Mia Weber · U11')).toBeTruthy()
@@ -321,11 +384,12 @@ describe('EventsScreen', () => {
       }
       return Promise.resolve([])
     })
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
     expect(await screen.findByLabelText(/Team one training/)).toBeTruthy()
 
     authState.activeTeamId = 'team-2'
     screen.rerender(<EventsScreen />)
+    fireEvent.press(screen.getByText('eventFlow.list.filterAll'))
     await waitFor(() => expect(screen.queryByLabelText(/Team one training/)).toBeNull())
 
     resolveTeamTwo?.([makeEvent({ id: 'two', title: 'Team two training' })])
@@ -334,7 +398,7 @@ describe('EventsScreen', () => {
 
   it('shows a composed empty state with the create action for coaches', async () => {
     setRole('COACH')
-    const screen = render(<EventsScreen />)
+    const screen = renderAgenda()
     expect(await screen.findByText('Nothing scheduled yet')).toBeTruthy()
   })
 })

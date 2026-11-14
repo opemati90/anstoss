@@ -14,7 +14,6 @@ import { ParentHome } from '../../src/components/home/ParentHome'
 import { FreeAgentHome } from '../../src/components/home/FreeAgentHome'
 import { CombinedHome } from '../../src/components/home/CombinedHome'
 import { useHeldHats } from '../../src/components/home/useHeldHats'
-import { SponsorStrip } from '../../src/components/sponsors/SponsorStrip'
 import { EmptyState } from '../../src/components/EmptyState'
 import { Button } from '../../src/components/ui'
 // onboarding revamp: verification banner, "Kind hinzufügen" to-do, welcome notice.
@@ -147,10 +146,7 @@ function RoleAwareHome() {
       {/* onboarding revamp: notices sit above the role section. */}
       <HomeOnboardingNotices />
       {roleSection ? (
-        <View style={styles.body}>
-          {roleSection}
-          {clubId ? <SponsorStrip clubId={clubId} /> : null}
-        </View>
+        <View style={styles.body}>{roleSection}</View>
       ) : pendingClubClaim && !activeClub ? null /* onboarding revamp: the verification banner says it all */ : (
         <View style={styles.fallback}>
           {!activeClub && user?.registrationRole === 'CLUB_ADMIN' ? (

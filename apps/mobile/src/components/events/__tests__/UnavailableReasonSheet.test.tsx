@@ -128,11 +128,13 @@ describe('UnavailableReasonSheet', () => {
     expect(onSubmit).toHaveBeenCalledWith({})
   })
 
-  it('"without reason" never sends a reason or note', () => {
+  it('sends no reason or note after the player clears their optional details', () => {
     render(<UnavailableReasonSheet visible onSubmit={onSubmit} onClose={onClose} />)
     fireEvent.press(screen.getByTestId('absence-reason-injured'))
     fireEvent.changeText(screen.getByTestId('absence-note'), 'Knie')
-    fireEvent.press(screen.getByTestId('absence-skip'))
+    fireEvent.press(screen.getByTestId('absence-reason-injured'))
+    fireEvent.changeText(screen.getByTestId('absence-note'), '')
+    fireEvent.press(screen.getByTestId('absence-confirm'))
     expect(onSubmit).toHaveBeenCalledWith({})
   })
 })

@@ -1,6 +1,6 @@
 import { ms } from '../../src/theme/scale'
 import React from 'react'
-import renderer, { act } from 'react-test-renderer'
+import { render } from '@testing-library/react-native'
 import TabLayout from '../(tabs)/_layout'
 
 const mockTabsScreen = jest.fn((_props?: unknown) => null)
@@ -107,6 +107,7 @@ jest.mock('@expo/vector-icons', () => ({
 }))
 
 jest.mock('react-native-safe-area-context', () => ({
+  ...require('react-native-safe-area-context/jest/mock').default,
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
 
@@ -116,9 +117,7 @@ describe('TabLayout', () => {
   })
 
   it('registers translated tab titles for nested index routes', () => {
-    act(() => {
-      renderer.create(<TabLayout />)
-    })
+    render(<TabLayout />)
 
     expect(mockTabsScreen).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -152,9 +151,7 @@ describe('TabLayout', () => {
   })
 
   it('keeps tab scenes mounted to prevent blank transitions', () => {
-    act(() => {
-      renderer.create(<TabLayout />)
-    })
+    render(<TabLayout />)
 
     expect(mockTabs).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -168,9 +165,7 @@ describe('TabLayout', () => {
   })
 
   it('uses tint and filled icons without a boxed active-tab background', () => {
-    act(() => {
-      renderer.create(<TabLayout />)
-    })
+    render(<TabLayout />)
 
     const screenOptions = mockTabs.mock.calls[0]?.[0]?.screenOptions
 

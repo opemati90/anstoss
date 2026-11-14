@@ -186,6 +186,7 @@ export function ChatInput({
             accessibilityLabel={placeholder ?? t('chat.inputPlaceholder')}
             testID="chat-message-input"
             multiline
+            maxFontSizeMultiplier={2}
             scrollEnabled
             textAlignVertical="center"
             maxLength={CHAT.MAX_MESSAGE_LENGTH}

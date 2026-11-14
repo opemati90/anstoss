@@ -103,6 +103,8 @@ describe('InviteScreen QR campaigns', () => {
   })
 
   it('creates an approval-required QR campaign without requiring email addresses', async () => {
+    // The e-mail wizard (board 07 opens on the code view; e-mail is a row away).
+    mockParams.mode = 'email'
     const screen = render(<InviteScreen />)
 
     fireEvent.press(await screen.findByLabelText('Next'))

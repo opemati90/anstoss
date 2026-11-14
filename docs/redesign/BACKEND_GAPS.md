@@ -1,9 +1,24 @@
 # Anstoss Redesign (2026-11) — backend gaps
 
-The mobile app now follows the 34-screen Anstoss Redesign. Every screen is wired to
-existing endpoints; elements whose data the API does not provide yet are hidden or
-fall back to the previous behaviour. This list is what the API needs for the design to
-be complete, grouped by priority. Suggested shapes are starting points, not contracts.
+The mobile app is being integrated with the 34-screen Anstoss Redesign. This is a
+working gap list, not a release-readiness claim. Existing endpoints and incoming
+design changes must be compared before implementing replacements. Suggested shapes
+are starting points, not contracts. Local evidence is in `INTEGRATION_PROGRESS.md`.
+
+## Verified integration updates — 2026-11-14
+
+- **11 automatic RSVP reminder:** implemented in `26447b2f`: persisted flag on
+  create/update/series, five-minute scheduler, shared atomic reminder cooldown,
+  notification preferences and localization. Seven local PostgreSQL tests pass.
+  Migration/deployment and device push delivery are not production-verified.
+- **15 read count:** the channel DTO already returns `readCount`; reused it for
+  the final own-message receipt label in six languages. No new database column.
+- **16 attendance:** removed the RSVP-as-attendance fallback. Staff use the
+  existing event attendance report's actual check-ins; unknown slots are not
+  absences. Players do not call the staff-only endpoint. A per-member history
+  contract and prior-release coach-recording integration still require review.
+- **31/32 acting:** controller/model already exist on this branch. Review the
+  implementation and its authorization tests rather than build a second model.
 
 ## Done
 
@@ -16,8 +31,8 @@ be complete, grouped by priority. Suggested shapes are starting points, not cont
 
 | Design | Element | Missing | Suggested shape |
 |---|---|---|---|
-| 11 Termin anlegen | "Team benachrichtigen" (auto-reminder 24h before) | No flag on Event | `rsvpAutoReminder: boolean` (default true) on create/update + scheduled `remind-rsvp` job |
-| 31/32 Vorschau, Vertretung | Read-only role preview; acting as the coach | No delegation model | `ActingSession { actorUserId, onBehalfOfRole, teamId, expiresAt }`; `POST/DELETE /clubs/:id/acting-sessions { teamId, role, minutes }`; audit "X (Vorstand) als Trainer"; notify head coach; server-enforced read-only preview |
+| 11 Termin anlegen | Automatic RSVP reminder 24h before | Local implementation complete; deployment/device validation pending | Reuse the persisted flag and worker above |
+| 31/32 Vorschau, Vertretung | Read-only role preview; acting as the coach | Existing implementation requires integration/security review | Reuse `ActingSession` and `apps/api/src/acting`; do not add a duplicate model |
 | 30 Mehrere Rollen | Combined multi-role home | Client only (data exists) | Frontend role resolution; no API change |
 
 ## P2 — onboarding and squad
@@ -31,7 +46,7 @@ be complete, grouped by priority. Suggested shapes are starting points, not cont
 | 07 Team einladen | Short team code ("SVS-7K2Q") on the invite card | Campaign code used instead | Human-readable code per campaign |
 | 17 Spielerprofil | Profile route with season stats, attendance, roles, dues, Spielerpass | None of these per member | `GET /clubs/:c/teams/:t/members/:u` bundling `{ appearances, goals, assists }`, `attendance { items, attended, total }`, `operationalRoles[]`, `contributionStatus`, `playerPass { number, validUntil }`. Needs product sign-off: rows currently open DM / edit sheet |
 | 16 Kader | Attendance bars per row | No per-member attendance on roster-ops | `recentAttendance: { attended, total }` on `RosterOpsMemberSummary` |
-| 15 Chat | "Gelesen von N" | No read count on channel messages | `readCount` on channel message DTO (receipts exist) |
+| 15 Chat | "Gelesen von N" | Local integration complete | Existing channel DTO `readCount` reused; no schema change |
 | 08 Start Trainer | "Treffpunkt ankündigen" as a pinned message | No pinned flag on create | `pinned: boolean` on message create |
 | 08 Start Trainer | Lineup row subtitle "Entwurf 4-2-3-1 · 9 von 11" | No draft summary on the feed | `lineupDraft: { formation, filled, slots }` on event feed / roster-ops |
 | 25 Start Eltern | Photo-consent row per child | Not in children overview | `photoConsent: 'GRANTED'\|'PENDING'\|null` on `/me/children-overview` |
@@ -53,6 +68,7 @@ be complete, grouped by priority. Suggested shapes are starting points, not cont
 
 - **Offline banner + queued RSVPs (28):** add `@react-native-community/netinfo` and a persisted RSVP outbox.
 - **Languages (02):** the design lists de/en/tr/es/fr/pt/ar; the app ships de/en/fr/it/pt/tr. Spanish and Arabic (with RTL) are product decisions plus server-side e-mail/push templates.
-- **Copy buttons (MyDues, Invite):** add `expo-clipboard`.
+- **Copy buttons (MyDues, Invite):** `expo-clipboard` is installed, and the local
+  signed iOS build includes it. Invitation copying was verified in the simulator.
 - **Sign in with Apple/Google (03):** not in scope of the email-OTP auth today.
 - **Lineup drag-and-drop from the bench (13):** the tap-a-spot picker is kept.

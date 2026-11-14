@@ -8,7 +8,14 @@ import { useEventsSocket } from '../../hooks/useEventsSocket'
 import { Button, FilterChipRow, Icon, PressableScale, Text } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
-import { SPACING_LG, SPACING_XL, SPACING_XS, SPACING_XXS, hairline, space } from '../../theme/tokens'
+import {
+  SPACING_LG,
+  SPACING_XL,
+  SPACING_XS,
+  SPACING_XXS,
+  hairline,
+  space,
+} from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import { SILENT_REFRESH_DEBOUNCE_MS, outstandingDues } from '../../hooks/usePlayerHome'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
@@ -21,6 +28,7 @@ import {
   InlineError,
   eventHeadline,
   formatShortDate,
+  formatMoney,
   formatTime,
 } from './HomeKit'
 import { useHomeLocale } from './useHomeLocale'
@@ -321,7 +329,9 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
   const selectedChild =
     children.find((child) => child.userId && child.userId === selectedEvent?.childUserId) ??
     (children.length === 1 ? children[0] : null)
-  const isAway = Boolean(selectedEvent && selectedEvent.type === 'MATCH' && selectedEvent.homeAway === 'AWAY')
+  const isAway = Boolean(
+    selectedEvent && selectedEvent.type === 'MATCH' && selectedEvent.homeAway === 'AWAY',
+  )
   const carpool = selectedEvent?.carpoolSummary ?? null
   const offered = carpool?.myRideSeats != null
   const groupRows: Array<{ key: string; render: (divider: boolean) => ReactNode }> = []
@@ -401,8 +411,12 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           title={t('homeHub.parent.photoConsent', { defaultValue: 'Photo consent' })}
           detail={
             consent === 'GRANTED'
-              ? t('homeHub.parent.photoConsentGranted', { defaultValue: 'Given for team photos on the club site' })
-              : t('homeHub.parent.photoConsentBody', { defaultValue: 'For team photos on the club website' })
+              ? t('homeHub.parent.photoConsentGranted', {
+                  defaultValue: 'Given for team photos on the club site',
+                })
+              : t('homeHub.parent.photoConsentBody', {
+                  defaultValue: 'For team photos on the club website',
+                })
           }
           trailing={
             <Button
@@ -439,6 +453,9 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
         <HomeRow
           icon="creditcard"
           title={familyDues.planName || t('homeHub.dues', { defaultValue: 'Membership fee' })}
+          detail={familyDues.amounts
+            .map((entry) => formatMoney(entry.cents, entry.currency, locale))
+            .join(' + ')}
           trailing={
             <HomeTag
               label={
@@ -457,6 +474,22 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           onPress={() => router.push('/my-contributions' as never)}
           showDivider={divider}
           testID="parent-home-dues"
+        />
+      ),
+    })
+  }
+  const latestAnnouncement = overview?.announcements[0]
+  if (latestAnnouncement) {
+    groupRows.push({
+      key: 'announcement',
+      render: (divider) => (
+        <HomeRow
+          icon="megaphone"
+          title={latestAnnouncement.title}
+          detail={[latestAnnouncement.teamName, latestAnnouncement.body]
+            .filter(Boolean)
+            .join(' · ')}
+          showDivider={divider}
         />
       ),
     })
@@ -497,7 +530,9 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
             key={`${selectedCard.next.childUserId ?? selectedCard.next.teamName}-${selectedCard.next.id}`}
             event={selectedCard.next}
             locale={locale}
-            pending={Boolean(pendingIds[`${selectedCard.next.childUserId}-${selectedCard.next.id}`])}
+            pending={Boolean(
+              pendingIds[`${selectedCard.next.childUserId}-${selectedCard.next.id}`],
+            )}
             onRsvp={(status, absence) => void onChildRsvp(selectedCard.next, status, absence)}
           />
         </>
@@ -506,8 +541,7 @@ export function ParentHome({ onRefreshStateChange }: ParentHomeProps = {}) {
           icon="calendar"
           title={t('homeHub.parent.emptyTitle', { defaultValue: 'No events for your children' })}
           body={t('homeHub.parent.emptyBody', {
-            defaultValue:
-              'The coaches are still planning. New trainings and matches show up here.',
+            defaultValue: 'The coaches are still planning. New trainings and matches show up here.',
           })}
           actionLabel={t('home.parent.actionOpenScheduleCta', { defaultValue: 'Open schedule' })}
           onAction={() => router.push(SCHEDULE_ROUTE as never)}
@@ -591,7 +625,12 @@ function ChildCard({
         <Text variant="footnote" weight="semibold" numberOfLines={2} style={{ color: hero.muted }}>
           {[team, eventHeadline(event)].filter(Boolean).join(' · ')}
         </Text>
-        <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={[styles.kickoff, { color: hero.fg }]}>
+        <Text
+          variant="display"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={[styles.kickoff, { color: hero.fg }]}
+        >
           {heroKickoff(event.date, locale)}
         </Text>
         {meetLine ? (
@@ -623,7 +662,9 @@ function ChildCard({
 
 /** "30.11." */
 function formatDayMonth(iso: string, locale: string): string {
-  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(new Date(iso))
+  const day = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }).format(
+    new Date(iso),
+  )
   return locale.startsWith('de') && !day.endsWith('.') ? `${day}.` : day
 }
 
@@ -645,7 +686,10 @@ function normalizeOverview(value: unknown): ChildrenOverview {
   const v = (value ?? {}) as Partial<ChildrenOverview>
   return {
     children: Array.isArray(v.children)
-      ? v.children.map((child) => ({ ...child, teams: Array.isArray(child.teams) ? child.teams : [] }))
+      ? v.children.map((child) => ({
+          ...child,
+          teams: Array.isArray(child.teams) ? child.teams : [],
+        }))
       : [],
     duties: Array.isArray(v.duties) ? v.duties : [],
     announcements: Array.isArray(v.announcements) ? v.announcements : [],
@@ -662,7 +706,13 @@ function TeamEventsListener({
   token: string | null
   onChange: () => void
 }) {
-  useEventsSocket({ teamId, token, apiUrl: API_URL, onRsvpUpdate: onChange, onEventUpsert: onChange })
+  useEventsSocket({
+    teamId,
+    token,
+    apiUrl: API_URL,
+    onRsvpUpdate: onChange,
+    onEventUpsert: onChange,
+  })
   return null
 }
 

@@ -1513,6 +1513,7 @@ export class EventsService {
         eventId: event.id,
         clubId: event.clubId,
         url: `anstoss:///event-detail?eventId=${event.id}`,
+        actorName: responder?.name ?? '',
       },
       // category so an organizer who muted events doesn't get RSVP pings
       // (matches notifyEventCreated; without it the events mute was bypassed).

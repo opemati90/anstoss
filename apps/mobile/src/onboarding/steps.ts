@@ -10,7 +10,8 @@
  *   adminDirect welcome (Verein anlegen) → code → Wie heißt du? → Verein = 4
  *   freeAgent  welcome → code → Wie heißt du? → Spielerprofil           = 4
  *              (from Verein finden the listing is sent inline there     = 4)
- *   guardian   welcome → code → Wie heißt du? → Kind hinzufügen         = 4
+ *   guardian   welcome → code → Wie heißt du? → Zu deinem Verein → Kind  = 5
+ *              (the setup-code row moved from welcome to Zu deinem Verein)
  *   invite     Einladung + E-Mail → code → Beitreten                     = 3
  *
  * The admin screen is only added once the user chooses to set up a club, so
@@ -42,7 +43,7 @@ export const ONBOARDING_PATHS: Readonly<Record<OnboardingPathKey, readonly Onboa
   admin: ['welcome', 'code', 'profile', 'clubSearch', 'clubSetup'],
   adminDirect: ['welcome', 'code', 'profile', 'clubSetup'],
   freeAgent: ['welcome', 'code', 'profile', 'freeAgentProfile'],
-  guardian: ['welcome', 'code', 'profile', 'parentHandoff'],
+  guardian: ['welcome', 'code', 'profile', 'clubSearch', 'parentHandoff'],
   invite: ['invitePreview', 'code', 'inviteConfirm'],
 }
 
@@ -52,7 +53,7 @@ export const ONBOARDING_SCREEN_CAPS: Readonly<Record<OnboardingPathKey, number>>
   admin: 5,
   adminDirect: 4,
   freeAgent: 4,
-  guardian: 4,
+  guardian: 5,
   invite: 3,
 }
 

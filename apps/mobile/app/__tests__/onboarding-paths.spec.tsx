@@ -314,13 +314,22 @@ async function walk(start: string, actions: Actions): Promise<{ screens: Onboard
 }
 
 // ── actions: what a person does on each screen ─────────────────────────────
-const typeEmailOnWelcome = (button = 'welcome-continue') => async (s: RenderAPI) => {
-  fireEvent.changeText(s.getByTestId('welcome-email'), 'tim.weber@example.de')
+// Board 01: the entry has no field any more, only "Verein beitreten",
+// "Verein anlegen" and "Anmelden"; the email moved to the code screen.
+const typeEmailOnWelcome = (button = 'welcome-join') => async (s: RenderAPI) => {
   await act(async () => {
     fireEvent.press(s.getByTestId(button))
   })
 }
 const typeCode = async (s: RenderAPI) => {
+  // From an invite the code is already sent; from welcome the email comes first.
+  if (s.queryByTestId('sign-in-email-input')) {
+    fireEvent.changeText(s.getByTestId('sign-in-email-input'), 'tim.weber@example.de')
+    await act(async () => {
+      fireEvent.press(s.getByTestId('sign-in-send'))
+    })
+  }
+  await waitFor(() => s.getByTestId('otp-input'))
   await act(async () => {
     fireEvent.changeText(s.getByTestId('otp-input'), '424242')
   })
@@ -340,8 +349,12 @@ const searchAlbatros = async (s: RenderAPI) => {
 }
 const requestAs = (chip: string, extra?: (s: RenderAPI) => Promise<void>) => async (s: RenderAPI) => {
   await searchAlbatros(s)
+  // Board 05: the club opens "Was machst du bei …?", Spieler:in ticked.
   fireEvent.press(s.getByTestId('find-club-row-sv-albatros'))
-  fireEvent.press(s.getByTestId(chip))
+  if (chip !== 'club-role-player') {
+    fireEvent.press(s.getByTestId('club-role-player'))
+    fireEvent.press(s.getByTestId(chip))
+  }
   if (extra) await extra(s)
   await act(async () => {
     fireEvent.press(s.getByTestId('club-send-request'))
@@ -470,22 +483,18 @@ describe('traced onboarding paths (caps)', () => {
     )
   })
 
-  it('free agent from welcome: 4 screens to a listed profile', async () => {
+  it('club admin via "Verein anlegen" on welcome: 4 screens, straight to "Dein Verein"', async () => {
     const { screens, end } = await walk('/', {
-      welcome: typeEmailOnWelcome('welcome-free-agent'),
+      welcome: typeEmailOnWelcome('welcome-create'),
       code: typeCode,
       profile: nameAndAdultDob,
-      freeAgentProfile: async (s) => {
-        fireEvent.press(s.getByText('spielerprofil.position.MID'))
-        fireEvent.changeText(s.getByLabelText('spielerprofil.fieldPostalCode'), '14482')
-        await act(async () => {
-          fireEvent.press(s.getByText('spielerprofil.onboardingCta'))
-        })
+      clubSetup: async (s) => {
+        fireEvent.changeText(s.getByTestId('club-setup-club-name-input'), 'TSV Linden 1899')
+        await fillClubSetup(s)
       },
     })
-    assertPath('freeAgent', screens)
+    assertPath('adminDirect', screens)
     expect(end).toBe('/(tabs)')
-    expect(mockWorld.listed).toBe(true)
   })
 
   it('free agent from Verein finden: listed on screen 4, no second name screen', async () => {
@@ -508,11 +517,16 @@ describe('traced onboarding paths (caps)', () => {
     expect(mockWorld.listed).toBe(true)
   })
 
-  it('guardian with a setup code from welcome: 4 screens, no club needed, team from the invite', async () => {
+  it('guardian with a setup code: from "Zu deinem Verein", no club needed, team from the invite', async () => {
     const { screens, end } = await walk('/', {
-      welcome: typeEmailOnWelcome('welcome-setup-code'),
+      welcome: typeEmailOnWelcome(),
       code: typeCode,
       profile: nameAndAdultDob,
+      clubSearch: async (s) => {
+        await act(async () => {
+          fireEvent.press(s.getByTestId('club-setup-code-link'))
+        })
+      },
       parentHandoff: async (s) => {
         fireEvent.changeText(s.getByTestId('parent-handoff-setup-code'), 'AB23CD45')
         await waitFor(() => s.getByTestId('parent-handoff-slot-slot-lena'))
@@ -565,9 +579,8 @@ describe('traced onboarding paths (caps)', () => {
       code: typeCode,
       profile: nameAndAdultDob,
       clubSearch: async (s) => {
-        fireEvent.changeText(s.getByTestId('find-club-search'), 'E2EINV01')
+        fireEvent.changeText(s.getByTestId('find-club-code'), 'E2EINV01')
         await waitFor(() => s.getByTestId('club-invite-match'), { timeout: 3000 })
-        fireEvent.press(s.getByTestId('club-invite-match'))
         await act(async () => {
           fireEvent.press(s.getByTestId('club-invite-join'))
         })

@@ -5,7 +5,6 @@ import { Text } from '../ui'
 import { useClubColors } from '../../context/ClubThemeContext'
 import {
   fonts,
-  hairline,
   RADIUS_CARD,
   SCREEN_PADDING,
   SPACING_LG,
@@ -125,7 +124,7 @@ export const EventRow = memo(function EventRow({
         style={[
           styles.inner,
           compact && styles.innerCompact,
-          !last && { borderBottomWidth: hairline, borderBottomColor: c.borderSubtle },
+          !last && { borderBottomWidth: 1, borderBottomColor: c.borderDefault },
         ]}
       >
         <Pressable

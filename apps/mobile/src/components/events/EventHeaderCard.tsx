@@ -42,7 +42,8 @@ function openMaps(query: string) {
  */
 export function useHeroText() {
   const c = useClubColors()
-  const fg = c.onPrimary
+  // The hero is the true club colour in both modes (heroBg, never lifted).
+  const fg = c.onHeroBg
   const light = fg.toUpperCase() === TEXT_WHITE
   return { fg, muted: light ? c.onHeroMuted : hexToRgba(fg, 0.72) }
 }
@@ -105,7 +106,7 @@ export function EventHeaderCard({ event, locale, topInset, leading, trailing }: 
   }
 
   return (
-    <View style={[styles.hero, { backgroundColor: c.primary, paddingTop: topInset + SPACING_MD }]}>
+    <View style={[styles.hero, { backgroundColor: c.heroBg, paddingTop: topInset + SPACING_MD }]}>
       {/* Design 13: a faint centre circle and halfway line, bottom right. */}
       <Svg
         width={PITCH_MARK}

@@ -30,7 +30,15 @@ jest.mock('expo-router', () => ({
 
 jest.mock('../../src/utils/haptics', () => {
   const noop = () => undefined
-  const Haptics = { select: noop, tap: noop, tapMedium: noop, tapHeavy: noop, success: noop, warn: noop, fail: noop }
+  const Haptics = {
+    select: noop,
+    tap: noop,
+    tapMedium: noop,
+    tapHeavy: noop,
+    success: noop,
+    warn: noop,
+    fail: noop,
+  }
   return { Haptics, default: Haptics }
 })
 
@@ -129,7 +137,9 @@ const SNAPSHOT = {
     recentlyCleared: [],
   },
   kit: {
-    pending: [{ id: 'duty-1', assignedUserId: 'user-player-1', kind: 'BIB_CLEANUP', status: 'PENDING' }],
+    pending: [
+      { id: 'duty-1', assignedUserId: 'user-player-1', kind: 'BIB_CLEANUP', status: 'PENDING' },
+    ],
     recent: [],
   },
 }
@@ -138,7 +148,9 @@ function mockEndpoints() {
   mockApi.mockImplementation(async (path: string) => {
     if (path.includes('/roster-ops')) return SNAPSHOT as never
     if (path.includes('/events?')) {
-      return [{ id: 'event-1', title: 'vs. SV Babelsberg 03', date: '2099-10-03T12:00:00.000Z' }] as never
+      return [
+        { id: 'event-1', title: 'vs. SV Babelsberg 03', date: '2099-10-03T12:00:00.000Z' },
+      ] as never
     }
     if (path.endsWith('/events/event-1')) {
       return {
@@ -168,7 +180,7 @@ describe('Kader tab', () => {
 
   it('shows the one squad number and the availability summary', async () => {
     const screen = render(<KaderScreen />)
-    expect(await screen.findByText('kader.subtitle|4')).toBeTruthy()
+    expect(await screen.findByText('kader.summary.all|4')).toBeTruthy()
     // Medic kill switch is off for release: injury data never shows.
     expect(screen.getByText('kader.summary.fit|3')).toBeTruthy()
     expect(screen.queryByText('kader.summary.injured|1')).toBeNull()
@@ -191,7 +203,8 @@ describe('Kader tab', () => {
     const screen = render(<KaderScreen />)
     await screen.findByText('Anna Schmidt')
     expect(screen.queryByText('kader.status.injured')).toBeNull()
-    expect(screen.getByText('kader.status.suspendedUntil')).toBeTruthy()
+    expect(screen.getByText('kader.status.suspended')).toBeTruthy()
+    expect(screen.getByText('ZM · kader.status.untilDate')).toBeTruthy()
   })
 
   it('filters the list from the summary and resets on a second tap', async () => {
@@ -249,19 +262,22 @@ describe('Kader tab', () => {
       authState.user = { id: 'user-coach-1' }
       authState.activeRoleMode = 'COACH'
       authState.activeClub = { role: 'COACH', club: { id: 'club-1', name: 'SV Albatros' } }
-      authState.activeTeamAccess = { role: 'HEAD_COACH', team: { id: 'team-1', displayName: 'Herren 1' } }
+      authState.activeTeamAccess = {
+        role: 'HEAD_COACH',
+        team: { id: 'team-1', displayName: 'Herren 1' },
+      }
     })
 
     it('offers Einladen in the header', async () => {
       const screen = render(<KaderScreen />)
-      await screen.findByText('kader.requestsBanner|1')
+      await screen.findByTestId('kader-requests-banner')
       fireEvent.press(screen.getByTestId('kader-invite'))
       expect(mockRouterPush).toHaveBeenCalledWith('/invite')
     })
 
     it('shows the open-requests banner and the collapsed inactive/trial section', async () => {
       const screen = render(<KaderScreen />)
-      expect(await screen.findByText('kader.requestsBanner|1')).toBeTruthy()
+      expect(await screen.findByTestId('kader-requests-banner')).toBeTruthy()
       expect(screen.queryByText('Lukas Meyer')).toBeNull()
       fireEvent.press(screen.getByTestId('kader-off-squad-toggle'))
       expect(screen.getByText('Lukas Meyer')).toBeTruthy()
@@ -280,7 +296,9 @@ describe('Kader tab', () => {
       const blocked = {
         ...SNAPSHOT,
         squad: SNAPSHOT.squad.map((m) =>
-          m.userId === 'user-player-2' ? { ...m, canMessage: false, messageBlockedReason: 'MINOR_BLOCKED' } : m,
+          m.userId === 'user-player-2'
+            ? { ...m, canMessage: false, messageBlockedReason: 'MINOR_BLOCKED' }
+            : m,
         ),
       }
       mockApi.mockImplementation(async (path: string) => {
@@ -296,7 +314,9 @@ describe('Kader tab', () => {
     it('opens the player sheet instead of a DM when tapping a player', async () => {
       const screen = render(<KaderScreen />)
       fireEvent.press(await screen.findByTestId('kader-row-user-player-2'))
-      expect(mockRouterPush).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: '/dm-chat' }))
+      expect(mockRouterPush).not.toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: '/dm-chat' }),
+      )
       await waitFor(() => expect(screen.getByText('kader.edit.title')).toBeTruthy())
     })
   })
@@ -306,7 +326,9 @@ describe('Kader tab', () => {
     const blocked = {
       ...SNAPSHOT,
       squad: SNAPSHOT.squad.map((m) =>
-        m.userId === 'user-player-2' ? { ...m, canMessage: false, messageBlockedReason: 'NEEDS_GUARDIAN_LINK' } : m,
+        m.userId === 'user-player-2'
+          ? { ...m, canMessage: false, messageBlockedReason: 'NEEDS_GUARDIAN_LINK' }
+          : m,
       ),
     }
     mockApi.mockImplementation(async (path: string) => {
@@ -318,13 +340,16 @@ describe('Kader tab', () => {
     expect(row.props.accessibilityLabel).not.toContain('kader.row.messageHint')
     expect(row.props.accessibilityLabel).toContain('kader.message.blockedMinor')
     fireEvent.press(row)
-    expect(mockRouterPush).not.toHaveBeenCalledWith(expect.objectContaining({ pathname: '/dm-chat' }))
+    expect(mockRouterPush).not.toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: '/dm-chat' }),
+    )
   })
 
-  it('L7: the RSVP marker has a distinct shape per answer', async () => {
+  it('names the upcoming RSVP without presenting it as recorded attendance', async () => {
     const screen = render(<KaderScreen />)
-    expect(await screen.findByTestId('kader-row-user-player-3-rsvp-NO')).toBeTruthy()
-    expect(screen.getByTestId('kader-row-user-player-2-rsvp-NONE')).toBeTruthy()
+    const row = await screen.findByTestId('kader-row-user-player-3')
+    expect(row.props.accessibilityLabel).toContain('kader.rsvp.no')
+    expect(screen.queryByTestId('kader-row-user-player-3-attendance')).toBeNull()
   })
 
   it('L4: a filter lists the signed-in player too when they match', async () => {
@@ -358,10 +383,16 @@ describe('Kader tab', () => {
     await waitFor(() => expect(resolvers.length).toBe(1))
     const list = () =>
       screen.UNSAFE_root.findAll((node: any) => Boolean(node.props?.refreshControl))
-    const newer = { ...SNAPSHOT, squadCount: 9 }
-    const older = { ...SNAPSHOT, squadCount: 2 }
+    const snapshotNamed = (name: string) => ({
+      ...SNAPSHOT,
+      squad: SNAPSHOT.squad.map((member) =>
+        member.userId === 'user-player-2' ? { ...member, name } : member,
+      ),
+    })
+    const newer = snapshotNamed('Newest player name')
+    const older = snapshotNamed('Original player name')
     resolvers[0](older)
-    expect(await screen.findByText('kader.subtitle|2')).toBeTruthy()
+    expect(await screen.findByText('Original player name')).toBeTruthy()
     // Two pull-to-refreshes: request #2 (older) and #3 (newer) in flight;
     // #3 answers first, then #2 arrives late and must be ignored.
     const refresh = list()[0]?.props.refreshControl.props.onRefresh
@@ -369,11 +400,11 @@ describe('Kader tab', () => {
     refresh()
     await waitFor(() => expect(resolvers.length).toBe(3))
     resolvers[2](newer)
-    expect(await screen.findByText('kader.subtitle|9')).toBeTruthy()
-    resolvers[1]({ ...SNAPSHOT, squadCount: 5 })
+    expect(await screen.findByText('Newest player name')).toBeTruthy()
+    resolvers[1](snapshotNamed('Stale player name'))
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(screen.getByText('kader.subtitle|9')).toBeTruthy()
-    expect(screen.queryByText('kader.subtitle|5')).toBeNull()
+    expect(screen.getByText('Newest player name')).toBeTruthy()
+    expect(screen.queryByText('Stale player name')).toBeNull()
   })
 
   it('M1: a club COACH without a coach access on this team gets the player view', async () => {

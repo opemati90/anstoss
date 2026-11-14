@@ -53,6 +53,7 @@ jest.mock('../../src/context/AuthContext', () => ({
       ? { role: mockAuth.role, operationalRoles: [], club: { id: 'club-1', name: 'SV Albatros' } }
       : null,
     activeTeamAccess: mockAuth.team,
+    teamsForActiveClub: mockAuth.team ? [mockAuth.team] : [],
     memberships: Array.from({ length: mockAuth.memberships }, (_, i) => ({ id: `m-${i}` })),
     activeRoleMode: mockAuth.mode,
     availableRoleModes: mockAuth.modes,
@@ -207,11 +208,12 @@ describe('Profile tab', () => {
     expect(screen.queryByText('more.treasury')).toBeNull()
   })
 
-  it('opens the treasury and the role-mode sheet for admins with several modes', () => {
+  it('opens the treasury and offers role preview for admins with several modes', () => {
     const screen = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
     fireEvent.press(screen.getByText('more.treasury'))
     expect(mockRouterPush).toHaveBeenCalledWith('/admin-billing')
-    expect(screen.getByTestId('more-role-mode')).toBeTruthy()
+    expect(screen.getByTestId('more-preview-cover')).toBeTruthy()
+    expect(screen.queryByTestId('more-role-mode')).toBeNull()
   })
 
   it('signs out only after confirmation and resumes expiry handling on cancel', () => {

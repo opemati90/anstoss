@@ -64,6 +64,7 @@ export const kaderTr = {
   },
   row: {
     attendance: "{{total}} antrenmanın {{count}} tanesi",
+    checkIns: '{{count}} kayıtlı antrenman yoklaması',
     you: 'Sen',
     new: 'Yeni',
     inactive: 'Pasif',

@@ -64,6 +64,7 @@ export const kaderEn = {
   },
   row: {
     attendance: "{{count}} of {{total}} trainings",
+    checkIns: '{{count}} recorded training check-ins',
     you: 'You',
     new: 'New',
     inactive: 'Inactive',

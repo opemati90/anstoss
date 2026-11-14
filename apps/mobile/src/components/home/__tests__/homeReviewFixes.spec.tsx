@@ -81,7 +81,12 @@ const wrap = (ui: React.ReactElement) => (
 )
 
 const DAY = 86_400_000
-const event = (id: string, title: string, offsetDays: number, extra: Record<string, unknown> = {}) => ({
+const event = (
+  id: string,
+  title: string,
+  offsetDays: number,
+  extra: Record<string, unknown> = {},
+) => ({
   id,
   type: 'TRAINING',
   title,
@@ -165,9 +170,7 @@ describe('#11 realtime upserts refresh quietly', () => {
     })
     expect(mockApi.mock.calls.length).toBe(before)
 
-    expect(
-      await view.findByText('Monday training (moved)', {}, { timeout: 3000 }),
-    ).toBeTruthy()
+    expect(await view.findByText('Monday training (moved)', {}, { timeout: 3000 })).toBeTruthy()
     const after = mockApi.mock.calls.slice(before).map(([path]) => String(path))
     expect(after).toHaveLength(1)
     expect(after[0]).toContain('/events?')
@@ -175,30 +178,33 @@ describe('#11 realtime upserts refresh quietly', () => {
   })
 })
 
-describe('#9/#10 "This week" is the next seven days', () => {
-  it('counts and lists only this week, links to all events, and names each reply group', async () => {
+describe('compact agenda and week helpers', () => {
+  it('summarizes unanswered events and links to the agenda while keeping an accessible hero reply', async () => {
     const view = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
     expect(await view.findByText('Monday training')).toBeTruthy()
-    // Hero = Monday; the list holds Tuesday + Thursday, not the one in 12 days.
-    expect(view.getByText('This week · 2 to answer')).toBeTruthy()
+    // The new summary covers all pending events, not a misleading "This week".
+    expect(view.getByText('Events waiting for you')).toBeTruthy()
+    expect(view.getByText('3')).toBeTruthy()
     expect(view.queryByText('Training in two weeks')).toBeNull()
 
-    fireEvent.press(view.getByLabelText('All events'))
+    fireEvent.press(view.getByTestId('player-home-awaiting'))
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/(tabs)/events')
 
     type Node = { type: unknown; props: Record<string, unknown> }
     const groups = view.UNSAFE_root.findAll(
-      (node: Node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup',
+      (node: Node) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup',
     )
-    expect(
-      groups.some((g: Node) => String(g.props.accessibilityLabel).startsWith('Tuesday training, ')),
-    ).toBe(true)
-    // Each answer also carries the event as its hint (iOS reads no group label).
+    expect(groups.some((g: Node) => g.props.accessibilityLabel === 'Your reply')).toBe(true)
+    // The hero's answer buttons retain readable labels.
     const radios = view.getAllByRole('radio')
-    expect(radios.some((r) => String(r.props.accessibilityHint).startsWith('Tuesday training, '))).toBe(
-      true,
-    )
+    expect(radios).toHaveLength(3)
+    expect(radios.map((r) => r.props.accessibilityLabel)).toEqual([
+      'eventFlow.rsvp.yes',
+      'eventFlow.rsvp.maybe',
+      'eventFlow.rsvp.no',
+    ])
   })
 
   it('eventsThisWeek drops anything past seven days', () => {
@@ -258,11 +264,23 @@ describe('#8 24-hour clock in every app locale', () => {
 
   it('stacks Anstoß and Treffpunkt only when "15:00" would not fit its column', () => {
     expect(
-      shouldStackTimes({ blockWidth: 311, digitSize: 32, fontScale: 1, maxFontScale: 1.4, label: '15:00' }),
+      shouldStackTimes({
+        blockWidth: 311,
+        digitSize: 32,
+        fontScale: 1,
+        maxFontScale: 1.4,
+        label: '15:00',
+      }),
     ).toBe(false)
     // 320pt phone at the capped maximum text size.
     expect(
-      shouldStackTimes({ blockWidth: 256, digitSize: 32, fontScale: 2, maxFontScale: 1.4, label: '15:00' }),
+      shouldStackTimes({
+        blockWidth: 256,
+        digitSize: 32,
+        fontScale: 2,
+        maxFontScale: 1.4,
+        label: '15:00',
+      }),
     ).toBe(true)
   })
 })
@@ -271,7 +289,12 @@ describe('#12 Treffpunkt without a meeting time', () => {
   it('still names the meeting point', () => {
     const view = render(
       <LocationLine
-        event={{ title: 'Spiel', date: '2026-09-26T13:00:00Z', meetingPoint: 'Vereinsheim', location: 'Platz 2' }}
+        event={{
+          title: 'Spiel',
+          date: '2026-09-26T13:00:00Z',
+          meetingPoint: 'Vereinsheim',
+          location: 'Platz 2',
+        }}
       />,
     )
     expect(view.getByText('Meet at Vereinsheim')).toBeTruthy()
@@ -304,7 +327,9 @@ describe('LOW fixes', () => {
   it('hides season tiles that are all zero before the season starts', () => {
     const view = render(
       <SeasonStrip
-        streaks={{ attendanceWeeks: 0, attendanceLongest: 0, motmWeeks: 0, motmLongest: 0 } as never}
+        streaks={
+          { attendanceWeeks: 0, attendanceLongest: 0, motmWeeks: 0, motmLongest: 0 } as never
+        }
         rank={null}
         seasonStats={null}
       />,

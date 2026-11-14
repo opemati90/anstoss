@@ -200,7 +200,7 @@ export default function RootLayout() {
                   />
                   <Stack.Screen name="edit-profile" options={{ presentation: 'formSheet' }} />
                   <Stack.Screen name="notification-settings" options={{ presentation: 'card' }} />
-                  <Stack.Screen name="language" options={{ presentation: 'formSheet' }} />
+                  <Stack.Screen name="language" options={{ presentation: 'card' }} />
                   <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
                   <Stack.Screen name="legal" options={{ presentation: 'card' }} />
                   <Stack.Screen name="child-consent" options={{ presentation: 'card' }} />

@@ -33,6 +33,11 @@ jest.mock('expo-image-picker', () => ({
 }))
 
 describe('ChatInput', () => {
+  it('supports 200% text without an unbounded composer font', () => {
+    const screen = render(<ChatInput onSend={jest.fn()} onTyping={jest.fn()} />)
+    expect(screen.getByTestId('chat-message-input').props.maxFontSizeMultiplier).toBe(2)
+  })
+
   it('keeps the send button mounted with a busy state while text is sending', async () => {
     let resolveSend: (value: boolean) => void = () => undefined
     const onSend = jest.fn(

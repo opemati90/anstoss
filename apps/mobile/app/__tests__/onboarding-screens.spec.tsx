@@ -349,13 +349,15 @@ describe('Verein finden', () => {
     expect(classifySearchInput('SV Albatros')).toEqual({ teamCode: null, inviteCode: null })
   })
 
-  it('H4: picks the role inline on the club row and sends from the same screen, no DOB asked', async () => {
+  it('H4: a club opens "Was machst du bei …?" and sends from there, no DOB asked', async () => {
     searchApi()
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     await waitFor(() => screen.getByTestId('find-club-row-sv-albatros'))
     fireEvent.press(screen.getByTestId('find-club-row-sv-albatros'))
     expect(screen.getByTestId('club-join-question')).toBeTruthy()
+    // Board 05: Spieler:in starts ticked; untick it, tick Elternteil.
+    fireEvent.press(screen.getByTestId('club-role-player'))
     fireEvent.press(screen.getByTestId('club-role-parent'))
     expect(screen.queryByTestId('dob-day')).toBeNull()
     await act(async () => {
@@ -383,9 +385,10 @@ describe('Verein finden', () => {
         : undefined,
     )
     const screen = render(<ClubSearchScreen />)
-    fireEvent.changeText(screen.getByTestId('find-club-search'), 'SVAB2345HX')
+    fireEvent.changeText(screen.getByTestId('find-club-code'), 'SVAB2345HX')
     await waitFor(() => screen.getByTestId('club-team-match'))
     fireEvent.press(screen.getByTestId('club-team-match'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
     fireEvent.press(screen.getByTestId('club-role-coach'))
     await act(async () => {
       fireEvent.press(screen.getByTestId('club-send-request'))
