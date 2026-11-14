@@ -35,5 +35,5 @@ export async function setAppearancePreference(preference: AppearancePreference) 
 /** Called once at startup so a saved light/dark choice survives restarts. */
 export async function restoreAppearancePreference() {
   const preference = await getAppearancePreference()
-  if (preference !== 'system') apply(preference)
+  apply(preference)
 }

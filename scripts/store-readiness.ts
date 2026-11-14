@@ -196,6 +196,10 @@ expectIncludes(
 )
 
 const infoPlist = read('apps/mobile/ios/Anstoss/Info-Release.plist')
+expect(
+  /<key>UIUserInterfaceStyle<\/key>\s*<string>Automatic<\/string>/.test(infoPlist),
+  'iOS Release must follow system appearance, matching the development build',
+)
 expectIncludes(
   infoPlist,
   'Allow Anstoss to take photos for profiles, club media, sponsors, and chat.',
