@@ -109,12 +109,18 @@ The subsequent player-calendar extension passes 18 focused schedule/state tests
 (including three additional player cases), mobile typecheck and scoped ESLint.
 Its full mobile run passes **129 suites / 918 tests**, with the same one pre-existing
 skip: `/private/tmp/anstoss-mobile-player-calendar-20261114.json` (exit 0).
-The current full simulator rerun is not yet accepted: a concurrent Maestro run
-on a different simulator reused port 7001 and returned that other app's screen.
-The RSVP confirmation steps passed before that collision. A separate Appium
-attempt did not connect and its owned server/build processes were stopped.
-The Anstoss simulator was restarted without erasing data. Prior calendar/language
-evidence below remains historical, not a pass for this latest player extension.
+The player-calendar simulator rerun now passes (German, dark mode): today selected,
+matching-date filter, event details and back, horizontal date scrolling, empty day,
+and clear-to-agenda. Screenshot inspected:
+`/private/tmp/anstoss-player-calendar-selected-20261114.png`.
+Run: `.maestro/redesign-calendar.yaml` with `-e SCENARIO=player`, exit 0.
+An earlier attempt collided with another simulator's Maestro driver on port 7001;
+its results were rejected. A separate Appium attempt did not connect and its owned
+server/build processes were stopped. The Anstoss simulator was restarted without
+erasing data. The final passing run used the correct simulator after that conflict.
+The full home → coach-switch flow still needs a clean complete rerun; its RSVP
+confirmation steps passed earlier. These remain mock UI checks, not connected-role
+production evidence.
 
 - Kept DM restrictions, coach editing, stale-response, RSVP API writes and
   guardian proxy-write coverage; updated assertions only for intentional layout

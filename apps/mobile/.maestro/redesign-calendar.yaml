@@ -1,7 +1,4 @@
 appId: com.renuirug.anstoss
-env:
-  SCENARIO: coach
-  HOME_ID: coach-hero
 ---
 - openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
 - runFlow:
@@ -14,10 +11,13 @@ env:
 - waitForAnimationToEnd:
     timeout: 10000
 - evalScript: ${output.dayKey = function(offset) { var d = new Date(); d.setDate(d.getDate() + offset); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }; output.matchDay = output.dayKey((7 - new Date().getDay()) % 7 || 7); output.emptyDay = output.dayKey(7);}
-- openLink: 'anstoss://e2e?scenario=${SCENARIO}&lang=de'
+- evalScript: >-
+    ${output.scenario = typeof SCENARIO === 'undefined' ? 'coach' : SCENARIO;
+    output.homeId = output.scenario === 'player' ? 'home-hero-rsvp' : 'coach-hero';}
+- openLink: 'anstoss://e2e?scenario=${output.scenario}&lang=de'
 - extendedWaitUntil:
     visible:
-      id: ${HOME_ID}
+      id: ${output.homeId}
     timeout: 30000
 - openLink: 'anstoss://events'
 - extendedWaitUntil:
@@ -29,7 +29,7 @@ env:
     id: ${'events-day-' + output.matchDay}
 - assertVisible: '.*bei FC Stahl Brandenburg.*'
 - assertNotVisible: '.*Tuesday session.*'
-- takeScreenshot: /private/tmp/anstoss-${SCENARIO}-calendar-selected-20261114
+- takeScreenshot: /private/tmp/anstoss-${output.scenario}-calendar-selected-20261114
 - tapOn: '.*bei FC Stahl Brandenburg.*'
 - extendedWaitUntil:
     visible:
