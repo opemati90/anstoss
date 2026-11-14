@@ -360,6 +360,10 @@ function badge(status) {
   return `<span class="badge badge--${safe}">${safe}</span>`
 }
 
+function planLabel(tier) {
+  return { FREE: 'Free', PRO: 'Verein (PRO)', SCALE: 'Scale — custom agreement' }[tier] || tier || 'Unknown'
+}
+
 function setError(el, error) {
   el.innerHTML = `<tr><td colspan="99" class="placeholder">${esc(error.message || error)}</td></tr>`
 }
@@ -484,6 +488,7 @@ async function openClubDetail(clubId) {
   const content = document.getElementById('club-detail-content')
   title.textContent = 'Loading...'
   content.innerHTML = '<p class="placeholder">Loading club details...</p>'
+  content.scrollTop = 0
   if (!dialog.open) dialog.showModal()
 
   try {
@@ -507,7 +512,7 @@ async function openClubDetail(clubId) {
           .join('')
       : '<li><span>No owner or admin accounts returned.</span></li>'
     const subscription = club.subscription
-      ? `${badge(club.subscription.status)} <strong>${esc(club.subscription.plan)}</strong>`
+      ? `${badge(club.subscription.status)} <strong>${esc(planLabel(club.subscription.plan))}</strong>`
       : '<span class="badge">Free</span>'
     const grants = entitlements.grants?.length
       ? entitlements.grants
@@ -515,7 +520,7 @@ async function openClubDetail(clubId) {
             (grant) => `
               <li>
                 <span>
-                  <strong>${esc(grant.tier)}</strong>
+                  <strong>${esc(planLabel(grant.tier))}</strong>
                   ${badge(grant.status)}
                   <small>${esc(grant.source)} · ${grant.expiresAt ? `ends ${fmtDate(grant.expiresAt)}` : 'no expiry'}</small>
                 </span>
@@ -555,11 +560,12 @@ async function openClubDetail(clubId) {
         <ul class="detail-owners">${owners}</ul>
       </section>
       <section class="detail-section">
-        <h3>Plan override</h3>
-        <p class="muted-line">Effective tier: <strong>${esc(entitlements.tier)}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players} player seats</p>
+        <h3>Plan access</h3>
+        <p class="muted-line">Effective tier: <strong>${esc(planLabel(entitlements.tier))}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players} player seats</p>
+        <p class="muted-line">These are the same access grants and limits used by the app. Complimentary access does not charge the club or change its Stripe subscription.</p>
         <ul class="detail-owners">${grants}</ul>
         <div class="toolbar">
-          <select class="text-input" id="grant-tier"><option value="PRO">Pro</option><option value="SCALE">Scale</option></select>
+          <select class="text-input" id="grant-tier" aria-label="Access tier"><option value="PRO">Verein (PRO)</option><option value="SCALE">Scale — custom agreement</option></select>
           <select class="text-input" id="grant-interval" aria-label="Plan definition term"><option value="TWELVE_MONTHS">12-month definition</option><option value="SIX_MONTHS">6-month definition</option></select>
           <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
           <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
@@ -1036,7 +1042,7 @@ async function loadPlans() {
           .map(
             (plan) => `
         <tr>
-          <td><strong>${esc(plan.tier)}</strong></td>
+          <td><strong>${esc(planLabel(plan.tier))}</strong></td>
           <td>${plan.interval === 'SIX_MONTHS' ? '6 months' : '12 months'}</td>
           <td>${fmtCents(plan.priceCents)}</td>
           <td>${plan.teamLimit} teams · ${plan.playerLimit} players</td>

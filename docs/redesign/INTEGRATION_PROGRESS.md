@@ -4,7 +4,34 @@ Base: `f0886f74` on `redesign/anstoss-2026-11`.
 Working branch: `codex/redesign-integration-20261113`.
 
 The redesign remains the visual source of truth. This branch does not replace
-Claude's visual work. No production or store release has been made from it.
+Claude's visual work. Release progress is recorded below.
+
+### Develop / TestFlight preparation — 14 November, late evening
+
+- Promoted `b2ca9768` to `develop`; all six GitHub quality jobs passed.
+- GitHub API deployment failed with an invalid Railway project token. The working
+  local Railway login deployed that exact API source successfully (deployment
+  `b1f865ab-75e4-4bf9-a7f2-2e9edc20e1eb`); public health and database checks passed.
+  CI credentials were not replaced with a personal account token.
+- Production startup exposed Redis adapter installation on a namespace and a
+  lazy Prisma retention query executed outside tenant context. Fixed the owning
+  server adapter setup (shared once across namespaces) and awaited the retention
+  query within its club context. Full API regression: 143 suites, 1,434 passed,
+  30 opt-in skipped; API lint/typecheck/build passed.
+- Fixed clipped admin club-detail scrolling using a bounded flex dialog with a
+  non-shrinking header and one keyboard-focusable scroll body. Browser wheel
+  scrolling reaches top/bottom at 1440×1000 and 390×640; grant controls are visible.
+  Admin smoke/lint/build pass. Impeccable's detector was degraded (parser packages
+  absent); its Inter warnings are intentionally retained per the approved brand.
+- Admin access labels now use Verein (PRO), with SCALE marked custom agreement.
+  Limits/grants are shared with mobile, but legacy six-/twelve-month plan
+  definitions do NOT manage the advertised monthly/yearly checkout pricing.
+  The UI now states that limitation. Do not call billing administration fully
+  aligned or a paid checkout verified; this is an open paid-launch item.
+- Set native iOS/Android and Expo marketing version to 1.0.2 so this redesign
+  cannot regress behind the previous 1.0.1 TestFlight release. EAS owns build numbers.
+- Production worker fixes, admin/website rollout and the iOS build are pending
+  verification at this source checkpoint; queued work is not a success claim.
 
 ## Current owner priority — 2026-11-14, four-role MVP
 

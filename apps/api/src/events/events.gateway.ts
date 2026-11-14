@@ -8,9 +8,8 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets'
 import { Logger } from '@nestjs/common'
-import { Server, Socket } from 'socket.io'
-import { createAdapter } from '@socket.io/redis-adapter'
-import { Redis } from 'ioredis'
+import { Namespace, Socket } from 'socket.io'
+import { installRedisAdapter } from '../realtime/redis-adapter'
 import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
@@ -42,14 +41,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
   private readonly logger = new Logger(EventsGateway.name)
 
   @WebSocketServer()
-  server: Server
+  server: Namespace
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly teamsService: TeamsService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit(server: Namespace) {
     const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
       this.logger.warn(
@@ -58,12 +57,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
       return
     }
 
-    const pubClient = new Redis(redisUrl, { maxRetriesPerRequest: 3, lazyConnect: true })
-    const subClient = pubClient.duplicate()
-
-    Promise.all([pubClient.connect(), subClient.connect()])
+    installRedisAdapter(server, redisUrl)
       .then(() => {
-        server.adapter(createAdapter(pubClient, subClient))
         this.logger.log('Redis adapter connected for events')
       })
       .catch((err) => {

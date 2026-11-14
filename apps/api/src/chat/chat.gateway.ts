@@ -10,8 +10,8 @@ import {
 } from '@nestjs/websockets'
 import { forwardRef, Inject, Logger, Optional } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { Server, Socket } from 'socket.io'
-import { createAdapter } from '@socket.io/redis-adapter'
+import { Namespace, Socket } from 'socket.io'
+import { installRedisAdapter } from '../realtime/redis-adapter'
 import { Redis } from 'ioredis'
 import { verifySessionToken } from '../auth/otp/jwt.util'
 import { PrismaService } from '../prisma/prisma.service'
@@ -52,7 +52,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private readonly logger = new Logger(ChatGateway.name)
 
   @WebSocketServer()
-  server: Server
+  server: Namespace
 
   // ---------------------------------------------------------------------
 
@@ -260,7 +260,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   /**
    * Wire Redis adapter for multi-instance pub/sub + rate limiting.
    */
-  afterInit(server: Server) {
+  afterInit(server: Namespace) {
     const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
       this.logger.warn(
@@ -269,9 +269,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       return
     }
 
-    const pubClient = new Redis(redisUrl, { maxRetriesPerRequest: 3, lazyConnect: true })
-    const subClient = pubClient.duplicate()
-
     // Dedicated client for rate limiting (non-blocking, separate from pub/sub)
     this.rateLimitRedis = new Redis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true })
     this.rateLimitRedis.connect().catch((err) => {
@@ -279,9 +276,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       this.rateLimitRedis = null
     })
 
-    Promise.all([pubClient.connect(), subClient.connect()])
+    installRedisAdapter(server, redisUrl)
       .then(() => {
-        server.adapter(createAdapter(pubClient, subClient))
         this.logger.log('Redis adapter connected for chat')
       })
       .catch((err) => {

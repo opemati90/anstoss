@@ -352,16 +352,17 @@
         </nav>
         <div class="panel compact-panel">
           <div>
-            <h2>Publish a plan version</h2>
+            <h2>Access definitions</h2>
             <p class="muted-line">
               Publishing archives the prior version for the same tier and term. Existing
-              complimentary grants keep their tier.
+              complimentary grants keep their tier. These legacy definitions manage access
+              limits; they do not update the app's monthly/yearly prices or Stripe checkout.
             </p>
           </div>
           <form id="plan-form" class="toolbar" autocomplete="off">
             <select id="plan-tier" class="text-input" aria-label="Plan tier">
-              <option value="PRO">Pro</option>
-              <option value="SCALE">Scale</option>
+              <option value="PRO">Verein (PRO)</option>
+              <option value="SCALE">Scale — custom agreement</option>
             </select>
             <select id="plan-interval" class="text-input" aria-label="Billing interval">
               <option value="SIX_MONTHS">6 months</option>
@@ -372,7 +373,7 @@
               class="text-input"
               type="number"
               min="1"
-              step="1"
+              step="0.01"
               placeholder="Price EUR"
               required
             />
@@ -932,7 +933,7 @@ Broadcast sending is disabled for launch.</pre>
           <span aria-hidden="true">×</span>
         </button>
       </div>
-      <div id="club-detail-content" class="detail-dialog__content">
+      <div id="club-detail-content" class="detail-dialog__content" tabindex="0" role="region" aria-label="Club details and plan access">
         <p class="placeholder">Loading...</p>
       </div>
     </dialog>

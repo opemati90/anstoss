@@ -27,8 +27,9 @@ export class BankImportRetentionWorker implements OnModuleInit, OnModuleDestroy 
     const clubs = await this.prisma.club.findMany({ select: { id: true } })
     let count = 0
     for (const club of clubs) {
-      const result = await tenantContext.run({ clubId: club.id, userId: 'system' }, () =>
-        this.prisma.bankImportBatch.updateMany({
+      // Prisma queries are lazy: consume the promise inside the tenant context.
+      const result = await tenantContext.run({ clubId: club.id, userId: 'system' }, async () =>
+        await this.prisma.bankImportBatch.updateMany({
           where: {
             clubId: club.id,
             rawExpiresAt: { lte: now },
