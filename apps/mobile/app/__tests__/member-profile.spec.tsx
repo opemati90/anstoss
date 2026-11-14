@@ -243,6 +243,8 @@ describe('Member profile (board 17)', () => {
   it('lets only the Vorstand toggle roles', async () => {
     const screen = render(<MemberProfileScreen />)
     fireEvent.press(await screen.findByTestId('member-role-TREASURER'))
+    // Board 18: Medienwart sits between Kassenwart and Vorstand.
+    expect(screen.getByTestId('member-role-MEDIA_MANAGER')).toBeTruthy()
     expect(mockApi).not.toHaveBeenCalledWith(expect.stringContaining('/roles'), expect.anything())
 
     authState.activeClub = { role: 'OWNER', club: { id: 'club-1', name: 'SV Albatros' } }

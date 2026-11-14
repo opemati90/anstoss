@@ -8,7 +8,9 @@ const mockEmit = jest.fn()
 const mockOn = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
-jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }))
+const mockPush = jest.fn()
+let mockRole = 'PLAYER'
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) } }))
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -24,7 +26,11 @@ jest.mock('../../../api/client', () => ({
   ApiError: class ApiError extends Error {},
 }))
 jest.mock('../../../context/AuthContext', () => ({
-  useAuth: () => ({ activeClub: { club: { id: 'c1' } }, getToken: () => Promise.resolve('tok') }),
+  useAuth: () => ({
+    activeClub: { club: { id: 'c1' }, role: mockRole, operationalRoles: [] },
+    activeTeamAccess: null,
+    getToken: () => Promise.resolve('tok'),
+  }),
 }))
 jest.mock('../../../context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../../theme/club-theme')
@@ -161,6 +167,18 @@ describe('RecordedMatchLive', () => {
     await screen.findByText('matchLive.timeline')
     expect(screen.queryByTestId('live-actions')).toBeNull()
     expect(screen.queryByTestId('live-clock')).toBeNull()
+    expect(screen.queryByTestId('live-post')).toBeNull()
+  })
+
+  it('docks "Posten" next to the clock for Studio roles and opens the fitting graphic', async () => {
+    mockRole = 'OWNER'
+    mockPush.mockClear()
+    route(state({ status: 'SECOND_HALF', goalsFor: 1 }))
+    const screen = render(<RecordedMatchLive eventId="e1" />)
+    fireEvent.press(await screen.findByTestId('live-post'))
+    expect(screen.getByTestId('live-clock')).toBeTruthy()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/studio/editor', params: { template: 'tor', eventId: 'e1' } })
+    mockRole = 'PLAYER'
   })
 })
 

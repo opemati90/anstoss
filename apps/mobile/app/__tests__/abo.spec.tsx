@@ -62,6 +62,7 @@ describe('Abo screen (board 35)', () => {
     expect(s.getByText('clubPlan.usage {"used":1,"limit":1}')).toBeTruthy()
     expect(s.getByText('clubPlan.usage {"used":22,"limit":30}')).toBeTruthy()
     expect(s.getByText('clubPlan.features.clubColors')).toBeTruthy()
+    expect(s.getByText('clubPlan.features.matchdayStudio')).toBeTruthy()
     expect(s.getByText('clubPlan.features.actingSessions')).toBeTruthy()
     expect(s.getByTestId('abo-price').props.children).toMatch(/10,99/)
     expect(s.getByTestId('abo-start-trial')).toBeTruthy()

@@ -213,6 +213,16 @@ describe('Profile tab', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/my-contributions')
   })
 
+  it('offers Matchday Studio to Studio roles only (board 19)', () => {
+    const player = renderMore()
+    expect(player.queryByText('studio.moreRow')).toBeNull()
+    player.unmount()
+    const admin = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
+    expect(admin.getByText('studio.moreNew')).toBeTruthy()
+    fireEvent.press(admin.getByText('studio.moreRow'))
+    expect(mockRouterPush).toHaveBeenCalledWith('/studio')
+  })
+
   it('gives admins the Vorschau und Vertretung card', () => {
     const screen = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
     // Vorschau und Vertretung (board 29) replaces the role-mode card for Vorstand.
