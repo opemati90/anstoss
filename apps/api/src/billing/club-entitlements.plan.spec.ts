@@ -114,6 +114,12 @@ describe('ClubEntitlementsService plans and pricing', () => {
     await expect(service(makePrisma({})).hasFeature('club-1', 'clubColors')).resolves.toBe(false)
   })
 
+  it('keeps Matchday Studio on Verein only', () => {
+    const entitlements = service(makePrisma({}))
+    expect(entitlements.featureFlags('FREE' as never).matchdayStudio).toBe(false)
+    expect(entitlements.featureFlags('PRO' as never).matchdayStudio).toBe(true)
+  })
+
   it.each([
     [{ role: 'OWNER', operationalRoles: [] }, true],
     [{ role: 'ADMIN', operationalRoles: [] }, true],

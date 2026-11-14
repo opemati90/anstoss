@@ -14,6 +14,8 @@ export enum ClubOperationalRole {
   CAPTAIN = 'CAPTAIN',
   TEAM_COORDINATOR = 'TEAM_COORDINATOR',
   BOARD_MEMBER = 'BOARD_MEMBER',
+  /** Medienwart: Matchday Studio, brand kit, connected social accounts. */
+  MEDIA_MANAGER = 'MEDIA_MANAGER',
   SUPPORT_STAFF = 'SUPPORT_STAFF',
 }
 
@@ -87,6 +89,10 @@ export const OPERATIONAL_ROLE_CAPABILITIES: Record<
     ClubCapability.COMMUNICATIONS,
   ],
   [ClubOperationalRole.BOARD_MEMBER]: [
+    ClubCapability.PUBLIC_PROFILE,
+    ClubCapability.COMMUNICATIONS,
+  ],
+  [ClubOperationalRole.MEDIA_MANAGER]: [
     ClubCapability.PUBLIC_PROFILE,
     ClubCapability.COMMUNICATIONS,
   ],
@@ -169,6 +175,19 @@ export const OPERATIONAL_ROLE_PLAYBOOKS: Record<
       'Remove access to leadership-only communication surfaces.',
       'Confirm board-level approvals are reassigned.',
       'Archive any related club governance notes outside the app.',
+    ],
+  },
+  [ClubOperationalRole.MEDIA_MANAGER]: {
+    summary: 'Runs Matchday Studio: the brand kit, match graphics, and the club social accounts.',
+    onboarding: [
+      'Review the brand kit: crest, sponsor logos, social handle, and hashtags.',
+      'Connect the club Instagram and Facebook accounts.',
+      'Check photo and naming consent rules before posting players.',
+    ],
+    offboarding: [
+      'Disconnect personal logins from the club social accounts.',
+      'Hand over the brand kit and the graphics archive.',
+      'Confirm who posts matchday graphics from now on.',
     ],
   },
   [ClubOperationalRole.SUPPORT_STAFF]: {

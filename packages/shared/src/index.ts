@@ -35,6 +35,8 @@ export * from './schemas/team-boards'
 export * from './schemas/home'
 // Plans and pricing: Kostenlos / Verein, feature flags, trial (Abo screen)
 export * from './schemas/plan'
+// Matchday Studio: brand kit, AI credits, AI actions, consent, archive
+export * from './schemas/studio'
 export * from './errors/base'
 export * from './utils/iban'
 export * from './utils/wechsel'

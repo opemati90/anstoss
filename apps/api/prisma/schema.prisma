@@ -361,6 +361,7 @@ enum ClubOperationalRole {
   TEAM_COORDINATOR
   BOARD_MEMBER
   SUPPORT_STAFF
+  MEDIA_MANAGER
 }
 
 enum TeamGroupType {

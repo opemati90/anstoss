@@ -5,9 +5,9 @@ import { z } from 'zod'
 // docs/redesign/BACKEND_GAPS.md ("Contract for backend").
 
 /**
- * The six role toggles on the member profile ("Rollen in 1. Herren").
- * PLAYER / COACH / CAPTAIN / TEAM_MANAGER are per team; TREASURER and BOARD
- * are club-level (Kassenwart, Vorstand). Only Vorstand may change them.
+ * The seven role toggles on the member profile ("Rollen in 1. Herren").
+ * PLAYER / COACH / CAPTAIN / TEAM_MANAGER are per team; TREASURER, MEDIA_MANAGER
+ * and BOARD are club-level (Kassenwart, Medienwart, Vorstand). Only Vorstand may change them.
  */
 export const MEMBER_ROLE_KEYS = [
   'PLAYER',
@@ -15,6 +15,7 @@ export const MEMBER_ROLE_KEYS = [
   'COACH',
   'TEAM_MANAGER',
   'TREASURER',
+  'MEDIA_MANAGER',
   'BOARD',
 ] as const
 export const memberRoleKeySchema = z.enum(MEMBER_ROLE_KEYS)

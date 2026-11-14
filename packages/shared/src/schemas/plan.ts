@@ -16,6 +16,8 @@ export const PLAN_FEATURES = [
   'clubColors',
   'liveTicker',
   'lineupSharing',
+  /** Matchday Studio incl. 100 AI credits a month (schemas/studio.ts). */
+  'matchdayStudio',
   'autoReminders',
   'fixtureImport',
   'duesTracking',

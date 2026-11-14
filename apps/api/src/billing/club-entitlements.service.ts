@@ -452,8 +452,8 @@ export class ClubEntitlementsService {
 
   /**
    * Feature flags for a tier. Kostenlos clubs keep events, chat, squad,
-   * lineup, parents and consents; everything in PLAN_FEATURES unlocks with
-   * Verein. Child consent and safety features are never part of this map,
+   * lineup, parents and consents; everything in PLAN_FEATURES (club colours,
+   * live ticker, Matchday Studio, …) unlocks with Verein. Child consent and safety features are never part of this map,
    * so they can never be gated.
    */
   featureFlags(tier: PlanTier): PlanFeatureFlags {
