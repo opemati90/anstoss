@@ -42,6 +42,13 @@ verified fixes and avoid duplicate implementations. Do not blanket-merge WIP.
 2. **Pending — design verification**
    - Mobile reference screens: German, small phones, light/dark and large text.
    - Website desktop/mobile references, navigation, links and seven languages.
+     The updated website is explicitly in scope (owner reconfirmed 2026-11-14).
+     Compare incoming web changes selectively; check German/English and all seven
+     language options, Arabic RTL, mobile navigation, signup/store/legal/deletion
+     links, and feature/pricing claims against the shipping API. Web package
+     test/lint/typecheck scripts currently exit 0 without checking anything;
+     they are not browser or localization evidence. Do not import the new
+     monthly Studio-credit promise until that service works.
    - Calendar interaction implemented: horizontally scrollable dates, selected-day
      highlight/filter, clear-to-agenda action and stronger semantic row dividers.
      Date arithmetic uses local calendar days across DST and month boundaries.
@@ -76,6 +83,39 @@ verified fixes and avoid duplicate implementations. Do not blanket-merge WIP.
    - Coordinated deployment and iOS/Android test builds; no paid builds before gates pass.
 
 ## Evidence
+
+### Incoming Studio checkpoint — 2026-11-14
+
+Reviewed `origin/redesign/anstoss-2026-11` at `5510d949` in an isolated snapshot;
+no blanket merge. See [Studio review](STUDIO_REVIEW_20261114.md) for findings,
+selective adoption decisions and the implementation order. The UI/rendering
+work is substantial, but absent server routes, false export-success states and
+unscoped async match/consent state prevent a production-complete sign-off.
+Incoming author test totals have not been independently rerun.
+
+### Studio foundation implementation — 2026-11-14
+
+- Selectively added incoming Studio schemas, pure graphic rules, palette,
+  suggestion rules and their tests. No new Studio routes, entry points, paid
+  plan flags or provider integrations have been enabled.
+- Replaced the incoming match hook with atomic user/session/club/team/event
+  snapshots, immediate invalidation, request-generation guards and response
+  identity checks. Missing/malformed context fails closed; the unscoped
+  club-wide feed fallback is deliberately not carried over. Result writes
+  require current access and an exact confirmed server score.
+- Studio access follows the brief's explicit offices; being a coach alone
+  does not add Studio permission. Server authorization is still required.
+- Added an export handoff primitive that distinguishes cancellation, stale
+  scope and failure from a share-sheet handoff. It never claims publication,
+  or silently substitutes a caption; it attempts temporary-image cleanup on
+  every outcome. Wiring it into the incoming editor remains pending.
+- 70 focused tests pass; mobile typecheck, shared build and scoped ESLint pass.
+  Full mobile regression passed 132 suites / 987 tests (one pre-existing skip)
+  before the final old-refresh guard/test; the 70-test focused rerun then passed.
+  Shared regression: all 157 tests pass.
+  This is tested foundation code, not a completed Studio screen/API integration.
+- Next: permission-scoped backend context/consent and brand-kit persistence;
+  then wire the editor's export/persistence errors and verify the screens.
 
 ### Selective upstream review: `f0886f74` → `8279b7b4`
 

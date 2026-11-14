@@ -8,6 +8,8 @@ export interface MatchLiveEventDto {
   playerName: string | null
   relatedUserId: string | null
   relatedName: string | null
+  /** Optional explicit own-goal evidence; never inferred from missing names. */
+  ownGoal?: boolean
   createdAt: string
 }
 
@@ -34,6 +36,10 @@ export interface MatchLiveStateDto {
   finishedAt: string | null
   /** Newest first. */
   events: MatchLiveEventDto[]
+  /** Optional Studio extensions; absent on older servers. */
+  halfTime?: { goalsFor: number; goalsAgainst: number } | null
+  shootout?: { goalsFor: number; goalsAgainst: number } | null
+  abandonedAt?: string | null
   /** Whether the caller may record events and move the clock. */
   canRecord: boolean
 }
