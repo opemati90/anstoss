@@ -161,19 +161,22 @@ function publicName(index: ConsentIndex, userId: string | null | undefined, name
 
 // ─── Small helpers ──────────────────────────────────────────────────────────
 
-/** "SV Spreewiese 1921" → "SVS"; single words → first three letters. */
+/**
+ * Broadcast short code: "SV Spreewiese 1921" → "SVS", "Rot-Weiß Köpenick III"
+ * → "RWK", "Hertha" → "HER". A leading club prefix (SV, FC, TSV) stays whole.
+ */
 export function studioShortCode(name: string): string {
   const words = name
-    .replace(/[0-9]+/g, '')
-    .replace(/\b(I{1,3}|IV|V)\b\.?$/u, '')
+    .replace(/[0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+(I{1,3}|IV|V)\.?$/u, '')
     .split(/[\s-]+/)
     .filter(Boolean)
-  if (words.length <= 1) return (words[0] ?? name).slice(0, 3).toUpperCase()
-  return words
-    .slice(0, 3)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
+  if (words.length === 0) return name.slice(0, 3).toUpperCase()
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase()
+  const [first, ...rest] = words
+  const prefix = /^[A-ZÄÖÜ]{2,3}$/u.test(first) ? first : first[0]
+  return (prefix + rest.map((w) => w[0]).join('')).slice(0, 3).toUpperCase()
 }
 
 function surname(name: string): string {

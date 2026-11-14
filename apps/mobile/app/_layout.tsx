@@ -235,6 +235,10 @@ export default function RootLayout() {
                   <Stack.Screen name="admin-members" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-billing" options={{ presentation: 'card' }} />
                   <Stack.Screen name="abo" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="studio/index" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="studio/editor" options={{ presentation: 'fullScreenModal' }} />
+                  <Stack.Screen name="studio/brand-kit" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="studio/credits" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-club-profile" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-reports" options={{ presentation: 'card' }} />
                   <Stack.Screen name="admin-sponsors" options={{ presentation: 'card' }} />

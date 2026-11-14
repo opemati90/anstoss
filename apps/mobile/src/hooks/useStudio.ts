@@ -107,7 +107,14 @@ export function useStudioBrandKit() {
   const { activeClub } = useAuth()
   const club = activeClub?.club ?? null
   const clubId = club?.id ?? null
-  const fallback = useMemo(() => fallbackBrandKit(club), [club])
+  const clubColor = club?.primaryColor ?? null
+  const clubBadge = club?.badgeUrl ?? null
+  const clubName = club?.name ?? ''
+  // Keyed on values, not on the membership object, so a re-render never refetches.
+  const fallback = useMemo(
+    () => fallbackBrandKit(clubId ? { id: clubId, name: clubName, primaryColor: clubColor, badgeUrl: clubBadge } : null),
+    [clubId, clubName, clubColor, clubBadge],
+  )
   const [kit, setKit] = useState<StudioBrandKit>(() => (clubId && kitCache.get(clubId)) || fallback)
   const [loading, setLoading] = useState(Boolean(clubId && !kitCache.has(clubId)))
 
@@ -459,7 +466,19 @@ export function useStudioMatch(requestedEventId?: string | null) {
     [clubId, event],
   )
 
-  const match = useMemo(() => toStudioMatchInput(club, event, live, consents), [club, event, live, consents])
+  const clubName = club?.name ?? ''
+  const clubColor = club?.primaryColor ?? null
+  const clubBadge = club?.badgeUrl ?? null
+  const match = useMemo(
+    () =>
+      toStudioMatchInput(
+        clubId ? { id: clubId, name: clubName, primaryColor: clubColor, badgeUrl: clubBadge } : null,
+        event,
+        live,
+        consents,
+      ),
+    [clubId, clubName, clubColor, clubBadge, event, live, consents],
+  )
 
   return { match, event, live, loading, refresh, saveResult }
 }

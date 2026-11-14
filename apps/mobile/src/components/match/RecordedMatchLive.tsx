@@ -15,6 +15,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useSafeAreaInsetsSafe } from '../../utils/useSafeAreaInsetsSafe'
+import { canUseStudio } from '../../studio/access'
 import { Haptics } from '../../utils/haptics'
 import { BottomSheet, Button, Icon, Screen, SegmentedControl, Text, type IconName } from '../ui'
 import { ErrorState } from '../ErrorState'
@@ -59,7 +60,7 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
   const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
-  const { activeClub, getToken } = useAuth()
+  const { activeClub, activeTeamAccess, getToken } = useAuth()
   const clubId = activeClub?.club.id ?? null
 
   const [state, setState] = useState<MatchLiveStateDto | null>(null)
@@ -258,7 +259,21 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
   const running = state.status !== 'NOT_STARTED' && state.status !== 'FINISHED'
   const next = NEXT_STEP[state.status]
   const canRecord = state.canRecord
-  const showFooter = canRecord && Boolean(next)
+  const showClock = canRecord && Boolean(next)
+  // Board 15: "Posten" next to the clock button opens the Studio editor with
+  // the graphic that fits the moment.
+  const canPost = canUseStudio(activeClub, activeTeamAccess)
+  const showFooter = showClock || canPost
+  const postTemplate =
+    state.status === 'FINISHED'
+      ? 'endstand'
+      : state.status === 'HALF_TIME'
+        ? 'halbzeit'
+        : state.status === 'NOT_STARTED'
+          ? 'spieltag'
+          : state.goalsFor > 0
+            ? 'tor'
+            : 'aufstellung'
 
   const timeline = state.events.map((entry) => toTimeline(entry, ownSide, theirName, t))
 
@@ -364,22 +379,37 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
         </View>
       </ScrollView>
 
-      {showFooter && next ? (
+      {showFooter ? (
         <View
           style={[
             styles.footer,
             { backgroundColor: c.background, borderTopColor: c.borderDefault, paddingBottom: SPACING_XL + insets.bottom / 2 },
           ]}
         >
-          <Button
-            label={t(next.key, { defaultValue: next.fallback })}
-            variant={state.status === 'NOT_STARTED' ? 'accent' : 'filled'}
-            size="lg"
-            fullWidth
-            loading={busy}
-            onPress={() => moveClock(next.status)}
-            testID="live-clock"
-          />
+          {canPost ? (
+            <Button
+              label={t('studio.entry.post')}
+              variant="bordered"
+              size="lg"
+              leftIcon={<Icon name="camera" size={18} color={c.textPrimary} />}
+              onPress={() =>
+                router.push({ pathname: '/studio/editor', params: { template: postTemplate, eventId } } as never)
+              }
+              style={styles.footerButton}
+              testID="live-post"
+            />
+          ) : null}
+          {showClock && next ? (
+            <Button
+              label={t(next.key, { defaultValue: next.fallback })}
+              variant={state.status === 'NOT_STARTED' ? 'accent' : 'filled'}
+              size="lg"
+              loading={busy}
+              onPress={() => moveClock(next.status)}
+              style={styles.footerButton}
+              testID="live-clock"
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -625,7 +655,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: SPACING_MD,
     borderTopWidth: hairline,
+    flexDirection: 'row',
+    gap: SPACING_SM + 2,
   },
+  footerButton: { flex: 1 },
   sheet: { gap: SPACING_MD, flex: 1 },
   sheetList: { flexGrow: 0 },
   sheetDivider: { height: hairline },

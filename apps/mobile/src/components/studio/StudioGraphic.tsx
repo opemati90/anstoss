@@ -265,11 +265,12 @@ function Silhouette({ ctx, photoUrl }: { ctx: Ctx; photoUrl?: string | null }) {
   )
 }
 
-function Crest({ side, size, ctx }: { side: Pick<StudioTeamSide, 'name' | 'color' | 'crestUrl'>; size: number; ctx: Ctx }) {
+function Crest({ side, size, ctx }: { side: Pick<StudioTeamSide, 'short' | 'color' | 'crestUrl'>; size: number; ctx: Ctx }) {
   const w = size * ctx.u
   return (
     <View style={{ width: w, height: w * CREST_RATIO }}>
-      <MatchCrest name={side.name} badgeUrl={side.crestUrl} size={w} color={side.color} />
+      {/* The crest prints the same short code the score line uses. */}
+      <MatchCrest name={side.short} badgeUrl={side.crestUrl} size={w} color={side.color} />
     </View>
   )
 }
@@ -438,7 +439,7 @@ function Body({ template, data, width, height, ctx }: {
   )
   return (
     <>
-      <Ghost text={data.score} ctx={ctx} width={width} height={height} size={92} anchor="end" x={108} top={14} />
+      <Ghost text={data.score} ctx={ctx} width={width} height={height} size={92} anchor="start" x={0} top={14} />
       <View style={[lay, { justifyContent: 'center', gap: 4 * u, paddingTop: 30 * u }]}>
         <G style={[kick(ctx), { textAlign: 'center' }]} lines={1}>{data.kicker}</G>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 * u }}>
@@ -461,7 +462,7 @@ function Frame({ data, ctx, presentedBy }: { data: StudioGraphicData; ctx: Ctx; 
     <View style={{ ...FILL, padding: 6.5 * u }} pointerEvents="none">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2.6 * u }}>
         <Crest
-          side={{ name: data.header.clubName, color: data.header.clubColor, crestUrl: data.header.crestUrl }}
+          side={{ short: data.header.clubShort, color: data.header.clubColor, crestUrl: data.header.crestUrl }}
           size={10}
           ctx={ctx}
         />
@@ -512,13 +513,14 @@ function Frame({ data, ctx, presentedBy }: { data: StudioGraphicData; ctx: Ctx; 
           {data.footer.handle ?? ''}
         </G>
         {data.footer.sponsor ? (
-          <View style={{ alignItems: 'flex-end', gap: 0.6 * u, flexShrink: 1 }}>
+          <View style={{ alignItems: 'flex-end', gap: 0.2 * u, flexShrink: 1 }}>
             <G
               lines={1}
               style={{
                 fontFamily: FONT_FAMILY_BOLD,
                 fontSize: 2.4 * u,
-                lineHeight: 2.4 * u * 1.2,
+                // Room for the diaeresis of "PRÄSENTIERT".
+                lineHeight: 2.4 * u * 1.6,
                 letterSpacing: 0.16 * 2.4 * u,
                 textTransform: 'uppercase',
                 color: p.sub,

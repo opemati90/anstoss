@@ -67,6 +67,7 @@ import {
   RADIUS_CARD,
   RADIUS_FULL,
   RADIUS_HERO,
+  RADIUS_INPUT,
   SPACING_LG,
   SPACING_MD,
   SPACING_SM,
@@ -363,7 +364,6 @@ export default function StudioEditorScreen() {
   const fit = Math.min(1, (stageHeight - STAGE_PAD * 2) / baseH, (window.width - SPACING_LG * 2) / baseW)
   const editWidth = Math.round(baseW * fit)
   const shareWidth = SHARE_SIZE[format][0]
-  const leftIsClub = data.left.isClub
   const sideGoals = (isClub: boolean) => (isClub ? goalsFor : goalsAgainst)
   const stepGoals = (isClub: boolean, delta: number) => {
     const clamp = (n: number) => Math.max(0, Math.min(MAX_GOALS, n))
@@ -394,7 +394,7 @@ export default function StudioEditorScreen() {
 
   const sideColumn = (side: typeof data.left) => (
     <View style={styles.resultSide}>
-      <MatchCrest name={side.name} badgeUrl={side.crestUrl} size={RESULT_CREST} color={side.color} />
+      <MatchCrest name={side.short} badgeUrl={side.crestUrl} size={RESULT_CREST} color={side.color} />
       <Text variant="footnote" weight="bold" color="primary" numberOfLines={1}>
         {side.name}
       </Text>
@@ -882,6 +882,7 @@ export default function StudioEditorScreen() {
 }
 
 const STUDIO_TRANSPARENT_BORDER = 'transparent'
+const AUTO = 'auto' as const
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: STUDIO_WORKSPACE },
@@ -975,7 +976,7 @@ const styles = StyleSheet.create({
   textTool: { gap: SPACING_SM },
   input: {
     height: 48,
-    borderRadius: 14,
+    borderRadius: RADIUS_INPUT,
     borderWidth: 1,
     paddingHorizontal: SPACING_LG,
     fontSize: 15,
@@ -1002,5 +1003,5 @@ const styles = StyleSheet.create({
   caption: { fontSize: CAPTION_SIZE, lineHeight: CAPTION_SIZE * 1.45 },
   channelRow: { minHeight: CHANNEL_ROW, flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
   channelLabel: { fontSize: 14 },
-  shareAction: { marginTop: 'auto' },
+  shareAction: { marginTop: AUTO },
 })

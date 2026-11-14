@@ -36,6 +36,7 @@ import {
   TAB_BAR_CLEARANCE,
 } from '../../../src/theme/tokens'
 import { useWechselAccess } from '../../../src/features/wechsel/hooks'
+import { canUseStudio } from '../../../src/studio/access'
 import { useClubPlan } from '../../../src/hooks/useClubPlan'
 import { useMoreSummary } from '../../../src/hooks/useMoreSummary'
 import type { MyContributionSummary } from '@anstoss/shared'
@@ -306,6 +307,18 @@ export default function MoreScreen() {
                 ? t('more.openCount', { defaultValue: '{{count}} open', count: openDues })
                 : undefined,
             onPress: () => router.push('/my-contributions'),
+          },
+        ]
+      : []),
+    // Board 19: Matchday Studio · Neu. Free clubs land on StudioLocked.
+    ...(activeClub && !isFreeAgent && canUseStudio(activeClub, activeTeamAccess)
+      ? [
+          {
+            key: 'studio',
+            label: t('studio.moreRow'),
+            icon: 'camera' as IconName,
+            value: t('studio.moreNew'),
+            onPress: () => router.push('/studio' as never),
           },
         ]
       : []),

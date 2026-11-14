@@ -243,7 +243,9 @@ function ensureLive(): MatchLiveStateDto {
 }
 
 function studioEvent(ctx: Ctx) {
-  const kickoff = minutesAgo(12 + 105)
+  // Board: "So 15.11. · 14:00". The preview keeps the 14:00 kick-off on today's date.
+  const today = new Date()
+  const kickoff = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0).toISOString()
   const starters = ROSTER.map(([userId, name, number, position]) => ({ userId, name, number, position, slotId: null }))
   return {
     id: STUDIO_EVENT_ID,

@@ -21,6 +21,7 @@ import { useMatchTokens } from '../src/theme/matchTokens'
 import { api } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { EmptyState } from '../src/components/EmptyState'
+import { canUseStudio } from '../src/studio/access'
 import { BottomSheet, Button, Icon, IconButton, Text } from '../src/components/ui'
 import {
   elevation,
@@ -61,7 +62,9 @@ const withAlpha = hexToRgba
 
 export default function LineupBuilderScreen() {
   const { t } = useTranslation()
-  const { activeClub, activeTeamId } = useAuth()
+  const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
+  // Board 14: camera button, "Als Grafik posten" (Matchday Studio).
+  const canPostGraphic = canUseStudio(activeClub, activeTeamAccess)
   const c = useClubColors()
   const isDark = useIsDark()
   const reduceMotion = useReducedMotion()
@@ -512,10 +515,25 @@ export default function LineupBuilderScreen() {
           >
             {title}
           </Text>
-          <Text variant="caption1" numberOfLines={1} style={{ color: stageMuted }}>
+          <Text variant="caption1" numberOfLines={canPostGraphic ? 2 : 1} style={{ color: stageMuted }}>
             {subtitle}
           </Text>
         </View>
+        {canPostGraphic ? (
+          <IconButton
+            variant="onHero"
+            onPress={() =>
+              router.push({
+                pathname: '/studio/editor',
+                params: { template: 'aufstellung', ...(eventId ? { eventId } : null) },
+              } as never)
+            }
+            accessibilityLabel={t('studio.entry.lineup')}
+            testID="lineup-post-graphic"
+          >
+            <Icon name="camera" size={18} color={stageFg} />
+          </IconButton>
+        ) : null}
         <Button
           label={t('lineup.postToTeam', { defaultValue: 'To the team' })}
           accessibilityLabel={
@@ -532,7 +550,7 @@ export default function LineupBuilderScreen() {
           loading={saving}
           disabled={saving}
           onPress={saveAndPost}
-          style={styles.headerAction}
+          style={canPostGraphic ? [styles.headerAction, styles.headerActionNarrow] as never : styles.headerAction}
         />
       </View>
 
@@ -1052,6 +1070,8 @@ const PITCH_MIN = 360
 const HEADER_ROW = 44
 const BENCH_HEAD = 16
 
+const HEADER_ACTION_NARROW = 92
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
@@ -1069,6 +1089,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING_LG,
   },
   headerCopy: { flex: 1, minWidth: 0 },
+  // Board 14: with the camera button the lime action wraps ("Ans / Team").
+  headerActionNarrow: { maxWidth: HEADER_ACTION_NARROW },
   headerTitle: { fontSize: 24 },
   headerAction: { minHeight: 44 },
   content: {

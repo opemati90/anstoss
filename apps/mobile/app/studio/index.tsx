@@ -19,6 +19,7 @@ import {
   useStudioMatch,
 } from '../../src/hooks/useStudio'
 import { useGraphicBuilder } from '../../src/studio/useGraphicData'
+import { studioShortCode } from '../../src/studio/buildGraphicData'
 import { buildSuggestion } from '../../src/studio/suggestion'
 import { HOME_CLUB_RAIL, HOME_MATCH_RAIL, templateSlug } from '../../src/studio/templates'
 import {
@@ -256,7 +257,7 @@ export default function StudioHomeScreen() {
             pressed && styles.pressed,
           ]}
         >
-          <MatchCrest name={match.club.name} badgeUrl={kit.crestUrl} size={KIT_CREST} color={kit.colors.primary} />
+          <MatchCrest name={studioShortCode(match.club.name)} badgeUrl={kit.crestUrl} size={KIT_CREST} color={kit.colors.primary} />
           <View style={styles.kitCopy}>
             <Text variant="body" weight="bold" color="primary">
               {t('studio.home.brandKit')}
