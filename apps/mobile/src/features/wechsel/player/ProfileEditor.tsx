@@ -46,6 +46,7 @@ import {
 import { ensurePickerMediaAccess } from '../../../utils/mediaPermissions'
 import { paths, wechselApi } from '../api'
 import { DatePickerSheet } from '../components/DatePickerSheet'
+import { RecruitmentRolePicker } from '../components/RecruitmentRolePicker'
 import { CardListSkeleton } from '../components/Primitives'
 import { apiErrorMessage } from '../components/Sheets'
 import {
@@ -66,6 +67,7 @@ const PHOTO_MAX = 6
 const VIDEO_MAX = 2
 
 type Draft = {
+  recruitmentRole: 'PLAYER' | 'COACH'
   position: (typeof POSITIONS)[number] | null
   preferredFoot: (typeof FEET)[number] | null
   highestLeague: string | null
@@ -77,11 +79,18 @@ type Draft = {
   bio: string
   isOnTransferList: boolean
   visibility: FreeAgentVisibility
-  experience: Array<{ key: string; clubName: string; roleLabel: string; fromYear: string; toYear: string }>
+  experience: Array<{
+    key: string
+    clubName: string
+    roleLabel: string
+    fromYear: string
+    toYear: string
+  }>
 }
 
 function draftFrom(profile: FreeAgentProfile | null): Draft {
   return {
+    recruitmentRole: profile?.recruitmentRole ?? 'PLAYER',
     position: (profile?.position as Draft['position']) ?? null,
     preferredFoot: (profile?.preferredFoot as Draft['preferredFoot']) ?? null,
     highestLeague: profile?.highestLeague ?? null,
@@ -91,7 +100,7 @@ function draftFrom(profile: FreeAgentProfile | null): Draft {
     city: profile?.city ?? '',
     searchRadiusKm: profile?.searchRadiusKm ?? 25,
     bio: profile?.bio ?? '',
-    isOnTransferList: profile?.isOnTransferList ?? true,
+    isOnTransferList: profile?.isOnTransferList ?? false,
     // Public listings from before the revamp read as "Vereine".
     visibility:
       profile?.visibility === FreeAgentVisibility.PRIVATE
@@ -110,8 +119,9 @@ function draftFrom(profile: FreeAgentProfile | null): Draft {
 function toBody(draft: Draft) {
   const year = (value: string) => (/^\d{4}$/.test(value.trim()) ? Number(value.trim()) : null)
   return {
-    position: draft.position,
-    preferredFoot: draft.preferredFoot,
+    recruitmentRole: draft.recruitmentRole,
+    position: draft.recruitmentRole === 'PLAYER' ? draft.position : null,
+    preferredFoot: draft.recruitmentRole === 'PLAYER' ? draft.preferredFoot : null,
     highestLeague: draft.highestLeague,
     currentClubName: draft.currentClubName.trim() || null,
     availableFrom: draft.availableFrom,
@@ -230,7 +240,11 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
         Alert.alert(t('common.error'), t('spielerprofil.uploadUnavailable'))
         return
       }
-      await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob })
+      await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      })
       await api('/me', { method: 'PATCH', body: { avatarUrl: presign.publicUrl } })
       await refreshUser()
     } catch {
@@ -245,8 +259,10 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
       Alert.alert(t('spielerprofil.saveFirstTitle'), t('spielerprofil.saveFirstBody'))
       return
     }
-    if ((type === 'PHOTO' ? photos.length >= PHOTO_MAX : videos.length >= VIDEO_MAX)) {
-      Alert.alert(t('spielerprofil.mediaLimit', { count: type === 'PHOTO' ? PHOTO_MAX : VIDEO_MAX }))
+    if (type === 'PHOTO' ? photos.length >= PHOTO_MAX : videos.length >= VIDEO_MAX) {
+      Alert.alert(
+        t('spielerprofil.mediaLimit', { count: type === 'PHOTO' ? PHOTO_MAX : VIDEO_MAX }),
+      )
       return
     }
     if (!(await ensurePickerMediaAccess())) {
@@ -384,7 +400,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
           tone="info"
           icon="info.circle"
           title={isUnder16 ? t('spielerprofil.under16Title') : t('spielerprofil.notFreeAgentTitle')}
-          description={isUnder16 ? t('spielerprofil.under16Body') : t('spielerprofil.notFreeAgentBody')}
+          description={
+            isUnder16 ? t('spielerprofil.under16Body') : t('spielerprofil.notFreeAgentBody')
+          }
         />
         {deleteButton}
       </View>
@@ -402,7 +420,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
           style={styles.avatarButton}
         >
           <Avatar size="xl" src={user?.avatarUrl} fallbackText={user?.name ?? ''} />
-          <View style={[styles.avatarBadge, { backgroundColor: c.primary, borderColor: c.background }]}>
+          <View
+            style={[styles.avatarBadge, { backgroundColor: c.primary, borderColor: c.background }]}
+          >
             {uploading === 'avatar' ? (
               <ActivityIndicator size="small" color={c.textInverse} />
             ) : (
@@ -454,30 +474,38 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
       </SectionGroup>
 
       <SectionGroup header={t('spielerprofil.sectionPlayer')}>
-        <View style={styles.field}>
-          <Text variant="subheadline" weight="semibold" color="secondary">
-            {t('spielerprofil.fieldPosition')}
-          </Text>
-          <FilterChipRow
-            wrap
-            singleSelect
-            chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
-            selected={draft.position}
-            onToggle={(key) => set('position', key)}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text variant="subheadline" weight="semibold" color="secondary">
-            {t('spielerprofil.fieldFoot')}
-          </Text>
-          <FilterChipRow
-            wrap
-            singleSelect
-            chips={FEET.map((key) => ({ key, label: t(`spielerprofil.foot.${key}`) }))}
-            selected={draft.preferredFoot}
-            onToggle={(key) => set('preferredFoot', key)}
-          />
-        </View>
+        <RecruitmentRolePicker
+          value={draft.recruitmentRole}
+          onChange={(role) => set('recruitmentRole', role)}
+        />
+        {draft.recruitmentRole === 'PLAYER' ? (
+          <>
+            <View style={styles.field}>
+              <Text variant="subheadline" weight="semibold" color="secondary">
+                {t('spielerprofil.fieldPosition')}
+              </Text>
+              <FilterChipRow
+                wrap
+                singleSelect
+                chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
+                selected={draft.position}
+                onToggle={(key) => set('position', key)}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text variant="subheadline" weight="semibold" color="secondary">
+                {t('spielerprofil.fieldFoot')}
+              </Text>
+              <FilterChipRow
+                wrap
+                singleSelect
+                chips={FEET.map((key) => ({ key, label: t(`spielerprofil.foot.${key}`) }))}
+                selected={draft.preferredFoot}
+                onToggle={(key) => set('preferredFoot', key)}
+              />
+            </View>
+          </>
+        ) : null}
         <PickerRow
           label={t('spielerprofil.fieldLeague')}
           value={leagueLabel(t, draft.highestLeague) ?? t('spielerprofil.choose')}
@@ -573,7 +601,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
               onChangeText={(value) =>
                 set(
                   'experience',
-                  draft.experience.map((item) => (item.key === entry.key ? { ...item, clubName: value } : item)),
+                  draft.experience.map((item) =>
+                    item.key === entry.key ? { ...item, clubName: value } : item,
+                  ),
                 )
               }
               maxLength={100}
@@ -584,7 +614,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
               onChangeText={(value) =>
                 set(
                   'experience',
-                  draft.experience.map((item) => (item.key === entry.key ? { ...item, roleLabel: value } : item)),
+                  draft.experience.map((item) =>
+                    item.key === entry.key ? { ...item, roleLabel: value } : item,
+                  ),
                 )
               }
               placeholder={t('spielerprofil.stationRolePlaceholder')}
@@ -601,7 +633,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
                     set(
                       'experience',
                       draft.experience.map((item) =>
-                        item.key === entry.key ? { ...item, fromYear: value.replace(/\D/g, '') } : item,
+                        item.key === entry.key
+                          ? { ...item, fromYear: value.replace(/\D/g, '') }
+                          : item,
                       ),
                     )
                   }
@@ -617,7 +651,9 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
                     set(
                       'experience',
                       draft.experience.map((item) =>
-                        item.key === entry.key ? { ...item, toYear: value.replace(/\D/g, '') } : item,
+                        item.key === entry.key
+                          ? { ...item, toYear: value.replace(/\D/g, '') }
+                          : item,
                       ),
                     )
                   }
@@ -650,47 +686,57 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
           description={t('spielerprofil.minorBody')}
         />
       ) : (
-      <SectionGroup header={t('spielerprofil.sectionMedia')} footer={t('spielerprofil.mediaHint')}>
-        <View style={styles.field}>
-          <View style={styles.mediaGrid}>
-            {media.map((entry) => (
-              <Pressable
-                key={entry.id}
-                accessibilityRole="button"
-                accessibilityLabel={t('spielerprofil.mediaRemoveA11y')}
-                onLongPress={() => removeMedia(entry)}
-                onPress={() => removeMedia(entry)}
-                style={[styles.mediaTile, { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle }]}
-              >
-                {entry.type === 'PHOTO' ? (
-                  <Image source={{ uri: entry.url }} style={styles.mediaImage} accessibilityIgnoresInvertColors />
-                ) : (
-                  <Icon name="play.circle.fill" size="xl" color="secondary" />
-                )}
-              </Pressable>
-            ))}
+        <SectionGroup
+          header={t('spielerprofil.sectionMedia')}
+          footer={t('spielerprofil.mediaHint')}
+        >
+          <View style={styles.field}>
+            <View style={styles.mediaGrid}>
+              {media.map((entry) => (
+                <Pressable
+                  key={entry.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('spielerprofil.mediaRemoveA11y')}
+                  onLongPress={() => removeMedia(entry)}
+                  onPress={() => removeMedia(entry)}
+                  style={[
+                    styles.mediaTile,
+                    { backgroundColor: c.surfaceSunken, borderColor: c.borderSubtle },
+                  ]}
+                >
+                  {entry.type === 'PHOTO' ? (
+                    <Image
+                      source={{ uri: entry.url }}
+                      style={styles.mediaImage}
+                      accessibilityIgnoresInvertColors
+                    />
+                  ) : (
+                    <Icon name="play.circle.fill" size="xl" color="secondary" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.row}>
+              <Button
+                label={t('spielerprofil.addPhoto')}
+                variant="bordered"
+                size="sm"
+                leftIcon={<Icon name="photo" size="sm" color="secondary" />}
+                disabled={uploading !== null}
+                loading={uploading === 'media'}
+                onPress={() => void addMedia('PHOTO')}
+              />
+              <Button
+                label={t('spielerprofil.addVideo')}
+                variant="bordered"
+                size="sm"
+                leftIcon={<Icon name="play" size="sm" color="secondary" />}
+                disabled={uploading !== null}
+                onPress={() => void addMedia('VIDEO')}
+              />
+            </View>
           </View>
-          <View style={styles.row}>
-            <Button
-              label={t('spielerprofil.addPhoto')}
-              variant="bordered"
-              size="sm"
-              leftIcon={<Icon name="photo" size="sm" color="secondary" />}
-              disabled={uploading !== null}
-              loading={uploading === 'media'}
-              onPress={() => void addMedia('PHOTO')}
-            />
-            <Button
-              label={t('spielerprofil.addVideo')}
-              variant="bordered"
-              size="sm"
-              leftIcon={<Icon name="play" size="sm" color="secondary" />}
-              disabled={uploading !== null}
-              onPress={() => void addMedia('VIDEO')}
-            />
-          </View>
-        </View>
-      </SectionGroup>
+        </SectionGroup>
       )}
 
       <View style={styles.saveBar}>
@@ -717,7 +763,10 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
           <FilterChipRow
             wrap
             singleSelect
-            chips={LEAGUE_OPTIONS.map((key) => ({ key: key as string, label: leagueLabel(t, key) ?? key }))}
+            chips={LEAGUE_OPTIONS.map((key) => ({
+              key: key as string,
+              label: leagueLabel(t, key) ?? key,
+            }))}
             selected={draft.highestLeague}
             onToggle={(key) => {
               set('highestLeague', key)
@@ -746,7 +795,15 @@ export function ProfileEditor({ contentStyle }: { contentStyle?: object }) {
   )
 }
 
-function PickerRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+function PickerRow({
+  label,
+  value,
+  onPress,
+}: {
+  label: string
+  value: string
+  onPress: () => void
+}) {
   const c = useClubColors()
   return (
     <Pressable

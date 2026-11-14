@@ -120,10 +120,16 @@ export class JoinRequestsService {
               status: 'OFFERED',
               freeAgentProfile: { userId },
             },
-            select: { id: true, teamId: true },
+            select: { id: true, teamId: true, recruitmentRole: true },
           })
           if (!offer) throw new BadRequestException('This offer is no longer open')
-          const { minor } = await assertAufnahmeantragComplete(tx, clubId, userId, input)
+          // Staff status comes from the club's immutable offer, never the
+          // applicant's editable profile or submitted role. Admin approves it.
+          const coachingOffer = offer.recruitmentRole === 'COACH'
+          if (coachingOffer) requestData.role = TeamRole.ASSISTANT_COACH
+          const { minor } = coachingOffer
+            ? { minor: false }
+            : await assertAufnahmeantragComplete(tx, clubId, userId, input)
           requestData.teamId = offer.teamId
           if (minor) {
             // H4: a child's own ticks never count. The guardian approves the
@@ -261,7 +267,9 @@ export class JoinRequestsService {
       sepaConsentAt: row.sepaConsentAt ?? null,
       parentalConsentAt: row.parentalConsentAt ?? null,
       releaseStatus: row.releaseStatus ?? null,
-      passApplicationAt: row.passApplicationAt ? row.passApplicationAt.toISOString().slice(0, 10) : null,
+      passApplicationAt: row.passApplicationAt
+        ? row.passApplicationAt.toISOString().slice(0, 10)
+        : null,
       eligibleFrom: row.eligibleFrom ? row.eligibleFrom.toISOString().slice(0, 10) : null,
       trialInvite: row.trialInvite
         ? {
@@ -364,6 +372,26 @@ export class JoinRequestsService {
           : request.role === TeamRole.HEAD_COACH || request.role === TeamRole.ASSISTANT_COACH
             ? MembershipRole.COACH
             : MembershipRole.PLAYER
+      if (request.trialInviteId && request.role !== TeamRole.PLAYER) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${request.trialInviteId}`}))`
+        const offer = await tx.trialInvite.findFirst({
+          where: {
+            id: request.trialInviteId,
+            clubId,
+            status: 'OFFERED',
+            recruitmentRole: 'COACH',
+            freeAgentProfile: { userId: request.userId },
+          },
+          select: { teamId: true },
+        })
+        if (
+          !offer ||
+          offer.teamId !== request.teamId ||
+          request.role !== TeamRole.ASSISTANT_COACH
+        ) {
+          throw new ConflictException('The coaching offer is no longer open')
+        }
+      }
       if (request.role === TeamRole.PLAYER) {
         const player = await tx.user.findUnique({
           where: { id: request.userId },
@@ -377,7 +405,13 @@ export class JoinRequestsService {
           // B2: the offer must still stand, inside this transaction.
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${request.trialInviteId}`}))`
           const offer = await tx.trialInvite.findFirst({
-            where: { id: request.trialInviteId, clubId, status: 'OFFERED' },
+            where: {
+              id: request.trialInviteId,
+              clubId,
+              status: 'OFFERED',
+              recruitmentRole: 'PLAYER',
+              freeAgentProfile: { userId: request.userId },
+            },
             select: { id: true, teamId: true },
           })
           if (!offer || offer.teamId !== request.teamId) {

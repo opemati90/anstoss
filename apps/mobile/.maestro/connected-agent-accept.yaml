@@ -1,0 +1,15 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/connected-login.yaml
+- extendedWaitUntil:
+    visible: 'Entdecken'
+    timeout: 30000
+- openLink: 'anstoss://trial/${QA_TRIAL_ID}'
+- extendedWaitUntil:
+    visible: 'Probetraining bei Anstoss QA Lokal zusagen'
+    timeout: 20000
+- tapOn: 'Probetraining bei Anstoss QA Lokal zusagen'
+- extendedWaitUntil:
+    visible: 'Zugesagt!'
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-connected-agent-accepted

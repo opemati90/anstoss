@@ -144,6 +144,7 @@ export default {
       confirmNo: "Abgesagt. Der Trainer ist informiert.",
       confirmYes: "Zugesagt. Du bist einer von {{count}}.",
       giveReason: "Grund angeben",
+      viewResponses: "Wer kommt? Antworten ansehen",
       seasonLine: "{{appearances}} Einsätze · {{goals}} Tore · {{attended}} von {{total}} Trainings",
       teamRecord: "Team {{wins}}-{{draws}}-{{losses}}",
     },

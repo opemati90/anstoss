@@ -27,6 +27,7 @@ describe('ClubsService.createClubWithTeam', () => {
     const tx = {
       // Advisory lock for per-user setup serialization — no-op in tests.
       $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([]),
       user: {
         findFirst: jest.fn().mockResolvedValue({
           registrationRole: RegistrationRole.CLUB_ADMIN,
@@ -79,7 +80,7 @@ describe('ClubsService.createClubWithTeam', () => {
     return { prisma, service, tx }
   }
 
-  it('allocates the next available slug when a club name already exists', async () => {
+  it('allocates the next available slug when a different club occupies the slug', async () => {
     const { service, tx } = createService()
 
     tx.club.findMany.mockResolvedValue([
@@ -741,13 +742,19 @@ describe('ClubsService.updateClub', () => {
   })
 
   function createService() {
-    const prisma = {
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn().mockResolvedValue([]),
       club: {
         update: jest.fn().mockImplementation(async ({ data }: { data: unknown }) => ({
           id: 'club-1',
           ...(data as object),
         })),
       },
+    }
+    const prisma = {
+      ...tx,
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     }
     const service = new ClubsService(prisma as never)
     return { prisma, service }
@@ -785,6 +792,9 @@ describe('ClubsService.leaveClub', () => {
   function createService(membershipRole: string | null, ownerCount = 1) {
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue(0),
+      user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      freeAgentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      trialInvite: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
       conversationParticipant: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
@@ -913,6 +923,9 @@ describe('ClubsService.removeMemberFromClub', () => {
   function createService(actorRole: string | null, targetRole: string | null) {
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      freeAgentProfile: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      trialInvite: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       channelMember: { deleteMany: jest.fn().mockResolvedValue({}) },
       conversationParticipant: { deleteMany: jest.fn().mockResolvedValue({}) },
       teamAccess: { deleteMany: jest.fn().mockResolvedValue({}) },
@@ -994,5 +1007,24 @@ describe('ClubsService.removeMemberFromClub', () => {
     expect(tx.complianceRecord.deleteMany).toHaveBeenCalledWith({
       where: { clubId: 'club-1', memberUserId: 'p-1' },
     })
+    expect(tx.trialInvite.updateMany).toHaveBeenCalledWith({
+      where: {
+        clubId: 'club-1',
+        freeAgentProfile: { userId: 'p-1' },
+        status: { in: ['REQUESTED', 'PENDING', 'ACCEPTED', 'OFFERED'] },
+      },
+      data: { status: 'REVOKED', respondedAt: expect.any(Date) },
+    })
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'p-1', deletedAt: null,
+        registrationRole: { in: ['PLAYER', 'COACH'] },
+        memberships: { none: {} },
+      },
+      data: { registrationRole: 'FREE_AGENT' },
+    })
+    expect(tx.membership.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.user.updateMany.mock.invocationCallOrder[0],
+    )
   })
 })

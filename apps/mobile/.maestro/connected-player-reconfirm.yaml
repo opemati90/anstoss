@@ -1,0 +1,14 @@
+appId: com.renuirug.anstoss
+---
+# Keep the same player session and open event while the coach reschedules it.
+- extendedWaitUntil:
+    visible:
+      id: event-rsvp-MAYBE
+    timeout: 30000
+- tapOn:
+    id: event-rsvp-MAYBE
+- extendedWaitUntil:
+    visible:
+      id: 'event-response-${QA_PLAYER_ID}-MAYBE'
+    timeout: 15000
+- takeScreenshot: /private/tmp/anstoss-connected-player-reconfirmed

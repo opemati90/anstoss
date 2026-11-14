@@ -36,6 +36,7 @@ import { KaderRow } from '../../../src/components/squad/KaderRow'
 import { PlayerEditSheet } from '../../../src/components/squad/PlayerEditSheet'
 import { InjurySheet } from '../../../src/components/squad/InjurySheet'
 import { MEDIC_FEATURE_ENABLED } from '../../../src/components/squad/medicFeature'
+import { FAMILY_FEATURE_ENABLED } from '../../../src/launchFeatures'
 import { useIsTeamCoach } from '../../../src/components/squad/useIsTeamCoach'
 import { attendanceFor, useTrainingAttendance } from '../../../src/components/squad/useTrainingAttendance'
 import { RequestsSheet } from '../../../src/components/squad/RequestsSheet'
@@ -405,7 +406,7 @@ export default function KaderScreen() {
             testID="kader-menu-requests"
           />
         ) : null}
-        {isCoach ? (
+        {isCoach && FAMILY_FEATURE_ENABLED ? (
           <ToolRow
             icon="figure.and.child.holdinghands"
             title={t('kader.menu.parents')}

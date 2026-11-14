@@ -1,11 +1,21 @@
 // Wechselbörse revamp (English). Plain English equivalents of the German
 // club terms: trial session, membership application, release, registration.
 export default {
+  recruitment: {
+    role: 'Looking for a club as',
+    PLAYER: 'Player',
+    COACH: 'Coach',
+    coachApply: 'Request coaching access',
+    coachPending: 'Your club admin will review the request. No staff access is granted yet.',
+    region: 'Approximate postal region, not a measured distance.',
+    anywhere: 'All regions',
+  },
   wechsel: {
     title: 'Transfer market',
     entryHint: 'Player searches, trial sessions and transfers',
     nearbySubtitle: 'Players without a club within {{km}} km',
-    invitedFootnote: 'Invited players see the place and time of the next training. Contact details only after they accept.',
+    invitedFootnote:
+      'Invited players see the place and time of the next training. Contact details only after they accept.',
     lastLeague: 'last played {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'More sections',
@@ -21,9 +31,10 @@ export default {
     errorGeneric: 'That didn’t work. Check your connection and try again.',
     errorNoAccess: 'You don’t have permission for this in this club.',
     // Review fixes 2026-09-24
-    errorTooManyRequests: 'You’ve just asked this club. You can ask again in 24 hours, with up to five requests a day in total.',
+    errorTooManyRequests:
+      'You’ve just asked this club. You can ask again in 24 hours, with up to five requests a day in total.',
     errorTrialCap: 'Your club already has ten open trials. Close one before inviting someone new.',
-    errorAgeGroup: 'That doesn\'t fit the team\'s age group. Adults don\'t trial with youth teams.',
+    errorAgeGroup: "That doesn't fit the team's age group. Adults don't trial with youth teams.",
     tabGesuche: 'Searches',
     tabSpieler: 'Find players',
     tabProbetraining: 'Trials',
@@ -158,8 +169,10 @@ export default {
     },
     rejectTemplate: {
       full: 'Thanks for coming along! Our squad is full at the moment, so we can’t offer you a place. Good luck with your search!',
-      level: 'Thanks for coming! It isn’t the right fit for us right now. We wish you all the best at another club.',
-      later: 'Thanks for the trial! We don’t have a place right now. If that changes, we’ll get in touch.',
+      level:
+        'Thanks for coming! It isn’t the right fit for us right now. We wish you all the best at another club.',
+      later:
+        'Thanks for the trial! We don’t have a place right now. If that changes, we’ll get in touch.',
     },
     rejectSend: 'Send reply',
     rejectSent: 'Reply sent to {{name}}.',
@@ -202,8 +215,10 @@ export default {
       SOMMER: 'summer (1 July to 31 August)',
       WINTER: 'winter (1 to 31 January)',
     },
-    periodInside: 'For guidance: this date falls in the {{period}} transfer window. What counts is the date the association receives the registration application.',
-    periodOutside: 'For guidance: outside the transfer window. The next one is {{period}}, from {{date}}. What counts is the date the association receives the registration application. With a release, a transfer is often still possible, but check for any waiting period.',
+    periodInside:
+      'For guidance: this date falls in the {{period}} transfer window. What counts is the date the association receives the registration application.',
+    periodOutside:
+      'For guidance: outside the transfer window. The next one is {{period}}, from {{date}}. What counts is the date the association receives the registration application. With a release, a transfer is often still possible, but check for any waiting period.',
   },
 
   probetraining: {
@@ -275,7 +290,8 @@ export default {
     offerBody: 'Fill in the membership application. The club handles the release and registration.',
     fillApplication: 'Fill in the application',
     applicationSentTitle: 'Application submitted',
-    applicationSentBody: '{{club}} is reviewing your application and will handle your registration.',
+    applicationSentBody:
+      '{{club}} is reviewing your application and will handle your registration.',
     history: 'History',
     historyToggle: 'History with {{count}} trials',
     historyToggle_one: 'History with {{count}} trial',
@@ -320,7 +336,8 @@ export default {
     previousClubPlaceholder: 'e.g. SV Babelsberg 03',
     lastMatch: 'Last competitive match',
     lastMatchUnknown: 'I don’t remember',
-    clubHint: 'The club gets the release from your previous club and files your registration in DFBnet.',
+    clubHint:
+      'The club gets the release from your previous club and files your registration in DFBnet.',
     sectionFees: 'Membership fee',
     sepaConsent: 'The fee may be collected by SEPA direct debit',
     sepaHint: 'Don’t enter bank details here. The club treasurer will send you the SEPA mandate.',
@@ -331,15 +348,17 @@ export default {
     incompleteTitle: 'Not complete yet',
     incompleteBody: 'Please fill in the highlighted fields.',
     sepaMissing: 'Without consent to the SEPA direct debit, the club can’t take you on.',
-    parentalMissing: 'Enter your parent\'s email address. They approve the membership themselves.',
-    guardianIntro: 'Because you\'re under 18, a parent or guardian approves the membership and the SEPA direct debit themselves. They get an email and confirm in Anstoss under “Consents”.',
-    guardianEmail: 'Parent or guardian\'s email',
+    parentalMissing: "Enter your parent's email address. They approve the membership themselves.",
+    guardianIntro:
+      "Because you're under 18, a parent or guardian approves the membership and the SEPA direct debit themselves. They get an email and confirm in Anstoss under “Consents”.",
+    guardianEmail: "Parent or guardian's email",
     guardianEmailInvalid: 'Please enter a valid email address',
-    guardianEmailOwn: 'That\'s your own address. Please enter your parent\'s.',
+    guardianEmailOwn: "That's your own address. Please enter your parent's.",
     submit: 'Send application',
     sentTitle: 'Application sent',
     sentBody: '{{club}} is reviewing your membership application and will get back to you.',
-    sentBodyMinor: '{{club}} has your application. Once your parent approves, the club can sign you up.',
+    sentBodyMinor:
+      '{{club}} has your application. Once your parent approves, the club can sign you up.',
     dfbnetNote: 'Your regional FA grants eligibility to play through DFBnet.',
   },
 
@@ -376,7 +395,8 @@ export default {
     fieldCity: 'Town or city',
     fieldRadius: 'Distance',
     fieldBio: 'A few words about you',
-    bioPlaceholder: 'e.g. Holding midfielder who likes the ball, last played Kreisliga A, looking for an ambitious team.',
+    bioPlaceholder:
+      'e.g. Holding midfielder who likes the ball, last played Kreisliga A, looking for an ambitious team.',
     fieldStationClub: 'Club',
     fieldStationRole: 'Position or team',
     stationRolePlaceholder: 'e.g. centre-back, first team',
@@ -418,14 +438,18 @@ export default {
     ageU18: 'U18',
     regionValue: 'Postcode area {{region}}',
     under16Title: 'The transfer market is for 16 and over',
-    under16Body: 'If you\'d like to change clubs, talk to your parents. They get in touch with the new club.',
+    under16Body:
+      "If you'd like to change clubs, talk to your parents. They get in touch with the new club.",
     notFreeAgentTitle: 'No transfer-market profile',
-    notFreeAgentBody: 'You\'re registered as a club member, not as a player without a club. Transfer-market profiles are for players without a club.',
-    minorTitle: 'You\'re under 18',
-    minorBody: 'Only coaches and club officials see your profile, with “U18” instead of your age and your postcode area instead of your postcode. Photos and videos are available from 18.',
+    notFreeAgentBody:
+      "You're registered as a club member, not as a player without a club. Transfer-market profiles are for players without a club.",
+    minorTitle: "You're under 18",
+    minorBody:
+      'Only coaches and club officials see your profile, with “U18” instead of your age and your postcode area instead of your postcode. Photos and videos are available from 18.',
     delete: 'Delete player profile',
     deleteTitle: 'Delete your player profile?',
-    deleteBody: 'Your profile leaves the transfer market. Open trials and membership applications end.',
+    deleteBody:
+      'Your profile leaves the transfer market. Open trials and membership applications end.',
     deleteConfirm: 'Delete',
     position: {
       GK: 'Goalkeeper',
@@ -469,11 +493,13 @@ export default {
     loadError: 'Couldn’t load searches',
     emptyTitle: 'No matching search right now',
     emptyBody: 'Check back later. Clubs can also find you through your profile.',
-    emptyNarrowed: 'Widen the distance or show all positions. Clubs can also find you through your profile.',
+    emptyNarrowed:
+      'Widen the distance or show all positions. Clubs can also find you through your profile.',
     requestCta: 'Ask for a trial',
     requestOpen: 'Requested',
     requestTitle: 'Trial session at {{club}}',
-    requestHint: 'Your request goes to the {{team}} coach, who will get back to you with a session.',
+    requestHint:
+      'Your request goes to the {{team}} coach, who will get back to you with a session.',
     requestMessage: 'Message to the coach (optional)',
     requestPlaceholder: 'e.g. I’ve been a keeper for eight years, last in Kreisliga B.',
     requestSend: 'Send request',

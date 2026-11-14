@@ -1526,9 +1526,28 @@ model NotificationPreference {
   @@index([userId, clubId])
 }
 
+// Durable erasure retry queue, deliberately independent of User deletion.
+// Successful jobs are deleted rather than retained as identifying tombstones.
+model MediaDeletionJob {
+  reclaimable Boolean @default(false)
+  id            String   @id @default(cuid())
+  objectKey     String   @unique
+  createdAt     DateTime @default(now())
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+
+  @@index([nextAttemptAt])
+}
+
+enum RecruitmentRole {
+  PLAYER
+  COACH
+}
+
 model FreeAgentProfile {
   id               String              @id @default(cuid())
   userId           String              @unique
+  recruitmentRole RecruitmentRole @default(PLAYER)
   position         PlayerPosition?
   preferredFoot    PreferredFoot?
   city             String?
@@ -1594,6 +1613,7 @@ model TrialInvite {
   id                 String            @id @default(cuid())
   clubId             String
   freeAgentProfileId String
+  recruitmentRole RecruitmentRole @default(PLAYER)
   teamId             String
   // Wechselbörse review L6: nullable so the thread survives staff deletion.
   sentByUserId       String?
@@ -2080,6 +2100,7 @@ model PlayerSearch {
   id              String             @id @default(cuid())
   clubId          String
   teamId          String
+  recruitmentRole RecruitmentRole @default(PLAYER)
   positions       PlayerPosition[]
   note            String?            @db.VarChar(500)
   status          PlayerSearchStatus @default(OPEN)

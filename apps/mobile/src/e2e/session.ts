@@ -50,6 +50,7 @@ import {
 import { handleWechselMock } from './wechselMocks'
 import { handleHomeMock } from './homeMocks'
 import { handlePlanMock } from './planMocks'
+import { handleStudioMock } from './studioMocks'
 
 export const E2E_SESSION_KEY = 'anstoss:e2e:session'
 const STRICT_E2E_MOCKS = process.env.EXPO_PUBLIC_E2E_MOCK_STRICT === '1'
@@ -3987,6 +3988,8 @@ export function handleE2EApiRequest(
 
   // Wechselbörse revamp: trials, Gesuche, free agents, Aufnahmeantrag.
   const session = currentSession
+  const studio = handleStudioMock(session, pathname, method, options.body)
+  if (studio) return studio
   const wechsel = handleWechselMock({
     scenario: session.scenario,
     pathname,

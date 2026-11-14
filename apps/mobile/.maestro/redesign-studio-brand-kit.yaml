@@ -1,0 +1,81 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
+- runFlow:
+    when:
+      visible: 'Development Build'
+    commands:
+      - tapOn:
+          text: '.*:8123'
+          index: 0
+- waitForAnimationToEnd:
+    timeout: 10000
+- openLink: 'anstoss://e2e?scenario=club-admin&lang=de'
+- extendedWaitUntil:
+    visible: 'Mehr'
+    timeout: 30000
+# This is the deterministic E2E trial, never a production subscription.
+- openLink: 'anstoss://abo'
+- extendedWaitUntil:
+    visible:
+      id: abo-current
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: abo-start-trial
+    commands:
+      - tapOn:
+          id: abo-start-trial
+      - extendedWaitUntil:
+          notVisible:
+            id: abo-start-trial
+          timeout: 10000
+- openLink: 'anstoss://studio/brand-kit'
+- extendedWaitUntil:
+    visible:
+      id: studio-kit-font-modern
+    timeout: 15000
+- assertVisible: 'Brand-Kit'
+- assertVisible: 'Wappen'
+- tapOn:
+    id: studio-kit-add-logo
+- extendedWaitUntil:
+    visible: 'Sponsoren'
+    timeout: 15000
+- tapOn: 'Zurück'
+- extendedWaitUntil:
+    visible:
+      id: studio-kit-change-colors
+    timeout: 15000
+- tapOn:
+    id: studio-kit-change-colors
+- extendedWaitUntil:
+    visible: 'Vereinsprofil & Farben'
+    timeout: 15000
+- tapOn: 'Zurück'
+- extendedWaitUntil:
+    visible:
+      id: studio-kit-font-modern
+    timeout: 15000
+- tapOn:
+    id: studio-kit-font-modern
+- assertVisible: 'Änderungen werden automatisch gespeichert.'
+- assertNotVisible:
+    id: studio-kit-error
+- tapOn:
+    id: studio-kit-font-classic
+- assertNotVisible:
+    id: studio-kit-error
+- tapOn:
+    id: studio-kit-font-modern
+- tapOn:
+    id: club-header-back
+- openLink: 'anstoss://studio/brand-kit'
+- extendedWaitUntil:
+    visible:
+      id: studio-kit-font-modern
+    timeout: 15000
+- assertNotVisible:
+    id: studio-kit-error
+- takeScreenshot: /private/tmp/anstoss-studio-brand-kit-german

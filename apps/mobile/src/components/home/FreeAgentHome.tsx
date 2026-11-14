@@ -19,7 +19,8 @@ type ProfileGap = 'create' | 'complete' | 'inactive' | null
 /** What the free agent should fix first so clubs can find them. */
 export function profileGap(profile: FreeAgentProfile | null | undefined): ProfileGap {
   if (!profile) return 'create'
-  if (!profile.position || !profile.postalCode) return 'complete'
+  if ((profile.recruitmentRole !== 'COACH' && !profile.position) || !profile.postalCode)
+    return 'complete'
   if (!profile.isOnTransferList || profile.visibility === 'PRIVATE') return 'inactive'
   return null
 }
@@ -35,23 +36,27 @@ export function FreeAgentHome() {
   const profileQuery = useApiQuery<FreeAgentProfile | null>(paths.myProfile)
   const profile = profileQuery.data ?? null
   const [onlyMyPosition, setOnlyMyPosition] = useState(true)
+  const [allRegions, setAllRegions] = useState(false)
   const [radius, setRadius] = useState<(typeof RADII)[number] | null>(null)
   const [requestFor, setRequestFor] = useState<PlayerSearch | null>(null)
   const [sending, setSending] = useState(false)
 
-  const effectiveRadius = radius ?? (profile?.searchRadiusKm ? String(profile.searchRadiusKm) : '25')
-  const position = onlyMyPosition ? profile?.position ?? null : null
+  const effectiveRadius =
+    radius ?? (profile?.searchRadiusKm ? String(profile.searchRadiusKm) : '25')
+  const position =
+    onlyMyPosition && profile?.recruitmentRole !== 'COACH' ? (profile?.position ?? null) : null
   const searchPath = useMemo(
     () =>
       paths.openSearches(
         buildQuery({
           position,
-          postalCode: profile?.postalCode ?? null,
+          recruitmentRole: profile?.recruitmentRole ?? 'PLAYER',
+          postalCode: allRegions ? null : (profile?.postalCode ?? null),
           radiusKm: profile?.postalCode ? effectiveRadius : null,
           pageSize: 30,
         }),
       ),
-    [position, profile?.postalCode, effectiveRadius],
+    [position, profile?.postalCode, profile?.recruitmentRole, effectiveRadius, allRegions],
   )
   const searches = useApiQuery<PlayerSearchListResponse>(profileQuery.isLoading ? null : searchPath)
   const gap = profileQuery.isLoading || profileQuery.error ? null : profileGap(profile)
@@ -94,8 +99,11 @@ export function FreeAgentHome() {
         icon="megaphone"
         title={t('entdecken.emptyTitle')}
         description={narrowed ? t('entdecken.emptyNarrowed') : t('entdecken.emptyBody')}
-        actionLabel={position ? t('entdecken.allPositions') : undefined}
-        onAction={position ? () => setOnlyMyPosition(false) : undefined}
+        actionLabel={t('recruitment.anywhere')}
+        onAction={() => {
+          setOnlyMyPosition(false)
+          setAllRegions(true)
+        }}
       />
     )
   } else {
@@ -141,14 +149,12 @@ export function FreeAgentHome() {
           {profile?.postalCode ? t('entdecken.titleNearby') : t('entdecken.title')}
         </Text>
         <Text variant="subheadline" color="secondary">
-          {profile?.postalCode
-            ? t('entdecken.subtitleNearby', { plz: profile.postalCode, km: effectiveRadius })
-            : t('entdecken.subtitle')}
+          {profile?.postalCode ? t('recruitment.region') : t('entdecken.subtitle')}
         </Text>
       </View>
 
       <View style={styles.filters}>
-        {profile?.position ? (
+        {profile?.position && profile.recruitmentRole !== 'COACH' ? (
           <FilterChipRow
             wrap
             singleSelect

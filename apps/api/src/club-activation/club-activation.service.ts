@@ -32,6 +32,7 @@ import { AuditService } from '../audit/audit.service'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { ChannelsService } from '../channels/channels.service'
 import { buildTeamDisplayName, createClubWithUniqueSlug } from '../clubs/clubs.service'
+import { assertClubNameAvailable, registrationNameSql } from '../clubs/club-registration-name'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { sendEmail } from '../email/mailer'
@@ -97,6 +98,7 @@ export class ClubActivationService {
 
     const expiresAt = addDays(new Date(), CLAIM_TTL_DAYS)
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim-directory:${directoryEntry.id}`}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${directoryEntry.id}:${userId}`}))`
       const staleClaims = await tx.clubClaim.findMany({
         where: {
@@ -138,6 +140,22 @@ export class ClubActivationService {
         },
       })
       if (raced) return raced
+      const competing = await tx.clubClaim.findFirst({
+        where: {
+          directoryEntryId: directoryEntry.id,
+          claimantUserId: { not: userId },
+          kind: ClubClaimKind.FIRST_CLAIM,
+          status: { in: [ClubClaimStatus.SUBMITTED, ClubClaimStatus.NEEDS_INFO] },
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      })
+      if (competing) {
+        throw new ConflictException({
+          code: 'CLUB_REGISTRATION_PENDING',
+          message: 'A registration for this club is already under review. Contact support if it is incorrect.',
+        })
+      }
       if (becomesClubAdmin) {
         await tx.user.update({
           where: { id: userId },
@@ -1418,18 +1436,26 @@ export class ClubActivationService {
     }
     const clubName = input.clubName?.trim()
     if (!clubName) throw new BadRequestException('Official club name is required')
-    const sourceId = `manual:${randomUUID()}`
     const normalizedName = clubName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
     const slugBase = normalizedName.replace(/\s+/g, '-').slice(0, 60) || 'club'
-    return this.prisma.clubDirectoryEntry.create({
-      data: {
-        source: 'MANUAL',
-        sourceId,
-        name: clubName,
-        normalizedName,
-        slug: `${slugBase}-${sourceId.slice(-8)}`,
-        websiteUrl: input.externalTeamUrl,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await assertClubNameAvailable(tx, clubName)
+      const matches = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "ClubDirectoryEntry"
+        WHERE ${registrationNameSql(Prisma.sql`"name"`)} = ${registrationNameSql(Prisma.sql`${clubName}::text`)}
+        ORDER BY "id" LIMIT 1
+      `
+      if (matches.length) {
+        return tx.clubDirectoryEntry.findUniqueOrThrow({ where: { id: matches[0].id } })
+      }
+      const sourceId = `manual:${randomUUID()}`
+      return tx.clubDirectoryEntry.create({
+        data: {
+          source: 'MANUAL', sourceId, name: clubName, normalizedName,
+          slug: `${slugBase}-${sourceId.slice(-8)}`,
+          websiteUrl: input.externalTeamUrl,
+        },
+      })
     })
   }
 }

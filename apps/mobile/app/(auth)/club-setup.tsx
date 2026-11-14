@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, View } from 'react-native'
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { ClubSearchResponse, ClubSearchResult, TeamRole } from '@anstoss/shared'
+import { officialTeamUrlSchema, submitFirstClubClaimSchema } from '@anstoss/shared'
 import { ApiError, api } from '../../src/api/client'
-import { Icon, SegmentedControl, Text } from '../../src/components/ui'
+import { Button, Icon, SegmentedControl, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
 import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
@@ -44,10 +45,8 @@ export const CLUB_COLOURS: readonly string[] = PRIMARY_HEXES
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/
 const FEDERATION_NUMBER_RE = /^\d{4,10}$/
 
-const OFFICIAL_LINK_RE = /^https:\/\/(?:[^/]+\.)?(?:fussball\.de|dfb\.de|fupa\.net)\/.+/i
-
 export function isOfficialTeamLink(value: string): boolean {
-  return OFFICIAL_LINK_RE.test(value.trim())
+  return officialTeamUrlSchema.safeParse(value.trim()).success
 }
 
 /**
@@ -80,9 +79,9 @@ type DirectoryHit = Extract<ClubSearchResult, { isActive: false }>
 /**
  * "Dein Verein" (board 06), new club path step 1 of 2: crest, name, DFB
  * number, Haupt- and Zweitfarbe with a live preview, then the first team the
- * claim needs (name, group, fussball.de link, own part). Submitting sends a
- * verification claim; the server makes the account a club admin in the same
- * step. Next: "Hol dein Team rein" (invite), then home.
+ * claim needs (name and group). External link and own team role are optional.
+ * Submission requests review; it does not grant ownership. No roster or
+ * invitations are required to complete registration.
  */
 export default function ClubSetupScreen() {
   const router = useRouter()
@@ -124,6 +123,12 @@ export default function ClubSetupScreen() {
   const weak = textColour !== primary.toUpperCase()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [duplicate, setDuplicate] = useState(false)
+
+  useEffect(() => {
+    setDuplicate(false)
+    setError(null)
+  }, [clubName, directoryEntryId])
 
   useEffect(() => markStep('/(auth)/club-setup'), [markStep])
 
@@ -146,7 +151,7 @@ export default function ClubSetupScreen() {
   const ready =
     clubName.trim().length >= 2 &&
     teamName.trim().length >= 2 &&
-    linkValid &&
+    (!link.trim() || linkValid) &&
     !numberInvalid &&
     !busy
 
@@ -165,21 +170,23 @@ export default function ClubSetupScreen() {
     if (!ready) return
     setBusy(true)
     setError(null)
+    setDuplicate(false)
     try {
+      const claimInput = submitFirstClubClaimSchema.parse({
+        ...(directoryEntryId ? { directoryEntryId } : { clubName: clubName.trim() }),
+        teamName: teamName.trim(),
+        teamGroupType: group,
+        teamRoles: roles,
+        primaryColor: primary,
+        ...(link.trim() ? { externalTeamUrl: link.trim() } : {}),
+      })
       // Contract keys (BACKEND_GAPS, clubClaimExtrasSchema): a server without
       // them strips them; the upload just returns nothing.
       const badgeUploadId = badgeUri ? await uploadClubBadge(badgeUri) : null
       await api<{ id: string }>('/club-claims/first', {
         method: 'POST',
         body: {
-          ...(directoryEntryId
-            ? { directoryEntryId }
-            : { clubName: clubName.trim() }),
-          teamName: teamName.trim(),
-          teamGroupType: group,
-          teamRoles: roles,
-          primaryColor: primary,
-          externalTeamUrl: link.trim(),
+          ...claimInput,
           secondaryColor: secondary,
           ...(numberTrimmed ? { federationClubNumber: numberTrimmed } : {}),
           ...(badgeUploadId ? { badgeUploadId } : {}),
@@ -190,9 +197,12 @@ export default function ClubSetupScreen() {
       router.replace('/')
     } catch (err) {
       if (onExpired(err)) return
+      setDuplicate(err instanceof ApiError && err.status === 409)
       setError(
         err instanceof ApiError && err.status === 409
-          ? t('onboardingFlow.clubSetup.alreadyActive')
+          ? t(err.code === 'CLUB_REGISTRATION_PENDING'
+              ? 'onboardingFlow.clubSetup.alreadyPending'
+              : 'onboardingFlow.clubSetup.alreadyActive')
           : err instanceof ApiError && err.status === 403
             ? t('onboardingFlow.clubSetup.notAllowed')
             : err instanceof ApiError
@@ -201,6 +211,16 @@ export default function ClubSetupScreen() {
       )
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function reportRegistration() {
+    const subject = t('onboardingFlow.clubSetup.reportSubject')
+    const body = t('onboardingFlow.clubSetup.reportBody', { clubName, teamName })
+    try {
+      await Linking.openURL(`mailto:support@anstoss.io?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+    } catch {
+      setError(t('onboardingFlow.clubSetup.reportFallback'))
     }
   }
 
@@ -223,10 +243,32 @@ export default function ClubSetupScreen() {
         }}
         footerNote={
           error ? (
-            <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
-              {error}
+            <View style={styles.fields}>
+              <Text variant="footnote" color="error" align="center" accessibilityLiveRegion="polite">
+                {error}
+              </Text>
+              {duplicate ? (
+                <>
+                  <Button
+                    label={t('onboardingFlow.clubSetup.findExisting')}
+                    variant="bordered"
+                    onPress={() => router.push({ pathname: '/(auth)/club-search', params: { q: clubName.trim() } })}
+                    testID="club-setup-find-existing"
+                  />
+                  <Button
+                    label={t('onboardingFlow.clubSetup.reportRegistration')}
+                    variant="plain"
+                    onPress={() => void reportRegistration()}
+                    testID="club-setup-report-registration"
+                  />
+                </>
+              ) : null}
+            </View>
+          ) : (
+            <Text variant="footnote" color="secondary" align="center">
+              {t('onboardingFlow.clubSetup.playersLater')}
             </Text>
-          ) : undefined
+          )
         }
         testID="club-setup"
       >

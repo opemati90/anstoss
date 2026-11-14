@@ -24,7 +24,9 @@ describe('JoinRequestsService.create', () => {
       },
       user: {
         // Players join with a date of birth (onboarding fix).
-        findUnique: jest.fn().mockResolvedValue({ name: 'Mara', dateOfBirth: new Date('1995-03-01') }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ name: 'Mara', dateOfBirth: new Date('1995-03-01') }),
         findFirst: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
       auditLog: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
@@ -110,7 +112,10 @@ describe('JoinRequestsService.create', () => {
         name: 'Amir Kaya',
         dateOfBirth: new Date('1998-05-15'),
       })
-      prisma.joinRequest.create.mockImplementation(async ({ data }: any) => ({ id: 'jr-9', ...data }))
+      prisma.joinRequest.create.mockImplementation(async ({ data }: any) => ({
+        id: 'jr-9',
+        ...data,
+      }))
       return ctx
     }
 
@@ -126,7 +131,7 @@ describe('JoinRequestsService.create', () => {
           status: 'OFFERED',
           freeAgentProfile: { userId: 'user-1' },
         },
-        select: { id: true, teamId: true },
+        select: { id: true, teamId: true, recruitmentRole: true },
       })
       const data = prisma.joinRequest.create.mock.calls[0][0].data
       expect(data).toMatchObject({

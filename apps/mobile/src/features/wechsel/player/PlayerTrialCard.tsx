@@ -1,4 +1,9 @@
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native'
+import { useState } from 'react'
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native'
+import { api } from '../../../api/client'
+import { invalidateApi } from '../query'
+import { paths } from '../api'
+import { apiErrorMessage } from '../components/Sheets'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { nextTrialSession, type TrialInvite, type TrialSession } from '@anstoss/shared'
@@ -27,8 +32,7 @@ export type PlayerTrialAction = 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'DECLINE
 
 export function openInMaps(location: string) {
   const query = encodeURIComponent(location)
-  const url =
-    Platform.OS === 'ios' ? `http://maps.apple.com/?q=${query}` : `geo:0,0?q=${query}`
+  const url = Platform.OS === 'ios' ? `http://maps.apple.com/?q=${query}` : `geo:0,0?q=${query}`
   void Linking.openURL(url).catch(() =>
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`),
   )
@@ -118,7 +122,11 @@ export function PlayerTrialCard({
         android_ripple={{ color: c.borderSubtle }}
         style={styles.header}
       >
-        <ClubBadge name={invite.club.name} badgeUrl={invite.club.badgeUrl} color={invite.club.primaryColor} />
+        <ClubBadge
+          name={invite.club.name}
+          badgeUrl={invite.club.badgeUrl}
+          color={invite.club.primaryColor}
+        />
         <View style={styles.flex}>
           <Text variant="headline" color="primary">
             {invite.club.name}
@@ -187,7 +195,9 @@ export function PlayerTrialCard({
         </>
       ) : null}
 
-      {stage === 'DECISION' ? <DecisionBlock invite={invite} busy={busy} onAction={onAction} /> : null}
+      {stage === 'DECISION' ? (
+        <DecisionBlock invite={invite} busy={busy} onAction={onAction} />
+      ) : null}
     </View>
   )
 }
@@ -203,6 +213,22 @@ function DecisionBlock({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const [applying, setApplying] = useState(false)
+  const requestCoachAccess = async () => {
+    setApplying(true)
+    try {
+      await api(`/clubs/${invite.clubId}/join-requests`, {
+        method: 'POST',
+        body: { teamId: invite.teamId, trialInviteId: invite.id },
+      })
+      invalidateApi(paths.myTrials, paths.trial(invite.id))
+      Alert.alert(t('probetraining.applicationSentTitle'), t('recruitment.coachPending'))
+    } catch (error) {
+      Alert.alert(t('common.error'), apiErrorMessage(t, error))
+    } finally {
+      setApplying(false)
+    }
+  }
   if (invite.status !== 'OFFERED') {
     return (
       <Text variant="subheadline" color="secondary">
@@ -237,9 +263,17 @@ function DecisionBlock({
         {t('probetraining.offerBody')}
       </Text>
       <Button
-        label={t('probetraining.fillApplication')}
+        label={t(
+          invite.recruitmentRole === 'COACH'
+            ? 'recruitment.coachApply'
+            : 'probetraining.fillApplication',
+        )}
+        disabled={busy || applying}
+        loading={applying}
         onPress={() =>
-          router.push({ pathname: '/aufnahmeantrag/[trialId]', params: { trialId: invite.id } })
+          invite.recruitmentRole === 'COACH'
+            ? void requestCoachAccess()
+            : router.push({ pathname: '/aufnahmeantrag/[trialId]', params: { trialId: invite.id } })
         }
         fullWidth
       />

@@ -14,10 +14,11 @@ import { BillingModule } from '../billing/billing.module'
 @Module({
   imports: [PushModule, AuditModule, AssetsModule, BillingModule],
   controllers: [
-    ClubsController,
+    // Literal /search and /lookup must precede ClubsController's /:clubId.
+    ClubsSearchController,
     JoinRequestsController,
     MeJoinRequestsController,
-    ClubsSearchController,
+    ClubsController,
   ],
   providers: [ClubsService, JoinRequestsService, ClubsSearchService],
   exports: [ClubsService, JoinRequestsService],

@@ -9,7 +9,10 @@ import { deepMerge } from './deepMerge'
 import generated from './generated/de'
 import redesign from './redesign/de' // 2026-11 Anstoss Redesign strings
 
+import { studioDe } from './studio/de'
+
 const base = {
+  studio: studioDe,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
   a11y: {
@@ -160,6 +163,7 @@ const base = {
     login: 'Anmelden',
     signUp: 'Konto anlegen',
     logout: 'Abmelden',
+    sessionExpiredTitle: 'Bitte erneut anmelden',
     sessionExpired: 'Sitzung abgelaufen. Bitte melde dich erneut an.',
     tagline: 'Euer Verein. Alles an einem Ort.',
     headerEyebrow: 'Vereinsalltag',

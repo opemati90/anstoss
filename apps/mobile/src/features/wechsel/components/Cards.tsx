@@ -16,6 +16,7 @@ import {
   SPACING_MD,
   SPACING_SM,
   SPACING_XS,
+  SPACING_XXS,
 } from '../../../theme/tokens'
 import {
   ageLabel,
@@ -30,7 +31,15 @@ import {
 } from '../format'
 import { ClubBadge, RatingStars } from './Primitives'
 
-function Surface({ children, onPress, label }: { children: React.ReactNode; onPress?: () => void; label?: string }) {
+function Surface({
+  children,
+  onPress,
+  label,
+}: {
+  children: React.ReactNode
+  onPress?: () => void
+  label?: string
+}) {
   const c = useClubColors()
   const style = [styles.card, { backgroundColor: c.surface, borderColor: c.borderSubtle }]
   if (!onPress) return <View style={style}>{children}</View>
@@ -65,12 +74,7 @@ function PositionTags({ positions }: { positions: string[] }) {
 
 // ─── Club side: one trial in the pipeline ─────────────────────────────
 
-export type TrialCardAction =
-  | 'invite'
-  | 'reject'
-  | 'revoke'
-  | 'feedback'
-  | 'offer'
+export type TrialCardAction = 'invite' | 'reject' | 'revoke' | 'feedback' | 'offer'
 
 export function TrialCard({
   invite,
@@ -87,10 +91,7 @@ export function TrialCard({
   const stage = stageOf(invite)
   const chip = statusChip(t, invite)
   const next = nextTrialSession(invite.sessions)
-  const meta = [
-    playerMeta(t, invite.player),
-    leagueLabel(t, invite.player.highestLeague),
-  ]
+  const meta = [playerMeta(t, invite.player), leagueLabel(t, invite.player.highestLeague)]
     .filter(Boolean)
     .join(' · ')
 
@@ -117,7 +118,12 @@ export function TrialCard({
   return (
     <Surface onPress={onOpen} label={`${invite.player.name}, ${chip.label}`}>
       <View style={styles.row}>
-        <Avatar size="md" tone="neutral" src={invite.player.avatarUrl} fallbackText={invite.player.name} />
+        <Avatar
+          size="md"
+          tone="neutral"
+          src={invite.player.avatarUrl}
+          fallbackText={invite.player.name}
+        />
         <View style={styles.flex}>
           <Text variant="headline" color="primary" numberOfLines={1}>
             {invite.player.name}
@@ -163,7 +169,11 @@ export function TrialCardActions({
 }) {
   const { t } = useTranslation()
   if (stage === 'DONE') return null
-  const buttons: Array<{ key: TrialCardAction; label: string; variant: 'filled' | 'bordered' | 'plain' }> = []
+  const buttons: Array<{
+    key: TrialCardAction
+    label: string
+    variant: 'filled' | 'bordered' | 'plain'
+  }> = []
   if (stage === 'REQUESTED') {
     buttons.push({ key: 'invite', label: t('wechsel.actionInvite'), variant: 'filled' })
     buttons.push({ key: 'reject', label: t('wechsel.actionReject'), variant: 'plain' })
@@ -225,7 +235,11 @@ export function GesuchCard({
     <Surface>
       {variant === 'player' ? (
         <View style={styles.row}>
-          <ClubBadge name={search.club.name} badgeUrl={search.club.badgeUrl} color={search.club.primaryColor} />
+          <ClubBadge
+            name={search.club.name}
+            badgeUrl={search.club.badgeUrl}
+            color={search.club.primaryColor}
+          />
           <View style={styles.flex}>
             <Text variant="headline" color="primary" numberOfLines={1}>
               {search.club.name}
@@ -258,7 +272,13 @@ export function GesuchCard({
       <Text variant="body" weight="semibold" color="primary">
         {t('wechsel.gesuchSeeks')}
       </Text>
-      <PositionTags positions={search.positions} />
+      {search.recruitmentRole === 'COACH' ? (
+        <Text variant="headline" color="primary">
+          {t('recruitment.COACH')}
+        </Text>
+      ) : (
+        <PositionTags positions={search.positions} />
+      )}
       {search.note ? (
         <Text variant="subheadline" color="secondary" numberOfLines={3}>
           {search.note}
@@ -346,7 +366,9 @@ export function PlayerRow({
   const c = useClubColors()
   const meta = playerMeta(t, player)
   // Design 22 row: "23 · Innenverteidiger" (foot stays in the label).
-  const shortMeta = [ageLabel(t, player, 'short'), positionLabel(t, player.position)].filter(Boolean).join(' · ')
+  const shortMeta = [ageLabel(t, player, 'short'), positionLabel(t, player.position)]
+    .filter(Boolean)
+    .join(' · ')
   const available =
     player.availableFrom && new Date(player.availableFrom).getTime() > Date.now()
       ? t('spielerprofil.availableFromShort', { date: formatDate(player.availableFrom) })
@@ -355,12 +377,20 @@ export function PlayerRow({
   // Design 22: "zuletzt Kreisliga B · 3 km". Club and availability stay in
   // the screen-reader label and on the profile.
   const levelLine = [
-    league ? t('wechsel.lastLeague', { league }) : (player.currentClubName ?? t('spielerprofil.noClub')),
+    league
+      ? t('wechsel.lastLeague', { league })
+      : (player.currentClubName ?? t('spielerprofil.noClub')),
     player.distanceKm != null ? t('wechsel.distanceKm', { km: player.distanceKm }) : null,
   ]
     .filter(Boolean)
     .join(' · ')
-  const a11y = [player.name, meta, levelLine, player.currentClubName ?? t('spielerprofil.noClub'), available]
+  const a11y = [
+    player.name,
+    meta,
+    levelLine,
+    player.currentClubName ?? t('spielerprofil.noClub'),
+    available,
+  ]
     .filter(Boolean)
     .join(', ')
 
@@ -394,7 +424,11 @@ export function PlayerRow({
         <Button
           size="sm"
           variant={invited ? 'bordered' : 'filled'}
-          label={invited ? t('wechsel.invitedShort', { defaultValue: 'Invited' }) : t('wechsel.tabProbetraining')}
+          label={
+            invited
+              ? t('wechsel.invitedShort', { defaultValue: 'Invited' })
+              : t('wechsel.tabProbetraining')
+          }
           accessibilityLabel={
             invited
               ? `${t('wechsel.invitedShort', { defaultValue: 'Invited' })}, ${player.name}`
@@ -441,7 +475,12 @@ export function ChecklistRow({
           {title}
         </Text>
         {value ? (
-          <Text variant="subheadline" weight="semibold" color={done ? 'primary' : 'secondary'} tabular>
+          <Text
+            variant="subheadline"
+            weight="semibold"
+            color={done ? 'primary' : 'secondary'}
+            tabular
+          >
             {value}
           </Text>
         ) : null}
@@ -481,7 +520,13 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING_MD },
   flex: { flex: 1, minWidth: 0 },
-  metaLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING_XS, flexShrink: 1, minWidth: 0 },
+  metaLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING_XS,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   wrapLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING_SM },
   shrink: { flexShrink: 1, minWidth: 0 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING_XS },
@@ -513,10 +558,10 @@ const styles = StyleSheet.create({
     gap: SPACING_MD + 2,
     paddingVertical: SPACING_MD,
   },
-  playerText: { flex: 1, minWidth: 0, gap: 2 },
+  playerText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
   pressed: { opacity: 0.6 },
   // Design: the .sm pill at 44pt tall.
-  invitePill: { height: 44, borderRadius: 22 },
+  invitePill: { height: 44, borderRadius: RADIUS_FULL },
   checkRow: {
     minHeight: 56,
     flexDirection: 'row',

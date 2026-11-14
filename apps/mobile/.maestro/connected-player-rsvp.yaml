@@ -1,0 +1,16 @@
+appId: com.renuirug.anstoss
+---
+# Existing real player session, previously approved by the local QA admin.
+- tapOn:
+    id: home-hero-responses
+- extendedWaitUntil:
+    visible:
+      id: event-rsvp-YES
+    timeout: 30000
+- tapOn:
+    id: event-rsvp-YES
+- extendedWaitUntil:
+    visible:
+      id: 'event-response-${QA_PLAYER_ID}-YES'
+    timeout: 15000
+- takeScreenshot: /private/tmp/anstoss-connected-player-rsvp

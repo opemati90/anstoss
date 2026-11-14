@@ -1,11 +1,22 @@
 // Wechselbörse revamp (français). Vocabulaire du foot amateur : essai,
 // mutation, licence, accord du club quitté, période de mutation. Tutoiement.
 export default {
+  recruitment: {
+    role: 'Chercher un club en tant que',
+    PLAYER: 'Joueur',
+    COACH: 'Entraîneur',
+    coachApply: 'Demander un accès entraîneur',
+    coachPending:
+      'L’administrateur du club examinera la demande. Aucun accès entraîneur n’est encore accordé.',
+    region: 'Zone postale approximative, pas une distance mesurée.',
+    anywhere: 'Toutes les régions',
+  },
   wechsel: {
     title: 'Bourse aux joueurs',
     entryHint: 'Annonces, essais et mutations',
     nearbySubtitle: 'Joueurs sans club à {{km}} km à la ronde',
-    invitedFootnote: 'Les invités voient le lieu et l’heure du prochain entraînement. Coordonnées seulement après leur accord.',
+    invitedFootnote:
+      'Les invités voient le lieu et l’heure du prochain entraînement. Coordonnées seulement après leur accord.',
     lastLeague: 'dernier niveau : {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'Autres rubriques',

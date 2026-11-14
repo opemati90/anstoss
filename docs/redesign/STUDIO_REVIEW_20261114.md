@@ -4,10 +4,45 @@ Reviewed incoming commit: `5510d949` on `origin/redesign/anstoss-2026-11`.
 Integration baseline: `f23b532c` on `codex/redesign-integration-20261113`.
 Date: 2026-11-14.
 
+## Latest five-screen status and design comparison
+
+The owner supplied `/Users/yemi/Downloads/Studio Start-html.zip` and explicitly
+requested coverage of all five screens. Two independent read-only reviewers
+inspected the five hydrated HTML boards, candidate source and main's actual
+German dark-mode XL Brand Kit screenshot. Candidate runtime was not exercised;
+reference mockups and inspected test assertions are not candidate app acceptance.
+
+| Screen | Main integration | Evidence / remaining work |
+| --- | --- | --- |
+| Studio Start | Not ported | ZIP inspected; candidate omits the board's tab bar and docks Brand Kit at the bottom instead of above it. |
+| Studio Editor | Not ported | Board/source reviewed; capture/share success, draft handling, touch targets and large text need correction/verification. |
+| Brand Kit | Implemented locally | German simulator font/save/re-entry and settings navigation passed; actual server-backed hook, error/retry and permission tests pass. |
+| Studio im Gratis-Plan | Not ported | Board/source reviewed; do not sell direct social posting or monthly AI credits without working services. |
+| KI-Credits | Not ported | Board/source reviewed; checkout launch must not become a credited-purchase success state. No credit purchase service is integrated. |
+
+Main's Brand Kit deliberately omits accounts/AI controls. Its 32px section gaps
+and three-column wrapping logo grid differ from the board's 22px rhythm/four-tile
+strip. Calibrate normal text separately while preserving accessible wrapping at
+large text. Real sponsor logos and confirmed persistence must not be replaced by
+the candidate's invented wordmarks and swallowed write failures.
+
+The ZIP itself has a dock/label overlap at fixed 390×844; its Credits companion
+board clips purchase explanatory text. Preserve composition, not these reference
+defects. Reference typography warnings from the detector are not actionable:
+Inter is the approved font. All five boards were rendered with the ZIP's React
+and support runtime; unhydrated raw HTML screenshots were excluded.
+
+Current owner priority is admin/player/coach/free-agent synchronization; family
+features are deferred. Finish the core MVP first. This review is not permission
+to expand paid providers or claim Studio is complete.
+
+## Earlier foundation checkpoint
+
 Implementation checkpoint: selected schemas/pure graphic rules and a rewritten,
 scope-safe match hook are now on the integration worktree, with 70 focused tests
-passing. A tested honest export handoff primitive is also present. Studio screens
-are not yet ported/wired. Scoped context and brand-kit backend routes/persistence
+passing. A tested honest export handoff primitive is also present. At that earlier
+checkpoint Studio screens were not ported; see the current matrix above. Scoped
+context and brand-kit backend routes/persistence
 are now implemented locally: 44 focused unit tests and seven real local PostgreSQL
 tests pass. Publication consent remains deliberately empty until a dedicated
 consent dataset exists. Other backend integrations and browser/simulator

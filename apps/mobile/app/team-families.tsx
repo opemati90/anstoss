@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Redirect } from 'expo-router'
+import { FAMILY_FEATURE_ENABLED } from '../src/launchFeatures'
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +28,12 @@ import { getAppLanguage, getAppLocale } from '../src/i18n'
 import { fontSize, space, fonts, lineHeight } from '../src/theme/tokens'
 
 export default function TeamFamiliesScreen() {
+  // Do not mount the data-fetching screen for a deferred feature, including
+  // stale navigation entries and external deep links.
+  return FAMILY_FEATURE_ENABLED ? <TeamFamiliesContent /> : <Redirect href="/(tabs)" />
+}
+
+function TeamFamiliesContent() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()

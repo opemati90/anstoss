@@ -2,11 +2,21 @@
 // Aufnahmeantrag and the free agent's Entdecken / Probetrainings / Profil tabs.
 // German, "du". Plural keys carry a base form plus _one/_other.
 export default {
+  recruitment: {
+    role: 'Verein suchen als',
+    PLAYER: 'Spieler',
+    COACH: 'Trainer',
+    coachApply: 'Trainerzugang beantragen',
+    coachPending: 'Dein Vereinsadmin prüft die Anfrage. Du hast noch keinen Trainerzugang.',
+    region: 'Ungefähre Postleitzahlregion, keine gemessene Entfernung.',
+    anywhere: 'Alle Regionen',
+  },
   wechsel: {
     title: 'Wechselbörse',
     entryHint: 'Gesuche, Probetrainings und Vereinswechsel',
     nearbySubtitle: 'Vereinslose Spieler in {{km}} km Umkreis',
-    invitedFootnote: 'Eingeladene sehen Ort und Zeit des nächsten Trainings. Kontaktdaten erst nach ihrer Zusage.',
+    invitedFootnote:
+      'Eingeladene sehen Ort und Zeit des nächsten Trainings. Kontaktdaten erst nach ihrer Zusage.',
     lastLeague: 'zuletzt {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'Weitere Bereiche',
@@ -22,9 +32,12 @@ export default {
     errorGeneric: 'Das hat nicht geklappt. Prüf deine Verbindung und versuch es noch einmal.',
     errorNoAccess: 'Dafür fehlen dir die Rechte in diesem Verein.',
     // Review fixes 2026-09-24
-    errorTooManyRequests: 'Du hast bei diesem Verein gerade schon angefragt. Eine neue Anfrage ist in 24 Stunden möglich, insgesamt bis zu fünf Anfragen pro Tag.',
-    errorTrialCap: 'Dein Verein hat schon zehn offene Probetrainings. Schließ eines ab, bevor du jemand Neues einlädst.',
-    errorAgeGroup: 'Das passt nicht zur Altersklasse des Teams. Erwachsene machen kein Probetraining in einem Jugendteam.',
+    errorTooManyRequests:
+      'Du hast bei diesem Verein gerade schon angefragt. Eine neue Anfrage ist in 24 Stunden möglich, insgesamt bis zu fünf Anfragen pro Tag.',
+    errorTrialCap:
+      'Dein Verein hat schon zehn offene Probetrainings. Schließ eines ab, bevor du jemand Neues einlädst.',
+    errorAgeGroup:
+      'Das passt nicht zur Altersklasse des Teams. Erwachsene machen kein Probetraining in einem Jugendteam.',
     tabGesuche: 'Gesuche',
     tabSpieler: 'Spielersuche',
     tabProbetraining: 'Probetraining',
@@ -33,7 +46,8 @@ export default {
     // Gesuche
     gesuchNew: 'Gesuch aufgeben',
     gesuchNewTitle: 'Neues Gesuch',
-    gesuchNewHint: 'Vereinslose Spieler in der Nähe sehen dein Gesuch und können ein Probetraining anfragen.',
+    gesuchNewHint:
+      'Vereinslose Spieler in der Nähe sehen dein Gesuch und können ein Probetraining anfragen.',
     gesuchPublish: 'Gesuch veröffentlichen',
     gesuchNotePlaceholder: 'z. B. Kreisliga A, Training Di und Do ab 19 Uhr, Kunstrasen',
     gesuchSeeks: 'Wir suchen',
@@ -106,8 +120,7 @@ export default {
     sessionsCount_other: '{{count}} von {{max}}',
     sessionsLoading: 'Trainings werden geladen …',
     sessionsError: 'Die Trainings konnten nicht geladen werden.',
-    sessionsEmpty:
-      'Für dieses Team steht kein Training im Kalender. Leg zuerst ein Training an.',
+    sessionsEmpty: 'Für dieses Team steht kein Training im Kalender. Leg zuerst ein Training an.',
     fieldMessage: 'Nachricht',
     inviteMessagePlaceholder: 'z. B. Bring Schienbeinschoner und Hallenschuhe mit.',
     inviteSend: 'Einladung senden',
@@ -141,7 +154,8 @@ export default {
     actionOffer: 'Platz anbieten',
     actionReject: 'Absagen',
     revokeTitle: 'Einladung zurückziehen?',
-    revokeBody: '{{name}} bekommt keine Nachricht darüber. Ein Probetraining ist dann nicht mehr möglich.',
+    revokeBody:
+      '{{name}} bekommt keine Nachricht darüber. Ein Probetraining ist dann nicht mehr möglich.',
     feedbackTitle: 'Feedback zu {{name}}',
     feedbackHint: 'Halt fest, wie das Training lief. So entscheidet ihr später leichter.',
     feedbackAttended: 'War beim Training',
@@ -165,8 +179,10 @@ export default {
     },
     rejectTemplate: {
       full: 'Danke fürs Mitmachen! Unser Kader ist gerade voll, deshalb können wir dir leider keinen Platz anbieten. Viel Erfolg bei der Suche!',
-      level: 'Danke, dass du da warst! Im Moment passt es sportlich leider nicht. Wir wünschen dir viel Erfolg bei einem anderen Verein.',
-      later: 'Danke fürs Probetraining! Aktuell ist nichts frei. Wenn sich etwas ändert, melden wir uns bei dir.',
+      level:
+        'Danke, dass du da warst! Im Moment passt es sportlich leider nicht. Wir wünschen dir viel Erfolg bei einem anderen Verein.',
+      later:
+        'Danke fürs Probetraining! Aktuell ist nichts frei. Wenn sich etwas ändert, melden wir uns bei dir.',
     },
     rejectSend: 'Absage senden',
     rejectSent: 'Die Absage an {{name}} ist verschickt.',
@@ -176,7 +192,8 @@ export default {
     dfbnetBody:
       'Hier hältst du nur fest, wie weit der Wechsel ist. Passantrag und Freigabe laufen weiter über DFBnet.',
     wechselEmptyTitle: 'Gerade kein Wechsel offen',
-    wechselEmptyBody: 'Sobald du einem Spieler einen Platz anbietest, erscheint er hier mit seiner Checkliste.',
+    wechselEmptyBody:
+      'Sobald du einem Spieler einen Platz anbietest, erscheint er hier mit seiner Checkliste.',
     inProgress: 'In Arbeit',
     eligibleShort: 'Ab {{date}}',
     needsApplication: 'Geht, sobald der Aufnahmeantrag da ist',
@@ -210,8 +227,10 @@ export default {
       SOMMER: 'Sommer (1. Juli – 31. August)',
       WINTER: 'Winter (1.–31. Januar)',
     },
-    periodInside: 'Orientierung: Das Datum liegt in der Wechselperiode {{period}}. Maßgeblich ist das Eingangsdatum des Passantrags beim Verband.',
-    periodOutside: 'Orientierung: außerhalb der Wechselperiode. Die nächste ist {{period}}, ab {{date}}. Maßgeblich ist das Eingangsdatum des Passantrags. Mit Freigabe ist ein Wechsel oft trotzdem möglich, beachte aber mögliche Wartefristen.',
+    periodInside:
+      'Orientierung: Das Datum liegt in der Wechselperiode {{period}}. Maßgeblich ist das Eingangsdatum des Passantrags beim Verband.',
+    periodOutside:
+      'Orientierung: außerhalb der Wechselperiode. Die nächste ist {{period}}, ab {{date}}. Maßgeblich ist das Eingangsdatum des Passantrags. Mit Freigabe ist ein Wechsel oft trotzdem möglich, beachte aber mögliche Wartefristen.',
   },
 
   probetraining: {
@@ -236,7 +255,8 @@ export default {
       DONE: 'Abgeschlossen',
     },
     stageHint: {
-      REQUESTED: 'Spieler haben über ein Gesuch angefragt. Lade sie zu einem Training ein oder sag ab.',
+      REQUESTED:
+        'Spieler haben über ein Gesuch angefragt. Lade sie zu einem Training ein oder sag ab.',
       INVITED: 'Eingeladen, die Antwort steht noch aus.',
       SCHEDULED: 'Termin steht. Nach dem Training gibst du Feedback.',
       DECISION: 'Training vorbei: Platz anbieten oder absagen.',
@@ -280,8 +300,7 @@ export default {
     scheduledHint: 'Sag dem Trainer Bescheid, falls du doch nicht kannst.',
     waitingDecision: '{{club}} entscheidet nach dem Training und meldet sich bei dir.',
     offerTitle: '{{team}} möchte dich im Kader haben',
-    offerBody:
-      'Füll den Aufnahmeantrag aus. Um Freigabe und Passantrag kümmert sich der Verein.',
+    offerBody: 'Füll den Aufnahmeantrag aus. Um Freigabe und Passantrag kümmert sich der Verein.',
     fillApplication: 'Aufnahmeantrag ausfüllen',
     applicationSentTitle: 'Aufnahmeantrag eingereicht',
     applicationSentBody: '{{club}} prüft deinen Antrag und kümmert sich um den Pass.',
@@ -309,7 +328,8 @@ export default {
     intro: 'Dein Platz: {{team}}. Mit diesen Angaben nimmt dich der Verein auf.',
     loadError: 'Das Angebot konnte nicht geladen werden',
     notOpenTitle: 'Kein offenes Angebot',
-    notOpenBody: 'Dieses Angebot gilt nicht mehr. Schau in deinen Probetrainings nach dem aktuellen Stand.',
+    notOpenBody:
+      'Dieses Angebot gilt nicht mehr. Schau in deinen Probetrainings nach dem aktuellen Stand.',
     alreadySentTitle: 'Schon eingereicht',
     alreadySentBody: '{{club}} hat deinen Aufnahmeantrag bereits.',
     sectionYou: 'Zu dir',
@@ -341,14 +361,16 @@ export default {
     incompleteBody: 'Bitte füll die markierten Felder aus.',
     sepaMissing: 'Ohne Zustimmung zur SEPA-Lastschrift kann der Verein dich nicht aufnehmen.',
     parentalMissing: 'Gib die E-Mail-Adresse deiner Eltern an. Sie stimmen dem Beitritt selbst zu.',
-    guardianIntro: 'Weil du noch nicht 18 bist, stimmen deine Eltern der Mitgliedschaft und der SEPA-Lastschrift selbst zu. Sie bekommen eine E-Mail und bestätigen in Anstoss unter „Einwilligungen“.',
+    guardianIntro:
+      'Weil du noch nicht 18 bist, stimmen deine Eltern der Mitgliedschaft und der SEPA-Lastschrift selbst zu. Sie bekommen eine E-Mail und bestätigen in Anstoss unter „Einwilligungen“.',
     guardianEmail: 'E-Mail-Adresse deiner Eltern',
     guardianEmailInvalid: 'Bitte eine gültige E-Mail-Adresse angeben',
     guardianEmailOwn: 'Das ist deine eigene Adresse. Bitte die deiner Eltern angeben.',
     submit: 'Antrag senden',
     sentTitle: 'Antrag gesendet',
     sentBody: '{{club}} prüft deinen Aufnahmeantrag und meldet sich bei dir.',
-    sentBodyMinor: '{{club}} hat deinen Antrag. Sobald deine Eltern zugestimmt haben, kann der Verein dich aufnehmen.',
+    sentBodyMinor:
+      '{{club}} hat deinen Antrag. Sobald deine Eltern zugestimmt haben, kann der Verein dich aufnehmen.',
     dfbnetNote: 'Die Spielberechtigung erteilt dein Landesverband über DFBnet.',
   },
 
@@ -365,7 +387,8 @@ export default {
     visibility: 'Sichtbar für',
     visibilityClubs: 'Vereine',
     visibilityPrivate: 'Niemand',
-    visibilityHint: 'Nur Trainer und Vereinsverantwortliche sehen dein Profil, nicht die Öffentlichkeit.',
+    visibilityHint:
+      'Nur Trainer und Vereinsverantwortliche sehen dein Profil, nicht die Öffentlichkeit.',
     sectionPlayer: 'Spielerdaten',
     sectionArea: 'Wo du spielen willst',
     areaHint: 'Wir nutzen die PLZ nur für die Suche in der Nähe.',
@@ -427,14 +450,18 @@ export default {
     ageU18: 'U18',
     regionValue: 'PLZ-Gebiet {{region}}',
     under16Title: 'Die Wechselbörse gibt es ab 16',
-    under16Body: 'Wenn du den Verein wechseln möchtest, sprich mit deinen Eltern. Sie melden sich beim neuen Verein.',
+    under16Body:
+      'Wenn du den Verein wechseln möchtest, sprich mit deinen Eltern. Sie melden sich beim neuen Verein.',
     notFreeAgentTitle: 'Kein Spielerprofil für die Wechselbörse',
-    notFreeAgentBody: 'Du bist als Mitglied registriert, nicht als vereinsloser Spieler. Ein Profil für die Wechselbörse gibt es nur für vereinslose Spieler.',
+    notFreeAgentBody:
+      'Du bist als Mitglied registriert, nicht als vereinsloser Spieler. Ein Profil für die Wechselbörse gibt es nur für vereinslose Spieler.',
     minorTitle: 'Du bist unter 18',
-    minorBody: 'Dein Profil sehen nur Trainer und Vereinsverantwortliche, mit „U18“ statt Alter und dem PLZ-Gebiet statt deiner PLZ. Fotos und Videos gibt es ab 18.',
+    minorBody:
+      'Dein Profil sehen nur Trainer und Vereinsverantwortliche, mit „U18“ statt Alter und dem PLZ-Gebiet statt deiner PLZ. Fotos und Videos gibt es ab 18.',
     delete: 'Spielerprofil löschen',
     deleteTitle: 'Spielerprofil löschen?',
-    deleteBody: 'Dein Profil verschwindet aus der Wechselbörse. Offene Probetrainings und Aufnahmeanträge werden beendet.',
+    deleteBody:
+      'Dein Profil verschwindet aus der Wechselbörse. Offene Probetrainings und Aufnahmeanträge werden beendet.',
     deleteConfirm: 'Löschen',
     position: {
       GK: 'Torwart',
@@ -478,7 +505,8 @@ export default {
     loadError: 'Die Gesuche konnten nicht geladen werden',
     emptyTitle: 'Gerade kein passendes Gesuch',
     emptyBody: 'Schau später wieder vorbei. Vereine finden dich auch über dein Profil.',
-    emptyNarrowed: 'Vergrößere den Umkreis oder zeig alle Positionen. Vereine finden dich auch über dein Profil.',
+    emptyNarrowed:
+      'Vergrößere den Umkreis oder zeig alle Positionen. Vereine finden dich auch über dein Profil.',
     requestCta: 'Probetraining anfragen',
     requestOpen: 'Angefragt',
     requestTitle: 'Probetraining bei {{club}}',

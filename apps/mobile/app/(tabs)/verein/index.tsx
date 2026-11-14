@@ -3,7 +3,7 @@ import { Alert, Image, RefreshControl, ScrollView, StyleSheet, View } from 'reac
 import { Redirect, router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { MemberExportResult } from '@anstoss/shared'
-import { COMPLIANCE_FEATURE_ENABLED } from '../../../src/launchFeatures'
+import { COMPLIANCE_FEATURE_ENABLED, FAMILY_FEATURE_ENABLED } from '../../../src/launchFeatures'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { api } from '../../../src/api/client'
@@ -212,12 +212,14 @@ export default function VereinScreen() {
             showChevron
             onPress={() => router.push('/wechselboerse' as never)}
           />
-          <ListRow
-            left={<SoftIcon name="figure.and.child.holdinghands" />}
-            title={t('verein.members.families')}
-            showChevron
-            onPress={() => router.push('/team-families' as never)}
-          />
+          {FAMILY_FEATURE_ENABLED ? (
+            <ListRow
+              left={<SoftIcon name="figure.and.child.holdinghands" />}
+              title={t('verein.members.families')}
+              showChevron
+              onPress={() => router.push('/team-families' as never)}
+            />
+          ) : null}
           <ListRow
             left={<SoftIcon name="person.badge.plus" />}
             title={t('verein.members.invite')}

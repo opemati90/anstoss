@@ -66,7 +66,8 @@ export class PlayerSearchService {
       data: {
         clubId,
         teamId: input.teamId,
-        positions: Array.from(new Set(input.positions)),
+        recruitmentRole: input.recruitmentRole ?? 'PLAYER',
+        positions: input.recruitmentRole === 'COACH' ? [] : Array.from(new Set(input.positions)),
         note: input.note?.trim() || null,
         createdByUserId: userId,
         expiresAt,
@@ -116,6 +117,7 @@ export class PlayerSearchService {
       : null
     const where = {
       status: PlayerSearchStatus.OPEN,
+      ...(query.recruitmentRole ? { recruitmentRole: query.recruitmentRole } : {}),
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       ...(query.position ? { positions: { has: query.position } } : {}),
       ...(prefix
@@ -175,6 +177,7 @@ function mapPlayerSearch(row: any): PlayerSearch {
     id: row.id,
     clubId: row.clubId,
     teamId: row.teamId,
+    recruitmentRole: row.recruitmentRole ?? 'PLAYER',
     positions: row.positions ?? [],
     note: row.note ?? null,
     status: row.status,

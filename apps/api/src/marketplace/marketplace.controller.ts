@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import {
   Body,
   Controller,
@@ -23,7 +24,7 @@ import {
   updatePlayerSearchSchema,
   updateRegistrationRoleSchema,
 } from '@anstoss/shared'
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
@@ -104,11 +105,12 @@ export class MarketplaceController {
       /[^a-zA-Z0-9._-]/g,
       '-',
     )
-    const objectKey = `users/${user.id}/free-agent/${data.type.toLowerCase()}/${Date.now()}-${safeName}`
+    const objectKey = `users/${user.id}/free-agent/${data.type.toLowerCase()}/${randomUUID()}-${safeName}`
 
     if (!this.r2.enabled) {
       return { enabled: false, objectKey, uploadUrl: null, publicUrl: null }
     }
+    await this.marketplaceService.reserveMediaUpload(user.id, objectKey)
     const { uploadUrl, publicUrl } = await this.r2.presignPut(
       objectKey,
       data.contentType,
@@ -125,17 +127,31 @@ export class MarketplaceController {
     @Body() body: unknown,
   ) {
     const data = createFreeAgentMediaSchema.parse(body)
+    await this.marketplaceService.assertMayAddMedia(user.id)
+    if (!this.r2.enabled) {
+      throw new ServiceUnavailableException('Media uploads are unavailable')
+    }
     if (this.r2.enabled) {
       const objectKey = this.r2.objectKeyFromUrl(data.url)
       const expectedPrefix = `users/${user.id}/free-agent/${data.type.toLowerCase()}/`
       if (!objectKey || !objectKey.startsWith(expectedPrefix)) {
         throw new BadRequestException('Media does not belong to this user upload')
       }
+      const thumbnailKey = data.thumbnailUrl ? this.r2.objectKeyFromUrl(data.thumbnailUrl) : null
+      if (data.thumbnailUrl && !thumbnailKey?.startsWith(`users/${user.id}/free-agent/photo/`)) {
+        throw new BadRequestException('Thumbnail does not belong to this user upload')
+      }
       try {
         await this.r2.assertStoredObject(objectKey, {
           maxBytes: data.type === 'VIDEO' ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
           allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES[data.type],
         })
+        if (thumbnailKey) {
+          await this.r2.assertStoredObject(thumbnailKey, {
+            maxBytes: 10 * 1024 * 1024,
+            allowedContentTypes: MEDIA_ALLOWED_CONTENT_TYPES.PHOTO,
+          })
+        }
       } catch {
         throw new BadRequestException('Media upload is invalid or incomplete')
       }

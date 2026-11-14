@@ -428,6 +428,7 @@ export function PlayerHome({ clubId, teamId, onRefreshStateChange }: PlayerHomeP
           rsvpPending={Boolean(pendingIds[shownHero.id])}
           onRsvp={(status, absence) => void onRsvp(shownHero.id, status, absence)}
           onOpen={() => openEventOrMatch(shownHero)}
+          onOpenResponses={() => openEvent(shownHero)}
         />
       ) : null}
 

@@ -65,6 +65,7 @@ export function useStudioBrandKit() {
     loading: boolean
     saving: boolean
     error: boolean
+    errorOperation?: 'load' | 'save'
     ready: boolean
   }
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
@@ -105,7 +106,15 @@ export function useStudioBrandKit() {
     } catch {
       // In particular, never retain usable settings after server-side revocation.
       if (isCurrent())
-        setSnapshot({ scope, kit: null, loading: false, saving: false, error: true, ready: false })
+        setSnapshot({
+          scope,
+          kit: null,
+          loading: false,
+          saving: false,
+          error: true,
+          ready: false,
+          errorOperation: 'load',
+        })
     }
   }, [scope])
 
@@ -153,6 +162,7 @@ export function useStudioBrandKit() {
             loading: false,
             saving: false,
             error: true,
+            errorOperation: 'save',
             ready: false,
           })
         return false
@@ -165,11 +175,13 @@ export function useStudioBrandKit() {
 
   const visible = allowed && snapshot?.scope === scope ? snapshot : null
   return {
+    allowed,
     kit: visible?.kit ?? null,
     loading: allowed && (!visible || visible.loading),
     saving: visible?.saving ?? false,
     ready: visible?.ready ?? false,
     error: visible?.error ?? false,
+    saveFailed: visible?.errorOperation === 'save',
     canEdit: canManage && Boolean(visible?.ready),
     refresh,
     save,

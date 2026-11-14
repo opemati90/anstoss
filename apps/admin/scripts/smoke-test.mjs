@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -30,6 +31,11 @@ const railway = read('railway.toml')
 const entrypointPath = 'docker-entrypoint.d/10-admin-basic-auth.sh'
 const entrypoint = read(entrypointPath)
 
+const errorFunction = js.slice(js.indexOf('async function responseErrorMessage'), js.indexOf('async function adminFetch'))
+const formatError = runInNewContext(`${errorFunction}; responseErrorMessage`, { usesSameOriginApiProxy: () => true })
+const rejectedLogin = new Response(JSON.stringify({ error: { code: 'HTTP_401', message: 'Invalid username or password' }, requestId: 'internal-id' }), { status: 401, headers: { 'content-type': 'application/json' } })
+assert.equal(await formatError(rejectedLogin, '/admin/auth/login'), 'Invalid username or password')
+
 assertExists('src/index.html')
 assertExists('src/main.js')
 assertExists('src/styles.css')
@@ -47,7 +53,17 @@ assertIncludes(html, 'id="admin-username-display"', 'admin settings')
 assertIncludes(html, 'id="admin-session-clear"', 'admin settings')
 assertIncludes(html, 'id="admin-key-input"', 'admin settings')
 assertIncludes(html, 'id="club-detail-dialog"', 'club detail dialog')
-assertIncludes(html, 'src="./anstoss-mark.png"', 'canonical Anstoss logo')
+assertIncludes(html, 'class="brand-dot"', 'Anstoss lime-dot wordmark')
+assertIncludes(html, 'href="./anstoss-mark.png"', 'Anstoss favicon')
+assertNotIncludes(html, '>Production</span>', 'unverified environment label')
+assertNotIncludes(html, 'class="eyebrow"', 'duplicate admin headings')
+assertIncludes(css, '--accent: #D4F25C', 'Anstoss brand lime')
+assertIncludes(css, '--primary: #0E3B2B', 'Anstoss pitch green')
+assertIncludes(css, '--ink: #121A15', 'Anstoss ink')
+assertNotIncludes(css, '#bd1e15', 'retired admin red accent')
+for (const match of css.matchAll(/url\(\.\/(fonts\/[^)]+)\)/g)) assertExists(`src/${match[1]}`)
+assertExists('src/fonts/LICENSE-Inter.txt')
+assertExists('src/fonts/LICENSE-BarlowCondensed.txt')
 assertIncludes(html, 'id="mobile-nav-toggle"', 'mobile admin navigation')
 assertNotIncludes(html, 'id="mobile-search-toggle"', 'removed global admin search')
 assertNotIncludes(html, 'class="nav-group"', 'simplified primary navigation')

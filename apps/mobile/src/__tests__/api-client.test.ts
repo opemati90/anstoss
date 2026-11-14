@@ -147,6 +147,30 @@ describe('api client', () => {
     expect(signOutHandler).toHaveBeenCalledTimes(1)
   })
 
+  it('does not sign out a newer session because an old request returns 401', async () => {
+    let token = 'old-session'
+    setTokenGetter(async () => token)
+    const signOut = jest.fn(async () => {})
+    setSignOutHandler(signOut)
+    mockFetch.mockImplementation(async () => {
+      token = 'new-session'
+      return { ok: false, status: 401, text: async () => JSON.stringify({ message: 'Expired' }) }
+    })
+    await expect(api('/me')).rejects.toThrow('Expired')
+    expect(signOut).not.toHaveBeenCalled()
+    expect(alertSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not show an expiry alert for an unauthenticated background request', async () => {
+    setTokenGetter(async () => null)
+    const signOut = jest.fn(async () => {})
+    setSignOutHandler(signOut)
+    mockFetch.mockResolvedValue({ ok: false, status: 401, text: async () => JSON.stringify({ message: 'No token' }) })
+    await expect(api('/me/join-requests/active')).rejects.toThrow('No token')
+    expect(signOut).not.toHaveBeenCalled()
+    expect(alertSpy).not.toHaveBeenCalled()
+  })
+
   it('suppresses the session-expired alert during an intentional sign-out', async () => {
     const signOutHandler = jest.fn(async () => {})
     setSignOutHandler(signOutHandler)

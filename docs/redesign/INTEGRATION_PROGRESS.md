@@ -6,6 +6,297 @@ Working branch: `codex/redesign-integration-20261113`.
 The redesign remains the visual source of truth. This branch does not replace
 Claude's visual work. No production or store release has been made from it.
 
+## Current owner priority — 2026-11-14, four-role MVP
+
+### Latest verification checkpoint — 14 November, evening
+
+This checkpoint supersedes the older counts and unfinished-code notes below;
+earlier entries are retained as historical evidence, not the current release verdict.
+
+- Admin now uses the approved Anstoss brand: self-hosted Inter/Barlow Condensed,
+  pitch/ink/lime, warm surfaces, pill actions, readable forms and responsive
+  navigation. Verified local browser login/logout, rejected credentials, session
+  persistence, overview, clubs/details, users, billing, operations and settings.
+  Desktop and phone captures inspected. No production credential was reset.
+- Player home has an explicit **Who’s coming? / Wer kommt?** link to the event's
+  response list, including before voting and for linked fixtures. Players can
+  see response statuses and change their own answer; other people's private
+  absence reasons/notes remain staff-only. Added UI and API regression coverage.
+- Connected native checks against the isolated Nest/PostgreSQL API passed:
+  player requests access, admin approves, player enters club, player answers YES,
+  then MAYBE; the coach API sees the corresponding counts. The latter is a change
+  of answer, not proof of native reconfirmation after a coach reschedules.
+- Free-agent privacy setup and coach invitation were exercised over the real
+  local API; native candidate acceptance passed and the coach API confirmed
+  ACCEPTED. Maestro emitted a simulator-driver cleanup error after those passing
+  steps; do not describe this as a flawless all-device run.
+- Native last-club removal passed without sign-out/reload: club identity and squad
+  disappeared, the independent portal appeared, and the API returned 403 for the
+  removed club. Native account deletion then returned to welcome; the old session
+  returned 401. Only the fictional local QA player was deleted. A first deletion
+  test tapped below the scroll viewport; centering the target and escaping the
+  confirmation question mark fixed the test, and the complete rerun passed.
+- Explicit PLAYER/COACH recruitment profiles, vacancies and invitation role
+  snapshots are implemented. Self-selected recruitment identity never grants club
+  staff permissions. The 16 PostgreSQL tests cover cross-role journeys and
+  concurrent duplicate club/team registration (10 journey + 6 registration cases).
+- Website copy reflects the MVP in all seven website locales. Removed obsolete
+  pilot mailto signup; signup now points to the app, accepts personal email and
+  explains that roster/invitations can wait. English browser signup and annual
+  toggle checked; Arabic phone signup inspected. Annual €109.90 versus €10.99
+  monthly is two months saved. App languages remain six, not seven.
+- Full regression: API **141 suites / 1,431 passed, 30 opt-in skipped**;
+  mobile **139 suites / 1,067 passed, one existing skip**; shared **166 passed**.
+  Admin and website smoke tests, repository lint/typecheck and API/admin/website
+  builds passed. Website/worker lint/typecheck scripts that are no-ops are not
+  independent quality evidence; website now has an actual locale/link smoke test.
+- Production database migrations, real R2 erasure/media upload, historical-storage
+  reconciliation, actual email/push delivery and store distribution are not proven
+  by this local run. No paid service or store build credit was used.
+- The separately reported iPhone 17 Zod `CONSTANT_CATCH` crash matched the other
+  running PlantCircle project's installed source, not this Anstoss dependency.
+  That project was not edited. Anstoss native QA uses its named Media QA simulator
+  and port 8125; cold launch needs the explicit dev-client connection first.
+  Earlier retry failures were on the dev-client launcher, not app error screens;
+  the subsequent connected login/removal/deletion passes used the loaded bundle.
+
+### Independent recruitment / erasure follow-up — 2026-11-14
+
+Latest requested scope and unfinished work live in [FREE_AGENT_MVP.md](./FREE_AGENT_MVP.md).
+This pass implements removal/access and opt-in/privacy foundations; it does not
+claim coach-specific recruitment or automated matching is finished.
+
+- Last-club removal switches PLAYER/COACH accounts to the independent portal,
+  preserves other memberships, revokes stale invitations and pauses an old
+  listing. No profile is created or published by removal.
+- Mobile refreshes `/me` on server socket revocation, foreground and a bounded
+  active-app poll. Late account responses cannot undo sign-out. The regression
+  tests exercise auth state, not a native removal recording.
+- Discovery defaults off. The legacy onboarding endpoint now honours the
+  supplied trial preference and never forces PUBLIC visibility.
+- Added transactional `MediaDeletionJob` queue for referenced account/profile/
+  individual media. Retries storage failures, waits out issued upload URLs,
+  alerts on overdue work and removes completed jobs. Local QA migration applied;
+  production migration and actual R2 deletion are not tested/deployed here.
+- Re-read profiles under the account lifecycle lock during deletion; preserve
+  fresh trial tenant scope. Validate clip/thumbnail ownership, stored metadata
+  and storage availability. Ignore foreign legacy thumbnails during erasure.
+- Expanded recruitment preferences in data export. Updated DE/EN privacy,
+  terms and deletion information in both app and website, retaining the 30-day
+  deletion commitment. Historical/orphan media and retained markers still need
+  reconciliation; policy edits are not a blanket GDPR-compliance certification.
+- Verification: API **140 suites / 1,427 passed**, 29 opt-in tests skipped in
+  the default run. Separately, **9 HTTP/PostgreSQL journeys passed** (52 with
+  UsersService tests). Mobile **139 suites / 1,060 passed**, one existing skip.
+  API/mobile typecheck, API lint, changed-mobile-file lint and API build passed.
+  Website static-copy build passed; no browser/device visual pass is claimed.
+- Full mobile lint exposed seven existing errors in untouched admin-billing,
+  CombinedHome, Text and recruitment Cards files (raw style literals / unused
+  typography imports). The full repository is not marked lint-clean.
+- No commit, push, production deployment, production migration or paid store
+  build was performed. Existing simulator API still runs the earlier code;
+  local source changes are not evidence that its current session was updated.
+
+Admin, player, coach and free-agent journeys are the release priority. Family /
+guardian journeys come later. Finish shared-state correctness before expanding
+optional Studio/AI/reward features. The website remains in scope, but its claims
+must reflect this MVP rather than the full design roadmap.
+
+- Family-management links in Verein and Kader are now behind the disabled
+  `FAMILY_FEATURE_ENABLED` launch switch. `/team-families` redirects to Home
+  without mounting its data-fetching component. No family data or API is deleted.
+- Normal onboarding hides the parent-role choice and guardian setup-code link;
+  player, coach, admin and free-agent entry points remain. Deferred-family tests
+  explicitly enable the switch, so their future coverage is preserved.
+- This is a navigation/onboarding boundary, not a claim that every legacy parent
+  endpoint/invite or consent-management route has been retired. Existing consent
+  withdrawal and age/privacy safeguards must not be removed to simplify menus.
+- Verified local German simulator: admin navigation, coach squad tools and direct
+  family-management deep-link redirect. Flow: `.maestro/mvp-family-hidden.yaml`.
+  Screenshots: `/private/tmp/anstoss-mvp-{admin,coach}-family-hidden.png`.
+- Focused checks: 29 admin/squad/family-route tests and 43 onboarding tests pass.
+  These are mocked/local UI checks, not cross-account production synchronization.
+- Final mobile regression: **138 suites / 1,049 passing tests**, one pre-existing
+  skip; exit 0. Mobile typecheck, scoped ESLint and diff whitespace checks pass.
+  Four deferred-family test failures in an initial run came from a test mock
+  getter being copied into a fixed value; corrected the test-only override and
+  reran the complete suite. No failing tests were removed or newly skipped.
+
+Next acceptance sequence (finish each before moving on):
+
+1. Player join request → admin decision → refreshed player access, including
+   rejection and cross-club denial, using shared persisted API data.
+2. Coach event/create/reschedule → player RSVP → coach counts and lineup;
+   reminders, reconnect/retry and chat must reflect confirmed server state.
+3. Free-agent profile/visibility/media → authorised recruitment/search → trial
+   invitation/response → roster transition, with paid-pool restrictions checked.
+4. Combined German/English simulator regression and website feature/price claims;
+   only then build/release checks. Do not relabel demo fixtures as API evidence.
+
+Studio is a separate five-screen backlog: Brand Kit is the only integrated screen.
+Start, Editor, Gratis-Plan and KI-Credits are reviewed incoming implementations,
+not completed simulator-tested features. See `STUDIO_REVIEW_20261114.md`.
+
+### Simple registration and duplicate identity — 2026-11-14
+
+Owner decision: no paid feed or DFB agreement dependency. Registration must work
+without an external team link, squad import or invitations. Players can be added
+later; personal email accounts remain accepted. This does not bypass ownership
+review or turn a directory listing into proof of authority.
+
+- Shared schema and mobile form now permit an omitted external link. Any supplied
+  link still uses the same HTTPS/provider validation on both client and server.
+  Invalid URL refinements now return validation failures instead of throwing.
+- Existing directory search/manual fallback is retained. Six locales explicitly
+  distinguish listed clubs from clubs already on Anstoss and explain the growing
+  directory and optional link. No dataset was imported, scraped or invented.
+- PostgreSQL name locks and normalized lookups prevent duplicate club creation
+  through either setup or claim approval, and conflicting renames. Normalization
+  covers Unicode compatibility, case and whitespace. Historical clubs without
+  directory/search-index rows are included. Manual entries reuse existing names;
+  a pending claim prevents a second applicant, while the original applicant can
+  retry idempotently. No existing club or directory data is deleted/merged.
+- Club names are checked globally as requested; generic team names are not
+  reserved globally. The team-create service rejects the same normalized display
+  name within one club. Different clubs can each have a “First team”.
+- Duplicate registration offers prefilled club search and a localized support
+  email draft requesting review/correction/deletion. It neither sends an email
+  automatically nor grants authority, freezes a club, or deletes data. Mail-app
+  failure shows the support address and explicitly says no report was sent.
+- Verification: complete API regression **137 suites / 1,413 passed** (four
+  opt-in DB suites skipped in this run); complete mobile **138 suites / 1,053
+  passed**, one pre-existing skip; shared **9 suites / 166 passed**. Dedicated
+  local PostgreSQL registration suite **6/6 passed**, including concurrent club
+  creation, concurrent claims and concurrent same-club team creation. API/mobile
+  typechecks, shared build, scoped ESLint and diff whitespace checks passed.
+- No schema migration was needed: the existing transaction and directory schema
+  support these guards. This is application-write-path enforcement, not a global
+  unique DB constraint for arbitrary external SQL/imports. Future registration
+  writers must use the shared guards. Existing ambiguous/duplicate records are
+  not automatically removed.
+- Native flow: `.maestro/connected-simple-registration.yaml` passed in German on
+  the iOS simulator against the local API and PostgreSQL, with normal OTP login.
+  Existing-club rejection, return to search, and a new application without a link
+  or players were exercised. Database readback confirmed one SUBMITTED claim,
+  null externalTeamUrl, team II and no membership granted to the applicant.
+  Screenshots: `/private/tmp/anstoss-registration-duplicate.png` and
+  `/private/tmp/anstoss-registration-submitted.png`; recording:
+  `/tmp/anstoss-simple-registration.mov`. The captured confirmation exposed old
+  copy promising a Fussball comparison/review deadline; those claims were removed
+  in all six locales and preparation marked optional. After refreshing Metro,
+  native assertions for the revised German confirmation and optional preparation
+  also passed (`/private/tmp/anstoss-registration-confirmed.png`). Final focused
+  onboarding/locale regression: 48/48 tests passed. These changes are local,
+  not deployed. Bulk join approval, roster import and the broader four-role native
+  synchronization sequence are not marked complete by these registration tests.
+
+### Connected API evidence — 2026-11-14
+
+Connected player approval follow-up (local, real API/PostgreSQL):
+
+- Fixed searched-player onboarding: the existing team selector was coach-only,
+  allowing club-only player requests. Players now select a squad too; a team
+  invitation code keeps its preselected squad. Team lookup retry now actually
+  retries. The shared team question is role-neutral in all six locales.
+- German iOS flow passed: OTP login → club search → team selection → pending
+  request. A separate QA admin session approved that exact team request through
+  the HTTP endpoint. Without a tap, login or deep link, the waiting player
+  advanced to Home showing `Anstoss QA Lokal · 1. Herren` on the next poll.
+- Database readback confirmed PLAYER membership and ACTIVE/TRIAL team access.
+  Approval is not a promotion to staff or full-player status. The earlier
+  synthetic club application was withdrawn through its normal HTTP endpoint;
+  no real registration was changed or deleted.
+- Evidence: `/private/tmp/anstoss-connected-player-{team-choice,pending,approved}.png`
+  and `/tmp/anstoss-player-approval-connected.mov`. The initial team-choice capture
+  revealed coach-specific wording, subsequently replaced with role-neutral copy.
+- Final mobile regression: **138 suites / 1,056 passed**, one pre-existing skip;
+  typecheck and scoped ESLint passed. Seven HTTP/PostgreSQL journey tests passed,
+  including rejection/reapplication, withdrawal, cross-club denial, coach RSVP
+  synchronization and free-agent transition. Those last journeys are API tests,
+  not complete native-device journeys.
+- The separate fresh-login readback helper hit the QA account's five-OTP/hour
+  limit. The already-authenticated native session and direct DB readback proved
+  approval; auth limits were not weakened or reset. Reuse sessions for extended
+  QA or wait for the limit; do not treat that helper attempt as passed.
+- Admin approval was driven via HTTP, not the admin UI. Native rejection and
+  the remaining coach/free-agent/UI acceptance sequence remain open. No release,
+  production migration, deployment or paid build was performed.
+
+Connected native QA follow-up (local only): full AppModule now has a dedicated
+loopback API harness (`apps/api/scripts/mvp-simulator.ts`), an empty migrated
+`anstoss_mvp_sim_test` database, four fictional accounts and normal OTP login.
+No provider credentials, production writes or paid builds are involved. The
+signed-out E2E link clears demo interception; other scenario links are not used.
+Metro must use `NODE_OPTIONS=--dns-result-order=ipv4first` with `--localhost`:
+otherwise its IPv6-only listener advertises an unreachable IPv4 bundle URL.
+
+The connected simulator exposed a real route-order bug: `/clubs/:clubId`
+swallowed `/clubs/search` and `/clubs/lookup`, returning empty HTTP 200 bodies
+which the mobile search interpreted as no results. Reordered the controllers
+in ClubsModule; the new HTTP regression uses production controller ordering
+and reproduced both failures before the fix. The dedicated running API was
+restarted; connected German simulator search and player approval/polling now
+pass. The searched-player team-selection gap is fixed as described above.
+Keep the remaining four-role acceptance sequence open; club membership alone
+is not evidence of squad access.
+
+Reproduction tools: `.maestro/connected-player-request.yaml`,
+`.maestro/connected-player-approved.yaml` and the local-only
+`apps/api/scripts/mvp-simulator-client.mjs`. The approval script must only run
+after the native request exists. Its session tokens are never printed.
+
+Added `apps/api/src/clubs/mvp-journeys.db.spec.ts`: **7 passing HTTP/PostgreSQL
+integration tests**, with separate signed sessions, actual auth/role/age guards,
+tenant middleware/interceptor, exception filter and domain services. The fixture
+client only seeds accounts/clubs/teams; journey transitions use actual HTTP routes.
+
+Verified:
+
+- Player request → admin queue → approval → refreshed `/me`, decision polling and
+  protected team access. Player/coach/foreign-admin approval attempts are denied;
+  repeat approval does not duplicate membership, roster or audit entries.
+- Rejection reason reaches the applicant. Reapplication increments the revision;
+  a stale review cannot approve it. Withdrawal is owner-only and grants no access.
+  A foreign-club team cannot be injected into a join request.
+- Existing lifecycle distinction: normal club approval grants ACTIVE/TRIAL team
+  access. Coach acceptance subsequently grants FULL squad access; trial players
+  are intentionally excluded from squad-size/readiness counts. The test performs
+  both steps rather than silently seeding FULL access.
+- Coach creates a match → player sees it and responds → coach reads the response
+  in summary/feed. Rescheduling marks the player's answer stale; reconfirmation
+  clears that state. Repeated responses retain one RSVP row. A real chat system
+  notice is persisted. Lineup drafts are hidden until squad publication.
+- Free-agent PRIVATE/CLUB_ONLY visibility, postal-code redaction, authorised trial
+  invitation, player acceptance, trial-session-only feed, offer, membership
+  application validation and admin approval. Trial roster acceptance cannot bypass
+  the application. Joining produces FULL access, marks the trial JOINED and takes
+  the profile off the transfer list.
+
+Full API regression with all three opt-in DB suites enabled: **139 suites / 1,429
+tests passed**, including the existing 7 reminder and 7 Studio PostgreSQL tests.
+API typecheck, scoped ESLint and whitespace checks pass. No schema migration was
+needed for these exercised transitions; no production database was modified.
+
+Boundaries: this uses the existing isolated local PostgreSQL 17 test cluster, not
+production PostgreSQL 18. Outbound push and socket transports are stubbed (their
+emit calls are checked, not delivery); OTP/email, Redis rate limits, platform
+kill-switch wiring, live media storage and store billing are not exercised by the
+new HTTP suite. The free-agent test establishes current visibility/recruitment
+behaviour, **not premium-pool entitlement enforcement**. It does not establish that
+every mobile screen refreshes correctly against a live API. No release claim.
+
+Run the new suite with an explicitly supplied local `*_test` URL:
+
+```sh
+ANSTOSS_MVP_TEST_DATABASE_URL=postgresql://USER@127.0.0.1:PORT/anstoss_test npm test --workspace=@anstoss/api -- --runTestsByPath src/clubs/mvp-journeys.db.spec.ts
+```
+
+It never falls back to `DATABASE_URL`; it rejects non-local/non-test targets and
+removes only fixture IDs created by its own run. Without the opt-in URL it skips.
+Remaining acceptance work: connected mobile refresh/reconnect and German/English
+journeys; chat translation/delivery; free-agent media and premium gating; website
+MVP/price claims and the release build checks. Family journeys remain deferred.
+
 ## Confirmed MVP rule: live-match provenance
 
 Confirmed by the product owner on 2026-11-13:
@@ -137,6 +428,25 @@ verified fixes and avoid duplicate implementations. Do not blanket-merge WIP.
    - Coordinated deployment and iOS/Android test builds; no paid builds before gates pass.
 
 ## Evidence
+
+### Brand Kit and session-scoped plan checkpoint — 2026-11-14
+
+- Added Brand Kit with real logo fallback, colour management, font selection and
+  confirmed save/error/retry states; read-only roles remain read-only. Six locales
+  are wired. No credit balance, connected social account or AI action is invented.
+- Fixed a real role-switch bug in `useClubPlan`: a club-only global cache could
+  reuse the player's read-only plan for an admin in the same club. Plan snapshots
+  are now scoped to account/token/club/role/offices, with stale-request rejection,
+  runtime validation and confirmed trial updates shared only within that scope.
+  Abo shows loading/retry instead of a fabricated free-plan/read-only state.
+- German Brand Kit Maestro passed sponsor/colour settings navigation, font
+  changes and re-entry, including XL text. Dark screenshot inspected. Local mock
+  trial only; no paid subscription or production plan was changed. Light mode,
+  small-phone, Android and measured release-motion acceptance remain pending.
+- Full mobile suite before the family-scope follow-up: 137 suites / 1,045 passing
+  tests, one pre-existing skip. Focused plan-hook tests: 11; Abo tests: four.
+- Source checkpoints are local/uncommitted; no production migration, deploy,
+  store build, or push occurred during this review.
 
 ### Incoming Studio checkpoint — 2026-11-14
 

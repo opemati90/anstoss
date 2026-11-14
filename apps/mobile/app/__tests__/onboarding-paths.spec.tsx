@@ -16,6 +16,10 @@ type Nav = { pathname: string; params: Record<string, string> }
 let mockNav: Nav[] = []
 let mockParams: Record<string, string> = {}
 const mockApi = jest.fn()
+jest.mock('../../src/launchFeatures', () => ({
+  ...jest.requireActual('../../src/launchFeatures'),
+  FAMILY_FEATURE_ENABLED: false,
+}))
 
 type World = {
   signedIn: boolean
@@ -355,6 +359,9 @@ const requestAs = (chip: string, extra?: (s: RenderAPI) => Promise<void>) => asy
     fireEvent.press(s.getByTestId('club-role-player'))
     fireEvent.press(s.getByTestId(chip))
   }
+  if (chip === 'club-role-player') {
+    fireEvent.press(await s.findByTestId('club-team-team-1'))
+  }
   if (extra) await extra(s)
   await act(async () => {
     fireEvent.press(s.getByTestId('club-send-request'))
@@ -381,6 +388,7 @@ function assertPath(path: OnboardingPathKey, screens: OnboardingScreenKey[]) {
 }
 
 beforeEach(async () => {
+  jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = false
   jest.clearAllMocks()
   await AsyncStorage.clear()
   mockNav = []
@@ -410,6 +418,7 @@ describe('traced onboarding paths (caps)', () => {
   })
 
   it('parent without an invite: 4 screens, role chosen inline on the club row', async () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     const { screens, end } = await walk('/', {
       welcome: typeEmailOnWelcome(),
       code: typeCode,
@@ -518,6 +527,7 @@ describe('traced onboarding paths (caps)', () => {
   })
 
   it('guardian with a setup code: from "Zu deinem Verein", no club needed, team from the invite', async () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     const { screens, end } = await walk('/', {
       welcome: typeEmailOnWelcome(),
       code: typeCode,

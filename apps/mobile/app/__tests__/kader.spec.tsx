@@ -258,6 +258,13 @@ describe('Kader tab', () => {
   })
 
   describe('as coach', () => {
+    it('keeps family management out of the MVP squad tools', async () => {
+      const screen = render(<KaderScreen />)
+      await screen.findByText('kader.summary.all|4')
+      expect(screen.queryByTestId('kader-menu-parents')).toBeNull()
+      expect(screen.getByTestId('kader-menu-requests')).toBeTruthy()
+    })
+
     beforeEach(() => {
       authState.user = { id: 'user-coach-1' }
       authState.activeRoleMode = 'COACH'

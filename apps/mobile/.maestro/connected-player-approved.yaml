@@ -1,0 +1,12 @@
+appId: com.renuirug.anstoss
+---
+# Start this after the HTTP admin approves the request while the native player
+# remains on request-pending. No login, deep link, tap or refresh in this flow.
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 60000
+- assertVisible: '.*Anstoss QA Lokal.*'
+- assertNotVisible:
+    id: pending-check
+- takeScreenshot: /private/tmp/anstoss-connected-player-approved

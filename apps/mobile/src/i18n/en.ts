@@ -9,7 +9,10 @@ import { deepMerge } from './deepMerge'
 import generated from './generated/en'
 import redesign from './redesign/en' // 2026-11 Anstoss Redesign strings
 
+import { studioEn } from './studio/en'
+
 const base = {
+  studio: studioEn,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
   a11y: {
@@ -161,6 +164,7 @@ const base = {
     signUp: 'Create account',
     logout: 'Log out',
     sessionExpired: 'Your session has expired. Please log in again.',
+    sessionExpiredTitle: 'Please sign in again',
     tagline: 'Your club. Everything in one place.',
     headerEyebrow: 'Club operations',
     headerSupport:

@@ -18,6 +18,7 @@ import { paths, type TeamOption, type TrainingOption } from '../api'
 import { formatSessionDay, formatTime, POSITIONS, positionLabel, toIsoDate } from '../format'
 import { useApiQuery } from '../query'
 import { RatingStars } from './Primitives'
+import { RecruitmentRolePicker } from './RecruitmentRolePicker'
 
 const MAX_SESSIONS = 3
 
@@ -100,7 +101,12 @@ export function SessionPicker({
         <Text variant="subheadline" color="error">
           {t('wechsel.sessionsError')}
         </Text>
-        <Button label={t('common.retry')} variant="plain" size="sm" onPress={() => void query.refetch()} />
+        <Button
+          label={t('common.retry')}
+          variant="plain"
+          size="sm"
+          onPress={() => void query.refetch()}
+        />
       </View>
     )
   }
@@ -142,7 +148,10 @@ export function SessionPicker({
           >
             <View style={styles.optionText}>
               <Text variant="body" weight="semibold" color="primary">
-                {formatSessionDay(event.date)} · <Text variant="body" tabular>{formatTime(event.date)}</Text>
+                {formatSessionDay(event.date)} ·{' '}
+                <Text variant="body" tabular>
+                  {formatTime(event.date)}
+                </Text>
               </Text>
               <Text variant="footnote" color="secondary" numberOfLines={1}>
                 {[event.title, event.location].filter(Boolean).join(' · ')}
@@ -222,7 +231,10 @@ export function InviteSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} heightPct={88}>
       <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
-        <SheetTitle title={t('wechsel.inviteTitle', { name: playerName })} hint={t('wechsel.inviteHint')} />
+        <SheetTitle
+          title={t('wechsel.inviteTitle', { name: playerName })}
+          hint={t('wechsel.inviteHint')}
+        />
         {!lockTeam && teams.length > 1 ? (
           <View style={styles.field}>
             <Text variant="subheadline" weight="semibold" color="secondary">
@@ -248,7 +260,12 @@ export function InviteSheet({
             </Text>
           </View>
           {teamId ? (
-            <SessionPicker clubId={clubId} teamId={teamId} selected={sessions} onChange={setSessions} />
+            <SessionPicker
+              clubId={clubId}
+              teamId={teamId}
+              selected={sessions}
+              onChange={setSessions}
+            />
           ) : null}
         </View>
         <FormInput
@@ -311,7 +328,9 @@ export function FeedbackSheet({
           title={t('wechsel.feedbackTitle', { name: invite?.player.name ?? '' })}
           hint={t('wechsel.feedbackHint')}
         />
-        <View style={[styles.switchRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}>
+        <View
+          style={[styles.switchRow, { borderColor: c.borderDefault, backgroundColor: c.surface }]}
+        >
           <Text variant="body" color="primary" style={styles.flex}>
             {t('wechsel.feedbackAttended')}
           </Text>
@@ -452,6 +471,7 @@ export function GesuchSheet({
   submitting: boolean
   onSubmit: (input: {
     teamId: string
+    recruitmentRole: 'PLAYER' | 'COACH'
     positions: Array<(typeof POSITIONS)[number]>
     note?: string
     expiresAt?: string
@@ -459,6 +479,7 @@ export function GesuchSheet({
 }) {
   const { t } = useTranslation()
   const [teamId, setTeamId] = useState<string | null>(teams[0]?.id ?? null)
+  const [recruitmentRole, setRecruitmentRole] = useState<'PLAYER' | 'COACH'>('PLAYER')
   const [positions, setPositions] = useState<Array<(typeof POSITIONS)[number]>>([])
   const [note, setNote] = useState('')
   const [weeks, setWeeks] = useState<'2' | '4' | '8' | 'open'>('4')
@@ -466,6 +487,7 @@ export function GesuchSheet({
   useEffect(() => {
     if (visible) {
       setTeamId(teams[0]?.id ?? null)
+      setRecruitmentRole('PLAYER')
       setPositions([])
       setNote('')
       setWeeks('4')
@@ -479,6 +501,7 @@ export function GesuchSheet({
     <BottomSheet visible={visible} onClose={onClose} heightPct={88}>
       <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
         <SheetTitle title={t('wechsel.gesuchNewTitle')} hint={t('wechsel.gesuchNewHint')} />
+        <RecruitmentRolePicker value={recruitmentRole} onChange={setRecruitmentRole} />
         {teams.length > 1 ? (
           <View style={styles.field}>
             <Text variant="subheadline" weight="semibold" color="secondary">
@@ -487,21 +510,25 @@ export function GesuchSheet({
             <TeamPicker teams={teams} value={teamId} onChange={setTeamId} />
           </View>
         ) : null}
-        <View style={styles.field}>
-          <Text variant="subheadline" weight="semibold" color="secondary">
-            {t('wechsel.fieldPositions')}
-          </Text>
-          <FilterChipRow
-            wrap
-            chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
-            selected={positions}
-            onToggle={(key) =>
-              setPositions((current) =>
-                current.includes(key) ? current.filter((value) => value !== key) : [...current, key],
-              )
-            }
-          />
-        </View>
+        {recruitmentRole === 'PLAYER' ? (
+          <View style={styles.field}>
+            <Text variant="subheadline" weight="semibold" color="secondary">
+              {t('wechsel.fieldPositions')}
+            </Text>
+            <FilterChipRow
+              wrap
+              chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
+              selected={positions}
+              onToggle={(key) =>
+                setPositions((current) =>
+                  current.includes(key)
+                    ? current.filter((value) => value !== key)
+                    : [...current, key],
+                )
+              }
+            />
+          </View>
+        ) : null}
         <FormInput
           label={t('wechsel.fieldNote')}
           value={note}
@@ -533,9 +560,20 @@ export function GesuchSheet({
           label={t('wechsel.gesuchPublish')}
           onPress={() =>
             teamId &&
-            onSubmit({ teamId, positions, note: note.trim() || undefined, expiresAt })
+            onSubmit({
+              teamId,
+              recruitmentRole,
+              positions: recruitmentRole === 'COACH' ? [] : positions,
+              note: note.trim() || undefined,
+              expiresAt,
+            })
           }
-          disabled={!teamId || positions.length === 0 || submitting}
+          disabled={
+            !teamId ||
+            (recruitmentRole === 'PLAYER' && positions.length === 0) ||
+            positions.length > 4 ||
+            submitting
+          }
           loading={submitting}
           fullWidth
         />

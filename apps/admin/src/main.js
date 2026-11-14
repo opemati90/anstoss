@@ -72,10 +72,11 @@ async function responseErrorMessage(res, path) {
 
   if (contentType.includes('application/json')) {
     const body = await res.json().catch(() => null)
-    const message = body?.message || body?.error || body?.detail
+    const message = body?.message || body?.error?.message || body?.error || body?.detail
     if (Array.isArray(message)) return message.join(', ')
     if (typeof message === 'string' && message.trim()) return message.trim()
-    if (body) return JSON.stringify(body).slice(0, 500)
+    // Never dump an API envelope or internal request metadata into the UI.
+    if (body) return res.statusText || 'Please try again or contact support.'
   }
 
   const text = await res.text().catch(() => '')
@@ -541,7 +542,7 @@ async function openClubDetail(clubId) {
         <div><strong>${club.counts.events}</strong><span>Events</span></div>
       </div>
       <section class="detail-section">
-        <p class="eyebrow">Subscription</p>
+        <h3>Subscription</h3>
         <div class="detail-state">${subscription}</div>
         ${
           club.subscription?.currentPeriodEnd
@@ -550,11 +551,11 @@ async function openClubDetail(clubId) {
         }
       </section>
       <section class="detail-section">
-        <p class="eyebrow">Owners & admins</p>
+        <h3>Owners & admins</h3>
         <ul class="detail-owners">${owners}</ul>
       </section>
       <section class="detail-section">
-        <p class="eyebrow">Plan override</p>
+        <h3>Plan override</h3>
         <p class="muted-line">Effective tier: <strong>${esc(entitlements.tier)}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players} player seats</p>
         <ul class="detail-owners">${grants}</ul>
         <div class="toolbar">

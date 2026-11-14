@@ -1,0 +1,73 @@
+appId: com.renuirug.anstoss
+---
+# Isolated local API on 3167; no simulated API responses. QA_CLUB_NAME must
+# be a unique synthetic club name. Never run this against production.
+- runFlow: subflows/connected-login.yaml
+- extendedWaitUntil:
+    visible:
+      id: find-club-search
+    timeout: 30000
+- tapOn:
+    id: find-club-search
+- inputText: 'Anstoss QA Lokal'
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: 'find-club-row-.*'
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: club-create-link
+    direction: DOWN
+- tapOn:
+    id: club-create-link
+- scrollUntilVisible:
+    element:
+      id: club-setup-team-name-input
+    direction: DOWN
+- tapOn:
+    id: club-setup-team-name-input
+- inputText: 'II'
+- pressKey: Enter
+- assertVisible: '.*Spieler später.*'
+- tapOn:
+    id: club-setup-submit
+- extendedWaitUntil:
+    visible:
+      id: club-setup-report-registration
+    timeout: 15000
+- takeScreenshot: /private/tmp/anstoss-registration-duplicate
+- tapOn:
+    id: club-setup-find-existing
+- extendedWaitUntil:
+    visible:
+      id: find-club-search
+    timeout: 10000
+- tapOn:
+    id: find-club-search
+- eraseText
+- inputText: '${QA_CLUB_NAME}'
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: club-create-link
+    direction: DOWN
+- tapOn:
+    id: club-create-link
+- scrollUntilVisible:
+    element:
+      id: club-setup-team-name-input
+    direction: DOWN
+- tapOn:
+    id: club-setup-team-name-input
+- eraseText
+- inputText: 'II'
+- pressKey: Enter
+- takeScreenshot: /private/tmp/anstoss-registration-no-link
+- tapOn:
+    id: club-setup-submit
+- extendedWaitUntil:
+    visible:
+      id: home-verification-details
+    timeout: 15000
+- takeScreenshot: /private/tmp/anstoss-registration-submitted

@@ -22,6 +22,7 @@ import {
 } from '../../src/theme/tokens'
 import { apiErrorMessage } from '../../src/features/wechsel/components/Sheets'
 import { DatePickerSheet } from '../../src/features/wechsel/components/DatePickerSheet'
+import { RecruitmentRolePicker } from '../../src/features/wechsel/components/RecruitmentRolePicker'
 import {
   ageFromDob,
   formatDate,
@@ -39,7 +40,9 @@ type Availability = 'now' | 'winter' | 'summer' | 'date'
 /** Next 1 January / 1 July: the start of the Winter / Sommer Wechselperiode. */
 function nextStart(month: 0 | 6, from = new Date()) {
   const candidate = new Date(from.getFullYear(), month, 1)
-  return candidate.getTime() > from.getTime() ? candidate : new Date(from.getFullYear() + 1, month, 1)
+  return candidate.getTime() > from.getTime()
+    ? candidate
+    : new Date(from.getFullYear() + 1, month, 1)
 }
 
 /**
@@ -53,13 +56,15 @@ export default function FreeAgentOnboarding() {
   const { user, memberships } = useAuth()
   const onExpired = useSessionExpiryHandler()
   // Onboarding path: welcome → code → Wie heißt du? → this (4 of 4).
-  const progress = (memberships ?? []).length === 0 ? onboardingProgress('freeAgent', 'freeAgentProfile') : null
+  const progress =
+    (memberships ?? []).length === 0 ? onboardingProgress('freeAgent', 'freeAgentProfile') : null
   const [error, setError] = useState<string | null>(null)
   // Review fix H2: no free-agent profile under 16; 16–17 are visible to clubs only.
   const age = ageFromDob(user?.dateOfBirth)
   const isUnder16 = age !== null && age < 16
   const isMinor = age !== null && age < 18
   const [position, setPosition] = useState<(typeof POSITIONS)[number] | null>(null)
+  const [recruitmentRole, setRecruitmentRole] = useState<'PLAYER' | 'COACH'>('PLAYER')
   const [foot, setFoot] = useState<(typeof FEET)[number] | null>(null)
   const [postalCode, setPostalCode] = useState('')
   const [radius, setRadius] = useState<number>(25)
@@ -67,7 +72,7 @@ export default function FreeAgentOnboarding() {
   const [availability, setAvailability] = useState<Availability>('now')
   const [customDate, setCustomDate] = useState<Date | null>(null)
   const [pickDate, setPickDate] = useState(false)
-  const [active, setActive] = useState(true)
+  const [active, setActive] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const winter = useMemo(() => nextStart(0), [])
@@ -82,7 +87,7 @@ export default function FreeAgentOnboarding() {
           : null
 
   const plzValid = /^\d{5}$/.test(postalCode)
-  const canContinue = Boolean(position) && plzValid && !saving
+  const canContinue = (recruitmentRole === 'COACH' || Boolean(position)) && plzValid && !saving
 
   const finish = async () => {
     setSaving(true)
@@ -93,8 +98,9 @@ export default function FreeAgentOnboarding() {
       await api('/me/free-agent-profile', {
         method: 'POST',
         body: {
-          position,
-          preferredFoot: foot,
+          recruitmentRole,
+          position: recruitmentRole === 'PLAYER' ? position : null,
+          preferredFoot: recruitmentRole === 'PLAYER' ? foot : null,
           postalCode,
           searchRadiusKm: radius,
           highestLeague: league,
@@ -159,25 +165,30 @@ export default function FreeAgentOnboarding() {
             description={t('spielerprofil.minorBody')}
           />
         ) : null}
-        <Field label={t('spielerprofil.fieldPosition')}>
-          <FilterChipRow
-            wrap
-            singleSelect
-            chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
-            selected={position}
-            onToggle={setPosition}
-          />
-        </Field>
-        <Field label={t('spielerprofil.fieldFoot')}>
-          <FilterChipRow
-            wrap
-            singleSelect
-            chips={FEET.map((key) => ({ key, label: t(`spielerprofil.foot.${key}`) }))}
-            selected={foot}
-            onToggle={setFoot}
-          />
-        </Field>
-        <Field label={t('spielerprofil.sectionArea')} hint={t('spielerprofil.areaHint')}>
+        <RecruitmentRolePicker value={recruitmentRole} onChange={setRecruitmentRole} />
+        {recruitmentRole === 'PLAYER' ? (
+          <>
+            <Field label={t('spielerprofil.fieldPosition')}>
+              <FilterChipRow
+                wrap
+                singleSelect
+                chips={POSITIONS.map((key) => ({ key, label: positionLabel(t, key) ?? key }))}
+                selected={position}
+                onToggle={setPosition}
+              />
+            </Field>
+            <Field label={t('spielerprofil.fieldFoot')}>
+              <FilterChipRow
+                wrap
+                singleSelect
+                chips={FEET.map((key) => ({ key, label: t(`spielerprofil.foot.${key}`) }))}
+                selected={foot}
+                onToggle={setFoot}
+              />
+            </Field>
+          </>
+        ) : null}
+        <Field label={t('spielerprofil.sectionArea')} hint={t('recruitment.region')}>
           <FormInput
             label={t('spielerprofil.fieldPostalCode')}
             value={postalCode}
@@ -199,7 +210,10 @@ export default function FreeAgentOnboarding() {
           <FilterChipRow
             wrap
             singleSelect
-            chips={LEAGUE_OPTIONS.map((key) => ({ key: key as string, label: leagueLabel(t, key) ?? key }))}
+            chips={LEAGUE_OPTIONS.map((key) => ({
+              key: key as string,
+              label: leagueLabel(t, key) ?? key,
+            }))}
             selected={league}
             onToggle={setLeague}
           />
@@ -265,7 +279,15 @@ export default function FreeAgentOnboarding() {
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
     <View style={styles.field}>
       <Text variant="subheadline" weight="semibold" color="secondary">

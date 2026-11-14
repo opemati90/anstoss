@@ -900,8 +900,8 @@ describe('EventsService', () => {
         date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         _count: { rsvps: 1, checkIns: 0 },
         rsvps: [
-          { userId: 'player-1', status: 'NO', reason: 'INJURED' },
-          { userId: 'player-2', status: 'NO', reason: 'PERSONAL' },
+          { userId: 'player-1', status: 'NO', reason: 'INJURED', note: 'My private note' },
+          { userId: 'player-2', status: 'NO', reason: 'PERSONAL', note: 'Teammate private note' },
         ],
         checkIns: [],
         team: { id: 'team-1', name: 'A-Team', _count: { access: 14 } },
@@ -914,8 +914,8 @@ describe('EventsService', () => {
       expect(result.teamMemberCount).toBeUndefined()
       expect(result.readiness).toBeUndefined()
       expect(result.rsvps).toEqual([
-        expect.objectContaining({ userId: 'player-1', reason: 'INJURED' }),
-        expect.objectContaining({ userId: 'player-2', reason: undefined }),
+        expect.objectContaining({ userId: 'player-1', status: 'NO', reason: 'INJURED', note: 'My private note' }),
+        expect.objectContaining({ userId: 'player-2', status: 'NO', reason: undefined, note: undefined }),
       ])
     })
 

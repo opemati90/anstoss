@@ -107,6 +107,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
 
 describe('PlayerHome', () => {
   beforeEach(() => {
+    mockApi.mockReset()
     jest.spyOn(Date, 'now').mockReturnValue(TEST_NOW_MS)
     const { router } = require('expo-router')
     router.push.mockReset()
@@ -162,6 +163,43 @@ describe('PlayerHome', () => {
         expect.stringMatching(/\/events\/e1\/rsvp$/),
         expect.objectContaining({ method: 'PUT', body: { status: 'YES' } }),
       )
+    })
+  })
+
+  it('opens the response list without requiring the player to answer first', async () => {
+    const view = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
+    fireEvent.press(await view.findByTestId('home-hero-responses'))
+    expect(require('expo-router').router.push).toHaveBeenCalledWith({
+      pathname: '/event-detail',
+      params: { eventId: 'e1' },
+    })
+    expect(mockApi.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(false)
+  })
+
+  it('opens attendance rather than the external match screen for linked matches', async () => {
+    const date = new Date(TEST_NOW_MS + 86400000).toISOString()
+    mockApi.mockImplementation(async (path: string) => {
+      if (path.includes('/events?'))
+        return [
+          {
+            id: 'e1',
+            type: 'MATCH',
+            title: 'Match',
+            date,
+            myRsvp: 'NO',
+            yesCount: 4,
+            maybeCount: 2,
+            noCount: 1,
+          },
+        ]
+      if (path.includes('/fixtures')) return [fixture({ eventId: 'e1', kickoffAt: date })]
+      return []
+    })
+    const view = render(wrap(<PlayerHome clubId="club-1" teamId="team-1" />))
+    fireEvent.press(await view.findByTestId('home-hero-responses'))
+    expect(require('expo-router').router.push).toHaveBeenCalledWith({
+      pathname: '/event-detail',
+      params: { eventId: 'e1' },
     })
   })
 

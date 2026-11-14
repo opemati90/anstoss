@@ -134,6 +134,7 @@ export default {
       confirmNo: "Declined. Your coach has been told.",
       confirmYes: "You're in. You're one of {{count}}.",
       giveReason: "Add a reason",
+      viewResponses: "Who's coming? View responses",
       seasonLine: "{{appearances}} games · {{goals}} goals · {{attended}} of {{total}} trainings",
       teamRecord: "Team {{wins}}-{{draws}}-{{losses}}",
     },

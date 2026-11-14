@@ -18,6 +18,7 @@ import {
 import { SCREEN_PADDING, SPACING_LG, SPACING_MD, SPACING_SM } from '../../../theme/tokens'
 import { buildQuery, paths, wechselApi, type TeamOption } from '../api'
 import { PlayerRow } from '../components/Cards'
+import { RecruitmentRolePicker } from '../components/RecruitmentRolePicker'
 import { CardListSkeleton } from '../components/Primitives'
 import { apiErrorMessage, InviteSheet } from '../components/Sheets'
 import { LEAGUE_OPTIONS, POSITIONS, leagueLabel, positionLabel } from '../format'
@@ -59,7 +60,11 @@ export function SpielersucheTab({
   const [sentIds, setSentIds] = useState<ReadonlySet<string>>(new Set())
   const canInvite = Boolean(clubId) && teams.length > 0
 
-  const sendInvite = async (input: { teamId: string; sessionEventIds: string[]; message?: string }) => {
+  const sendInvite = async (input: {
+    teamId: string
+    sessionEventIds: string[]
+    message?: string
+  }) => {
     if (!clubId || !inviteTarget) return
     setSending(true)
     try {
@@ -82,6 +87,7 @@ export function SpielersucheTab({
   const [text, setText] = useState('')
   const [debounced, setDebounced] = useState('')
   const [position, setPosition] = useState<'ALL' | (typeof POSITIONS)[number]>('ALL')
+  const [recruitmentRole, setRecruitmentRole] = useState<'PLAYER' | 'COACH'>('PLAYER')
   const [postalCode, setPostalCode] = useState<string | null>(null)
   const [radius, setRadius] = useState<number>(radiusProp ?? 25)
   const [league, setLeague] = useState<string | null>(null)
@@ -97,14 +103,15 @@ export function SpielersucheTab({
 
   useEffect(() => {
     setPageSize(PAGE)
-  }, [debounced, position, postalCode, radius, league])
+  }, [debounced, position, postalCode, radius, league, recruitmentRole])
 
   const path = useMemo(
     () =>
       paths.freeAgents(
         buildQuery({
           query: debounced.length >= 2 ? debounced : null,
-          position: position === 'ALL' ? null : position,
+          recruitmentRole,
+          position: position === 'ALL' || recruitmentRole === 'COACH' ? null : position,
           postalCode,
           // Board view: without a PLZ the server centres on the club's ground.
           radiusKm: postalCode || board ? radius : null,
@@ -113,12 +120,13 @@ export function SpielersucheTab({
           sort: 'recent',
         }),
       ),
-    [debounced, position, postalCode, radius, league, pageSize, board],
+    [debounced, position, postalCode, radius, league, pageSize, board, recruitmentRole],
   )
   const query = useApiQuery<FreeAgentListResponse>(path)
   const items = query.data?.items ?? []
   const total = query.data?.total ?? 0
-  const hasFilters = position !== 'ALL' || Boolean(postalCode) || Boolean(league) || debounced.length >= 2
+  const hasFilters =
+    position !== 'ALL' || Boolean(postalCode) || Boolean(league) || debounced.length >= 2
 
   const resetFilters = () => {
     setText('')
@@ -165,7 +173,9 @@ export function SpielersucheTab({
               onInvite={
                 canInvite ? () => setInviteTarget({ id: player.id, name: player.name }) : undefined
               }
-              onPress={() => router.push({ pathname: '/free-agent/[id]', params: { id: player.id } })}
+              onPress={() =>
+                router.push({ pathname: '/free-agent/[id]', params: { id: player.id } })
+              }
             />
           ))}
         </SectionGroup>
@@ -191,33 +201,34 @@ export function SpielersucheTab({
   )
   const filters = (
     <View style={styles.filters}>
-        <Button
-          size="sm"
-          variant={postalCode ? 'tinted' : 'bordered'}
-          label={
-            postalCode
-              ? t('wechsel.areaValue', { plz: postalCode, km: radius })
-              : t('wechsel.areaAny')
-          }
-          leftIcon={<Icon name="mappin" size="sm" color={postalCode ? 'tint' : 'secondary'} />}
-          onPress={() => {
-            setDraftPlz(postalCode ?? '')
-            setDraftRadius(radius)
-            setSheet('area')
-          }}
-        />
-        <Button
-          size="sm"
-          variant={league ? 'tinted' : 'bordered'}
-          label={league ? (leagueLabel(t, league) ?? league) : t('wechsel.leagueAny')}
-          leftIcon={<Icon name="trophy" size="sm" color={league ? 'tint' : 'secondary'} />}
-          onPress={() => setSheet('league')}
-        />
-      </View>
+      <Button
+        size="sm"
+        variant={postalCode ? 'tinted' : 'bordered'}
+        label={
+          postalCode
+            ? t('wechsel.areaValue', { plz: postalCode, km: radius })
+            : t('wechsel.areaAny')
+        }
+        leftIcon={<Icon name="mappin" size="sm" color={postalCode ? 'tint' : 'secondary'} />}
+        onPress={() => {
+          setDraftPlz(postalCode ?? '')
+          setDraftRadius(radius)
+          setSheet('area')
+        }}
+      />
+      <Button
+        size="sm"
+        variant={league ? 'tinted' : 'bordered'}
+        label={league ? (leagueLabel(t, league) ?? league) : t('wechsel.leagueAny')}
+        leftIcon={<Icon name="trophy" size="sm" color={league ? 'tint' : 'secondary'} />}
+        onPress={() => setSheet('league')}
+      />
+    </View>
   )
 
   return (
     <View style={[styles.root, board && styles.boardRoot]}>
+      <RecruitmentRolePicker value={recruitmentRole} onChange={setRecruitmentRole} />
       {board ? null : search}
       <FilterChipRow
         singleSelect
@@ -311,7 +322,10 @@ export function SpielersucheTab({
             singleSelect
             chips={[
               { key: 'ANY', label: t('wechsel.leagueAny') },
-              ...LEAGUE_OPTIONS.map((key) => ({ key: key as string, label: leagueLabel(t, key) ?? key })),
+              ...LEAGUE_OPTIONS.map((key) => ({
+                key: key as string,
+                label: leagueLabel(t, key) ?? key,
+              })),
             ]}
             selected={league ?? 'ANY'}
             onToggle={(key) => {

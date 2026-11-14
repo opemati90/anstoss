@@ -16,11 +16,7 @@ import type {
   TeamGroupType,
   TeamRole,
 } from './roles'
-import type {
-  ClubCapability,
-  ClubOperationalRole,
-  RegistrationRole,
-} from './club-operations'
+import type { ClubCapability, ClubOperationalRole, RegistrationRole } from './club-operations'
 import type {
   FreeAgentVisibility,
   PlayerPosition,
@@ -205,11 +201,7 @@ export interface EventFeedItem extends Event {
   carpoolSummary?: import('../schemas/home').CarpoolSummary | null
 }
 
-export type EventReadinessStatus =
-  | 'READY'
-  | 'WATCH'
-  | 'AT_RISK'
-  | 'NEEDS_SETUP'
+export type EventReadinessStatus = 'READY' | 'WATCH' | 'AT_RISK' | 'NEEDS_SETUP'
 
 export type EventReadinessSeverity = 'info' | 'warning' | 'critical'
 
@@ -265,11 +257,7 @@ export type EventReadinessBriefingKey =
   | 'availability_review'
   | 'final_count'
 
-export type EventReadinessBriefingParamValue =
-  | string
-  | number
-  | boolean
-  | null
+export type EventReadinessBriefingParamValue = string | number | boolean | null
 
 export interface EventReadinessBriefing {
   key: EventReadinessBriefingKey
@@ -362,11 +350,7 @@ export type RosterAbsence = TeamMemberAbsence | 'UNAVAILABLE'
 
 /** Why the viewer cannot open a private chat with this member (H2). */
 export type RosterMessageBlockReason =
-  | 'SELF'
-  | 'AGE_UNVERIFIED'
-  | 'MINOR_BLOCKED'
-  | 'NEEDS_GUARDIAN_LINK'
-  | 'BLOCKED'
+  'SELF' | 'AGE_UNVERIFIED' | 'MINOR_BLOCKED' | 'NEEDS_GUARDIAN_LINK' | 'BLOCKED'
 
 export interface RosterOpsMemberSummary {
   id: string
@@ -554,15 +538,7 @@ export interface CarpoolBoard {
 }
 
 export type MessageType =
-  | 'TEXT'
-  | 'VOICE'
-  | 'IMAGE'
-  | 'VIDEO'
-  | 'FILE'
-  | 'POLL'
-  | 'RSVP_POLL'
-  | 'LINEUP'
-  | 'SYSTEM'
+  'TEXT' | 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE' | 'POLL' | 'RSVP_POLL' | 'LINEUP' | 'SYSTEM'
 
 export interface MessageAttachmentMeta {
   /** Voice notes: duration in milliseconds */
@@ -635,19 +611,9 @@ export interface ChatMessage extends Message {
 
 export type PinnedMessage = ChatMessage
 
-export type ChannelKind =
-  | 'TEAM'
-  | 'COACHES'
-  | 'PARENTS'
-  | 'ANNOUNCEMENTS'
-  | 'CLUB_NEWS'
-  | 'CUSTOM'
+export type ChannelKind = 'TEAM' | 'COACHES' | 'PARENTS' | 'ANNOUNCEMENTS' | 'CLUB_NEWS' | 'CUSTOM'
 
-export type ChannelVisibility =
-  | 'MEMBERS'
-  | 'COACHES_ONLY'
-  | 'PARENTS_ONLY'
-  | 'ADMINS_ONLY'
+export type ChannelVisibility = 'MEMBERS' | 'COACHES_ONLY' | 'PARENTS_ONLY' | 'ADMINS_ONLY'
 
 export interface Channel {
   id: string
@@ -708,7 +674,8 @@ export interface InboxItem {
  * MINOR_ADULT: adult↔under-16 without a guardian link.
  * MINOR_MINOR: two under-16s (never private; use the team group).
  */
-export type ChatContactIneligibleReason = 'MINOR_ADULT' | 'MINOR_MINOR' | 'AGE_UNVERIFIED' | 'BLOCKED'
+export type ChatContactIneligibleReason =
+  'MINOR_ADULT' | 'MINOR_MINOR' | 'AGE_UNVERIFIED' | 'BLOCKED'
 
 export interface ChatContact {
   userId: string
@@ -912,10 +879,7 @@ export interface ParentalConsent {
   updatedAt: string
 }
 
-export type AgeGateStatus =
-  | 'CLEARED'
-  | 'PENDING_PARENT_APPROVAL'
-  | 'BLOCKED'
+export type AgeGateStatus = 'CLEARED' | 'PENDING_PARENT_APPROVAL' | 'BLOCKED'
 
 export interface AgeGateState {
   isUnder16: boolean
@@ -1024,6 +988,7 @@ export interface FreeAgentMediaEntry {
 }
 
 export interface FreeAgentProfile {
+  recruitmentRole?: 'PLAYER' | 'COACH'
   id: string
   userId: string
   position: PlayerPosition | null
@@ -1059,6 +1024,7 @@ export interface FreeAgentProfile {
 }
 
 export interface FreeAgentListItem {
+  recruitmentRole?: 'PLAYER' | 'COACH'
   id: string
   userId: string
   name: string
@@ -1112,6 +1078,8 @@ export interface TrialJoinRequestSummary {
 }
 
 export interface TrialInvite {
+  /** Snapshot of the vacancy/profile role; never inferred from a later profile edit. */
+  recruitmentRole?: 'PLAYER' | 'COACH'
   id: string
   clubId: string
   freeAgentProfileId: string
@@ -1167,6 +1135,7 @@ export interface TrialInvite {
 }
 
 export interface PlayerSearch {
+  recruitmentRole?: 'PLAYER' | 'COACH'
   id: string
   clubId: string
   teamId: string

@@ -1,11 +1,21 @@
 // Wechselbörse revamp (Türkçe). Amatör futbol dili: deneme antrenmanı,
 // muvafakatname, lisans başvurusu, transfer dönemi. Uygulamadaki gibi "sen".
 export default {
+  recruitment: {
+    role: 'Kulüp arama rolü',
+    PLAYER: 'Oyuncu',
+    COACH: 'Antrenör',
+    coachApply: 'Antrenör erişimi iste',
+    coachPending: 'Kulüp yöneticisi isteği inceleyecek. Henüz antrenör erişimi verilmedi.',
+    region: 'Yaklaşık posta kodu bölgesi; ölçülmüş mesafe değildir.',
+    anywhere: 'Tüm bölgeler',
+  },
   wechsel: {
     title: 'Transfer Merkezi',
     entryHint: 'İlanlar, deneme antrenmanları ve kulüp değişiklikleri',
     nearbySubtitle: '{{km}} km çevrede kulübü olmayan oyuncular',
-    invitedFootnote: 'Davet edilenler bir sonraki antrenmanın yerini ve saatini görür. İletişim bilgileri ancak kabul ettiklerinde.',
+    invitedFootnote:
+      'Davet edilenler bir sonraki antrenmanın yerini ve saatini görür. İletişim bilgileri ancak kabul ettiklerinde.',
     lastLeague: 'son lig: {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'Diğer bölümler',
@@ -21,9 +31,12 @@ export default {
     errorGeneric: 'Bu işlem olmadı. Bağlantını kontrol edip tekrar dene.',
     errorNoAccess: 'Bu kulüpte bunun için yetkin yok.',
     // Review fixes 2026-09-24
-    errorTooManyRequests: 'Az önce zaten istek gönderdin. Bu kulübe 24 saat sonra tekrar yazabilirsin; günde toplam en fazla beş istek gönderebilirsin.',
-    errorTrialCap: 'Kulübünün zaten on açık deneme antrenmanı var. Yeni birini davet etmeden önce birini sonuçlandır.',
-    errorAgeGroup: 'Bu, takımın yaş grubuna uymuyor. Yetişkinler altyapı takımında deneme antrenmanına katılamaz.',
+    errorTooManyRequests:
+      'Az önce zaten istek gönderdin. Bu kulübe 24 saat sonra tekrar yazabilirsin; günde toplam en fazla beş istek gönderebilirsin.',
+    errorTrialCap:
+      'Kulübünün zaten on açık deneme antrenmanı var. Yeni birini davet etmeden önce birini sonuçlandır.',
+    errorAgeGroup:
+      'Bu, takımın yaş grubuna uymuyor. Yetişkinler altyapı takımında deneme antrenmanına katılamaz.',
     tabGesuche: 'İlanlar',
     tabSpieler: 'Oyuncu ara',
     tabProbetraining: 'Deneme antrenmanı',
@@ -81,8 +94,7 @@ export default {
     playersCount_one: 'Kulüp arayan {{count}} oyuncu',
     playersCount_other: 'Kulüp arayan {{count}} oyuncu',
     playersEmptyTitle: 'Oyuncu bulunamadı',
-    playersEmptyBody:
-      'Şu an yakında kulüp arayan kimse yok. İlan verirsen oyuncular sana ulaşır.',
+    playersEmptyBody: 'Şu an yakında kulüp arayan kimse yok. İlan verirsen oyuncular sana ulaşır.',
     playersEmptyFiltered: 'Mesafeyi artır veya bir filtreyi kaldır.',
     playersError: 'Oyuncular yüklenemedi',
     loadMore: 'Daha fazla göster',
@@ -159,8 +171,10 @@ export default {
     },
     rejectTemplate: {
       full: 'Katıldığın için teşekkürler! Kadromuz şu an dolu, bu yüzden maalesef sana yer teklif edemiyoruz. Kulüp aramanda bol şans!',
-      level: 'Geldiğin için teşekkürler! Sportif açıdan şu an maalesef uymuyor. Başka bir kulüpte başarılar dileriz.',
-      later: 'Deneme antrenmanı için teşekkürler! Şu an boş yerimiz yok. Durum değişirse sana haber veririz.',
+      level:
+        'Geldiğin için teşekkürler! Sportif açıdan şu an maalesef uymuyor. Başka bir kulüpte başarılar dileriz.',
+      later:
+        'Deneme antrenmanı için teşekkürler! Şu an boş yerimiz yok. Durum değişirse sana haber veririz.',
     },
     rejectSend: 'Yanıtı gönder',
     rejectSent: 'Ret yanıtı gönderildi: {{name}}',
@@ -169,7 +183,8 @@ export default {
     dfbnetBody:
       'Burada yalnızca transferin hangi aşamada olduğunu takip edersin. Lisans başvurusu ve muvafakatname (eski kulübün izin belgesi) DFBnet üzerinden yürür.',
     wechselEmptyTitle: 'Devam eden transfer yok',
-    wechselEmptyBody: 'Bir oyuncuya yer teklif ettiğinde, kontrol listesiyle birlikte burada görünür.',
+    wechselEmptyBody:
+      'Bir oyuncuya yer teklif ettiğinde, kontrol listesiyle birlikte burada görünür.',
     inProgress: 'Devam ediyor',
     eligibleShort: '{{date}} itibarıyla',
     needsApplication: 'Üyelik başvurusu gelince yapılabilir',
@@ -203,8 +218,10 @@ export default {
       SOMMER: 'yaz (1 Temmuz – 31 Ağustos)',
       WINTER: 'kış (1–31 Ocak)',
     },
-    periodInside: 'Bilgi: Bu tarih transfer dönemine denk geliyor: {{period}}. Belirleyici olan, lisans başvurusunun federasyona ulaştığı tarihtir.',
-    periodOutside: 'Bilgi: Transfer dönemi dışında. Bir sonraki dönem: {{period}}, başlangıç {{date}}. Belirleyici olan, lisans başvurusunun federasyona ulaştığı tarihtir. Muvafakatname varsa çoğu zaman yine de mümkündür; olası bekleme sürelerine dikkat et.',
+    periodInside:
+      'Bilgi: Bu tarih transfer dönemine denk geliyor: {{period}}. Belirleyici olan, lisans başvurusunun federasyona ulaştığı tarihtir.',
+    periodOutside:
+      'Bilgi: Transfer dönemi dışında. Bir sonraki dönem: {{period}}, başlangıç {{date}}. Belirleyici olan, lisans başvurusunun federasyona ulaştığı tarihtir. Muvafakatname varsa çoğu zaman yine de mümkündür; olası bekleme sürelerine dikkat et.',
   },
 
   probetraining: {
@@ -251,7 +268,8 @@ export default {
       REVOKED: 'Davet geri çekildi',
       WITHDRAWN: 'İstek geri çekildi',
     },
-    requestedBody: 'İsteğini {{date}} tarihinde gönderdin. Antrenör sana bir antrenman tarihi önerecek.',
+    requestedBody:
+      'İsteğini {{date}} tarihinde gönderdin. Antrenör sana bir antrenman tarihi önerecek.',
     withdraw: 'Geri çek',
     withdrawTitle: 'İstek geri çekilsin mi?',
     withdrawBody: 'Kulüp ({{club}}) artık senden açık bir istek görmez.',
@@ -261,7 +279,8 @@ export default {
     acceptA11y: 'Deneme antrenmanını kabul et: {{club}}',
     declineA11y: 'Deneme antrenmanını reddet: {{club}}',
     acceptedTitle: 'Tamamdır!',
-    acceptedBody: '{{club}} ile antrenman tarihi kesinleşti. Burada “Tarih belli” bölümünde bulabilirsin.',
+    acceptedBody:
+      '{{club}} ile antrenman tarihi kesinleşti. Burada “Tarih belli” bölümünde bulabilirsin.',
     declineTitle: 'Deneme antrenmanı reddedilsin mi?',
     declineOfferTitle: 'Teklif reddedilsin mi?',
     declineOffer: 'Teklifi reddet',
@@ -273,7 +292,8 @@ export default {
     scheduledHint: 'Gelemeyeceksen antrenöre haber ver.',
     waitingDecision: 'Kulüp ({{club}}) antrenmandan sonra karar verip sana dönecek.',
     offerTitle: '{{team}} seni kadroda istiyor',
-    offerBody: 'Üyelik başvurusunu doldur. Gerisini, yani muvafakatname ve lisans başvurusunu, kulüp halleder.',
+    offerBody:
+      'Üyelik başvurusunu doldur. Gerisini, yani muvafakatname ve lisans başvurusunu, kulüp halleder.',
     fillApplication: 'Üyelik başvurusunu doldur',
     applicationSentTitle: 'Üyelik başvurusu gönderildi',
     applicationSentBody: 'Kulüp ({{club}}) başvurunu inceliyor ve lisans işlemlerini yürütüyor.',
@@ -301,7 +321,8 @@ export default {
     intro: 'Takımın: {{team}}. Kulüp seni bu bilgilerle üye olarak kaydeder.',
     loadError: 'Teklif yüklenemedi',
     notOpenTitle: 'Açık teklif yok',
-    notOpenBody: 'Bu teklif artık geçerli değil. Güncel durumu deneme antrenmanlarından kontrol et.',
+    notOpenBody:
+      'Bu teklif artık geçerli değil. Güncel durumu deneme antrenmanlarından kontrol et.',
     alreadySentTitle: 'Zaten gönderildi',
     alreadySentBody: 'Kulüp ({{club}}) üyelik başvurunu zaten aldı.',
     sectionYou: 'Bilgilerin',
@@ -321,7 +342,8 @@ export default {
     previousClubPlaceholder: 'örn. SV Babelsberg 03',
     lastMatch: 'Son resmi maç',
     lastMatchUnknown: 'Hatırlamıyorum',
-    clubHint: 'Kulüp, önceki kulübünden muvafakatnameyi (izin belgesi) alır ve DFBnet’te lisans başvurusunu yapar.',
+    clubHint:
+      'Kulüp, önceki kulübünden muvafakatnameyi (izin belgesi) alır ve DFBnet’te lisans başvurusunu yapar.',
     sectionFees: 'Üyelik aidatı',
     sepaConsent: 'Aidat SEPA otomatik ödeme talimatıyla tahsil edilebilir',
     sepaHint: 'Banka bilgilerini buraya girme. Sayman sana SEPA talimat formunu gönderir.',
@@ -333,14 +355,16 @@ export default {
     incompleteBody: 'Lütfen işaretli alanları doldur.',
     sepaMissing: 'SEPA otomatik ödeme talimatına onay vermeden kulüp seni üye olarak kaydedemez.',
     parentalMissing: 'Velinin e-posta adresini gir. Üyeliğe veli kendisi onay verir.',
-    guardianIntro: '18 yaşından küçük olduğun için üyeliğe ve SEPA otomatik ödeme talimatına velin onay verir. Velin bir e-posta alır ve Anstoss’ta “Onaylar” bölümünden onaylar.',
+    guardianIntro:
+      '18 yaşından küçük olduğun için üyeliğe ve SEPA otomatik ödeme talimatına velin onay verir. Velin bir e-posta alır ve Anstoss’ta “Onaylar” bölümünden onaylar.',
     guardianEmail: 'Velinin e-posta adresi',
     guardianEmailInvalid: 'Lütfen geçerli bir e-posta adresi gir',
     guardianEmailOwn: 'Bu senin kendi adresin. Lütfen velinin adresini gir.',
     submit: 'Başvuruyu gönder',
     sentTitle: 'Başvuru gönderildi',
     sentBody: 'Kulüp ({{club}}) üyelik başvurunu inceleyip sana dönecek.',
-    sentBodyMinor: 'Kulüp ({{club}}) başvurunu aldı. Velin onay verdiğinde kulüp seni üye olarak kaydedebilir.',
+    sentBodyMinor:
+      'Kulüp ({{club}}) başvurunu aldı. Velin onay verdiğinde kulüp seni üye olarak kaydedebilir.',
     dfbnetNote: 'Oynama hakkını bölge federasyonun DFBnet üzerinden verir.',
   },
 
@@ -357,7 +381,8 @@ export default {
     visibility: 'Kimler görebilir',
     visibilityClubs: 'Kulüpler',
     visibilityPrivate: 'Kimse',
-    visibilityHint: 'Profilini yalnızca kulüplerin antrenörleri ve yöneticileri görür, herkese açık değildir.',
+    visibilityHint:
+      'Profilini yalnızca kulüplerin antrenörleri ve yöneticileri görür, herkese açık değildir.',
     sectionPlayer: 'Oyuncu bilgileri',
     sectionArea: 'Nerede oynamak istiyorsun',
     areaHint: 'Posta kodunu yalnızca yakındaki kulüpleri bulmak için kullanırız.',
@@ -377,7 +402,8 @@ export default {
     fieldCity: 'Şehir',
     fieldRadius: 'Mesafe',
     fieldBio: 'Kendinden kısaca bahset',
-    bioPlaceholder: 'örn. Oyun kurmayı seven 6 numara, son olarak Kreisliga A’da oynadım, hırslı bir takım arıyorum.',
+    bioPlaceholder:
+      'örn. Oyun kurmayı seven 6 numara, son olarak Kreisliga A’da oynadım, hırslı bir takım arıyorum.',
     fieldStationClub: 'Kulüp',
     fieldStationRole: 'Mevki veya takım',
     stationRolePlaceholder: 'örn. stoper, A takımı',
@@ -421,12 +447,15 @@ export default {
     under16Title: 'Transfer Merkezi 16 yaş ve üzeri içindir',
     under16Body: 'Kulüp değiştirmek istiyorsan ailenle konuş. Yeni kulüple onlar iletişime geçer.',
     notFreeAgentTitle: 'Transfer Merkezi profilin yok',
-    notFreeAgentBody: 'Kulüp üyesi olarak kayıtlısın, serbest oyuncu olarak değil. Transfer Merkezi profili yalnızca serbest (kulüpsüz) oyuncular içindir.',
+    notFreeAgentBody:
+      'Kulüp üyesi olarak kayıtlısın, serbest oyuncu olarak değil. Transfer Merkezi profili yalnızca serbest (kulüpsüz) oyuncular içindir.',
     minorTitle: '18 yaşından küçüksün',
-    minorBody: 'Profilini yalnızca antrenörler ve kulüp yöneticileri görür; yaş yerine “U18”, posta kodu yerine posta bölgesi gösterilir. Fotoğraf ve video 18 yaşından itibaren eklenebilir.',
+    minorBody:
+      'Profilini yalnızca antrenörler ve kulüp yöneticileri görür; yaş yerine “U18”, posta kodu yerine posta bölgesi gösterilir. Fotoğraf ve video 18 yaşından itibaren eklenebilir.',
     delete: 'Oyuncu profilini sil',
     deleteTitle: 'Oyuncu profilin silinsin mi?',
-    deleteBody: 'Profilin Transfer Merkezi’nden kaldırılır. Açık deneme antrenmanların ve üyelik başvuruların sona erer.',
+    deleteBody:
+      'Profilin Transfer Merkezi’nden kaldırılır. Açık deneme antrenmanların ve üyelik başvuruların sona erer.',
     deleteConfirm: 'Sil',
     position: {
       GK: 'Kaleci',
@@ -470,16 +499,19 @@ export default {
     loadError: 'İlanlar yüklenemedi',
     emptyTitle: 'Şu an uygun ilan yok',
     emptyBody: 'Daha sonra tekrar bak. Kulüpler seni profilin üzerinden de bulabilir.',
-    emptyNarrowed: 'Mesafeyi artır veya tüm mevkileri göster. Kulüpler seni profilin üzerinden de bulabilir.',
+    emptyNarrowed:
+      'Mesafeyi artır veya tüm mevkileri göster. Kulüpler seni profilin üzerinden de bulabilir.',
     requestCta: 'Deneme antrenmanı iste',
     requestOpen: 'İstek gönderildi',
     requestTitle: 'Deneme antrenmanı · {{club}}',
-    requestHint: 'İsteğin antrenöre gider (takım: {{team}}). Antrenör sana bir antrenman tarihi önerir.',
+    requestHint:
+      'İsteğin antrenöre gider (takım: {{team}}). Antrenör sana bir antrenman tarihi önerir.',
     requestMessage: 'Antrenöre mesaj (isteğe bağlı)',
     requestPlaceholder: 'örn. Sekiz yıldır kalecilik yapıyorum, son olarak Kreisliga B’de oynadım.',
     requestSend: 'İsteği gönder',
     requestSentTitle: 'İstek gönderildi',
-    requestSentBody: 'Kulüp ({{club}}) isteğini aldı. Durumu deneme antrenmanları sekmesinden takip edebilirsin.',
+    requestSentBody:
+      'Kulüp ({{club}}) isteğini aldı. Durumu deneme antrenmanları sekmesinden takip edebilirsin.',
     gap: {
       create: {
         title: 'Oyuncu profilini oluştur',

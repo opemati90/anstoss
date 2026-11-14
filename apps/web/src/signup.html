@@ -4,102 +4,64 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anstoss - Verein anlegen</title>
-    <meta name="description" content="Lege deinen Verein in wenigen Minuten an: Teams, Farben und Einladungen für Spieler und Trainer." />
+    <meta
+      name="description"
+      content="Lege deinen Verein in wenigen Minuten an: Teams, Farben und Einladungen für Spieler und Trainer."
+    />
     <link rel="canonical" href="https://anstoss.io/signup" />
     <meta property="og:title" content="Anstoss - Verein anlegen" />
-    <meta property="og:description" content="Lege deinen Verein in wenigen Minuten an: Teams, Farben und Einladungen für Spieler und Trainer." />
+    <meta
+      property="og:description"
+      content="Lege deinen Verein in wenigen Minuten an: Teams, Farben und Einladungen für Spieler und Trainer."
+    />
     <meta property="og:image" content="https://anstoss.io/og-image.jpg" />
     <meta name="theme-color" content="#0E3B2B" />
     <link rel="icon" type="image/png" href="./anstoss-mark.png" />
     <link rel="stylesheet" href="./styles.css?v=20261113" />
   </head>
-  <body>
+  <body data-site="signup">
     <header class="topbar">
       <div class="wrap">
         <nav class="nav" aria-label="Hauptnavigation">
-          <a href="./" class="brand" aria-label="Anstoss"><span class="dot"></span><span class="disp">Anstoss</span></a>
-          <a class="back" href="./">Startseite <span aria-hidden="true">→</span></a>
+          <a href="./" class="brand" aria-label="Anstoss"
+            ><span class="dot"></span><span class="disp">Anstoss</span></a
+          >
+          <a class="back" href="./" data-t="signup.back">Startseite</a>
         </nav>
       </div>
     </header>
     <main class="page">
       <div class="panel signup-card">
-        <p class="eyebrow" data-i18n="signup.eyebrow">Verein anlegen</p>
-        <h1 class="signup-title" data-i18n="signup.title">Pilot-Anfrage stellen</h1>
-        <p class="lede" data-i18n="signup.lede">
-          Sag uns kurz, wer Ihr seid. Wir melden uns innerhalb von 24 Stunden mit einem Onboarding-Termin.
+        <h1 class="signup-title" data-t="signup.title">Dein Verein startet in der App.</h1>
+        <p class="lede" data-t="signup.body">
+          Verein und Team anlegen, E-Mail bestätigen — Spieler kannst du später hinzufügen.
         </p>
-
-        <form
-          class="signup-form"
-          action="mailto:hello@anstoss.app"
-          method="post"
-          enctype="text/plain"
-        >
-          <label class="signup-field">
-            <span data-i18n="signup.fields.club">Vereinsname</span>
-            <input
-              name="Verein"
-              type="text"
-              required
-              autocomplete="organization"
-              placeholder="SV Musterstadt e.V."
-            />
-          </label>
-
-          <label class="signup-field">
-            <span data-i18n="signup.fields.contact">Ansprechpartner:in</span>
-            <input
-              name="Name"
-              type="text"
-              required
-              autocomplete="name"
-              placeholder="Vor- und Nachname"
-            />
-          </label>
-
-          <label class="signup-field">
-            <span data-i18n="signup.fields.email">E-Mail</span>
-            <input
-              name="E-Mail"
-              type="email"
-              required
-              autocomplete="email"
-              placeholder="trainer@verein.de"
-            />
-          </label>
-
-          <label class="signup-field">
-            <span data-i18n="signup.fields.teams">Anzahl Teams</span>
-            <input
-              name="Teams"
-              type="text"
-              placeholder="z.B. Herren 1, A-Jugend, Frauen"
-            />
-          </label>
-
-          <label class="signup-field">
-            <span data-i18n="signup.fields.pain">Was nervt Euch heute?</span>
-            <textarea
-              name="Schmerzpunkt"
-              rows="4"
-              placeholder="Wir koordinieren Spieltage und Mitgliedsbeiträge per WhatsApp und Excel."
-            ></textarea>
-          </label>
-
-          <button class="btn btn-pri block" type="submit" data-i18n="signup.submit">
-            Anfrage senden
-          </button>
-
-          <p class="signup-hint">
-            <span data-i18n="signup.hintLead">Mit dem Absenden öffnest Du Dein Mail-Programm. Alternativ schreib uns direkt an</span>
-            <a href="mailto:hello@anstoss.app">hello@anstoss.app</a>.
-          </p>
-        </form>
+        <p data-t="signup.email">
+          Deine persönliche E-Mail-Adresse reicht aus. Eine Vereinsadresse ist nicht nötig.
+        </p>
+        <p data-t="signup.skip">
+          Kader und Einladungen kannst du überspringen und später ergänzen.
+        </p>
+        <div class="signup-form">
+          <a
+            class="btn btn-acc block"
+            href="anstoss://sign-in?intent=club-setup"
+            data-t="signup.open"
+            >In Anstoss öffnen</a
+          >
+          <a class="btn btn-out block" href="./#download" data-t="signup.download"
+            >App herunterladen</a
+          >
+        </div>
+        <p class="signup-hint" data-t="signup.existing">
+          Ist dein Team bereits registriert? Bitte den Verein um seinen Einladungscode. Bei einer
+          falschen Registrierung kontaktiere den Support.
+        </p>
+        <p><a href="mailto:kontakt@anstoss.io" data-t="signup.support">Support kontaktieren</a></p>
       </div>
     </main>
 
-    <script src="./i18n.js?v=20261113"></script>
+    <script src="./i18n.js?v=20261114-mvp"></script>
     <script src="./cookie-consent.js?v=20261113"></script>
   </body>
 </html>

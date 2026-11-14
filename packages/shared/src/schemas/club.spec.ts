@@ -12,7 +12,26 @@ import {
   clubSearchResultSchema,
   clubSearchResponseSchema,
   reviewClubClaimSchema,
+  submitFirstClubClaimSchema,
 } from './club'
+
+describe('simple club registration', () => {
+  const input = { clubName: 'Codex FC', teamName: 'II' }
+  it('needs no external link, company email, player roster or invitations', () => {
+    expect(submitFirstClubClaimSchema.parse(input)).toMatchObject({
+      clubName: 'Codex FC', teamName: 'II', teamRoles: [], teamGroupType: 'SENIOR',
+    })
+  })
+  it.each(['', 'not a URL', 'https://evil.example/team', 'https://fussball.de/', 'https://user@fussball.de/team',
+    'http://fussball.de/team', 'https://fussball.de.evil.example/team'])('rejects a supplied invalid link: %s', externalTeamUrl => {
+    expect(submitFirstClubClaimSchema.safeParse({ ...input, externalTeamUrl }).success).toBe(false)
+  })
+  it('accepts the supplied FC Treptow URL when voluntarily provided', () => {
+    expect(submitFirstClubClaimSchema.safeParse({ ...input,
+      externalTeamUrl: 'https://www.fussball.de/mannschaft/-/team-id/01OMGSGV0S000000VV0AG811VTVBGE70/tab/overview/',
+    }).success).toBe(true)
+  })
+})
 
 describe('createClubSchema', () => {
   it('accepts valid club', () => {

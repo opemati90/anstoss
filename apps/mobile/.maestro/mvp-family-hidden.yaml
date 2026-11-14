@@ -1,0 +1,46 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8123'
+- runFlow:
+    when:
+      visible: 'Development Build'
+    commands:
+      - tapOn:
+          text: '.*:8123'
+          index: 0
+- waitForAnimationToEnd:
+    timeout: 10000
+- openLink: 'anstoss://e2e?scenario=club-admin&lang=de'
+- extendedWaitUntil:
+    visible: 'Mehr'
+    timeout: 30000
+- openLink: 'anstoss://verein'
+- extendedWaitUntil:
+    visible:
+      id: verein-tab
+    timeout: 15000
+- assertNotVisible: 'Familien zuordnen'
+- takeScreenshot: /private/tmp/anstoss-mvp-admin-family-hidden
+- openLink: 'anstoss://team-families'
+- extendedWaitUntil:
+    notVisible:
+      id: verein-tab
+    timeout: 15000
+- assertNotVisible: 'Familien zuordnen'
+- openLink: 'anstoss://e2e?scenario=coach&lang=de'
+- extendedWaitUntil:
+    visible:
+      id: coach-hero
+    timeout: 15000
+- openLink: 'anstoss://squad'
+- extendedWaitUntil:
+    visible:
+      id: kader-summary
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: kader-menu-requests
+    direction: DOWN
+- assertNotVisible:
+    id: kader-menu-parents
+- takeScreenshot: /private/tmp/anstoss-mvp-coach-family-hidden

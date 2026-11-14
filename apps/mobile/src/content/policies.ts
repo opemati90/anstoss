@@ -17,7 +17,7 @@ export type Policy = {
   body: PolicyBlock[]
 }
 
-export const POLICY_LAST_UPDATED = '2026-03-31'
+export const POLICY_LAST_UPDATED = '2026-11-14'
 
 export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
   de: {
@@ -72,6 +72,28 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'p',
           text: 'Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung), lit. f (berechtigte Interessen des Vereinsbetriebs) und Deine ausdrückliche Einwilligung für Marketing.',
+        },
+        { kind: 'h', text: 'Freie Profile, Vereinssuche und Probetrainings' },
+        {
+          kind: 'p',
+          text: 'Wenn Du ein Suchprofil anlegst, verarbeiten wir Deine freiwilligen Angaben: gesuchte Rolle als Spieler oder Trainer, Position, bevorzugter Fuß, Erfahrung, Verfügbarkeit, Beschreibung, Ort, Postleitzahl, Suchbereich sowie hochgeladene Fotos und Videos. Suchstatus und Sichtbarkeit steuerst Du im Profil. Ohne aktive Suche und passende Sichtbarkeit erscheint das Profil nicht in der Kandidatensuche. Eine Entfernung aus einem Verein veröffentlicht kein Profil.',
+        },
+        {
+          kind: 'p',
+          text: 'Die Vereinssuche verwendet derzeit ungefähre Postleitzahlregionen, keine GPS-Ortung und keine verlässliche Kilometerentfernung. Gesuche und Einladungen führen nicht automatisch zu einer Aufnahme. Du entscheidest über Anfragen und Einladungen; die Berechtigten des Vereins entscheiden über die Aufnahme. Deine vollständige Postleitzahl wird anderen Suchenden nicht angezeigt.',
+        },
+        {
+          kind: 'p',
+          text: 'Bei einer Anfrage oder Einladung verarbeitet der beteiligte Verein die dafür erforderlichen Profil- und Terminangaben, Antworten sowie gegebenenfalls Rückmeldungen und Aufnahmedaten. Bereits beteiligte Vereine können das Profil für die Bearbeitung eines laufenden Probetrainings und bis zu 14 Tage nach dessen Abschluss sehen. Das Ausblenden eines Profils löscht keine laufenden Anfragen. Hochgeladene Medien können über bereits bekannte Datei-URLs weiter erreichbar sein; Sichtbarkeitseinstellungen sind kein Kopierschutz. Lade nur Inhalte hoch, die Du berechtigt teilen darfst.',
+        },
+        { kind: 'h', text: 'Vereinszugang und Löschung' },
+        {
+          kind: 'p',
+          text: 'Wirst Du aus einem Verein entfernt, endet Dein Zugriff auf dessen geschützte Informationen. Andere Vereinsmitgliedschaften und Dein eigenes Konto bleiben bestehen. Ohne weitere Mitgliedschaft können Spieler und Trainer das unabhängige Portal nutzen. Ein Vereinsadmin muss die Löschung Deines Kontos nicht genehmigen.',
+        },
+        {
+          kind: 'p',
+          text: 'Du kannst Suchprofile und einzelne Medien separat entfernen oder Dein gesamtes Konto unter Mehr → Daten → Konto löschen löschen. Die Kontolöschung entfernt oder anonymisiert Profil, Erfahrungen, Probetrainings- und Mitgliedschaftsdaten und beendet den Kontozugang. Dateien werden zur Löschung vorgemerkt; fehlgeschlagene Speicherlöschungen werden erneut versucht. Kurzzeitig gültige Upload-Links werden dabei abgewartet. Erledigte Löschaufträge werden entfernt. Nach einer Löschanfrage löschen oder anonymisieren wir personenbezogene Daten innerhalb von 30 Tagen; erforderliche gesetzliche Nachweise sind davon ausgenommen und werden nicht für die Kandidatensuche verwendet. Ohne App-Zugriff erreichst Du uns über https://anstoss.io/account-deletion.',
         },
         { kind: 'h', text: 'Speicherdauer' },
         {
@@ -128,6 +150,11 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'p',
           text: 'Du behältst die Rechte an den von Dir hochgeladenen Inhalten und gewährst uns ein einfaches Nutzungsrecht zur Bereitstellung des Dienstes. Hass, Belästigung und Diskriminierung sind verboten.',
+        },
+        { kind: 'h', text: 'Vereinssuche und eigene Medien' },
+        {
+          kind: 'p',
+          text: 'Suchprofile, Gesuche und Probetrainings dienen der Kontaktaufnahme, nicht als Zusage einer Aufnahme, Beschäftigung oder Spielberechtigung. Stelle Deine Erfahrung wahrheitsgemäß dar. Lade Fotos und Clips nur mit den erforderlichen Rechten und Erlaubnissen der erkennbaren Personen hoch. Eine Profilangabe oder Einladung verleiht keine Trainer- oder Administratorrechte. Vereinszugang und eigenes Anstoss-Konto sind getrennt; ein Verein kann Deinen Zugang zu seinen Informationen beenden, aber nicht über die Löschung Deines persönlichen Kontos entscheiden.',
         },
         { kind: 'h', text: 'Verfügbarkeit' },
         {
@@ -218,7 +245,29 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         { kind: 'h', text: 'Retention' },
         {
           kind: 'p',
+          text: 'You can remove your recruitment profile and individual media separately, or delete your whole account under More → Data → Delete account. Account deletion removes or anonymises your profile, experience, trial and membership data and ends account access. Files are queued for erasure; failed storage deletions are retried after short-lived upload links expire. Completed deletion jobs are removed. Following an erasure request, we delete or anonymise personal data within 30 days; necessary statutory records are excepted and are not used for candidate discovery. Without app access, use https://anstoss.io/account-deletion.',
+        },
+        {
+          kind: 'p',
           text: 'Raw bank-import files are deleted within 24 hours. Unaccepted expired or revoked invitations are deleted after 90 days. Resolved authority-claim evidence is deleted after 180 days unless an open dispute requires preservation. Short-lived ownership verification challenges are deleted after use or expiry. Operational membership and contribution records remain available to the club while needed for club administration; accounting and security audit records may be retained for applicable statutory limitation or bookkeeping periods. Account deletion anonymises the member identity while preserving only records that the club or Anstoss must retain for legal, accounting, fraud-prevention, or security purposes.',
+        },
+        { kind: 'h', text: 'Independent profiles, club discovery and trials' },
+        {
+          kind: 'p',
+          text: 'If you create a recruitment profile, we process the details you choose to provide: the player or coach role you are seeking, position, preferred foot, experience, availability, biography, town, postal code, search area, photos and videos. You control search status and visibility in your profile. A profile is not listed in candidate search unless search is active and visibility permits it. Removal from a club does not publish a profile.',
+        },
+        {
+          kind: 'p',
+          text: 'Club discovery currently uses approximate postal-code regions, not GPS tracking or reliable kilometre distances. A vacancy or invitation does not automatically enrol you. You choose whether to request or accept an invitation; authorised club staff decide admission. Your full postal code is not shown to other searchers.',
+        },
+        {
+          kind: 'p',
+          text: 'For a request or invitation, the participating club processes relevant profile and session details, responses and, where applicable, feedback and application information. Participating clubs can view the profile to handle an open trial and for up to 14 days after closure. Hiding a profile does not delete ongoing requests. Uploaded media may remain accessible through previously known file URLs; visibility controls are not copy protection. Only upload content you are entitled to share.',
+        },
+        { kind: 'h', text: 'Club access and your own account' },
+        {
+          kind: 'p',
+          text: 'Removal from a club ends access to its protected information. Other club memberships and your own account remain. Players and coaches without another membership can use the independent portal. A club administrator does not have to approve deletion of your personal account.',
         },
         { kind: 'h', text: 'Your rights' },
         {
@@ -270,6 +319,11 @@ export const POLICIES: Record<'de' | 'en', Record<PolicyKind, Policy>> = {
         {
           kind: 'p',
           text: 'You retain rights to content you upload and grant us a non-exclusive license to provide the service. Hate, harassment, and discrimination are prohibited.',
+        },
+        { kind: 'h', text: 'Recruitment and your own media' },
+        {
+          kind: 'p',
+          text: 'Recruitment profiles, vacancies and trials facilitate contact; they do not promise admission, employment or eligibility to play. Describe your experience honestly. Upload photos and clips only with the necessary rights and permissions from identifiable people. A profile statement or invitation does not grant coach or administrator permissions. Club access and your personal Anstoss account are separate: a club can end access to its information but cannot decide whether you may delete your personal account.',
         },
         { kind: 'h', text: 'Availability' },
         {

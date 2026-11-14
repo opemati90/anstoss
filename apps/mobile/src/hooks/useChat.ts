@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { CHAT, type MessageAttachmentMeta, type PinnedMessage } from '@anstoss/shared'
 import { getE2ESession } from '../e2e/session'
+import { notifyAccessChanged } from '../auth/accessChanges'
 import { buildE2EChatMessages } from '../e2e/chatSeed'
 
 export type ChatMessageType =
@@ -255,8 +256,9 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       loadHistory()
     })
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       setConnectionState('offline')
+      if (reason === 'io server disconnect') notifyAccessChanged()
     })
 
     socket.on('connect_error', (err) => {

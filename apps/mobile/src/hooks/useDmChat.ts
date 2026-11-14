@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
+import { notifyAccessChanged } from '../auth/accessChanges'
 import {
   CHAT,
   type DirectMessageItem,
@@ -172,6 +173,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       // 'io server disconnect' means server kicked us — don't expect reconnect
       if (reason === 'io server disconnect') {
         setConnectionState('offline')
+        notifyAccessChanged()
       } else {
         setConnectionState('reconnecting')
       }

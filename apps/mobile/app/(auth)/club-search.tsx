@@ -12,6 +12,7 @@ import type {
 } from '@anstoss/shared'
 import { FreeAgentVisibility } from '@anstoss/shared'
 import { api } from '../../src/api/client'
+import { FAMILY_FEATURE_ENABLED } from '../../src/launchFeatures'
 import { Button, FilterChipRow, Icon, SegmentedControl, SoftIcon, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
@@ -115,7 +116,7 @@ export default function ClubSearchScreen() {
   const isMember = memberships.length > 0
 
   const c = useClubColors()
-  const params = useLocalSearchParams<{ code?: string }>()
+  const params = useLocalSearchParams<{ code?: string; q?: string }>()
   const initialCode = Array.isArray(params.code) ? params.code[0] : params.code
   const [stage, setStage] = useState<'find' | 'role'>('find')
   const [code, setCode] = useState((initialCode ?? '').toUpperCase())
@@ -123,7 +124,7 @@ export default function ClubSearchScreen() {
   const codeRequestId = useRef(0)
   const [slots, setSlots] = useState<PublicRosterSlot[]>([])
   const [claimSlot, setClaimSlot] = useState(true)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState((Array.isArray(params.q) ? params.q[0] : params.q) ?? '')
   const [results, setResults] = useState<ClubSearchResult[]>([])
   const [teamMatch, setTeamMatch] = useState<TeamByCode | null>(null)
   const [inviteMatch, setInviteMatch] = useState<PublicInvitePayload | null>(null)
@@ -138,6 +139,7 @@ export default function ClubSearchScreen() {
   const [teamId, setTeamId] = useState<string | null>(null)
   const [teams, setTeams] = useState<ClubTeam[] | null>(null)
   const [teamsFailed, setTeamsFailed] = useState(false)
+  const [teamsRetryKey, setTeamsRetryKey] = useState(0)
   const [freeAgentOpen, setFreeAgentOpen] = useState(false)
   const [position, setPosition] = useState<string | null>(null)
   const [postalCode, setPostalCode] = useState('')
@@ -149,7 +151,7 @@ export default function ClubSearchScreen() {
   const { teamCode, inviteCode } = useMemo(() => classifySearchInput(code), [code])
   const searchable = trimmed.length >= 2
   const coachPicked = roles.includes('COACH')
-  const needsTeam = !!selection && coachPicked && !selection.teamId
+  const needsTeam = !!selection && (coachPicked || roles.includes('PLAYER')) && !selection.teamId
   const { primary: primaryRole, additional: additionalRoles } = splitJoinRoles(roles)
   const mySlot = useMemo(() => {
     const me = normalizeName(user?.name)
@@ -242,7 +244,7 @@ export default function ClubSearchScreen() {
     return () => clearTimeout(handle)
   }, [inviteCode, teamCode])
 
-  // Coaches pick the team they coach (the club needs to know which squad).
+  // Players and coaches select their squad; a team code already identifies it.
   useEffect(() => {
     if (!needsTeam || teams || !selection?.slug) return
     let alive = true
@@ -257,7 +259,7 @@ export default function ClubSearchScreen() {
     return () => {
       alive = false
     }
-  }, [needsTeam, selection?.slug, teams])
+  }, [needsTeam, selection?.slug, teams, teamsRetryKey])
 
   const handleSignOut = useCallback(() => {
     void signOut()
@@ -455,7 +457,7 @@ export default function ClubSearchScreen() {
             needsTeam={needsTeam}
             teams={teams}
             teamsFailed={teamsFailed}
-            onRetryTeams={() => setTeams(null)}
+            onRetryTeams={() => setTeamsRetryKey((current) => current + 1)}
             teamId={teamId}
             onTeam={setTeamId}
           />
@@ -683,6 +685,7 @@ export default function ClubSearchScreen() {
               setFreeAgentOpen((open) => !open)
             }}
             testID="club-free-agent-link"
+            last={!FAMILY_FEATURE_ENABLED}
           />
         ) : null}
         {freeAgentOpen && !isMember ? (
@@ -693,13 +696,15 @@ export default function ClubSearchScreen() {
             onPostalCode={setPostalCode}
           />
         ) : null}
-        <MoreLink
-          icon="figure.and.child.holdinghands"
-          label={t('onboardingFlow.club.setupCode')}
-          onPress={() => router.push('/(auth)/parent-handoff')}
-          last
-          testID="club-setup-code-link"
-        />
+        {FAMILY_FEATURE_ENABLED ? (
+          <MoreLink
+            icon="figure.and.child.holdinghands"
+            label={t('onboardingFlow.club.setupCode')}
+            onPress={() => router.push('/(auth)/parent-handoff')}
+            last
+            testID="club-setup-code-link"
+          />
+        ) : null}
       </View>
     </OnboardingScreen>
   )
@@ -886,10 +891,11 @@ function RolePicker({
 }) {
   const { t } = useTranslation()
   const c = useClubColors()
+  const visibleRoles = ROLE_ROWS.filter((row) => FAMILY_FEATURE_ENABLED || row.key !== 'PARENT')
   return (
     <View style={styles.roleBody}>
       <View style={[styles.roleGroup, { backgroundColor: c.surface }]} accessibilityLabel={t('onboardingFlow.role.groupA11y')}>
-        {ROLE_ROWS.map((row, index) => {
+        {visibleRoles.map((row, index) => {
           const checked = roles.includes(row.key)
           return (
             <Pressable
@@ -901,7 +907,7 @@ function RolePicker({
               android_ripple={{ color: c.borderDefault }}
               style={[
                 styles.roleRow,
-                index < ROLE_ROWS.length - 1 && {
+                index < visibleRoles.length - 1 && {
                   borderBottomWidth: hairline,
                   borderBottomColor: c.borderSubtle,
                 },
@@ -934,39 +940,39 @@ function RolePicker({
             value={coachRole}
             onChange={onCoachRole}
           />
-          {needsTeam ? (
-            <View style={styles.group}>
-              <Text variant="footnote" color="secondary">
-                {t('onboardingFlow.club.teamQuestion')}
-              </Text>
-              {teams === null && !teamsFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
-              {teamsFailed ? (
-                <Button
-                  label={t('onboardingFlow.common.retry')}
-                  variant="bordered"
-                  size="sm"
-                  onPress={onRetryTeams}
-                />
-              ) : null}
-              {teams && teams.length === 0 ? (
-                <Text variant="footnote" color="secondary">
-                  {t('onboardingFlow.club.noTeams')}
-                </Text>
-              ) : null}
-              {teams && teams.length > 0 ? (
-                <FilterChipRow<string>
-                  wrap
-                  singleSelect
-                  selected={teamId}
-                  onToggle={onTeam}
-                  chips={teams.map((team) => ({
-                    key: team.id,
-                    label: team.displayName,
-                    testID: `club-team-${team.id}`,
-                  }))}
-                />
-              ) : null}
-            </View>
+        </View>
+      ) : null}
+      {needsTeam ? (
+        <View style={[styles.choiceCard, { backgroundColor: c.surface }]}>
+          <Text variant="footnote" color="secondary">
+            {t('onboardingFlow.club.teamQuestion')}
+          </Text>
+          {teams === null && !teamsFailed ? <ActivityIndicator color={c.textTertiary} /> : null}
+          {teamsFailed ? (
+            <Button
+              label={t('onboardingFlow.common.retry')}
+              variant="bordered"
+              size="sm"
+              onPress={onRetryTeams}
+            />
+          ) : null}
+          {teams && teams.length === 0 ? (
+            <Text variant="footnote" color="secondary">
+              {t('onboardingFlow.club.noTeams')}
+            </Text>
+          ) : null}
+          {teams && teams.length > 0 ? (
+            <FilterChipRow<string>
+              wrap
+              singleSelect
+              selected={teamId}
+              onToggle={onTeam}
+              chips={teams.map((team) => ({
+                key: team.id,
+                label: team.displayName,
+                testID: `club-team-${team.id}`,
+              }))}
+            />
           ) : null}
         </View>
       ) : null}

@@ -28,6 +28,7 @@ import {
   API_URL,
 } from '../api/client'
 import { prefetchTeamData, clearMemoryCache } from '../utils/cache'
+import { subscribeAccessChanges } from '../auth/accessChanges'
 import { unregisterPushToken } from '../hooks/usePushNotifications'
 import {
   clearE2ESession,
@@ -244,6 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // When set, the token-driven load effect skips its redundant fetchUser() to
   // avoid a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
+  const accountFetchSequence = useRef(0)
 
   useEffect(() => {
     activeClubRef.current = activeClub
@@ -254,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [activeTeamId])
 
   const resetLocalAuthState = useCallback(() => {
+    accountFetchSequence.current += 1
     clearMemoryCache()
     AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
     manualFetchDoneRef.current = false
@@ -399,6 +402,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const tokenToUnregister = token
       const hasE2ESession = !!getE2ESession()
+      // Clear the old credential immediately. Waiting for push cleanup here
+      // can erase a newer login that completes while that network call waits.
+      const tokenCleared = clearSessionToken()
 
       // Clear local state first so the UI redirects to sign-in instantly.
       resetLocalAuthState()
@@ -415,7 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Drop the persisted JWT so a cold restart lands signed-out.
-        await clearSessionToken().catch((error) => {
+        await tokenCleared.catch((error) => {
           if (__DEV__) {
             console.warn('[auth] session-token clear failed after local reset:', error)
           }
@@ -643,6 +649,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      const requestSequence = ++accountFetchSequence.current
+
       try {
         const data = await api<{
           id: string
@@ -666,6 +674,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             : undefined,
         })
+        // Do not restore access from a stale response after refresh or sign-out.
+        if (requestSequence !== accountFetchSequence.current || isSigningOutRef.current) return
+        if (activeClubRef.current && !data.memberships.some(
+          (membership) => membership.club.id === activeClubRef.current?.club.id,
+        )) clearMemoryCache()
         setAgeGate(data.ageGate || null)
         setPendingJoinRequest(data.pendingJoinRequest ?? null)
         setPendingClubClaim(data.pendingClubClaim ?? null)
@@ -693,6 +706,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const completed = await AsyncStorage.getItem(ONBOARDING_KEY_PREFIX + data.id).catch(
             () => null,
           )
+          if (requestSequence !== accountFetchSequence.current || isSigningOutRef.current) return
           setNeedsOnboarding(!completed)
         } else {
           setNeedsOnboarding(false)
@@ -730,6 +744,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ? currentActiveTeamId
               : await deriveActiveTeam(preferredMembership.club.id, data.teamMembers || [])
 
+          if (requestSequence !== accountFetchSequence.current || isSigningOutRef.current) return
           setActiveTeamId(teamId)
         }
 
@@ -743,6 +758,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
+        if (requestSequence !== accountFetchSequence.current || isSigningOutRef.current) return
         if (hasErrorStatus(err, 401)) {
           // Token expired or invalid — clear all local auth state so routing restarts.
           resetLocalAuthState()
@@ -850,6 +866,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetLocalAuthState()
     }
   }, [sessionToken, tokenHydrated, e2eSession, fetchUser, hasHydratedE2E, resetLocalAuthState])
+
+  // Keep removal/approval in sync even on screens without a socket. Server
+  // authorization is immediate; foreground polling is only a UI fallback.
+  useEffect(() => {
+    if (!user?.id || !sessionToken || e2eSession) return
+    let inFlight = false
+    let disposed = false
+    const refreshAccess = async () => {
+      if (disposed || inFlight || isSigningOutRef.current || getE2ESession()) return
+      if (getSessionTokenSync() !== sessionToken) return
+      inFlight = true
+      try { await fetchUser() } finally { inFlight = false }
+    }
+    const unsubscribe = subscribeAccessChanges(() => { void refreshAccess() })
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshAccess()
+    })
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void refreshAccess()
+    }, 30_000)
+    return () => {
+      disposed = true
+      unsubscribe()
+      foreground.remove()
+      clearInterval(timer)
+    }
+  }, [user?.id, sessionToken, e2eSession, fetchUser])
 
   // Proactive token refresh. The session JWT lives 30 days; nothing called
   // /auth/session/refresh, so a user who closed the app for >30 days would be

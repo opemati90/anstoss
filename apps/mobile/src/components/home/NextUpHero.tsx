@@ -16,6 +16,7 @@ export type NextUpHeroProps = {
   rsvpPending: boolean
   onRsvp: (status: RsvpStatus, absence?: AbsenceDetail) => void
   onOpen: () => void
+  onOpenResponses: () => void
 }
 
 /** Arrival window: check-in replaces the reply control from here. */
@@ -41,7 +42,15 @@ export function isInCheckInWindow(eventDate: string, nowMs: number): boolean {
  * place on the hero's own segmented control; inside the arrival window it
  * becomes check-in.
  */
-export function NextUpHero({ event, locale, nowMs, rsvpPending, onRsvp, onOpen }: NextUpHeroProps) {
+export function NextUpHero({
+  event,
+  locale,
+  nowMs,
+  rsvpPending,
+  onRsvp,
+  onOpen,
+  onOpenResponses,
+}: NextUpHeroProps) {
   const hero = useHeroColors()
   const { t } = useTranslation()
 
@@ -208,6 +217,22 @@ export function NextUpHero({ event, locale, nowMs, rsvpPending, onRsvp, onOpen }
           />
         </View>
       )}
+      <PressableScale
+        onPress={onOpenResponses}
+        accessibilityRole="button"
+        accessibilityLabel={t('homeHub.player.viewResponses', {
+          defaultValue: "Who's coming? View responses",
+        })}
+        haptic="tapLight"
+        style={styles.responsesLink}
+        testID="home-hero-responses"
+      >
+        <Icon name="person.2" size={18} color={hero.fg} />
+        <Text variant="footnote" weight="semibold" style={[styles.flex, { color: hero.fg }]}>
+          {t('homeHub.player.viewResponses', { defaultValue: "Who's coming? View responses" })}
+        </Text>
+        <Icon name="chevron.right" size={14} color={hero.fg} />
+      </PressableScale>
     </HeroSurface>
   )
 }
@@ -228,4 +253,5 @@ const styles = StyleSheet.create({
     minHeight: 24,
   },
   reasonLink: { minHeight: 44, justifyContent: 'center' },
+  responsesLink: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
 })

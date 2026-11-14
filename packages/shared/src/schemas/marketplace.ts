@@ -10,7 +10,10 @@ import {
 } from '../types/marketplace'
 
 /** German Postleitzahl: exactly five digits. */
-const postalCodeSchema = z.string().trim().regex(/^\d{5}$/, 'Postal code must have 5 digits')
+const postalCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{5}$/, 'Postal code must have 5 digits')
 /** Calendar date without time, YYYY-MM-DD. */
 const isoDateSchema = z
   .string()
@@ -39,10 +42,15 @@ export const presignFreeAgentMediaSchema = z.object({
   type: freeAgentMediaTypeSchema,
   contentType: z.string().min(3).max(120),
   filename: z.string().max(120).optional(),
-  sizeBytes: z.number().int().positive().max(100 * 1024 * 1024),
+  sizeBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(100 * 1024 * 1024),
 })
 
 export const freeAgentProfileWriteSchema = z.object({
+  recruitmentRole: z.enum(['PLAYER', 'COACH']).optional(),
   position: z.nativeEnum(PlayerPosition).nullable().optional(),
   preferredFoot: z.nativeEnum(PreferredFoot).nullable().optional(),
   city: z.string().trim().min(2).max(80).nullable().optional(),
@@ -58,6 +66,7 @@ export const freeAgentProfileWriteSchema = z.object({
 })
 
 export const freeAgentListQuerySchema = z.object({
+  recruitmentRole: z.enum(['PLAYER', 'COACH']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(12),
   position: z.nativeEnum(PlayerPosition).optional(),
@@ -71,9 +80,7 @@ export const freeAgentListQuerySchema = z.object({
   league: leagueLevelSchema.optional(),
   // 'recent' is the mobile-side label for "newest first" — keep both for
   // back-compat with anything that still sends 'newest' or 'city'.
-  sort: z
-    .enum(['recent', 'newest', 'experience', 'name', 'city'])
-    .default('recent'),
+  sort: z.enum(['recent', 'newest', 'experience', 'name', 'city']).default('recent'),
 })
 
 const sessionEventIdsSchema = z.array(z.string().min(1)).min(1).max(3)
@@ -129,12 +136,18 @@ export const createTrialRequestSchema = z.object({
   message: z.string().trim().max(500).optional(),
 })
 
-export const createPlayerSearchSchema = z.object({
-  teamId: z.string().min(1),
-  positions: z.array(z.nativeEnum(PlayerPosition)).min(1).max(4),
-  note: z.string().trim().max(500).optional(),
-  expiresAt: isoDateSchema.optional(),
-})
+export const createPlayerSearchSchema = z
+  .object({
+    recruitmentRole: z.enum(['PLAYER', 'COACH']).optional(),
+    teamId: z.string().min(1),
+    positions: z.array(z.nativeEnum(PlayerPosition)).max(4),
+    note: z.string().trim().max(500).optional(),
+    expiresAt: isoDateSchema.optional(),
+  })
+  .refine((value) => value.recruitmentRole === 'COACH' || value.positions.length > 0, {
+    message: 'Player vacancies require at least one position',
+    path: ['positions'],
+  })
 
 export const updatePlayerSearchSchema = z
   .object({
@@ -146,6 +159,7 @@ export const updatePlayerSearchSchema = z
   .refine((value) => Object.keys(value).length > 0, 'Nothing to update')
 
 export const playerSearchListQuerySchema = z.object({
+  recruitmentRole: z.enum(['PLAYER', 'COACH']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
   position: z.nativeEnum(PlayerPosition).optional(),
@@ -159,19 +173,13 @@ export const updateRegistrationRoleSchema = z.object({
 
 export type CreateFreeAgentMediaInput = z.infer<typeof createFreeAgentMediaSchema>
 export type PresignFreeAgentMediaInput = z.infer<typeof presignFreeAgentMediaSchema>
-export type FreeAgentProfileWriteInput = z.infer<
-  typeof freeAgentProfileWriteSchema
->
+export type FreeAgentProfileWriteInput = z.infer<typeof freeAgentProfileWriteSchema>
 export type FreeAgentListQueryInput = z.infer<typeof freeAgentListQuerySchema>
 export type CreateTrialInviteInput = z.infer<typeof createTrialInviteSchema>
-export type RespondToTrialInviteInput = z.infer<
-  typeof respondToTrialInviteSchema
->
+export type RespondToTrialInviteInput = z.infer<typeof respondToTrialInviteSchema>
 export type ClubTrialActionInput = z.infer<typeof clubTrialActionSchema>
 export type CreateTrialRequestInput = z.infer<typeof createTrialRequestSchema>
 export type CreatePlayerSearchInput = z.infer<typeof createPlayerSearchSchema>
 export type UpdatePlayerSearchInput = z.infer<typeof updatePlayerSearchSchema>
 export type PlayerSearchListQueryInput = z.infer<typeof playerSearchListQuerySchema>
-export type UpdateRegistrationRoleInput = z.infer<
-  typeof updateRegistrationRoleSchema
->
+export type UpdateRegistrationRoleInput = z.infer<typeof updateRegistrationRoleSchema>

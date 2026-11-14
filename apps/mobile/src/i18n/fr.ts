@@ -9,7 +9,10 @@ import { deepMerge } from './deepMerge'
 import generated from './generated/fr'
 import redesign from './redesign/fr' // 2026-11 Anstoss Redesign strings
 
+import { studioFr } from './studio/fr'
+
 const base = {
+  studio: studioFr,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
   a11y: {
@@ -164,6 +167,7 @@ const base = {
     signUp: 'Créer un compte',
     logout: 'Se déconnecter',
     sessionExpired: 'Ta session a expiré. Reconnecte-toi.',
+    sessionExpiredTitle: 'Reconnecte-toi',
     tagline: 'Ton club. Tout au même endroit.',
     headerEyebrow: 'Vie du club',
     headerSupport:

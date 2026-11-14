@@ -1,0 +1,32 @@
+appId: com.renuirug.anstoss
+---
+- extendedWaitUntil:
+    visible:
+      id: find-club-search
+    timeout: 30000
+- tapOn:
+    id: find-club-search
+- eraseText
+- inputText: 'Anstoss QA Lokal'
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: 'find-club-row-.*'
+    direction: DOWN
+- tapOn:
+    id: 'find-club-row-.*'
+# Player is already selected. Tapping again would deselect it.
+- scrollUntilVisible:
+    element:
+      id: 'club-team-.*'
+    direction: DOWN
+- takeScreenshot: /private/tmp/anstoss-connected-player-team-choice
+- tapOn:
+    id: 'club-team-.*'
+- tapOn:
+    id: club-send-request
+- extendedWaitUntil:
+    visible:
+      id: pending-check
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-connected-player-pending

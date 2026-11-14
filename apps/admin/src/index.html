@@ -5,26 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anstoss Platform Admin</title>
     <meta name="robots" content="noindex,nofollow,noarchive" />
-    <meta name="theme-color" content="#f5f3ee" />
+    <meta name="theme-color" content="#0E3B2B" />
     <link rel="icon" href="./anstoss-mark.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20261114-mvp" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <section class="login-shell" id="login-shell" hidden>
       <div class="login-card">
         <div class="login-card__brand">
-          <img class="brand-mark" src="./anstoss-mark.png" alt="" />
+          <span class="brand-dot" aria-hidden="true"></span>
           <div>
             <div class="brand-name">Anstoss</div>
             <div class="brand-context">Platform Admin</div>
           </div>
         </div>
-        <p class="eyebrow">Secure access</p>
-        <h1 class="login-title">Sign in to the admin console.</h1>
+        <h1 class="login-title">Sign in to Anstoss</h1>
         <p class="login-copy">
-          Use your platform admin username and password. The emergency admin key stays available
-          only as a fallback inside Settings after sign-in.
+          Manage clubs, people and platform operations with your admin account.
         </p>
         <form class="login-form" id="admin-login-form">
           <label class="support-form">
@@ -51,7 +49,7 @@
             Sign in
           </button>
         </form>
-        <p class="muted-line login-status" id="admin-login-status">
+        <p class="muted-line login-status" id="admin-login-status" role="status" aria-live="polite">
           Sign in to open the admin workspace.
         </p>
       </div>
@@ -59,7 +57,7 @@
     <div class="app-shell" id="app-shell" hidden>
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-mark" src="./anstoss-mark.png" alt="" />
+        <span class="brand-dot" aria-hidden="true"></span>
         <div>
           <div class="brand-name">Anstoss</div>
           <div class="brand-context">Admin</div>
@@ -105,7 +103,7 @@
           <strong id="current-route">Overview</strong>
         </div>
         <div class="command-bar__meta">
-          <span class="environment-chip"><span></span>Production</span>
+          <span class="environment-chip" id="environment-label">Admin workspace</span>
           <a class="command-link" href="#/settings">Settings</a>
         </div>
       </header>
@@ -114,7 +112,6 @@
            visibility based on location.hash. -->
 
       <section class="page" data-page="overview" hidden>
-        <p class="eyebrow">Overview</p>
         <h1 class="welcome">Overview</h1>
         <p class="lede">
           <span id="signed-in-as">Not signed in.</span>
@@ -145,21 +142,19 @@
         </div>
 
         <article class="panel panel--soft overview-notice">
-          <p class="eyebrow">Attention</p>
           <h2>Things to review</h2>
           <p class="lede" id="overview-warnings">Loading...</p>
         </article>
       </section>
 
       <section class="page" data-page="clubs" hidden>
-        <p class="eyebrow">Clubs</p>
         <h1 class="welcome">All clubs.</h1>
         <p class="lede">
           Every club on the platform. Open a club to review its owners, plan, and billing state.
         </p>
         <div class="toolbar">
           <input
-            id="clubs-search"
+            id="clubs-search" aria-label="Search clubs"
             class="text-input"
             type="search"
             placeholder="Search by name or slug..."
@@ -188,7 +183,6 @@
           </table>
         </div>
         <article class="panel" style="margin-top: 28px">
-          <p class="eyebrow">Authority review</p>
           <h2>Club administrator claims</h2>
           <p class="lede">
             Approve only after confirming the claimant is authorised by the real club.
@@ -216,7 +210,6 @@
         <article class="panel" style="margin-top: 28px">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Governance</p>
               <h2>Ownership disputes</h2>
               <p class="lede">Freeze ownership changes while the platform verifies a dispute.</p>
             </div>
@@ -243,7 +236,6 @@
           </div>
         </article>
         <article class="panel" style="margin-top: 28px">
-          <p class="eyebrow">Access safety</p>
           <h2>Suspicious invite campaigns</h2>
           <p class="lede">High-volume active campaigns that may need platform review.</p>
           <div class="table-wrap">
@@ -254,7 +246,6 @@
           </div>
         </article>
         <article class="panel" style="margin-top: 28px">
-          <p class="eyebrow">Support visibility</p>
           <h2>Pending player join requests</h2>
           <div class="table-wrap">
             <table class="data-table" id="join-requests-table">
@@ -264,20 +255,17 @@
           </div>
         </article>
         <article class="panel" style="margin-top: 28px">
-          <p class="eyebrow">Contribution operations</p>
           <h2>Ledger health</h2>
           <p class="lede" id="contribution-health">Loading...</p>
         </article>
       </section>
 
       <section class="page" data-page="users" hidden>
-        <p class="eyebrow">Users</p>
         <h1 class="welcome">Users and platform admins.</h1>
         <p class="lede">Search all accounts and provision internal admin access.</p>
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Platform access</p>
               <h2>Admin accounts</h2>
               <p class="lede">
                 Super admins can create a real admin username and password. New admins must rotate their password on first sign-in.
@@ -326,7 +314,7 @@
         </article>
         <div class="toolbar">
           <input
-            id="users-search"
+            id="users-search" aria-label="Search users"
             class="text-input"
             type="search"
             placeholder="Search by name or email..."
@@ -356,7 +344,6 @@
       </section>
 
       <section class="page" data-page="subscriptions" hidden>
-        <p class="eyebrow">Billing</p>
         <h1 class="welcome">Subscriptions</h1>
         <p class="lede">Review active plans and accounts that need attention.</p>
         <nav class="section-tabs" aria-label="Billing views">
@@ -365,7 +352,6 @@
         </nav>
         <div class="panel compact-panel">
           <div>
-            <p class="eyebrow">Plan controls</p>
             <h2>Publish a plan version</h2>
             <p class="muted-line">
               Publishing archives the prior version for the same tier and term. Existing
@@ -475,7 +461,6 @@
       </section>
 
       <section class="page" data-page="revenue" hidden>
-        <p class="eyebrow">Billing</p>
         <h1 class="welcome">Revenue</h1>
         <p class="lede">
           Monthly-equivalent revenue from active paid entitlements reconciled by Stripe webhooks.
@@ -504,7 +489,6 @@
       </section>
 
       <section class="page" data-page="health" hidden>
-        <p class="eyebrow">Operations</p>
         <h1 class="welcome">System status</h1>
         <p class="lede">
           A current view of platform health and the tools used to investigate issues.
@@ -551,7 +535,6 @@
       </section>
 
       <section class="page" data-page="audit" hidden>
-        <p class="eyebrow">Audit</p>
         <h1 class="welcome">Audit log.</h1>
         <p class="lede">Tamper-evident trail of platform actions. Filter by type to narrow down.</p>
         <div class="toolbar">
@@ -583,7 +566,6 @@
       </section>
 
       <section class="page" data-page="support" hidden>
-        <p class="eyebrow">Support</p>
         <h1 class="welcome">Support notes.</h1>
         <p class="lede">
           Record internal support notes for a club. State-changing operations stay outside this
@@ -591,7 +573,6 @@
         </p>
         <div class="grid-2">
           <article class="panel">
-            <p class="eyebrow">Note</p>
             <h2>Record context.</h2>
             <form id="support-form" class="support-form">
               <label>
@@ -617,7 +598,6 @@
           </article>
 
           <article class="panel">
-            <p class="eyebrow">Recent</p>
             <h2>Past actions.</h2>
             <div id="support-recent" class="stack-list">
               <p class="placeholder">Loading...</p>
@@ -627,7 +607,6 @@
       </section>
 
       <section class="page" data-page="broadcast" hidden>
-        <p class="eyebrow">Broadcast</p>
         <h1 class="welcome">Push to your users.</h1>
         <p class="lede">
           Broadcast sending is disabled for launch until notification opt-in, rate limiting, and
@@ -635,7 +614,6 @@
         </p>
         <div class="grid-2">
           <article class="panel">
-            <p class="eyebrow">Compose</p>
             <h2>New broadcast.</h2>
             <form id="broadcast-form" class="support-form">
               <label>
@@ -679,7 +657,6 @@ Broadcast sending is disabled for launch.</pre>
           </article>
 
           <article class="panel">
-            <p class="eyebrow">History</p>
             <h2>Recent.</h2>
             <div id="broadcast-history" class="stack-list">
               <p class="placeholder">Loading...</p>
@@ -689,7 +666,6 @@ Broadcast sending is disabled for launch.</pre>
       </section>
 
       <section class="page" data-page="flags" hidden>
-        <p class="eyebrow">Feature flags</p>
         <h1 class="welcome">Per-club overrides.</h1>
         <p class="lede">
           Comp a single Plus feature for a free club, or revoke one from a paying club. Applied on
@@ -697,7 +673,6 @@ Broadcast sending is disabled for launch.</pre>
         </p>
         <div class="grid-2">
           <article class="panel">
-            <p class="eyebrow">Apply override</p>
             <h2>Grant or revoke.</h2>
             <form id="flag-form" class="support-form">
               <label>
@@ -734,7 +709,6 @@ Broadcast sending is disabled for launch.</pre>
           </article>
 
           <article class="panel">
-            <p class="eyebrow">Active overrides</p>
             <h2>By club.</h2>
             <div class="toolbar" style="margin-bottom: 12px">
               <input
@@ -752,7 +726,6 @@ Broadcast sending is disabled for launch.</pre>
       </section>
 
       <section class="page" data-page="moderation" hidden>
-        <p class="eyebrow">Moderation</p>
         <h1 class="welcome">Reports &amp; blocks.</h1>
         <p class="lede">
           User-submitted reports on chat messages. Resolve to dismiss or record the operational
@@ -778,7 +751,6 @@ Broadcast sending is disabled for launch.</pre>
         </article>
       </section>
       <section class="page" data-page="analytics" hidden>
-        <p class="eyebrow">Analytics</p>
         <h1 class="welcome">Product KPIs.</h1>
         <p class="lede">
           DAU/WAU/MAU is a proxy from message + RSVP + event activity (no dedicated analytics
@@ -810,7 +782,6 @@ Broadcast sending is disabled for launch.</pre>
 
         <div class="grid-2">
           <article class="panel">
-            <p class="eyebrow">Signups</p>
             <h2>Last 30 days.</h2>
             <p id="analytics-signups-summary" class="muted-line">-</p>
             <div id="analytics-signups-chart" class="bars">
@@ -819,7 +790,6 @@ Broadcast sending is disabled for launch.</pre>
           </article>
 
           <article class="panel">
-            <p class="eyebrow">Activation funnel</p>
             <h2>30-day cohort.</h2>
             <p class="muted-line">
               % of users who signed up in the last 30 days and reached each step.
@@ -831,7 +801,6 @@ Broadcast sending is disabled for launch.</pre>
         </div>
 
         <article class="panel">
-          <p class="eyebrow">Engagement</p>
           <h2>Last 30 days.</h2>
           <div class="stat-row" id="analytics-engagement">
             <div class="stat-card">
@@ -849,7 +818,6 @@ Broadcast sending is disabled for launch.</pre>
       </section>
 
       <section class="page" data-page="sql" hidden>
-        <p class="eyebrow">V4</p>
         <h1 class="welcome">SQL runner.</h1>
         <p class="lede">
           Read-only Postgres console is deferred to V4. It needs a separate read-only DB user and
@@ -858,7 +826,6 @@ Broadcast sending is disabled for launch.</pre>
       </section>
 
       <section class="page" data-page="releases" hidden>
-        <p class="eyebrow">Releases</p>
         <h1 class="welcome">App version gate.</h1>
         <p class="lede">
           Edit the runtime version knobs the mobile app reads on every cold start. Bumping
@@ -877,14 +844,12 @@ Broadcast sending is disabled for launch.</pre>
       </section>
 
       <section class="page" data-page="settings" hidden>
-        <p class="eyebrow">Account</p>
         <h1 class="welcome">Settings.</h1>
         <p class="lede">
           Admin access now uses the in-app login page. Use
           <code>ADMIN_API_KEY</code> only as a break-glass fallback.
         </p>
         <article class="panel">
-          <p class="eyebrow">Auth</p>
           <h2>Current session</h2>
           <div class="settings-row">
             <input
@@ -901,7 +866,6 @@ Broadcast sending is disabled for launch.</pre>
           <p class="muted-line" id="admin-account-status">Loading current account…</p>
         </article>
         <article class="panel">
-          <p class="eyebrow">Security</p>
           <h2>Change password</h2>
           <form class="support-form" id="admin-password-form" autocomplete="off">
             <label>
@@ -921,7 +885,6 @@ Broadcast sending is disabled for launch.</pre>
           <p class="muted-line" id="admin-password-status">Passwords must be at least 12 characters.</p>
         </article>
         <article class="panel">
-          <p class="eyebrow">Break-glass</p>
           <h2>X-Admin-Key</h2>
           <div class="settings-row">
             <input
@@ -936,7 +899,6 @@ Broadcast sending is disabled for launch.</pre>
           <p class="muted-line" id="admin-key-status">No key saved.</p>
         </article>
         <article class="panel">
-          <p class="eyebrow">Connection</p>
           <h2>API base URL</h2>
           <div class="settings-row">
             <input
@@ -959,7 +921,6 @@ Broadcast sending is disabled for launch.</pre>
     <dialog class="detail-dialog" id="club-detail-dialog" aria-labelledby="club-detail-title">
       <div class="detail-dialog__head">
         <div>
-          <p class="eyebrow">Club details</p>
           <h2 id="club-detail-title">Loading...</h2>
         </div>
         <button
@@ -979,7 +940,6 @@ Broadcast sending is disabled for launch.</pre>
     <dialog class="detail-dialog" id="claim-decision-dialog" aria-labelledby="claim-decision-title">
       <div class="detail-dialog__head">
         <div>
-          <p class="eyebrow">Authority review</p>
           <h2 id="claim-decision-title">Review claim</h2>
         </div>
         <button class="icon-button" id="claim-decision-close" type="button" aria-label="Close">
@@ -1010,6 +970,6 @@ Broadcast sending is disabled for launch.</pre>
       </div>
     </dialog>
 
-    <script src="./main.js"></script>
+    <script src="./main.js?v=20261114-mvp"></script>
   </body>
 </html>

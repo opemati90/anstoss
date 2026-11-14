@@ -16,6 +16,8 @@ describe('MarketplaceService — free-agent profile', () => {
 
   function createService() {
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      trialInvite: { findMany: jest.fn().mockResolvedValue([]) },
       freeAgentProfile: {
         update: jest.fn(),
         create: jest.fn(),
@@ -192,11 +194,12 @@ describe('MarketplaceService — free-agent profile', () => {
 
   describe('deleteFreeAgentProfile', () => {
     it('throws NotFoundException when no profile exists', async () => {
-      const { service, prisma } = createService()
+      const { service, prisma, tx } = createService()
       prisma.user.findUnique.mockResolvedValue({
         registrationRole: RegistrationRole.FREE_AGENT,
       })
       prisma.freeAgentProfile.findUnique.mockResolvedValue(null)
+      tx.freeAgentProfile.findUnique.mockResolvedValue(null)
 
       await expect(service.deleteFreeAgentProfile('user-1')).rejects.toThrow(NotFoundException)
     })
@@ -207,6 +210,7 @@ describe('MarketplaceService — free-agent profile', () => {
         registrationRole: RegistrationRole.FREE_AGENT,
       })
       prisma.freeAgentProfile.findUnique.mockResolvedValue({ id: 'profile-1' })
+      tx.freeAgentProfile.findUnique.mockResolvedValue({ id: 'profile-1' })
       tx.freeAgentProfile.delete.mockResolvedValue({ id: 'profile-1' })
 
       await expect(service.deleteFreeAgentProfile('user-1')).resolves.toBeUndefined()
@@ -228,6 +232,7 @@ describe('MarketplaceService — free-agent profile', () => {
       const { service, prisma, tx } = createService()
       prisma.user.findUnique.mockResolvedValue({ registrationRole: role })
       prisma.freeAgentProfile.findUnique.mockResolvedValue({ id: 'profile-1' })
+      tx.freeAgentProfile.findUnique.mockResolvedValue({ id: 'profile-1' })
 
       await expect(service.deleteFreeAgentProfile('user-1')).resolves.toBeUndefined()
 
@@ -263,7 +268,9 @@ describe('MarketplaceService — free-agent profile', () => {
       prisma.freeAgentProfile.findUnique.mockResolvedValue(clubOnly)
       prisma.membership.findFirst.mockResolvedValue({ id: 'm-1' })
 
-      await expect(service.getPublicFreeAgentProfile('profile-1', 'coach-1')).resolves.toMatchObject({
+      await expect(
+        service.getPublicFreeAgentProfile('profile-1', 'coach-1'),
+      ).resolves.toMatchObject({
         id: 'profile-1',
         age: expect.any(Number),
       })
@@ -403,18 +410,22 @@ describe('MarketplaceService — free-agent profile', () => {
             sessionEventIds: ['event-1'],
           }),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-          findUniqueOrThrow: jest.fn().mockImplementation(async () =>
-            buildInvite({ status: TrialInviteStatus.ACCEPTED, respondedAt: new Date() }),
-          ),
+          findUniqueOrThrow: jest
+            .fn()
+            .mockImplementation(async () =>
+              buildInvite({ status: TrialInviteStatus.ACCEPTED, respondedAt: new Date() }),
+            ),
         },
       }
 
       const prisma = {
         trialInvite: {
           findUnique: jest.fn(),
-          update: jest.fn().mockImplementation(async ({ data }: { data: any }) =>
-            buildInvite({ status: data.status }),
-          ),
+          update: jest
+            .fn()
+            .mockImplementation(async ({ data }: { data: any }) =>
+              buildInvite({ status: data.status }),
+            ),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         event: { findMany: jest.fn().mockResolvedValue([]) },
@@ -591,7 +602,14 @@ describe('MarketplaceService — free-agent profile', () => {
           expiresAt: { gt: expect.any(Date) },
           freeAgentProfile: { userId: 'user-1' },
         },
-        select: { id: true, clubId: true, teamId: true, status: true, sessionEventIds: true },
+        select: {
+          id: true,
+          clubId: true,
+          teamId: true,
+          status: true,
+          sessionEventIds: true,
+          recruitmentRole: true,
+        },
       })
       expect(trialTx.teamAccess.upsert).not.toHaveBeenCalled()
     })
@@ -923,14 +941,18 @@ describe('MarketplaceService — free-agent profile', () => {
         trialInvite: {
           findFirst: jest.fn().mockResolvedValue(null),
           count: jest.fn().mockResolvedValue(0),
-          create: jest.fn().mockImplementation(async ({ data }: any) =>
-            buildInvite({ ...data, feedback: null, rating: null }),
-          ),
+          create: jest
+            .fn()
+            .mockImplementation(async ({ data }: any) =>
+              buildInvite({ ...data, feedback: null, rating: null }),
+            ),
         },
       }
       const prisma = {
         user: {
-          findUnique: jest.fn().mockResolvedValue({ registrationRole: RegistrationRole.FREE_AGENT }),
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ registrationRole: RegistrationRole.FREE_AGENT }),
         },
         freeAgentProfile: {
           findUnique: jest.fn().mockResolvedValue({
@@ -959,7 +981,9 @@ describe('MarketplaceService — free-agent profile', () => {
     it('opens a REQUESTED thread with the coach who posted the Gesuch', async () => {
       const { service, tx, push } = requestService()
 
-      await service.createTrialRequest('search-1', 'user-1', { message: 'Spiele Torwart seit 8 Jahren' })
+      await service.createTrialRequest('search-1', 'user-1', {
+        message: 'Spiele Torwart seit 8 Jahren',
+      })
 
       expect(tx.trialInvite.create).toHaveBeenCalledWith(
         expect.objectContaining({

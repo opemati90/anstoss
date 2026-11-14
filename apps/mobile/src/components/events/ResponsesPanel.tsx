@@ -107,7 +107,7 @@ export function ResponsesPanel({
   }
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID="event-responses">
       <View style={styles.head}>
         <Text variant="label" accessibilityRole="header" style={styles.headline}>
           {t('eventFlow.responses.headline', {
@@ -150,12 +150,18 @@ export function ResponsesPanel({
             return (
               <View
                 key={person.userId}
+                testID={`event-response-${person.userId}-${person.status}`}
                 style={styles.row}
                 accessible
                 accessibilityLabel={[person.name, status, person.note].filter(Boolean).join(', ')}
               >
                 {person.avatarUrl ? (
-                  <Avatar size={AVATAR} src={person.avatarUrl} fallbackText={person.name} tone="neutral" />
+                  <Avatar
+                    size={AVATAR}
+                    src={person.avatarUrl}
+                    fallbackText={person.name}
+                    tone="neutral"
+                  />
                 ) : (
                   // Design .av: 36pt warm grey well, 12pt bold ink initials.
                   <View style={[styles.initials, { backgroundColor: c.surfaceSunken }]}>

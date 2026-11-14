@@ -41,6 +41,8 @@ import { PushService } from '../push/push.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { AgeGateService } from '../auth/age-gate.service'
+import { R2Provider } from '../assets/r2.provider'
+import { queueMediaDeletion } from '../assets/media-deletion.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import {
   assertTeamInScope,
@@ -113,6 +115,7 @@ export class MarketplaceService {
     @Optional() private readonly clubEntitlements?: ClubEntitlementsService,
     // H4: the player's answer is age-gated in the invite's club context.
     @Optional() private readonly ageGate?: AgeGateService,
+    @Optional() private readonly r2?: R2Provider,
   ) {}
 
   // ─── Free-agent profile ──────────────────────────────────────────────
@@ -151,47 +154,83 @@ export class MarketplaceService {
   }
 
   async addMedia(userId: string, input: CreateFreeAgentMediaInput): Promise<FreeAgentMediaEntry> {
-    await this.assertMayAddMedia(userId)
-    const profile = await this.prisma.freeAgentProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!profile) {
-      throw new NotFoundException('Free agent profile not found')
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await this.assertMayAddMedia(userId)
+      const profile = await tx.freeAgentProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+      })
+      if (!profile) {
+        throw new NotFoundException('Free agent profile not found')
+      }
 
-    const existingCount = await this.prisma.freeAgentMedia.count({
-      where: { profileId: profile.id, type: input.type },
-    })
-    const limit = input.type === 'PHOTO' ? 6 : 2
-    if (existingCount >= limit) {
-      throw new BadRequestException(
-        `You can attach up to ${limit} ${input.type === 'PHOTO' ? 'photos' : 'videos'}`,
-      )
-    }
+      const keys = this.mediaKeys(userId, [input])
+      if (
+        keys.length &&
+        (await tx.mediaDeletionJob.count({ where: {
+          objectKey: { in: keys },
+          OR: [{ reclaimable: false }, { nextAttemptAt: { lte: new Date() } }],
+        } }))
+      ) {
+        throw new BadRequestException('This upload is being deleted; upload a new file')
+      }
+      const existingCount = await tx.freeAgentMedia.count({
+        where: { profileId: profile.id, type: input.type },
+      })
+      const limit = input.type === 'PHOTO' ? 6 : 2
+      if (existingCount >= limit) {
+        throw new BadRequestException(
+          `You can attach up to ${limit} ${input.type === 'PHOTO' ? 'photos' : 'videos'}`,
+        )
+      }
 
-    const created = await this.prisma.freeAgentMedia.create({
-      data: {
-        profileId: profile.id,
-        type: input.type,
-        url: input.url,
-        thumbnailUrl: input.thumbnailUrl ?? null,
-        sortOrder: existingCount,
-      },
+      const created = await tx.freeAgentMedia.create({
+        data: {
+          profileId: profile.id,
+          type: input.type,
+          url: input.url,
+          thumbnailUrl: input.thumbnailUrl ?? null,
+          sortOrder: existingCount,
+        },
+      })
+      // Commit the file reference and cancel its orphan-upload lease together.
+      if (keys.length) await tx.mediaDeletionJob.deleteMany({
+        where: { objectKey: { in: keys }, reclaimable: true },
+      })
+      return mapMedia(created)
     })
-    return mapMedia(created)
+  }
+
+  /** Every issued PUT has a cleanup lease, even if the app never attaches it. */
+  async reserveMediaUpload(userId: string, objectKey: string): Promise<void> {
+    if (!objectKey.startsWith(`users/${userId}/free-agent/`)) throw new BadRequestException('Invalid upload scope')
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await this.assertMayAddMedia(userId)
+      if (!await tx.freeAgentProfile.findUnique({ where: { userId }, select: { id: true } })) {
+        throw new NotFoundException('Free agent profile not found')
+      }
+      await tx.mediaDeletionJob.create({ data: {
+        objectKey, reclaimable: true, nextAttemptAt: new Date(Date.now() + 24 * 60 * 60_000),
+      } })
+    })
   }
 
   /** Removing own media is always allowed (also after a role change). */
   async deleteMedia(userId: string, mediaId: string): Promise<void> {
-    const media = await this.prisma.freeAgentMedia.findUnique({
-      where: { id: mediaId },
-      include: { profile: { select: { userId: true } } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const media = await tx.freeAgentMedia.findUnique({
+        where: { id: mediaId },
+        include: { profile: { select: { userId: true } } },
+      })
+      if (!media || media.profile.userId !== userId) {
+        throw new NotFoundException('Media not found')
+      }
+      await queueMediaDeletion(tx, this.mediaKeys(userId, [media]))
+      await tx.freeAgentMedia.delete({ where: { id: mediaId } })
     })
-    if (!media || media.profile.userId !== userId) {
-      throw new NotFoundException('Media not found')
-    }
-    await this.prisma.freeAgentMedia.delete({ where: { id: mediaId } })
   }
 
   /**
@@ -201,25 +240,26 @@ export class MarketplaceService {
    * cascade removes the invites.
    */
   async deleteFreeAgentProfile(userId: string): Promise<void> {
-    const existing = await this.prisma.freeAgentProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!existing) {
-      throw new NotFoundException('Free agent profile not found')
-    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      const existing = await tx.freeAgentProfile.findUnique({
+        where: { userId },
+        select: { id: true, media: { select: { url: true, thumbnailUrl: true } } },
+      })
+      if (!existing) {
+        throw new NotFoundException('Free agent profile not found')
+      }
 
-    const openInvites: Array<{ id: string; clubId: string; teamId: string }> =
-      await tenantContext.exit(() =>
-        this.prisma.trialInvite.findMany({
-          where: { freeAgentProfileId: existing.id, status: { in: OPEN_TRIAL_STATUSES } },
-          select: { id: true, clubId: true, teamId: true },
-        }),
-      )
+      const openInvites: Array<{ id: string; clubId: string; teamId: string }> =
+        await tenantContext.exit(() =>
+          tx.trialInvite.findMany({
+            where: { freeAgentProfileId: existing.id, status: { in: OPEN_TRIAL_STATUSES } },
+            select: { id: true, clubId: true, teamId: true },
+          }),
+        )
 
-    for (const invite of openInvites) {
-      await tenantContext.run({ clubId: invite.clubId, userId }, () =>
-        this.prisma.$transaction(async (tx: any) => {
+      for (const invite of openInvites) {
+        await tenantContext.run({ clubId: invite.clubId, userId }, async () => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`trial-invite:${invite.id}`}))`
           await tx.trialInvite.updateMany({
             where: { id: invite.id, clubId: invite.clubId, status: { in: OPEN_TRIAL_STATUSES } },
@@ -233,16 +273,26 @@ export class MarketplaceService {
             JoinRequestStatus.WITHDRAWN,
             userId,
           )
-        }),
-      )
-    }
+        })
+      }
 
-    await this.prisma.$transaction(async (tx: any) => {
+      await queueMediaDeletion(tx, this.mediaKeys(userId, existing.media ?? []))
       await tx.freeAgentExperience.deleteMany({
         where: { profileId: existing.id },
       })
       await tx.freeAgentProfile.delete({ where: { userId } })
     })
+  }
+
+  private mediaKeys(
+    userId: string,
+    media: Array<{ url: string; thumbnailUrl?: string | null }>,
+  ): string[] {
+    // Never delete another person's file through a forged legacy thumbnail.
+    return media
+      .flatMap((entry) => [entry.url, entry.thumbnailUrl])
+      .map((url) => (url ? this.r2?.objectKeyFromUrl(url) : null))
+      .filter((key): key is string => !!key && key.startsWith(`users/${userId}/free-agent/`))
   }
 
   /**
@@ -252,9 +302,9 @@ export class MarketplaceService {
   private async assertFreeAgent(userId: string): Promise<AgeFacts> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { registrationRole: true, dateOfBirth: true },
+      select: { registrationRole: true, dateOfBirth: true, deletedAt: true },
     })
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new NotFoundException('User not found')
     }
     if (user.registrationRole !== RegistrationRole.FREE_AGENT) {
@@ -371,7 +421,12 @@ export class MarketplaceService {
         registrationRole: RegistrationRole.FREE_AGENT,
         AND: [
           // H2: never under 16; minors (16–17) only for club staff.
-          { OR: [{ dateOfBirth: null }, { dateOfBirth: { lte: dobCutoff(FREE_AGENT_MIN_AGE, now) } }] },
+          {
+            OR: [
+              { dateOfBirth: null },
+              { dateOfBirth: { lte: dobCutoff(FREE_AGENT_MIN_AGE, now) } },
+            ],
+          },
           ...(staff
             ? []
             : [
@@ -383,17 +438,14 @@ export class MarketplaceService {
                 },
               ]),
         ],
-        ...(input.query
-          ? { name: { contains: input.query, mode: 'insensitive' as const } }
-          : {}),
+        ...(input.query ? { name: { contains: input.query, mode: 'insensitive' as const } } : {}),
       },
       ...(input.position ? { position: input.position } : {}),
+      ...(input.recruitmentRole ? { recruitmentRole: input.recruitmentRole } : {}),
       ...(input.preferredFoot ? { preferredFoot: input.preferredFoot } : {}),
       ...(input.league ? { highestLeague: input.league } : {}),
       ...(postalPrefix ? { postalCode: { startsWith: postalPrefix } } : {}),
-      ...(input.city
-        ? { city: { contains: input.city, mode: 'insensitive' as const } }
-        : {}),
+      ...(input.city ? { city: { contains: input.city, mode: 'insensitive' as const } } : {}),
     }
 
     const [items, total] = await Promise.all([
@@ -418,6 +470,7 @@ export class MarketplaceService {
         return {
           id: item.id,
           userId: item.userId,
+          recruitmentRole: item.recruitmentRole ?? 'PLAYER',
           name: item.user.name,
           avatarUrl: item.user.avatarUrl,
           position: item.position,
@@ -555,14 +608,20 @@ export class MarketplaceService {
     if (!team) {
       throw new NotFoundException('Team not found')
     }
-    assertAgeFitsTeam(team.ageGroup, facts.age)
+    if (profile.recruitmentRole !== 'COACH') assertAgeFitsTeam(team.ageGroup, facts.age)
 
     if (input.playerSearchId) {
       const search = await this.prisma.playerSearch.findFirst({
         where: { id: input.playerSearchId, clubId },
-        select: { id: true },
+        select: { id: true, teamId: true, recruitmentRole: true },
       })
       if (!search) throw new NotFoundException('Player search not found')
+      if (
+        search.teamId !== input.teamId ||
+        (search.recruitmentRole ?? 'PLAYER') !== (profile.recruitmentRole ?? 'PLAYER')
+      ) {
+        throw new BadRequestException('The vacancy must match the candidate role and team')
+      }
     }
 
     // L4: an expiry in the past is refused rather than silently clamped.
@@ -595,6 +654,7 @@ export class MarketplaceService {
           clubId,
           freeAgentProfileId: input.freeAgentProfileId,
           teamId: input.teamId,
+          recruitmentRole: profile.recruitmentRole ?? 'PLAYER',
           sentByUserId: senderUserId,
           message: input.message?.trim() || null,
           expiresAt: inviteExpiry(sessions, input.expiresAt),
@@ -658,7 +718,8 @@ export class MarketplaceService {
     switch (input.action) {
       case 'invite': {
         from = [TrialInviteStatus.REQUESTED, TrialInviteStatus.PENDING]
-        assertAgeFitsTeam(invite.team?.ageGroup, ageFacts(invite.freeAgentProfile.user).age)
+        if (invite.recruitmentRole !== 'COACH')
+          assertAgeFitsTeam(invite.team?.ageGroup, ageFacts(invite.freeAgentProfile.user).age)
         sessions = await this.assertTrialSessions(clubId, invite.teamId, input.sessionEventIds)
         data = {
           status: TrialInviteStatus.PENDING,
@@ -838,7 +899,10 @@ export class MarketplaceService {
     if (!search || (search.expiresAt && search.expiresAt < new Date())) {
       throw new NotFoundException('This search is no longer open')
     }
-    assertAgeFitsTeam(search.team?.ageGroup, facts.age)
+    if ((search.recruitmentRole ?? 'PLAYER') !== (profile.recruitmentRole ?? 'PLAYER')) {
+      throw new BadRequestException('Choose a vacancy matching your recruitment role')
+    }
+    if (profile.recruitmentRole !== 'COACH') assertAgeFitsTeam(search.team?.ageGroup, facts.age)
 
     return tenantContext.run({ clubId: search.clubId, userId }, async () => {
       const invite = await this.prisma.$transaction(async (tx: any) => {
@@ -862,6 +926,7 @@ export class MarketplaceService {
             clubId: search.clubId,
             freeAgentProfileId: profile.id,
             teamId: search.teamId,
+            recruitmentRole: profile.recruitmentRole ?? 'PLAYER',
             // The coach who posted the Gesuch is the club's contact person
             // (null once they deleted their account, L6).
             sentByUserId: search.createdByUserId ?? null,
@@ -936,7 +1001,7 @@ export class MarketplaceService {
         // H4: no Probetraining for under-16s (they cannot hold a profile);
         // 16–17 may accept.
         if (facts.underSixteen) throw new ForbiddenException(UNDER_16_FREE_AGENT_MESSAGE)
-        assertAgeFitsTeam(invite.team?.ageGroup, facts.age)
+        if (invite.recruitmentRole !== 'COACH') assertAgeFitsTeam(invite.team?.ageGroup, facts.age)
       }
 
       const updatedInvite = await this.decideTrialInvite(invite, userId, action)
@@ -986,8 +1051,7 @@ export class MarketplaceService {
     }
 
     // H2: a 16–17-year-old is visible to clubs only (never PUBLIC).
-    const requestedVisibility =
-      input.visibility === undefined ? undefined : input.visibility
+    const requestedVisibility = input.visibility === undefined ? undefined : input.visibility
     const visibility =
       facts.minor && requestedVisibility === FreeAgentVisibility.PUBLIC
         ? FreeAgentVisibility.CLUB_ONLY
@@ -1012,10 +1076,13 @@ export class MarketplaceService {
     }
 
     const profile = await this.prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+      await this.assertFreeAgent(userId)
       const savedProfile = existing
         ? await tx.freeAgentProfile.update({
             where: { userId },
             data: {
+              recruitmentRole: input.recruitmentRole,
               position: input.position === undefined ? undefined : input.position,
               preferredFoot: input.preferredFoot === undefined ? undefined : input.preferredFoot,
               city: input.city === undefined ? undefined : normalizeNullableString(input.city),
@@ -1029,6 +1096,7 @@ export class MarketplaceService {
         : await tx.freeAgentProfile.create({
             data: {
               userId,
+              recruitmentRole: input.recruitmentRole ?? 'PLAYER',
               position: input.position ?? null,
               preferredFoot: input.preferredFoot ?? null,
               city: normalizeNullableString(input.city),
@@ -1108,7 +1176,14 @@ export class MarketplaceService {
           ...expiryGuard,
           freeAgentProfile: { userId },
         },
-        select: { id: true, clubId: true, teamId: true, status: true, sessionEventIds: true },
+        select: {
+          id: true,
+          clubId: true,
+          teamId: true,
+          status: true,
+          sessionEventIds: true,
+          recruitmentRole: true,
+        },
       })
       if (!currentInvite) {
         throw new BadRequestException('Trial invite is no longer available')
@@ -1131,7 +1206,11 @@ export class MarketplaceService {
       }
 
       if (action === TrialInviteStatus.ACCEPTED) {
-        await grantTrialAccess(tx, currentInvite.clubId, currentInvite.teamId, userId)
+        // A coaching visit is not staff authorisation. Only admin approval of
+        // the subsequent role-bound offer can create coaching access.
+        if (currentInvite.recruitmentRole !== 'COACH') {
+          await grantTrialAccess(tx, currentInvite.clubId, currentInvite.teamId, userId)
+        }
       } else if (action === TrialInviteStatus.DECLINED || action === TrialInviteStatus.WITHDRAWN) {
         await revokeTrialAccess(tx, currentInvite.teamId, userId)
         // B2: declining an offer closes the Aufnahmeantrag; the player's
@@ -1187,9 +1266,7 @@ export class MarketplaceService {
       orderBy: [{ date: 'asc' }],
     })
     if (events.length !== unique.length) {
-      throw new BadRequestException(
-        'Pick upcoming training sessions of this team for the trial',
-      )
+      throw new BadRequestException('Pick upcoming training sessions of this team for the trial')
     }
     return events.map(mapSession)
   }
@@ -1247,6 +1324,7 @@ export class MarketplaceService {
     return {
       id: profile.id,
       userId: profile.userId,
+      recruitmentRole: profile.recruitmentRole ?? 'PLAYER',
       position: profile.position,
       preferredFoot: profile.preferredFoot,
       city: profile.city,
@@ -1298,6 +1376,7 @@ export class MarketplaceService {
       id: invite.id,
       clubId: invite.clubId,
       freeAgentProfileId: invite.freeAgentProfileId,
+      recruitmentRole: invite.recruitmentRole ?? 'PLAYER',
       teamId: invite.teamId,
       sentByUserId: invite.sentByUserId ?? null,
       message: invite.message,

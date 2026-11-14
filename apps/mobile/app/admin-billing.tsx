@@ -1017,7 +1017,7 @@ const styles = StyleSheet.create({
   },
   memberBodyWrap: { flex: 1, minWidth: 0 },
   memberBody: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: SPACING_MD + 2 },
-  memberText: { flex: 1, minWidth: 0, gap: 3 },
+  memberText: { flex: 1, minWidth: 0, gap: SPACING_XXS },
   memberAmount: { fontSize: 16, lineHeight: 20 },
   monthChip: {
     height: 36,

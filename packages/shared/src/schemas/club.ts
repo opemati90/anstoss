@@ -214,12 +214,19 @@ export const clubSetupSchema = z.object({
   directoryEntryId: z.string().min(1).optional(),
 })
 
-const officialTeamUrlSchema = z
+export const officialTeamUrlSchema = z
   .string()
   .url()
   .max(500)
   .refine((value) => {
-    const parsed = new URL(value)
+    // Zod still runs refinements after a failed .url() check. Malformed or
+    // empty input must be a validation issue, never an uncaught URL error.
+    let parsed: URL
+    try {
+      parsed = new URL(value)
+    } catch {
+      return false
+    }
     const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
     const isOfficialHost = ['fussball.de', 'dfb.de', 'fupa.net'].some(
       (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
@@ -250,7 +257,7 @@ export const submitFirstClubClaimSchema = z.object({
     .refine((roles) => new Set(roles).size === roles.length, {
       message: 'Team roles must be unique',
     }),
-  externalTeamUrl: officialTeamUrlSchema,
+  externalTeamUrl: officialTeamUrlSchema.optional(),
   officialEmail: z.string().email().max(254).optional(),
 }).refine((value) => Boolean(value.directoryEntryId || value.clubName), {
   message: 'Choose a directory club or provide the official club name',

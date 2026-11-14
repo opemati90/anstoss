@@ -1,0 +1,17 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/connected-login.yaml
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 30000
+- openLink: 'anstoss://pending-requests'
+- extendedWaitUntil:
+    visible: 'QA player'
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-connected-admin-request
+- tapOn: 'Annehmen QA player'
+- extendedWaitUntil:
+    notVisible: 'QA player'
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-connected-admin-approved

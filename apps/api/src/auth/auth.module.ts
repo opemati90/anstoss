@@ -6,6 +6,7 @@ import { AgeGateGuard } from './age-gate.guard'
 import { AgeGateService } from './age-gate.service'
 import { OtpController } from './otp/otp.controller'
 import { OtpService } from './otp/otp.service'
+import { IdentityRetentionWorker } from './identity-retention.worker'
 
 @Global()
 @Module({
@@ -19,6 +20,7 @@ import { OtpService } from './otp/otp.service'
     // Routes a gated child must still reach opt out with @AllowWithoutConsent().
     { provide: APP_GUARD, useExisting: AgeGateGuard },
     OtpService,
+    IdentityRetentionWorker,
   ],
   exports: [ClerkAuthGuard, RolesGuard, AgeGateGuard, AgeGateService, OtpService],
 })

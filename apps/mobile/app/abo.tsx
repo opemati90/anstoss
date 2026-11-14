@@ -7,6 +7,8 @@ import { useClubPlan, fallbackClubPlan } from '../src/hooks/useClubPlan'
 import { useAuth } from '../src/context/AuthContext'
 import { useSafeAreaInsetsSafe } from '../src/utils/useSafeAreaInsetsSafe'
 import { ClubScreenHeader } from '../src/components/club/ClubScreenHeader'
+import { ErrorState } from '../src/components/ErrorState'
+import { Skeleton } from '../src/components/Skeleton'
 import { Button, Icon, SegmentedControl, Text } from '../src/components/ui'
 import { getAppLanguage, getAppLocale } from '../src/i18n'
 import {
@@ -81,7 +83,7 @@ export default function AboScreen() {
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
   const { activeClub } = useAuth()
-  const { plan: loaded, startTrial } = useClubPlan()
+  const { plan: loaded, loading, error, refresh, startTrial } = useClubPlan()
   const [interval, setInterval] = useState<Interval>('monthly')
   const [starting, setStarting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -107,7 +109,7 @@ export default function AboScreen() {
         : !isFree
           ? t('clubPlan.active')
           : null
-  const canStartTrial = isFree && !plan.trialUsed && plan.canManage
+  const canStartTrial = !loading && !error && isFree && !plan.trialUsed && plan.canManage
 
   const onStartTrial = async () => {
     if (starting) return
@@ -121,6 +123,31 @@ export default function AboScreen() {
     } finally {
       setStarting(false)
     }
+  }
+
+  if (!loaded) {
+    return (
+      <View style={[styles.root, { backgroundColor: c.background }]} testID="abo-screen">
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + PAGE_TOP,
+              paddingBottom: insets.bottom + SPACING_XXXL,
+            },
+          ]}
+        >
+          <ClubScreenHeader title={t('clubPlan.title')} fallbackHref="/(tabs)/more" />
+          {error ? (
+            <ErrorState onRetry={() => void refresh()} />
+          ) : (
+            <View accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
+              <Skeleton shape="card" height={200} />
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    )
   }
 
   return (
@@ -244,12 +271,7 @@ export default function AboScreen() {
             </Text>
           </>
         ) : (
-          <Text
-            variant="footnote"
-            color="secondary"
-            align="center"
-            testID="abo-status-note"
-          >
+          <Text variant="footnote" color="secondary" align="center" testID="abo-status-note">
             {message ??
               (trialActive
                 ? `${t('clubPlan.trialRunning', { date: trialDate })} ${t('clubPlan.trialRunningNote')}`
@@ -379,4 +401,3 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 })
-

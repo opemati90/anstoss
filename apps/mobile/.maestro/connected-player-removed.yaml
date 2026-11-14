@@ -1,0 +1,11 @@
+appId: com.renuirug.anstoss
+---
+# Run after the isolated admin removes the signed-in fictional player.
+# Do not sign out/reload: this verifies live membership refresh.
+- extendedWaitUntil:
+    visible: 'Entdecken'
+    timeout: 60000
+- assertNotVisible:
+    id: club-header-identity
+- assertNotVisible: 'Kader'
+- takeScreenshot: /private/tmp/anstoss-connected-player-removed

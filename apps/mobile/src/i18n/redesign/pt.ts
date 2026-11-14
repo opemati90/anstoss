@@ -134,6 +134,7 @@ export default {
       confirmNo: "Ausência enviada. O treinador foi informado.",
       confirmYes: "Confirmado. És um dos {{count}}.",
       giveReason: "Indicar motivo",
+      viewResponses: "Quem vem? Ver respostas",
       seasonLine: "{{appearances}} jogos · {{goals}} golos · {{attended}} de {{total}} treinos",
       teamRecord: "Equipa {{wins}}-{{draws}}-{{losses}}",
     },

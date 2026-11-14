@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common'
-import { RegistrationRole } from '@anstoss/shared'
+import { RegistrationRole, submitFirstClubClaimSchema } from '@anstoss/shared'
 import { ClubActivationService } from './club-activation.service'
 
 // Onboarding review fix (H3): CLUB_ADMIN is written with the claim, not before.
@@ -66,5 +66,25 @@ describe('ClubActivationService.submitFirstClaim role handling', () => {
       ForbiddenException,
     )
     expect(tx.clubClaim.create).not.toHaveBeenCalled()
+  })
+
+  it('accepts a personal email and no link or roster, without granting membership', async () => {
+    const { service, tx } = setup({ role: RegistrationRole.PLAYER })
+    const result = await service.submitFirstClaim('user-1', 'person@gmail.com',
+      submitFirstClubClaimSchema.parse({ directoryEntryId: 'dir-1', teamName: 'Codex FC II' }))
+    expect(result.status).toBe('SUBMITTED')
+    expect(tx.clubClaim.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ externalTeamUrl: null, requestedTeamRoles: [] }),
+    })
+    expect(tx.clubClaimEvidence.create).not.toHaveBeenCalled()
+  })
+
+  it('does not accept a second applicant while the directory club is under review', async () => {
+    const { service, tx } = setup({ role: RegistrationRole.PLAYER })
+    tx.clubClaim.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'other-claim' })
+    await expect(service.submitFirstClaim('user-2', 'other@gmail.com', input))
+      .rejects.toMatchObject({ response: { code: 'CLUB_REGISTRATION_PENDING' } })
+    expect(tx.clubClaim.create).not.toHaveBeenCalled()
+    expect(tx.user.update).not.toHaveBeenCalled()
   })
 })

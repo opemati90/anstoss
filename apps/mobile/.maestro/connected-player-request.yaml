@@ -1,0 +1,6 @@
+appId: com.renuirug.anstoss
+---
+# Start the connected Metro bundle and wait for the app to render before this
+# flow. Opening the signed-out deep link during native bundle startup loses it.
+- runFlow: subflows/connected-login.yaml
+- runFlow: subflows/connected-join-club.yaml

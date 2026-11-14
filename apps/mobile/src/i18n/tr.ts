@@ -8,7 +8,10 @@ import { statesTr } from './states.tr'
 import { deepMerge } from './deepMerge'
 import redesign from './redesign/tr' // 2026-11 Anstoss Redesign strings
 
+import { studioTr } from './studio/tr'
+
 const base = {
+  studio: studioTr,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
   a11y: {
@@ -173,6 +176,7 @@ const base = {
     signUp: 'Hesap oluştur',
     logout: 'Çıkış yap',
     sessionExpired: 'Oturumunun süresi doldu. Lütfen tekrar giriş yap.',
+    sessionExpiredTitle: 'Lütfen tekrar giriş yap',
     tagline: 'Kulübün. Her şey tek bir yerde.',
     headerEyebrow: 'Kulüp hayatı',
     headerSupport:

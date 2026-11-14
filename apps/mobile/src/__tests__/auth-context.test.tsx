@@ -4,6 +4,7 @@ import { Text } from 'react-native'
 import { waitFor } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AuthProvider, useAuth } from '../context/AuthContext'
+import { notifyAccessChanged } from '../auth/accessChanges'
 
 const mockApi = jest.fn()
 const mockSetTokenGetter = jest.fn()
@@ -144,6 +145,41 @@ describe('AuthContext signOut', () => {
     warnSpy.mockRestore()
   })
 
+  it('drops removed club access on the server revocation signal without signing out', async () => {
+    mockBackendUser({ withClub: true })
+    let tree!: ReturnType<typeof renderer.create>
+    await act(async () => { tree = renderer.create(<AuthProvider><Probe /></AuthProvider>) })
+    await waitFor(() => expect(latestAuth?.activeClub?.club.id).toBe('club-1'))
+    mockBackendUser({ withClub: false })
+    await act(async () => { notifyAccessChanged() })
+    await waitFor(() => {
+      expect(latestAuth?.activeClub).toBeNull()
+      expect(latestAuth?.activeTeamId).toBeNull()
+      expect(latestAuth?.teamMembers).toEqual([])
+      expect(latestAuth?.user?.registrationRole).toBe('FREE_AGENT')
+      expect(latestAuth?.isSignedIn).toBe(true)
+    })
+    expect(mockClearMemoryCache).toHaveBeenCalled()
+    await act(async () => tree.unmount())
+  })
+
+  it('does not restore a removed club from a refresh that finishes after sign-out', async () => {
+    mockBackendUser({ withClub: true })
+    let tree!: ReturnType<typeof renderer.create>
+    await act(async () => { tree = renderer.create(<AuthProvider><Probe /></AuthProvider>) })
+    await waitFor(() => expect(latestAuth?.activeClub?.club.id).toBe('club-1'))
+    const oldAccount = await mockApi('/me')
+    let resolveRefresh!: (value: unknown) => void
+    mockApi.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve }))
+    act(() => notifyAccessChanged())
+    await act(async () => { await latestAuth!.signOut() })
+    await act(async () => { resolveRefresh(oldAccount) })
+    expect(latestAuth?.user).toBeNull()
+    expect(latestAuth?.activeClub).toBeNull()
+    expect(latestAuth?.memberships).toEqual([])
+    await act(async () => tree.unmount())
+  })
+
   it('clears stale local user state and resolves before remote cleanup finishes', async () => {
     let tree: ReturnType<typeof renderer.create>
     let resolveUnregisterPush: () => void = () => {}
@@ -185,7 +221,9 @@ describe('AuthContext signOut', () => {
     expect(mockSetAuthExpiryHandlingSuspended).toHaveBeenCalledWith(true)
     expect(mockSetAuthExpiryHandlingSuspended).not.toHaveBeenCalledWith(false)
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('http://api.test', 'token_123')
-    expect(mockClearSessionToken).not.toHaveBeenCalled()
+    // Clear the old JWT before waiting for push unregister, so late cleanup
+    // cannot erase a subsequent login.
+    expect(mockClearSessionToken).toHaveBeenCalledTimes(1)
     expect(mockApi).not.toHaveBeenCalled()
 
     await act(async () => {

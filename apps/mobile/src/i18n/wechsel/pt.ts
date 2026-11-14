@@ -1,11 +1,22 @@
 // Wechselbörse revamp (português europeu). Futebol amador: treino à
 // experiência, carta de desvinculação, inscrição, janela de transferências. "Tu".
 export default {
+  recruitment: {
+    role: 'Procurar clube como',
+    PLAYER: 'Jogador',
+    COACH: 'Treinador',
+    coachApply: 'Pedir acesso de treinador',
+    coachPending:
+      'O administrador do clube analisará o pedido. Ainda não foi concedido acesso de treinador.',
+    region: 'Região postal aproximada, não uma distância medida.',
+    anywhere: 'Todas as regiões',
+  },
   wechsel: {
     title: 'Recrutamento',
     entryHint: 'Anúncios, treinos à experiência e transferências',
     nearbySubtitle: 'Jogadores sem clube num raio de {{km}} km',
-    invitedFootnote: 'Os convidados veem o local e a hora do próximo treino. Contactos só depois de aceitarem.',
+    invitedFootnote:
+      'Os convidados veem o local e a hora do próximo treino. Contactos só depois de aceitarem.',
     lastLeague: 'último escalão: {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'Outras secções',
@@ -21,9 +32,12 @@ export default {
     errorGeneric: 'Não resultou. Verifica a ligação e tenta outra vez.',
     errorNoAccess: 'Não tens permissão para isso neste clube.',
     // Review fixes 2026-09-24
-    errorTooManyRequests: 'Acabaste de fazer um pedido. Podes voltar a contactar este clube daqui a 24 horas; no total, até cinco pedidos por dia.',
-    errorTrialCap: 'O teu clube já tem dez treinos à experiência em aberto. Fecha um antes de convidar outra pessoa.',
-    errorAgeGroup: 'Não corresponde ao escalão da equipa. Um adulto não pode treinar à experiência numa equipa de formação.',
+    errorTooManyRequests:
+      'Acabaste de fazer um pedido. Podes voltar a contactar este clube daqui a 24 horas; no total, até cinco pedidos por dia.',
+    errorTrialCap:
+      'O teu clube já tem dez treinos à experiência em aberto. Fecha um antes de convidar outra pessoa.',
+    errorAgeGroup:
+      'Não corresponde ao escalão da equipa. Um adulto não pode treinar à experiência numa equipa de formação.',
     tabGesuche: 'Anúncios',
     tabSpieler: 'Jogadores',
     tabProbetraining: 'Experiências',
@@ -31,9 +45,11 @@ export default {
 
     gesuchNew: 'Publicar anúncio',
     gesuchNewTitle: 'Novo aviso',
-    gesuchNewHint: 'Jogadores sem clube da zona veem o anúncio e podem pedir um treino à experiência.',
+    gesuchNewHint:
+      'Jogadores sem clube da zona veem o anúncio e podem pedir um treino à experiência.',
     gesuchPublish: 'Publicar',
-    gesuchNotePlaceholder: 'p. ex. Kreisliga A, treinos à terça e à quinta às 19h, relvado sintético',
+    gesuchNotePlaceholder:
+      'p. ex. Kreisliga A, treinos à terça e à quinta às 19h, relvado sintético',
     gesuchSeeks: 'Procuramos',
     gesuchValidUntil: 'Válido até {{date}}',
     gesuchNoEnd: 'Sem data de fim',
@@ -159,8 +175,10 @@ export default {
     },
     rejectTemplate: {
       full: 'Obrigado por teres vindo! Neste momento o plantel está completo, por isso não te podemos oferecer lugar. Boa sorte na procura!',
-      level: 'Obrigado por teres aparecido! Em termos desportivos, neste momento não se enquadra. Desejamos-te muito sucesso noutro clube.',
-      later: 'Obrigado pela experiência! Neste momento não temos vaga. Se isso mudar, entramos em contacto.',
+      level:
+        'Obrigado por teres aparecido! Em termos desportivos, neste momento não se enquadra. Desejamos-te muito sucesso noutro clube.',
+      later:
+        'Obrigado pela experiência! Neste momento não temos vaga. Se isso mudar, entramos em contacto.',
     },
     rejectSend: 'Enviar resposta',
     rejectSent: 'Resposta enviada a {{name}}.',
@@ -169,7 +187,8 @@ export default {
     dfbnetBody:
       'Aqui só acompanhas o andamento da transferência. A inscrição e a carta de desvinculação continuam a passar pelo DFBnet.',
     wechselEmptyTitle: 'Nenhuma transferência em curso',
-    wechselEmptyBody: 'Quando ofereces lugar a um jogador, ele aparece aqui com a respetiva lista de verificação.',
+    wechselEmptyBody:
+      'Quando ofereces lugar a um jogador, ele aparece aqui com a respetiva lista de verificação.',
     inProgress: 'Em curso',
     eligibleShort: 'A partir de {{date}}',
     needsApplication: 'Disponível quando chegar o pedido de admissão',
@@ -182,8 +201,10 @@ export default {
     stepRelease: 'Carta de desvinculação',
     releaseFrom: 'Clube anterior: {{club}}',
     releaseTitle: 'Carta de desvinculação',
-    releaseHint: 'O clube anterior já deu a carta de desvinculação (a autorização para o jogador sair)?',
-    releaseHintClub: 'O clube anterior ({{club}}) já deu a carta de desvinculação (a autorização para o jogador sair)?',
+    releaseHint:
+      'O clube anterior já deu a carta de desvinculação (a autorização para o jogador sair)?',
+    releaseHintClub:
+      'O clube anterior ({{club}}) já deu a carta de desvinculação (a autorização para o jogador sair)?',
     release: {
       PENDING: 'Pendente',
       GRANTED: 'Concedida',
@@ -203,8 +224,10 @@ export default {
       SOMMER: 'de verão (1 de julho a 31 de agosto)',
       WINTER: 'de inverno (1 a 31 de janeiro)',
     },
-    periodInside: 'Apenas indicativo: esta data está dentro da janela de transferências {{period}}. O que conta é a data de entrada do pedido de inscrição.',
-    periodOutside: 'Apenas indicativo: fora da janela de transferências. A próxima é a {{period}}, a partir de {{date}}. O que conta é a data de entrada do pedido de inscrição; com a carta de desvinculação muitas vezes é possível na mesma, confirma eventuais períodos de espera.',
+    periodInside:
+      'Apenas indicativo: esta data está dentro da janela de transferências {{period}}. O que conta é a data de entrada do pedido de inscrição.',
+    periodOutside:
+      'Apenas indicativo: fora da janela de transferências. A próxima é a {{period}}, a partir de {{date}}. O que conta é a data de entrada do pedido de inscrição; com a carta de desvinculação muitas vezes é possível na mesma, confirma eventuais períodos de espera.',
   },
 
   probetraining: {
@@ -273,7 +296,8 @@ export default {
     scheduledHint: 'Avisa o treinador se afinal não puderes ir.',
     waitingDecision: 'O {{club}} decide depois do treino e dá-te notícias.',
     offerTitle: '{{team}} quer-te no plantel',
-    offerBody: 'Preenche o pedido de admissão. A carta de desvinculação e a inscrição na federação ficam a cargo do clube.',
+    offerBody:
+      'Preenche o pedido de admissão. A carta de desvinculação e a inscrição na federação ficam a cargo do clube.',
     fillApplication: 'Preencher pedido de admissão',
     applicationSentTitle: 'Pedido de admissão enviado',
     applicationSentBody: 'O {{club}} está a analisar o teu pedido e trata da tua inscrição.',
@@ -321,7 +345,8 @@ export default {
     previousClubPlaceholder: 'p. ex. SV Babelsberg 03',
     lastMatch: 'Último jogo oficial',
     lastMatchUnknown: 'Não me lembro',
-    clubHint: 'O clube pede a carta de desvinculação ao teu clube anterior e faz o pedido de inscrição no DFBnet.',
+    clubHint:
+      'O clube pede a carta de desvinculação ao teu clube anterior e faz o pedido de inscrição no DFBnet.',
     sectionFees: 'Quota',
     sepaConsent: 'A quota pode ser cobrada por débito direto SEPA',
     sepaHint: 'Não indiques aqui os dados bancários. O tesoureiro envia-te o mandato SEPA.',
@@ -333,14 +358,16 @@ export default {
     incompleteBody: 'Preenche os campos assinalados.',
     sepaMissing: 'Sem autorização para o débito direto SEPA, o clube não te pode receber.',
     parentalMissing: 'Indica o e-mail dos teus pais. São eles que dão a autorização.',
-    guardianIntro: 'Como tens menos de 18 anos, são os teus pais que autorizam a admissão e o débito direto SEPA. Recebem um e-mail e confirmam na app Anstoss, em «Consentimentos».',
+    guardianIntro:
+      'Como tens menos de 18 anos, são os teus pais que autorizam a admissão e o débito direto SEPA. Recebem um e-mail e confirmam na app Anstoss, em «Consentimentos».',
     guardianEmail: 'E-mail dos teus pais',
     guardianEmailInvalid: 'Indica um endereço de e-mail válido',
     guardianEmailOwn: 'Esse é o teu próprio endereço. Indica o dos teus pais.',
     submit: 'Enviar pedido',
     sentTitle: 'Pedido enviado',
     sentBody: 'O {{club}} está a analisar o teu pedido de admissão e vai dar-te notícias.',
-    sentBodyMinor: 'O {{club}} recebeu o teu pedido. Assim que os teus pais autorizarem, o clube pode admitir-te.',
+    sentBodyMinor:
+      'O {{club}} recebeu o teu pedido. Assim que os teus pais autorizarem, o clube pode admitir-te.',
     dfbnetNote: 'A autorização para jogar é dada pela tua associação regional através do DFBnet.',
   },
 
@@ -377,7 +404,8 @@ export default {
     fieldCity: 'Localidade',
     fieldRadius: 'Distância',
     fieldBio: 'Umas palavras sobre ti',
-    bioPlaceholder: 'p. ex. Médio defensivo com bom passe, última época na Kreisliga A, procuro uma equipa ambiciosa.',
+    bioPlaceholder:
+      'p. ex. Médio defensivo com bom passe, última época na Kreisliga A, procuro uma equipa ambiciosa.',
     fieldStationClub: 'Clube',
     fieldStationRole: 'Posição ou equipa',
     stationRolePlaceholder: 'p. ex. defesa central, equipa principal',
@@ -419,14 +447,18 @@ export default {
     ageU18: 'Sub-18',
     regionValue: 'Zona postal {{region}}',
     under16Title: 'O mercado de jogadores é a partir dos 16',
-    under16Body: 'Se quiseres mudar de clube, fala com os teus pais. São eles que contactam o novo clube.',
+    under16Body:
+      'Se quiseres mudar de clube, fala com os teus pais. São eles que contactam o novo clube.',
     notFreeAgentTitle: 'Sem perfil no mercado de jogadores',
-    notFreeAgentBody: 'Estás registado como sócio de um clube, não como jogador sem clube. O perfil do mercado de jogadores é para quem está sem clube.',
+    notFreeAgentBody:
+      'Estás registado como sócio de um clube, não como jogador sem clube. O perfil do mercado de jogadores é para quem está sem clube.',
     minorTitle: 'Tens menos de 18 anos',
-    minorBody: 'Só treinadores e dirigentes veem o teu perfil, com «Sub-18» em vez da idade e a zona postal em vez do código postal. Fotos e vídeos a partir dos 18.',
+    minorBody:
+      'Só treinadores e dirigentes veem o teu perfil, com «Sub-18» em vez da idade e a zona postal em vez do código postal. Fotos e vídeos a partir dos 18.',
     delete: 'Apagar perfil de jogador',
     deleteTitle: 'Apagar o teu perfil de jogador?',
-    deleteBody: 'O teu perfil sai do mercado de jogadores. Os treinos à experiência e os pedidos de admissão em aberto são cancelados.',
+    deleteBody:
+      'O teu perfil sai do mercado de jogadores. Os treinos à experiência e os pedidos de admissão em aberto são cancelados.',
     deleteConfirm: 'Apagar',
     position: {
       GK: 'Guarda-redes',
@@ -470,7 +502,8 @@ export default {
     loadError: 'Não foi possível carregar os anúncios',
     emptyTitle: 'Nenhum anúncio à tua medida por agora',
     emptyBody: 'Volta mais tarde. Os clubes também te encontram pelo teu perfil.',
-    emptyNarrowed: 'Alarga a distância ou mostra todas as posições. Os clubes também te encontram pelo teu perfil.',
+    emptyNarrowed:
+      'Alarga a distância ou mostra todas as posições. Os clubes também te encontram pelo teu perfil.',
     requestCta: 'Pedir treino à experiência',
     requestOpen: 'Pedido enviado',
     requestTitle: 'Treino à experiência no {{club}}',

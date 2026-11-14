@@ -21,6 +21,7 @@ import {
 } from '@anstoss/shared'
 import { tenantContext } from '../prisma/tenant.context'
 import { deleteMemberComplianceData } from '../admin-inbox/compliance-retention'
+import { assertClubNameAvailable } from './club-registration-name'
 
 @Injectable()
 export class ClubsService {
@@ -259,6 +260,12 @@ export class ClubsService {
         throw new BadRequestException('Badge upload is invalid or incomplete')
       }
     }
+    if (data.name) {
+      return this.prisma.$transaction(async (tx) => {
+        await assertClubNameAvailable(tx, data.name!, clubId)
+        return tx.club.update({ where: { id: clubId }, data })
+      })
+    }
     return this.prisma.club.update({
       where: { id: clubId },
       data,
@@ -274,6 +281,7 @@ export class ClubsService {
    */
   async leaveClub(userId: string, clubId: string): Promise<{ left: boolean }> {
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
 
       const membership = await tx.membership.findUnique({
@@ -316,6 +324,7 @@ export class ClubsService {
       // Ownership transfer/recovery and membership deletion share this lock.
       // Re-read both roles after acquiring it so a newly promoted OWNER can
       // never be deleted by a stale removal decision.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${targetUserId}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
       const [actor, target] = await Promise.all([
         tx.membership.findUnique({
@@ -354,6 +363,16 @@ export class ClubsService {
     clubId: string,
   ): Promise<void> {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-access:${clubId}:${userId}`}))`
+    // An old invitation must not recreate access after removal. Acceptance
+    // shares the account lifecycle lock held by both callers above.
+    await tx.trialInvite.updateMany({
+      where: {
+        clubId,
+        freeAgentProfile: { userId },
+        status: { in: ['REQUESTED', 'PENDING', 'ACCEPTED', 'OFFERED'] },
+      },
+      data: { status: 'REVOKED', respondedAt: new Date() },
+    })
     await tx.channelMember.deleteMany({
       where: { userId, channel: { is: { clubId } } },
     })
@@ -419,6 +438,24 @@ export class ClubsService {
     // erased with the membership (§72a(5) SGB VIII, DSGVO Art. 5(1)(e)).
     await deleteMemberComplianceData(tx as any, clubId, userId)
     await tx.membership.deleteMany({ where: { userId, clubId } })
+    // Recruitment is independent of club membership. Switch the last-club
+    // player/coach to their own portal, but never create or publish a listing.
+    // The relation predicate checks ALL clubs (not a tenant-filtered count).
+    await tx.user.updateMany({
+      where: {
+        id: userId,
+        deletedAt: null,
+        registrationRole: { in: [RegistrationRole.PLAYER, RegistrationRole.COACH] },
+        memberships: { none: {} },
+      },
+      data: { registrationRole: RegistrationRole.FREE_AGENT },
+    })
+    // A stale pre-membership listing must not silently become discoverable
+    // again when the account returns to the independent portal.
+    await tx.freeAgentProfile.updateMany({
+      where: { userId, user: { memberships: { none: {} } } },
+      data: { isOnTransferList: false },
+    })
   }
 
   async findById(id: string) {
@@ -464,6 +501,7 @@ export async function createClubWithUniqueSlug(
     searchAliases?: Array<string | null>
   },
 ) {
+  await assertClubNameAvailable(tx, clubData.name)
   const baseSlug = options?.slugBase || slugify(clubData.name) || 'club'
 
   for (let attempt = 0; attempt < 5; attempt += 1) {

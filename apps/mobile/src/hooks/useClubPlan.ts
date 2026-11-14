@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   PLAN_CURRENCY,
   PLAN_PRICES_CENTS,
   PLAN_SALES_EMAIL,
+  clubPlanSchema,
   planFeatureFlags,
   type ClubPlan,
   type PlanFeature,
@@ -10,23 +11,15 @@ import {
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
-/**
- * Club plan ("Abo") — GET /clubs/:clubId/plan (packages/shared schemas/plan.ts).
- *
- * Stale-while-revalidate: a cached plan renders at once and refreshes in the
- * background. Against a server without the endpoint the hook degrades quietly
- * to Kostenlos with empty usage, never an error state.
- */
-
-const STALE_MS = 5 * 60 * 1000
-const cache = new Map<string, { data: ClubPlan; fetchedAt: number }>()
-const listeners = new Set<(clubId: string, plan: ClubPlan) => void>()
+/** No club-only cache: permission-bearing plans belong to the current session. */
+const listeners = new Set<(scopeKey: string, plan: ClubPlan) => void>()
 
 const FREE_LIMITS = { teams: 1, players: 30 }
 const PLAN_MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
 const PLAN_MANAGER_OFFICES = new Set(['TREASURER', 'BOARD_MEMBER'])
 
-type MembershipLike = { role?: string | null; operationalRoles?: string[] | null } | null | undefined
+type MembershipLike =
+  { role?: string | null; operationalRoles?: string[] | null } | null | undefined
 
 /** Vorstand (OWNER/ADMIN or BOARD_MEMBER office) or Kassenwart (TREASURER office). */
 export function canManageClubPlan(membership: MembershipLike): boolean {
@@ -54,96 +47,136 @@ export function fallbackClubPlan(clubId: string, canManage: boolean): ClubPlan {
   }
 }
 
-/** Merge a possibly partial server response over the fallback. */
-function normalize(raw: Partial<ClubPlan> | null | undefined, fallback: ClubPlan): ClubPlan {
-  if (!raw || typeof raw !== 'object') return fallback
-  const tier = raw.tier ?? fallback.tier
-  return {
-    ...fallback,
-    ...raw,
-    tier,
-    limits: raw.limits ?? fallback.limits,
-    usage: raw.usage ?? fallback.usage,
-    prices: raw.prices ?? fallback.prices,
-    features: { ...planFeatureFlags(tier), ...(raw.features ?? {}) },
-    canManage: typeof raw.canManage === 'boolean' ? raw.canManage : fallback.canManage,
+class ClubPlanUnavailableError extends Error {
+  constructor() {
+    super('Club plan is unavailable for this session')
+    this.name = 'ClubPlanUnavailableError'
   }
 }
 
-function safeUseAuth(): { activeClub: (MembershipLike & { club: { id: string } }) | null } {
-  try {
-    return useAuth()
-  } catch {
-    return { activeClub: null }
-  }
+function confirmedPlan(raw: unknown, clubId: string): ClubPlan {
+  const parsed = clubPlanSchema.safeParse(raw)
+  if (!parsed.success || parsed.data.clubId !== clubId) throw new ClubPlanUnavailableError()
+  return parsed.data as ClubPlan
 }
 
 export function useClubPlan() {
-  const { activeClub } = safeUseAuth()
+  const { user, token, activeClub } = useAuth()
   const clubId = activeClub?.club.id ?? null
   const canManageLocal = canManageClubPlan(activeClub)
-  const [plan, setPlan] = useState<ClubPlan | null>(clubId ? (cache.get(clubId)?.data ?? null) : null)
-  const [loading, setLoading] = useState(Boolean(clubId && !cache.has(clubId)))
+  const permissions = JSON.stringify([activeClub?.role, activeClub?.operationalRoles])
+  const scope = useMemo(
+    () => ({
+      clubId,
+      allowed: Boolean(user?.id && token && clubId),
+      canManageLocal,
+      key: JSON.stringify([user?.id, token, clubId, permissions]),
+    }),
+    [user?.id, token, clubId, permissions, canManageLocal],
+  )
+  type Snapshot = { scope: typeof scope; plan: ClubPlan | null; loading: boolean; error: boolean }
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
+  const latest = useRef(snapshot)
+  latest.current = snapshot
+  const current = useRef(scope)
+  current.current = scope
+  const mounted = useRef(false)
+  const sequence = useRef(0)
+  const pendingTrial = useRef<typeof scope | null>(null)
 
   const refresh = useCallback(async () => {
-    if (!clubId) return null
-    const fallback = fallbackClubPlan(clubId, canManageLocal)
-    let next: ClubPlan
+    if (
+      !mounted.current ||
+      current.current !== scope ||
+      !scope.allowed ||
+      !scope.clubId ||
+      pendingTrial.current === scope
+    )
+      return null
+    const ticket = ++sequence.current
+    const previous = latest.current?.scope === scope ? latest.current.plan : null
+    setSnapshot({ scope, plan: previous, loading: true, error: false })
+    const isCurrent = () =>
+      mounted.current && current.current === scope && ticket === sequence.current
     try {
-      next = normalize(await api<Partial<ClubPlan>>(`/clubs/${clubId}/plan`), fallback)
+      const plan = confirmedPlan(
+        await api<unknown>(`/clubs/${encodeURIComponent(scope.clubId)}/plan`),
+        scope.clubId,
+      )
+      if (!isCurrent()) return null
+      setSnapshot({ scope, plan, loading: false, error: false })
+      return plan
     } catch {
-      next = cache.get(clubId)?.data ?? fallback
+      if (isCurrent()) setSnapshot({ scope, plan: null, loading: false, error: true })
+      return null
     }
-    cache.set(clubId, { data: next, fetchedAt: Date.now() })
-    listeners.forEach((listener) => listener(clubId, next))
-    setLoading(false)
-    return next
-  }, [clubId, canManageLocal])
+  }, [scope])
 
   useEffect(() => {
-    if (!clubId) {
-      setPlan(null)
-      setLoading(false)
-      return
-    }
-    const onUpdate = (id: string, next: ClubPlan) => {
-      if (id === clubId) setPlan(next)
+    mounted.current = true
+    const onUpdate = (scopeKey: string, plan: ClubPlan) => {
+      if (current.current !== scope || scopeKey !== scope.key) return
+      sequence.current += 1
+      setSnapshot({ scope, plan, loading: false, error: false })
     }
     listeners.add(onUpdate)
-    const cached = cache.get(clubId)
-    setPlan(cached?.data ?? null)
-    if (!cached || Date.now() - cached.fetchedAt >= STALE_MS) void refresh()
-    else setLoading(false)
+    void refresh()
     return () => {
+      mounted.current = false
+      sequence.current += 1
       listeners.delete(onUpdate)
     }
-  }, [clubId, refresh])
+  }, [scope, refresh])
 
-  /** POST /clubs/:clubId/plan/trial. Throws so the screen can show its own error. */
   const startTrial = useCallback(async () => {
-    if (!clubId) return null
-    const raw = await api<Partial<ClubPlan>>(`/clubs/${clubId}/plan/trial`, {
-      method: 'POST',
-      body: {},
-    })
-    const next = normalize(raw, fallbackClubPlan(clubId, canManageLocal))
-    cache.set(clubId, { data: next, fetchedAt: Date.now() })
-    listeners.forEach((listener) => listener(clubId, next))
-    return next
-  }, [clubId, canManageLocal])
+    const visible = latest.current
+    if (
+      !mounted.current ||
+      current.current !== scope ||
+      !scope.allowed ||
+      !scope.clubId ||
+      !scope.canManageLocal ||
+      visible?.scope !== scope ||
+      !visible.plan?.canManage ||
+      visible.loading ||
+      pendingTrial.current === scope
+    )
+      throw new ClubPlanUnavailableError()
+    pendingTrial.current = scope
+    const ticket = ++sequence.current
+    try {
+      const raw = await api<unknown>(`/clubs/${encodeURIComponent(scope.clubId)}/plan/trial`, {
+        method: 'POST',
+        body: {},
+      })
+      const plan = confirmedPlan(raw, scope.clubId)
+      if (
+        plan.source !== 'TRIAL' ||
+        plan.tier === 'FREE' ||
+        !plan.trialEndsAt ||
+        !Number.isFinite(Date.parse(plan.trialEndsAt)) ||
+        Date.parse(plan.trialEndsAt) <= Date.now() ||
+        !plan.trialUsed
+      )
+        throw new ClubPlanUnavailableError()
+      if (!mounted.current || current.current !== scope || ticket !== sequence.current)
+        throw new ClubPlanUnavailableError()
+      listeners.forEach((listener) => listener(scope.key, plan))
+      return plan
+    } finally {
+      if (pendingTrial.current === scope) pendingTrial.current = null
+    }
+  }, [scope])
 
-  const has = useCallback(
-    (feature: PlanFeature) => Boolean(plan?.features?.[feature]),
-    [plan],
-  )
-
-  return useMemo(
-    () => ({ plan, loading, refresh, startTrial, has }),
-    [plan, loading, refresh, startTrial, has],
-  )
-}
-
-/** Test helper: forget cached plans between specs. */
-export function __resetClubPlanCache() {
-  cache.clear()
+  const visible = scope.allowed && snapshot?.scope === scope ? snapshot : null
+  const plan = visible?.plan ?? null
+  const has = useCallback((feature: PlanFeature) => Boolean(plan?.features?.[feature]), [plan])
+  return {
+    plan,
+    loading: scope.allowed && (!visible || visible.loading),
+    error: visible?.error ?? false,
+    refresh,
+    startTrial,
+    has,
+  }
 }

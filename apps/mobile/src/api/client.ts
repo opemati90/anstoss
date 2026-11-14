@@ -158,6 +158,7 @@ export async function api<T = unknown>(
   }
 
   const normalizedMethod = method.toUpperCase()
+  const requestToken = headers.Authorization?.replace(/^Bearer /, '') ?? token
 
   for (let attempt = 0; ; attempt += 1) {
     const controller = new AbortController()
@@ -220,6 +221,8 @@ export async function api<T = unknown>(
         // Global 401 handling: sign the user out when token is invalid/expired.
         if (
           res.status === 401 &&
+          requestToken &&
+          requestToken === await getToken() &&
           !_suspendAuthExpiryHandling &&
           !getE2ESession() &&
           _signOutHandler &&
@@ -227,7 +230,7 @@ export async function api<T = unknown>(
         ) {
           _signingOut = true
           Alert.alert(
-            i18n.t('common.errorTitle'),
+            i18n.t('auth.sessionExpiredTitle'),
             i18n.t('auth.sessionExpired'),
           )
           try {

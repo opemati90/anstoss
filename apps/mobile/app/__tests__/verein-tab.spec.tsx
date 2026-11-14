@@ -65,7 +65,10 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('../../src/utils/haptics', () => ({
   Haptics: { tap: jest.fn(), select: jest.fn(), success: jest.fn(), warning: jest.fn(), error: jest.fn() },
 }))
-jest.mock('../../src/launchFeatures', () => ({ COMPLIANCE_FEATURE_ENABLED: true }))
+jest.mock('../../src/launchFeatures', () => ({
+  ...jest.requireActual('../../src/launchFeatures'),
+  COMPLIANCE_FEATURE_ENABLED: true,
+}))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
 
 const INBOX: AdminInbox = {
@@ -129,6 +132,14 @@ describe('Verein tab', () => {
     mockOps = ['TREASURER']
     const screen = renderScreen()
     expect(screen.getByText('verein.roleLabel.TREASURER')).toBeTruthy()
+  })
+
+  it('keeps family management out of the MVP admin navigation', async () => {
+    const screen = renderScreen()
+    await screen.findByText('verein.memberCount:126 · verein.teamCount:8')
+    expect(screen.queryByText('verein.members.families')).toBeNull()
+    expect(screen.getByText('verein.members.list')).toBeTruthy()
+    expect(screen.getByText('wechsel.title')).toBeTruthy()
   })
 
   it('pushes each workspace screen instead of opening modals', async () => {

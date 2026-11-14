@@ -1,0 +1,10 @@
+appId: com.renuirug.anstoss
+---
+- openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8125'
+- tapOn:
+    text: '.*127.0.0.1:8125.*'
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 120000

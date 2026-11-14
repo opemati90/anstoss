@@ -534,6 +534,7 @@ describe('UsersService.deleteAccount', () => {
       $queryRaw: jest.fn().mockResolvedValue(undefined),
       $executeRaw: jest.fn().mockResolvedValue(0),
       authIdentityTombstone: { upsert: jest.fn().mockResolvedValue({}) },
+      mediaDeletionJob: { createMany: jest.fn().mockResolvedValue({ count: 0 }), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       teamAccess: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       teamMember: { deleteMany: deleteMany() },
       channelMember: { deleteMany: deleteMany() },
@@ -580,14 +581,18 @@ describe('UsersService.deleteAccount', () => {
       rosterSlot: { updateMany: updateMany() },
       injuryReport: { deleteMany: deleteMany() },
       teamDutyAssignment: { deleteMany: deleteMany() },
-      trialInvite: { deleteMany: deleteMany() },
+      trialInvite: { deleteMany: deleteMany(), findMany: jest.fn().mockResolvedValue([]) },
       user: {
+        findUnique: jest.fn().mockResolvedValue({ avatarUrl: null }),
         updateMany: updateMany(),
         update: jest.fn().mockResolvedValue({ id: 'user-1' }),
       },
       freeAgentMedia: { deleteMany: deleteMany() },
       freeAgentExperience: { deleteMany: deleteMany() },
-      freeAgentProfile: { delete: jest.fn().mockResolvedValue({}) },
+      freeAgentProfile: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'profile-1' }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
       contributionAssignment: { updateMany: updateMany() },
       contributionReminder: { deleteMany: deleteMany() },
       auditLog: { updateMany: updateMany() },
@@ -886,6 +891,27 @@ describe('UsersService.deleteAccount', () => {
     expect(tx.teamAccess.deleteMany).toHaveBeenCalledTimes(2)
   })
 
+  it('erases a profile and trial scope created after deletion preflight', async () => {
+    const { prisma, tx, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1', email: 'player@example.com', clerkId: null,
+      avatarUrl: null, freeAgentProfile: null,
+    })
+    tx.freeAgentProfile.findUnique.mockResolvedValue({ id: 'late-profile' })
+    tx.trialInvite.findMany.mockResolvedValue([{ clubId: 'late-trial-club' }])
+
+    await service.deleteAccount('user-1')
+
+    expect(tx.freeAgentMedia.deleteMany).toHaveBeenCalledWith({
+      where: { profileId: 'late-profile' },
+    })
+    expect(tx.freeAgentProfile.delete).toHaveBeenCalledWith({ where: { id: 'late-profile' } })
+    expect(tx.trialInvite.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ freeAgentProfileId: 'late-profile' }),
+    }))
+    expect(tx.teamAccess.deleteMany).toHaveBeenCalledTimes(2)
+  })
+
   it('tombstones legacy Clerk subjects during deletion', async () => {
     const { prisma, tx, service } = createService()
     prisma.user.findUnique.mockResolvedValue({
@@ -909,8 +935,8 @@ describe('UsersService.deleteAccount', () => {
     )
   })
 
-  it('deletes R2 objects referenced by account-owned media after the DB cleanup commits', async () => {
-    const { prisma, service } = createService()
+  it('queues account media erasure in the same transaction before database references disappear', async () => {
+    const { prisma, service, tx } = createService()
     const r2 = {
       objectKeyFromUrl: jest.fn((url: string) =>
         url.startsWith('https://assets.example/')
@@ -933,7 +959,7 @@ describe('UsersService.deleteAccount', () => {
     prisma.freeAgentMedia.findMany.mockResolvedValue([
       {
         url: 'https://assets.example/users/user-1/free-agent/photo.png',
-        thumbnailUrl: null,
+        thumbnailUrl: 'https://assets.example/users/another/free-agent/photo/private.png',
       },
     ])
     prisma.complianceRecord.findMany
@@ -942,12 +968,17 @@ describe('UsersService.deleteAccount', () => {
 
     await service.deleteAccount('user-1')
 
-    expect(r2.deleteObjects).toHaveBeenCalledWith([
-      'users/user-1/avatar.png',
-      'chat/club-1/file.png',
-      'users/user-1/free-agent/photo.png',
-      'compliance/club-1/private.pdf',
-    ])
+    expect(tx.mediaDeletionJob.createMany).toHaveBeenCalledWith({
+      data: [
+        'users/user-1/avatar.png', 'chat/club-1/file.png',
+        'users/user-1/free-agent/photo.png', 'compliance/club-1/private.pdf',
+      ].map((objectKey) => ({ objectKey, nextAttemptAt: expect.any(Date) })),
+      skipDuplicates: true,
+    })
+    expect(tx.mediaDeletionJob.createMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.freeAgentMedia.deleteMany.mock.invocationCallOrder[0],
+    )
+    expect(r2.deleteObjects).not.toHaveBeenCalled()
   })
 })
 
@@ -1115,8 +1146,26 @@ describe('UsersService.completeOnboarding', () => {
         city: 'Berlin',
         bio: 'Ball-playing midfielder',
         isOnTransferList: true,
-        visibility: FreeAgentVisibility.PUBLIC,
+        visibility: FreeAgentVisibility.CLUB_ONLY,
       }),
+    )
+  })
+
+  it('keeps a free-agent profile private when trial discovery is declined', async () => {
+    const { prisma, marketplaceService, service } = createService()
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-4', registrationRole: RegistrationRole.FREE_AGENT,
+    })
+    prisma.user.update.mockResolvedValue({ id: 'user-4' })
+    marketplaceService.createFreeAgentProfile.mockResolvedValue({ id: 'fa-1' })
+    await service.completeOnboarding('user-4', {
+      registrationRole: RegistrationRole.FREE_AGENT, profile,
+      freeAgent: {
+        position: ['MID'], experienceYears: 5, location: 'Berlin', availableForTrials: false, bio: '',
+      },
+    })
+    expect(marketplaceService.createFreeAgentProfile).toHaveBeenCalledWith('user-4',
+      expect.objectContaining({ isOnTransferList: false, visibility: FreeAgentVisibility.PRIVATE }),
     )
   })
 

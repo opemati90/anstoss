@@ -134,6 +134,7 @@ export default {
       confirmNo: "Katılmıyorsun. Antrenöre bildirildi.",
       confirmYes: "Katılıyorsun. {{count}} kişiden birisin.",
       giveReason: "Sebep ekle",
+      viewResponses: "Kim geliyor? Yanıtları gör",
       seasonLine: "{{appearances}} maç · {{goals}} gol · {{total}} antrenmandan {{attended}}",
       teamRecord: "Takım {{wins}}-{{draws}}-{{losses}}",
     },

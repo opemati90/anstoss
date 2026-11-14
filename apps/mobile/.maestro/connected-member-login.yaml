@@ -1,0 +1,9 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/connected-login.yaml
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 30000
+- assertVisible: '.*Anstoss QA Lokal.*'
+- takeScreenshot: /private/tmp/anstoss-connected-member-home

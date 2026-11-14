@@ -11,7 +11,12 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn(), canGoBack: () => false }),
+  useRouter: () => ({
+    push: mockPush,
+    replace: mockReplace,
+    back: jest.fn(),
+    canGoBack: () => false,
+  }),
   router: { push: mockPush, back: jest.fn() },
   useFocusEffect: jest.fn(),
 }))
@@ -91,6 +96,7 @@ describe('Free-agent onboarding', () => {
     fireEvent.press(screen.getByText('spielerprofil.position.GK'))
     fireEvent.changeText(screen.getByLabelText('spielerprofil.fieldPostalCode'), '14482')
     fireEvent.press(screen.getByText('spielerprofil.league.KREISLIGA_A'))
+    fireEvent(screen.getByLabelText('spielerprofil.searchActive'), 'valueChange', true)
     fireEvent.press(screen.getByText('spielerprofil.onboardingCta'))
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
@@ -109,6 +115,45 @@ describe('Free-agent onboarding', () => {
           isOnTransferList: true,
           visibility: 'CLUB_ONLY',
           availableFrom: null,
+        }),
+      }),
+    )
+  })
+
+  it('allows registration with discovery switched off by default', async () => {
+    render(<FreeAgentOnboarding />)
+    expect(screen.getByLabelText('spielerprofil.searchActive').props.value).toBe(false)
+    fireEvent.press(screen.getByText('spielerprofil.position.GK'))
+    fireEvent.changeText(screen.getByLabelText('spielerprofil.fieldPostalCode'), '14482')
+    fireEvent.press(screen.getByText('spielerprofil.onboardingCta'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
+    expect(mockApi).toHaveBeenCalledWith(
+      '/me/free-agent-profile',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ isOnTransferList: false, visibility: 'PRIVATE' }),
+      }),
+    )
+  })
+
+  it('registers an independent coach without a playing position or staff permissions', async () => {
+    render(<FreeAgentOnboarding />)
+    fireEvent.press(screen.getByText('recruitment.COACH'))
+    expect(screen.queryByText('spielerprofil.fieldPosition')).toBeNull()
+    fireEvent.changeText(screen.getByLabelText('spielerprofil.fieldPostalCode'), '12435')
+    fireEvent.press(screen.getByText('spielerprofil.onboardingCta'))
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
+    expect(mockApi).toHaveBeenCalledWith('/me', {
+      method: 'PATCH',
+      body: { registrationRole: 'FREE_AGENT' },
+    })
+    expect(mockApi).toHaveBeenCalledWith(
+      '/me/free-agent-profile',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          recruitmentRole: 'COACH',
+          position: null,
+          isOnTransferList: false,
         }),
       }),
     )

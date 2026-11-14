@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { getE2ESession } from '../e2e/session'
+import { notifyAccessChanged } from '../auth/accessChanges'
 
 /**
  * Fresh RSVP counts pushed by the API's `/events` gateway when any member
@@ -72,6 +73,10 @@ export function useEventsSocket({
 
     socket.on('event:rsvp', (update: EventRsvpUpdate) => {
       onRsvpUpdateRef.current?.(update)
+    })
+
+    socket.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect') notifyAccessChanged()
     })
 
     socket.on('event:upsert', (event: EventUpsert) => {

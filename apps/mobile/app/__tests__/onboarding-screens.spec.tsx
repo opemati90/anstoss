@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Linking } from 'react-native'
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 
 const mockReplace = jest.fn()
@@ -12,6 +13,10 @@ const mockVerifyOtp = jest.fn()
 const mockStartOtp = jest.fn()
 const mockResetDraft = jest.fn()
 let mockAuth: Record<string, unknown> = {}
+jest.mock('../../src/launchFeatures', () => ({
+  ...jest.requireActual('../../src/launchFeatures'),
+  FAMILY_FEATURE_ENABLED: false,
+}))
 
 jest.mock('expo-router', () => {
   // Like expo-router: one stable router object.
@@ -149,6 +154,7 @@ function typeDob(screen: ReturnType<typeof render>, dob: { day: string; month: s
 }
 
 beforeEach(async () => {
+  jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = false
   jest.clearAllMocks()
   await AsyncStorage.clear()
   mockParams = {}
@@ -350,6 +356,8 @@ describe('Verein finden', () => {
   })
 
   it('H4: a club opens "Was machst du bei …?" and sends from there, no DOB asked', async () => {
+    // Retain coverage for the deferred feature without enabling it in the MVP.
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     searchApi()
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
@@ -399,6 +407,50 @@ describe('Verein finden', () => {
     })
   })
 
+  it('requires a searched player to choose a team and sends that team for approval', async () => {
+    searchApi((path) => path.startsWith('/clubs/lookup')
+      ? { teams: [{ id: 'team-1', displayName: 'Herren II' }, { id: 'team-2', displayName: 'Herren I' }] }
+      : undefined)
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    await screen.findByTestId('club-team-team-1')
+    expect(screen.queryByTestId('club-coach-head')).toBeNull()
+    fireEvent.press(screen.getByTestId('club-send-request'))
+    expect(mockApi).not.toHaveBeenCalledWith('/clubs/club-1/join-requests', expect.anything())
+    fireEvent.press(screen.getByTestId('club-team-team-1'))
+    await act(async () => { fireEvent.press(screen.getByTestId('club-send-request')) })
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/join-requests', {
+      method: 'POST', body: { role: 'PLAYER', teamId: 'team-1' },
+    })
+  })
+
+  it('retries a failed team lookup rather than leaving players stuck', async () => {
+    let attempts = 0
+    searchApi((path) => {
+      if (!path.startsWith('/clubs/lookup')) return undefined
+      attempts += 1
+      return attempts === 1 ? Promise.reject(new Error('offline'))
+        : { teams: [{ id: 'team-1', displayName: 'Herren II' }] }
+    })
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    fireEvent.press(await screen.findByText('onboardingFlow.common.retry'))
+    await screen.findByTestId('club-team-team-1')
+    expect(attempts).toBe(2)
+  })
+
+  it('keeps submission disabled when a searched club has no teams', async () => {
+    searchApi((path) => path.startsWith('/clubs/lookup') ? { teams: [] } : undefined)
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    await screen.findByText('onboardingFlow.club.noTeams')
+    fireEvent.press(screen.getByTestId('club-send-request'))
+    expect(mockApi).not.toHaveBeenCalledWith('/clubs/club-1/join-requests', expect.anything())
+  })
+
   it('M2: explains a declined request once, with the club reason', async () => {
     searchApi((path) =>
       path === '/me/join-requests/active'
@@ -424,10 +476,24 @@ describe('Verein finden', () => {
   })
 
   it('H5: offers the setup-code entry without a club', () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     searchApi()
     const screen = render(<ClubSearchScreen />)
     fireEvent.press(screen.getByTestId('club-setup-code-link'))
     expect(mockPush).toHaveBeenCalledWith('/(auth)/parent-handoff')
+  })
+
+  it('MVP: offers player, coach and admin roles, with no family setup entry', async () => {
+    searchApi()
+    const screen = render(<ClubSearchScreen />)
+    expect(screen.queryByTestId('club-setup-code-link')).toBeNull()
+    expect(screen.getByTestId('club-free-agent-link')).toBeTruthy()
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    expect(screen.queryByTestId('club-role-parent')).toBeNull()
+    for (const role of ['player', 'coach', 'admin']) {
+      expect(screen.getByTestId(`club-role-${role}`)).toBeTruthy()
+    }
   })
 
   it('B3: shows the server refusal of an under-16 free-agent listing inline', async () => {
@@ -460,6 +526,51 @@ describe('Verein finden', () => {
 })
 
 describe('club setup', () => {
+  it('submits with no link or players and says players can be added later', async () => {
+    mockParams = { clubName: 'Codex FC' }
+    mockApi.mockResolvedValue({ id: 'claim-1' })
+    const screen = render(<ClubSetupScreen />)
+    expect(screen.getByText('onboardingFlow.clubSetup.playersLater')).toBeTruthy()
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(mockApi).toHaveBeenCalledWith('/club-claims/first', expect.objectContaining({
+      body: expect.objectContaining({ clubName: 'Codex FC', teamName: 'II' }),
+    }))
+    const body = mockApi.mock.calls.find(([path]) => path === '/club-claims/first')![1].body
+    expect(body).not.toHaveProperty('externalTeamUrl')
+    expect(body).not.toHaveProperty('players')
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('still blocks a nonempty invalid link', async () => {
+    mockParams = { clubName: 'Codex FC' }
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
+    fireEvent.changeText(screen.getByTestId('club-setup-link-input'), 'https://evil.example/team')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(mockApi).not.toHaveBeenCalledWith('/club-claims/first', expect.anything())
+  })
+
+  it.each(['CLUB_ALREADY_REGISTERED', 'CLUB_REGISTRATION_PENDING'])('offers search and a review email for %s, never deletion or ownership', async (code) => {
+    mockParams = { clubName: 'Codex FC' }
+    mockApi.mockImplementation(async path => {
+      if (path === '/club-claims/first') throw new ApiError('duplicate', 409, code)
+      return { results: [] }
+    })
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(screen.getByText(`onboardingFlow.clubSetup.${code === 'CLUB_REGISTRATION_PENDING' ? 'alreadyPending' : 'alreadyActive'}`)).toBeTruthy()
+    fireEvent.press(screen.getByTestId('club-setup-find-existing'))
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/club-search', params: { q: 'Codex FC' } })
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-report-registration')))
+    expect(open).toHaveBeenCalledWith(expect.stringContaining('mailto:support@anstoss.io?subject='))
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockRefreshUser).not.toHaveBeenCalled()
+    open.mockRestore()
+  })
+
   it('H3: sends only the claim; the server sets CLUB_ADMIN with it', async () => {
     mockParams = { directoryEntryId: 'dir-7', clubName: 'TSV Linden 1899' }
     mockApi.mockImplementation(async (path: string) =>

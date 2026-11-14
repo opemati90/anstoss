@@ -1,0 +1,32 @@
+appId: com.renuirug.anstoss
+---
+# Only the signed-out utility is used: it CLEARS the demo interceptor. All
+# subsequent auth and journey requests go to the isolated API on port 3167.
+- openLink: 'anstoss://e2e?scenario=signed-out&lang=${QA_LANGUAGE}'
+# Restarting the isolated API rotates its signing key. Dismiss only the
+# expected old-session alert, never an arbitrary error from the tested flow.
+- runFlow:
+    when:
+      visible: 'Sitzung abgelaufen.*'
+    commands:
+      - tapOn: 'OK'
+- extendedWaitUntil:
+    visible:
+      id: welcome-sign-in
+    timeout: 20000
+- tapOn:
+    id: welcome-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-email-input
+    timeout: 15000
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${QA_EMAIL}'
+- tapOn:
+    id: sign-in-send
+- extendedWaitUntil:
+    visible:
+      id: sign-in-code
+    timeout: 15000
+- inputText: '${QA_OTP}'

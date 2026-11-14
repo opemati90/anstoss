@@ -58,6 +58,7 @@ import {
   tombstoneUnderageEmail,
 } from '../auth/underage-email-tombstone'
 import { R2Provider } from '../assets/r2.provider'
+import { queueMediaDeletion } from '../assets/media-deletion.service'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { tenantContext } from '../prisma/tenant.context'
 // club-admin review fixes (H3): Führungszeugnis retention on offboarding.
@@ -1971,10 +1972,18 @@ export class UsersService {
       })),
       freeAgentProfile: freeAgentProfile
         ? {
+            recruitmentRole: freeAgentProfile.recruitmentRole,
             position: freeAgentProfile.position,
             preferredFoot: freeAgentProfile.preferredFoot,
             city: freeAgentProfile.city,
             bio: freeAgentProfile.bio,
+            visibility: freeAgentProfile.visibility,
+            isOnTransferList: freeAgentProfile.isOnTransferList,
+            postalCode: freeAgentProfile.postalCode,
+            searchRadiusKm: freeAgentProfile.searchRadiusKm,
+            highestLeague: freeAgentProfile.highestLeague,
+            currentClubName: freeAgentProfile.currentClubName,
+            availableFrom: freeAgentProfile.availableFrom,
             experience: freeAgentProfile.experience.map((e: any) => ({
               clubName: e.clubName,
               roleLabel: e.roleLabel,
@@ -2126,13 +2135,29 @@ export class UsersService {
       // Serialize deletion against persisted DM sends. A send takes this same
       // participant lock and revalidates after acquiring it.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dm-user:${userId}`}))`
+      // A profile may have been created after deletion preflight. Profile writes
+      // share the lifecycle lock, so use the current reference for all cleanup.
+      const currentProfile = await tx.freeAgentProfile.findUnique({
+        where: { userId }, select: { id: true },
+      })
+      const currentUser = await tx.user.findUnique({
+        where: { id: userId }, select: { avatarUrl: true },
+      })
+      // Persist the erasure intent before removing the only storage references.
+      // The worker retries outages; completed jobs leave no user-linked marker.
+      const latestMediaKeys = await this.collectDeletionObjectKeys({
+        userId,
+        avatarUrl: currentUser?.avatarUrl ?? user.avatarUrl,
+        freeAgentProfileId: currentProfile?.id ?? null,
+      })
+      await queueMediaDeletion(tx, uniqueValues([...mediaObjectKeys, ...latestMediaKeys]))
       // Membership/invite approvals share the lifecycle lock above. Refresh
       // the access-derived club set after acquiring it so a transaction that
       // completed during deletion preflight cannot leave tenant-scoped rows.
       // Privacy (M5): consents are re-read under the lock too. A consent that
       // names this user as guardian (by id or email) in a club found after the
       // preflight must still be withdrawn below.
-      const [freshMemberships, freshTeamAccess, freshConsents] = await Promise.all([
+      const [freshMemberships, freshTeamAccess, freshConsents, freshTrials] = await Promise.all([
         tx.membership.findMany({ where: { userId }, select: { clubId: true } }),
         tx.teamAccess.findMany({ where: { userId }, select: { clubId: true } }),
         tx.parentalConsent.findMany({
@@ -2145,12 +2170,19 @@ export class UsersService {
           },
           select: { clubId: true },
         }),
+        currentProfile
+          ? tx.trialInvite.findMany({
+              where: { freeAgentProfileId: currentProfile.id },
+              select: { clubId: true },
+            })
+          : Promise.resolve([]),
       ])
       const deletionClubIds = uniqueValues([
         ...accountDeletionClubIds,
         ...freshMemberships.map((row: { clubId: string }) => row.clubId),
         ...freshTeamAccess.map((row: { clubId: string }) => row.clubId),
         ...freshConsents.map((row: { clubId: string }) => row.clubId),
+        ...freshTrials.map((row: { clubId: string }) => row.clubId),
       ])
       for (const clubId of [...deletionClubIds].sort()) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
@@ -2331,9 +2363,9 @@ export class UsersService {
             },
           })
           await tx.trialInvite.deleteMany({ where: { sentByUserId: userId } })
-          if (user.freeAgentProfile) {
+          if (currentProfile) {
             await tx.trialInvite.deleteMany({
-              where: { freeAgentProfileId: user.freeAgentProfile.id },
+              where: { freeAgentProfileId: currentProfile.id },
             })
           }
           await tx.contributionAssignment.updateMany({
@@ -2426,15 +2458,15 @@ export class UsersService {
         data: { managedById: null },
       })
 
-      if (user.freeAgentProfile) {
+      if (currentProfile) {
         await tx.freeAgentMedia.deleteMany({
-          where: { profileId: user.freeAgentProfile.id },
+          where: { profileId: currentProfile.id },
         })
         await tx.freeAgentExperience.deleteMany({
-          where: { profileId: user.freeAgentProfile.id },
+          where: { profileId: currentProfile.id },
         })
         await tx.freeAgentProfile.delete({
-          where: { id: user.freeAgentProfile.id },
+          where: { id: currentProfile.id },
         })
       }
 
@@ -2463,8 +2495,6 @@ export class UsersService {
         },
       })
     })
-
-    await this.deleteR2ObjectsForAccountDeletion(mediaObjectKeys)
 
     // Privacy: after commit, notify club admins and drop revoked sockets.
     if (withdrawnConsentEffects.length > 0 && this.eventEmitter) {
@@ -2677,7 +2707,10 @@ export class UsersService {
     const urls = [
       input.avatarUrl,
       ...messages.map((message: any) => message.attachmentUrl),
-      ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]),
+      ...freeAgentMedia.flatMap((media: any) => [media.url, media.thumbnailUrl]).filter(
+        (url: unknown): url is string => typeof url === 'string' &&
+          !!this.r2?.objectKeyFromUrl(url)?.startsWith(`users/${input.userId}/free-agent/`),
+      ),
       ...complianceDocuments.map((record: any) => record.documentUrl),
     ].filter((url): url is string => typeof url === 'string' && url.length > 0)
 
@@ -2686,18 +2719,6 @@ export class UsersService {
         .map((url) => this.r2?.objectKeyFromUrl(url) ?? null)
         .filter((objectKey): objectKey is string => !!objectKey),
     )
-  }
-
-  private async deleteR2ObjectsForAccountDeletion(objectKeys: string[]) {
-    if (!this.r2 || objectKeys.length === 0) return
-    try {
-      await this.r2.deleteObjects(objectKeys)
-    } catch (error) {
-      this.logger.error(
-        `Account deletion committed, but R2 object deletion failed for ${objectKeys.length} object(s)`,
-        error instanceof Error ? error.stack : String(error),
-      )
-    }
   }
 
   /**
@@ -3028,8 +3049,8 @@ export class UsersService {
 // The two schemas diverge (Task 6 left the onboarding shape closer to the UI
 // and defers the reconciliation to this translator). Picks the first
 // user-supplied position that matches a PlayerPosition enum value — multi-
-// position support is MVP-deferred to a later phase. Drops `experienceYears`
-// and `availableForTrials` since FreeAgentProfile has no columns for them.
+// position support is MVP-deferred to a later phase. Discovery respects the
+// explicit trial preference and is never made PUBLIC by onboarding.
 function translateFreeAgentOnboarding(
   freeAgent: Extract<
     CompleteOnboardingInput,
@@ -3050,8 +3071,10 @@ function translateFreeAgentOnboarding(
     position: validPositions[0],
     city: freeAgent.location,
     bio: freeAgent.bio,
-    isOnTransferList: true,
-    visibility: FreeAgentVisibility.PUBLIC,
+    isOnTransferList: freeAgent.availableForTrials,
+    visibility: freeAgent.availableForTrials
+      ? FreeAgentVisibility.CLUB_ONLY
+      : FreeAgentVisibility.PRIVATE,
   }
 }
 

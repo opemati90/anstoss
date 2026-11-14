@@ -18,9 +18,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
-      options?.name
-        ? `${key}:${options.name}${options.reason ? `:${options.reason}` : ''}`
-        : key,
+      options?.name ? `${key}:${options.name}${options.reason ? `:${options.reason}` : ''}` : key,
   }),
 }))
 jest.mock('../../src/context/AuthContext', () => ({
@@ -115,6 +113,39 @@ describe('EventDetailScreen', () => {
     expect(screen.queryByTestId('event-manage-menu')).toBeNull()
   })
 
+  it('shows all four response states to a player while keeping manager actions unavailable', async () => {
+    const base = detail()
+    mockApi.mockResolvedValue(
+      detail({
+        rsvps: [
+          ...base.rsvps.map(({ reason: _reason, note: _note, ...entry }) => entry),
+          {
+            id: 'r3',
+            userId: 'max',
+            status: 'MAYBE',
+            updatedAt: future.toISOString(),
+            user: { id: 'max', name: 'Max Test' },
+          },
+        ],
+      }),
+    )
+    const screen = render(<EventDetailScreen />)
+    expect(await screen.findByTestId('event-response-lukas-YES')).toBeTruthy()
+    expect(screen.getByTestId('event-response-jonas-NO')).toBeTruthy()
+    expect(screen.getByTestId('event-response-max-MAYBE')).toBeTruthy()
+    expect(screen.getByTestId('event-response-felix-OPEN')).toBeTruthy()
+    expect(screen.queryByTestId('event-remind-open')).toBeNull()
+    expect(screen.queryByTestId('event-open-attendance')).toBeNull()
+    expect(screen.queryByText('Knie zwickt')).toBeNull()
+    fireEvent.press(screen.getByTestId('event-rsvp-YES'))
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith(
+        '/clubs/club-1/events/match-1/rsvp',
+        expect.objectContaining({ method: 'PUT', body: { status: 'YES' } }),
+      ),
+    )
+  })
+
   it('asks the coach for their own reply too (design 13) and puts actions behind the share button', async () => {
     mockApi.mockImplementation((path: string) =>
       Promise.resolve(
@@ -133,7 +164,10 @@ describe('EventDetailScreen', () => {
 
     fireEvent.press(screen.getByTestId('event-manage-menu'))
     fireEvent.press(await screen.findByTestId('event-menu-edit'))
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/create-event', params: { eventId: 'match-1' } })
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/create-event',
+      params: { eventId: 'match-1' },
+    })
   })
 
   it('gives a parent one answer row per child and sends the childUserId', async () => {
@@ -180,7 +214,10 @@ describe('EventDetailScreen', () => {
     mockApi.mockResolvedValue(detail())
     const screen = render(<EventDetailScreen />)
     fireEvent.press(await screen.findByTestId('event-open-match'))
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/match-live', params: { eventId: 'match-1' } })
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/match-live',
+      params: { eventId: 'match-1' },
+    })
   })
 
   it('resolves a failed load to an error with retry', async () => {
@@ -266,7 +303,9 @@ describe('EventDetailScreen', () => {
       fireEvent.press(await screen.findByText('eventFlow.detail.tabSquad'))
 
       expect(
-        await screen.findByText('eventFlow.squad.dropoutDeclinedReason:Tim Weber:eventFlow.reason.injured'),
+        await screen.findByText(
+          'eventFlow.squad.dropoutDeclinedReason:Tim Weber:eventFlow.reason.injured',
+        ),
       ).toBeTruthy()
       fireEvent.press(screen.getByTestId('squad-publish'))
       await waitFor(() =>

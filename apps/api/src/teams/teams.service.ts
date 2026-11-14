@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Prisma } from '@prisma/client'
+import { assertTeamNameAvailable } from '../clubs/club-registration-name'
 import { PrismaService } from '../prisma/prisma.service'
 import { generateJoinCode, JOIN_CODE_LENGTH } from './team-join-code.util'
 import { activeTeamAccessWhere } from './active-team-access'
@@ -215,6 +216,7 @@ export class TeamsService {
 
     const joinCode = await this.generateUniqueJoinCode()
     const team = await this.prisma.$transaction(async (tx) => {
+      await assertTeamNameAvailable(tx, clubId, displayName)
       await this.requireEntitlements().assertCanCreateTeam(clubId, tx)
       return tx.team.create({
         data: {

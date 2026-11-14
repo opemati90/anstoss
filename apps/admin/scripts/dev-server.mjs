@@ -19,6 +19,7 @@ const MIME_TYPES = new Map([
   ['.png', 'image/png'],
   ['.svg', 'image/svg+xml'],
   ['.webp', 'image/webp'],
+  ['.woff2', 'font/woff2'],
 ])
 
 function send(res, status, body, headers = {}) {

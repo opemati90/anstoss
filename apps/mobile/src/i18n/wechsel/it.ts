@@ -1,11 +1,22 @@
 // Wechselbörse revamp (italiano). Lessico del calcio dilettanti: provino,
 // nulla osta, tesseramento, finestra dei trasferimenti. Si usa il "tu".
 export default {
+  recruitment: {
+    role: 'Cerca un club come',
+    PLAYER: 'Giocatore',
+    COACH: 'Allenatore',
+    coachApply: 'Richiedi accesso allenatore',
+    coachPending:
+      'L’amministratore del club esaminerà la richiesta. Non hai ancora accesso come allenatore.',
+    region: 'Zona postale approssimativa, non una distanza misurata.',
+    anywhere: 'Tutte le regioni',
+  },
   wechsel: {
     title: 'Mercato giocatori',
     entryHint: 'Annunci, provini e trasferimenti',
     nearbySubtitle: 'Giocatori svincolati entro {{km}} km',
-    invitedFootnote: 'Gli invitati vedono luogo e orario del prossimo allenamento. I contatti solo dopo la loro conferma.',
+    invitedFootnote:
+      'Gli invitati vedono luogo e orario del prossimo allenamento. I contatti solo dopo la loro conferma.',
     lastLeague: 'ultima categoria: {{league}}',
     distanceKm: '{{km}} km',
     desksA11y: 'Altre sezioni',
@@ -21,9 +32,12 @@ export default {
     errorGeneric: 'Non è andata. Controlla la connessione e riprova.',
     errorNoAccess: 'Non hai i permessi per farlo in questo club.',
     // Review fixes 2026-09-24
-    errorTooManyRequests: 'Hai appena fatto una richiesta. Puoi ricontattare questo club tra 24 ore e scrivere al massimo a cinque club al giorno.',
-    errorTrialCap: 'Il tuo club ha già dieci provini aperti. Chiudine uno prima di invitare qualcun altro.',
-    errorAgeGroup: 'Non corrisponde alla categoria d\'età della squadra. Un adulto non fa provini con una squadra giovanile.',
+    errorTooManyRequests:
+      'Hai appena fatto una richiesta. Puoi ricontattare questo club tra 24 ore e scrivere al massimo a cinque club al giorno.',
+    errorTrialCap:
+      'Il tuo club ha già dieci provini aperti. Chiudine uno prima di invitare qualcun altro.',
+    errorAgeGroup:
+      "Non corrisponde alla categoria d'età della squadra. Un adulto non fa provini con una squadra giovanile.",
     tabGesuche: 'Annunci',
     tabSpieler: 'Giocatori',
     tabProbetraining: 'Provini',
@@ -31,7 +45,8 @@ export default {
 
     gesuchNew: 'Pubblica un annuncio',
     gesuchNewTitle: 'Nuovo annuncio',
-    gesuchNewHint: 'I giocatori svincolati della zona vedono l’annuncio e possono chiedere un provino.',
+    gesuchNewHint:
+      'I giocatori svincolati della zona vedono l’annuncio e possono chiedere un provino.',
     gesuchPublish: 'Pubblica annuncio',
     gesuchNotePlaceholder: 'es. Kreisliga A, allenamenti mar e gio dalle 19, campo sintetico',
     gesuchSeeks: 'Cerchiamo',
@@ -159,8 +174,10 @@ export default {
     },
     rejectTemplate: {
       full: 'Grazie per essere venuto! Al momento la rosa è al completo, quindi non possiamo offrirti un posto. In bocca al lupo per la ricerca!',
-      level: 'Grazie per essere passato! Per ora, a livello sportivo, non è la soluzione giusta. Ti auguriamo il meglio in un’altra squadra.',
-      later: 'Grazie per il provino! Adesso non abbiamo posti liberi. Se cambia qualcosa, ti ricontattiamo noi.',
+      level:
+        'Grazie per essere passato! Per ora, a livello sportivo, non è la soluzione giusta. Ti auguriamo il meglio in un’altra squadra.',
+      later:
+        'Grazie per il provino! Adesso non abbiamo posti liberi. Se cambia qualcosa, ti ricontattiamo noi.',
     },
     rejectSend: 'Invia risposta',
     rejectSent: 'Risposta inviata a {{name}}.',
@@ -169,7 +186,8 @@ export default {
     dfbnetBody:
       'Qui tieni solo traccia di come procede il trasferimento. Tesseramento e nulla osta passano sempre da DFBnet.',
     wechselEmptyTitle: 'Nessun trasferimento in corso',
-    wechselEmptyBody: 'Quando offri un posto a un giocatore, compare qui con la sua lista di controllo.',
+    wechselEmptyBody:
+      'Quando offri un posto a un giocatore, compare qui con la sua lista di controllo.',
     inProgress: 'In corso',
     eligibleShort: 'Dal {{date}}',
     needsApplication: 'Disponibile quando arriva la domanda di iscrizione',
@@ -203,8 +221,10 @@ export default {
       SOMMER: 'estiva (dal 1° luglio al 31 agosto)',
       WINTER: 'invernale (dal 1° al 31 gennaio)',
     },
-    periodInside: 'Indicativo: la data rientra nella finestra di trasferimento {{period}}. Conta la data di presentazione della richiesta di tesseramento.',
-    periodOutside: 'Indicativo: fuori dalla finestra di trasferimento. La prossima è quella {{period}}, dal {{date}}. Conta la data di presentazione della richiesta di tesseramento; con il nulla osta spesso si può comunque, verifica eventuali tempi di attesa.',
+    periodInside:
+      'Indicativo: la data rientra nella finestra di trasferimento {{period}}. Conta la data di presentazione della richiesta di tesseramento.',
+    periodOutside:
+      'Indicativo: fuori dalla finestra di trasferimento. La prossima è quella {{period}}, dal {{date}}. Conta la data di presentazione della richiesta di tesseramento; con il nulla osta spesso si può comunque, verifica eventuali tempi di attesa.',
   },
 
   probetraining: {
@@ -301,7 +321,8 @@ export default {
     intro: 'La tua squadra: {{team}}. Il club ha bisogno di questi dati per accoglierti.',
     loadError: 'Impossibile caricare l’offerta',
     notOpenTitle: 'Nessuna offerta aperta',
-    notOpenBody: 'Questa offerta non è più valida. Controlla i tuoi provini per sapere a che punto sei.',
+    notOpenBody:
+      'Questa offerta non è più valida. Controlla i tuoi provini per sapere a che punto sei.',
     alreadySentTitle: 'Già inviata',
     alreadySentBody: '{{club}} ha già la tua domanda di iscrizione.',
     sectionYou: 'I tuoi dati',
@@ -321,7 +342,8 @@ export default {
     previousClubPlaceholder: 'es. SV Babelsberg 03',
     lastMatch: 'Ultima partita ufficiale',
     lastMatchUnknown: 'Non ricordo',
-    clubHint: 'Il club chiede il nulla osta al tuo club precedente e fa la richiesta di tesseramento su DFBnet.',
+    clubHint:
+      'Il club chiede il nulla osta al tuo club precedente e fa la richiesta di tesseramento su DFBnet.',
     sectionFees: 'Quota associativa',
     sepaConsent: 'La quota può essere riscossa con addebito diretto SEPA',
     sepaHint: 'Non inserire qui i dati bancari. Il tesoriere ti manderà il mandato SEPA.',
@@ -332,15 +354,17 @@ export default {
     incompleteTitle: 'Non ancora completa',
     incompleteBody: 'Compila i campi evidenziati.',
     sepaMissing: 'Senza il consenso all’addebito SEPA il club non può accoglierti.',
-    parentalMissing: 'Inserisci l\'email dei tuoi genitori. Sono loro a dare il consenso.',
-    guardianIntro: 'Poiché hai meno di 18 anni, sono i tuoi genitori ad approvare l\'iscrizione e l\'addebito SEPA. Ricevono un\'email e confermano in Anstoss, alla voce «Consensi».',
+    parentalMissing: "Inserisci l'email dei tuoi genitori. Sono loro a dare il consenso.",
+    guardianIntro:
+      "Poiché hai meno di 18 anni, sono i tuoi genitori ad approvare l'iscrizione e l'addebito SEPA. Ricevono un'email e confermano in Anstoss, alla voce «Consensi».",
     guardianEmail: 'Email dei tuoi genitori',
     guardianEmailInvalid: 'Inserisci un indirizzo email valido',
     guardianEmailOwn: 'Questo è il tuo indirizzo. Inserisci quello dei tuoi genitori.',
     submit: 'Invia la domanda',
     sentTitle: 'Domanda inviata',
     sentBody: '{{club}} sta esaminando la tua domanda di iscrizione e ti farà sapere.',
-    sentBodyMinor: '{{club}} ha ricevuto la tua domanda. Appena i tuoi genitori danno il consenso, il club può tesserarti.',
+    sentBodyMinor:
+      '{{club}} ha ricevuto la tua domanda. Appena i tuoi genitori danno il consenso, il club può tesserarti.',
     dfbnetNote: 'L’abilitazione a giocare la rilascia la tua federazione regionale tramite DFBnet.',
   },
 
@@ -357,7 +381,8 @@ export default {
     visibility: 'Visibile a',
     visibilityClubs: 'Club',
     visibilityPrivate: 'Nessuno',
-    visibilityHint: 'Il tuo profilo lo vedono solo allenatori e dirigenti dei club, mai il pubblico.',
+    visibilityHint:
+      'Il tuo profilo lo vedono solo allenatori e dirigenti dei club, mai il pubblico.',
     sectionPlayer: 'Dati del giocatore',
     sectionArea: 'Dove vuoi giocare',
     areaHint: 'Usiamo il CAP solo per la ricerca nelle vicinanze.',
@@ -377,7 +402,8 @@ export default {
     fieldCity: 'Città',
     fieldRadius: 'Distanza',
     fieldBio: 'Due parole su di te',
-    bioPlaceholder: 'es. Mediano con buona tecnica, l’ultima stagione in Kreisliga A, cerco una squadra ambiziosa.',
+    bioPlaceholder:
+      'es. Mediano con buona tecnica, l’ultima stagione in Kreisliga A, cerco una squadra ambiziosa.',
     fieldStationClub: 'Club',
     fieldStationRole: 'Ruolo o squadra',
     stationRolePlaceholder: 'es. difensore centrale, prima squadra',
@@ -419,14 +445,18 @@ export default {
     ageU18: 'U18',
     regionValue: 'Zona CAP {{region}}',
     under16Title: 'Il mercato giocatori è dai 16 anni',
-    under16Body: 'Se vuoi cambiare squadra, parlane con i tuoi genitori. Saranno loro a contattare il nuovo club.',
+    under16Body:
+      'Se vuoi cambiare squadra, parlane con i tuoi genitori. Saranno loro a contattare il nuovo club.',
     notFreeAgentTitle: 'Nessun profilo per il mercato giocatori',
-    notFreeAgentBody: 'Sei registrato come tesserato di un club, non come giocatore svincolato. Il profilo del mercato giocatori è per chi è senza squadra.',
+    notFreeAgentBody:
+      'Sei registrato come tesserato di un club, non come giocatore svincolato. Il profilo del mercato giocatori è per chi è senza squadra.',
     minorTitle: 'Hai meno di 18 anni',
-    minorBody: 'Il tuo profilo lo vedono solo allenatori e dirigenti, con «U18» al posto dell\'età e la zona CAP al posto del CAP. Foto e video dai 18 anni.',
+    minorBody:
+      "Il tuo profilo lo vedono solo allenatori e dirigenti, con «U18» al posto dell'età e la zona CAP al posto del CAP. Foto e video dai 18 anni.",
     delete: 'Elimina il profilo giocatore',
     deleteTitle: 'Eliminare il profilo giocatore?',
-    deleteBody: 'Il tuo profilo esce dal mercato giocatori. I provini e le domande di iscrizione aperti si chiudono.',
+    deleteBody:
+      'Il tuo profilo esce dal mercato giocatori. I provini e le domande di iscrizione aperti si chiudono.',
     deleteConfirm: 'Elimina',
     position: {
       GK: 'Portiere',
@@ -470,7 +500,8 @@ export default {
     loadError: 'Impossibile caricare gli annunci',
     emptyTitle: 'Nessun annuncio adatto per ora',
     emptyBody: 'Ripassa più tardi. I club possono anche trovarti tramite il tuo profilo.',
-    emptyNarrowed: 'Allarga la distanza o mostra tutti i ruoli. I club possono anche trovarti tramite il tuo profilo.',
+    emptyNarrowed:
+      'Allarga la distanza o mostra tutti i ruoli. I club possono anche trovarti tramite il tuo profilo.',
     requestCta: 'Chiedi un provino',
     requestOpen: 'Richiesta inviata',
     requestTitle: 'Provino con {{club}}',

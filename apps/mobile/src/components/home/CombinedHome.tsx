@@ -7,7 +7,7 @@ import { api, ApiError } from '../../api/client'
 import { useAdminInbox } from '../admin/useAdminInbox'
 import { Button, Icon, PressableScale, Text } from '../ui'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
-import { SPACING_MD, SPACING_XL, SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
+import { RADIUS_FULL, SPACING_MD, SPACING_XL, SPACING_XS, SPACING_XXS, space } from '../../theme/tokens'
 import { Haptics } from '../../utils/haptics'
 import type { AbsenceDetail, RsvpStatus } from '../events/RsvpControl'
 import { HeroRsvp, HeroSurface, heroKickoff, useHeroColors, type RsvpSplit } from './HomeHero'
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   kickoff: { fontSize: 50 },
   versus: { fontSize: 16 },
   block: { gap: space.sm },
-  bar: { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', gap: SPACING_XXS },
+  bar: { flexDirection: 'row', height: 6, borderRadius: RADIUS_FULL, overflow: 'hidden', gap: SPACING_XXS },
   nudgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
