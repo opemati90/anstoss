@@ -1,6 +1,7 @@
 import { eventFlowTr } from './eventFlow/tr'
 import { onboardingFlowTr } from './onboardingFlow/tr' // onboarding revamp
 import { kaderTr } from './kader/tr'
+import { studioTr } from './studio/tr' // Matchday Studio
 import clubAdminTr from './clubAdmin/tr'
 import wechselTr from './wechsel/tr'
 import chatThreadTr from './chatThread/tr' // chat revamp: conversation screen
@@ -29,6 +30,8 @@ const base = {
   onboardingFlow: onboardingFlowTr,
   // Kader revamp (team agent)
   kader: kaderTr,
+  // Matchday Studio (boards 38–42)
+  studio: studioTr,
   // Club-admin revamp: Verein tab, Aufgaben inbox, Profile tab (verein/aufgaben/profileHub)
   ...clubAdminTr,
   // Wechselbörse revamp: wechsel / probetraining / aufnahme / spielerprofil / entdecken
@@ -1872,6 +1875,7 @@ const base = {
       TEAM_COORDINATOR: 'Takım koordinatörü',
       BOARD_MEMBER: 'Yönetim kurulu üyesi',
       SUPPORT_STAFF: 'Malzemeci / takım sorumlusu',
+      MEDIA_MANAGER: 'Medya sorumlusu',
     },
     selfLocked: 'Kendi rolün kilitli',
     selfLockedBody: 'Kendi kulüp rolünü burada değiştiremezsin.',

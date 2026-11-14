@@ -1,6 +1,7 @@
 import { eventFlowPt } from './eventFlow/pt'
 import { onboardingFlowPt } from './onboardingFlow/pt' // onboarding revamp
 import { kaderPt } from './kader/pt'
+import { studioPt } from './studio/pt' // Matchday Studio
 import clubAdminPt from './clubAdmin/pt'
 import wechselPt from './wechsel/pt'
 import chatThreadPt from './chatThread/pt' // chat revamp: conversation screen
@@ -31,6 +32,8 @@ const base = {
   onboardingFlow: onboardingFlowPt,
   // Kader revamp (team agent)
   kader: kaderPt,
+  // Matchday Studio (boards 38–42)
+  studio: studioPt,
   // Club-admin revamp: Verein tab, Aufgaben inbox, Profile tab (verein/aufgaben/profileHub)
   ...clubAdminPt,
   // Wechselbörse revamp: wechsel / probetraining / aufnahme / spielerprofil / entdecken
@@ -1729,6 +1732,7 @@ const base = {
       TEAM_COORDINATOR: 'Coordenador de equipa',
       BOARD_MEMBER: 'Membro da direção',
       SUPPORT_STAFF: 'Apoio à equipa',
+      MEDIA_MANAGER: 'Responsável de media',
     },
     selfLocked: 'O teu cargo está bloqueado',
     selfLockedBody: 'Não podes alterar o teu próprio cargo de clube aqui.',

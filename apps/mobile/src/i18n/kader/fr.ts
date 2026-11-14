@@ -126,6 +126,7 @@ export const kaderFr = {
       COACH: "Entraîneur",
       TEAM_MANAGER: "Team manager",
       TREASURER: "Trésorier",
+      MEDIA_MANAGER: "Responsable média",
       BOARD: "Comité",
     },
     appearances: "Matchs",

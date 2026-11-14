@@ -50,3 +50,14 @@ export const updateMatchLiveStateSchema = z.object({
 })
 
 export type UpdateMatchLiveState = z.infer<typeof updateMatchLiveStateSchema>
+
+/**
+ * PUT /clubs/:clubId/events/:eventId/live/result — Matchday Studio
+ * "Ergebnis eintragen": sets the final score of a match nobody tracked live
+ * (or corrects it) and marks it FINISHED. Responds with MatchLiveStateDto.
+ */
+export const setMatchLiveResultSchema = z.object({
+  goalsFor: z.number().int().min(0).max(99),
+  goalsAgainst: z.number().int().min(0).max(99),
+})
+export type SetMatchLiveResult = z.infer<typeof setMatchLiveResultSchema>

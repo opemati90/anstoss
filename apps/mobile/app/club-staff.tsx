@@ -81,6 +81,7 @@ const OPERATIONAL_ROLE_ORDER: ClubOperationalRole[] = [
   ClubOperationalRole.TEAM_COORDINATOR,
   ClubOperationalRole.CAPTAIN,
   ClubOperationalRole.BOARD_MEMBER,
+  ClubOperationalRole.MEDIA_MANAGER,
   ClubOperationalRole.SUPPORT_STAFF,
 ]
 

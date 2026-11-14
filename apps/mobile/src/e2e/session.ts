@@ -50,6 +50,7 @@ import {
 import { handleWechselMock } from './wechselMocks'
 import { handleHomeMock } from './homeMocks'
 import { handlePlanMock } from './planMocks'
+import { handleStudioMock, resetStudioMocks } from './studioMocks' // Matchday Studio
 
 export const E2E_SESSION_KEY = 'anstoss:e2e:session'
 const STRICT_E2E_MOCKS = process.env.EXPO_PUBLIC_E2E_MOCK_STRICT === '1'
@@ -2704,6 +2705,7 @@ export async function activateE2EScenario(name: E2EPrimaryScenarioName) {
   const scenario = buildScenario(name)
   resetClubAdminWorld() // club-admin revamp
   resetInboxLiveMocks() // redesign: inbox + live match mocks
+  resetStudioMocks()
   resetTeamBoardMocks() // redesign: member profile roles
   resetActingMocks() // Vorschau und Vertretung
   e2eClaim = null // onboarding revamp: claims never leak across personas
@@ -2722,6 +2724,7 @@ export async function activateE2EPostSignupRole(registrationRole: RegistrationRo
 
   const scenario = buildPostSignupSession(registrationRole)
   resetInboxLiveMocks() // redesign: inbox + live match mocks
+  resetStudioMocks()
   resetTeamBoardMocks() // redesign: member profile roles
   resetActingMocks() // Vorschau und Vertretung
   e2eClaim = null // onboarding revamp
@@ -4063,6 +4066,24 @@ export function handleE2EApiRequest(
   // Plans and pricing: GET …/plan, POST …/plan/trial (planMocks.ts).
   const planMock = handlePlanMock({ scenario: session.scenario, pathname, method })
   if (planMock) return planMock
+
+  // Matchday Studio: brand kit, credits, AI actions, archive (studioMocks.ts).
+  const studioMock = handleStudioMock({
+    scenario: session.scenario,
+    pathname,
+    method,
+    query,
+    body: options.body,
+    clubId: CLUB_ID,
+    teamId: TEAM_ID,
+    club: {
+      name: session.memberships[0]?.club.name ?? 'SV Albatros',
+      primaryColor: session.memberships[0]?.club.primaryColor ?? CLUB_PRIMARY,
+    },
+    user: { id: session.user.id, name: session.user.name },
+    memberIds: () => eventFlowMembers().map((m) => m.userId),
+  })
+  if (studioMock) return studioMock
 
   // ── club-admin revamp: the club-admin world answers first (members,
   // stats, team-groups, admin-inbox, compliance, ...) so every count agrees.

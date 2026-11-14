@@ -24,6 +24,22 @@ const MANAGERS = new Set(['club-admin'])
 
 let trialEndsAt: string | null = null
 
+/**
+ * Matchday Studio preview: boards 38–42 show the unlocked Studio for the
+ * club-admin and coach personas while board 35 still shows Kostenlos, so the
+ * mock grants `matchdayStudio` to them as a complimentary flag. Open any
+ * Studio page with `?studioLocked=1` to see the free-club StudioLocked.
+ */
+const STUDIO_PREVIEW = new Set(['club-admin', 'coach'])
+function studioUnlocked(scenario: string): boolean {
+  if (!STUDIO_PREVIEW.has(scenario)) return false
+  try {
+    return !(typeof window !== 'undefined' && /[?&]studioLocked=1\b/.test(window.location?.search ?? ''))
+  } catch {
+    return true
+  }
+}
+
 function planFor(clubId: string, scenario: string): ClubPlan {
   const tier = trialEndsAt ? 'PRO' : 'FREE'
   return {
@@ -38,7 +54,10 @@ function planFor(clubId: string, scenario: string): ClubPlan {
       monthly: { amountCents: PLAN_PRICES_CENTS.monthly, currency: PLAN_CURRENCY },
       yearly: { amountCents: PLAN_PRICES_CENTS.yearly, currency: PLAN_CURRENCY },
     },
-    features: planFeatureFlags(tier),
+    features: {
+      ...planFeatureFlags(tier),
+      matchdayStudio: tier !== 'FREE' || studioUnlocked(scenario),
+    },
     canManage: MANAGERS.has(scenario),
     salesEmail: PLAN_SALES_EMAIL,
   }

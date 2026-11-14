@@ -8,6 +8,11 @@ export interface MatchLiveEventDto {
   playerName: string | null
   relatedUserId: string | null
   relatedName: string | null
+  /**
+   * Matchday Studio: a GOAL for us that the opponent put in their own net
+   * ("Eigentor"). Absent on older APIs.
+   */
+  ownGoal?: boolean
   createdAt: string
 }
 
@@ -34,6 +39,13 @@ export interface MatchLiveStateDto {
   finishedAt: string | null
   /** Newest first. */
   events: MatchLiveEventDto[]
+  /**
+   * Matchday Studio (proposed, absent on older APIs): score at the break,
+   * a penalty shoot-out result ("n.E.") and an abandoned match.
+   */
+  halfTime?: { goalsFor: number; goalsAgainst: number } | null
+  shootout?: { goalsFor: number; goalsAgainst: number } | null
+  abandonedAt?: string | null
   /** Whether the caller may record events and move the clock. */
   canRecord: boolean
 }

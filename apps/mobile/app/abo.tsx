@@ -51,6 +51,7 @@ const FEATURE_ROWS = [
   'limits',
   'clubColors',
   'liveTicker',
+  'matchdayStudio',
   'autoReminders',
   'fixtureImport',
   'duesTracking',

@@ -121,6 +121,7 @@ export const kaderDe = {
       COACH: "Trainer",
       TEAM_MANAGER: "Teammanager",
       TREASURER: "Kassenwart",
+      MEDIA_MANAGER: "Medienwart",
       BOARD: "Vorstand",
     },
     appearances: "Einsätze",

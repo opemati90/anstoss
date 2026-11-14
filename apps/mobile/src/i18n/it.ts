@@ -1,6 +1,7 @@
 import { eventFlowIt } from './eventFlow/it'
 import { onboardingFlowIt } from './onboardingFlow/it' // onboarding revamp
 import { kaderIt } from './kader/it'
+import { studioIt } from './studio/it' // Matchday Studio
 import clubAdminIt from './clubAdmin/it'
 import wechselIt from './wechsel/it'
 import chatThreadIt from './chatThread/it' // chat revamp: conversation screen
@@ -31,6 +32,8 @@ const base = {
   onboardingFlow: onboardingFlowIt,
   // Kader revamp (team agent)
   kader: kaderIt,
+  // Matchday Studio (boards 38–42)
+  studio: studioIt,
   // Club-admin revamp: Verein tab, Aufgaben inbox, Profile tab (verein/aufgaben/profileHub)
   ...clubAdminIt,
   // Wechselbörse revamp: wechsel / probetraining / aufnahme / spielerprofil / entdecken
@@ -1745,6 +1748,7 @@ const base = {
       TEAM_COORDINATOR: 'Coordinatore di squadra',
       BOARD_MEMBER: 'Membro del direttivo',
       SUPPORT_STAFF: 'Staff di supporto',
+      MEDIA_MANAGER: 'Addetto media',
     },
     selfLocked: 'Il tuo ruolo è bloccato',
     selfLockedBody: 'Non puoi cambiare il tuo ruolo del club da qui.',

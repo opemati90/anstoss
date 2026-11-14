@@ -121,6 +121,7 @@ export const kaderTr = {
       COACH: "Antrenör",
       TEAM_MANAGER: "Takım menajeri",
       TREASURER: "Sayman",
+      MEDIA_MANAGER: "Medya sorumlusu",
       BOARD: "Yönetim",
     },
     appearances: "Maç",
