@@ -4,7 +4,8 @@
  * Kapitän and the Medienwart (MEDIA_MANAGER). Navigation entry points do not
  * grant permission; coaches need one of the explicitly permitted offices.
  */
-type MembershipLike = { role?: string | null; operationalRoles?: readonly string[] | null } | null | undefined
+type MembershipLike =
+  { role?: string | null; operationalRoles?: readonly string[] | null } | null | undefined
 type TeamAccessLike = { role?: string | null } | null | undefined
 
 const BOARD_ROLES = new Set(['OWNER', 'ADMIN'])
@@ -24,4 +25,13 @@ export function canBuyStudioCredits(membership: MembershipLike): boolean {
   if (!membership) return false
   if (membership.role && BOARD_ROLES.has(membership.role)) return true
   return (membership.operationalRoles ?? []).some((office) => BUYER_OFFICES.has(office))
+}
+
+/** Club-wide identity changes are not delegated to a team's captain/manager. */
+export function canManageStudioBrandKit(membership: MembershipLike): boolean {
+  if (!membership) return false
+  if (membership.role && BOARD_ROLES.has(membership.role)) return true
+  return (membership.operationalRoles ?? []).some(
+    (office) => office === 'BOARD_MEMBER' || office === 'MEDIA_MANAGER',
+  )
 }

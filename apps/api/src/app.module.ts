@@ -44,6 +44,7 @@ import { ClubActivationModule } from './club-activation/club-activation.module'
 import { AdminInboxModule } from './admin-inbox/admin-inbox.module'
 // Vorschau und Vertretung: stand-in coach sessions
 import { ActingModule } from './acting/acting.module'
+import { StudioModule } from './studio/studio.module'
 import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
 
 @Module({
@@ -84,6 +85,7 @@ import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
     LiveModule,
     MotmModule,
     ActingModule,
+    StudioModule,
     MediaModule,
     ModerationModule,
     SponsorsModule,

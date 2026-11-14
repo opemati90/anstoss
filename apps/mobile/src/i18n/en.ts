@@ -1729,6 +1729,7 @@ const base = {
       CAPTAIN: 'Captain',
       TEAM_COORDINATOR: 'Team coordinator',
       BOARD_MEMBER: 'Committee member',
+      MEDIA_MANAGER: 'Media manager',
       SUPPORT_STAFF: 'Support staff',
     },
     selfLocked: 'Your own role is locked',

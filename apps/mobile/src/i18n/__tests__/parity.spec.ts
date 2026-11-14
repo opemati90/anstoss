@@ -4,6 +4,7 @@ import fr from '../fr'
 import itLocale from '../it'
 import pt from '../pt'
 import tr from '../tr'
+import { ClubOperationalRole } from '@anstoss/shared'
 
 // Flatten a nested translation object to dotted leaf keys.
 function flatten(o: unknown, prefix = '', out: Record<string, true> = {}) {
@@ -19,6 +20,15 @@ function flatten(o: unknown, prefix = '', out: Record<string, true> = {}) {
 // key missing from another locale renders in German. This guard fails the build
 // when a locale drifts out of parity — the root cause of the EN-shows-German bug.
 const reference = Object.keys(flatten(de))
+
+it('translates every assignable club office in all supported app languages', () => {
+  for (const locale of [de, en, fr, itLocale, pt, tr]) {
+    for (const role of Object.values(ClubOperationalRole)) {
+      expect(locale.clubStaff.operationalRole[role]).toEqual(expect.any(String))
+      expect(locale.clubStaff.operationalRole[role].trim().length).toBeGreaterThan(0)
+    }
+  }
+})
 
 describe('i18n locale parity vs German reference', () => {
   for (const [name, locale] of [

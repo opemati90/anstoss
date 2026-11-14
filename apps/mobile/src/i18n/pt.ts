@@ -1728,6 +1728,7 @@ const base = {
       CAPTAIN: 'Capitão',
       TEAM_COORDINATOR: 'Coordenador de equipa',
       BOARD_MEMBER: 'Membro da direção',
+      MEDIA_MANAGER: 'Responsável de comunicação',
       SUPPORT_STAFF: 'Apoio à equipa',
     },
     selfLocked: 'O teu cargo está bloqueado',

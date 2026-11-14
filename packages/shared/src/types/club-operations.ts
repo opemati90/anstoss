@@ -15,6 +15,7 @@ export enum ClubOperationalRole {
   TEAM_COORDINATOR = 'TEAM_COORDINATOR',
   BOARD_MEMBER = 'BOARD_MEMBER',
   SUPPORT_STAFF = 'SUPPORT_STAFF',
+  MEDIA_MANAGER = 'MEDIA_MANAGER',
 }
 
 export enum ClubCapability {
@@ -37,10 +38,7 @@ const EMPTY_CAPABILITIES: ClubPermissionMap = {
   [ClubCapability.COMMUNICATIONS]: false,
 }
 
-export const MEMBERSHIP_ROLE_CAPABILITIES: Record<
-  MembershipRole,
-  ClubCapability[]
-> = {
+export const MEMBERSHIP_ROLE_CAPABILITIES: Record<MembershipRole, ClubCapability[]> = {
   OWNER: [
     ClubCapability.INVITES,
     ClubCapability.BILLING,
@@ -66,20 +64,16 @@ export const MEMBERSHIP_ROLE_CAPABILITIES: Record<
   PARENT: [],
 }
 
-export const OPERATIONAL_ROLE_CAPABILITIES: Record<
-  ClubOperationalRole,
-  ClubCapability[]
-> = {
+export const OPERATIONAL_ROLE_CAPABILITIES: Record<ClubOperationalRole, ClubCapability[]> = {
+  // Studio checks this office explicitly; it grants no unrelated admin powers.
+  [ClubOperationalRole.MEDIA_MANAGER]: [],
   [ClubOperationalRole.SECRETARY]: [
     ClubCapability.INVITES,
     ClubCapability.PUBLIC_PROFILE,
     ClubCapability.COMMUNICATIONS,
   ],
   [ClubOperationalRole.TREASURER]: [ClubCapability.BILLING],
-  [ClubOperationalRole.CAPTAIN]: [
-    ClubCapability.EVENTS,
-    ClubCapability.COMMUNICATIONS,
-  ],
+  [ClubOperationalRole.CAPTAIN]: [ClubCapability.EVENTS, ClubCapability.COMMUNICATIONS],
   [ClubOperationalRole.TEAM_COORDINATOR]: [
     ClubCapability.INVITES,
     ClubCapability.ROSTER,
@@ -90,10 +84,7 @@ export const OPERATIONAL_ROLE_CAPABILITIES: Record<
     ClubCapability.PUBLIC_PROFILE,
     ClubCapability.COMMUNICATIONS,
   ],
-  [ClubOperationalRole.SUPPORT_STAFF]: [
-    ClubCapability.ROSTER,
-    ClubCapability.EVENTS,
-  ],
+  [ClubOperationalRole.SUPPORT_STAFF]: [ClubCapability.ROSTER, ClubCapability.EVENTS],
 }
 
 export type RolePlaybook = {
@@ -102,10 +93,15 @@ export type RolePlaybook = {
   offboarding: string[]
 }
 
-export const OPERATIONAL_ROLE_PLAYBOOKS: Record<
-  ClubOperationalRole,
-  RolePlaybook
-> = {
+export const OPERATIONAL_ROLE_PLAYBOOKS: Record<ClubOperationalRole, RolePlaybook> = {
+  [ClubOperationalRole.MEDIA_MANAGER]: {
+    summary: 'Maintains the club brand kit and prepares match graphics.',
+    onboarding: [
+      'Review the club brand kit.',
+      'Check publication consent before including players.',
+    ],
+    offboarding: ['Hand over the brand kit.', 'Remove access to club media accounts.'],
+  },
   [ClubOperationalRole.SECRETARY]: {
     summary: 'Coordinates club administration, member communication, and join flows.',
     onboarding: [

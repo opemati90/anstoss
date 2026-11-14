@@ -7,7 +7,10 @@ Date: 2026-11-14.
 Implementation checkpoint: selected schemas/pure graphic rules and a rewritten,
 scope-safe match hook are now on the integration worktree, with 70 focused tests
 passing. A tested honest export handoff primitive is also present. Studio screens
-are not yet ported/wired; backend routes, brand-kit persistence and browser/simulator
+are not yet ported/wired. Scoped context and brand-kit backend routes/persistence
+are now implemented locally: 44 focused unit tests and seven real local PostgreSQL
+tests pass. Publication consent remains deliberately empty until a dedicated
+consent dataset exists. Other backend integrations and browser/simulator
 acceptance remain pending. The findings below describe the reviewed upstream
 snapshot, not a claim that every item is already resolved.
 

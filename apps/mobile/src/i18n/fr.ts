@@ -1749,6 +1749,7 @@ const base = {
       CAPTAIN: 'Capitaine',
       TEAM_COORDINATOR: 'Coordination d’équipe',
       BOARD_MEMBER: 'Membre du bureau',
+      MEDIA_MANAGER: 'Responsable médias',
       SUPPORT_STAFF: 'Encadrement',
     },
     selfLocked: 'Ton propre rôle est verrouillé',

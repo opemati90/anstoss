@@ -20,6 +20,60 @@ Confirmed by the product owner on 2026-11-13:
 - Validate the source and freshness in connected-role tests before advertising
   live coverage. Keep coach-recorded updates distinct from external feed data.
 
+## Additional product requirements — 2026-11-14
+
+These remain tracked while the ordered integration work continues. Audit existing
+implementations before adding anything; do not duplicate working features.
+
+- **Billing:** monthly and annual options. Annual must cost less than twelve
+  monthly payments. Existing shared amounts are €10.99/month and €109.90/year:
+  €21.98 saved (16.7%, equivalent to two months free). Keep website/app/checkout
+  consistent and show annual total, monthly equivalent and savings. No live
+  Stripe prices have been changed.
+- **Group chat:** automatically translate into each reader's configured language;
+  check existing translation/preferences behavior before changing the service.
+- **Rewards/campaigns:** platform-funded acquisition campaigns, not club-funded
+  badges. Examples: Man of the Match, winning streaks, Player of the Week (five
+  wins → Amazon gift-card eligibility), Team of the Week, and team prizes such
+  as a crate of beer. User confirmed platform funding. Separate campaign rules,
+  verified participation/results, winner selection, eligibility and fulfilment.
+  Gift-card value, budget cap, award thresholds (where unspecified), tie-breaks,
+  anti-abuse rules, geography and fulfilment provider remain undefined. No
+  automatic purchase, guaranteed prize claim or new spending is authorized by
+  this feature outline. Alcohol rewards require adult-only eligibility.
+- **Free agents:** premium access to the pool, profiles with images/details/video,
+  and the free-agent-facing journey. Preserve privacy/access checks and review
+  existing marketplace/media implementations before extending them.
+- **Roster management:** removal and suspension; review existing permissions,
+  membership lifecycle and suspension state rather than adding a duplicate flow.
+
+These requests do not authorize reopening youth features, exposing unimplemented
+paid features, or replacing the current core-flow acceptance gates.
+
+Reuse audit (2026-11-14; implementation presence is not production verification):
+
+- Group-chat history already enriches messages for the stored reader language
+  (`ChatGateway.enrichMessagesWithTranslation`); `MessageBubble` displays the
+  translation with an original-text toggle. Translation requires a configured
+  LibreTranslate service. Check realtime delivery, locale changes, failures and
+  provider availability before advertising automatic translation.
+- MOTM voting/archive and weekly streak calculation already exist (`motm/`,
+  `streaks/`). They do not implement funded reward campaigns or fulfilment.
+  Streak attendance currently derives from RSVP YES, not actual attendance;
+  never treat this as verified attendance or cash/prize eligibility. MOTM is
+  imported-fixture based, which also needs reconciliation with disabled imports
+  and coach-recorded matches. Weekly awards, ties, finalization and anti-abuse
+  require explicit campaign rules, not automatic reuse of mutable vote totals.
+- Free-agent owner profiles, profile reads/search, image/video media registration
+  and deletion already exist in `marketplace/`. Listing currently checks staff
+  and visibility, not a paid club entitlement. Premium recruitment access and
+  the approved adult-launch boundary still need reconciliation and tests.
+- Club membership removal already exists with OWNER/ADMIN authorization;
+  roster management already supports coach-authorized suspension-until dates.
+  Suspension is a roster state, not necessarily loss of login/chat access.
+  Verify these journeys and their intended access effects instead of adding
+  duplicate removal/suspension endpoints.
+
 ## Ordered acceptance gates
 
 Integration rule (product owner, 2026-11-14): compare incoming Claude/Codex work
@@ -114,8 +168,42 @@ Incoming author test totals have not been independently rerun.
   before the final old-refresh guard/test; the 70-test focused rerun then passed.
   Shared regression: all 157 tests pass.
   This is tested foundation code, not a completed Studio screen/API integration.
-- Next: permission-scoped backend context/consent and brand-kit persistence;
-  then wire the editor's export/persistence errors and verify the screens.
+- Backend follow-up below supplies scoped context and brand-kit persistence.
+  Next: wire the editor's export/persistence errors and verify the screens.
+
+### Studio backend checkpoint — 2026-11-14
+
+- Added authenticated, age-gated, rate-limited context and brand-kit endpoints.
+  Server checks membership, office, active team access and paid entitlement;
+  coach status alone does not grant access. Club identity edits require a
+  club-wide office. Sponsor references must belong to the same club.
+- Added tenant-scoped StudioBrandKit storage, MEDIA_MANAGER office and an
+  additive migration. Partial edits preserve independent concurrent changes;
+  removed sponsors are not resurrected from stored references.
+- No publication-consent dataset exists yet. Context deliberately returns no
+  identity grants; app-access/parental approval is not reused as photo/name
+  publication consent. Social accounts remain disconnected and no AI/credit,
+  rendering, archive or publishing provider is represented as working.
+- Migration applied only to the isolated local PostgreSQL test database.
+  All seven real-database tests pass: persistence across service instances,
+  concurrent edits, team isolation, foreign-club/sponsor rejection, revoked or
+  expired/future access, expired plan and tenant-context enforcement. An initial
+  fixture's lazy Prisma query lost its async context; corrected and rerun.
+- The preceding focused unit/controller/tenant run passed 44 tests. These checks
+  do not establish production end-to-end sync or complete Studio UI integration.
+- Added a separate scope-safe mobile brand-kit hook. It validates responses and
+  acknowledgements, rejects optimistic false success, blocks duplicate writes,
+  and ignores stale requests across user/token/club/team/permission changes.
+  A refresh preserves the last display snapshot but disables export readiness;
+  failed authorization/read/write clears usable settings. No cross-session
+  module cache. Server checks remain authoritative for paid access and offices.
+- Added MEDIA_MANAGER labels in all six mobile locales and a role-key coverage
+  test. The focused brand-kit/match hooks pass 48 tests. Final regression:
+  API **136 suites / 1,408 tests** (14 opt-in DB cases skipped in this run),
+  mobile **133 suites / 1,017 tests** (one pre-existing skip), shared **157 tests**.
+  The seven Studio DB cases passed separately against explicit localhost test
+  storage. API build, mobile typecheck and scoped lint pass. No production
+  migration, deployment, paid feature enablement or build-credit use.
 
 ### Selective upstream review: `f0886f74` → `8279b7b4`
 

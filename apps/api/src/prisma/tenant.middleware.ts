@@ -84,6 +84,7 @@ export const TENANT_SCOPED_MODELS = new Set([
   'MatchLiveEvent',
   // Vorschau und Vertretung: a board member temporarily acting as a coach.
   'ActingSession',
+  'StudioBrandKit',
 ])
 
 /**
@@ -178,6 +179,10 @@ export function createTenantMiddleware(
     // Direct tenant-scoped models: inject clubId automatically
     if (TENANT_SCOPED_MODELS.has(params.model)) {
       if (!clubId) {
+        // New Studio data has no legacy unscoped readers. Fail closed for reads too.
+        if (params.model === 'StudioBrandKit') {
+          throw new TenantScopeViolationError('StudioBrandKit requires a club context')
+        }
         if (READ_ACTIONS.has(params.action)) {
           if (onFailOpenRead) {
             const key = `${params.model}.${params.action}`

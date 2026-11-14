@@ -1871,6 +1871,7 @@ const base = {
       CAPTAIN: 'Kaptan',
       TEAM_COORDINATOR: 'Takım koordinatörü',
       BOARD_MEMBER: 'Yönetim kurulu üyesi',
+      MEDIA_MANAGER: 'Medya sorumlusu',
       SUPPORT_STAFF: 'Malzemeci / takım sorumlusu',
     },
     selfLocked: 'Kendi rolün kilitli',

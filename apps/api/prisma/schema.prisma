@@ -169,6 +169,7 @@ model Club {
   conversations           Conversation[]
   channels                Channel[]
   sponsors                Sponsor[]
+  studioBrandKit          StudioBrandKit?
   featureFlagOverrides    FeatureFlagOverride[]
   eventCheckIns           EventCheckIn[]
   // Events revamp: Fahrgemeinschaft
@@ -361,6 +362,7 @@ enum ClubOperationalRole {
   TEAM_COORDINATOR
   BOARD_MEMBER
   SUPPORT_STAFF
+  MEDIA_MANAGER
 }
 
 enum TeamGroupType {
@@ -2279,6 +2281,19 @@ model RosterSlot {
 // Reads are unauthenticated-by-plan — once a club downgrades, their
 // existing sponsors stay visible & deletable so they can clean up,
 // but new writes are gated on the `sponsor_logos` entitlement.
+
+// Studio configuration only: sponsor assets remain in the existing Sponsor table.
+model StudioBrandKit {
+  clubId      String   @id
+  fontPairing String   @default("CONDENSED")
+  handle      String?
+  hashtags    String[] @default([])
+  sponsors    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+}
 
 model Sponsor {
   id           String   @id @default(cuid())

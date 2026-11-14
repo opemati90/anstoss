@@ -112,9 +112,10 @@ export const updateStudioBrandKitSchema = z
     handle: z.string().trim().max(40).nullable(),
     hashtags: z.array(z.string().trim().min(1).max(40)).max(10),
     /** Order and names; logos go through the upload endpoint. */
-    sponsors: z.array(studioSponsorSchema.pick({ id: true, name: true })).max(8),
+    sponsors: z.array(studioSponsorSchema.pick({ id: true, name: true }).strict()).max(8),
   })
   .partial()
+  .strict()
 export type UpdateStudioBrandKitInput = z.infer<typeof updateStudioBrandKitSchema>
 
 /**
@@ -335,6 +336,14 @@ export const studioContextSchema = z.object({
   consents: z.array(studioPlayerConsentSchema),
 })
 export type StudioContext = z.infer<typeof studioContextSchema>
+
+export const studioContextQuerySchema = z
+  .object({
+    teamId: z.string().min(1).max(128).optional(),
+    eventId: z.string().min(1).max(128).optional(),
+  })
+  .strict()
+export type StudioContextQuery = z.infer<typeof studioContextQuerySchema>
 
 // ─── Archive ────────────────────────────────────────────────────────────────
 

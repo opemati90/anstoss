@@ -25,6 +25,12 @@ describe('createTenantMiddleware', () => {
     expect(onFailOpenRead).not.toHaveBeenCalled()
   })
 
+  it.each(['findUnique', 'findMany', 'upsert'])('fails closed for StudioBrandKit %s without context', async action => {
+    const { mw, next } = setup(undefined)
+    await expect(mw(params({ model: 'StudioBrandKit', action }), next)).rejects.toThrow(TenantScopeViolationError)
+    expect(next).not.toHaveBeenCalled()
+  })
+
   it('injects clubId into the where clause on reads', async () => {
     const { mw, next } = setup('club-1')
     const p = params({ action: 'findMany', args: { where: { teamId: 't1' } } })
