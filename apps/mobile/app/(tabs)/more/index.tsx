@@ -20,11 +20,6 @@ import {
 } from '../../../src/components/ui'
 import { ClubSwitcher } from '../../../src/components/ClubSwitcher'
 import {
-  PreviewCoverEntryCard,
-  PreviewCoverSheet,
-  canUsePreviewCover,
-} from '../../../src/components/roles/PreviewCoverSheet'
-import {
   RADIUS_CARD,
   SCREEN_PADDING,
   SPACING_LG,
@@ -89,7 +84,6 @@ export default function MoreScreen() {
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [appearance, setAppearance] = useState<AppearancePreference>('system')
   const [roleSheetOpen, setRoleSheetOpen] = useState(false)
-  const [previewCoverOpen, setPreviewCoverOpen] = useState(false)
   const [openDues, setOpenDues] = useState(0)
   const wechsel = useWechselAccess()
   const { plan: clubPlan } = useClubPlan()
@@ -532,10 +526,7 @@ export default function MoreScreen() {
           />
         )}
 
-        {/* Vorschau und Vertretung (board 29): Vorstand and Teammanager only. */}
-        {canUsePreviewCover(activeClub) ? (
-          <PreviewCoverEntryCard onPress={() => setPreviewCoverOpen(true)} />
-        ) : availableRoleModes.length > 1 ? (
+        {availableRoleModes.length > 1 ? (
           <RoleModeCard
             title={t('more.roleModeTitle')}
             subtitle={
@@ -627,7 +618,6 @@ export default function MoreScreen() {
       </ScrollView>
 
       <ClubSwitcher visible={clubSwitcherVisible} onClose={() => setClubSwitcherVisible(false)} />
-      <PreviewCoverSheet visible={previewCoverOpen} onClose={() => setPreviewCoverOpen(false)} />
       <BottomSheet visible={roleSheetOpen} onClose={() => setRoleSheetOpen(false)} heightPct="auto">
         <View style={styles.sheet}>
           <Text variant="title3" weight="bold" color="primary">

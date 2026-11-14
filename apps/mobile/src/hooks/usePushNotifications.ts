@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { notifyNotificationReceived } from '../lib/notificationEvents'
+import { notifyAccessChanged } from '../auth/accessChanges'
 
 const PUSH_TOKEN_KEY = 'anstoss:push-token'
 
@@ -52,6 +54,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     }
 
     let cancelled = false
+    let registering = false
     const retryTimers = new Set<ReturnType<typeof setTimeout>>()
 
     const waitForRetry = (delayMs: number) =>
@@ -96,6 +99,8 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     }
 
     const acquireAndRegister = async () => {
+      if (cancelled || registering) return
+      registering = true
       try {
         setRegistrationError(null)
         setRegistrationStatus('requesting-permission')
@@ -120,10 +125,17 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
         setRegistrationStatus('error')
         setRegistrationError(error instanceof Error ? error.message : String(error))
         if (__DEV__) console.warn('[push] registration failed:', error)
+      } finally {
+        registering = false
       }
     }
 
     void acquireAndRegister()
+    const foregroundSubscription = AppState.addEventListener('change', (state) => {
+      // Recover registration after connectivity returns or the user enables
+      // notifications in Settings, without requiring a logout/reinstall.
+      if (state === 'active') void acquireAndRegister()
+    })
 
     // A native APNs/FCM token can roll while the app is installed. Re-acquire
     // the associated Expo token and sync it immediately instead of waiting for
@@ -136,7 +148,8 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
 
     // Listen for incoming notifications (app in foreground)
     const notificationSubscription = Notifications.addNotificationReceivedListener(() => {
-      // Notification received while app is open - badge handled by handler.
+      notifyNotificationReceived()
+      notifyAccessChanged()
     })
 
     // Listen for notification taps
@@ -147,13 +160,14 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     // Capture a notification that launched the app before listeners mounted.
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!cancelled && response) setLastNotification(response)
-    })
+    }).catch(() => undefined)
 
     return () => {
       cancelled = true
       retryTimers.forEach((timer) => clearTimeout(timer))
       retryTimers.clear()
       pushTokenSubscription?.remove()
+      foregroundSubscription.remove()
       notificationSubscription.remove()
       responseSubscription.remove()
     }

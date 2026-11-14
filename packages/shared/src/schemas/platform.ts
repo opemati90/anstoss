@@ -16,7 +16,7 @@ export const internalAdminRoleSchema = z.enum(['PLATFORM_ADMIN', 'SUPPORT_AGENT'
 export const billingProviderSchema = z.enum(['NONE', 'STRIPE', 'GOCARDLESS'])
 export const billingPlanSchema = z.enum(['FOUNDATION', 'PREMIUM'])
 export const planTierSchema = z.enum(['FREE', 'PRO', 'SCALE'])
-export const planIntervalSchema = z.enum(['SIX_MONTHS', 'TWELVE_MONTHS'])
+export const planIntervalSchema = z.enum(['MONTHLY', 'SIX_MONTHS', 'TWELVE_MONTHS'])
 export const entitlementSourceSchema = z.enum(['PAID', 'COMPLIMENTARY', 'TRIAL', 'MIGRATED'])
 export const billingSubscriptionStatusSchema = z.enum([
   'inactive',
@@ -392,7 +392,8 @@ export const createEntitlementGrantSchema = z
 
 export const publishPlanDefinitionSchema = z.object({
   tier: planTierSchema.exclude(['FREE']),
-  interval: planIntervalSchema,
+  // Six-month definitions remain readable for historical grants, not new sales.
+  interval: planIntervalSchema.exclude(['SIX_MONTHS']),
   priceCents: z.number().int().min(100).max(1_000_000),
   currency: z.string().length(3).default('eur'),
   teamLimit: z.number().int().min(1).max(100),

@@ -1,0 +1,30 @@
+appId: com.renuirug.anstoss
+---
+- runFlow: subflows/connected-login.yaml
+- openLink: 'anstoss://club-setup?clubName=${QA_CLUB_NAME}'
+- extendedWaitUntil:
+    visible:
+      id: club-setup
+    timeout: 30000
+- assertNotVisible:
+    id: club-setup-number-input
+- scrollUntilVisible:
+    element:
+      id: club-setup-team-name-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: club-setup-team-name-input
+- eraseText: 100
+- inputText: II
+- pressKey: Enter
+- takeScreenshot: /private/tmp/anstoss-connected-club-required-fields
+- tapOn:
+    id: club-setup-submit
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 30000
+- assertNotVisible:
+    id: home-verification-details
+- takeScreenshot: /private/tmp/anstoss-connected-club-immediate-home

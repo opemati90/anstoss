@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stack, router } from 'expo-router'
-import { Linking, Platform, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
+import { Stack } from 'expo-router'
+import { Platform, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import * as SplashScreen from 'expo-splash-screen'
 import {
   useFonts,
@@ -180,14 +180,14 @@ export default function RootLayout() {
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="e2e" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="(auth)" options={{ animation: 'fade', presentation: 'card' }} />
+                  <Stack.Screen name="(tabs)" options={{ animation: 'fade', presentation: 'card' }} />
                   <Stack.Screen name="invite" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="add-members" options={{ presentation: 'card' }} />
                   <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
                   <Stack.Screen
                     name="join/[...code]"
-                    options={{ presentation: 'fullScreenModal' }}
+                    options={{ presentation: 'card' }}
                   />
                   <Stack.Screen name="join-club" options={{ presentation: 'fullScreenModal' }} />
                   <Stack.Screen name="enter-dob" options={{ animation: 'fade' }} />
@@ -282,27 +282,9 @@ export default function RootLayout() {
 }
 
 export function URLDeepLinkHandler() {
-  useEffect(() => {
-    const handle = (url: string) => {
-      const m = url.match(/\/join\/([^/?#]+)\/([^/?#]+)/)
-      if (m?.[1] && m?.[2]) {
-        router.push({
-          pathname: '/join/[...code]',
-          params: { code: [m[1], m[2]] },
-        } as never)
-      }
-    }
-
-    Linking.getInitialURL()
-      .then((url) => {
-        if (url) handle(url)
-      })
-      .catch(() => undefined)
-
-    const sub = Linking.addEventListener('url', ({ url }) => handle(url))
-    return () => sub.remove()
-  }, [])
-
+  // Expo Router already handles /join/[...code], including initial URLs.
+  // A second Linking listener pushed the same invite over the auth stack,
+  // leaving an old invitation underneath the newly joined workspace.
   return null
 }
 

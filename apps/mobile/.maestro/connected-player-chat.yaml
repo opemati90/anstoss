@@ -1,0 +1,52 @@
+appId: com.renuirug.anstoss
+---
+# Cold launch retains the approved account; do not use the signed-out utility.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 60000
+- assertNotVisible:
+    id: find-club-search
+- tapOn: 'Chat.*'
+- extendedWaitUntil:
+    visible:
+      id: 'inbox-row-${QA_CHANNEL_ID}'
+    timeout: 30000
+- tapOn:
+    id: 'inbox-row-${QA_CHANNEL_ID}'
+- extendedWaitUntil:
+    visible: '.*Coach connected QA message.*'
+    timeout: 20000
+- tapOn:
+    id: chat-message-input
+- inputText: Player connected QA reply
+- tapOn:
+    id: chat-send-message
+- assertVisible: '.*Player connected QA reply.*'
+- tapOn:
+    id: chat-attach-open
+- assertVisible:
+    id: chat-attach-menu
+- assertNotVisible:
+    id: chat-attach-lineup
+- takeScreenshot: /private/tmp/anstoss-connected-player-no-lineup
+- swipe:
+    start: 50%, 55%
+    end: 50%, 95%
+- openLink: 'anstoss://chat/${QA_DM_ID}?kind=dm'
+- extendedWaitUntil:
+    visible: '.*Coach connected QA direct message.*'
+    timeout: 20000
+- tapOn:
+    id: chat-message-input
+- inputText: Player connected QA direct reply
+- tapOn:
+    id: chat-send-message
+- assertVisible: '.*Player connected QA direct reply.*'
+- tapOn:
+    id: chat-attach-open
+- assertNotVisible:
+    id: chat-attach-lineup
+- takeScreenshot: /private/tmp/anstoss-connected-player-direct-no-lineup

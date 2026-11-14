@@ -9,6 +9,7 @@ import { useSafeAreaInsetsSafe } from '../../src/utils/useSafeAreaInsetsSafe'
 import { useConversationDetail } from '../../src/hooks/useConversationDetail'
 import { refreshInbox } from '../../src/hooks/useInbox'
 import { ChatScreen } from '../../src/components/chat/ChatScreen'
+import { canShareChatLineup } from '../../src/components/chat/lineupPermission'
 import { ConversationAvatar } from '../../src/components/chat/ConversationAvatar'
 import { openConversationInfo } from '../../src/components/chat/chatRoutes'
 import { conversationTitle, type ConversationKind } from '../../src/components/chat/inboxModel'
@@ -92,6 +93,8 @@ export default function ConversationScreen() {
   const canCompose =
     kind === 'channel' &&
     (clubRole === 'OWNER' || clubRole === 'ADMIN' || clubRole === 'COACH' || !!coachesTeam)
+
+  const canShareLineup = canShareChatLineup(teamsForActiveClub, kind, channelTeamId)
 
   const canWrite =
     kind === 'dm'
@@ -224,6 +227,7 @@ export default function ConversationScreen() {
         onTypingChange={setTypingNames}
         channelKind={kind === 'channel' ? (channel?.kind ?? (seed && seed.kind !== 'DM' ? seed.kind : null)) : null}
         canCompose={canCompose}
+        canShareLineup={canShareLineup}
         bottomInset={insets.bottom}
         searchOpen={searchOpen}
         onCloseSearch={() => setSearchOpen(false)}

@@ -526,11 +526,28 @@ describe('Verein finden', () => {
 })
 
 describe('club setup', () => {
+  it('retries a failed membership refresh without registering the club twice', async () => {
+    mockParams = { clubName: 'Codex FC' }
+    mockApi.mockResolvedValue({ id: 'claim-1' })
+    mockRefreshUser.mockRejectedValueOnce(new Error('Network unavailable')).mockResolvedValue(undefined)
+    const screen = render(<ClubSetupScreen />)
+    fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(mockReplace).not.toHaveBeenCalled()
+    await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
+    expect(mockApi.mock.calls.filter(([path]) => path === '/club-claims/first')).toHaveLength(1)
+    expect(mockRefreshUser).toHaveBeenCalledTimes(2)
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
   it('submits with no link or players and says players can be added later', async () => {
     mockParams = { clubName: 'Codex FC' }
     mockApi.mockResolvedValue({ id: 'claim-1' })
     const screen = render(<ClubSetupScreen />)
     expect(screen.getByText('onboardingFlow.clubSetup.playersLater')).toBeTruthy()
+    expect(screen.queryByTestId('club-setup-number-input')).toBeNull()
+    expect(screen.getByText('onboardingFlow.clubSetup.clubLabel *')).toBeTruthy()
+    expect(screen.getByText('onboardingFlow.clubSetup.teamNameLabel *')).toBeTruthy()
     fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
     await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
     expect(mockApi).toHaveBeenCalledWith('/club-claims/first', expect.objectContaining({

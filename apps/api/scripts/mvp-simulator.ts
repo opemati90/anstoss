@@ -35,7 +35,7 @@ async function main() {
   process.env.PINO_PRETTY = 'false'
   process.env.LOG_LEVEL = 'warn'
   const emails = Object.fromEntries(
-    ['admin', 'coach', 'player', 'agent'].map((role) => [
+    ['admin', 'coach', 'player', 'agent', 'founder'].map((role) => [
       role,
       `${role}@anstoss-simulator.invalid`,
     ]),
@@ -52,9 +52,9 @@ async function main() {
   for (const [role, email] of Object.entries(emails)) {
     const user = await prisma.user.create({
       data: {
-        name: `QA ${role}`,
+        name: role === 'founder' ? 'founder' : `QA ${role}`,
         email,
-        dateOfBirth: new Date('1990-01-15'),
+        dateOfBirth: role === 'founder' ? null : new Date('1990-01-15'),
         preferredLanguage: 'de',
         registrationRole:
           role === 'agent'

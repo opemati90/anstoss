@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
-import { useChat, type ChatMessage } from './useChat'
+import { normalizeChatMessage, useChat, type ChatMessage } from './useChat'
 
 type Handler = (...args: any[]) => void
 type AckHandler = (...args: any[]) => void
@@ -87,6 +87,12 @@ function createSocket(): MockSocket {
 }
 
 describe('useChat', () => {
+  it('uses the nested history sender name without overwriting live sender names', () => {
+    expect(normalizeChatMessage({ ...makeMessage(), senderName: null, sender: { name: 'QA Coach' } }).senderName).toBe('QA Coach')
+    expect(normalizeChatMessage({ ...makeMessage(), senderName: 'Live Coach', sender: { name: 'Older Name' } }).senderName).toBe('Live Coach')
+    expect(normalizeChatMessage({ ...makeMessage(), senderName: null, sender: null }).senderName).toBeNull()
+  })
+
   let socket: MockSocket
   const originalFetch = global.fetch
 

@@ -52,6 +52,7 @@ import {
 import { noteServerLanguage } from '../i18n'
 // Vorschau und Vertretung: preview / stand-in sessions present a role + team.
 import { resetViewAs, useViewAs } from '../features/acting/store'
+import { PREVIEW_STANDIN_ENABLED } from '../launchFeatures'
 
 type User = {
   id: string
@@ -954,7 +955,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // underlying memberships stay untouched; ending it restores the real mode.
   const viewAs = useViewAs()
   const viewAsOverride = useMemo(() => {
-    if (!activeClub) return null
+    if (!PREVIEW_STANDIN_ENABLED || !activeClub) return null
     const clubId = activeClub.club.id
     const source = viewAs.preview && viewAs.preview.team.clubId === clubId
       ? {

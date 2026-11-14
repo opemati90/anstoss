@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
+import { bindSocketLifecycle } from '../lib/socketLifecycle'
 import { CHAT, type MessageAttachmentMeta, type PinnedMessage } from '@anstoss/shared'
 import { getE2ESession } from '../e2e/session'
 import { notifyAccessChanged } from '../auth/accessChanges'
@@ -52,6 +53,15 @@ export type ChatMessage = {
 }
 
 export type ConnectionState = 'connected' | 'reconnecting' | 'offline'
+
+/** History has a nested Prisma sender; live broadcasts use flattened names. */
+export function normalizeChatMessage(message: ChatMessage & { sender?: { name?: string | null; avatarUrl?: string | null } | null }): ChatMessage {
+  return {
+    ...message,
+    senderName: message.senderName ?? message.sender?.name ?? null,
+    senderAvatar: message.senderAvatar ?? message.sender?.avatarUrl ?? null,
+  }
+}
 
 type UseChatOptions = {
   clubId: string
@@ -211,7 +221,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
           return
         }
         if (response?.data?.messages) {
-          setMessages(response.data.messages)
+          setMessages(response.data.messages.map(normalizeChatMessage))
           setMessagesOwnerKey(cacheKey)
           setHasMore(response.data.hasMore ?? false)
           if (channelId) socket.emit('markChannelRead', { teamId, channelId })
@@ -245,6 +255,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     socketRef.current = socket
+    const unbindLifecycle = bindSocketLifecycle(socket, loadHistory)
 
     socket.on('connect', () => {
       setConnectionState('connected')
@@ -367,6 +378,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     return () => {
+      unbindLifecycle()
       socket.emit('leave', { teamId })
       socket.disconnect()
       socketRef.current = null
@@ -566,7 +578,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       { teamId, channelId, cursor },
       (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
         if (response?.data) {
-          setMessages((prev) => [...response.data.messages, ...prev])
+          setMessages((prev) => [...response.data.messages.map(normalizeChatMessage), ...prev])
           setHasMore(response.data.hasMore)
         }
         setLoadingHistory(false)
@@ -824,7 +836,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
       }) => {
         if (response?.data?.messages) {
-          setMessages(response.data.messages)
+          setMessages(response.data.messages.map(normalizeChatMessage))
           setMessagesOwnerKey(cacheKey)
           setHasMore(response.data.hasMore ?? false)
         }

@@ -137,6 +137,11 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 describe('TabLayout role access', () => {
+  let tree: ReturnType<typeof renderer.create> | undefined
+  afterEach(() => {
+    act(() => tree?.unmount())
+    tree = undefined
+  })
   beforeEach(() => {
     jest.clearAllMocks()
     resetAuthState()
@@ -147,7 +152,7 @@ describe('TabLayout role access', () => {
     authState.activeTeamAccess = null
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     expect(mockTabsScreen).toHaveBeenCalledWith(
@@ -176,7 +181,7 @@ describe('TabLayout role access', () => {
     }
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     expect(mockTabsScreen).toHaveBeenCalledWith(
@@ -202,7 +207,7 @@ describe('TabLayout role access', () => {
     }
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     // Kader revamp: the legacy roster tab is deleted — squad (Kader) replaces it.
@@ -230,7 +235,7 @@ describe('TabLayout role access', () => {
     }
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     expect(mockTabsScreen).toHaveBeenCalledWith(
@@ -250,7 +255,7 @@ describe('TabLayout role access', () => {
     authState.isLoading = true
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     expect(mockRedirect).not.toHaveBeenCalled()
@@ -261,7 +266,7 @@ describe('TabLayout role access', () => {
     authState.memberships = []
 
     act(() => {
-      renderer.create(<TabLayout />)
+      tree = renderer.create(<TabLayout />)
     })
 
     expect(mockRedirect).toHaveBeenCalledWith({ href: '/account-next-step' })

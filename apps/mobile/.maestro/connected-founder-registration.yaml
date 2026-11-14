@@ -1,0 +1,62 @@
+appId: com.renuirug.anstoss
+---
+- runFlow:
+    when:
+      notVisible:
+        id: name-input
+    file: subflows/connected-login.yaml
+- extendedWaitUntil:
+    visible:
+      id: name-input
+    timeout: 30000
+- tapOn:
+    id: name-input
+- eraseText: 100
+- inputText: QA Founder
+- pressKey: Enter
+- inputText: '23'
+- tapOn:
+    id: dob-month
+- inputText: '05'
+- tapOn:
+    id: dob-year
+- inputText: '1990'
+- assertVisible: '.*DD.MM.YYYY.*'
+- takeScreenshot: /private/tmp/anstoss-connected-english-dob-keyboard
+# Continue must work while the numeric keyboard is still open.
+- tapOn:
+    id: name-continue
+- extendedWaitUntil:
+    visible:
+      id: find-club-search
+    timeout: 20000
+- tapOn:
+    id: find-club-search
+- inputText: '${QA_CLUB_NAME}'
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: club-create-link
+    direction: DOWN
+- tapOn:
+    id: club-create-link
+- assertNotVisible:
+    id: club-setup-number-input
+- scrollUntilVisible:
+    element:
+      id: club-setup-team-name-input
+    direction: DOWN
+- tapOn:
+    id: club-setup-team-name-input
+- inputText: II
+- pressKey: Enter
+- takeScreenshot: /private/tmp/anstoss-connected-club-required-fields
+- tapOn:
+    id: club-setup-submit
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 30000
+- assertNotVisible:
+    id: home-verification-details
+- takeScreenshot: /private/tmp/anstoss-connected-club-immediate-home

@@ -32,7 +32,7 @@ type Step = 'pick' | 'formation'
 
 /**
  * "Aufstellung teilen" in a DM. A coach picks one of their events with a
- * saved Aufstellung (the server snapshots it); anyone can draw a formation
+ * saved Aufstellung (the server snapshots it); coaches can draw a formation
  * card instead: formation + a name per position.
  */
 export function LineupShareSheet({ visible, clubId, conversationId, locale, onClose, onShare }: Props) {
@@ -54,7 +54,7 @@ export function LineupShareSheet({ visible, clubId, conversationId, locale, onCl
     fetchDmLineupOptions(clubId, conversationId)
       .then((list) => {
         setOptions(list)
-        // Players (and coaches without a saved lineup) go straight to drawing.
+        // Coaches without a saved lineup can draw their own formation.
         if (list.length === 0) setStep('formation')
       })
       .catch(() => {

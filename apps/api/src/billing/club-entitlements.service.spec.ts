@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common'
+import { PLAN_FEATURES } from '@anstoss/shared'
 import { ClubEntitlementsService, CORE_CLUB_FEATURES } from './club-entitlements.service'
 
 describe('ClubEntitlementsService', () => {
@@ -74,11 +75,11 @@ describe('ClubEntitlementsService', () => {
     await service.publishPlan('admin-1', {
       tier: 'PRO',
       interval: 'TWELVE_MONTHS',
-      priceCents: 14_900,
+      priceCents: 10_990,
       currency: 'eur',
       teamLimit: 5,
       playerLimit: 150,
-      features: ['bank_reconciliation'],
+      features: [...PLAN_FEATURES],
       stripePriceId: 'price_pro_annual',
     })
 

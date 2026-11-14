@@ -266,7 +266,8 @@ for (const needle of ['privacy@anstoss.io', 'within 30 days', 'More', 'Data', 'D
 }
 expectIncludes(read('apps/web/src/legal.html'), 'account-deletion', 'Web legal page')
 expectIncludes(read('apps/mobile/src/content/policies.ts'), 'account-deletion', 'In-app policies')
-expectIncludes(read('apps/web/src/i18n.js'), 'account-deletion', 'Web FAQ i18n')
+// Footer URLs live in HTML; i18n supplies labels, not duplicate route strings.
+expectIncludes(read('apps/web/src/index.html'), 'href="./account-deletion.html"', 'Web footer deletion route')
 
 const assetLinks = read('apps/web/src/.well-known/assetlinks.json')
 expectIncludes(assetLinks, 'com.renuirug.anstoss', 'Android App Links association')
@@ -347,7 +348,9 @@ scanForbidden(
 scanForbidden(
   ['apps/web/src/index.html', 'apps/web/src/i18n.js', 'apps/web/src/main.js'],
   [
-    { re: /FUSSBALL\.DE|fussball\.de/i, label: 'unlicensed public data-source claim' },
+    // Naming an unavailable integration in an explicit limitation is not a claim
+    // that it works. Keep catching affirmative promises without rejecting the FAQ.
+    { re: /Spielplan und Tabelle automatisch|automatically (?:syncs|imports).{0,60}FUSSBALL\.DE|FUSSBALL\.DE integration included/i, label: 'unlicensed public data-source claim' },
     { re: /Verein Plus|Club Plus/i, label: 'external digital plus-plan copy' },
     { re: /Premium-Features|Premium features/i, label: 'paid digital premium copy' },
     {

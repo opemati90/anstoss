@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useForegroundRefresh } from '../src/hooks/useForegroundRefresh'
 import {
   View,
   Pressable,
@@ -91,6 +92,8 @@ export default function PendingRequestsScreen() {
       fetchRequests()
     }, [fetchRequests]),
   )
+
+  useForegroundRefresh(fetchRequests, !!clubId)
 
   const handleRefresh = () => {
     setIsRefreshing(true)

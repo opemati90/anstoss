@@ -32,7 +32,10 @@ describe('ClubActivationService.submitFirstClaim role handling', () => {
       {} as never,
       {} as never,
     )
-    return { service, tx }
+    const activate = jest.spyOn(service as any, 'activateFirstClaim').mockResolvedValue({
+      claim: { id: 'claim-1', status: 'APPROVED' },
+    })
+    return { service, tx, activate }
   }
 
   const input = {
@@ -68,11 +71,12 @@ describe('ClubActivationService.submitFirstClaim role handling', () => {
     expect(tx.clubClaim.create).not.toHaveBeenCalled()
   })
 
-  it('accepts a personal email and no link or roster, without granting membership', async () => {
-    const { service, tx } = setup({ role: RegistrationRole.PLAYER })
+  it('accepts a personal email and no link or roster, then activates the new registration', async () => {
+    const { service, tx, activate } = setup({ role: RegistrationRole.PLAYER })
     const result = await service.submitFirstClaim('user-1', 'person@gmail.com',
       submitFirstClubClaimSchema.parse({ directoryEntryId: 'dir-1', teamName: 'Codex FC II' }))
-    expect(result.status).toBe('SUBMITTED')
+    expect(result.status).toBe('APPROVED')
+    expect(activate).toHaveBeenCalledWith('user-1', 'claim-1', { decision: 'APPROVE' }, 'user-1')
     expect(tx.clubClaim.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ externalTeamUrl: null, requestedTeamRoles: [] }),
     })

@@ -11,6 +11,7 @@ import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { JOIN_REJECTION_SEEN_PREFIX } from '../../src/onboarding/storageKeys'
 import { setWelcomeNotice } from '../../src/onboarding/welcomeNotice'
+import { subscribeNotifications } from '../../src/lib/notificationEvents'
 import { ClubCrest, HeaderTextButton, OnboardingScreen } from '../../src/onboarding/ui'
 import { radius, space, RADIUS_CARD } from '../../src/theme/tokens'
 
@@ -184,12 +185,14 @@ export default function RequestPendingScreen() {
   useEffect(() => {
     if (rejected) return
     void refresh()
+    const unsubscribe = subscribeNotifications(() => { void refresh() })
     const id = setInterval(() => void refresh(), POLL_MS)
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') void refresh()
     })
     return () => {
       clearInterval(id)
+      unsubscribe()
       sub.remove()
     }
   }, [refresh, rejected])

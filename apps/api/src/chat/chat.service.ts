@@ -430,7 +430,9 @@ export class ChatService {
       await this.channelsService.assertWritable(userId, input.channelId)
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
-    const isCoach = this.isTeamManager(access)
+    const isCoach = access.activeTeamAccess.some(
+      (entry) => entry.role === 'HEAD_COACH' || entry.role === 'ASSISTANT_COACH',
+    )
     if (!isCoach) {
       throw new ForbiddenException('Only coaches can post lineups')
     }

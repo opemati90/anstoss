@@ -30,15 +30,17 @@ databaseTests('club registration identity in PostgreSQL (no external data source
       } })
       userIds.push(user.id)
     }
-    activation = new ClubActivationService(db as never, {} as never, {} as never, {} as never)
+    activation = new ClubActivationService(db as never, {} as never, {
+      ensureClubChannels: jest.fn(), ensureTeamChannels: jest.fn(),
+    } as never, {} as never)
   })
 
   afterAll(async () => {
     if (!db) return
     // Delete only this test run's synthetic rows; never existing QA fixtures.
     await db.clubClaim.deleteMany({ where: { claimantUserId: { in: userIds } } })
-    await db.clubDirectoryEntry.deleteMany({ where: { name: { contains: runId, mode: 'insensitive' } } })
     await db.club.deleteMany({ where: { name: { contains: runId, mode: 'insensitive' } } })
+    await db.clubDirectoryEntry.deleteMany({ where: { name: { contains: runId, mode: 'insensitive' } } })
     await db.user.deleteMany({ where: { id: { in: userIds } } })
     await db.$disconnect()
   })
@@ -62,7 +64,7 @@ databaseTests('club registration identity in PostgreSQL (no external data source
     expect(await db.membership.count({ where: { userId: { in: userIds } } })).toBe(0)
   })
 
-  it('reuses one manual directory entry, blocks a competing claimant, and allows an idempotent retry', async () => {
+  it('activates one new club immediately, without a roster or DFB code, and blocks a competing claimant', async () => {
     const name = `New Local FC ${runId}`
     const results = await Promise.allSettled(userIds.map((userId, index) =>
       activation.submitFirstClaim(userId, 'personal@gmail.com', submitFirstClubClaimSchema.parse({
@@ -71,20 +73,25 @@ databaseTests('club registration identity in PostgreSQL (no external data source
     ))
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
     const rejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult
-    expect(rejected.reason).toMatchObject({ response: { code: 'CLUB_REGISTRATION_PENDING' } })
+    expect(rejected.reason.getStatus()).toBe(409)
     const claim = (results.find(r => r.status === 'fulfilled') as PromiseFulfilledResult<Awaited<ReturnType<typeof activation.submitFirstClaim>>>).value
     expect(claim.externalTeamUrl).toBeNull()
-    expect(claim.status).toBe('SUBMITTED')
+    expect(claim.status).toBe('APPROVED')
+    expect(claim.reviewerId).toBeNull()
     expect(await db.clubDirectoryEntry.count({ where: { name: { contains: runId } } })).toBe(1)
-    const retry = await activation.submitFirstClaim(claim.claimantUserId, null,
-      submitFirstClubClaimSchema.parse({ clubName: name, teamName: 'II' }))
-    expect(retry.id).toBe(claim.id)
-    expect(await db.membership.count({ where: { userId: { in: userIds } } })).toBe(0)
+    expect(await db.membership.count({ where: { userId: claim.claimantUserId, clubId: claim.clubId!, role: 'OWNER' } })).toBe(1)
+    expect(await db.team.count({ where: { clubId: claim.clubId! } })).toBe(1)
+    expect(await db.teamMember.count({ where: { team: { clubId: claim.clubId! } } })).toBe(0)
+    expect(await db.entitlementGrant.count({ where: { clubId: claim.clubId!, source: 'TRIAL' } })).toBe(1)
+    expect(await db.auditLog.count({ where: { clubId: claim.clubId!, type: 'club.self_registered' } })).toBe(1)
   })
 
   it('permits different club names and does not reserve generic team labels globally', async () => {
     const service = new ClubsService(db as never)
-    for (const [index, userId] of userIds.entries()) {
+    for (const index of [0, 1]) {
+      const user = await db.user.create({ data: { name: `Distinct QA ${index}`, email: `${runId}-distinct-${index}@example.invalid`, registrationRole: 'CLUB_ADMIN' } })
+      const userId = user.id
+      userIds.push(userId)
       const result = await service.createClubWithTeam(userId,
         { name: `Distinct ${index} FC ${runId}`, primaryColor: '#123456' }, { name: 'First team' })
       expect(result.team.name).toBe('First team')

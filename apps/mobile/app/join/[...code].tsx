@@ -57,7 +57,7 @@ export default function JoinInviteScreen() {
   const rawSegments = Array.isArray(segments) ? segments : segments ? [segments] : []
   // URL: /join/{slug}/{code} or /join/{codeOrSlug}
   const inviteCode = rawSegments.length >= 2 ? rawSegments[1] : rawSegments[0]
-  const { isSignedIn, isLoading } = useAuth()
+  const { isSignedIn, isLoading, teamMembers, pendingJoinRequest } = useAuth()
 
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
   const [club, setClub] = useState<PublicClub | null>(null)
@@ -101,6 +101,17 @@ export default function JoinInviteScreen() {
     await clearPendingInvite()
     router.replace('/')
   }, [router])
+
+  const alreadyJoined = !!invite && (teamMembers ?? []).some(member =>
+    member.team.id === invite.team.id && member.role === invite.role &&
+    (member.status == null || member.status === 'ACTIVE'),
+  )
+  const alreadyRequested = !!invite && pendingJoinRequest?.clubId === invite.club.id
+  useEffect(() => {
+    // Reopening a consumed link must not ask an active member to join again.
+    // An invitation to a different team or role still needs confirmation.
+    if (!isLoading && isSignedIn && (alreadyJoined || alreadyRequested)) void leave()
+  }, [alreadyJoined, alreadyRequested, isLoading, isSignedIn, leave])
 
   if (loadState === 'loading' || isLoading) {
     return <OnboardingScreen title={t('onboardingFlow.invite.loading')} onBack={() => void leave()} />

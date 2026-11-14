@@ -300,6 +300,7 @@ enum PlanTier {
 }
 
 enum PlanInterval {
+  MONTHLY
   SIX_MONTHS
   TWELVE_MONTHS
 }

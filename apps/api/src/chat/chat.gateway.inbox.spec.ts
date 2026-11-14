@@ -1,4 +1,6 @@
 import { ChatGateway } from './chat.gateway'
+import { getClubId, tenantContext } from '../prisma/tenant.context'
+import { createTenantMiddleware } from '../prisma/tenant.middleware'
 
 /**
  * Chat revamp: channel-authorized join/history/send, inbox:update fan-out to
@@ -167,6 +169,27 @@ describe('ChatGateway channel history', () => {
 })
 
 describe('ChatGateway send fan-out', () => {
+  it('persists inside the authorized channel tenant, ignoring a forged client club', async () => {
+    const { gateway, client, prisma } = makeGateway({})
+    const middleware = createTenantMiddleware(getClubId)
+    // Prisma queries are lazy thenables: the context must still exist when
+    // awaited, not only when message.create() constructs the query.
+    prisma.message.create.mockImplementation(({ data }) => ({
+      then(resolve: (value: unknown) => void, reject: (error: unknown) => void) {
+        expect(tenantContext.getStore()).toEqual({ clubId: 'club-1', userId: 'sender' })
+        return middleware(
+          { model: 'Message', action: 'create', args: { data }, dataPath: [], runInTransaction: false },
+          async ({ args }) => ({ id: 'msg-1', ...args.data, createdAt: new Date() }),
+        ).then(resolve, reject)
+      },
+    }))
+    await expect(gateway.handleMessage(client, {
+      clubId: 'forged-club', teamId: 'forged-team', channelId: 'ch-1', content: 'Hello team',
+    })).resolves.toMatchObject({ ok: true, id: 'msg-1' })
+    expect(prisma.message.create.mock.calls[0][0].data).toMatchObject({ clubId: 'club-1', teamId: 'team-1' })
+    expect(tenantContext.getStore()).toBeUndefined()
+  })
+
   it('emits inbox:update to every reader and pushes only unmuted readers', async () => {
     const { gateway, client, emitted, push, channels } = makeGateway({
       readers: ['sender', 'reader-a', 'reader-muted'],

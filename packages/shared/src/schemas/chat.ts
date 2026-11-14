@@ -64,7 +64,7 @@ export const dmLineupSlotSchema = z.object({
 
 /**
  * A lineup card in a DM. EVENT: a coach shares the saved Aufstellung of one of
- * their team's events (the server snapshots it). FORMATION: anyone shares a
+ * their team's events (the server snapshots it). FORMATION: a coach shares a
  * formation card they drew (formation + named positions).
  */
 export const dmLineupInputSchema = z.discriminatedUnion('source', [

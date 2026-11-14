@@ -266,6 +266,10 @@ code { color: #394139; overflow-wrap: anywhere; }
 
 .toolbar, .settings-row { margin-top: 30px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .toolbar .text-input { width: min(100%, 430px); }
+.plan-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); align-items: end; gap: 16px; }
+.plan-form label { display: grid; gap: 8px; min-width: 0; font-size: 14px; font-weight: 600; }
+.plan-form .text-input { width: 100%; min-width: 0; }
+.plan-form input[readonly] { background: var(--surface-muted); }
 .settings-row .text-input { flex: 1; min-width: 220px; }
 .text-input, .support-form input, .support-form textarea, .support-form select {
   min-height: 44px;

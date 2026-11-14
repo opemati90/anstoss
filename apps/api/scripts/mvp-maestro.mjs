@@ -15,6 +15,8 @@ const env = {
   QA_EMAIL: state.emails[role], QA_OTP: state.otpCode, QA_LANGUAGE: language,
   QA_EVENT_ID: journal.eventId ?? '', QA_CLUB_ID: state.clubId, QA_TEAM_ID: state.teamId,
   QA_TRIAL_ID: journal.trialId ?? '',
+  QA_CHANNEL_ID: journal.channelId ?? '', QA_DM_ID: journal.dmId ?? '',
+  QA_CLUB_NAME: `Codex QA ${state.runId.slice(0, 8)}`,
   QA_PLAYER_ID: state.users.player,
 }
 const result = spawnSync('/Users/yemi/.maestro/bin/maestro', [

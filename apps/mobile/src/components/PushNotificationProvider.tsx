@@ -26,11 +26,12 @@ export function usePushContext() {
  * Provides lastNotification via context for deep linking.
  */
 export function PushNotificationProvider({ children }: { children: ReactNode }) {
-  const { token, memberships } = useAuth()
+  const { token, memberships, pendingJoinRequest, pendingClubClaim } = useAuth()
 
   // Defer the iOS permission prompt until the user has actually entered
   // a club workspace. Prompting during auth blocks signup role selection.
-  const pushReadyToken = memberships.length > 0 ? token : null
+  // A waiting applicant needs the approval notification before membership exists.
+  const pushReadyToken = memberships.length > 0 || pendingJoinRequest || pendingClubClaim ? token : null
 
   const { lastNotification, registrationStatus, registrationError } = usePushNotifications({
     apiUrl: API_URL,

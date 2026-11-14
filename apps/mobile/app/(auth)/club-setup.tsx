@@ -43,7 +43,6 @@ const SECONDARY_HEXES: readonly string[] = CLUB_SETUP_SECONDARY_PRESETS.map((p) 
 export const CLUB_COLOURS: readonly string[] = PRIMARY_HEXES
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/
-const FEDERATION_NUMBER_RE = /^\d{4,10}$/
 
 export function isOfficialTeamLink(value: string): boolean {
   return officialTeamUrlSchema.safeParse(value.trim()).success
@@ -77,11 +76,9 @@ function normalizeHexInput(raw: string): string {
 type DirectoryHit = Extract<ClubSearchResult, { isActive: false }>
 
 /**
- * "Dein Verein" (board 06), new club path step 1 of 2: crest, name, DFB
- * number, Haupt- and Zweitfarbe with a live preview, then the first team the
- * claim needs (name and group). External link and own team role are optional.
- * Submission requests review; it does not grant ownership. No roster or
- * invitations are required to complete registration.
+ * Simple new-club registration: club and first-team names are required;
+ * branding, external link, team role, roster and invitations are optional.
+ * A genuinely new club activates immediately; existing clubs remain protected.
  */
 export default function ClubSetupScreen() {
   const router = useRouter()
@@ -99,7 +96,6 @@ export default function ClubSetupScreen() {
     paramEntry ?? state.directoryEntryId ?? null,
   )
   const [clubName, setClubName] = useState(paramName ?? state.clubName ?? '')
-  const [federationNumber, setFederationNumber] = useState('')
   const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState(state.teamName ?? '')
   const [group, setGroup] = useState<'SENIOR' | 'YOUTH'>(state.teamGroupType ?? 'SENIOR')
@@ -123,6 +119,7 @@ export default function ClubSetupScreen() {
   const weak = textColour !== primary.toUpperCase()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
 
   useEffect(() => {
@@ -146,13 +143,10 @@ export default function ClubSetupScreen() {
   }, [clubName, primary, directoryEntryId, group, link, roles, teamName, update])
 
   const linkValid = isOfficialTeamLink(link)
-  const numberTrimmed = federationNumber.trim()
-  const numberInvalid = numberTrimmed.length > 0 && !FEDERATION_NUMBER_RE.test(numberTrimmed)
   const ready =
     clubName.trim().length >= 2 &&
     teamName.trim().length >= 2 &&
     (!link.trim() || linkValid) &&
-    !numberInvalid &&
     !busy
 
   function toggleRole(role: TeamRole) {
@@ -172,28 +166,30 @@ export default function ClubSetupScreen() {
     setError(null)
     setDuplicate(false)
     try {
-      const claimInput = submitFirstClubClaimSchema.parse({
-        ...(directoryEntryId ? { directoryEntryId } : { clubName: clubName.trim() }),
-        teamName: teamName.trim(),
-        teamGroupType: group,
-        teamRoles: roles,
-        primaryColor: primary,
-        ...(link.trim() ? { externalTeamUrl: link.trim() } : {}),
-      })
-      // Contract keys (BACKEND_GAPS, clubClaimExtrasSchema): a server without
-      // them strips them; the upload just returns nothing.
-      const badgeUploadId = badgeUri ? await uploadClubBadge(badgeUri) : null
-      await api<{ id: string }>('/club-claims/first', {
-        method: 'POST',
-        body: {
-          ...claimInput,
-          secondaryColor: secondary,
-          ...(numberTrimmed ? { federationClubNumber: numberTrimmed } : {}),
-          ...(badgeUploadId ? { badgeUploadId } : {}),
-        },
-      })
+      // If creation succeeded but refreshing /me failed, retry the refresh,
+      // not the registration (which would look like a duplicate club).
+      if (!submitted) {
+        const claimInput = submitFirstClubClaimSchema.parse({
+          ...(directoryEntryId ? { directoryEntryId } : { clubName: clubName.trim() }),
+          teamName: teamName.trim(),
+          teamGroupType: group,
+          teamRoles: roles,
+          primaryColor: primary,
+          ...(link.trim() ? { externalTeamUrl: link.trim() } : {}),
+        })
+        const badgeUploadId = badgeUri ? await uploadClubBadge(badgeUri) : null
+        await api<{ id: string }>('/club-claims/first', {
+          method: 'POST',
+          body: {
+            ...claimInput,
+            secondaryColor: secondary,
+            ...(badgeUploadId ? { badgeUploadId } : {}),
+          },
+        })
+        setSubmitted(true)
+      }
+      await refreshUser(undefined, { throwOnError: true })
       reset()
-      await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
       router.replace('/')
     } catch (err) {
       if (onExpired(err)) return
@@ -318,17 +314,6 @@ export default function ClubSetupScreen() {
               setDirectoryEntryId(hit.directoryEntryId)
             }}
             onClearPick={() => setDirectoryEntryId(null)}
-          />
-          <OnboardingTextField
-            label={t('onboardingFlow.clubSetup.numberLabel')}
-            value={federationNumber}
-            onChangeText={(next) => setFederationNumber(next.replace(/\D/g, '').slice(0, 10))}
-            placeholder={t('onboardingFlow.clubSetup.numberPlaceholder')}
-            keyboardType="number-pad"
-            maxLength={10}
-            error={numberInvalid ? t('onboardingFlow.clubSetup.numberInvalid') : null}
-            hint={t('onboardingFlow.clubSetup.numberHint')}
-            testID="club-setup-number-input"
           />
         </View>
 
@@ -457,6 +442,7 @@ export default function ClubSetupScreen() {
           </Text>
           <OnboardingTextField
             label={t('onboardingFlow.clubSetup.teamNameLabel')}
+            required
             value={teamName}
             onChangeText={setTeamName}
             placeholder={t('onboardingFlow.clubSetup.teamPlaceholder')}
@@ -652,6 +638,7 @@ function ClubField({
     <View style={styles.group}>
       <OnboardingTextField
         label={t('onboardingFlow.clubSetup.clubLabel')}
+        required
         value={clubName}
         onChangeText={onChangeName}
         placeholder={t('onboardingFlow.clubSetup.clubPlaceholder')}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AdminInbox } from '@anstoss/shared'
 import { api } from '../../api/client'
+import { useForegroundRefresh } from '../../hooks/useForegroundRefresh'
 
 export type AdminInboxState = {
   inbox: AdminInbox | null
@@ -48,6 +49,8 @@ export function useAdminInbox(clubId: string | null | undefined): AdminInboxStat
     setInbox(null)
     void reload()
   }, [reload])
+
+  useForegroundRefresh(reload, !!clubId)
 
   const refresh = useCallback(async () => {
     setRefreshing(true)

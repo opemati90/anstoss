@@ -338,7 +338,7 @@ export class AdminService {
     for (const grant of active) {
       const plan = grant.planDefinition
       if (!plan || plan.currency.toLowerCase() !== 'eur') continue
-      const months = plan.interval === 'SIX_MONTHS' ? 6 : 12
+      const months = plan.interval === 'MONTHLY' ? 1 : plan.interval === 'SIX_MONTHS' ? 6 : 12
       mrrCents += Math.round(plan.priceCents / months)
     }
 

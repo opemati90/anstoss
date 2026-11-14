@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
+import { bindSocketLifecycle } from '../lib/socketLifecycle'
 import { notifyAccessChanged } from '../auth/accessChanges'
 import {
   CHAT,
@@ -162,6 +163,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     })
 
     socketRef.current = socket
+    const unbindLifecycle = bindSocketLifecycle(socket, loadHistory)
 
     socket.on('connect', () => {
       setConnectionState('connected')
@@ -250,6 +252,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
     })
 
     return () => {
+      unbindLifecycle()
       socket.disconnect()
       socketRef.current = null
       typingTimeoutsRef.current.forEach((t) => clearTimeout(t))

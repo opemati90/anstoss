@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../src/api/client'
@@ -35,6 +36,7 @@ export default function NameScreen() {
   const intent = useOnboardingIntent()
   const onExpired = useSessionExpiryHandler()
   const askDob = needsDateOfBirth(user)
+  const firstDobInput = useRef<TextInput>(null)
   const [name, setName] = useState(() => (user && !needsDisplayName(user) ? user.name : ''))
   const [dob, setDob] = useState<DobParts>({ day: '', month: '', year: '' })
   const [error, setError] = useState<string | null>(null)
@@ -130,6 +132,7 @@ export default function NameScreen() {
     >
       <OnboardingTextField
         label={t('onboardingFlow.name.label')}
+        required
         value={name}
         onChangeText={(next) => {
           setName(next)
@@ -143,12 +146,13 @@ export default function NameScreen() {
         autoFocus
         maxLength={80}
         returnKeyType={askDob ? 'next' : 'done'}
-        onSubmitEditing={askDob ? undefined : () => void submit()}
+        onSubmitEditing={askDob ? () => firstDobInput.current?.focus() : () => void submit()}
         error={error}
         testID="name-input"
       />
       {askDob ? (
         <DateOfBirthInput
+          firstInputRef={firstDobInput}
           value={dob}
           onChange={(next) => {
             setDob(next)

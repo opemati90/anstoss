@@ -11,7 +11,7 @@ type Props = {
   visible: boolean
   onClose: () => void
   onSelect: (action: AttachmentAction) => void
-  /** DMs: "Aufstellung teilen" (event lineup for coaches, formation card for anyone). */
+  /** DMs: event lineups and formation cards are restricted to active coaches. */
   showLineup?: boolean
   /** Channel managers: poll, event card and team lineup live in the compose sheet. */
   showCompose?: boolean

@@ -361,17 +361,46 @@ describe('DM attachments', () => {
       })
     })
 
-    it('does not let a player share an event lineup, but they can share a formation card', async () => {
-      const { service } = withEvent()
-      expect(await service.listLineupOptions('player', CLUB, 'c1')).toEqual([])
+    it('blocks players from listing, sharing saved lineups or drawing formation cards', async () => {
+      const { service, prisma, events } = withEvent()
+      await expect(service.listLineupOptions('player', CLUB, 'c1')).rejects.toThrow(ForbiddenException)
       await expect(
         service.sendMessage('player', CLUB, 'c1', { messageType: 'LINEUP', lineup: { source: 'EVENT', eventId: 'ev-1' } }),
       ).rejects.toThrow(ForbiddenException)
-      const card = await service.sendMessage('player', CLUB, 'c1', {
+      await expect(service.sendMessage('player', CLUB, 'c1', {
+        messageType: 'LINEUP',
+        lineup: { source: 'FORMATION', formation: '4-3-3', slots: [{ position: 'ST', playerName: 'Lukas' }] },
+      })).rejects.toThrow(ForbiddenException)
+      expect(prisma.rows('directMessage')).toHaveLength(0)
+      expect(events.emit).not.toHaveBeenCalled()
+    })
+
+    it('allows a coach to share a drawn formation that the player can read', async () => {
+      const { service } = withEvent()
+      const card = await service.sendMessage('coach', CLUB, 'c1', {
         messageType: 'LINEUP',
         lineup: { source: 'FORMATION', formation: '4-3-3', slots: [{ position: 'ST', playerName: 'Lukas' }] },
       })
       expect(card.attachmentMeta).toMatchObject({ lineupSource: 'FORMATION', formation: '4-3-3' })
+      const page = await service.getMessages('player', 'c1')
+      expect(page.messages).toEqual(expect.arrayContaining([expect.objectContaining({ id: card.id })]))
+    })
+
+    it.each(['SUSPENDED', 'REMOVED'])('rejects a %s coach even with a legacy club COACH role', async (status) => {
+      const { service, prisma } = withConversation((s) => { s.teamAccess[0].status = status })
+      await expect(service.sendMessage('coach', CLUB, 'c1', {
+        messageType: 'LINEUP',
+        lineup: { source: 'FORMATION', formation: '4-4-2', slots: [{ position: 'GK', playerName: '' }] },
+      })).rejects.toThrow(ForbiddenException)
+      expect(prisma.rows('directMessage')).toHaveLength(0)
+    })
+
+    it('does not borrow coaching access from another club', async () => {
+      const { service } = withConversation((s) => { s.teamAccess[0].clubId = OTHER_CLUB })
+      await expect(service.sendMessage('coach', CLUB, 'c1', {
+        messageType: 'LINEUP',
+        lineup: { source: 'FORMATION', formation: '4-4-2', slots: [{ position: 'GK', playerName: '' }] },
+      })).rejects.toThrow(ForbiddenException)
     })
   })
 

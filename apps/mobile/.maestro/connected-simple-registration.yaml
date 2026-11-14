@@ -68,6 +68,8 @@ appId: com.renuirug.anstoss
     id: club-setup-submit
 - extendedWaitUntil:
     visible:
-      id: home-verification-details
+      id: club-header-identity
     timeout: 15000
+- assertNotVisible:
+    id: home-verification-details
 - takeScreenshot: /private/tmp/anstoss-registration-submitted

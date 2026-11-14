@@ -259,6 +259,7 @@ export default function SignIn() {
         <OnboardingTextField
           ref={emailRef}
           label={t('onboardingFlow.code.emailLabel')}
+          required
           value={email}
           onChangeText={(next) => {
             setEmail(next)

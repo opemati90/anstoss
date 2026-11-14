@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common'
 import {
   ClubOperationalRole,
   EntitlementSource,
@@ -14,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import {
   PLAN_CURRENCY,
+  PLAN_FEATURES,
   PLAN_PRICES_CENTS,
   PLAN_SALES_EMAIL,
   PLAN_TRIAL_DAYS,
@@ -290,6 +296,26 @@ export class ClubEntitlementsService {
     input: PublishPlanDefinitionInput,
     actorLabel: string | null = null,
   ) {
+    if (input.tier === 'PRO') {
+      const expectedPrice =
+        input.interval === 'MONTHLY' ? PLAN_PRICES_CENTS.monthly : PLAN_PRICES_CENTS.yearly
+      if (input.priceCents !== expectedPrice || input.currency.toUpperCase() !== PLAN_CURRENCY) {
+        throw new BadRequestException(
+          'Verein pricing must match the shared monthly/yearly app and website catalogue',
+        )
+      }
+      if (
+        input.teamLimit !== PLAN_LIMITS.PRO.teams ||
+        input.playerLimit !== PLAN_LIMITS.PRO.players
+      ) {
+        throw new BadRequestException(
+          'Verein limits must match the shared app plan; use Scale for a custom agreement',
+        )
+      }
+      if ([...new Set(input.features)].sort().join(',') !== [...PLAN_FEATURES].sort().join(',')) {
+        throw new BadRequestException('Verein features must match the shared app plan; use Scale for a custom agreement')
+      }
+    }
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`plan:${input.tier}:${input.interval}`}))`
       const latest = await tx.planDefinition.findFirst({
@@ -341,6 +367,18 @@ export class ClubEntitlementsService {
     return this.prisma.planDefinition.findMany({
       orderBy: [{ tier: 'asc' }, { interval: 'asc' }, { version: 'desc' }],
     })
+  }
+
+  planCatalogue() {
+    return {
+      currency: PLAN_CURRENCY,
+      prices: PLAN_PRICES_CENTS,
+      yearlySavingsCents: PLAN_PRICES_CENTS.monthly * 12 - PLAN_PRICES_CENTS.yearly,
+      trialDays: PLAN_TRIAL_DAYS,
+      limits: PLAN_LIMITS,
+      features: [...PLAN_FEATURES],
+      intervals: ['MONTHLY', 'TWELVE_MONTHS'],
+    }
   }
 
   async grant(

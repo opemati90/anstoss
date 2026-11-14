@@ -208,12 +208,12 @@ describe('Profile tab', () => {
     expect(screen.queryByText('more.treasury')).toBeNull()
   })
 
-  it('opens the treasury and offers role preview for admins with several modes', () => {
+  it('opens treasury and only offers real held roles, never preview or stand-in', () => {
     const screen = renderMore({ role: 'OWNER', mode: 'ADMIN', modes: ['ADMIN', 'PLAYER'], team: null })
     fireEvent.press(screen.getByText('more.treasury'))
     expect(mockRouterPush).toHaveBeenCalledWith('/admin-billing')
-    expect(screen.getByTestId('more-preview-cover')).toBeTruthy()
-    expect(screen.queryByTestId('more-role-mode')).toBeNull()
+    expect(screen.queryByTestId('more-preview-cover')).toBeNull()
+    expect(screen.getByTestId('more-role-mode')).toBeTruthy()
   })
 
   it('signs out only after confirmation and resumes expiry handling on cancel', () => {

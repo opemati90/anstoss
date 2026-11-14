@@ -1,0 +1,38 @@
+appId: com.renuirug.anstoss
+---
+- runFlow:
+    when:
+      notVisible: 'Name for GK'
+    commands:
+      - runFlow: subflows/connected-login.yaml
+      - extendedWaitUntil:
+          visible:
+            id: club-header-identity
+          timeout: 30000
+      - openLink: 'anstoss://chat/${QA_DM_ID}?kind=dm'
+      - extendedWaitUntil:
+          visible: '.*Player connected QA direct reply.*'
+          timeout: 20000
+      - tapOn:
+          id: chat-attach-open
+      - assertVisible:
+          id: chat-attach-lineup
+      - tapOn:
+          id: chat-attach-lineup
+      - tapOn: 'Draw a formation.*'
+      - scrollUntilVisible:
+          element: 'Name for GK'
+          direction: DOWN
+      - tapOn: 'Name for GK'
+      - inputText: QA Keeper
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: chat-lineup-share
+    direction: DOWN
+- tapOn:
+    id: chat-lineup-share
+- extendedWaitUntil:
+    visible: '.*QA Keeper.*'
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-connected-coach-lineup

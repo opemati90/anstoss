@@ -65,6 +65,8 @@ type Props = {
   channelKind?: ChannelKind | null
   /** Channel managers: poll / event / team lineup, pin and moderation. */
   canCompose?: boolean
+  /** Explicit coaching permission; defaults closed for every caller. */
+  canShareLineup?: boolean
   /** Bottom safe-area inset to keep the composer above the home indicator. */
   bottomInset?: number
   /** Search is opened from the header; ChatScreen renders the field + results. */
@@ -96,6 +98,7 @@ export function ChatScreen({
   readOnlyNotice,
   channelKind = null,
   canCompose = false,
+  canShareLineup = false,
   bottomInset = 0,
   searchOpen = false,
   onCloseSearch,
@@ -507,7 +510,7 @@ export function ChatScreen({
         return
       }
       if (action === 'lineup') {
-        runAfterSheet(() => setLineupOpen(true))
+        if (canWrite && canShareLineup) runAfterSheet(() => setLineupOpen(true))
         return
       }
       if (action === 'compose') {
@@ -522,12 +525,15 @@ export function ChatScreen({
         })
       })
     },
-    [sendAttachment, t],
+    [canShareLineup, canWrite, sendAttachment, t],
   )
 
   const handleShareLineup = useCallback(
-    (lineup: DmLineupInput) => sendDmLineup!(lineup, replyTarget?.id ?? null),
-    [replyTarget?.id, sendDmLineup],
+    (lineup: DmLineupInput) => {
+      if (!canWrite || !canShareLineup || !sendDmLineup) return Promise.resolve('forbidden' as const)
+      return sendDmLineup(lineup, replyTarget?.id ?? null)
+    },
+    [canShareLineup, canWrite, replyTarget?.id, sendDmLineup],
   )
 
   const isDisabled = connectionState !== 'connected' || uploading
@@ -774,7 +780,7 @@ export function ChatScreen({
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenu}
-        showLineup={capabilities.shareLineup}
+        showLineup={canWrite && canShareLineup && capabilities.shareLineup}
         showCompose={!isDm && canCompose && capabilities.compose && !!teamId}
       />
 
@@ -784,6 +790,7 @@ export function ChatScreen({
           clubId={clubId}
           teamId={teamId}
           channelId={conversationId}
+          canShareLineup={canShareLineup}
           locale={i18n.language}
           onClose={() => setComposeOpen(false)}
           onPosted={appendMessage}
@@ -795,14 +802,14 @@ export function ChatScreen({
                   if (att) void sendAttachment(att)
                 })
               })
-            } else {
+            } else if (canShareLineup) {
               router.push({ pathname: '/lineup-builder', params: { teamId } } as never)
             }
           }}
         />
       ) : null}
 
-      {isDm && capabilities.shareLineup ? (
+      {isDm && canWrite && canShareLineup && capabilities.shareLineup ? (
         <LineupShareSheet
           visible={lineupOpen}
           clubId={clubId}

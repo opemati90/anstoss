@@ -8,7 +8,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets'
-import { forwardRef, Inject, Logger, Optional } from '@nestjs/common'
+import { forwardRef, Inject, Logger, Optional, UseInterceptors } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { Namespace, Socket } from 'socket.io'
 import { installRedisAdapter } from '../realtime/redis-adapter'
@@ -27,6 +27,8 @@ import { ChatService } from './chat.service'
 import { PlatformSettingsService } from '../admin/platform-settings.service'
 import { AgeGateService, type AgeGateScope } from '../auth/age-gate.service'
 import type { DirectMessageItem } from '@anstoss/shared'
+import { SocketAckInterceptor } from './socket-ack.interceptor'
+import { tenantContext } from '../prisma/tenant.context'
 
 /** H5: how long a socket's passed age-gate check is trusted before re-checking. */
 const AGE_GATE_RECHECK_MS = 60_000
@@ -44,6 +46,7 @@ const TYPING_READERS_TTL_MS = 30_000
  * - Redis adapter for horizontal scaling
  * - Rate limited: 1 msg/sec per user (Redis-backed for cluster safety)
  */
+@UseInterceptors(SocketAckInterceptor)
 @WebSocketGateway({
   cors: getSocketCorsOptions(),
   namespace: '/chat',
@@ -261,6 +264,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
    * Wire Redis adapter for multi-instance pub/sub + rate limiting.
    */
   afterInit(server: Namespace) {
+    // Namespace middleware runs BEFORE Socket.IO sends `connect`. Nest's
+    // async handleConnection hook does not block incoming join/history events.
+    server.use((client, next) => {
+      void this.authenticate(client).then(
+        () => next(),
+        () => next(new Error('Unauthorized')),
+      )
+    })
     const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
       this.logger.warn(
@@ -358,50 +369,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
    * auth/query param (same token the REST guard verifies).
    */
   async handleConnection(client: Socket) {
+    if (client.data.userId) return // already authenticated by namespace middleware
     try {
-      const token =
-        (client.handshake.auth?.token as string) || (client.handshake.query?.token as string)
-
-      if (!token) {
-        client.disconnect()
-        return
-      }
-
-      const payload = verifySessionToken(token)
-
-      const userId = payload.sub
-      if (!userId) {
-        client.disconnect()
-        return
-      }
-
-      const user = await this.prisma.user.findFirst({
-        where: { id: userId, deletedAt: null },
-        select: { id: true, name: true },
-      })
-
-      if (!user) {
-        client.disconnect()
-        return
-      }
-
-      // H5: same age gate as the REST controllers.
-      if (!(await this.passesAgeGate(user.id))) {
-        client.disconnect()
-        return
-      }
-      client.data.ageGateChecks = { ':': Date.now() }
-
-      // Store user info on socket for later use
-      client.data.userId = user.id
-      client.data.userName = user.name
-      // Per-user room so the server can live-subscribe this socket to a
-      // newly-created/joined channel's rooms (see onChannelMemberAdded)
-      // without waiting for a reconnect.
-      await client.join(`user:${user.id}`)
+      await this.authenticate(client)
     } catch {
       client.disconnect()
     }
+  }
+
+  private async authenticate(client: Socket): Promise<void> {
+    const token = client.handshake.auth?.token || client.handshake.query?.token
+    if (typeof token !== 'string' || !token) throw new Error('Unauthorized')
+    const payload = verifySessionToken(token)
+    if (!payload.sub) throw new Error('Unauthorized')
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, deletedAt: null },
+      select: { id: true, name: true },
+    })
+    if (!user || !(await this.passesAgeGate(user.id))) throw new Error('Unauthorized')
+    client.data.ageGateChecks = { ':': Date.now() }
+    client.data.userId = user.id
+    client.data.userName = user.name
+    await client.join(`user:${user.id}`)
   }
 
   /**
@@ -649,16 +638,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // there is already limited to its staff (club level: OWNER/ADMIN).
     const isAnnouncement = channel.kind === 'ANNOUNCEMENTS'
 
-    const message = await this.prisma.message.create({
-      data: {
-        teamId,
-        clubId,
-        channelId,
-        senderId: userId,
-        content,
-        isAnnouncement,
-        replyToId: replyToId ?? undefined,
-      },
+    // WebSocket requests do not pass through the HTTP tenant interceptor.
+    // Derive scope from the authorized channel, never the client's clubId.
+    const message = await tenantContext.run({ clubId, userId }, async () => {
+      // Await here: Prisma constructs a lazy query, not an eager Promise.
+      return await this.prisma.message.create({
+        data: {
+          teamId,
+          clubId,
+          channelId,
+          senderId: userId,
+          content,
+          isAnnouncement,
+          replyToId: replyToId ?? undefined,
+        },
+      })
     })
 
     // Sockets only join `channel:{id}` after the channel authorized them.

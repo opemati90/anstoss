@@ -8,7 +8,7 @@ export type BillingConnectStatus = 'not_started' | 'pending' | 'active' | 'block
 
 export type ContributionCadence = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_OFF'
 export type PlanTier = 'FREE' | 'PRO' | 'SCALE'
-export type PlanInterval = 'SIX_MONTHS' | 'TWELVE_MONTHS'
+export type PlanInterval = 'MONTHLY' | 'SIX_MONTHS' | 'TWELVE_MONTHS'
 export type EntitlementSource = 'PAID' | 'COMPLIMENTARY' | 'TRIAL' | 'MIGRATED'
 export type ContributionTargetRole = 'PLAYER' | 'PARENT' | 'COACH' | 'ADMIN' | 'CUSTOM'
 export type ContributionStatus = 'PENDING' | 'PAID' | 'PARTIAL' | 'WAIVED' | 'EXEMPT' | 'OVERDUE'

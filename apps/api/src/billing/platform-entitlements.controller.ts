@@ -5,20 +5,31 @@ import type { PlatformAdminRequestUser } from '../admin/platform-admin.types'
 import { CurrentUser } from '../auth/user.decorator'
 import { RateLimit } from '../rate-limit/rate-limit.guard'
 import { ClubEntitlementsService } from './club-entitlements.service'
+import { BillingService } from './billing.service'
 
 @Controller('admin')
 @UseGuards(PlatformAdminGuard)
 export class PlatformEntitlementsController {
-  constructor(private readonly entitlements: ClubEntitlementsService) {}
+  constructor(
+    private readonly entitlements: ClubEntitlementsService,
+    private readonly billing: BillingService,
+  ) {}
 
   @Post('plans')
   @RateLimit('write')
-  publishPlan(@CurrentUser() user: PlatformAdminRequestUser, @Body() body: unknown) {
+  async publishPlan(@CurrentUser() user: PlatformAdminRequestUser, @Body() body: unknown) {
+    const input = publishPlanDefinitionSchema.parse(body)
+    await this.billing.validatePlanPrice(input)
     return this.entitlements.publishPlan(
       user.id,
-      publishPlanDefinitionSchema.parse(body),
-      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+      input,
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : (user.email ?? user.name),
     )
+  }
+
+  @Get('plan-catalogue')
+  catalogue() {
+    return this.entitlements.planCatalogue()
   }
 
   @Get('plans')
@@ -42,7 +53,7 @@ export class PlatformEntitlementsController {
       clubId,
       user.id,
       createEntitlementGrantSchema.parse(body),
-      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : (user.email ?? user.name),
     )
   }
 
@@ -52,7 +63,7 @@ export class PlatformEntitlementsController {
     return this.entitlements.revoke(
       grantId,
       user.id,
-      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : user.email ?? user.name,
+      user.authMethod === 'admin-key' ? 'Admin API key (break-glass)' : (user.email ?? user.name),
     )
   }
 }

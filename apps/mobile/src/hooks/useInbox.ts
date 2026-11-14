@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { io, type Socket } from 'socket.io-client'
+import { bindSocketLifecycle } from '../lib/socketLifecycle'
+import { useForegroundRefresh } from './useForegroundRefresh'
 import { CHAT, type InboxItem } from '@anstoss/shared'
 import { api, API_URL } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -148,6 +150,7 @@ export function useInbox() {
   const [typing, setTyping] = useState<InboxTypingMap>({})
 
   const refetch = useCallback(() => refreshInbox(clubId), [clubId])
+  useForegroundRefresh(refetch, !!clubId)
 
   useFocusEffect(
     useCallback(() => {
@@ -167,13 +170,15 @@ export function useInbox() {
     // Bursts (a busy match-day thread) collapse into one refetch per window.
     const throttle = createRefetchThrottle(() => void refreshInbox(clubId))
     const schedule = () => throttle.schedule()
+    const unbindLifecycle = bindSocketLifecycle(socket, schedule)
     socket.on('inbox:update', schedule)
     socket.on('inbox:typing', (event: InboxTypingEvent) => {
       setTyping((prev) => applyTyping(prev, event, Date.now()))
     })
     // After a reconnect we may have missed updates.
-    socket.io.on('reconnect', schedule)
+    socket.on('connect', schedule)
     return () => {
+      unbindLifecycle()
       throttle.cancel()
       socket?.disconnect()
       socket = null

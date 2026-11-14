@@ -532,7 +532,7 @@ export class DmService {
 
   /**
    * Events with a saved Aufstellung the caller may share into this DM: the
-   * teams they coach (head/assistant), or every team for club admins.
+   * teams they actively coach (head/assistant), not a club-level role alone.
    */
   async listLineupOptions(
     userId: string,
@@ -547,12 +547,12 @@ export class DmService {
       throw new ForbiddenException('Not a participant in this conversation')
     }
     const teamIds = await this.lineupTeamIds(userId, clubId)
-    if (teamIds !== 'ALL' && teamIds.length === 0) return []
+    if (teamIds.length === 0) throw new ForbiddenException('Only active coaches can share lineups')
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
     const events = await this.prisma.event.findMany({
       where: {
         clubId,
-        ...(teamIds === 'ALL' ? {} : { teamId: { in: teamIds } }),
+        teamId: { in: teamIds },
         lineup: { not: Prisma.AnyNull },
         cancelledAt: null,
         archivedAt: null,
@@ -586,11 +586,9 @@ export class DmService {
     return out
   }
 
-  /** Teams whose lineups the caller may share: coached teams, or all for admins. */
-  private async lineupTeamIds(userId: string, clubId: string): Promise<string[] | 'ALL'> {
-    const [membership, coachRows] = await Promise.all([
-      this.prisma.membership.findFirst({ where: { userId, clubId }, select: { role: true } }),
-      this.prisma.teamAccess.findMany({
+  /** Club membership alone does not grant coaching permissions. */
+  private async lineupTeamIds(userId: string, clubId: string): Promise<string[]> {
+    const coachRows = await this.prisma.teamAccess.findMany({
         where: {
           userId,
           clubId,
@@ -598,9 +596,7 @@ export class DmService {
           ...activeTeamAccessWhere(),
         },
         select: { teamId: true },
-      }),
-    ])
-    if (membership?.role === 'OWNER' || membership?.role === 'ADMIN') return 'ALL'
+      })
     return Array.from(new Set((coachRows ?? []).map((r) => r.teamId)))
   }
 
@@ -610,6 +606,10 @@ export class DmService {
     clubId: string,
     input: Extract<SendDirectMessageInput, { messageType: 'LINEUP' }>['lineup'],
   ): Promise<MessageAttachmentMeta> {
+    const teamIds = await this.lineupTeamIds(userId, clubId)
+    if (teamIds.length === 0) {
+      throw new ForbiddenException('Only active coaches can share lineups')
+    }
     if (input.source === 'FORMATION') {
       return {
         lineupSource: 'FORMATION',
@@ -626,8 +626,7 @@ export class DmService {
       select: { id: true, teamId: true, title: true, date: true, opponent: true, lineup: true },
     })
     if (!event) throw new NotFoundException('Event not found')
-    const teamIds = await this.lineupTeamIds(userId, clubId)
-    if (teamIds !== 'ALL' && !teamIds.includes(event.teamId)) {
+    if (!teamIds.includes(event.teamId)) {
       throw new ForbiddenException('Only the team’s coaches can share its lineup')
     }
     const lineup = readDmLineup(event.lineup)

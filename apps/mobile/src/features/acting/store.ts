@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { ActingSessionDto } from '@anstoss/shared'
 import { setWriteBlocker } from '../../api/client'
+import { PREVIEW_STANDIN_ENABLED } from '../../launchFeatures'
 
 /**
  * Vorschau und Vertretung (redesign 29/31) — app-wide "view as" state.
@@ -49,6 +50,7 @@ function isAllowedDuringPreview(path: string) {
 }
 
 export function startPreview(mode: PreviewMode, team: ViewAsTeam) {
+  if (!PREVIEW_STANDIN_ENABLED) return
   setWriteBlocker((method, path) => method !== 'GET' && !isAllowedDuringPreview(path))
   emit({ ...state, preview: { mode, team } })
 }
@@ -59,6 +61,7 @@ export function endPreview() {
 }
 
 export function setActingSession(session: ActingSessionDto | null) {
+  if (session && !PREVIEW_STANDIN_ENABLED) return
   emit({ ...state, acting: session })
 }
 

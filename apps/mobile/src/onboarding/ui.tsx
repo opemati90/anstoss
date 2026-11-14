@@ -5,7 +5,6 @@ import {
   Image,
   Platform,
   Pressable,
-  ScrollView,
   StatusBar,
   StyleSheet,
   TextInput,
@@ -14,7 +13,7 @@ import {
   type TextInputProps,
 } from 'react-native'
 import Svg, { Path, Text as SvgText } from 'react-native-svg'
-import { useKeyboardState } from 'react-native-keyboard-controller'
+import { KeyboardAwareScrollView, KeyboardStickyView, useKeyboardState } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, IconButton, Text } from '../components/ui'
@@ -159,7 +158,7 @@ export function OnboardingScreen({
   const c = useClubColors()
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
-  const keyboardInset = useKeyboardInset()
+  const [footerHeight, setFooterHeight] = useState(0)
   const isDark = useIsDark()
 
   useAndroidBack(
@@ -171,7 +170,7 @@ export function OnboardingScreen({
       : null,
   )
 
-  const footerBottom = keyboardInset > 0 ? keyboardInset + space.sm : insets.bottom + space.md
+  const footerBottom = insets.bottom + space.md
   const hasFooter = Boolean(primary || secondary || footerNote)
 
   return (
@@ -197,9 +196,13 @@ export function OnboardingScreen({
         <View style={styles.headerRight}>{headerRight}</View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        bottomOffset={footerHeight + space.md}
+        extraKeyboardSpace={footerHeight}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
@@ -215,10 +218,12 @@ export function OnboardingScreen({
         ) : null}
         {children ? <View style={styles.body}>{children}</View> : null}
         {pageFooter ? <View style={styles.pageFooter}>{pageFooter}</View> : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {hasFooter ? (
+        <KeyboardStickyView>
         <View
+          onLayout={({ nativeEvent }) => setFooterHeight(nativeEvent.layout.height)}
           style={[
             styles.footer,
             {
@@ -254,6 +259,7 @@ export function OnboardingScreen({
           ) : null}
           {footerNote}
         </View>
+        </KeyboardStickyView>
       ) : null}
     </View>
   )
@@ -290,13 +296,14 @@ function ColorAction({ action, color }: { action: OnboardingAction; color: strin
 
 type FieldProps = TextInputProps & {
   label: string
+  required?: boolean
   error?: string | null
   hint?: string | null
 }
 
 /** Large, readable single-line input used by every onboarding question. */
 export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function OnboardingTextField(
-  { label, error, hint, style, onFocus, onBlur, ...rest },
+  { label, required = false, error, hint, style, onFocus, onBlur, ...rest },
   ref,
 ) {
   const c = useClubColors()
@@ -304,7 +311,7 @@ export const OnboardingTextField = forwardRef<TextInput, FieldProps>(function On
   return (
     <View style={styles.field}>
       <Text variant="footnote" weight="semibold" color="primary">
-        {label}
+        {label}{required ? ' *' : ''}
       </Text>
       <TextInput
         ref={ref}

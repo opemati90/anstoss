@@ -94,10 +94,12 @@ export class ClubActivationService {
         expiresAt: { gt: new Date() },
       },
     })
-    if (existing) return existing
+    if (existing) {
+      return (await this.activateFirstClaim(userId, existing.id, { decision: 'APPROVE' }, userId)).claim
+    }
 
     const expiresAt = addDays(new Date(), CLAIM_TTL_DAYS)
-    return this.prisma.$transaction(async (tx) => {
+    const submitted = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim-directory:${directoryEntry.id}`}))`
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${directoryEntry.id}:${userId}`}))`
       const staleClaims = await tx.clubClaim.findMany({
@@ -194,6 +196,10 @@ export class ClubActivationService {
       }
       return claim
     })
+    // MVP self-service registration activates an unclaimed club immediately.
+    // Existing clubs and competing registrations still fail above; this is
+    // account ownership, not a claim that the club was verified by the DFB.
+    return (await this.activateFirstClaim(userId, submitted.id, { decision: 'APPROVE' }, userId)).claim
   }
 
   async submitStaffRequest(userId: string, clubId: string, input: SubmitStaffAccessRequestInput) {
@@ -452,15 +458,30 @@ export class ClubActivationService {
     if (input.decision !== 'APPROVE') {
       return this.updateReviewState(reviewerId, claimId, input)
     }
+    return this.activateFirstClaim(reviewerId, claimId, input)
+  }
 
+  private async activateFirstClaim(
+    reviewerId: string,
+    claimId: string,
+    input: ReviewClubClaimInput,
+    selfRegisteringUserId?: string,
+  ) {
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
       const claim = await tx.clubClaim.findUnique({
         where: { id: claimId },
         include: { directoryEntry: true, evidence: true },
       })
+      if (selfRegisteringUserId && claim?.claimantUserId !== selfRegisteringUserId) {
+        throw new ForbiddenException('You can only activate your own new club registration')
+      }
+      if (selfRegisteringUserId && claim?.status === ClubClaimStatus.NEEDS_INFO) {
+        throw new ConflictException('This registration requires support review before activation')
+      }
       this.assertReviewableClaim(claim, ClubClaimKind.FIRST_CLAIM)
       if (
+        !selfRegisteringUserId &&
         Array.isArray(claim.evidence) &&
         claim.evidence.length === 0 &&
         (input.note?.trim().length ?? 0) < 10
@@ -566,7 +587,7 @@ export class ClubActivationService {
           status: 'ACTIVE',
           startsAt: new Date(),
           expiresAt: addDays(new Date(), 30),
-          reason: 'First verified club trial',
+          reason: selfRegisteringUserId ? 'First self-registered club trial' : 'First verified club trial',
           createdById: reviewerId,
           planDefinitionId: trialDefinition.id,
         },
@@ -576,19 +597,19 @@ export class ClubActivationService {
         data: {
           clubId: club.id,
           status: ClubClaimStatus.APPROVED,
-          reviewerId,
-          reviewNote: input.note ?? null,
+          reviewerId: selfRegisteringUserId ? null : reviewerId,
+          reviewNote: selfRegisteringUserId ? 'Self-service registration; no independent authority verification.' : input.note ?? null,
           reviewedAt: new Date(),
         },
       })
       await tx.auditLog.create({
         data: {
           clubId: club.id,
-          type: 'club.claim_approved',
-          actorType: 'admin',
+          type: selfRegisteringUserId ? 'club.self_registered' : 'club.claim_approved',
+          actorType: selfRegisteringUserId ? 'user' : 'admin',
           actorId: reviewerId,
           actorLabel: null,
-          summary: `First club claim approved for ${club.name}`,
+          summary: `${selfRegisteringUserId ? 'Self-service registration' : 'First club claim approved'} for ${club.name}`,
           metadata: {
             claimId: claim.id,
             evidenceIds: claim.evidence.map((item) => item.id),

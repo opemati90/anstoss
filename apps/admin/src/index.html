@@ -352,22 +352,28 @@
         </nav>
         <div class="panel compact-panel">
           <div>
-            <h2>Access definitions</h2>
+            <h2>Plans & billing periods</h2>
             <p class="muted-line">
-              Publishing archives the prior version for the same tier and term. Existing
-              complimentary grants keep their tier. These legacy definitions manage access
-              limits; they do not update the app's monthly/yearly prices or Stripe checkout.
+              Verein uses the same prices and limits as the app and website. Publishing creates
+              a new version; existing grants and subscriptions keep their original definition.
+              A Stripe price is checked before linking. Publishing alone never charges a club.
             </p>
+            <p class="muted-line" id="plan-catalogue-summary" role="status">Loading shared plan catalogue…</p>
           </div>
-          <form id="plan-form" class="toolbar" autocomplete="off">
+          <form id="plan-form" class="toolbar plan-form" autocomplete="off">
+            <label>Plan
             <select id="plan-tier" class="text-input" aria-label="Plan tier">
               <option value="PRO">Verein (PRO)</option>
               <option value="SCALE">Scale — custom agreement</option>
             </select>
+            </label>
+            <label>Billing period
             <select id="plan-interval" class="text-input" aria-label="Billing interval">
-              <option value="SIX_MONTHS">6 months</option>
-              <option value="TWELVE_MONTHS">12 months</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="TWELVE_MONTHS">Yearly</option>
             </select>
+            </label>
+            <label>Price per billing period (EUR)
             <input
               id="plan-price"
               class="text-input"
@@ -377,6 +383,8 @@
               placeholder="Price EUR"
               required
             />
+            </label>
+            <label>Team limit
             <input
               id="plan-teams"
               class="text-input"
@@ -386,6 +394,8 @@
               placeholder="Team limit"
               required
             />
+            </label>
+            <label>Player seats
             <input
               id="plan-players"
               class="text-input"
@@ -395,20 +405,26 @@
               placeholder="Player limit"
               required
             />
+            </label>
+            <label>Stripe price ID (optional)
             <input
               id="plan-stripe-price"
               class="text-input"
               type="text"
               placeholder="Stripe price ID (optional)"
             />
+            </label>
+            <label>Features (comma separated)
             <input
               id="plan-features"
               class="text-input"
               type="text"
               placeholder="Features, comma separated"
             />
-            <button class="pill" type="submit">Publish</button>
+            </label>
+            <button class="pill" id="plan-publish" type="submit" disabled>Publish plan version</button>
           </form>
+          <p class="muted-line">Without a Stripe price, a definition is available for complimentary access only. Verein pricing is fixed by the shared catalogue; Scale is a custom agreement. Six-month definitions are legacy records.</p>
           <p class="muted-line" id="plan-feedback" role="status"></p>
           <div class="table-wrap">
             <table class="data-table" id="plans-table">
@@ -419,7 +435,7 @@
                   <th>Price</th>
                   <th>Limits</th>
                   <th>Version</th>
-                  <th>State</th>
+                  <th>Availability</th>
                 </tr>
               </thead>
               <tbody>

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../context/AuthContext'
+import { PREVIEW_STANDIN_ENABLED } from '../../launchFeatures'
 import { useClubColors, useIsDark } from '../../context/ClubThemeContext'
 import { Text } from '../ui'
 import { endActingSession, loadActingSession } from '../../features/acting/api'
@@ -39,7 +40,7 @@ export function ActingAsBanner() {
   const clubId = activeClub?.club.id ?? null
 
   useEffect(() => {
-    if (!user?.id || !clubId) return
+    if (!PREVIEW_STANDIN_ENABLED || !user?.id || !clubId) return
     void loadActingSession().catch(() => undefined)
   }, [clubId, user?.id])
 
@@ -56,7 +57,7 @@ export function ActingAsBanner() {
   }, [acting, left])
 
   const showPreview = Boolean(preview)
-  if (!showPreview && !(acting && left > 0)) return null
+  if (!PREVIEW_STANDIN_ENABLED || (!showPreview && !(acting && left > 0))) return null
 
   const roleLabel = preview?.mode === 'PARENT' ? t('acting.roleParent') : t('acting.rolePlayer')
   const title = preview
@@ -109,7 +110,7 @@ export function ActingAsBanner() {
 export function useActingAsBannerVisible(): boolean {
   const { activeClub } = useAuth()
   const { preview, acting } = useViewAs()
-  if (!activeClub) return false
+  if (!PREVIEW_STANDIN_ENABLED || !activeClub) return false
   return Boolean(preview) || Boolean(acting && minutesLeft(acting.expiresAt) > 0)
 }
 

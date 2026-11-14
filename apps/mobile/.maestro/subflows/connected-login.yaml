@@ -7,7 +7,7 @@ appId: com.renuirug.anstoss
 # expected old-session alert, never an arbitrary error from the tested flow.
 - runFlow:
     when:
-      visible: 'Sitzung abgelaufen.*'
+      visible: '(Sitzung abgelaufen|Your session has expired).*'
     commands:
       - tapOn: 'OK'
 - extendedWaitUntil:

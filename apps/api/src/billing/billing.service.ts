@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common'
 import { EntitlementStatus, PlanTier } from '@prisma/client'
 import type Stripe from 'stripe'
-import type { BillingStatus } from '@anstoss/shared'
+import type { BillingStatus, PublishPlanDefinitionInput } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
 import { STRIPE_CLIENT } from './stripe.provider'
@@ -197,6 +197,29 @@ export class BillingService {
   }
 
   // ─── Subscriptions ──────────────────────────────────────────
+
+  /** Read-only verification: linking a price never creates or changes a subscription. */
+  async validatePlanPrice(input: PublishPlanDefinitionInput) {
+    if (!input.stripePriceId) return
+    if (!this.stripe)
+      throw new ServiceUnavailableException(
+        'Stripe is not configured; publish without a checkout price or configure Stripe first',
+      )
+    const price = await this.stripe.prices.retrieve(input.stripePriceId)
+    const expectedInterval = input.interval === 'MONTHLY' ? 'month' : 'year'
+    if (
+      !price.active ||
+      price.type !== 'recurring' ||
+      price.recurring?.interval !== expectedInterval ||
+      price.recurring.interval_count !== 1 ||
+      price.unit_amount !== input.priceCents ||
+      price.currency !== input.currency.toLowerCase()
+    ) {
+      throw new BadRequestException(
+        'Stripe price must be active and match the amount, currency and monthly/yearly billing period',
+      )
+    }
+  }
 
   async createSubscription(
     clubId: string,
@@ -613,7 +636,7 @@ export class BillingService {
         : EntitlementStatus.SUSPENDED
     const graceEndsAt =
       subscription.status === 'past_due'
-        ? existing?.graceEndsAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        ? (existing?.graceEndsAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
         : null
 
     await db.entitlementGrant.upsert({

@@ -342,7 +342,8 @@ function fmtCents(cents) {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: 'EUR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value)
 }
 
@@ -566,7 +567,7 @@ async function openClubDetail(clubId) {
         <ul class="detail-owners">${grants}</ul>
         <div class="toolbar">
           <select class="text-input" id="grant-tier" aria-label="Access tier"><option value="PRO">Verein (PRO)</option><option value="SCALE">Scale — custom agreement</option></select>
-          <select class="text-input" id="grant-interval" aria-label="Plan definition term"><option value="TWELVE_MONTHS">12-month definition</option><option value="SIX_MONTHS">6-month definition</option></select>
+          <select class="text-input" id="grant-interval" aria-label="Plan definition period"><option value="TWELVE_MONTHS">Yearly definition</option><option value="MONTHLY">Monthly definition</option></select>
           <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
           <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
         </div>
@@ -995,10 +996,36 @@ async function loadPlatformAdmins() {
 
 // - Section: Subscriptions -
 
+let planCatalogue = null
+
+function planIntervalLabel(interval) {
+  return { MONTHLY: 'Monthly', TWELVE_MONTHS: 'Yearly', SIX_MONTHS: '6 months (legacy)' }[interval] || interval
+}
+
+function applyPlanDefaults() {
+  if (!planCatalogue) return
+  const tier = document.getElementById('plan-tier').value
+  const interval = document.getElementById('plan-interval').value
+  const standard = tier === 'PRO'
+  const price = document.getElementById('plan-price')
+  price.readOnly = standard
+  price.value = standard ? (planCatalogue.prices[interval === 'MONTHLY' ? 'monthly' : 'yearly'] / 100).toFixed(2) : ''
+  for (const [id, key] of [['plan-teams', 'teams'], ['plan-players', 'players']]) {
+    const input = document.getElementById(id)
+    input.readOnly = standard
+    input.value = String(planCatalogue.limits[tier][key])
+  }
+  document.getElementById('plan-features').value = planCatalogue.features.join(', ')
+  document.getElementById('plan-features').readOnly = standard
+  document.getElementById('plan-stripe-price').value = ''
+}
+
 function bindSubs() {
   document.getElementById('subs-refresh').addEventListener('click', loadSubscriptions)
   document.getElementById('subs-status').addEventListener('change', loadSubscriptions)
   document.getElementById('plan-form').addEventListener('submit', publishPlan)
+  document.getElementById('plan-tier').addEventListener('change', applyPlanDefaults)
+  document.getElementById('plan-interval').addEventListener('change', applyPlanDefaults)
 }
 
 async function loadSubscriptions() {
@@ -1035,30 +1062,50 @@ async function loadSubscriptions() {
 
 async function loadPlans() {
   const tbody = document.querySelector('#plans-table tbody')
+  const button = document.getElementById('plan-publish')
+  button.disabled = true
   try {
-    const rows = await adminFetch('/admin/plans')
+    const [rows, catalogue] = await Promise.all([
+      adminFetch('/admin/plans'),
+      adminFetch('/admin/plan-catalogue'),
+    ])
+    planCatalogue = catalogue
+    applyPlanDefaults()
+    document.getElementById('plan-catalogue-summary').textContent =
+      `Free: ${catalogue.limits.FREE.teams} team · ${catalogue.limits.FREE.players} player seats. Verein: ${fmtCents(catalogue.prices.monthly)}/month or ${fmtCents(catalogue.prices.yearly)}/year — save ${fmtCents(catalogue.yearlySavingsCents)} per year. ${catalogue.trialDays}-day trial, no card.`
+    const latest = new Map()
+    for (const plan of rows) {
+      if (!plan.publishedAt) continue
+      const key = `${plan.tier}:${plan.interval}`
+      latest.set(key, Math.max(latest.get(key) || 0, plan.version))
+    }
     tbody.innerHTML = rows.length
       ? rows
           .map(
             (plan) => `
         <tr>
           <td><strong>${esc(planLabel(plan.tier))}</strong></td>
-          <td>${plan.interval === 'SIX_MONTHS' ? '6 months' : '12 months'}</td>
+          <td>${esc(planIntervalLabel(plan.interval))}</td>
           <td>${fmtCents(plan.priceCents)}</td>
           <td>${plan.teamLimit} teams · ${plan.playerLimit} players</td>
           <td>v${plan.version}</td>
-          <td>${plan.publishedAt ? badge('active') : badge('archived')}</td>
+          <td>${!plan.publishedAt ? 'Unpublished' : plan.interval === 'SIX_MONTHS' || plan.version < latest.get(`${plan.tier}:${plan.interval}`) ? 'Historical' : plan.stripePriceId ? 'Stripe price linked' : 'Complimentary access only'}</td>
         </tr>`,
           )
           .join('')
       : '<tr><td colspan="6" class="placeholder">No plan versions.</td></tr>'
+    button.disabled = false
   } catch (err) {
+    document.getElementById('plan-catalogue-summary').textContent = 'Could not load the shared catalogue. Refresh to retry; publishing is disabled.'
     setError(tbody, err)
   }
 }
 
 async function publishPlan(event) {
   event.preventDefault()
+  const button = document.getElementById('plan-publish')
+  if (button.disabled || !planCatalogue) return
+  button.disabled = true
   const feedback = document.getElementById('plan-feedback')
   const priceEuros = Number(document.getElementById('plan-price').value)
   const features = document
@@ -1081,10 +1128,11 @@ async function publishPlan(event) {
         features,
       }),
     })
-    feedback.textContent = 'Plan version published.'
+    feedback.textContent = 'Plan version published. Existing subscriptions were not changed.'
     await loadPlans()
   } catch (err) {
     feedback.textContent = err.message
+    button.disabled = false
   }
 }
 

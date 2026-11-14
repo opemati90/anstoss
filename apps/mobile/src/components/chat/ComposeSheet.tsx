@@ -25,6 +25,7 @@ type Props = {
   clubId: string
   teamId: string
   channelId: string | null
+  canShareLineup?: boolean
   locale: string
   onClose: () => void
   /** Photo and lineup are handled by the caller (picker / route). */
@@ -46,6 +47,7 @@ export function ComposeSheet({
   clubId,
   teamId,
   channelId,
+  canShareLineup = false,
   locale,
   onClose,
   onAction,
@@ -207,7 +209,7 @@ export function ComposeSheet({
 
         {step === 'menu' ? (
           <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            {menu.map((item, index) => (
+            {menu.filter((item) => item.key !== 'lineup' || canShareLineup).map((item, index) => (
               <ListRow
                 key={item.key}
                 title={item.title}

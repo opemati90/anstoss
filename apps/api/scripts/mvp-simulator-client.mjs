@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { io } from 'socket.io-client'
 
 const [statePath, action] = process.argv.slice(2)
 const state = JSON.parse(readFileSync(statePath, 'utf8'))
@@ -62,6 +63,10 @@ if (action === 'withdraw-test-registration') {
   const token = await login('admin')
   const response = await request('/clubs/search?q=Anstoss%20QA%20Lokal&limit=20', token)
   console.log(JSON.stringify(response))
+} else if (action === 'request-player') {
+  const token = await login('player')
+  await request(`/clubs/${state.clubId}/join-requests`, token, { teamId: state.teamId, role: 'PLAYER' })
+  console.log('PASS: synthetic player submitted a scoped join request through the real API')
 } else if (action === 'approve-player') {
   const adminToken = await login('admin')
   const path = `/clubs/${state.clubId}/join-requests`
@@ -102,6 +107,36 @@ if (action === 'withdraw-test-registration') {
   journal.eventDate = date
   saveJournal()
   console.log('PASS: coach accepted QA player into the full squad and created training through HTTP')
+} else if (action === 'prepare-chat') {
+  const coach = await login('coach')
+  const channels = await request(`/teams/${state.teamId}/channels`, coach)
+  const channel = channels.find((item) => item.kind === 'TEAM')
+  assert.ok(channel, 'Expected the actual team channel')
+  journal.channelId = channel.id
+  await request(`/clubs/${state.clubId}/channels/${channel.id}/messages`, coach, { content: 'Coach connected QA message' })
+  const dm = await request(`/clubs/${state.clubId}/conversations`, coach, { participantId: state.users.player })
+  journal.dmId = dm.id
+  await request(`/clubs/${state.clubId}/conversations/${dm.id}/messages`, coach, { messageType: 'TEXT', content: 'Coach connected QA direct message' })
+  saveJournal()
+  console.log('PASS: coach sent real team and direct messages to the native player')
+} else if (action === 'verify-chat') {
+  const coach = await login('coach')
+  const socket = io(`${state.apiUrl}/chat`, { auth: { token: coach }, transports: ['websocket'], reconnection: false })
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Socket connection timed out')), 10000)
+      socket.once('connect', () => { clearTimeout(timer); resolve() })
+      socket.once('connect_error', (error) => { clearTimeout(timer); reject(error) })
+    })
+    const history = await socket.timeout(10000).emitWithAck('history', { teamId: state.teamId, channelId: journal.channelId })
+    assert.ok(history.data.messages.some((item) => item.content === 'Player connected QA reply' && item.senderId === state.users.player))
+    const messages = await request(`/clubs/${state.clubId}/conversations/${journal.dmId}/messages`, coach)
+    assert.ok((messages.messages ?? messages).some((item) => item.content === 'Player connected QA direct reply' && item.senderId === state.users.player))
+    const player = await login('player')
+    const forbidden = await fetch(`${state.apiUrl}/clubs/${state.clubId}/conversations/${journal.dmId}/lineup-options`, { headers: { Authorization: `Bearer ${player}` } })
+    assert.equal(forbidden.status, 403)
+    console.log('PASS: real coach socket history and DM API contain native player replies; player formation access denied')
+  } finally { socket.disconnect() }
 } else if (action === 'verify-player-rsvp') {
   assert.ok(journal.eventId)
   const token = await login('coach')
