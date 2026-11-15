@@ -15,6 +15,7 @@ import {
   fetchChannelMembers,
   muteConversation,
   removeChannelMember,
+  moderateChannelMember,
 } from '../../../src/api/chat'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -136,10 +137,41 @@ export default function ConversationInfoScreen() {
   )
 
   const inGroup = members?.filter((m) => m.isMember) ?? []
-  const candidates = members?.filter((m) => !m.isMember) ?? []
+  const candidates = members?.filter((m) => !m.isMember && m.moderationStatus !== 'removed') ?? []
+  const removedMembers = members?.filter((m) => m.moderationStatus === 'removed') ?? []
   const isCustom = channel?.kind === 'CUSTOM'
   const canManage = Boolean(channel?.canManageMembers)
   const amMember = inGroup.some((m) => m.userId === user?.id)
+
+  const moderateMember = (member: ChatChannelMember) => {
+    if (!clubId || !member.canModerate || !channel?.canModerateMembers) return
+    const apply = async (action: 'suspend' | 'remove' | 'restore') => {
+      setBusyUserId(member.userId)
+      setMemberError(null)
+      try {
+        await moderateChannelMember(clubId, id, member.userId, action)
+        await loadMembers()
+        detail.reload()
+      } catch {
+        setMemberError(t('chatModeration.failed'))
+      } finally {
+        setBusyUserId(null)
+      }
+    }
+    Alert.alert(t('chatModeration.title', { name: member.name }), t('chatModeration.explanation'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      member.moderationStatus === 'suspended' || member.moderationStatus === 'removed'
+        ? { text: t('chatModeration.restore'), onPress: () => void apply('restore') }
+        : { text: t('chatModeration.suspend'), onPress: () => void apply('suspend') },
+      ...(member.moderationStatus !== 'removed' ? [{
+        text: t('chatModeration.remove'), style: 'destructive' as const,
+        onPress: () => Alert.alert(t('chatModeration.remove'), t('chatModeration.removeConfirm', { name: member.name }), [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('chatModeration.remove'), style: 'destructive', onPress: () => void apply('remove') },
+        ]),
+      }] : []),
+    ])
+  }
 
   const addMember = useCallback(
     async (member: ChatChannelMember) => {
@@ -420,14 +452,16 @@ export default function ConversationInfoScreen() {
                   <ListRow
                     key={m.userId}
                     title={isMe ? t('chatHub.info.you', { name: m.name }) : m.name}
-                    subtitle={roleLabel(m.role, t)}
+                    subtitle={m.moderationStatus === 'suspended' ? t('chatModeration.suspended') : roleLabel(m.role, t)}
                     left={<Avatar size={36} src={m.avatarUrl} fallbackText={m.name} tone="neutral" />}
                     disabled={busyUserId === m.userId}
                     onPress={
-                      canManage && isCustom && !isMe ? () => confirmRemove(m) : undefined
+                      m.canModerate && channel?.canModerateMembers ? () => moderateMember(m)
+                        : canManage && isCustom && !isMe ? () => confirmRemove(m) : undefined
                     }
                     accessibilityLabel={
-                      canManage && isCustom && !isMe
+                      m.canModerate && channel?.canModerateMembers ? t('chatModeration.title', { name: m.name })
+                        : canManage && isCustom && !isMe
                         ? t('chatHub.info.removeA11y', { name: m.name })
                         : undefined
                     }
@@ -448,6 +482,17 @@ export default function ConversationInfoScreen() {
 
         {clubId && !loading ? (
           <ChatMediaSection clubId={clubId} kind={kind} conversationId={id} />
+        ) : null}
+
+        {kind === 'channel' && channel?.canModerateMembers && removedMembers.length > 0 ? (
+          <SectionGroup header={t('chatModeration.removed')}>
+            {removedMembers.map((member) => (
+              <ListRow key={member.userId} title={member.name} subtitle={t('chatModeration.restore')}
+                onPress={member.canModerate ? () => moderateMember(member) : undefined}
+                disabled={busyUserId === member.userId} showChevron={member.canModerate}
+                testID={`chat-restore-${member.userId}`} />
+            ))}
+          </SectionGroup>
         ) : null}
 
         {kind === 'dm' && dm?.otherUser ? (

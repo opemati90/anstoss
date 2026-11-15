@@ -6,9 +6,9 @@
  */
 import 'reflect-metadata'
 import { randomBytes, randomInt, randomUUID } from 'node:crypto'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { PrismaClient } from '@prisma/client'
 import { NestFactory } from '@nestjs/core'
 
@@ -43,6 +43,55 @@ async function main() {
   process.env.REVIEW_LOGIN_EMAILS = Object.values(emails).join(',')
   const prisma = new PrismaClient()
   await prisma.$connect()
+  const resumePath = process.env.ANSTOSS_MVP_RESUME_STATE
+  if (resumePath) {
+    const state = JSON.parse(readFileSync(resumePath, 'utf8'))
+    if (
+      state.apiUrl !== 'http://127.0.0.1:3167' ||
+      !state.runId ||
+      Object.keys(emails).some((role) => state.emails?.[role] !== emails[role])
+    ) {
+      throw new Error('Resume state is not a local Anstoss simulator fixture')
+    }
+    const club = await prisma.club.findUnique({ where: { id: state.clubId } })
+    const team = await prisma.team.findUnique({ where: { id: state.teamId } })
+    if (club?.slug !== `qa-lokal-${state.runId}` || team?.clubId !== club?.id) {
+      throw new Error('Resume club/team do not match the original QA fixture')
+    }
+    for (const [role, email] of Object.entries(emails)) {
+      const user = await prisma.user.findUnique({ where: { email } })
+      if (!user || user.id !== state.users?.[role]) {
+        throw new Error(`Resume user does not match the original QA fixture: ${role}`)
+      }
+    }
+    // A restarted API has a new signing key: retain the journeys, not old sessions.
+    const journalPath = join(dirname(resumePath), 'journeys.json')
+    if (existsSync(journalPath)) {
+      const journal = JSON.parse(readFileSync(journalPath, 'utf8'))
+      if (journal.runId !== state.runId) throw new Error('QA journal run does not match')
+      writeFileSync(journalPath, JSON.stringify({ ...journal, sessions: {} }), { mode: 0o600 })
+    }
+    const { AppModule } = await import('../src/app.module')
+    const app = await NestFactory.create(AppModule, { logger: ['error', 'warn'] })
+    await app.listen(3167, '127.0.0.1')
+    writeFileSync(
+      resumePath,
+      JSON.stringify({ ...state, otpCode: process.env.REVIEW_LOGIN_CODE }),
+      { mode: 0o600 },
+    )
+    console.log('Updated local simulator API ready; existing fixtures preserved. Sign in again.')
+    let stopping = false
+    const stop = async () => {
+      if (stopping) return
+      stopping = true
+      await app.close()
+      await prisma.$disconnect()
+      console.log('Local simulator stopped; resumed QA fixtures retained.')
+    }
+    process.once('SIGINT', () => void stop())
+    process.once('SIGTERM', () => void stop())
+    return
+  }
   if (await prisma.club.count()) {
     await prisma.$disconnect()
     throw new Error('Simulator DB is not empty; inspect previous QA fixtures before restarting')

@@ -56,7 +56,9 @@ export class BillingService {
 
     return {
       clubId,
-      provider: stripeAccount ? 'STRIPE' : 'NONE',
+      // Software subscriptions use the platform Stripe account, not a club's
+      // Connect account (which is a separate money-collection capability).
+      provider: stripeAccount || subscription?.stripeSubscriptionId ? 'STRIPE' : 'NONE',
       plan,
       subscriptionStatus,
       connectStatus: connectStatus as BillingStatus['connectStatus'],

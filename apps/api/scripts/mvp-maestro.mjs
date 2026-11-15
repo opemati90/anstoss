@@ -11,16 +11,19 @@ assert.ok(state.emails[role]?.endsWith('@anstoss-simulator.invalid'))
 assert.match(flow, /^connected-[a-z-]+\.yaml$/)
 const journalPath = join(dirname(statePath), 'journeys.json')
 const journal = existsSync(journalPath) ? JSON.parse(readFileSync(journalPath, 'utf8')) : {}
+const simulatorId = process.env.QA_SIMULATOR_ID ?? 'A9118726-BCB5-44F5-A18F-6C1E5BF97097'
+assert.match(simulatorId, /^[0-9a-f-]{36}$/i)
 const env = {
   QA_EMAIL: state.emails[role], QA_OTP: state.otpCode, QA_LANGUAGE: language,
   QA_EVENT_ID: journal.eventId ?? '', QA_CLUB_ID: state.clubId, QA_TEAM_ID: state.teamId,
   QA_TRIAL_ID: journal.trialId ?? '',
   QA_CHANNEL_ID: journal.channelId ?? '', QA_DM_ID: journal.dmId ?? '',
+  QA_SHORT_DM_ID: journal.shortDmId ?? '',
   QA_CLUB_NAME: `Codex QA ${state.runId.slice(0, 8)}`,
   QA_PLAYER_ID: state.users.player,
 }
 const result = spawnSync('/Users/yemi/.maestro/bin/maestro', [
-  '--device', 'A9118726-BCB5-44F5-A18F-6C1E5BF97097', 'test',
+  '--device', simulatorId, 'test',
   '--test-output-dir', join(dirname(statePath), 'maestro', flow.replace('.yaml', '')),
   ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
   resolve('apps/mobile/.maestro', flow),

@@ -566,6 +566,7 @@ describe('UsersService.deleteAccount', () => {
       directMessage: { updateMany: updateMany() },
       pushToken: { deleteMany: deleteMany() },
       notificationPreference: { deleteMany: deleteMany() },
+      supportTicket: { deleteMany: deleteMany() },
       otpCode: { deleteMany: deleteMany() },
       guardianRelationship: { deleteMany: deleteMany() },
       parentalConsent: {

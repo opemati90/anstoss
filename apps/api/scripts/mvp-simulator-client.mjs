@@ -119,6 +119,64 @@ if (action === 'withdraw-test-registration') {
   await request(`/clubs/${state.clubId}/conversations/${dm.id}/messages`, coach, { messageType: 'TEXT', content: 'Coach connected QA direct message' })
   saveJournal()
   console.log('PASS: coach sent real team and direct messages to the native player')
+} else if (action === 'prepare-short-chat') {
+  const admin = await login('admin')
+  const dm = await request(`/clubs/${state.clubId}/conversations`, admin, { participantId: state.users.player })
+  journal.shortDmId = dm.id
+  saveJournal()
+  const history = await request(`/clubs/${state.clubId}/conversations/${dm.id}/messages`, admin)
+  if (!(history.messages ?? history).some((message) => message.content === 'Short conversation keyboard check')) {
+    await request(`/clubs/${state.clubId}/conversations/${dm.id}/messages`, admin, {
+      messageType: 'TEXT', content: 'Short conversation keyboard check',
+    })
+  }
+  console.log('PASS: short real conversation ready for keyboard viewport regression')
+} else if (action === 'prepare-keyboard-chat') {
+  // Match the reported two-sided thread without touching real users or production.
+  const admin = await login('admin')
+  const player = await login('player')
+  assert.ok(journal.shortDmId, 'Run prepare-short-chat first')
+  const path = `/clubs/${state.clubId}/conversations/${journal.shortDmId}/messages`
+  const history = await request(path, admin)
+  const existing = new Set((history.messages ?? history).map((message) => message.content))
+  for (const [token, content] of [
+    [admin, 'Keyboard QA incoming second message'],
+    [player, 'Keyboard QA outgoing first reply'],
+    [admin, 'Keyboard QA incoming third message'],
+    [player, 'Keyboard QA latest visible reply'],
+  ]) {
+    if (!existing.has(content)) await request(path, token, { messageType: 'TEXT', content })
+  }
+  console.log('PASS: five-message two-sided local keyboard fixture ready')
+} else if (action === 'prepare-long-keyboard-chat') {
+  const coach = await login('coach')
+  const player = await login('player')
+  assert.ok(journal.dmId && journal.channelId, 'Run prepare-chat first')
+  const dmPath = `/clubs/${state.clubId}/conversations/${journal.dmId}`
+  const history = await request(`${dmPath}/messages`, coach)
+  if (!journal.longKeyboardPrepared) {
+    const existing = new Set((history.messages ?? history).map((message) => message.content))
+    for (let index = 1; index <= 40; index += 1) {
+      const content = `Keyboard history ${String(index).padStart(2, '0')}`
+      if (!existing.has(content)) {
+        await request(`${dmPath}/messages`, index % 2 ? coach : player, { messageType: 'TEXT', content })
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      }
+    }
+    for (const [token, content] of [[coach, 'Keyboard group coach message'], [player, 'Keyboard group player reply']]) {
+      await request(`/clubs/${state.clubId}/channels/${journal.channelId}/messages`, token, { content })
+    }
+    journal.longKeyboardPrepared = true
+    saveJournal()
+  }
+  await request(`${dmPath}/read`, player, {}, 'PUT')
+  console.log('PASS: paginated DM and two-sender group prepared in isolated QA backend')
+} else if (action === 'verify-keyboard-chat') {
+  const coach = await login('coach')
+  const history = await request(`/clubs/${state.clubId}/channels/${journal.channelId}/messages`, coach)
+  assert.ok((history.messages ?? history).some((message) =>
+    message.content === 'Keyboard native group send' && message.senderId === state.users.player))
+  console.log('PASS: coach reads the keyboard-test message sent by the native QA player')
 } else if (action === 'verify-chat') {
   const coach = await login('coach')
   const socket = io(`${state.apiUrl}/chat`, { auth: { token: coach }, transports: ['websocket'], reconnection: false })

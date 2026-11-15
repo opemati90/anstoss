@@ -36,6 +36,7 @@ export * from './schemas/home'
 // Plans and pricing: Kostenlos / Verein, feature flags, trial (Abo screen)
 export * from './schemas/plan'
 export * from './schemas/studio'
+export * from './schemas/support'
 export * from './errors/base'
 export * from './utils/iban'
 export * from './utils/wechsel'

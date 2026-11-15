@@ -245,6 +245,7 @@ export const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'gearshape.fill': 'settings',
   circle: 'ellipse-outline',
   'circle.fill': 'ellipse',
+  'stop.fill': 'stop',
   'bolt.fill': 'flash',
   bolt: 'flash-outline',
   'dot.radiowaves.left.and.right': 'radio-outline',

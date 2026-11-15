@@ -507,7 +507,7 @@ export default {
       autoReminders: "Otomatik hatırlatmalar",
       fixtureImport: "Fikstür ve puan tablosu aktarımı",
       duesTracking: "GiroCode ile aidat takibi",
-      chatTranslation: "7 dilde sohbet çevirisi",
+      chatTranslation: "Sohbet çevirisi şu anda kullanılamıyor",
       actingSessions: "Yönetim için önizleme ve vekalet",
     },
     upgrade: {
@@ -520,7 +520,7 @@ export default {
       autoReminders: "Otomatik hatırlatmalar Kulüp aboneliğiyle gelir.",
       fixtureImport: "Fikstür ve tablo aktarımı Kulüp aboneliğiyle gelir.",
       duesTracking: "GiroCode ile aidatlar Kulüp aboneliğiyle gelir.",
-      chatTranslation: "Sohbet çevirisi Kulüp aboneliğiyle gelir.",
+      chatTranslation: "Otomatik sohbet çevirisi ücretli planlar dahil şu anda kullanılamıyor.",
       actingSessions: "Önizleme ve vekalet Kulüp aboneliğiyle gelir.",
     },
   },

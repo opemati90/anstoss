@@ -99,10 +99,10 @@ export function collectProductionEnvErrors(env: NodeJS.ProcessEnv = process.env)
 export function collectProductionEnvWarnings(env: NodeJS.ProcessEnv = process.env): string[] {
   const warnings: string[] = []
 
-  // Chat/DM auto-translation no-ops silently when LIBRETRANSLATE_URL is unset
-  // (translation.service returns null, chat still works). Surface it so a
-  // missing translation backend is diagnosable instead of mysteriously absent.
-  if (!(env.LIBRETRANSLATE_URL ?? '').trim()) {
+  // Translation is intentionally opt-in; an obsolete URL must not enable it.
+  if (env.CHAT_TRANSLATION_ENABLED !== 'true') {
+    warnings.push('Chat/DM auto-translation is disabled; messages remain in their original language')
+  } else if (!(env.LIBRETRANSLATE_URL ?? '').trim()) {
     warnings.push(
       'LIBRETRANSLATE_URL is not set — chat/DM message auto-translation is disabled (messages show in their original language only)',
     )

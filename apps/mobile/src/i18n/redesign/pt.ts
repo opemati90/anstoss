@@ -507,7 +507,7 @@ export default {
       autoReminders: "Lembretes automáticos",
       fixtureImport: "Importar calendário e classificação",
       duesTracking: "Quotas sob controlo com GiroCode",
-      chatTranslation: "Tradução do chat em 7 línguas",
+      chatTranslation: "Tradução do chat indisponível de momento",
       actingSessions: "Pré-visualização e substituição para a direção",
     },
     upgrade: {
@@ -520,7 +520,7 @@ export default {
       autoReminders: "Os lembretes automáticos vêm com o plano Clube.",
       fixtureImport: "A importação de calendário e classificação vem com o plano Clube.",
       duesTracking: "As quotas com GiroCode vêm com o plano Clube.",
-      chatTranslation: "A tradução do chat vem com o plano Clube.",
+      chatTranslation: "A tradução automática do chat está indisponível de momento, incluindo nos planos pagos.",
       actingSessions: "Pré-visualização e substituição vêm com o plano Clube.",
     },
   },

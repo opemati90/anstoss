@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- TODO Pass 3 migrate raw spacing/radius/rgba literals to design tokens */
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import { Alert, Animated, Linking, Pressable, StyleSheet, View } from 'react-native'
 import type {
   AudioRecorder,
   PermissionResponse,
@@ -15,7 +15,7 @@ import { fonts, fontSize } from '../../theme/tokens'
  * expo-audio is loaded lazily so the app can launch in builds where the native
  * module hasn't been linked yet (e.g., before `expo run:ios` rebuilds the
  * binary after adding expo-audio to package.json). When the module is missing,
- * the recorder gracefully no-ops.
+ * the recorder explains that a newer build is required instead of failing silently.
  */
 type AudioRuntime = {
   AudioModule: {
@@ -74,9 +74,34 @@ export function VoiceRecorderButton({
   const Audio = loadAudio()
   const [recording, setRecording] = useState<AudioRecorder | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const recorderRef = useRef<AudioRecorder | null>(null)
+  const pressedRef = useRef(false)
+  const preparingRef = useRef(false)
+  const stoppingRef = useRef(false)
+  const mountedRef = useRef(true)
   const startedAtRef = useRef<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pulse = useRef(new Animated.Value(0.4)).current
+
+  const resetAudioMode = () => Audio?.setAudioModeAsync({
+    allowsRecording: false, playsInSilentMode: true, interruptionMode: 'mixWithOthers',
+  }).catch(() => undefined)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      pressedRef.current = false
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      const recorder = recorderRef.current
+      recorderRef.current = null
+      if (recorder) void recorder.stop().catch(() => undefined).finally(() => {
+        recorder.release()
+        void resetAudioMode()
+      })
+    }
+    // The lazy-loaded native runtime is stable for the component lifetime.
+  }, [])
 
   useEffect(() => {
     if (!recording) return
@@ -91,26 +116,45 @@ export function VoiceRecorderButton({
   }, [recording, pulse])
 
   const start = async () => {
-    if (recording || disabled || !Audio) {
-      onCancel?.()
+    pressedRef.current = true
+    if (recorderRef.current || preparingRef.current || stoppingRef.current || disabled) return
+    if (!Audio) {
+      Alert.alert(t('common.error'), t('voiceRecording.unavailable'))
       return
     }
+    preparingRef.current = true
+    let rec: AudioRecorder | null = null
     try {
       const perm = await Audio.requestRecordingPermissionsAsync()
       if (!perm.granted) {
+        Alert.alert(t('voiceRecording.permissionTitle'), t('voiceRecording.permissionBody'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('voiceRecording.settings'), onPress: () => void Linking.openSettings() },
+        ])
         onCancel?.()
         return
       }
+      // A permission dialog or a quick tap can outlive the original press.
+      // Never start a microphone recording after the user's finger is up.
+      if (!mountedRef.current || !pressedRef.current) return
       await Audio.setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
         interruptionMode: 'doNotMix',
       })
-      const rec = new Audio.AudioModule.AudioRecorder(
+      rec = new Audio.AudioModule.AudioRecorder(
         Audio.RecordingPresets.HIGH_QUALITY,
       )
       await rec.prepareToRecordAsync(Audio.RecordingPresets.HIGH_QUALITY)
+      if (!mountedRef.current || !pressedRef.current) {
+        await rec.stop().catch(() => undefined)
+        rec.release()
+        rec = null
+        await resetAudioMode()
+        return
+      }
       rec.record()
+      recorderRef.current = rec
       setRecording(rec)
       startedAtRef.current = Date.now()
       setElapsed(0)
@@ -120,31 +164,35 @@ export function VoiceRecorderButton({
         )
       }, 200)
     } catch {
+      rec?.release()
+      await resetAudioMode()
+      if (mountedRef.current) Alert.alert(t('common.error'), t('voiceRecording.failed'))
       onCancel?.()
+    } finally {
+      preparingRef.current = false
     }
   }
 
   const stop = async (commit: boolean) => {
-    if (!recording) return
+    pressedRef.current = false
+    const rec = recorderRef.current
+    if (!rec || stoppingRef.current) return
+    recorderRef.current = null
+    stoppingRef.current = true
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
     }
     try {
-      await recording.stop()
-      const uri = recording.uri
+      await rec.stop()
+      const uri = rec.uri
       const duration = startedAtRef.current
         ? Date.now() - startedAtRef.current
         : elapsed
       setRecording(null)
       startedAtRef.current = null
       setElapsed(0)
-      void Audio?.setAudioModeAsync({
-        allowsRecording: false,
-        playsInSilentMode: true,
-        interruptionMode: 'mixWithOthers',
-      }).catch(() => undefined)
-      if (commit && uri && duration >= 500) {
+      if (commit && uri && duration >= 500 && mountedRef.current) {
         onRecorded({
           uri,
           durationMs: duration,
@@ -157,7 +205,12 @@ export function VoiceRecorderButton({
       setRecording(null)
       startedAtRef.current = null
       setElapsed(0)
+      if (mountedRef.current) Alert.alert(t('common.error'), t('voiceRecording.failed'))
       onCancel?.()
+    } finally {
+      rec.release()
+      await resetAudioMode()
+      stoppingRef.current = false
     }
   }
 
@@ -182,6 +235,8 @@ export function VoiceRecorderButton({
         onResponderTerminate={() => void stop(false)}
         accessibilityRole="button"
         accessibilityLabel={t('a11y.recordVoiceNote')}
+        accessibilityHint={t('voiceRecording.hold')}
+        testID="chat-voice-record"
         disabled={disabled}
         style={({ pressed }) => [
           styles.btn,

@@ -11,6 +11,37 @@ import redesign from './redesign/tr' // 2026-11 Anstoss Redesign strings
 import { studioTr } from './studio/tr'
 
 const base = {
+  teamPackages: {
+      "title": "Takım paketleri",
+      "TEAM": "1 takım",
+      "CLUB_3": "3 takım",
+      "CLUB_6": "6 takım",
+      "UNLIMITED": "Sınırsız takım",
+      "players": "En fazla {{count}} oyuncu",
+      "unlimitedPlayers": "Sınırsız oyuncu",
+      "note": "Yıllık ödemede 12 yerine 10 ay ödersin. Sınırsız paket, 7 takımdan itibaren takım başına en iyi fiyatı sunar.",
+      "trial": "Ücretsiz deneme 1 takım ve 30 oyuncu içerir. Kart gerekmez; ücretli plan seçmezsen ücretsiz plana dönersin.",
+      "contact": "Paketler hakkında soruların mı var? {{email}}"
+  },
+  voiceRecording: {
+      "unavailable": "Bu sürümde ses kaydı kullanılamıyor. Lütfen uygulamayı güncelle.",
+      "permissionTitle": "Mikrofon erişimi gerekli",
+      "permissionBody": "Ayarlardan mikrofon erişimine izin ver, ardından kayıt için mikrofonu basılı tut.",
+      "settings": "Ayarları aç",
+      "failed": "Kayıt yapılamadı. Devam eden aramayı sonlandırıp tekrar dene.",
+      "hold": "Kaydetmek için basılı tut. Göndermek için bırak."
+  },
+  chatModeration: {
+    title: "Sohbet erişimi: {{name}}",
+    explanation: "Askıya al: okuyabilir ama yazamaz. Çıkar: bu sohbete erişemez. Kulüp ve takım üyeliği değişmez.",
+    suspend: "Mesaj göndermeyi askıya al",
+    restore: "Sohbet erişimini geri ver",
+    remove: "Bu sohbetten çıkar",
+    removeConfirm: "{{name}} yalnızca bu sohbete erişimini kaybedecek. Kulüp ve takım üyeliği değişmeyecek.",
+    suspended: "Mesaj gönderme askıda · okuyabilir",
+    removed: "Bu sohbetten çıkarılanlar",
+    failed: "Sohbet erişimi güncellenemedi. Tekrar dene.",
+  },
   studio: studioTr,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
@@ -1691,6 +1722,7 @@ const base = {
     signOutTitle: 'Çıkış yap',
     signOutBody: 'Çıkış yapmak istediğine emin misin?',
     languageChoiceTitle: 'Dil seç',
+    chatTranslationUnavailable: 'Otomatik sohbet çevirisi şu anda kullanılamıyor. Mesajlar özgün dillerinde kalır.',
     languageChoiceBody:
       'Uygulamanın dilini seç. İstediğin zaman yeniden değiştirebilirsin.',
     languageChoiceDescriptionDe:

@@ -127,6 +127,7 @@ describe('useChat', () => {
       }),
     )
 
+    expect(result.current.connectionState).toBe('connecting')
     expect(mockIo).toHaveBeenCalledWith(
       'http://api.test/chat',
       expect.objectContaining({

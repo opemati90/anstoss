@@ -12,6 +12,37 @@ import redesign from './redesign/pt' // 2026-11 Anstoss Redesign strings
 import { studioPt } from './studio/pt'
 
 const base = {
+  teamPackages: {
+      "title": "Pacotes de equipas",
+      "TEAM": "1 equipa",
+      "CLUB_3": "3 equipas",
+      "CLUB_6": "6 equipas",
+      "UNLIMITED": "Equipas ilimitadas",
+      "players": "Até {{count}} jogadores",
+      "unlimitedPlayers": "Jogadores ilimitados",
+      "note": "O pagamento anual custa 10 mensalidades em vez de 12. Ilimitado oferece o melhor preço por equipa a partir de 7 equipas.",
+      "trial": "O teste gratuito inclui 1 equipa e 30 jogadores. Sem cartão; regressa ao plano gratuito se não escolheres um plano pago.",
+      "contact": "Dúvidas sobre os pacotes? {{email}}"
+  },
+  voiceRecording: {
+      "unavailable": "As mensagens de voz não estão disponíveis nesta versão. Atualiza a aplicação.",
+      "permissionTitle": "É necessário acesso ao microfone",
+      "permissionBody": "Permite o microfone nas definições e mantém o botão premido para gravar.",
+      "settings": "Abrir definições",
+      "failed": "Não foi possível gravar. Termina qualquer chamada e tenta novamente.",
+      "hold": "Mantém premido para gravar. Solta para enviar."
+  },
+  chatModeration: {
+    title: "Acesso à conversa: {{name}}",
+    explanation: "Suspender: pode ler, mas não enviar. Remover: sem acesso a esta conversa. A participação no clube e na equipa não muda.",
+    suspend: "Suspender o envio",
+    restore: "Restaurar o acesso",
+    remove: "Remover desta conversa",
+    removeConfirm: "{{name}} perderá apenas o acesso a esta conversa. A participação no clube e na equipa não mudará.",
+    suspended: "Envio suspenso · leitura permitida",
+    removed: "Removidos desta conversa",
+    failed: "Não foi possível alterar o acesso. Tenta novamente.",
+  },
   studio: studioPt,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
@@ -1559,6 +1590,7 @@ const base = {
     signOutTitle: 'Sair',
     signOutBody: 'Tens a certeza de que queres terminar sessão?',
     languageChoiceTitle: 'Escolher idioma',
+    chatTranslationUnavailable: 'A tradução automática do chat está indisponível de momento. As mensagens mantêm o idioma original.',
     languageChoiceBody: 'Escolhe o idioma da app. Podes alterá-lo a qualquer momento.',
     languageChoiceDescriptionDe:
       'Textos em alemão para jogadores, treinadores e pais na Alemanha.',

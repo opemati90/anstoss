@@ -30,6 +30,7 @@ import {
   type ChatAttachment,
 } from './chatAttachments'
 import { buildThreadRows, type ThreadRow } from './chatGrouping'
+import { useChatScrollPosition } from './useChatScrollPosition'
 import { daySeparatorLabel } from './chatDates'
 import type { VoiceRecorderResult } from './VoiceRecorderButton'
 import { EmptyState } from '../EmptyState'
@@ -80,7 +81,7 @@ type Props = {
 
 /**
  * The conversation body shared by channels and direct messages (WhatsApp /
- * iMessage conventions): an inverted list anchored to the newest message,
+ * iMessage conventions): a chronological list anchored to the newest message,
  * grouped bubbles with day pills and a "Neue Nachrichten" divider, a jump
  * button with the unread count, swipe-to-reply, one composer that rides the
  * keyboard on iOS and Android edge-to-edge, and the + menu (photo/video,
@@ -168,7 +169,6 @@ export function ChatScreen({
 
   // "Neue Nachrichten": the unread count the inbox showed when the thread opened.
   const [unreadOnOpen] = useState(() => getInboxUnread(conversationId))
-  const didInitialScroll = useRef(false)
   // Only messages that arrive after the first render animate in.
   const initialIdsRef = useRef<Set<string> | null>(null)
   if (initialIdsRef.current === null && historyLoaded) {
@@ -262,7 +262,8 @@ export function ChatScreen({
               ? t('chatHub.errors.historyFailed')
               : null
 
-  // Rows oldest-first, then reversed for the inverted list.
+  // Do not invert/scale the native scroll view: Fabric inverted lists can stop
+  // painting on physical iOS 27 devices (react-native issue #59731).
   const rows = useMemo(
     () =>
       buildThreadRows({
@@ -272,45 +273,32 @@ export function ChatScreen({
         unreadOnOpen,
         locale: i18n.language,
         t,
-      }).reverse(),
+      }),
     [i18n.language, isDm, messages, t, unreadOnOpen, userId],
   )
 
-  // Open at the first unread message, if any.
-  useEffect(() => {
-    if (didInitialScroll.current || !historyLoaded || rows.length === 0) return
-    didInitialScroll.current = true
-    const index = rows.findIndex((row) => row.type === 'unread')
-    if (index > 0) {
-      requestAnimationFrame(() =>
-        listRef.current?.scrollToIndex({ index, viewPosition: 0.9, animated: false }),
-      )
-    }
-  }, [historyLoaded, rows])
-
-  const scrollToLatest = useCallback(() => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: true })
-  }, [])
+  const onAtBottomChange = useCallback((bottom: boolean) => {
+    setAtBottom((prev) => (prev === bottom ? prev : bottom))
+    setIsAtBottom(bottom)
+  }, [setIsAtBottom])
+  const threadScroll = useChatScrollPosition({
+    listRef,
+    ready: historyLoaded && rows.length > 0,
+    initialUnreadIndex: rows.findIndex((row) => row.type === 'unread'),
+    onAtBottomChange,
+  })
+  const { stopFollowing } = threadScroll
 
   const jumpTo = useCallback(
     (messageId: string) => {
       const index = rows.findIndex((row) => row.type === 'message' && row.message.id === messageId)
       if (index < 0) return
+      stopFollowing()
       listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true })
       setHighlightId(messageId)
       setTimeout(() => setHighlightId((current) => (current === messageId ? null : current)), 1600)
     },
-    [rows],
-  )
-
-  const handleScroll = useCallback(
-    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
-      // Inverted: offset 0 is the newest message.
-      const bottom = event.nativeEvent.contentOffset.y < 80
-      setAtBottom((prev) => (prev === bottom ? prev : bottom))
-      setIsAtBottom(bottom)
-    },
-    [setIsAtBottom],
+    [rows, stopFollowing],
   )
 
   const readStateFor = useCallback(
@@ -649,19 +637,24 @@ export function ChatScreen({
         ) : (
           <FlatList
             ref={listRef}
-            inverted
             data={rows}
+            style={styles.flex}
+            removeClippedSubviews={false}
+            automaticallyAdjustKeyboardInsets={false}
+            contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             renderItem={renderRow}
             keyExtractor={(row) => row.key}
             contentContainerStyle={styles.messageList}
-            onScroll={handleScroll}
+            onScroll={threadScroll.onScroll}
+            onLayout={threadScroll.onLayout}
+            onContentSizeChange={threadScroll.onContentSizeChange}
             scrollEventThrottle={32}
-            // Older messages load at the top; the inverted list stays anchored.
-            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
-            onEndReached={hasMore && !loadingHistory ? loadMore : undefined}
-            onEndReachedThreshold={0.4}
+            // Prepending history keeps the first visible chronological row anchored.
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            onStartReached={hasMore && !loadingHistory && !atBottom ? loadMore : undefined}
+            onStartReachedThreshold={0.4}
             initialNumToRender={24}
             maxToRenderPerBatch={12}
             windowSize={11}
@@ -679,7 +672,7 @@ export function ChatScreen({
         {showJump && messages.length > 0 ? (
           <Pressable
             style={[styles.fab, elevation.fab, { backgroundColor: c.surface, borderColor: c.borderDefault }]}
-            onPress={scrollToLatest}
+            onPress={() => threadScroll.scrollToLatest()}
             accessibilityRole="button"
             accessibilityLabel={
               unreadCount > 0 ? t('chatThread.jumpToLatestUnread', { count: unreadCount }) : t('chat.scrollToBottom')
@@ -926,7 +919,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   searchResultHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  messageList: { paddingVertical: space.md },
+  messageList: { flexGrow: 1, justifyContent: 'flex-end', paddingVertical: space.md },
   errorBanner: {
     marginHorizontal: space.md,
     marginBottom: space.xs,

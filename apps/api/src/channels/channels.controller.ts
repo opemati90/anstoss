@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common'
 import {
   addChannelMembersSchema,
+  moderateChannelMemberSchema,
   createGroupChannelSchema,
   postChannelMessageSchema,
   updateChatMuteSchema,
@@ -143,6 +144,19 @@ export class ChannelsController {
   ) {
     const input = parseBody(addChannelMembersSchema, body)
     return this.channelsService.addChannelMembers(user.id, clubId, channelId, input.userIds)
+  }
+
+  @Patch('clubs/:clubId/channels/:channelId/members/:userId')
+  @RateLimit('write')
+  async moderateChannelMember(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('channelId') channelId: string,
+    @Param('userId') targetUserId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(moderateChannelMemberSchema, body)
+    return this.channelsService.moderateChannelMember(user.id, clubId, channelId, targetUserId, input.action)
   }
 
   @Delete('clubs/:clubId/channels/:channelId/members/:userId')

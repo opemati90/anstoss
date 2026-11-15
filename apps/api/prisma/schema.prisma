@@ -61,6 +61,7 @@ model User {
   pushTokens                     PushToken[]
   notificationPreferences        NotificationPreference[]
   inboxNotifications             InboxNotification[]
+  supportTickets                 SupportTicket[]
   joinRequests                   JoinRequest[]
   freeAgentProfile               FreeAgentProfile?
   sentTrialInvites               TrialInvite[]             @relation("TrialInviteSender")
@@ -1226,9 +1227,11 @@ model ChannelMember {
   channelId  String
   userId     String
   // Chat revamp: per-user mute. For non-CUSTOM channels this row only carries
-  // the mute preference; it never grants access (access is role-derived).
+  // preferences and moderation restrictions; it never grants role-derived access.
   muted      Boolean   @default(false)
   mutedUntil DateTime?
+  postingSuspended Boolean @default(false)
+  removed    Boolean   @default(false)
   createdAt  DateTime  @default(now())
   channel    Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1963,6 +1966,48 @@ model ContributionReminder {
 
   @@unique([recordId, reminderKey])
   @@index([clubId, memberUserId, sentAt])
+}
+
+// Global user-owned support, also available without club membership.
+// Services scope every user read/write by requesterId; platform admins use a
+// separate authenticated controller. Erasure deletes the full private thread.
+model SupportTicket {
+  id          String @id @default(cuid())
+  requesterId String
+  requester   User @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  requestId   String
+  category    String
+  subject     String
+  status      SupportTicketStatus @default(OPEN)
+  appVersion  String?
+  build       String?
+  platform    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    SupportMessage[]
+
+  @@unique([requesterId, requestId])
+  @@index([requesterId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+enum SupportTicketStatus {
+  OPEN
+  WAITING
+  RESOLVED
+}
+
+model SupportMessage {
+  id          String @id @default(cuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  requestId   String
+  fromSupport Boolean @default(false)
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@unique([ticketId, requestId])
+  @@index([ticketId, createdAt])
 }
 
 model SupportAction {

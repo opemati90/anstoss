@@ -412,6 +412,12 @@ export default function MoreScreen() {
 
   // ── Konto ── (profile, legal, data, leaving)
   const account: Row[] = [
+    {
+      key: 'support',
+      label: t('support.title'),
+      icon: 'message',
+      onPress: () => router.push('/support' as never),
+    },
     isFreeAgent
       ? {
           key: 'free-agent-profile',

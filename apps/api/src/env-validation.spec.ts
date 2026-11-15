@@ -143,6 +143,14 @@ describe('collectProductionEnvErrors', () => {
 })
 
 describe('collectProductionEnvWarnings', () => {
+  it('reports translation as disabled even when a legacy provider URL remains configured', () => {
+    expect(collectProductionEnvWarnings({
+      ...validEnv(),
+      LIBRETRANSLATE_URL: 'https://unused-provider.invalid',
+      CHAT_TRANSLATION_ENABLED: 'false',
+    })).toContain('Chat/DM auto-translation is disabled; messages remain in their original language')
+  })
+
   it('warns when the static admin console key is missing or weak', () => {
     const missing = collectProductionEnvWarnings(validEnv())
     expect(missing).toContain(

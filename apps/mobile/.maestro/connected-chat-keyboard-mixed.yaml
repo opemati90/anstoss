@@ -1,0 +1,31 @@
+appId: com.renuirug.anstoss
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 60000
+- openLink: 'anstoss://chat/${QA_SHORT_DM_ID}?kind=dm'
+- extendedWaitUntil:
+    visible: '.*Keyboard QA latest visible reply.*'
+    timeout: 20000
+- takeScreenshot: /private/tmp/anstoss-chat-mixed-before
+- tapOn:
+    id: chat-message-input
+- extendedWaitUntil:
+    visible:
+      id: space
+    timeout: 10000
+- takeScreenshot: /private/tmp/anstoss-chat-mixed-keyboard
+- assertVisible: '.*Keyboard QA latest visible reply.*'
+- inputText: Visible draft with keyboard open
+- assertVisible: 'Visible draft with keyboard open'
+- assertVisible: '.*Keyboard QA latest visible reply.*'
+- takeScreenshot: /private/tmp/anstoss-chat-mixed-draft
+- eraseText
+- swipe:
+    start: '50%,38%'
+    end: '50%,65%'
+    duration: 500
+- assertVisible: '.*Keyboard QA incoming.*'

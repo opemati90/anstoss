@@ -5,7 +5,9 @@ import type {
   ChatContactGroup,
   ChatConversationDetail,
   CreateGroupChannelInput,
+  ModerateChannelMemberInput,
 } from '@anstoss/shared'
+import { moderateChannelMemberSchema } from '@anstoss/shared'
 import { api } from './client'
 import type { ConversationKind } from '../components/chat/inboxModel'
 
@@ -54,6 +56,12 @@ export function addChannelMembers(clubId: string, channelId: string, userIds: st
 export function removeChannelMember(clubId: string, channelId: string, userId: string) {
   return api<{ removed: boolean }>(`/clubs/${clubId}/channels/${channelId}/members/${userId}`, {
     method: 'DELETE',
+  })
+}
+
+export function moderateChannelMember(clubId: string, channelId: string, userId: string, action: ModerateChannelMemberInput['action']) {
+  return api<{ status: 'active' | 'suspended' | 'removed' }>(`/clubs/${clubId}/channels/${channelId}/members/${userId}`, {
+    method: 'PATCH', body: moderateChannelMemberSchema.parse({ action }),
   })
 }
 

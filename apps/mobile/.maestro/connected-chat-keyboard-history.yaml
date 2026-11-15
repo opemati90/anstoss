@@ -1,0 +1,78 @@
+appId: com.renuirug.anstoss
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 60000
+- openLink: 'anstoss://chat/${QA_DM_ID}?kind=dm'
+- extendedWaitUntil:
+    visible:
+      id: chat-message-input
+    timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: chat-jump-latest
+    commands:
+      - tapOn:
+          id: chat-jump-latest
+- extendedWaitUntil:
+    visible: '.*Keyboard history 40.*'
+    timeout: 15000
+- tapOn:
+    id: chat-message-input
+- extendedWaitUntil:
+    visible:
+      id: space
+    timeout: 10000
+- assertVisible: '.*Keyboard history 40.*'
+- takeScreenshot: /private/tmp/anstoss-chat-long-keyboard
+- inputText: Long thread draft remains visible
+- assertVisible: 'Long thread draft remains visible'
+- assertVisible: '.*Keyboard history 40.*'
+- eraseText
+# Cross the 30-message API page boundary while the keyboard is present.
+- scrollUntilVisible:
+    element:
+      text: '.*Keyboard history 01.*'
+    direction: UP
+    timeout: 45000
+    visibilityPercentage: 75
+- takeScreenshot: /private/tmp/anstoss-chat-older-page
+- tapOn:
+    id: chat-message-input
+- extendedWaitUntil:
+    visible:
+      id: space
+    timeout: 10000
+- assertVisible: '.*Keyboard history 01.*'
+- tapOn:
+    id: chat-jump-latest
+- extendedWaitUntil:
+    visible: '.*Keyboard history 40.*'
+    timeout: 15000
+- openLink: 'anstoss://chat/${QA_CHANNEL_ID}?kind=channel'
+- extendedWaitUntil:
+    visible: '.*Keyboard group player reply.*'
+    timeout: 20000
+- tapOn:
+    id: chat-message-input
+- extendedWaitUntil:
+    visible:
+      id: space
+    timeout: 10000
+- assertVisible: '.*Keyboard group player reply.*'
+- assertVisible: '.*Keyboard group coach message.*'
+- inputText: Group keyboard draft
+- assertVisible: 'Group keyboard draft'
+- assertVisible: '.*Keyboard group player reply.*'
+- takeScreenshot: /private/tmp/anstoss-chat-group-keyboard
+- eraseText
+- inputText: Keyboard native group send
+- tapOn:
+    id: chat-send-message
+- extendedWaitUntil:
+    visible: '.*Keyboard native group send.*'
+    timeout: 10000

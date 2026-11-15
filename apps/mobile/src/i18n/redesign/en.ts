@@ -507,7 +507,7 @@ export default {
       autoReminders: "Automatic reminders",
       fixtureImport: "Fixture and table import",
       duesTracking: "Dues at a glance with GiroCode",
-      chatTranslation: "Chat translation in 7 languages",
+      chatTranslation: "Chat translation is currently unavailable",
       actingSessions: "Preview and stand-in for the board",
     },
     upgrade: {
@@ -520,7 +520,7 @@ export default {
       autoReminders: "Automatic reminders come with the Club plan.",
       fixtureImport: "Fixture and table import come with the Club plan.",
       duesTracking: "Dues with GiroCode come with the Club plan.",
-      chatTranslation: "Chat translation comes with the Club plan.",
+      chatTranslation: "Automatic chat translation is currently unavailable, including on paid plans.",
       actingSessions: "Preview and stand-in come with the Club plan.",
     },
   },

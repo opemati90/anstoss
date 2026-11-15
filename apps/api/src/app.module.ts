@@ -46,6 +46,7 @@ import { AdminInboxModule } from './admin-inbox/admin-inbox.module'
 import { ActingModule } from './acting/acting.module'
 import { StudioModule } from './studio/studio.module'
 import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
+import { SupportModule } from './support/support.module'
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { PlatformKillSwitchGuard } from './admin/platform-kill-switch.guard'
     SponsorsModule,
     ClubActivationModule,
     AdminInboxModule,
+    SupportModule,
   ],
   controllers: [WellKnownController],
   providers: [{ provide: APP_GUARD, useClass: PlatformKillSwitchGuard }],

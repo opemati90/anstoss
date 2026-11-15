@@ -106,6 +106,7 @@ describe('useDmChat', () => {
       }),
     )
 
+    expect(result.current.connectionState).toBe('connecting')
     expect(mockIo).toHaveBeenCalledWith(
       'http://api.test/chat',
       expect.objectContaining({
@@ -315,6 +316,11 @@ describe('useDmChat', () => {
       }),
     )
 
+    expect(result.current.connectionState).toBe('connecting')
+    act(() => socket.trigger('connect_error', new Error('unavailable')))
+    expect(result.current.connectionState).toBe('offline')
+    act(() => socket.triggerIo('reconnect_attempt'))
+    expect(result.current.connectionState).toBe('reconnecting')
     act(() => {
       socket.trigger('disconnect', 'transport close')
     })

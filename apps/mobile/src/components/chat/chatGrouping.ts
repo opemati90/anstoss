@@ -41,7 +41,7 @@ export function sameGroup(a: ChatMessage | null | undefined, b: ChatMessage | nu
  * Rows for the thread in chronological order (oldest first): day pills,
  * the "Neue Nachrichten" divider before the first unread message from
  * someone else, and message rows carrying the grouped-corner flags.
- * The inverted list reverses this.
+ * Render directly: the native list must remain non-inverted.
  */
 export function buildThreadRows(input: {
   messages: ChatMessage[]

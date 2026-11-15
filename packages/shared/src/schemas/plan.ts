@@ -39,7 +39,15 @@ export const NEVER_GATED_FEATURES = [
 export const PLAN_TRIAL_DAYS = 30
 
 /** Verein prices in euro cents, incl. VAT. Yearly = 10 × monthly (2 months free). */
-export const PLAN_PRICES_CENTS = { monthly: 1099, yearly: 10990 } as const
+/** Int32 sentinel: no commercial team/player cap, not an allocation size. */
+export const UNLIMITED_PLAN_LIMIT = 2_147_483_647
+export const PLAN_PACKAGES = [
+  { key: 'TEAM', teams: 1, players: 30, monthly: 1299, yearly: 12990 },
+  { key: 'CLUB_3', teams: 3, players: 90, monthly: 2499, yearly: 24990 },
+  { key: 'CLUB_6', teams: 6, players: 180, monthly: 3999, yearly: 39990 },
+  { key: 'UNLIMITED', teams: UNLIMITED_PLAN_LIMIT, players: UNLIMITED_PLAN_LIMIT, monthly: 4999, yearly: 49990 },
+] as const
+export const PLAN_PRICES_CENTS = { monthly: PLAN_PACKAGES[0].monthly, yearly: PLAN_PACKAGES[0].yearly } as const
 export const PLAN_CURRENCY = 'EUR'
 export const PLAN_SALES_EMAIL = 'kontakt@anstoss.io'
 
@@ -84,5 +92,5 @@ export type StartPlanTrialInput = z.infer<typeof startPlanTrialSchema>
 /** Every flag on for PRO/SCALE, off for FREE. */
 export function planFeatureFlags(tier: PlanTier): PlanFeatureFlags {
   const on = tier !== 'FREE'
-  return Object.fromEntries(PLAN_FEATURES.map((f) => [f, on])) as PlanFeatureFlags
+  return Object.fromEntries(PLAN_FEATURES.map((f) => [f, on && f !== 'chatTranslation' && f !== 'actingSessions'])) as PlanFeatureFlags
 }

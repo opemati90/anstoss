@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClubPlan, PlanPrice } from '@anstoss/shared'
+import { PLAN_PACKAGES, UNLIMITED_PLAN_LIMIT } from '@anstoss/shared'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useClubPlan, fallbackClubPlan } from '../src/hooks/useClubPlan'
 import { useAuth } from '../src/context/AuthContext'
@@ -50,14 +51,11 @@ const NOTE_LINE = 20
 
 /** Order of the check-list on the Verein card (board 35). */
 const FEATURE_ROWS = [
-  'limits',
   'clubColors',
   'liveTicker',
   'autoReminders',
   'fixtureImport',
   'duesTracking',
-  'chatTranslation',
-  'actingSessions',
 ] as const
 
 function formatPrice(price: PlanPrice, locale: string) {
@@ -90,9 +88,7 @@ export default function AboScreen() {
   const locale = getAppLocale(getAppLanguage())
 
   const plan: ClubPlan = loaded ?? fallbackClubPlan(activeClub?.club.id ?? '', false)
-  const price = formatPrice(plan.prices[interval], locale)
-  const per = interval === 'monthly' ? t('clubPlan.perMonth') : t('clubPlan.perYear')
-  const perShort = interval === 'monthly' ? t('clubPlan.perMonth') : t('clubPlan.perYearShort')
+  const per = interval === 'monthly' ? t('clubPlan.perMonth') : t('clubPlan.perYearShort')
   const teamsFull = plan.usage.teams >= plan.limits.teams
   const playersFull = plan.usage.players >= plan.limits.players
   const isFree = plan.tier === 'FREE'
@@ -203,7 +199,7 @@ export default function AboScreen() {
         <View style={[styles.hero, { backgroundColor: c.heroBg }]} testID="abo-verein">
           <View style={styles.heroHead}>
             <Text weight="bold" style={[styles.planTitle, { color: c.onHeroBg }]}>
-              {t('clubPlan.tier.PRO')}
+              {t('teamPackages.title')}
             </Text>
             <View style={[styles.tag, { backgroundColor: c.accent }]}>
               <Text variant="caption1" weight="bold" style={{ color: c.onAccent }}>
@@ -211,12 +207,20 @@ export default function AboScreen() {
               </Text>
             </View>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={[styles.price, { color: c.onHeroBg }]} testID="abo-price">
-              {price}
-            </Text>
-            <Text style={[styles.per, { color: c.onHeroMuted }]}>{per}</Text>
-          </View>
+          {PLAN_PACKAGES.map((entry) => (
+            <View key={entry.key} style={styles.packageRow} testID={`abo-package-${entry.key}`}>
+              <Text variant="headline" color={c.onHeroBg}>{t(`teamPackages.${entry.key}`)}</Text>
+              <Text variant="title2" color={c.onHeroBg} testID={`abo-price-${entry.key}`}>
+                {formatPrice({ amountCents: entry[interval], currency: 'EUR' }, locale)}
+                {' '}<Text variant="footnote" color={c.onHeroMuted}>{per}</Text>
+              </Text>
+              <Text variant="footnote" color={c.onHeroMuted}>
+                {entry.players === UNLIMITED_PLAN_LIMIT
+                  ? t('teamPackages.unlimitedPlayers')
+                  : t('teamPackages.players', { count: entry.players })}
+              </Text>
+            </View>
+          ))}
           <View style={styles.features}>
             {FEATURE_ROWS.map((key) => (
               <View key={key} style={styles.featureRow}>
@@ -232,11 +236,11 @@ export default function AboScreen() {
         </View>
 
         <Text variant="footnote" color="secondary" style={styles.note}>
-          {perHeadNote(t, plan, locale)}
+          {t('teamPackages.note')}
         </Text>
         {plan.salesEmail ? (
           <Text variant="footnote" color="secondary" style={styles.note}>
-            {t('clubPlan.sales', { email: plan.salesEmail })}
+            {t('teamPackages.contact', { email: plan.salesEmail })}
           </Text>
         ) : null}
       </ScrollView>
@@ -267,7 +271,7 @@ export default function AboScreen() {
               testID="abo-start-trial"
             />
             <Text variant="caption1" weight="regular" color="secondary" align="center">
-              {message ?? t('clubPlan.ctaNote', { price, per: perShort })}
+              {message ?? t('teamPackages.trial')}
             </Text>
           </>
         ) : (
@@ -287,24 +291,6 @@ export default function AboScreen() {
   )
 }
 
-function perHeadNote(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  plan: ClubPlan,
-  locale: string,
-) {
-  const head = t('clubPlan.noteHead')
-  const tail = t('clubPlan.noteTail')
-  const players = plan.usage.players
-  if (players <= 0) return `${head} ${tail}`
-  // "keine 50 Cent": the monthly price per player, rounded up to 10 cents.
-  const cents = Math.ceil(plan.prices.monthly.amountCents / players / 10) * 10
-  const amount =
-    cents < 100
-      ? t('clubPlan.cents', { count: cents })
-      : formatPrice({ amountCents: cents, currency: plan.prices.monthly.currency }, locale)
-  return `${head} ${t('clubPlan.notePerHead', { count: players, amount })} ${tail}`
-}
-
 function UsageBar({
   label,
   used,
@@ -321,6 +307,8 @@ function UsageBar({
   const full = used >= limit
   const filled = limit > 0 ? Math.min(used, limit) : 0
   const rest = Math.max(0, limit - filled)
+  const unlimited = limit === UNLIMITED_PLAN_LIMIT
+  const usageLabel = t('clubPlan.usage', { used, limit: unlimited ? '∞' : limit })
   return (
     <View style={styles.usage} testID={testID}>
       <View style={styles.usageHead}>
@@ -332,23 +320,24 @@ function UsageBar({
           weight={full ? 'bold' : 'medium'}
           color={full ? 'primary' : 'secondary'}
         >
-          {t('clubPlan.usage', { used, limit })}
+          {usageLabel}
         </Text>
       </View>
-      <View
+      {!unlimited && <View
         style={styles.bar}
         accessibilityRole="progressbar"
-        accessibilityLabel={`${label} ${t('clubPlan.usage', { used, limit })}`}
+        accessibilityLabel={`${label} ${usageLabel}`}
         accessibilityValue={{ min: 0, max: limit, now: filled }}
       >
         {filled > 0 ? <View style={{ flex: filled, backgroundColor: c.ink }} /> : null}
         {rest > 0 ? <View style={{ flex: rest, backgroundColor: c.borderDefault }} /> : null}
-      </View>
+      </View>}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  packageRow: { gap: SPACING_SM, paddingVertical: SPACING_SM },
   root: { flex: 1 },
   content: { paddingHorizontal: SCREEN_PADDING, gap: PAGE_GAP },
   flexShrink: { flexShrink: 1 },

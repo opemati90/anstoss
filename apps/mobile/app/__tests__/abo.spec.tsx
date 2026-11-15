@@ -2,6 +2,7 @@ import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import AboScreen from '../abo'
 import { fallbackClubPlan, useClubPlan } from '../../src/hooks/useClubPlan'
+import { PLAN_PACKAGES } from '@anstoss/shared'
 
 jest.mock('../../src/api/client', () => ({ api: jest.fn() }))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
@@ -34,6 +35,29 @@ beforeEach(() => {
     refresh,
     startTrial,
   })
+})
+
+it('does not sell unavailable chat translation or preview access', () => {
+  const view = render(<AboScreen />)
+  expect(view.queryByText('clubPlan.features.chatTranslation')).toBeNull()
+  expect(view.queryByText('clubPlan.features.actingSessions')).toBeNull()
+  expect(view.getByText('clubPlan.features.clubColors')).toBeTruthy()
+})
+
+it('shows all four shared package prices and switches to discounted annual totals', () => {
+  const view = render(<AboScreen />)
+  const format = (cents: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+  for (const entry of PLAN_PACKAGES) {
+    expect(view.getByTestId(`abo-package-${entry.key}`)).toBeTruthy()
+    expect(view.getByText(format(entry.monthly), { exact: false })).toBeTruthy()
+  }
+  fireEvent.press(view.getByTestId('abo-interval-yearly'))
+  for (const entry of PLAN_PACKAGES) {
+    expect(view.getByText(format(entry.yearly), { exact: false })).toBeTruthy()
+    expect(entry.yearly).toBeLessThan(entry.monthly * 12)
+  }
+  expect(view.getByText('teamPackages.trial')).toBeTruthy()
+  expect(view.queryByText('clubPlan.features.limits')).toBeNull()
 })
 
 it('does not show fabricated free-plan usage or trial permission while loading', () => {

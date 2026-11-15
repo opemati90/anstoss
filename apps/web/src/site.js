@@ -80,6 +80,19 @@
     select(billing, state.yearly ? 1 : 0, 'aria-checked')
     if (price) price.textContent = state.yearly ? t.club_py : t.club_pm
     if (per) per.textContent = state.yearly ? t.club_pery : t.club_perm
+    let packages = document.getElementById('team-package-prices')
+    if (!packages && price) {
+      packages = document.createElement('div')
+      packages.id = 'team-package-prices'
+      packages.setAttribute('aria-live', 'polite')
+      price.closest('.price').after(packages)
+    }
+    if (packages) {
+      const format = (cents) => new Intl.NumberFormat(document.documentElement.lang || 'de', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+      packages.innerHTML = window.AnstossPlanPackages.map((entry, index) =>
+        `<p><strong>${esc(t.package_labels[index])}</strong> · ${esc(format(entry[state.yearly ? 'yearly' : 'monthly']))} ${esc(state.yearly ? t.club_pery : t.club_perm)}</p>`
+      ).join('') + `<p class="mut">${esc(t.pr_save)} · ${esc(t.pr_fine)}</p>`
+    }
   }
   arrowNav(billing, (i) => {
     state.yearly = i === 1
@@ -90,4 +103,5 @@
     renderRole()
     renderPrice()
   })
+  renderPrice()
 })()

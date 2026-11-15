@@ -52,7 +52,7 @@ export type ChatMessage = {
   createdAt: string
 }
 
-export type ConnectionState = 'connected' | 'reconnecting' | 'offline'
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 
 /** History has a nested Prisma sender; live broadcasts use flattened names. */
 export function normalizeChatMessage(message: ChatMessage & { sender?: { name?: string | null; avatarUrl?: string | null } | null }): ChatMessage {
@@ -130,7 +130,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const cacheKey = getHistoryCacheKey(userId, teamId, channelId)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
-  const [connectionState, setConnectionState] = useState<ConnectionState>('offline')
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
   const [lastError, setLastError] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [hasMore, setHasMore] = useState(true)
@@ -233,6 +233,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   // Connect socket
   useEffect(() => {
     if (!token || !teamId) return
+    setConnectionState('connecting')
+    setLastError(null)
 
     // E2E / demo: chat history streams over Socket.io, which the request mock
     // does not intercept. Short-circuit to a seeded conversation so the Chat
@@ -268,7 +270,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     socket.on('disconnect', (reason) => {
-      setConnectionState('offline')
+      setConnectionState(reason === 'io server disconnect' ? 'offline' : 'reconnecting')
       if (reason === 'io server disconnect') notifyAccessChanged()
     })
 
@@ -286,6 +288,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setConnectionState('reconnecting')
     })
 
+    socket.io.on('reconnect_failed', () => {
+      setConnectionState('offline')
+    })
+
     // Source-language detection result — patches message so translation
     // becomes available without the user needing to reload history.
     socket.on(
@@ -294,6 +300,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, sourceLanguage } : m)))
       },
     )
+
+    socket.on('message:translation', (payload: {
+      messageId: string; conversationId: string; translation: NonNullable<ChatMessage['translation']>
+    }) => {
+      if (payload.conversationId !== channelId) return
+      setMessages((prev) => prev.map((message) => message.id === payload.messageId && !message.deletedAt
+        ? { ...message, translation: payload.translation } : message))
+    })
 
     // Incoming message
     socket.on('message', (msg: ChatMessage) => {

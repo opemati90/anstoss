@@ -30,6 +30,11 @@ export type CreateGroupChannelInput = z.infer<typeof createGroupChannelSchema>
 export type UpdateChatMuteInput = z.infer<typeof updateChatMuteSchema>
 export type AddChannelMembersInput = z.infer<typeof addChannelMembersSchema>
 
+export const moderateChannelMemberSchema = z.object({
+  action: z.enum(['suspend', 'remove', 'restore']),
+}).strict()
+export type ModerateChannelMemberInput = z.infer<typeof moderateChannelMemberSchema>
+
 // ─── Direct-message attachments ─────────────────────────────────────────
 // DMs reuse the channel media pipeline (presign → PUT to R2 → HEAD-validated
 // on send → signed GET per render). Same kinds, content types and limits.

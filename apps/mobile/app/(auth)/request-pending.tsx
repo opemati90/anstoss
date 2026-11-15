@@ -388,6 +388,8 @@ export default function RequestPendingScreen() {
           fullWidth
           testID="pending-withdraw"
         />
+        <Button label={t('support.title')} variant="plain"
+          onPress={() => router.push('/support' as never)} testID="pending-support" />
       </>
     )
 

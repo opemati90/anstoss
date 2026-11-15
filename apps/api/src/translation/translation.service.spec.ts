@@ -2,9 +2,11 @@ import { TranslationService } from './translation.service'
 
 describe('TranslationService cache writes', () => {
   const originalUrl = process.env.LIBRETRANSLATE_URL
+  const originalEnabled = process.env.CHAT_TRANSLATION_ENABLED
   const originalFetch = global.fetch
 
   beforeEach(() => {
+    process.env.CHAT_TRANSLATION_ENABLED = 'true'
     process.env.LIBRETRANSLATE_URL = 'https://translate.test'
     global.fetch = jest.fn((url: string) => {
       if (url.endsWith('/detect')) {
@@ -21,8 +23,22 @@ describe('TranslationService cache writes', () => {
   })
 
   afterEach(() => {
-    process.env.LIBRETRANSLATE_URL = originalUrl
+    if (originalUrl === undefined) delete process.env.LIBRETRANSLATE_URL
+    else process.env.LIBRETRANSLATE_URL = originalUrl
+    if (originalEnabled === undefined) delete process.env.CHAT_TRANSLATION_ENABLED
+    else process.env.CHAT_TRANSLATION_ENABLED = originalEnabled
     global.fetch = originalFetch
+  })
+
+  it.each([undefined, 'false'])('does not contact a configured provider when disabled (%s)', async (enabled) => {
+    if (enabled === undefined) delete process.env.CHAT_TRANSLATION_ENABLED
+    else process.env.CHAT_TRANSLATION_ENABLED = enabled
+    const service = new TranslationService({} as any)
+    for (const surface of ['channel', 'dm'] as const) {
+      await expect(service.translateForReader(surface, 'msg-1', 'en', 'Hello', 'de')).resolves.toBeNull()
+      await expect(service.detectAndPersistSource(surface, 'msg-1', 'Hello')).resolves.toBeNull()
+    }
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('writes channel translations only through an active-parent recheck', async () => {

@@ -75,10 +75,10 @@ describe('ClubEntitlementsService', () => {
     await service.publishPlan('admin-1', {
       tier: 'PRO',
       interval: 'TWELVE_MONTHS',
-      priceCents: 10_990,
+      priceCents: 12_990,
       currency: 'eur',
-      teamLimit: 5,
-      playerLimit: 150,
+      teamLimit: 1,
+      playerLimit: 30,
       features: [...PLAN_FEATURES],
       stripePriceId: 'price_pro_annual',
     })

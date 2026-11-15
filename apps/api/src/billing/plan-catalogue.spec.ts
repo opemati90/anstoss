@@ -6,10 +6,10 @@ import { AdminService } from '../admin/admin.service'
 const monthly = {
   tier: 'PRO' as const,
   interval: 'MONTHLY' as const,
-  priceCents: 1099,
+  priceCents: PLAN_PRICES_CENTS.monthly,
   currency: 'eur',
-  teamLimit: 5,
-  playerLimit: 150,
+  teamLimit: 1,
+  playerLimit: 30,
   features: [...PLAN_FEATURES],
   stripePriceId: 'price_monthly',
 }
@@ -29,7 +29,7 @@ describe('current monthly/yearly plan catalogue', () => {
     const service = new ClubEntitlementsService({} as never, {} as never)
     expect(service.planCatalogue()).toMatchObject({
       prices: PLAN_PRICES_CENTS,
-      yearlySavingsCents: 2198,
+      yearlySavingsCents: 2598,
       trialDays: 30,
       limits: { FREE: { teams: 1, players: 30 }, PRO: { teams: 5, players: 150 } },
     })
@@ -81,7 +81,7 @@ describe('Stripe price validation before admin publication', () => {
     active: true,
     type: 'recurring',
     currency: 'eur',
-    unit_amount: 1099,
+    unit_amount: PLAN_PRICES_CENTS.monthly,
     recurring: { interval: 'month', interval_count: 1 },
   }
   const serviceFor = (price: unknown) =>

@@ -153,6 +153,9 @@ export default function LanguageScreen() {
             defaultValue: 'Also applies to notifications and emails.',
           })}
         </Text>
+        <Text variant="footnote" color="secondary" testID="chat-translation-unavailable">
+          {tp('more.chatTranslationUnavailable')}
+        </Text>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>

@@ -1278,6 +1278,30 @@
     },
   }
 
+  const packageCopy = {
+    de: { labels: ['1 Team', '3 Teams', '6 Teams', 'Unbegrenzt'], note: 'Einzelteam oder Vereinspaket. Jährlich zahlst du 10 statt 12 Monatsbeiträge. Unbegrenzt bietet den besten Preis pro Team ab 7 Teams.', contact: 'Fragen zu den Teampaketen? Schreib uns.', unavailable: 'Automatische Chat-Übersetzung ist derzeit nicht verfügbar.' },
+    en: { labels: ['1 team', '3 teams', '6 teams', 'Unlimited'], note: 'Single-team or club packages. Pay for 10 months instead of 12 with annual billing. Unlimited is the best per-team value from 7 teams.', contact: 'Questions about team packages? Contact us.', unavailable: 'Automatic chat translation is currently unavailable.' },
+    tr: { labels: ['1 takım', '3 takım', '6 takım', 'Sınırsız'], note: 'Takım veya kulüp paketleri. Yıllık ödemede 12 yerine 10 ay öde. 7 takımdan itibaren sınırsız paket en uygun takım başı fiyatı sunar.', contact: 'Takım paketleri hakkında soruların mı var? Bize yaz.', unavailable: 'Otomatik sohbet çevirisi şu anda kullanılamıyor.' },
+    es: { labels: ['1 equipo', '3 equipos', '6 equipos', 'Ilimitado'], note: 'Paquetes para equipos o clubes. Con el pago anual pagas 10 meses en lugar de 12. Ilimitado ofrece el mejor precio por equipo a partir de 7 equipos.', contact: '¿Preguntas sobre los paquetes? Escríbenos.', unavailable: 'La traducción automática del chat no está disponible actualmente.' },
+    fr: { labels: ['1 équipe', '3 équipes', '6 équipes', 'Illimité'], note: 'Forfaits équipe ou club. Le paiement annuel coûte 10 mensualités au lieu de 12. Illimité offre le meilleur prix par équipe à partir de 7 équipes.', contact: 'Des questions sur les forfaits ? Contacte-nous.', unavailable: 'La traduction automatique du chat est actuellement indisponible.' },
+    pt: { labels: ['1 equipa', '3 equipas', '6 equipas', 'Ilimitado'], note: 'Pacotes para equipas ou clubes. O pagamento anual custa 10 mensalidades em vez de 12. Ilimitado tem o melhor preço por equipa a partir de 7 equipas.', contact: 'Dúvidas sobre os pacotes? Contacta-nos.', unavailable: 'A tradução automática do chat está indisponível de momento.' },
+    ar: { labels: ['فريق واحد', '3 فرق', '6 فرق', 'غير محدود'], note: 'باقات للفرق والأندية. الدفع السنوي يعادل 10 أشهر بدلاً من 12. الباقة غير المحدودة توفر أفضل سعر لكل فريق بدءاً من 7 فرق.', contact: 'هل لديك أسئلة عن الباقات؟ تواصل معنا.', unavailable: 'الترجمة التلقائية للدردشة غير متاحة حالياً.' },
+  }
+  for (const lang of LANGS) {
+    const copy = COPY[lang]
+    const details = packageCopy[lang]
+    const format = (cents) => new Intl.NumberFormat(lang, { style: 'currency', currency: 'EUR', numberingSystem: 'latn' }).format(cents / 100)
+    copy.club_name = details.labels[0]
+    copy.club_for = details.labels.join(' · ')
+    copy.club_pm = format(window.AnstossPlanPackages[0].monthly)
+    copy.club_py = format(window.AnstossPlanPackages[0].yearly)
+    copy.club_feats = [details.labels[0] + ' · 30', ...copy.club_feats.slice(1, -1)]
+    copy.package_labels = details.labels
+    copy.pr_note = details.note
+    copy.pr_big = details.contact
+    copy.lang_b += ' ' + details.unavailable
+  }
+
   const esc = (s) =>
     String(s).replace(
       /[&<>"']/g,
@@ -1405,7 +1429,7 @@
       b.setAttribute('aria-pressed', String(b.getAttribute('data-lang-pill') === l))
     })
     const tr = document.querySelector('[data-translated]')
-    if (tr) tr.hidden = l === 'de'
+    if (tr) tr.hidden = true
 
     document.dispatchEvent(new CustomEvent('anstoss:lang', { detail: { lang: l, t } }))
   }

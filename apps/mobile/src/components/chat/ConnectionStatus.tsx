@@ -15,7 +15,9 @@ export function ConnectionStatus({ state }: Props) {
   const { t } = useTranslation()
   const c = useClubColors()
 
-  if (state === 'connected') return null
+  // The first handshake is not a lost connection. Only show a warning when
+  // the transport actually fails or an established connection is interrupted.
+  if (state === 'connected' || state === 'connecting') return null
   // Mock-backend mode has no Socket.io server; the banner adds noise to
   // every chat screen during testing. Treat the socket as connected.
   if (getE2ESession()) return null

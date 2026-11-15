@@ -12,6 +12,37 @@ import redesign from './redesign/de' // 2026-11 Anstoss Redesign strings
 import { studioDe } from './studio/de'
 
 const base = {
+  teamPackages: {
+      "title": "Teampakete",
+      "TEAM": "1 Team",
+      "CLUB_3": "3 Teams",
+      "CLUB_6": "6 Teams",
+      "UNLIMITED": "Unbegrenzte Teams",
+      "players": "Bis zu {{count}} Spieler",
+      "unlimitedPlayers": "Unbegrenzte Spieler",
+      "note": "Jährlich zahlst du 10 statt 12 Monatsbeiträge. Ab 7 Teams bietet Unbegrenzt den besten Preis pro Team.",
+      "trial": "Der kostenlose Test umfasst 1 Team und 30 Spieler. Keine Karte nötig; danach gilt Kostenlos, sofern du kein Abo wählst.",
+      "contact": "Fragen zu den Paketen? {{email}}"
+  },
+  voiceRecording: {
+      "unavailable": "Sprachnachrichten sind in dieser Version nicht verfügbar. Bitte aktualisiere die App.",
+      "permissionTitle": "Mikrofonzugriff benötigt",
+      "permissionBody": "Erlaube den Mikrofonzugriff in den Einstellungen und halte dann das Mikrofon zum Aufnehmen gedrückt.",
+      "settings": "Einstellungen öffnen",
+      "failed": "Aufnahme nicht möglich. Beende ein laufendes Telefonat und versuche es erneut.",
+      "hold": "Zum Aufnehmen gedrückt halten. Zum Senden loslassen."
+  },
+  chatModeration: {
+    title: "Chat-Zugang: {{name}}",
+    explanation: "Sperren: Lesen bleibt möglich, Schreiben nicht. Entfernen: kein Zugang zu diesem Chat. Vereins- und Teammitgliedschaft bleiben unverändert.",
+    suspend: "Schreiben sperren",
+    restore: "Chat-Zugang wiederherstellen",
+    remove: "Aus diesem Chat entfernen",
+    removeConfirm: "{{name}} verliert nur den Zugang zu diesem Chat. Die Vereins- und Teammitgliedschaft bleibt bestehen.",
+    suspended: "Schreiben gesperrt · Lesen möglich",
+    removed: "Aus diesem Chat entfernt",
+    failed: "Der Chat-Zugang konnte nicht geändert werden. Bitte erneut versuchen.",
+  },
   studio: studioDe,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
@@ -1575,6 +1606,7 @@ const base = {
     signOutTitle: 'Abmelden',
     signOutBody: 'Möchtest du dich wirklich abmelden?',
     languageChoiceTitle: 'Sprache wählen',
+    chatTranslationUnavailable: 'Automatische Chat-Übersetzung ist derzeit nicht verfügbar. Nachrichten bleiben in ihrer Originalsprache.',
     languageChoiceBody:
       'Leg fest, in welcher Sprache die App angezeigt wird. Du kannst das jederzeit ändern.',
     languageChoiceDescriptionDe: 'Deutsche Texte für Spieler, Trainer und Eltern in Deutschland.',

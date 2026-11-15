@@ -1,4 +1,5 @@
 import React from 'react'
+import { Switch } from 'react-native'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import EventDetailScreen from '../event-detail'
 import { api } from '../../src/api/client'
@@ -94,6 +95,20 @@ function detail(overrides: Record<string, unknown> = {}) {
 }
 
 describe('EventDetailScreen', () => {
+  it('uses distinct on/off reminder tracks and thumbs, with an explicit checked state', async () => {
+    mockApi.mockResolvedValue(detail({ reminderEnabled: false }))
+    const screen = render(<EventDetailScreen />)
+    await screen.findByTestId('event-reminder-toggle')
+    const toggle = screen.UNSAFE_getByType(Switch)
+    expect(toggle.props.trackColor.true).not.toBe(toggle.props.trackColor.false)
+    expect(toggle.props.accessibilityState.checked).toBe(false)
+    const offThumb = toggle.props.thumbColor
+    fireEvent(toggle, 'valueChange', true)
+    await waitFor(() => expect(screen.UNSAFE_getByType(Switch).props.value).toBe(true))
+    expect(screen.UNSAFE_getByType(Switch).props.thumbColor).not.toBe(offThumb)
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/events/match-1/reminder', expect.objectContaining({ method: 'PUT' }))
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockUser = { id: 'user-player', name: 'Tim Weber' }

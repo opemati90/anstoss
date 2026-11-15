@@ -370,6 +370,8 @@ export const supportActionSchema = z.object({
 export const createEntitlementGrantSchema = z
   .object({
     tier: planTierSchema.exclude(['FREE']),
+    /** Explicit package selection; old clients default to the single-team package. */
+    teamLimit: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(2147483647)]).optional(),
     interval: planIntervalSchema,
     source: z.enum(['COMPLIMENTARY', 'TRIAL']),
     reason: z.string().trim().min(3).max(500),
@@ -396,8 +398,8 @@ export const publishPlanDefinitionSchema = z.object({
   interval: planIntervalSchema.exclude(['SIX_MONTHS']),
   priceCents: z.number().int().min(100).max(1_000_000),
   currency: z.string().length(3).default('eur'),
-  teamLimit: z.number().int().min(1).max(100),
-  playerLimit: z.number().int().min(1).max(10_000),
+  teamLimit: z.number().int().min(1).max(2147483647),
+  playerLimit: z.number().int().min(1).max(2147483647),
   features: z.array(z.string().trim().min(1).max(80)).max(100),
   stripePriceId: z.string().trim().min(1).max(255).nullable().optional(),
 })

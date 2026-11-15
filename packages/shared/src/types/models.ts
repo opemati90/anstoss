@@ -699,6 +699,7 @@ export interface ChatChannelDetail extends Channel {
   muted: boolean
   mutedUntil: string | null
   canManageMembers: boolean
+  canModerateMembers?: boolean
 }
 
 export interface ChatConversationDetail {
@@ -779,6 +780,8 @@ export interface ChatChannelMember {
   avatarUrl: string | null
   role: string
   isMember: boolean
+  moderationStatus?: 'active' | 'suspended' | 'removed'
+  canModerate?: boolean
 }
 
 export interface Invite {

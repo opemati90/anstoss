@@ -1,6 +1,16 @@
 appId: com.renuirug.anstoss
 ---
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - openLink: 'exp+anstoss://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8125'
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - runFlow:
     when:
       visible: '.*:8125.*'
@@ -8,10 +18,35 @@ appId: com.renuirug.anstoss
       - tapOn: '.*:8125.*'
 - runFlow:
     when:
+      visible: 'Enter URL manually'
+    commands:
+      - tapOn: 'Enter URL manually'
+      - tapOn: 'http://'
+      - inputText: 'http://127.0.0.1:8125'
+      - tapOn: 'Connect'
+- runFlow:
+    when:
       visible: '.*developer menu.*'
     commands:
       - tapOn: 'Continue'
 - openLink: 'anstoss://e2e?scenario=signed-out&lang=${QA_LANGUAGE}'
+- runFlow:
+    when:
+      visible: 'Go home'
+    commands:
+      - tapOn:
+          point: '90%,48%'
+      - runFlow:
+          when:
+            visible: 'Go home'
+          commands:
+            - tapOn:
+                point: '90%,11%'
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - extendedWaitUntil:
     visible:
       id: welcome-sign-in

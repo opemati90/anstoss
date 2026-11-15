@@ -12,6 +12,37 @@ import redesign from './redesign/it' // 2026-11 Anstoss Redesign strings
 import { studioIt } from './studio/it'
 
 const base = {
+  teamPackages: {
+      "title": "Pacchetti squadre",
+      "TEAM": "1 squadra",
+      "CLUB_3": "3 squadre",
+      "CLUB_6": "6 squadre",
+      "UNLIMITED": "Squadre illimitate",
+      "players": "Fino a {{count}} giocatori",
+      "unlimitedPlayers": "Giocatori illimitati",
+      "note": "Il pagamento annuale costa 10 mensilità anziché 12. Illimitato offre il miglior prezzo per squadra da 7 squadre.",
+      "trial": "La prova gratuita include 1 squadra e 30 giocatori. Nessuna carta; si torna al piano gratuito salvo scelta di un abbonamento.",
+      "contact": "Domande sui pacchetti? {{email}}"
+  },
+  voiceRecording: {
+      "unavailable": "I messaggi vocali non sono disponibili in questa versione. Aggiorna l’app.",
+      "permissionTitle": "Accesso al microfono necessario",
+      "permissionBody": "Consenti l’accesso al microfono nelle impostazioni, poi tieni premuto per registrare.",
+      "settings": "Apri impostazioni",
+      "failed": "Registrazione non riuscita. Termina eventuali chiamate e riprova.",
+      "hold": "Tieni premuto per registrare. Rilascia per inviare."
+  },
+  chatModeration: {
+    title: "Accesso alla chat: {{name}}",
+    explanation: "Sospendi: può leggere ma non scrivere. Rimuovi: non può accedere a questa chat. L’iscrizione al club e alla squadra non cambia.",
+    suspend: "Sospendi l’invio",
+    restore: "Ripristina l’accesso alla chat",
+    remove: "Rimuovi da questa chat",
+    removeConfirm: "{{name}} perderà solo l’accesso a questa chat. L’iscrizione al club e alla squadra non cambierà.",
+    suspended: "Invio sospeso · lettura consentita",
+    removed: "Rimossi da questa chat",
+    failed: "Impossibile modificare l’accesso alla chat. Riprova.",
+  },
   studio: studioIt,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
@@ -1574,6 +1605,7 @@ const base = {
     signOutTitle: 'Esci',
     signOutBody: 'Vuoi davvero uscire?',
     languageChoiceTitle: 'Scegli lingua',
+    chatTranslationUnavailable: 'La traduzione automatica della chat non è attualmente disponibile. I messaggi restano nella lingua originale.',
     languageChoiceBody:
       "Scegli la lingua usata in tutta l'app. Puoi cambiarla in qualsiasi momento.",
     languageChoiceDescriptionDe:

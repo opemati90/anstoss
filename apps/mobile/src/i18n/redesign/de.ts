@@ -521,7 +521,7 @@ export default {
       autoReminders: "Automatische Erinnerungen",
       fixtureImport: "Spielplan und Tabelle importieren",
       duesTracking: "Beiträge im Blick mit GiroCode",
-      chatTranslation: "Chat-Übersetzung in 7 Sprachen",
+      chatTranslation: "Chat-Übersetzung ist derzeit nicht verfügbar",
       actingSessions: "Vorschau und Vertretung für den Vorstand",
     },
     upgrade: {
@@ -534,7 +534,7 @@ export default {
       autoReminders: "Automatische Erinnerungen gibt es mit dem Abo Verein.",
       fixtureImport: "Spielplan- und Tabellenimport gibt es mit dem Abo Verein.",
       duesTracking: "Beiträge mit GiroCode gibt es mit dem Abo Verein.",
-      chatTranslation: "Chat-Übersetzung gibt es mit dem Abo Verein.",
+      chatTranslation: "Automatische Chat-Übersetzung ist derzeit auch mit einem kostenpflichtigen Abo nicht verfügbar.",
       actingSessions: "Vorschau und Vertretung gibt es mit dem Abo Verein.",
     },
   },

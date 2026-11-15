@@ -17,6 +17,7 @@ import fr from './fr'
 import it from './it'
 import pt from './pt'
 import tr from './tr'
+import { supportCopy } from './support'
 
 export {
   APP_LANGUAGES,
@@ -30,12 +31,12 @@ export {
 
 void i18n.use(initReactI18next).init({
   resources: {
-    de: { translation: de },
-    en: { translation: en },
-    fr: { translation: fr },
-    pt: { translation: pt },
-    it: { translation: it },
-    tr: { translation: tr },
+    de: { translation: { ...de, support: supportCopy.de } },
+    en: { translation: { ...en, support: supportCopy.en } },
+    fr: { translation: { ...fr, support: supportCopy.fr } },
+    pt: { translation: { ...pt, support: supportCopy.pt } },
+    it: { translation: { ...it, support: supportCopy.it } },
+    tr: { translation: { ...tr, support: supportCopy.tr } },
   },
   lng: DEFAULT_LANGUAGE,
   fallbackLng: DEFAULT_LANGUAGE,

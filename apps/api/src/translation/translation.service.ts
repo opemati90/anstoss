@@ -10,6 +10,9 @@ type Surface = 'channel' | 'dm'
 @Injectable()
 export class TranslationService {
   private readonly logger = new Logger(TranslationService.name)
+  // Opt-in only: an old provider URL must not silently enable chat-data egress.
+  // Keep disabled until an approved, funded provider is available.
+  private readonly enabled = process.env.CHAT_TRANSLATION_ENABLED === 'true'
   private readonly baseUrl = process.env.LIBRETRANSLATE_URL?.replace(/\/$/, '')
   private readonly apiKey = process.env.LIBRETRANSLATE_API_KEY?.trim() || null
 
@@ -28,7 +31,7 @@ export class TranslationService {
     content: string,
     targetLanguage: string,
   ): Promise<{ content: string; sourceLanguage: string } | null> {
-    if (!this.baseUrl) return null
+    if (!this.enabled || !this.baseUrl) return null
     if (!content || content.trim().length === 0) return null
     const target = this.normalize(targetLanguage)
     if (!target) return null
@@ -62,7 +65,7 @@ export class TranslationService {
     messageId: string,
     content: string,
   ): Promise<string | null> {
-    if (!this.baseUrl) return null
+    if (!this.enabled || !this.baseUrl) return null
     const detected = await this.detect(content)
     if (!detected) return null
     await this.persistDetectedSource(surface, messageId, detected).catch(() => undefined)
@@ -108,6 +111,7 @@ export class TranslationService {
       const body = new URLSearchParams({ q: text.slice(0, 500) })
       if (this.apiKey) body.set('api_key', this.apiKey)
       const res = await fetch(`${this.baseUrl}/detect`, {
+        signal: AbortSignal.timeout(4000),
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
@@ -138,6 +142,7 @@ export class TranslationService {
       })
       if (this.apiKey) body.set('api_key', this.apiKey)
       const res = await fetch(`${this.baseUrl}/translate`, {
+        signal: AbortSignal.timeout(4000),
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,

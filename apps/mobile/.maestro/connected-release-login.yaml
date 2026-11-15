@@ -1,0 +1,28 @@
+appId: com.renuirug.anstoss
+---
+# Local release build against port 3167. No development-only /e2e route.
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: welcome-sign-in
+    timeout: 20000
+- tapOn:
+    id: welcome-sign-in
+- extendedWaitUntil:
+    visible:
+      id: sign-in-email-input
+    timeout: 15000
+- tapOn:
+    id: sign-in-email-input
+- inputText: '${QA_EMAIL}'
+- tapOn:
+    id: sign-in-send
+- extendedWaitUntil:
+    visible:
+      id: sign-in-code
+    timeout: 15000
+- inputText: '${QA_OTP}'
+- extendedWaitUntil:
+    visible:
+      id: club-header-identity
+    timeout: 30000

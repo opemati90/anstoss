@@ -373,6 +373,12 @@
               <option value="TWELVE_MONTHS">Yearly</option>
             </select>
             </label>
+            <label>Team package
+              <select id="plan-package" class="text-input" aria-label="Team package">
+                <option value="1">1 team</option><option value="3">3 teams</option>
+                <option value="6">6 teams</option><option value="2147483647">Unlimited teams</option>
+              </select>
+            </label>
             <label>Price per billing period (EUR)
             <input
               id="plan-price"
@@ -390,7 +396,7 @@
               class="text-input"
               type="number"
               min="1"
-              max="100"
+              max="2147483647"
               placeholder="Team limit"
               required
             />
@@ -401,7 +407,7 @@
               class="text-input"
               type="number"
               min="1"
-              max="10000"
+              max="2147483647"
               placeholder="Player limit"
               required
             />
@@ -583,11 +589,23 @@
       </section>
 
       <section class="page" data-page="support" hidden>
-        <h1 class="welcome">Support notes.</h1>
+        <h1 class="welcome">Support.</h1>
         <p class="lede">
-          Record internal support notes for a club. State-changing operations stay outside this
-          console until they are implemented and reviewed.
+          Read user reports, reply privately and resolve requests. Internal club notes stay separate.
         </p>
+        <article class="panel">
+          <h2>User requests.</h2>
+          <label>Status
+            <select id="support-ticket-filter">
+              <option value="">All requests</option><option value="OPEN">Open</option>
+              <option value="WAITING">Waiting for user</option><option value="RESOLVED">Resolved</option>
+            </select>
+          </label>
+          <button id="support-ticket-refresh" class="pill" type="button">Refresh requests</button>
+          <div id="support-tickets" class="stack-list" aria-live="polite"></div>
+          <button id="support-ticket-more" class="pill" type="button" hidden>Load more</button>
+        </article>
+        <article class="panel" id="support-ticket-detail" hidden></article>
         <div class="grid-2">
           <article class="panel">
             <h2>Record context.</h2>

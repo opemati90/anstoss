@@ -1,4 +1,4 @@
-import { PLAN_FEATURES } from '@anstoss/shared'
+import { PLAN_FEATURES, PLAN_PRICES_CENTS } from '@anstoss/shared'
 import {
   ClubEntitlementsService,
   PlanManagementForbiddenException,
@@ -49,7 +49,10 @@ function makePrisma(opts: {
         ),
     },
     rosterSlot: { count: jest.fn().mockResolvedValue(0) },
-    planDefinition: { findUnique: jest.fn().mockResolvedValue(null) },
+    planDefinition: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue({ id: 'current-single-team-plan' }),
+    },
     $transaction: jest.fn(),
   }
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma))
@@ -73,8 +76,8 @@ describe('ClubEntitlementsService plans and pricing', () => {
       limits: { teams: 1, players: 30 },
       usage: { teams: 1, players: 22 },
       prices: {
-        monthly: { amountCents: 1099, currency: 'EUR' },
-        yearly: { amountCents: 10990, currency: 'EUR' },
+        monthly: { amountCents: PLAN_PRICES_CENTS.monthly, currency: 'EUR' },
+        yearly: { amountCents: PLAN_PRICES_CENTS.yearly, currency: 'EUR' },
       },
       canManage: false,
     })
@@ -107,7 +110,9 @@ describe('ClubEntitlementsService plans and pricing', () => {
       limits: { teams: 5, players: 150 },
       canManage: true,
     })
-    for (const feature of PLAN_FEATURES) expect(plan.features[feature]).toBe(true)
+    for (const feature of PLAN_FEATURES) {
+      expect(plan.features[feature]).toBe(feature !== 'chatTranslation' && feature !== 'actingSessions')
+    }
   })
 
   it('gates features through hasFeature', async () => {
@@ -133,7 +138,10 @@ describe('ClubEntitlementsService plans and pricing', () => {
     await service(prisma).startTrial('club-1', 'treasurer-1')
     const data = prisma.entitlementGrant.create.mock.calls[0][0].data
     expect(data).toMatchObject({ clubId: 'club-1', tier: 'PRO', source: 'TRIAL' })
-    expect(data.planDefinitionId).toBeUndefined()
+    expect(data.planDefinitionId).toBe('current-single-team-plan')
+    expect(prisma.planDefinition.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tier: 'PRO', interval: 'MONTHLY', teamLimit: 1 }),
+    }))
     const days = (data.expiresAt.getTime() - data.startsAt.getTime()) / 86400000
     expect(days).toBe(30)
     expect(prisma.auditLog.create).toHaveBeenCalledWith(

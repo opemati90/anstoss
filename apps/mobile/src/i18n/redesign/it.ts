@@ -507,7 +507,7 @@ export default {
       autoReminders: "Promemoria automatici",
       fixtureImport: "Import di calendario e classifica",
       duesTracking: "Quote sotto controllo con GiroCode",
-      chatTranslation: "Traduzione chat in 7 lingue",
+      chatTranslation: "Traduzione della chat attualmente non disponibile",
       actingSessions: "Anteprima e sostituzione per il direttivo",
     },
     upgrade: {
@@ -520,7 +520,7 @@ export default {
       autoReminders: "I promemoria automatici sono inclusi nell’abbonamento Club.",
       fixtureImport: "L’import di calendario e classifica è incluso nell’abbonamento Club.",
       duesTracking: "Le quote con GiroCode sono incluse nell’abbonamento Club.",
-      chatTranslation: "La traduzione della chat è inclusa nell’abbonamento Club.",
+      chatTranslation: "La traduzione automatica della chat non è attualmente disponibile, nemmeno con un abbonamento a pagamento.",
       actingSessions: "Anteprima e sostituzione sono incluse nell’abbonamento Club.",
     },
   },

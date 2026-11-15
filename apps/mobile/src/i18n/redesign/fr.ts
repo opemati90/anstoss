@@ -507,7 +507,7 @@ export default {
       autoReminders: "Rappels automatiques",
       fixtureImport: "Import du calendrier et du classement",
       duesTracking: "Cotisations suivies avec GiroCode",
-      chatTranslation: "Traduction du chat en 7 langues",
+      chatTranslation: "Traduction du chat actuellement indisponible",
       actingSessions: "Aperçu et remplacement pour le comité",
     },
     upgrade: {
@@ -520,7 +520,7 @@ export default {
       autoReminders: "Les rappels automatiques sont inclus dans l’abonnement Club.",
       fixtureImport: "L’import du calendrier et du classement est inclus dans l’abonnement Club.",
       duesTracking: "Les cotisations avec GiroCode sont incluses dans l’abonnement Club.",
-      chatTranslation: "La traduction du chat est incluse dans l’abonnement Club.",
+      chatTranslation: "La traduction automatique du chat est actuellement indisponible, même avec un abonnement payant.",
       actingSessions: "L’aperçu et le remplacement sont inclus dans l’abonnement Club.",
     },
   },

@@ -59,7 +59,7 @@ export function normalizeDmMessage(message: DmMessage): DmMessage {
   }
 }
 
-export type DmConnectionState = 'connected' | 'reconnecting' | 'offline'
+export type DmConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 
 type UseDmChatOptions = {
   conversationId: string
@@ -98,7 +98,7 @@ function getDmHistoryCacheKey(userId: string, conversationId: string) {
 export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null }: UseDmChatOptions) {
   const cacheKey = getDmHistoryCacheKey(userId, conversationId)
   const [messages, setMessages] = useState<DmMessage[]>([])
-  const [connectionState, setConnectionState] = useState<DmConnectionState>('offline')
+  const [connectionState, setConnectionState] = useState<DmConnectionState>('connecting')
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -141,6 +141,8 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
   useEffect(() => {
     if (!token || !conversationId) return
+    setConnectionState('connecting')
+    setLastError(null)
 
     // E2E / demo: no Socket.io server behind the request mock. Seed the
     // thread so the conversation screen renders a real exchange.
@@ -167,6 +169,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
     socket.on('connect', () => {
       setConnectionState('connected')
+      setLastError(null)
       socket.emit('dm:join', { conversationId })
       loadHistory()
     })
@@ -185,6 +188,15 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
     socket.io.on('reconnect_failed', () => {
       setConnectionState('offline')
+    })
+
+    socket.on('connect_error', () => {
+      setConnectionState('offline')
+      setLastError('connect_error')
+    })
+
+    socket.io.on('reconnect_attempt', () => {
+      setConnectionState('reconnecting')
     })
 
     socket.on('dm:message', (raw: DmMessage) => {
@@ -215,6 +227,14 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
           setLastError(null)
         }
       }
+    })
+
+    socket.on('dm:translation', (payload: {
+      messageId: string; conversationId: string; translation: NonNullable<DmMessage['translation']>
+    }) => {
+      if (payload.conversationId !== conversationId) return
+      setMessages((prev) => prev.map((message) => message.id === payload.messageId && !message.deletedAt
+        ? { ...message, translation: payload.translation } : message))
     })
 
     // Reactions and deletes arrive as full rows.

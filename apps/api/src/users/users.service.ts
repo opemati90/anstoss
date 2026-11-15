@@ -1617,6 +1617,7 @@ export class UsersService {
       parentHandoffsCreated,
       parentHandoffsRedeemed,
       claimedRosterSlot,
+      supportTickets,
     ] = await Promise.all([
       this.prisma.membership.findMany({
         where: { userId },
@@ -1831,6 +1832,10 @@ export class UsersService {
           team: { select: { name: true, displayName: true, club: { select: { name: true } } } },
         },
       }),
+      this.prisma.supportTicket.findMany({
+        where: { requesterId: userId },
+        include: { messages: { orderBy: { createdAt: 'asc' } } },
+      }),
     ])
 
     return {
@@ -1960,6 +1965,7 @@ export class UsersService {
       },
       notificationPreferences,
       pushTokens,
+      supportTickets,
       joinRequests: joinRequests.map((request: any) => ({
         clubName: request.club?.name ?? null,
         teamId: request.teamId,
@@ -2271,6 +2277,8 @@ export class UsersService {
       // roster-claim, injury, duty, and marketplace rows.
       await tx.pushToken.deleteMany({ where: { userId } })
       await tx.notificationPreference.deleteMany({ where: { userId } })
+      // Private support messages cascade; soft-deleting User alone is not enough.
+      await tx.supportTicket.deleteMany({ where: { requesterId: userId } })
       if (normalizedEmail) {
         await tx.otpCode.deleteMany({ where: { email: normalizedEmail } })
       }

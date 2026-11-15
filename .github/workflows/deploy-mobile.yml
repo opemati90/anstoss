@@ -56,7 +56,6 @@ jobs:
       - name: Trigger preview build (Android)
         run: eas build --platform android --profile preview --non-interactive --no-wait
         working-directory: apps/mobile
-        continue-on-error: true
 
   build-testflight:
     name: EAS TestFlight Build (iOS)

@@ -21,6 +21,7 @@ import {
   PLAN_CURRENCY,
   PLAN_FEATURES,
   PLAN_PRICES_CENTS,
+  PLAN_PACKAGES,
   PLAN_SALES_EMAIL,
   PLAN_TRIAL_DAYS,
   planFeatureFlags,
@@ -92,7 +93,12 @@ export class ClubEntitlementsService {
       where: {
         clubId,
         startsAt: { lte: now },
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: now } },
+          // A failed renewal can start grace after the paid period has ended.
+          { status: EntitlementStatus.SUSPENDED, graceEndsAt: { gt: now } },
+        ],
       },
       orderBy: [{ createdAt: 'desc' }],
     })
@@ -297,16 +303,17 @@ export class ClubEntitlementsService {
     actorLabel: string | null = null,
   ) {
     if (input.tier === 'PRO') {
+      const selected = PLAN_PACKAGES.find((entry) => entry.teams === input.teamLimit)
+      if (!selected) throw new BadRequestException('Choose a current team package')
       const expectedPrice =
-        input.interval === 'MONTHLY' ? PLAN_PRICES_CENTS.monthly : PLAN_PRICES_CENTS.yearly
+        input.interval === 'MONTHLY' ? selected.monthly : selected.yearly
       if (input.priceCents !== expectedPrice || input.currency.toUpperCase() !== PLAN_CURRENCY) {
         throw new BadRequestException(
           'Verein pricing must match the shared monthly/yearly app and website catalogue',
         )
       }
       if (
-        input.teamLimit !== PLAN_LIMITS.PRO.teams ||
-        input.playerLimit !== PLAN_LIMITS.PRO.players
+        input.playerLimit !== selected.players
       ) {
         throw new BadRequestException(
           'Verein limits must match the shared app plan; use Scale for a custom agreement',
@@ -322,17 +329,21 @@ export class ClubEntitlementsService {
         where: { tier: input.tier, interval: input.interval },
         orderBy: { version: 'desc' },
       })
+      const existingPackage = await tx.planDefinition.findFirst({
+        where: { tier: input.tier, interval: input.interval, teamLimit: input.teamLimit },
+        orderBy: { version: 'desc' },
+      })
       const normalizedFeatures = [...new Set(input.features)].sort()
       if (
-        latest &&
-        latest.priceCents === input.priceCents &&
-        latest.currency === input.currency.toLowerCase() &&
-        latest.teamLimit === input.teamLimit &&
-        latest.playerLimit === input.playerLimit &&
-        latest.stripePriceId === (input.stripePriceId ?? null) &&
-        [...latest.features].sort().join('\u0000') === normalizedFeatures.join('\u0000')
+        existingPackage &&
+        existingPackage.priceCents === input.priceCents &&
+        existingPackage.currency === input.currency.toLowerCase() &&
+        existingPackage.teamLimit === input.teamLimit &&
+        existingPackage.playerLimit === input.playerLimit &&
+        existingPackage.stripePriceId === (input.stripePriceId ?? null) &&
+        [...existingPackage.features].sort().join('\u0000') === normalizedFeatures.join('\u0000')
       ) {
-        return latest
+        return existingPackage
       }
       const plan = await tx.planDefinition.create({
         data: {
@@ -373,6 +384,7 @@ export class ClubEntitlementsService {
     return {
       currency: PLAN_CURRENCY,
       prices: PLAN_PRICES_CENTS,
+      packages: PLAN_PACKAGES,
       yearlySavingsCents: PLAN_PRICES_CENTS.monthly * 12 - PLAN_PRICES_CENTS.yearly,
       trialDays: PLAN_TRIAL_DAYS,
       limits: PLAN_LIMITS,
@@ -397,7 +409,9 @@ export class ClubEntitlementsService {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`entitlement-grant:${clubId}`}))`
       const definition = await tx.planDefinition.findFirst({
-        where: { tier: input.tier, interval: input.interval, publishedAt: { not: null } },
+        where: { tier: input.tier, interval: input.interval, publishedAt: { not: null },
+          ...(input.tier === 'PRO' ? { teamLimit: input.teamLimit ?? 1 } : {}),
+        },
         orderBy: [{ version: 'desc' }, { publishedAt: 'desc' }],
       })
       if (!definition) throw new ConflictException('No published definition exists for this tier')
@@ -531,7 +545,8 @@ export class ClubEntitlementsService {
       (grant) =>
         grant.tier === entitlement.tier &&
         (grant.status === EntitlementStatus.ACTIVE ||
-          (grant.graceEndsAt !== null && grant.graceEndsAt > now)),
+          (grant.status === EntitlementStatus.SUSPENDED &&
+            grant.graceEndsAt !== null && grant.graceEndsAt > now)),
     )
     const source = entitlement.tier === PlanTier.FREE || !winning ? 'NONE' : winning.source
     return {
@@ -572,6 +587,11 @@ export class ClubEntitlementsService {
       const { tier } = await this.resolve(clubId, tx)
       if (tier !== PlanTier.FREE) throw new PlanTrialUnavailableException('already_paid')
       const startsAt = new Date()
+      const definition = await tx.planDefinition.findFirst({
+        where: { tier: PlanTier.PRO, teamLimit: 1, interval: 'MONTHLY', publishedAt: { not: null } },
+        orderBy: { version: 'desc' },
+      })
+      if (!definition) throw new ConflictException('The team trial catalogue is not available yet')
       const grant = await tx.entitlementGrant.create({
         data: {
           clubId,
@@ -581,6 +601,7 @@ export class ClubEntitlementsService {
           expiresAt: new Date(startsAt.getTime() + PLAN_TRIAL_DAYS * DAY_MS),
           reason: 'In-app 30-day Verein trial',
           createdById: userId,
+          planDefinitionId: definition.id,
         },
       })
       await tx.auditLog.create({

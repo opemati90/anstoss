@@ -203,6 +203,7 @@ export default function RootLayout() {
                   <Stack.Screen name="language" options={{ presentation: 'card' }} />
                   <Stack.Screen name="policy/[kind]" options={{ presentation: 'card' }} />
                   <Stack.Screen name="legal" options={{ presentation: 'card' }} />
+                  <Stack.Screen name="support" options={{ presentation: 'card' }} />
                   <Stack.Screen name="child-consent" options={{ presentation: 'card' }} />
                   <Stack.Screen
                     name="chat/[id]"

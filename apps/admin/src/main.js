@@ -165,6 +165,12 @@ function renderAuthGate(message = '') {
   appShell.hidden = !authenticated
 
   if (!authenticated) {
+    supportListGeneration += 1
+    supportDetailGeneration += 1
+    document.getElementById('support-tickets')?.replaceChildren()
+    const supportDetail = document.getElementById('support-ticket-detail')
+    supportDetail?.replaceChildren()
+    if (supportDetail) supportDetail.hidden = true
     usernameInput.value = getAdminUsername()
     passwordInput.value = ''
     status.textContent = message || 'Sign in to open the admin workspace.'
@@ -216,7 +222,7 @@ const SECTION_LABELS = {
   revenue: 'Revenue',
   health: 'Operations',
   audit: 'Audit log',
-  support: 'Support notes',
+  support: 'Support',
   broadcast: 'Broadcast push',
   flags: 'Feature flags',
   moderation: 'Moderation',
@@ -562,12 +568,13 @@ async function openClubDetail(clubId) {
       </section>
       <section class="detail-section">
         <h3>Plan access</h3>
-        <p class="muted-line">Effective tier: <strong>${esc(planLabel(entitlements.tier))}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players} player seats</p>
+        <p class="muted-line">Effective tier: <strong>${esc(planLabel(entitlements.tier))}</strong> · ${entitlements.usage.teams}/${entitlements.limits.teams === 2147483647 ? '∞' : entitlements.limits.teams} teams · ${entitlements.usage.players}/${entitlements.limits.players === 2147483647 ? '∞' : entitlements.limits.players} player seats</p>
         <p class="muted-line">These are the same access grants and limits used by the app. Complimentary access does not charge the club or change its Stripe subscription.</p>
         <ul class="detail-owners">${grants}</ul>
         <div class="toolbar">
           <select class="text-input" id="grant-tier" aria-label="Access tier"><option value="PRO">Verein (PRO)</option><option value="SCALE">Scale — custom agreement</option></select>
           <select class="text-input" id="grant-interval" aria-label="Plan definition period"><option value="TWELVE_MONTHS">Yearly definition</option><option value="MONTHLY">Monthly definition</option></select>
+          <select class="text-input" id="grant-package" aria-label="Team package"><option value="1">1 team</option><option value="3">3 teams</option><option value="6">6 teams</option><option value="2147483647">Unlimited teams</option></select>
           <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
           <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
         </div>
@@ -845,6 +852,7 @@ async function grantClubEntitlement(clubId) {
         tier,
         interval,
         source: 'COMPLIMENTARY',
+        ...(tier === 'PRO' ? { teamLimit: Number(document.getElementById('grant-package').value) } : {}),
         reason: 'Complimentary grant from platform admin',
         ...(expiry ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() } : {}),
       }),
@@ -1007,13 +1015,16 @@ function applyPlanDefaults() {
   const tier = document.getElementById('plan-tier').value
   const interval = document.getElementById('plan-interval').value
   const standard = tier === 'PRO'
+  const packageInput = document.getElementById('plan-package')
+  packageInput.disabled = !standard
+  const selected = planCatalogue.packages.find((entry) => entry.teams === Number(packageInput.value)) || planCatalogue.packages[0]
   const price = document.getElementById('plan-price')
   price.readOnly = standard
-  price.value = standard ? (planCatalogue.prices[interval === 'MONTHLY' ? 'monthly' : 'yearly'] / 100).toFixed(2) : ''
+  price.value = standard ? (selected[interval === 'MONTHLY' ? 'monthly' : 'yearly'] / 100).toFixed(2) : ''
   for (const [id, key] of [['plan-teams', 'teams'], ['plan-players', 'players']]) {
     const input = document.getElementById(id)
     input.readOnly = standard
-    input.value = String(planCatalogue.limits[tier][key])
+    input.value = String(standard ? selected[key] : planCatalogue.limits[tier][key])
   }
   document.getElementById('plan-features').value = planCatalogue.features.join(', ')
   document.getElementById('plan-features').readOnly = standard
@@ -1026,6 +1037,7 @@ function bindSubs() {
   document.getElementById('plan-form').addEventListener('submit', publishPlan)
   document.getElementById('plan-tier').addEventListener('change', applyPlanDefaults)
   document.getElementById('plan-interval').addEventListener('change', applyPlanDefaults)
+  document.getElementById('plan-package').addEventListener('change', applyPlanDefaults)
 }
 
 async function loadSubscriptions() {
@@ -1072,11 +1084,11 @@ async function loadPlans() {
     planCatalogue = catalogue
     applyPlanDefaults()
     document.getElementById('plan-catalogue-summary').textContent =
-      `Free: ${catalogue.limits.FREE.teams} team · ${catalogue.limits.FREE.players} player seats. Verein: ${fmtCents(catalogue.prices.monthly)}/month or ${fmtCents(catalogue.prices.yearly)}/year — save ${fmtCents(catalogue.yearlySavingsCents)} per year. ${catalogue.trialDays}-day trial, no card.`
+      catalogue.packages.map((entry) => `${entry.teams === 2147483647 ? 'Unlimited' : entry.teams} teams: ${fmtCents(entry.monthly)}/month or ${fmtCents(entry.yearly)}/year`).join(' · ') + '. Annual billing saves 2 monthly payments. Existing subscriptions are unchanged.'
     const latest = new Map()
     for (const plan of rows) {
       if (!plan.publishedAt) continue
-      const key = `${plan.tier}:${plan.interval}`
+      const key = `${plan.tier}:${plan.interval}:${plan.teamLimit}`
       latest.set(key, Math.max(latest.get(key) || 0, plan.version))
     }
     tbody.innerHTML = rows.length
@@ -1087,9 +1099,9 @@ async function loadPlans() {
           <td><strong>${esc(planLabel(plan.tier))}</strong></td>
           <td>${esc(planIntervalLabel(plan.interval))}</td>
           <td>${fmtCents(plan.priceCents)}</td>
-          <td>${plan.teamLimit} teams · ${plan.playerLimit} players</td>
+          <td>${plan.teamLimit === 2147483647 ? 'Unlimited' : plan.teamLimit} teams · ${plan.playerLimit === 2147483647 ? 'Unlimited' : plan.playerLimit} players</td>
           <td>v${plan.version}</td>
-          <td>${!plan.publishedAt ? 'Unpublished' : plan.interval === 'SIX_MONTHS' || plan.version < latest.get(`${plan.tier}:${plan.interval}`) ? 'Historical' : plan.stripePriceId ? 'Stripe price linked' : 'Complimentary access only'}</td>
+          <td>${!plan.publishedAt ? 'Unpublished' : plan.interval === 'SIX_MONTHS' || plan.version < latest.get(`${plan.tier}:${plan.interval}:${plan.teamLimit}`) || (plan.tier === 'PRO' && !catalogue.packages.some((entry) => entry.teams === plan.teamLimit)) ? 'Historical' : plan.stripePriceId ? 'Stripe price linked' : 'Complimentary access only'}</td>
         </tr>`,
           )
           .join('')
@@ -1209,6 +1221,9 @@ async function loadAudit() {
 // - Section: Support -
 
 function bindSupport() {
+  document.getElementById('support-ticket-refresh').addEventListener('click', () => loadSupportTickets())
+  document.getElementById('support-ticket-filter').addEventListener('change', () => loadSupportTickets())
+  document.getElementById('support-ticket-more').addEventListener('click', () => loadSupportTickets(true))
   const form = document.getElementById('support-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -1234,6 +1249,100 @@ function bindSupport() {
 
 async function loadSupport() {
   loadSupportRecent()
+  loadSupportTickets()
+}
+
+let supportTicketOffset = 0
+let supportListGeneration = 0
+let supportDetailGeneration = 0
+
+async function loadSupportTickets(append = false) {
+  const generation = ++supportListGeneration
+  const wrap = document.getElementById('support-tickets')
+  const more = document.getElementById('support-ticket-more')
+  if (!append) { supportTicketOffset = 0; wrap.textContent = 'Loading requests…' }
+  more.disabled = true
+  const status = document.getElementById('support-ticket-filter').value
+  try {
+    const rows = await adminFetch(`/admin/support-tickets?offset=${supportTicketOffset}${status ? `&status=${encodeURIComponent(status)}` : ''}`)
+    if (generation !== supportListGeneration) return
+    if (!append) wrap.replaceChildren()
+    if (!rows.length && !append) wrap.textContent = 'No requests in this view.'
+    rows.forEach((ticket) => {
+      const card = document.createElement('article')
+      card.className = 'list-card'
+      card.innerHTML = `<h3>${esc(ticket.subject)}</h3><p>${esc(ticket.requester.name)} · ${esc(ticket.requester.email || '')}</p>
+        <p>${esc(ticket.status)} · ${fmtDateTime(ticket.updatedAt)}</p>
+        <p>${esc(ticket.platform || '')} ${esc(ticket.appVersion || '')} (${esc(ticket.build || '—')})</p>`
+      const button = document.createElement('button')
+      button.className = 'pill'
+      button.textContent = 'Open request'
+      button.addEventListener('click', () => openSupportTicket(ticket.id))
+      card.append(button)
+      wrap.append(card)
+    })
+    supportTicketOffset += rows.length
+    more.hidden = rows.length < 50
+  } catch (err) {
+    if (generation === supportListGeneration) wrap.textContent = err.message
+  } finally {
+    if (generation === supportListGeneration) more.disabled = false
+  }
+}
+
+async function openSupportTicket(id) {
+  const generation = ++supportDetailGeneration
+  const wrap = document.getElementById('support-ticket-detail')
+  wrap.hidden = false
+  wrap.textContent = 'Loading request…'
+  try {
+    const ticket = await adminFetch(`/admin/support-tickets/${encodeURIComponent(id)}`)
+    if (generation !== supportDetailGeneration) return
+    wrap.innerHTML = `<h2>${esc(ticket.subject)}</h2><p>${esc(ticket.status)}</p>
+      ${ticket.messages.map((message) => `<article class="list-card"><strong>${message.fromSupport ? 'Anstoss support' : 'Requester'}</strong>
+        <p style="white-space:pre-wrap">${esc(message.body)}</p><small>${fmtDateTime(message.createdAt)}</small></article>`).join('')}
+      <form class="support-form"><label>Reply to the user<textarea name="reply" required maxlength="4000" rows="5"></textarea></label>
+      <button class="pill pill--dark" type="submit">Send reply</button></form>
+      <button class="pill" type="button" data-status-action>${ticket.status === 'RESOLVED' ? 'Reopen request' : 'Mark resolved'}</button>
+      <p data-feedback role="status"></p>`
+    const form = wrap.querySelector('form')
+    const feedback = wrap.querySelector('[data-feedback]')
+    let busy = false
+    let retry = { body: '', requestId: '' }
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      if (busy) return
+      const body = form.elements.reply.value.trim()
+      if (!body) return
+      if (retry.body !== body) retry = { body, requestId: crypto.randomUUID() }
+      busy = true
+      form.querySelector('button').disabled = true
+      feedback.textContent = 'Sending…'
+      try {
+        await adminFetch(`/admin/support-tickets/${encodeURIComponent(id)}/replies`, { method: 'POST', body: JSON.stringify(retry) })
+        if (generation !== supportDetailGeneration) return
+        await openSupportTicket(id)
+        void loadSupportTickets()
+      } catch (err) { feedback.textContent = err.message }
+      finally { busy = false; form.querySelector('button').disabled = false }
+    })
+    wrap.querySelector('[data-status-action]').addEventListener('click', async (event) => {
+      if (busy) return
+      busy = true
+      event.currentTarget.disabled = true
+      try {
+        await adminFetch(`/admin/support-tickets/${encodeURIComponent(id)}`, {
+          method: 'PATCH', body: JSON.stringify({ status: ticket.status === 'RESOLVED' ? 'OPEN' : 'RESOLVED' }),
+        })
+        if (generation !== supportDetailGeneration) return
+        await openSupportTicket(id)
+        void loadSupportTickets()
+      } catch (err) { feedback.textContent = err.message }
+      finally { busy = false; wrap.querySelector('[data-status-action]')?.removeAttribute('disabled') }
+    })
+  } catch (err) {
+    if (generation === supportDetailGeneration) wrap.textContent = err.message
+  }
 }
 
 async function loadSupportRecent() {

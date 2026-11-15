@@ -579,7 +579,7 @@ export class ChatService {
     })
     if (!poll) throw new NotFoundException('Poll not found')
     if (poll.message.deletedAt) throw new NotFoundException('Poll not found')
-    await this.teamsService.assertReadableAccess(userId, poll.message.teamId)
+    await this.loadAccessibleMessage(userId, poll.message.id)
 
     const tally = new Map<string, number>()
     for (const v of poll.votes as Array<{ optionId: string }>) {
@@ -615,10 +615,13 @@ export class ChatService {
       include: { message: true },
     })
     if (!poll) throw new NotFoundException('Poll not found')
-    await this.teamsService.assertReadableAccess(userId, poll.message.teamId)
+    if (poll.message.deletedAt) throw new NotFoundException('Poll not found')
+    await this.loadAccessibleMessage(userId, poll.message.id, true)
     if (poll.closedAt || (poll.closesAt && poll.closesAt.getTime() < Date.now())) {
       throw new BadRequestException('Poll closed')
     }
+    const option = await this.prisma.pollOption.findFirst({ where: { id: optionId, pollId } })
+    if (!option) throw new BadRequestException('Option does not belong to this poll')
 
     if (!poll.multiSelect) {
       await this.prisma.pollVote.deleteMany({ where: { pollId, userId } })
@@ -646,7 +649,7 @@ export class ChatService {
     if (!REACTION_EMOJIS.has(emoji)) {
       throw new BadRequestException('Unsupported reaction emoji')
     }
-    const message = await this.loadAccessibleMessage(userId, messageId)
+    const message = await this.loadAccessibleMessage(userId, messageId, true)
 
     await this.prisma.messageReaction.upsert({
       where: {
@@ -693,7 +696,7 @@ export class ChatService {
   }
 
   async removeReaction(userId: string, messageId: string, emoji: string): Promise<ChatMessage> {
-    const message = await this.loadAccessibleMessage(userId, messageId)
+    const message = await this.loadAccessibleMessage(userId, messageId, true)
     await this.prisma.messageReaction.deleteMany({
       where: { messageId, userId, emoji },
     })
@@ -721,7 +724,7 @@ export class ChatService {
       throw new BadRequestException('Edited content too long')
     }
 
-    const message = await this.loadAccessibleMessage(userId, messageId)
+    const message = await this.loadAccessibleMessage(userId, messageId, true)
     if (message.senderId !== userId) {
       throw new ForbiddenException('Only the sender can edit this message')
     }
@@ -876,7 +879,7 @@ export class ChatService {
     }
   }
 
-  private async loadAccessibleMessage(userId: string, messageId: string) {
+  private async loadAccessibleMessage(userId: string, messageId: string, interaction = false) {
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
     })
@@ -898,6 +901,11 @@ export class ChatService {
       const access = await this.channelsService.getChannelAccess(userId, message.channelId)
       if (!access.canRead) {
         throw new ForbiddenException('Forbidden for this channel')
+      }
+      // Readers may react/vote in announcements, but a moderated member is
+      // read-only everywhere. Deleting one's own content remains available.
+      if (interaction && access.postingSuspended) {
+        throw new ForbiddenException('Posting is suspended in this channel')
       }
     }
     return message

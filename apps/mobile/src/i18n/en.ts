@@ -12,6 +12,37 @@ import redesign from './redesign/en' // 2026-11 Anstoss Redesign strings
 import { studioEn } from './studio/en'
 
 const base = {
+  teamPackages: {
+      "title": "Team packages",
+      "TEAM": "1 team",
+      "CLUB_3": "3 teams",
+      "CLUB_6": "6 teams",
+      "UNLIMITED": "Unlimited teams",
+      "players": "Up to {{count}} players",
+      "unlimitedPlayers": "Unlimited players",
+      "note": "Annual billing costs 10 monthly payments instead of 12. Unlimited is the best per-team value from 7 teams.",
+      "trial": "The free trial includes 1 team and 30 players. No card needed; it returns to Free unless you choose a paid plan.",
+      "contact": "Questions about packages? {{email}}"
+  },
+  voiceRecording: {
+      "unavailable": "Voice recording is unavailable in this build. Please update the app.",
+      "permissionTitle": "Microphone access needed",
+      "permissionBody": "Allow microphone access in Settings, then hold the microphone to record.",
+      "settings": "Open Settings",
+      "failed": "Could not record. End any active call and try again.",
+      "hold": "Hold to record. Release to send."
+  },
+  chatModeration: {
+    title: "Chat access: {{name}}",
+    explanation: "Suspend: can read but cannot post. Remove: cannot access this chat. Club and team membership stay unchanged.",
+    suspend: "Suspend posting",
+    restore: "Restore chat access",
+    remove: "Remove from this chat",
+    removeConfirm: "{{name}} will lose access to this chat only. Their club and team membership will not change.",
+    suspended: "Posting suspended · can still read",
+    removed: "Removed from this chat",
+    failed: "Chat access could not be updated. Please try again.",
+  },
   studio: studioEn,
   // Screen-reader labels. Leaving these in English makes the app
   // *less* usable for blind users in every other locale.
@@ -1567,6 +1598,7 @@ const base = {
     signOutTitle: 'Log out',
     signOutBody: 'Are you sure you want to log out?',
     languageChoiceTitle: 'Choose language',
+    chatTranslationUnavailable: 'Automatic chat translation is currently unavailable. Messages remain in their original language.',
     languageChoiceBody:
       'Pick the language used across the app. You can change it again at any time.',
     languageChoiceDescriptionDe:

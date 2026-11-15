@@ -25,6 +25,9 @@ const window = {
   localStorage: { getItem: () => null, setItem: () => {} },
   location: { href: 'https://anstoss.io/' },
 }
+runInNewContext(read('plan-packages.js'), { window })
+const { PLAN_PACKAGES } = await import('@anstoss/shared')
+assert.equal(JSON.stringify(window.AnstossPlanPackages), JSON.stringify(PLAN_PACKAGES), 'Website prices and limits must match the shared catalogue')
 runInNewContext(read('i18n.js'), { window, document, URL, URLSearchParams, CustomEvent: class {} })
 const i18n = window.AnstossI18n
 const price = (value) => Number(value.replace(/[^\d.,]/g, '').replace(',', '.'))
@@ -62,6 +65,8 @@ for (const language of i18n.langs) {
   }
 }
 i18n.choose('en')
+assert.match(i18n.t().lang_b, /Automatic chat translation is currently unavailable\./)
+assert.ok(!i18n.t().club_feats.some((feature) => /translation|stand-in/i.test(feature)))
 assert.match(i18n.t().faq[0][1], /not|manual|disabled/i)
 assert.match(i18n.t().signup.email, /personal email/)
 const signup = read('signup.html')

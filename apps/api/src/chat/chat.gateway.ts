@@ -658,20 +658,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // Sockets only join `channel:{id}` after the channel authorized them.
     const room = `channel:${channelId}`
 
-    // Detect source language eagerly; after detection broadcast the result so
-    // clients can show translated content without waiting for history reload.
-    void this.translation
-      .detectAndPersistSource('channel', message.id, content)
-      .then((sourceLanguage) => {
-        if (sourceLanguage) {
-          this.server.to(room).emit('message:source', {
-            messageId: message.id,
-            sourceLanguage,
-          })
-        }
-      })
-      .catch(() => undefined)
-
     this.server.to(room).emit('message', {
       id: message.id,
       teamId: message.teamId,
@@ -688,6 +674,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       replyToId: message.replyToId,
       createdAt: message.createdAt,
     })
+    void this.translateLiveMessage('channel', channelId, message).catch(() => undefined)
 
     const senderName = (client.data.userName as string) || ''
     const preview = content.length > 100 ? content.slice(0, 97) + '...' : content
@@ -1028,6 +1015,51 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     )
   }
 
+  /** Send translations only to currently authorized readers, never to the shared room. */
+  private async translateLiveMessage(
+    surface: 'channel' | 'dm',
+    conversationId: string,
+    message: { id: string; content: string; senderId: string | null; sourceLanguage?: string | null },
+  ) {
+    if (!this.server || !message.content.trim()) return
+    const room = `${surface === 'channel' ? 'channel' : 'dm'}:${conversationId}`
+    const sockets = await this.server.in(room).fetchSockets()
+    const userIds = [...new Set(sockets.map((socket) => socket.data.userId as string).filter(Boolean))]
+    const readers = await this.prisma.user.findMany({
+      where: { id: { in: userIds.filter((id) => id !== message.senderId) } },
+      select: { id: true, preferredLanguage: true },
+    })
+    const source = message.sourceLanguage ?? await this.translation.detectAndPersistSource(surface, message.id, message.content)
+    // One provider request per target locale, even when a team has many readers.
+    const targets = new Map<string, Promise<{ content: string; sourceLanguage: string } | null>>()
+    await Promise.all(readers.map(async (reader) => {
+      const target = this.translation.resolveTargetLanguage(reader.preferredLanguage, null)
+      if (!targets.has(target)) {
+        targets.set(target, this.translation.translateForReader(surface, message.id, source, message.content, target))
+      }
+      const translation = await targets.get(target)
+      if (!translation) return
+      // Membership can change while the provider is processing the message.
+      if (surface === 'channel') {
+        const access = await this.channelsService.getChannelAccess(reader.id, conversationId)
+        if (!access.canRead) return
+        const current = await this.prisma.message.findUnique({ where: { id: message.id }, select: { deletedAt: true, content: true } })
+        if (!current || current.deletedAt || current.content !== message.content) return
+      } else {
+        await this.dmService.assertConversationAccess(reader.id, conversationId)
+        const current = await this.prisma.directMessage.findUnique({ where: { id: message.id }, select: { deletedAt: true, content: true } })
+        if (!current || current.deletedAt || current.content !== message.content) return
+      }
+      for (const socket of sockets) {
+        if (socket.data.userId === reader.id) {
+          socket.emit(surface === 'channel' ? 'message:translation' : 'dm:translation', {
+            messageId: message.id, conversationId, translation,
+          })
+        }
+      }
+    }))
+  }
+
   // ─── Direct Message Events ──────────────────────────────
 
   /**
@@ -1164,6 +1196,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       clientMessageId: payload.clientMessageId ?? null,
       senderName: message.sender?.name ?? null,
     })
+    if (message.messageType === 'TEXT' && !message.deletedAt) {
+      void this.translateLiveMessage('dm', conversationId, message).catch(() => undefined)
+    }
 
     try {
       const participantIds = await this.dmService.listParticipantIds(conversationId)

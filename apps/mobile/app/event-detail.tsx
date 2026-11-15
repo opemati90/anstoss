@@ -466,8 +466,12 @@ export default function EventDetailScreen() {
                     <Switch
                       value={reminderOn}
                       onValueChange={(value) => void toggleReminder(value)}
-                      trackColor={{ true: c.ink, false: c.borderStrong }}
+                      trackColor={{ true: c.accent, false: c.borderStrong }}
+                      thumbColor={reminderOn ? c.onAccent : c.textSecondary}
+                      ios_backgroundColor={c.borderStrong}
                       accessibilityLabel={t('eventFlow.detail.remindMe')}
+                      accessibilityState={{ checked: reminderOn }}
+                      testID="event-reminder-toggle"
                     />
                   </View>
                 </SectionGroup>

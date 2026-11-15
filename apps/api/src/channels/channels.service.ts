@@ -16,6 +16,7 @@ import type {
   ChatChannelDetail,
   ChatChannelMember,
   MessageType,
+  ModerateChannelMemberInput,
 } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { TeamsService } from '../teams/teams.service'
@@ -61,6 +62,8 @@ export type ChannelAccessResult = {
   }
   canRead: boolean
   canWrite: boolean
+  /** Moderation is distinct from an announcements channel's posting policy. */
+  postingSuspended?: boolean
   /** Role context used for the decision (team-scoped for team channels). */
   access: AccessCtx
   /** Manager of the channel's team or a club manager. */
@@ -530,6 +533,8 @@ export class ChannelsService {
     const channelIds = channels.map((c) => c.id)
     const unreadByChannel = new Map<string, number>()
     const muteByChannel = new Map<string, { muted: boolean; mutedUntil: Date | null }>()
+    const removedChannels = new Set<string>()
+    const suspendedChannels = new Set<string>()
     if (channelIds.length > 0) {
       const joinedAt = await this.joinedAtByChannel(userId, channels)
       const sinceRows = channels.map(
@@ -551,11 +556,13 @@ export class ChannelsService {
         `,
         this.prisma.channelMember.findMany({
           where: { userId, channelId: { in: channelIds } },
-          select: { channelId: true, muted: true, mutedUntil: true },
+          select: { channelId: true, muted: true, mutedUntil: true, removed: true, postingSuspended: true },
         }),
       ])
       for (const row of counts ?? []) unreadByChannel.set(row.channelId, Number(row.count))
       for (const row of muteRows ?? []) {
+        if (row.removed) removedChannels.add(row.channelId)
+        if (row.postingSuspended) suspendedChannels.add(row.channelId)
         muteByChannel.set(row.channelId, {
           muted: !!row.muted,
           mutedUntil: row.mutedUntil ?? null,
@@ -564,7 +571,7 @@ export class ChannelsService {
     }
 
     const now = new Date()
-    return channels.map((c) => {
+    return channels.filter((c) => !removedChannels.has(c.id)).map((c) => {
       const last = c.messages?.[0]
       const mute = muteByChannel.get(c.id)
       const muted = isMuteActive(mute ?? null, now)
@@ -577,7 +584,7 @@ export class ChannelsService {
         name: c.name,
         description: c.description,
         visibility: c.visibility as ChannelVisibility,
-        canWrite: canWriteFor(c),
+        canWrite: !suspendedChannels.has(c.id) && canWriteFor(c),
         unreadCount: unreadByChannel.get(c.id) ?? 0,
         lastMessage: last
           ? {
@@ -914,10 +921,27 @@ export class ChannelsService {
    *  - CUSTOM: an explicit ChannelMember row plus club membership.
    *  - team channel: readable team access + channel visibility.
    *  - club channel: club membership + visibility over all the caller's teams.
-   * A ChannelMember row on a non-CUSTOM channel is only a mute preference and
-   * never grants access.
+   * A ChannelMember row on a non-CUSTOM channel can restrict access or store
+   * mute preferences, but never grants access.
    */
   async getChannelAccess(userId: string, channelId: string): Promise<ChannelAccessResult> {
+    const result = await this.getBaseChannelAccess(userId, channelId)
+    if (!result.canRead) return result
+    const restriction = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { removed: true, postingSuspended: true },
+    })
+    return {
+      ...result,
+      canRead: !restriction?.removed,
+      canWrite: result.canWrite && !restriction?.removed && !restriction?.postingSuspended,
+      postingSuspended: restriction?.postingSuspended ?? false,
+      isManager: result.isManager && !restriction?.removed && !restriction?.postingSuspended,
+    }
+  }
+
+  /** Eligibility before chat restrictions; never use this to serve chat content. */
+  private async getBaseChannelAccess(userId: string, channelId: string): Promise<ChannelAccessResult> {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId } })
     if (!channel) throw new NotFoundException('Channel not found')
     const base: ChannelAccessResult = {
@@ -1031,7 +1055,7 @@ export class ChannelsService {
     const [decorated] = await this.decorate(userId, [row], () => result.canWrite)
     const memberCount =
       row.kind === 'CUSTOM'
-        ? await this.prisma.channelMember.count({ where: { channelId } })
+        ? await this.prisma.channelMember.count({ where: { channelId, removed: false } })
         : (await this.listReadersForChannel(channelId)).length
     const { lastMessageRaw: _raw, ...rest } = decorated
     void _raw
@@ -1039,6 +1063,7 @@ export class ChannelsService {
       ...rest,
       memberCount,
       canManageMembers: row.kind === 'CUSTOM' && result.isManager,
+      canModerateMembers: result.isManager && this.isAdmin(result.access),
     }
   }
 
@@ -1137,7 +1162,7 @@ export class ChannelsService {
         role: roleByUser.get(r.userId) ?? 'PLAYER',
         isMember: true,
       }))
-      if (!isManager || !channel.teamId) return members
+      if (!isManager || !channel.teamId) return this.withMemberModeration(userId, result, members)
       const roster = await this.teamRoster(channel.teamId, channel.clubId)
       for (const candidate of roster) {
         if (memberIds.has(candidate.userId)) continue
@@ -1150,10 +1175,11 @@ export class ChannelsService {
           isMember: false,
         })
       }
-      return members
+      return this.withMemberModeration(userId, result, members)
     }
 
-    const readerIds = await this.listReadersForChannel(channelId)
+    // Admins need removed members in this list so they can restore access.
+    const readerIds = await this.readersFor(channel, this.isAdmin(result.access))
     if (readerIds.length === 0) return []
     const [users, roleByUser] = await Promise.all([
       this.prisma.user.findMany({
@@ -1163,14 +1189,95 @@ export class ChannelsService {
       }),
       this.roleLabels(channel.clubId, channel.teamId, readerIds),
     ])
-    return users.map((u) => ({
+    return this.withMemberModeration(userId, result, users.map((u) => ({
       userId: u.id,
       name: u.name ?? 'Unknown',
       email: isManager ? u.email ?? null : null,
       avatarUrl: u.avatarUrl ?? null,
       role: roleByUser.get(u.id) ?? 'PLAYER',
       isMember: true,
-    }))
+    })))
+  }
+
+  private async withMemberModeration(
+    actorId: string,
+    result: ChannelAccessResult,
+    members: ChatChannelMember[],
+  ): Promise<ChatChannelMember[]> {
+    const ids = members.map((member) => member.userId)
+    const [restrictions, memberships] = await Promise.all([
+      this.prisma.channelMember.findMany({
+        where: { channelId: result.channel.id, userId: { in: ids } },
+        select: { userId: true, removed: true, postingSuspended: true },
+      }),
+      this.prisma.membership.findMany({
+        where: { clubId: result.channel.clubId, userId: { in: ids } },
+        select: { userId: true, role: true },
+      }),
+    ])
+    const byUser = new Map((restrictions ?? []).map((row) => [row.userId, row]))
+    const roles = new Map((memberships ?? []).map((row) => [row.userId, row.role]))
+    const actorRole = result.access.membership?.role
+    const canModerate = result.isManager && this.isAdmin(result.access)
+    return members.filter((member) => canModerate || !byUser.get(member.userId)?.removed).map((member) => {
+      const restriction = byUser.get(member.userId)
+      return {
+        ...member,
+        isMember: member.isMember && !restriction?.removed,
+        moderationStatus: restriction?.removed ? 'removed' : restriction?.postingSuspended ? 'suspended' : 'active',
+        canModerate: canModerate && (member.isMember || !!restriction?.removed) &&
+          this.mayModerateTarget(actorId, actorRole, member.userId, roles.get(member.userId)),
+      }
+    })
+  }
+
+  private mayModerateTarget(actorId: string, actorRole: string | undefined, targetId: string, targetRole: string | undefined): boolean {
+    return actorId !== targetId && !!targetRole && targetRole !== 'OWNER' &&
+      (actorRole === 'OWNER' || (actorRole === 'ADMIN' && targetRole !== 'ADMIN'))
+  }
+
+  async moderateChannelMember(
+    userId: string,
+    clubId: string,
+    channelId: string,
+    targetUserId: string,
+    action: ModerateChannelMemberInput['action'],
+  ): Promise<{ status: 'active' | 'suspended' | 'removed' }> {
+    const result = await this.assertClubChannel(userId, clubId, channelId)
+    if (!result.isManager || !this.isAdmin(result.access)) {
+      throw new ForbiddenException('Only club admins can moderate chat access')
+    }
+    const target = await this.getBaseChannelAccess(targetUserId, channelId)
+    if (!target.canRead) throw new NotFoundException('Channel member not found')
+    if (!this.mayModerateTarget(userId, result.access.membership?.role, targetUserId, target.access.membership?.role)) {
+      throw new ForbiddenException('You cannot moderate this member')
+    }
+    if (result.channel.kind === 'CUSTOM' && (action === 'restore' ||
+      (action === 'remove' && !(await this.isMinorOrUnknown(targetUserId))))) {
+      const current = await this.prisma.channelMember.findMany({
+        where: { channelId, removed: false }, select: { userId: true },
+      })
+      const remaining = current.map((member) => member.userId).filter((id) => id !== targetUserId)
+      await this.assertGroupSafeguarding(clubId, result.channel.teamId,
+        action === 'restore' ? [...remaining, targetUserId] : remaining,
+        'GROUP_REMOVE_BREAKS_SAFEGUARD')
+    }
+    // Restore removes only restrictions. Base eligibility is still required;
+    // it cannot rejoin a club/team or manufacture access to a custom group.
+    const data = { removed: action === 'remove', postingSuspended: action === 'suspend' }
+    await this.prisma.$transaction([
+      this.prisma.channelMember.upsert({
+        where: { channelId_userId: { channelId, userId: targetUserId } },
+        create: { channelId, userId: targetUserId, ...data }, update: data,
+      }),
+      this.prisma.auditLog.create({ data: {
+        clubId, type: 'CHAT_MEMBER_MODERATED', actorType: 'user', actorId: userId,
+        summary: `Chat member ${action}`,
+        metadata: { channelId, targetUserId, action },
+      } }),
+    ])
+    this.eventEmitter.emit('realtime.access.changed', { userId: targetUserId })
+    return { status: action === 'remove' ? 'removed' : action === 'suspend' ? 'suspended' : 'active' }
   }
 
   /** Prefer the team role (HEAD_COACH, PARENT…); fall back to club role. */
@@ -1247,6 +1354,13 @@ export class ChannelsService {
     }
     if (userId !== targetUserId && !result.isManager) {
       throw new ForbiddenException('Only managers can remove members')
+    }
+    const restriction = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId: targetUserId } },
+      select: { removed: true, postingSuspended: true },
+    })
+    if (restriction?.removed || restriction?.postingSuspended) {
+      throw new ForbiddenException('An admin must restore moderated chat access first')
     }
     // B1: removing a minor never weakens safeguarding; removing anyone else
     // must leave a group that still passes the rule (e.g. the second staff
@@ -1484,6 +1598,11 @@ export class ChannelsService {
     if (!channel) throw new NotFoundException('Channel not found')
 
     // Caller must be able to read the channel.
+    const restriction = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { removed: true },
+    })
+    if (restriction?.removed) throw new ForbiddenException('You cannot view this channel')
     const access = await this.teamsService.assertReadableAccess(userId, teamId)
     if (channel.kind === 'CUSTOM') {
       const callerMember = await this.prisma.channelMember.findUnique({
@@ -1657,6 +1776,23 @@ export class ChannelsService {
   }
 
   private async readersFor(channel: {
+    id: string
+    visibility: string
+    kind: string
+    teamId: string | null
+    clubId: string
+  }, includeRemoved = false): Promise<string[]> {
+    const readers = await this.baseReadersFor(channel)
+    if (includeRemoved || readers.length === 0) return readers
+    const restrictions = await this.prisma.channelMember.findMany({
+      where: { channelId: channel.id, userId: { in: readers }, removed: true },
+      select: { userId: true, removed: true },
+    })
+    const removed = new Set((restrictions ?? []).filter((row) => row.removed).map((row) => row.userId))
+    return readers.filter((id) => !removed.has(id))
+  }
+
+  private async baseReadersFor(channel: {
     id: string
     visibility: string
     kind: string
