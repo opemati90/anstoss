@@ -45,7 +45,7 @@ export class PushService {
   private readonly EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
   private readonly EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts'
   /** How long to wait before fetching receipts for a send (Expo defers errors). */
-  private readonly RECEIPT_DELAY_MS = 15_000
+  private readonly RECEIPT_DELAY_MS = 15 * 60_000
 
   constructor(
     private readonly prisma: PrismaService,
@@ -230,7 +230,11 @@ export class PushService {
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
     if (this.inbox && isInboxWorthy(type, templateData)) {
-      const inboxUserIds = await this.resolveTeamInboxRecipientIds(teamId, excludeUserId, options?.clubId)
+      const inboxUserIds = await this.resolveTeamInboxRecipientIds(
+        teamId,
+        excludeUserId,
+        options?.clubId,
+      )
       await this.inbox.record(inboxUserIds, {
         kind: 'template',
         type,
@@ -265,7 +269,11 @@ export class PushService {
     },
   ) {
     if (this.inbox && options?.inboxType) {
-      const inboxUserIds = await this.resolveTeamInboxRecipientIds(teamId, excludeUserId, options.clubId)
+      const inboxUserIds = await this.resolveTeamInboxRecipientIds(
+        teamId,
+        excludeUserId,
+        options.clubId,
+      )
       await this.inbox.record(inboxUserIds, {
         kind: 'rendered',
         type: options.inboxType,
@@ -435,6 +443,7 @@ export class PushService {
       body,
       data,
       sound: 'default' as const,
+      channelId: 'default',
     }))
 
     for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
@@ -462,6 +471,7 @@ export class PushService {
             success++
           } else {
             failure++
+            this.logger.error(`Expo push rejected: ${ticket.details?.error ?? 'unknown'}`)
             if (ticket.details?.error === 'DeviceNotRegistered') {
               invalidTokens.push(batch[index].to)
             }
@@ -501,6 +511,7 @@ export class PushService {
       body,
       data,
       sound: 'default' as const,
+      channelId: 'default',
     }))
 
     // Map of ok-ticket id → token, for deferred receipt polling. Expo keys
@@ -534,8 +545,11 @@ export class PushService {
         result.data.forEach((ticket, index) => {
           if (ticket.status === 'ok') {
             ticketTokens.set(ticket.id, batch[index].to)
-          } else if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-            invalidTokens.push(batch[index].to)
+          } else if (ticket.status === 'error') {
+            // Never log tokens or message content, but don't silently swallow
+            // missing APNs/FCM credentials or sender/project mismatches.
+            this.logger.error(`Expo push rejected: ${ticket.details?.error ?? 'unknown'}`)
+            if (ticket.details?.error === 'DeviceNotRegistered') invalidTokens.push(batch[index].to)
           }
         })
 
@@ -607,6 +621,9 @@ export class PushService {
         }
 
         for (const [id, receipt] of Object.entries(result.data ?? {})) {
+          if (receipt.status === 'error') {
+            this.logger.error(`Expo push delivery failed: ${receipt.details?.error ?? 'unknown'}`)
+          }
           if (receipt.status === 'error' && receipt.details?.error === 'DeviceNotRegistered') {
             const token = ticketTokens.get(id)
             if (token) deadTokens.push(token)

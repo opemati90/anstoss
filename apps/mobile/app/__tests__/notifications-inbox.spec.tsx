@@ -7,6 +7,7 @@ const mockSetActiveClub = jest.fn()
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
 jest.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
   router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) },
 }))
 jest.mock('react-i18next', () => ({
@@ -64,12 +65,22 @@ const fixtureChange = {
 describe('inboxSentence', () => {
   it('leads people rows with the actor and reads system rows as "Titel: Text."', () => {
     expect(
-      inboxSentence({ title: 'Neue Beitrittsanfrage', body: 'Paul Krüger möchte SV beitreten', target: { actorName: 'Paul Krüger' } }),
+      inboxSentence({
+        title: 'Neue Beitrittsanfrage',
+        body: 'Paul Krüger möchte SV beitreten',
+        target: { actorName: 'Paul Krüger' },
+      }),
     ).toEqual({ actor: 'Paul Krüger', rest: ' möchte SV beitreten.' })
     expect(
-      inboxSentence({ title: 'Mert Yılmaz hat geantwortet', body: 'Absage · Training', target: { actorName: 'Mert Yılmaz' } }),
+      inboxSentence({
+        title: 'Mert Yılmaz hat geantwortet',
+        body: 'Absage · Training',
+        target: { actorName: 'Mert Yılmaz' },
+      }),
     ).toEqual({ actor: 'Mert Yılmaz', rest: ' hat geantwortet: Absage · Training.' })
-    expect(inboxSentence({ title: 'Umfrage beendet', body: 'Mannschaftsabend', target: null })).toEqual({
+    expect(
+      inboxSentence({ title: 'Umfrage beendet', body: 'Mannschaftsabend', target: null }),
+    ).toEqual({
       actor: null,
       rest: 'Umfrage beendet: Mannschaftsabend.',
     })

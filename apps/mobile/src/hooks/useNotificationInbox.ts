@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import type { InboxNotification, InboxNotificationPage } from '@anstoss/shared'
 import { api } from '../api/client'
+import { subscribeNotifications } from '../lib/notificationEvents'
+import { useForegroundRefresh } from './useForegroundRefresh'
 
-const POLL_MS = 60_000
+const POLL_MS = 15_000
 
 // The bell and the inbox screen live in different navigators; the screen
 // publishes the new unread count here so the dot clears without a refetch.
@@ -15,14 +17,17 @@ function publishUnread(count: number) {
 
 /**
  * Unread count for the bell dot. Loads on mount, refreshes when the app
- * returns to the foreground and once a minute, and follows changes made on
+ * returns to the foreground and every 15 seconds while active, and follows changes made on
  * the inbox screen.
  */
 export function useInboxUnreadCount(enabled = true): { unreadCount: number; refresh: () => void } {
   const [unreadCount, setUnreadCount] = useState(0)
 
   const refresh = useCallback(() => {
-    if (!enabled) return
+    // React Native may not have resolved AppState yet on a cold launch.
+    // Still load the initial count; only known background states suppress it.
+    if (!enabled || AppState.currentState === 'background' || AppState.currentState === 'inactive')
+      return
     void api<{ unreadCount: number }>('/me/notifications/unread-count')
       .then((res) => setUnreadCount(res?.unreadCount ?? 0))
       .catch(() => {})
@@ -30,8 +35,12 @@ export function useInboxUnreadCount(enabled = true): { unreadCount: number; refr
 
   useEffect(() => {
     refresh()
+    const unsubscribe = subscribeNotifications(refresh)
     const timer = setInterval(refresh, POLL_MS)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      unsubscribe()
+    }
   }, [refresh])
 
   useEffect(() => {
@@ -66,13 +75,21 @@ export function useNotificationInbox() {
     if (!loading) publishUnread(unreadCount)
   }, [loading, unreadCount])
 
-  const load = useCallback(async (mode: 'initial' | 'refresh') => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' | 'background') => {
     if (mode === 'refresh') setRefreshing(true)
     setError(false)
     try {
       const page = await api<InboxNotificationPage>('/me/notifications?limit=30')
-      cursorRef.current = page.nextCursor
-      setItems(page.items)
+      if (mode === 'background') {
+        // Keep already-paginated history and its cursor while adding arrivals.
+        setItems((previous) => {
+          const freshIds = new Set(page.items.map((item) => item.id))
+          return [...page.items, ...previous.filter((item) => !freshIds.has(item.id))]
+        })
+      } else {
+        cursorRef.current = page.nextCursor
+        setItems(page.items)
+      }
       setUnreadCount(page.unreadCount)
     } catch {
       setError(true)
@@ -85,6 +102,8 @@ export function useNotificationInbox() {
   useEffect(() => {
     void load('initial')
   }, [load])
+
+  useForegroundRefresh(useCallback(() => load('background'), [load]))
 
   const loadMore = useCallback(async () => {
     const cursor = cursorRef.current
@@ -111,7 +130,9 @@ export function useNotificationInbox() {
     setItems((prev) => prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: now } : n)))
     setUnreadCount((n) => Math.max(0, n - 1))
     try {
-      const res = await api<{ unreadCount: number }>(`/me/notifications/${id}/read`, { method: 'POST' })
+      const res = await api<{ unreadCount: number }>(`/me/notifications/${id}/read`, {
+        method: 'POST',
+      })
       setUnreadCount(res.unreadCount)
     } catch {
       // Optimistic; the next refresh corrects the count.

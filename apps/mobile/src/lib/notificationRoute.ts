@@ -51,12 +51,14 @@ export function openNotificationTarget(data: NotificationTarget, ensureClub: () 
     case 'event_updated':
     case 'event_cancelled':
       if (data.eventId) {
+        ensureClub()
         router.push({ pathname: '/event-detail', params: { eventId: data.eventId } })
       }
       break
     case 'join_request':
     case 'JOIN_REQUEST_REMINDER':
       // Coaches/admins land on the pending-requests queue to act on it.
+      ensureClub()
       router.push('/pending-requests')
       break
     case 'join_approved':
@@ -97,11 +99,16 @@ export function openNotificationTarget(data: NotificationTarget, ensureClub: () 
       break
     // club-admin revamp: a new chat report lands admins on the Meldungen queue.
     case 'moderation_report':
+      ensureClub()
       router.push('/admin-reports' as never)
       break
     case 'TRIAL_INVITE':
     case 'TRIAL_RESPONSE':
-      router.push('/(tabs)/invites' as never)
+      if (data.trialInviteId) {
+        router.push({ pathname: '/trial/[id]', params: { id: data.trialInviteId } })
+      } else {
+        router.push('/notifications' as never)
+      }
       break
     // Kader fix M2 (team agent): "you're up for Trikotwäsche" opens Aufgaben.
     case 'TEAM_DUTY_ASSIGNED':
@@ -113,6 +120,7 @@ export function openNotificationTarget(data: NotificationTarget, ensureClub: () 
       // contribution-paid (self-pay/admin-marked) and contribution
       // reminders both belong on the same screen — the user wants to
       // see status + outstanding plans in one place.
+      ensureClub()
       router.push('/my-contributions')
       break
     case 'MEDIA_MESSAGE':

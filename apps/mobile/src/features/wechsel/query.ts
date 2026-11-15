@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { useFocusEffect } from 'expo-router'
 import { api } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+import { useForegroundRefresh } from '../../hooks/useForegroundRefresh'
 
 /**
  * Small stale-while-revalidate query layer for the Wechselbörse screens.
@@ -122,7 +123,8 @@ async function fetchPath(path: string, force = false): Promise<unknown> {
  */
 export function invalidateApi(...prefixes: string[]) {
   const keys = Array.from(cache.keys()).filter(
-    (key) => key.startsWith(`${scope}|`) && prefixes.some((prefix) => pathOf(key).startsWith(prefix)),
+    (key) =>
+      key.startsWith(`${scope}|`) && prefixes.some((prefix) => pathOf(key).startsWith(prefix)),
   )
   for (const key of keys) {
     const entry = cache.get(key)
@@ -166,7 +168,11 @@ function useCacheScope() {
 
 export function useApiQuery<T>(path: string | null): ApiQuery<T> {
   const currentScope = useCacheScope()
-  useSyncExternalStore(subscribe, () => version, () => version)
+  useSyncExternalStore(
+    subscribe,
+    () => version,
+    () => version,
+  )
   const entry = path ? cache.get(keyFor(path)) : undefined
   const pathRef = useRef(path)
   pathRef.current = path
@@ -190,6 +196,9 @@ export function useApiQuery<T>(path: string | null): ApiQuery<T> {
   )
 
   const refetch = useCallback(() => load(true), [load])
+  // Trial offers and responses must appear while the portal stays open,
+  // including when device push permission has been declined.
+  useForegroundRefresh(refetch, Boolean(path))
 
   const hasData = Boolean(entry?.loaded)
   return {

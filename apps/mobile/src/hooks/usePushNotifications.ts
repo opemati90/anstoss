@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppState, Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
@@ -42,8 +42,10 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
   const [registrationError, setRegistrationError] = useState<string | null>(null)
   const [lastNotification, setLastNotification] =
     useState<Notifications.NotificationResponse | null>(null)
+  const handledResponse = useRef<string | null>(null)
 
   useEffect(() => {
+    setLastNotification(null)
     // Native push only: expo-notifications has no web implementation, and the
     // web build is used for previews.
     if (!token || Platform.OS === 'web') {
@@ -55,6 +57,8 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
 
     let cancelled = false
     let registering = false
+    let registered = false
+    const controllers = new Set<AbortController>()
     const retryTimers = new Set<ReturnType<typeof setTimeout>>()
 
     const waitForRetry = (delayMs: number) =>
@@ -75,9 +79,13 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
       for (const delayMs of REGISTER_RETRY_DELAYS_MS) {
         await waitForRetry(delayMs)
         if (cancelled) return false
+        const controller = new AbortController()
+        controllers.add(controller)
+        const timeout = setTimeout(() => controller.abort(), 12_000)
         try {
           const response = await fetch(`${apiUrl}/push/register`, {
             method: 'POST',
+            signal: controller.signal,
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -93,6 +101,9 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
           return true
         } catch (error) {
           lastError = error
+        } finally {
+          clearTimeout(timeout)
+          controllers.delete(controller)
         }
       }
       throw lastError instanceof Error ? lastError : new Error('Push registration failed')
@@ -116,7 +127,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
         if (cancelled) return
 
         setRegistrationStatus('registering')
-        const registered = await registerWithApi(pushToken)
+        registered = await registerWithApi(pushToken)
         if (!cancelled && registered) {
           setRegistrationStatus('registered')
         }
@@ -131,6 +142,10 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     }
 
     void acquireAndRegister()
+    // Recovery must not depend on leaving/reopening the app after an outage.
+    const recoveryTimer = setInterval(() => {
+      if (!registered && AppState.currentState === 'active') void acquireAndRegister()
+    }, 60_000)
     const foregroundSubscription = AppState.addEventListener('change', (state) => {
       // Recover registration after connectivity returns or the user enables
       // notifications in Settings, without requiring a logout/reinstall.
@@ -153,17 +168,30 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     })
 
     // Listen for notification taps
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) =>
-      setLastNotification(response),
-    )
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      if (cancelled) return
+      const responseId = `${response.notification.request.identifier}:${response.actionIdentifier}`
+      if (handledResponse.current === responseId) return
+      handledResponse.current = responseId
+      notifyNotificationReceived()
+      notifyAccessChanged()
+      setLastNotification(response)
+      void Notifications.clearLastNotificationResponseAsync().catch(() => undefined)
+    }
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener(handleResponse)
 
     // Capture a notification that launched the app before listeners mounted.
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!cancelled && response) setLastNotification(response)
-    }).catch(() => undefined)
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) handleResponse(response)
+      })
+      .catch(() => undefined)
 
     return () => {
       cancelled = true
+      clearInterval(recoveryTimer)
+      controllers.forEach((controller) => controller.abort())
       retryTimers.forEach((timer) => clearTimeout(timer))
       retryTimers.clear()
       pushTokenSubscription?.remove()
@@ -181,6 +209,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
  * Call this on logout before clearing auth state.
  */
 export async function unregisterPushToken(apiUrl: string, authToken: string) {
+  await Notifications.clearLastNotificationResponseAsync().catch(() => undefined)
   const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY)
   if (!pushToken) return
 
@@ -217,7 +246,7 @@ async function registerForPushNotifications(): Promise<string | null> {
 
   let permissions = await Notifications.getPermissionsAsync()
 
-  if (!hasNotificationPermission(permissions)) {
+  if (!hasNotificationPermission(permissions) && permissions.canAskAgain !== false) {
     permissions = await Notifications.requestPermissionsAsync()
   }
 

@@ -371,7 +371,9 @@ export const createEntitlementGrantSchema = z
   .object({
     tier: planTierSchema.exclude(['FREE']),
     /** Explicit package selection; old clients default to the single-team package. */
-    teamLimit: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(2147483647)]).optional(),
+    teamLimit: z
+      .union([z.literal(1), z.literal(3), z.literal(6), z.literal(2147483647)])
+      .optional(),
     interval: planIntervalSchema,
     source: z.enum(['COMPLIMENTARY', 'TRIAL']),
     reason: z.string().trim().min(3).max(500),
@@ -477,8 +479,15 @@ export type CreateBankImportInput = z.infer<typeof createBankImportSchema>
 export type ConfirmContributionMatchInput = z.infer<typeof confirmContributionMatchSchema>
 export type ReverseContributionMatchInput = z.infer<typeof reverseContributionMatchSchema>
 export type AuditEventInput = z.infer<typeof auditEventSchema>
+const expoPushTokenSchema = z
+  .string()
+  .max(256)
+  .regex(
+    /^(?:ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/,
+    'A valid Expo push token is required',
+  )
 export const registerPushTokenSchema = z.object({
-  token: z.string().min(1, 'Push token is required'),
+  token: expoPushTokenSchema,
   platform: z.enum(['ios', 'android', 'web']),
 })
 
