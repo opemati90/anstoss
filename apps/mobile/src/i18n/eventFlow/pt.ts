@@ -87,6 +87,8 @@ export const eventFlowPt = {
     inSquad: 'Convocado',
     rescheduled: 'A hora mudou. Responde novamente.',
     remindMe: 'Lembrar-me uma hora antes',
+    reminderSaveFailed: 'Não foi possível guardar o lembrete. Tenta novamente.',
+    reminderTooLate: 'Este lembrete tem de ser ativado mais de uma hora antes do início do evento.',
     childAnswers: 'Respostas pelos teus filhos',
     liveTitle: 'Relato em direto e classificação',
     liveSubtitle: 'Relato do jogo, resultado e classificação',

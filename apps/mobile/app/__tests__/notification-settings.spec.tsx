@@ -95,6 +95,22 @@ describe('NotificationSettingsScreen', () => {
     jest.restoreAllMocks()
   })
 
+  it('updates an existing club-wide row as well as teams, including the device timezone', async () => {
+    mockApi.mockResolvedValueOnce([{
+      id: 'legacy-global', teamId: null, mutedChat: true, quietStart: '22:00', quietEnd: '07:00',
+    }]).mockResolvedValue({ ok: true })
+    const { getAllByRole } = render(<NotificationSettingsScreen />)
+    await waitFor(() => expect(getAllByRole('switch').length).toBeGreaterThan(0))
+    fireEvent(getAllByRole('switch')[0], 'valueChange', false)
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4))
+    expect(mockApi).toHaveBeenNthCalledWith(2, '/clubs/club-1/notification-preferences', {
+      method: 'PUT', body: expect.objectContaining({
+        teamId: null, mutedChat: false, quietStart: '22:00', quietEnd: '07:00',
+        quietTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    })
+  })
+
   it('fans out the bulk row toggle into one save per team', async () => {
     mockApi
       .mockResolvedValueOnce([])
@@ -125,6 +141,7 @@ describe('NotificationSettingsScreen', () => {
         body: expect.objectContaining({
           teamId: 'team-1',
           mutedChat: true,
+          quietTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       }),
     )

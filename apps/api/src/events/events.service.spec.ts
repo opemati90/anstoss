@@ -77,6 +77,8 @@ describe('EventsService', () => {
       },
       eventReminderPreference: {
         upsert: jest.fn(),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       eventSeries: {
         create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'series-1', ...data })),
@@ -138,6 +140,37 @@ describe('EventsService', () => {
       mockEventsGateway as never,
       mockChatService as never,
     )
+  })
+
+  describe('personal reminders', () => {
+    it('allows switching off inside the final hour', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event', teamId: 'team', date: new Date(Date.now() + 30 * 60_000) })
+      await expect(service.toggleReminder('event', 'user', false)).resolves.toEqual({ reminderEnabled: false })
+      expect(mockPrisma.eventReminderPreference.deleteMany).toHaveBeenCalledWith({ where: { eventId: 'event', userId: 'user' } })
+    })
+    it('rejects new reminders inside the final hour', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event', teamId: 'team', date: new Date(Date.now() + 30 * 60_000) })
+      await expect(service.toggleReminder('event', 'user', true)).rejects.toBeInstanceOf(BadRequestException)
+      expect(mockPrisma.eventReminderPreference.upsert).not.toHaveBeenCalled()
+    })
+    it('does not silently re-enable a reminder when RSVP changes to YES', async () => {
+      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event', teamId: 'team', clubId: 'club-1',
+        date: new Date(Date.now() + 3 * 86400_000), cancelledAt: null, createdById: 'user' })
+      mockPrisma.rsvp.upsert.mockResolvedValue({ id: 'rsvp', status: 'YES' })
+      await service.upsertRsvp('event', 'user', 'YES')
+      expect(mockPrisma.eventReminderPreference.upsert).not.toHaveBeenCalled()
+    })
+    it('stores the hour-before instant only after checking current access', async () => {
+      const date = new Date(Date.now() + 3 * 86400_000)
+      mockPrisma.event.findUnique.mockResolvedValue({ id: 'event', teamId: 'team', date })
+      await service.toggleReminder('event', 'user', true)
+      expect(mockTeamsService.assertReadableAccess).toHaveBeenCalledWith('user', 'team', { eventId: 'event' })
+      expect(mockPrisma.eventReminderPreference.upsert).toHaveBeenCalledWith({
+        where: { eventId_userId: { eventId: 'event', userId: 'user' } },
+        update: expect.objectContaining({ remindAt: new Date(date.getTime() - 3600_000), sent: false, deliveryState: expect.anything() }),
+        create: { eventId: 'event', userId: 'user', remindAt: new Date(date.getTime() - 3600_000) },
+      })
+    })
   })
 
   describe('create', () => {
@@ -1143,6 +1176,12 @@ describe('EventsService', () => {
       expect(laterUpdate[0].data.location).toBe('Pitch 3')
       expect(laterUpdate[0].data.date.getTime()).toBe(laterDate.getTime() + 3_600_000)
       expect(laterUpdate[0].data.rescheduledAt).toBeInstanceOf(Date)
+      expect(mockPrisma.eventReminderPreference.updateMany).toHaveBeenCalledWith({
+        where: { eventId: 'evt-1' }, data: expect.objectContaining({ remindAt: new Date(moved.getTime() - 3600_000), sent: false, deliveryState: expect.anything() }),
+      })
+      expect(mockPrisma.eventReminderPreference.updateMany).toHaveBeenCalledWith({
+        where: { eventId: 'evt-2' }, data: expect.objectContaining({ remindAt: laterDate, sent: false, deliveryState: expect.anything() }),
+      })
       expect(mockPrisma.eventSeries.update).toHaveBeenCalled()
     })
 

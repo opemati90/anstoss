@@ -86,6 +86,8 @@ export const eventFlowEn = {
     inSquad: 'In the squad',
     rescheduled: 'The time has changed. Please reply again.',
     remindMe: 'Remind me an hour before',
+    reminderSaveFailed: 'Your reminder could not be saved. Please try again.',
+    reminderTooLate: 'An hour-before reminder needs to be enabled more than one hour before the event starts.',
     childAnswers: 'Replies for your children',
     liveTitle: 'Live ticker and table',
     liveSubtitle: 'Match events, score and league table',

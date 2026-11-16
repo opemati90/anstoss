@@ -1457,18 +1457,8 @@ export class EventsService {
       },
     })
 
-    // Auto-create reminder when user RSVPs YES and event is >1hr away
-    if (status === RsvpStatus.YES) {
-      const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
-      if (event.date > oneHourFromNow) {
-        const remindAt = new Date(event.date.getTime() - 60 * 60 * 1000)
-        await this.prisma.eventReminderPreference.upsert({
-          where: { eventId_userId: { eventId, userId } },
-          update: {},
-          create: { eventId, userId, remindAt },
-        })
-      }
-    }
+    // Personal reminders are explicit opt-ins. RSVP changes must never
+    // silently reverse a reminder the user deliberately switched off.
 
     // Realtime: broadcast fresh RSVP counts to the team room.
     void this.eventsGateway.emitRsvpUpdate(event.teamId, eventId)
@@ -1533,7 +1523,10 @@ export class EventsService {
     await this.teamsService.assertReadableAccess(userId, event.teamId, { eventId: event.id })
 
     const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000)
-    if (event.date <= oneHourFromNow) {
+    if (enabled && (event.cancelledAt || event.archivedAt)) {
+      throw new BadRequestException('Cannot set reminder for an inactive event')
+    }
+    if (enabled && event.date <= oneHourFromNow) {
       throw new BadRequestException('Cannot set reminder for events less than 1 hour away')
     }
 
@@ -1541,7 +1534,7 @@ export class EventsService {
       const remindAt = new Date(event.date.getTime() - 60 * 60 * 1000)
       await this.prisma.eventReminderPreference.upsert({
         where: { eventId_userId: { eventId, userId } },
-        update: { remindAt, sent: false },
+        update: { remindAt, sent: false, deliveryState: Prisma.DbNull },
         create: { eventId, userId, remindAt },
       })
     } else {
@@ -1720,6 +1713,12 @@ export class EventsService {
         },
       })
 
+      if (dateMoves) {
+        await tx.eventReminderPreference.updateMany({ where: { eventId }, data: {
+          remindAt: new Date(newDate.getTime() - 60 * 60 * 1000), sent: false, deliveryState: Prisma.DbNull,
+        } })
+      }
+
       // "This and following": the same edit lands on every later occurrence
       // that is still on. A new time applies to the whole series; a new
       // weekday only to the occurrences on the old weekday (moving Tuesday to
@@ -1775,6 +1774,11 @@ export class EventsService {
                 ...(shifts && { date: rowNewDate, rescheduledAt: new Date() }),
               },
             })
+            if (shifts) {
+              await tx.eventReminderPreference.updateMany({ where: { eventId: row.id }, data: {
+                remindAt: new Date(rowNewDate.getTime() - 60 * 60 * 1000), sent: false, deliveryState: Prisma.DbNull,
+              } })
+            }
           }
         }
         followingCount = later.length

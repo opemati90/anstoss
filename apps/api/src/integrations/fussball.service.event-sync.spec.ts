@@ -198,6 +198,9 @@ describe('FussballService.syncEventForFixture', () => {
 
       const { data } = prisma.event.update.mock.calls[0][0]
       expect(data.date).toEqual(later)
+      expect(data.reminderPreferences).toEqual({ updateMany: {
+        where: {}, data: expect.objectContaining({ remindAt: new Date(later.getTime() - 60 * 60_000), sent: false, deliveryState: expect.anything() }),
+      } })
       expect(data.rescheduledAt).toBeInstanceOf(Date)
       expect(data.meetingAt).toEqual(new Date('2026-10-04T14:00:00.000Z'))
       expect(push.sendToTeamRendered).toHaveBeenCalledWith(
@@ -215,6 +218,7 @@ describe('FussballService.syncEventForFixture', () => {
       const { prisma, push, service } = createService(existing())
       await sync(service, fixture('SV Babelsberg 03', 'SV Albatros'), null, 'status')
       expect(prisma.event.update.mock.calls[0][0].data).not.toHaveProperty('rescheduledAt')
+      expect(prisma.event.update.mock.calls[0][0].data).not.toHaveProperty('reminderPreferences')
       expect(push.sendToTeamRendered).not.toHaveBeenCalled()
     })
 

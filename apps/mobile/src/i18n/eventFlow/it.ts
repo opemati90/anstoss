@@ -86,6 +86,8 @@ export const eventFlowIt = {
     inSquad: 'Tra i convocati',
     rescheduled: 'L’orario è cambiato. Rispondi di nuovo.',
     remindMe: 'Ricordamelo un’ora prima',
+    reminderSaveFailed: 'Impossibile salvare il promemoria. Riprova.',
+    reminderTooLate: 'Questo promemoria deve essere attivato più di un’ora prima dell’inizio dell’evento.',
     childAnswers: 'Risposte per i tuoi figli',
     liveTitle: 'Diretta e classifica',
     liveSubtitle: 'Cronaca, risultato e classifica',

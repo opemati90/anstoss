@@ -1668,6 +1668,12 @@ export class FussballService {
           ...(existingEvent.autoTitle && { title: opponent }),
           date: fixture.kickoffAt,
           ...(dateMoves && { rescheduledAt: new Date() }),
+          // Nested update is atomic with the kickoff change and only touches
+          // existing opt-ins (including reminders for the previous kickoff).
+          ...(dateMoves && { reminderPreferences: { updateMany: {
+            where: {},
+            data: { remindAt: new Date(fixture.kickoffAt.getTime() - 60 * 60_000), sent: false, deliveryState: Prisma.DbNull },
+          } } }),
           location,
           notes,
           opponent,

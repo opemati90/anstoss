@@ -1,5 +1,5 @@
 import React from 'react'
-import { Switch } from 'react-native'
+import { Alert, Switch } from 'react-native'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import EventDetailScreen from '../event-detail'
 import { api } from '../../src/api/client'
@@ -7,6 +7,11 @@ import { api } from '../../src/api/client'
 const mockPush = jest.fn()
 const mockApi = api as jest.Mock
 let mockUser = { id: 'user-player', name: 'Tim Weber' }
+let mockRegistrationStatus = 'registered'
+
+jest.mock('../../src/components/PushNotificationProvider', () => ({
+  usePushContext: () => ({ registrationStatus: mockRegistrationStatus }),
+}))
 
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
@@ -95,6 +100,37 @@ function detail(overrides: Record<string, unknown> = {}) {
 }
 
 describe('EventDetailScreen', () => {
+  afterEach(() => { jest.restoreAllMocks(); mockRegistrationStatus = 'registered' })
+  it('prevents overlapping reminder saves and restores the previous state on failure', async () => {
+    let rejectSave!: (error: Error) => void
+    const pending = new Promise((_, reject) => { rejectSave = reject })
+    mockApi.mockImplementation((_path, options) => options?.method === 'PUT' ? pending : Promise.resolve(detail({ reminderEnabled: false })))
+    const alert = jest.spyOn(Alert, 'alert')
+    const screen = render(<EventDetailScreen />)
+    fireEvent(await screen.findByTestId('event-reminder-toggle'), 'valueChange', true)
+    expect(screen.UNSAFE_getByType(Switch).props.disabled).toBe(true)
+    fireEvent(screen.getByTestId('event-reminder-toggle'), 'valueChange', false)
+    expect(mockApi.mock.calls.filter(([, options]) => options?.method === 'PUT')).toHaveLength(1)
+    rejectSave(new Error('offline'))
+    await waitFor(() => expect(screen.UNSAFE_getByType(Switch).props.disabled).toBe(false))
+    expect(screen.UNSAFE_getByType(Switch).props.value).toBe(false)
+    expect(alert).toHaveBeenCalledWith('eventFlow.detail.remindMe', 'eventFlow.detail.reminderSaveFailed')
+  })
+  it('warns when this device cannot receive an enabled reminder', async () => {
+    mockRegistrationStatus = 'denied'
+    mockApi.mockResolvedValue(detail({ reminderEnabled: true }))
+    const screen = render(<EventDetailScreen />)
+    expect(await screen.findByTestId('event-reminder-device-warning')).toBeTruthy()
+    expect(screen.UNSAFE_getByType(Switch).props.value).toBe(true)
+  })
+  it('explains why a new hour-before reminder cannot be enabled too late', async () => {
+    mockApi.mockResolvedValue(detail({ reminderEnabled: false, date: new Date(Date.now() + 30 * 60_000).toISOString() }))
+    const alert = jest.spyOn(Alert, 'alert')
+    const screen = render(<EventDetailScreen />)
+    fireEvent(await screen.findByTestId('event-reminder-toggle'), 'valueChange', true)
+    expect(alert).toHaveBeenCalledWith('eventFlow.detail.remindMe', 'eventFlow.detail.reminderTooLate')
+    expect(mockApi.mock.calls.filter(([, options]) => options?.method === 'PUT')).toHaveLength(0)
+  })
   it('uses distinct on/off reminder tracks and thumbs, with an explicit checked state', async () => {
     mockApi.mockResolvedValue(detail({ reminderEnabled: false }))
     const screen = render(<EventDetailScreen />)

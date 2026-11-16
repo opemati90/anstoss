@@ -959,6 +959,8 @@ model EventReminderPreference {
   userId    String
   remindAt  DateTime
   sent      Boolean  @default(false)
+  // Durable per-device attempts/Expo receipt IDs; no token strings or message text.
+  deliveryState Json?
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -1521,6 +1523,7 @@ model NotificationPreference {
   mutedAnnouncements Boolean  @default(false)
   quietStart         String? // "22:00" HH:mm
   quietEnd           String? // "07:00" HH:mm
+  quietTimeZone      String? // IANA timezone captured when the user saves quiet hours
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

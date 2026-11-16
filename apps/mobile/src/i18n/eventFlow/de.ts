@@ -88,6 +88,8 @@ export const eventFlowDe = {
     inSquad: 'Im Kader',
     rescheduled: 'Die Zeit hat sich geändert. Bitte antworte neu.',
     remindMe: 'Eine Stunde vorher erinnern',
+    reminderSaveFailed: 'Deine Erinnerung konnte nicht gespeichert werden. Bitte versuche es erneut.',
+    reminderTooLate: 'Diese Erinnerung muss mehr als eine Stunde vor Beginn aktiviert werden.',
     childAnswers: 'Antworten für deine Kinder',
     liveTitle: 'Liveticker und Tabelle',
     liveSubtitle: 'Spielverlauf, Ergebnis und Tabelle',

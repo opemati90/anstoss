@@ -7,6 +7,10 @@ export const upsertNotificationPreferenceSchema = z.object({
   mutedChat: z.boolean().optional(),
   mutedEvents: z.boolean().optional(),
   mutedAnnouncements: z.boolean().optional(),
+  quietTimeZone: z.string().min(1).max(100).refine((value) => {
+    try { new Intl.DateTimeFormat('en', { timeZone: value }); return true }
+    catch { return false }
+  }, 'Must be a valid IANA timezone').optional(),
   quietStart: z
     .string()
     .regex(hhmmRegex, 'Must be HH:mm format')

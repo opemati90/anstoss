@@ -12,11 +12,13 @@ import { RSVP, type EventDetail } from '@anstoss/shared'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
+import { usePushContext } from '../src/components/PushNotificationProvider'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import {
   BottomSheet,
+  Banner,
   Button,
   Icon,
   IconButton,
@@ -72,6 +74,7 @@ const CHECK_IN_AFTER_MS = 3 * 60 * 60 * 1000
  */
 export default function EventDetailScreen() {
   const { t } = useTranslation()
+  const { registrationStatus } = usePushContext()
   const c = useClubColors()
   const hero = useHeroText()
   const insets = useSafeAreaInsetsSafe()
@@ -105,11 +108,15 @@ export default function EventDetailScreen() {
   const [checkingIn, setCheckingIn] = useState(false)
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null)
   const [reminderOn, setReminderOn] = useState(false)
+  const [reminderSaving, setReminderSaving] = useState(false)
+  const reminderSavingRef = useRef(false)
+  const reminderRevision = useRef(0)
   const seq = useRef(0)
   const deepLinksHandled = useRef<string | null>(null)
 
   const fetchEvent = useCallback(async () => {
     const request = ++seq.current
+    const reminderRequest = reminderRevision.current
     if (!clubId || !eventId) {
       setError(true)
       return
@@ -120,7 +127,9 @@ export default function EventDetailScreen() {
       setEvent(data)
       setError(false)
       setCheckedInAt(data.myCheckInAt ?? null)
-      setReminderOn(Boolean(data.reminderEnabled))
+      if (!reminderSavingRef.current && reminderRequest === reminderRevision.current) {
+        setReminderOn(Boolean(data.reminderEnabled))
+      }
       if (data.lastRsvpReminderAt) {
         setRemindCooldown(
           new Date(new Date(data.lastRsvpReminderAt).getTime() + 24 * 60 * 60 * 1000).toISOString(),
@@ -257,7 +266,15 @@ export default function EventDetailScreen() {
   }
 
   const toggleReminder = async (enabled: boolean) => {
-    if (!clubId || !event) return
+    if (!clubId || !event || reminderSavingRef.current) return
+    if (enabled && new Date(event.date).getTime() <= Date.now() + 60 * 60_000) {
+      Alert.alert(t('eventFlow.detail.remindMe'), t('eventFlow.detail.reminderTooLate'))
+      return
+    }
+    reminderSavingRef.current = true
+    reminderRevision.current += 1
+    setReminderSaving(true)
+    const previous = reminderOn
     setReminderOn(enabled)
     try {
       await api(`/clubs/${clubId}/events/${event.id}/reminder`, {
@@ -265,7 +282,11 @@ export default function EventDetailScreen() {
         body: { enabled },
       })
     } catch {
-      setReminderOn(!enabled)
+      setReminderOn(previous)
+      Alert.alert(t('eventFlow.detail.remindMe'), t('eventFlow.detail.reminderSaveFailed'))
+    } finally {
+      reminderSavingRef.current = false
+      setReminderSaving(false)
     }
   }
 
@@ -465,16 +486,26 @@ export default function EventDetailScreen() {
                     </Text>
                     <Switch
                       value={reminderOn}
+                      disabled={reminderSaving}
                       onValueChange={(value) => void toggleReminder(value)}
                       trackColor={{ true: c.accent, false: c.borderStrong }}
                       thumbColor={reminderOn ? c.onAccent : c.textSecondary}
                       ios_backgroundColor={c.borderStrong}
                       accessibilityLabel={t('eventFlow.detail.remindMe')}
-                      accessibilityState={{ checked: reminderOn }}
+                      accessibilityState={{ checked: reminderOn, disabled: reminderSaving, busy: reminderSaving }}
                       testID="event-reminder-toggle"
                     />
                   </View>
                 </SectionGroup>
+              ) : null}
+              {!canManage && reminderOn && (registrationStatus === 'denied' || registrationStatus === 'error') ? (
+                <Banner
+                  tone="warning"
+                  title={t('notificationSettings.deviceBlockedTitle')}
+                  description={t('notificationSettings.deviceBlockedBody')}
+                  action={{ label: t('notificationSettings.title'), onPress: () => router.push('/notification-settings') }}
+                  testID="event-reminder-device-warning"
+                />
               ) : null}
             </View>
           ) : null}

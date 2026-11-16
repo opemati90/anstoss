@@ -158,6 +158,22 @@ describe('PushService', () => {
   })
 
   describe('sendToUser', () => {
+    it('reports accepted tickets without claiming device delivery', async () => {
+      prisma.pushToken.findMany.mockResolvedValue([{ token: 'test-token' }])
+      jest.mocked(global.fetch).mockResolvedValue({ ok: true,
+        json: async () => ({ data: [{ status: 'ok', id: 'test-ticket' }] }) } as Response)
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toEqual({ acceptedCount: 1 })
+    })
+    it('reports zero acceptance after provider rejection', async () => {
+      prisma.pushToken.findMany.mockResolvedValue([{ token: 'test-token' }])
+      jest.mocked(global.fetch).mockResolvedValue({ ok: false, status: 503 } as Response)
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toEqual({ acceptedCount: 0 })
+    })
+    it('reports zero acceptance when no device token exists', async () => {
+      prisma.pushToken.findMany.mockResolvedValue([])
+      await expect(service.sendToUser('u1', 'Title', 'Body')).resolves.toEqual({ acceptedCount: 0 })
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
     it('sends push to user', async () => {
       prisma.pushToken.findMany.mockResolvedValue([{ token: 'tok1' }])
 

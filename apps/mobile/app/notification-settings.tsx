@@ -56,6 +56,7 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<LocalPref[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [hasStoredClubWidePref, setHasStoredClubWidePref] = useState(false)
   const [quietErrors, setQuietErrors] = useState<Record<number, boolean>>({})
 
   const clubId = activeClub?.club.id
@@ -76,6 +77,7 @@ export default function NotificationSettingsScreen() {
       })
 
       const clubWide = data.find((p) => p.teamId === null)
+      setHasStoredClubWidePref(clubWide != null)
       const alignedTeamRow =
         teamRows.length > 0 &&
         teamRows.every(
@@ -164,9 +166,17 @@ export default function NotificationSettingsScreen() {
         mutedAnnouncements: pref.mutedAnnouncements,
         quietStart: pref.quietStart || null,
         quietEnd: pref.quietEnd || null,
+        quietTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }
 
       if (pref.teamId === null) {
+        // Update a real legacy global row too; otherwise it keeps suppressing
+        // pushes after the visible bulk controls have been changed.
+        if (hasStoredClubWidePref) {
+          await api(`/clubs/${clubId}/notification-preferences`, {
+            method: 'PUT', body: { teamId: null, ...payload },
+          })
+        }
         await Promise.all(
           teamsForActiveClub.map((team) =>
             api(`/clubs/${clubId}/notification-preferences`, {

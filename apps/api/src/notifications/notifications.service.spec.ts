@@ -9,6 +9,7 @@ describe('NotificationsService', () => {
       findMany: jest.Mock
       upsert: jest.Mock
     }
+    $transaction: jest.Mock
   }
 
   beforeEach(async () => {
@@ -17,6 +18,7 @@ describe('NotificationsService', () => {
         findMany: jest.fn(),
         upsert: jest.fn(),
       },
+      $transaction: jest.fn(),
     }
 
     const module: TestingModule = await Test.createTestingModule({
@@ -72,23 +74,28 @@ describe('NotificationsService', () => {
     })
 
     it('upserts club-wide preference when no teamId', async () => {
-      prisma.notificationPreference.upsert.mockResolvedValue({ id: '2' })
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue([]),
+        notificationPreference: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: '2' }),
+        },
+      }
+      prisma.$transaction.mockImplementation((callback) => callback(tx))
 
       await service.upsertPreference('u1', 'c1', {
         mutedEvents: true,
       })
 
-      expect(prisma.notificationPreference.upsert).toHaveBeenCalledWith(
+      expect(tx.notificationPreference.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            userId_clubId_teamId: { userId: 'u1', clubId: 'c1', teamId: null },
-          },
-          create: expect.objectContaining({
+          data: expect.objectContaining({
             teamId: null,
             mutedEvents: true,
           }),
         }),
       )
+      expect(prisma.notificationPreference.upsert).not.toHaveBeenCalled()
     })
   })
 

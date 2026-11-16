@@ -46,7 +46,7 @@ function setup() {
       findFirst: jest.fn().mockResolvedValue({ id: 'g-1' }),
       findMany: jest.fn().mockResolvedValue([]),
     },
-    eventReminderPreference: { upsert: jest.fn() },
+    eventReminderPreference: { upsert: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     team: { findUnique: jest.fn().mockResolvedValue({ name: 'Erste' }) },
     user: {
       findUnique: jest.fn().mockResolvedValue({ name: 'Tim Weber' }),

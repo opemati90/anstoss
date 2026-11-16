@@ -212,11 +212,18 @@ async function syncEventForFixture(prisma, fixture, linkLabel) {
     'Imported from licensed fixture feed',
   ].filter(Boolean).join('\n')
 
-  await prisma.event.upsert({
+  await prisma.$transaction(async (tx) => {
+  const previous = await tx.event.findUnique({ where: { externalMatchKey: key }, select: { date: true } })
+  const dateMoves = previous && previous.date.getTime() !== fixture.kickoffAt.getTime()
+  await tx.event.upsert({
     where: { externalMatchKey: key },
     update: {
       title,
       date: fixture.kickoffAt,
+      ...(dateMoves && { rescheduledAt: new Date(), reminderPreferences: { updateMany: {
+        where: {},
+        data: { remindAt: new Date(fixture.kickoffAt.getTime() - 60 * 60_000), sent: false, deliveryState: Prisma.DbNull },
+      } } }),
       location,
       notes,
     },
@@ -231,6 +238,7 @@ async function syncEventForFixture(prisma, fixture, linkLabel) {
       notes,
       createdById: creator.userId,
     },
+  })
   })
 }
 

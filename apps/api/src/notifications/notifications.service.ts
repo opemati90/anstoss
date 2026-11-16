@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import type { UpsertNotificationPreference, NotificationCategory } from '@anstoss/shared'
+import { isQuietAt } from './quiet-hours'
 
 @Injectable()
 export class NotificationsService {
@@ -26,9 +27,23 @@ export class NotificationsService {
   ) {
     const teamId = data.teamId ?? null
 
+    // PostgreSQL nullable compound keys do not provide a unique upsert target.
+    // Serialize club-wide writes and update every legacy duplicate consistently.
+    if (teamId === null) {
+      return this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(['notification-preference', userId, clubId])}, 0))::text`
+        const where = { userId, clubId, teamId: null }
+        const { teamId: _scope, ...values } = data
+        const existing = await tx.notificationPreference.findFirst({ where, orderBy: { id: 'asc' } })
+        if (!existing) return tx.notificationPreference.create({ data: { ...where, ...values } })
+        await tx.notificationPreference.updateMany({ where, data: values })
+        return tx.notificationPreference.findUniqueOrThrow({ where: { id: existing.id } })
+      })
+    }
+
     return this.prisma.notificationPreference.upsert({
       where: {
-        userId_clubId_teamId: { userId, clubId, teamId: teamId as string },
+        userId_clubId_teamId: { userId, clubId, teamId },
       },
       create: {
         userId,
@@ -39,6 +54,7 @@ export class NotificationsService {
         mutedAnnouncements: data.mutedAnnouncements ?? false,
         quietStart: data.quietStart ?? null,
         quietEnd: data.quietEnd ?? null,
+        quietTimeZone: data.quietTimeZone ?? null,
       },
       update: {
         ...(data.mutedChat !== undefined && { mutedChat: data.mutedChat }),
@@ -48,6 +64,7 @@ export class NotificationsService {
         }),
         ...(data.quietStart !== undefined && { quietStart: data.quietStart }),
         ...(data.quietEnd !== undefined && { quietEnd: data.quietEnd }),
+        ...(data.quietTimeZone !== undefined && { quietTimeZone: data.quietTimeZone }),
       },
     })
   }
@@ -105,23 +122,13 @@ export class NotificationsService {
         quietStart: { not: null },
         quietEnd: { not: null },
       },
-      select: { quietStart: true, quietEnd: true },
+      select: { quietStart: true, quietEnd: true, quietTimeZone: true },
     })
 
     if (prefs.length === 0) return false
 
     const now = new Date()
-    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
-    return prefs.some((p) => {
-      const start = p.quietStart!
-      const end = p.quietEnd!
-      // Handle overnight ranges (e.g., 22:00 → 07:00)
-      if (start <= end) {
-        return hhmm >= start && hhmm < end
-      }
-      return hhmm >= start || hhmm < end
-    })
+    return prefs.some((p) => isQuietAt(p, now))
   }
 }
 

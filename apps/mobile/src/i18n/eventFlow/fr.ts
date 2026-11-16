@@ -93,6 +93,8 @@ export const eventFlowFr = {
     inSquad: 'Dans le groupe',
     rescheduled: 'L’horaire a changé. Réponds à nouveau.',
     remindMe: 'Me rappeler une heure avant',
+    reminderSaveFailed: 'Impossible d’enregistrer votre rappel. Veuillez réessayer.',
+    reminderTooLate: 'Ce rappel doit être activé plus d’une heure avant le début de l’événement.',
     childAnswers: 'Réponses pour tes enfants',
     liveTitle: 'Direct et classement',
     liveSubtitle: 'Déroulé du match, score et classement',

@@ -3,31 +3,35 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common'
+import { TeamAccessDeniedError } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { formatPush } from '../push/push.templates'
 import { INTL_LOCALE_TAG, resolveLocale, type Locale } from '../i18n/translations'
 import { eventTitleFor } from './event-copy'
+import { TeamsService } from '../teams/teams.service'
+import { hasPendingReminderReceipts } from '../push/reminder-delivery'
 
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000
+const DEFAULT_INTERVAL_MS = 60 * 1000
 const BATCH_SIZE = 100
 
 @Injectable()
 export class EventReminderWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventReminderWorker.name)
   private timer: NodeJS.Timeout | null = null
+  private running = false
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly pushService: PushService,
+    private readonly teamsService: TeamsService,
   ) {}
 
   onModuleInit() {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.EVENT_REMINDER_WORKER_DISABLED === 'true'
-    ) {
+    if (process.env.NODE_ENV === 'test' || process.env.EVENT_REMINDER_WORKER_DISABLED === 'true') {
       return
     }
 
@@ -47,76 +51,122 @@ export class EventReminderWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   async runCycle() {
-    const now = new Date()
-    const prefs = await this.prisma.eventReminderPreference.findMany({
-      where: {
-        sent: false,
-        remindAt: { lte: now },
-      },
-      include: {
-        event: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            opponent: true,
-            homeAway: true,
-            autoTitle: true,
-            date: true,
-            location: true,
-            clubId: true,
-            cancelledAt: true,
-          },
-        },
-        user: { select: { preferredLanguage: true } },
-      },
-      take: BATCH_SIZE,
-    })
-
-    for (const pref of prefs) {
-      try {
-        // Skip cancelled events
-        if (pref.event.cancelledAt) {
-          await this.prisma.eventReminderPreference.update({
-            where: { id: pref.id },
-            data: { sent: true },
+    if (this.running) return
+    this.running = true
+    try {
+      const now = new Date()
+      const prefs = await this.prisma.eventReminderPreference.findMany({
+        where: { sent: false, remindAt: { lte: now } },
+        select: { id: true },
+        orderBy: [{ remindAt: 'asc' }, { id: 'asc' }],
+        take: BATCH_SIZE,
+      })
+      for (const candidate of prefs) {
+        try {
+          await this.prisma.$transaction(
+            async (tx) => {
+              // Keep overlapping API instances from sending the same reminder.
+              // SKIP LOCKED lets another instance process other recipients.
+              const locked = await tx.$queryRaw<Array<{ id: string }>>`
+              SELECT "id" FROM "EventReminderPreference" WHERE "id" = ${candidate.id}
+              FOR UPDATE SKIP LOCKED`
+              if (!locked.length) return
+              const pref = await tx.eventReminderPreference.findUnique({
+                where: { id: candidate.id },
+                include: {
+                  event: true,
+                  user: { select: { preferredLanguage: true, deletedAt: true } },
+                },
+              })
+              const current = new Date()
+              if (!pref || pref.sent || pref.remindAt > current) return
+              const finish = () =>
+                tx.eventReminderPreference.update({ where: { id: pref.id }, data: { sent: true } })
+              if (
+                pref.event.cancelledAt ||
+                pref.event.archivedAt ||
+                pref.user.deletedAt ||
+                (pref.event.date <= current && !hasPendingReminderReceipts(pref.deliveryState))
+              ) {
+                await finish()
+                return
+              }
+              try {
+                await this.teamsService.assertReadableAccess(pref.userId, pref.event.teamId, {
+                  eventId: pref.event.id,
+                })
+              } catch (error) {
+                if (
+                  error instanceof TeamAccessDeniedError ||
+                  error instanceof ForbiddenException ||
+                  error instanceof NotFoundException
+                ) {
+                  await finish()
+                  return
+                }
+                throw error
+              }
+              const scheduled = new Date(pref.event.date.getTime() - 60 * 60_000)
+              if (scheduled > current) {
+                await tx.eventReminderPreference.update({
+                  where: { id: pref.id },
+                  data: { remindAt: scheduled },
+                })
+                return
+              }
+              const locale = resolveLocale(pref.user.preferredLanguage)
+              const { title, body } = formatPush(
+                'EVENT_REMINDER',
+                {
+                  eventTitle: eventTitleFor(pref.event, locale),
+                  timeUntil: formatTimeUntil(pref.event.date, locale),
+                  location: pref.event.location ?? undefined,
+                },
+                locale,
+              )
+              const result = await this.pushService.advanceEventReminder({
+                userId: pref.userId,
+                saved: pref.deliveryState,
+                eventDate: pref.event.date,
+                title,
+                body,
+                data: {
+                  type: 'event',
+                  reminderId: pref.id,
+                  eventId: pref.event.id,
+                  clubId: pref.event.clubId,
+                  teamId: pref.event.teamId,
+                },
+              })
+              await tx.eventReminderPreference.update({
+                where: { id: pref.id },
+                data: {
+                  // 'sent' is the legacy completion flag, NOT proof of display.
+                  // Per-device outcomes distinguish provider acceptance and failure.
+                  sent: result.complete,
+                  deliveryState: result.state,
+                  remindAt: result.nextAt,
+                },
+              })
+            },
+            { timeout: 30_000 },
+          )
+        } catch {
+          this.logger.warn(`Event reminder attempt failed for pref ${candidate.id}; will retry`)
+          await this.prisma.eventReminderPreference.updateMany({
+            where: {
+              id: candidate.id,
+              sent: false,
+              remindAt: { lte: now },
+            },
+            data: { remindAt: new Date(Date.now() + resolveInterval()) },
           })
-          continue
         }
-
-        const locale = resolveLocale(pref.user?.preferredLanguage)
-        const timeUntil = formatTimeUntil(pref.event.date, locale)
-        const { title, body } = formatPush(
-          'EVENT_REMINDER',
-          {
-            // Derived titles ("Heimspiel gegen X") in the reader's language.
-            eventTitle: eventTitleFor(pref.event, locale),
-            timeUntil,
-            location: pref.event.location ?? undefined,
-          },
-          locale,
-        )
-
-        await this.pushService.sendToUser(pref.userId, title, body, {
-          type: 'event',
-          eventId: pref.event.id,
-        }, { clubId: pref.event.clubId })
-
-        await this.prisma.eventReminderPreference.update({
-          where: { id: pref.id },
-          data: { sent: true },
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'unknown error'
-        this.logger.warn(
-          `Event reminder failed for pref ${pref.id}: ${message}`,
-        )
       }
-    }
-
-    if (prefs.length > 0) {
-      this.logger.log(`Processed ${prefs.length} event reminders.`)
+    } catch {
+      this.logger.warn('Event reminder cycle failed; will retry next cycle')
+    } finally {
+      this.running = false
     }
   }
 }

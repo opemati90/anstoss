@@ -86,6 +86,8 @@ export const eventFlowTr = {
     inSquad: 'Kadroda',
     rescheduled: 'Saat değişti. Lütfen yeniden yanıt ver.',
     remindMe: 'Bir saat önce hatırlat',
+    reminderSaveFailed: 'Hatırlatıcınız kaydedilemedi. Lütfen tekrar deneyin.',
+    reminderTooLate: 'Bu hatırlatıcı, etkinlik başlamadan bir saatten daha önce açılmalıdır.',
     childAnswers: 'Çocukların adına yanıtlar',
     liveTitle: 'Canlı anlatım ve puan durumu',
     liveSubtitle: 'Maçın akışı, skor ve puan durumu',

@@ -9,6 +9,9 @@ import { formatPush, type NotificationType, type TemplateData } from './push.tem
 import { AgeGateService } from '../auth/age-gate.service'
 import { InboxService } from '../inbox/inbox.service'
 import { isInboxWorthy, type InboxRenderedType } from '../inbox/inbox.policy'
+import { isQuietAt } from '../notifications/quiet-hours'
+import { advanceReminderDelivery } from './reminder-delivery'
+import { reminderTransport } from './reminder-transport'
 interface NotificationChecker {
   getMutedUserIds(clubId: string, teamId: string, category: string): Promise<Set<string>>
   isInQuietHours(userId: string, clubId: string): Promise<boolean>
@@ -340,6 +343,17 @@ export class PushService {
     data?: Record<string, string>,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    if (!await this.canSendToUser(userId, data, options)) return { acceptedCount: 0 }
+    const tokens = await this.prisma.pushToken.findMany({ where: { userId }, select: { token: true } })
+    if (tokens.length === 0) return { acceptedCount: 0 }
+    return this.sendPush(tokens.map((t) => t.token), title, body, data)
+  }
+
+  private async canSendToUser(
+    userId: string,
+    data?: Record<string, string>,
+    options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
+  ): Promise<boolean> {
     // Privacy: skip users who fail the age gate for this club (or, with no
     // club context, who have no consented club at all).
     if (this.ageGate) {
@@ -349,7 +363,7 @@ export class PushService {
       })
       if (!allowed) {
         this.logger.debug(`Skipping push to ${userId} — age gate`)
-        return
+        return false
       }
     }
     // Skip if user is in quiet hours
@@ -357,7 +371,7 @@ export class PushService {
       const inQuiet = await this.notificationsService.isInQuietHours(userId, options.clubId)
       if (inQuiet) {
         this.logger.debug(`Skipping push to ${userId} — in quiet hours`)
-        return
+        return false
       }
       // Skip if the user muted this category for the club. Per-user sends had
       // no mute check before — only the team fan-out did.
@@ -369,23 +383,41 @@ export class PushService {
         )
         if (muted) {
           this.logger.debug(`Skipping push to ${userId} — muted ${options.category}`)
-          return
+          return false
         }
       }
     }
+    return true
+  }
+
+  /** Called only under the reminder preference's row lock. No in-memory
+   * receipt timers: the worker persists the returned state before releasing it. */
+  async advanceEventReminder(input: {
+    userId: string; saved: unknown; eventDate: Date; title: string; body: string;
+    data: Record<string, string>;
+  }) {
     const tokens = await this.prisma.pushToken.findMany({
-      where: { userId },
-      select: { token: true },
+      where: { userId: input.userId }, select: { id: true, token: true }, orderBy: { id: 'asc' }, take: 100,
     })
-
-    if (tokens.length === 0) return
-
-    await this.sendPush(
-      tokens.map((t: { token: string }) => t.token),
-      title,
-      body,
-      data,
-    )
+    const canSend = await this.canSendToUser(input.userId, input.data, { clubId: input.data.clubId, category: 'events' })
+    const result = await advanceReminderDelivery({
+      saved: input.saved, eventDate: input.eventDate, now: Date.now(), tokens, canSend,
+      transport: reminderTransport({ ...input, expiresAt: input.eventDate }),
+    })
+    if (result.deadTokens.length) {
+      // Recheck ownership and registration timestamp: a delayed receipt must
+      // not remove a token re-registered or transferred after this attempt.
+      try {
+        await this.prisma.pushToken.deleteMany({ where: {
+          userId: input.userId,
+          OR: result.deadTokens.map((token) => ({ id: token.id, updatedAt: { lte: new Date(token.attemptedAt) } })),
+        } })
+      } catch {
+        // Retain successful tickets even if best-effort dead-token cleanup fails.
+        this.logger.warn('Reminder token cleanup failed; durable receipt outcomes retained')
+      }
+    }
+    return result
   }
 
   /**
@@ -400,20 +432,15 @@ export class PushService {
         quietStart: { not: null },
         quietEnd: { not: null },
       },
-      select: { userId: true, quietStart: true, quietEnd: true },
+      select: { userId: true, quietStart: true, quietEnd: true, quietTimeZone: true },
     })
 
     if (prefs.length === 0) return new Set()
 
     const now = new Date()
-    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
     const quietIds = new Set<string>()
     for (const p of prefs) {
-      const start = p.quietStart!
-      const end = p.quietEnd!
-      const isQuiet = start <= end ? hhmm >= start && hhmm < end : hhmm >= start || hhmm < end
-      if (isQuiet) quietIds.add(p.userId)
+      if (isQuietAt(p, now)) quietIds.add(p.userId)
     }
 
     return quietIds
@@ -504,7 +531,7 @@ export class PushService {
     title: string,
     body: string,
     data?: Record<string, string>,
-  ) {
+  ): Promise<{ acceptedCount: number }> {
     const messages: ExpoPushMessage[] = pushTokens.map((token) => ({
       to: token,
       title,
@@ -531,6 +558,7 @@ export class PushService {
             Accept: 'application/json',
           },
           body: JSON.stringify(batch),
+          signal: AbortSignal.timeout(8000),
         })
 
         if (!response.ok) {
@@ -568,6 +596,9 @@ export class PushService {
     // receipt. Schedule a deferred receipt check to catch them and prune dead
     // tokens. Fire-and-forget — never block or fail the send.
     this.scheduleReceiptCheck(ticketTokens)
+    // Provider acceptance is not a device-delivery receipt. Callers must not
+    // discard retryable reminders when every push was rejected or suppressed.
+    return { acceptedCount: ticketTokens.size }
   }
 
   /**

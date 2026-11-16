@@ -1,0 +1,38 @@
+{
+  "scope": "Anstoss personal event reminders only",
+  "sourceOfTruth": {
+    "repository": "opemati90/anstoss",
+    "releaseCandidateBranch": "develop",
+    "verifiedLiveBaseCommit": "bd74aa28f912bf46923145ddb8c3336764d9036c",
+    "verifiedGitHubRun": "43755071179",
+    "verifiedRailwayDeployment": "5aee7de3-2546-48ab-89c0-3a2e028c916b",
+    "warning": "The develop workflow labelled Development currently deploys the live production API. prod must not be advanced until launch gates pass."
+  },
+  "changes": [
+    "Durable per-device receipt IDs and bounded retries for confirmed transient failures",
+    "No automatic resend on ambiguous timeout or missing receipt; classify unknown",
+    "Receipt-only processing after kickoff; no new reminders after kickoff",
+    "Ownership-aware invalid-token pruning, current event access checks and expiry",
+    "Atomic schedule and generation resets including series and fixture imports",
+    "Explicit opt-in, safe rapid toggle handling and device-permission warning",
+    "Saved device timezone and legacy club-wide preference repair"
+  ],
+  "migrationOrder": [
+    "20261116123000_notification_quiet_timezone",
+    "20261116130000_durable_event_reminder_receipts",
+    "Deploy new API only after both additive migrations succeed"
+  ],
+  "limits": [
+    "The legacy sent boolean means processing completed, not phone display; deliveryState gives per-device accepted, failed or unknown outcome",
+    "Expo receipts prove APNs/FCM acceptance, not display; physical locked-phone testing remains required",
+    "A crash after provider acceptance but before DB commit can still duplicate a send; Expo has no application idempotency guarantee",
+    "Legacy quiet-hour rows without timezone retain prior interpretation until settings are saved",
+    "These changes do not add durable delivery to unrelated chat or broadcast paths",
+    "No production sign-in or billing readiness claim is part of this release"
+  ],
+  "physicalTests": {
+    "iOS": "Pending: user has an iPhone; connection and observed locked-screen receipt required",
+    "Android": "Blocked: user has no physical Android device available; emulator is not delivery proof"
+  },
+  "productionPromotion": "Blocked until launch readiness and physical-device gates pass; do not push prod or start EAS builds"
+}
