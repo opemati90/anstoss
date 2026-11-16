@@ -1,26 +1,26 @@
 {
   "date": "2026-11-16",
   "branch": "codex/consolidate-anstoss-20261116",
-  "testedCodeCommit": "5f740ae081e2c1f6628c2b20c01bddd257582335",
+  "testedCodeCommit": "f86a92db674c25ee80294cd61a4eaeaab189d359",
   "scope": "Review branch only; no develop/prod push or promotion",
   "runtime": "57.0.1-billing2",
   "authExcluded": true,
   "results": {
     "api": {
-      "numPassedTestSuites": 170,
-      "numPassedTests": 1734,
+      "numPassedTestSuites": 175,
+      "numPassedTests": 1812,
       "numPendingTests": 0,
       "numFailedTests": 0
     },
     "mobile": {
-      "numPassedTestSuites": 155,
-      "numPassedTests": 1195,
+      "numPassedTestSuites": 158,
+      "numPassedTests": 1235,
       "numPendingTests": 1,
       "numFailedTests": 0
     },
     "shared": {
       "numPassedTestSuites": 12,
-      "numPassedTests": 193,
+      "numPassedTests": 202,
       "numPendingTests": 0,
       "numFailedTests": 0
     },
@@ -30,11 +30,14 @@
     "web": "passed",
     "admin": "passed",
     "migrations": "All candidate migrations applied to two dedicated loopback databases; no production migration",
-    "apiLineCoveragePercent": 72.53,
+    "apiLineCoveragePercent": 73.58,
     "apiRepositoryCoverageTargetMet": false,
-    "mobileLineCoveragePercent": 63.97,
+    "mobileLineCoveragePercent": 65.22,
     "adversarialBillingAudit": "All concrete findings addressed; real-store and unknown-checkout recovery limits documented",
-    "adversarialPlanSyncAudit": "All concrete findings addressed; 35 focused hook/component tests and 4 real PostgreSQL complimentary-grant tests passed"
+    "adversarialPlanSyncAudit": "All concrete findings addressed; 35 focused hook/component tests and 4 real PostgreSQL complimentary-grant tests passed",
+    "adversarialMembersRoomsPushAudit": "Three independent agents reviewed and cross-reviewed fixes; no remaining concrete blocker in changed paths. All new database specs included in full API run.",
+    "pushHttpSmoke": "Passed compiled API/auth/loopback PostgreSQL smoke with Expo transport captured; physical delivery not tested",
+    "localVisualPreview": "Isolated Chromium 390x844 E2E fixture preview: role picker, coach-sharing controls and private-room copy; no page errors"
   },
   "releaseGates": [
     "Combine separately tested auth commit",
@@ -44,6 +47,9 @@
     "Non-EUR prices and store metadata",
     "Production promotion approval",
     "Validate same-payer store-account switching and operator-reviewed unknown checkout recovery",
-    "Combined-device admin upgrade/revoke/expiry navigation and resume walkthrough"
+    "Combined-device admin upgrade/revoke/expiry navigation and resume walkthrough",
+    "Physical APNs/FCM foreground/background/terminated-device verification",
+    "Fresh native build/runtime for Anstoss Android Firebase client configuration",
+    "API coverage 80% repository target remains unmet (73.58% lines)"
   ]
 }

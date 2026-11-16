@@ -1,10 +1,10 @@
-# Anstoss billing/website review candidate — 16 November 2026
+# Anstoss consolidated review candidate — 16 November 2026
 
 ## Handoff and promotion boundary
 
 - Review branch: `codex/consolidate-anstoss-20261116`.
 - Isolated worktree: `/Users/yemi/anstoss-consolidation-20261116`.
-- Verified code commit: `5f740ae081e2c1f6628c2b20c01bddd257582335`.
+- Verified code commit: `f86a92db674c25ee80294cd61a4eaeaab189d359`.
   The following commit only adds this handoff and its JSON verification record.
 - **Do not push `develop` or `prod` yet.** The user explicitly reserved promotion
   for the other Anstoss session after review and combined testing. `develop`
@@ -28,8 +28,11 @@ Draft store screenshots remain draft assets, not approved submissions.
 
 At the user's request, unfinished social login and Apple session-security work
 is excluded: auth/users/onboarding source and policy, OAuth migration/models,
-Apple/Google native sign-in SDKs/configuration, entitlements and public client
-configuration. These protected paths match `abe50365`. Existing age-gate text
+Apple/Google native sign-in SDKs/configuration and entitlements. The membership
+and notification follow-up changes only role/operational-role logic in
+UsersService and access refresh in AuthContext; it does not add OAuth or merge
+the other session's auth work. Anstoss Android Firebase client configuration is
+now included for push. Existing age-gate text
 was preserved in every app locale. Defensive telemetry redaction includes auth
 field names but does not add or enable an auth flow.
 
@@ -47,17 +50,17 @@ in the automated suites are mocked; SQL and socket tests are real and local.
 
 | Check | Result |
 | --- | --- |
-| API | 170 suites; 1,734 tests passed; no skipped tests |
-| Mobile | 155 suites; 1,195 passed; 1 existing skipped test |
-| Shared | 12 suites; 193 tests passed |
+| API | 175 suites; 1,812 tests passed; no skipped tests |
+| Mobile | 158 suites; 1,235 passed; 1 existing skipped test |
+| Shared | 12 suites; 202 tests passed |
 | Repository lint | Passed; removed one unused reminder-test binding |
 | Repository typecheck | Passed |
 | Repository build | Passed; does not compile native mobile binaries |
 | Web/admin smoke | Passed |
 | Diff whitespace | Passed |
 
-API line coverage is 72.53%, below the documented 80% target; the configured
-Jest baseline gates pass. Mobile line coverage is 63.97%. Do not describe the API
+API line coverage is 73.58%, below the documented 80% target; the configured
+Jest baseline gates pass. Mobile line coverage is 65.22%. Do not describe the API
 coverage target as achieved. Local machine reports are saved under
 `/Users/yemi/anstoss-backups/consolidation-20261116/`; the JSON alongside this file
 contains portable summary results.
@@ -81,6 +84,14 @@ live scores. The adversarial review found no remaining concrete blocker after
 fixes. Full local suites pass; the combined native device walkthrough remains
 a release check.
 
+The [invitations, roles, private rooms and push follow-up](2026-11-16-members-rooms-push.md)
+adds expiring approval-required coach campaigns, the three-admin cap, current
+role refresh, explicit private-group closure and push registration leases. Its
+three independent reviews were rechecked after fixes. Full suites above include
+these changes; compiled local push HTTP smoke also passes. Physical push and
+combined-native verification remain outstanding. The report records exact
+integration overlaps and known distributed-system limitations.
+
 ## Native and store release limits
 
 The billing-only runtime is `57.0.1-billing2` in Expo, Android and iOS. ExpoIap
@@ -88,6 +99,9 @@ The billing-only runtime is `57.0.1-billing2` in Expo, Android and iOS. ExpoIap
 The earlier signed Android build 26 and device tests used the mixed
 `57.0.1-billing1-auth1` source. They **do not certify this isolated candidate**.
 The eventual combined auth/billing code requires fresh native verification.
+This candidate also adds Android Firebase client/plugin wiring; choose a fresh
+compatible runtime when combining and building it. Do not ship that native
+configuration as an OTA to older binaries.
 
 Billing remains disabled by default and staged production configuration remains
 disabled. Real sandbox purchases/restores and lifecycle tests are deferred by
