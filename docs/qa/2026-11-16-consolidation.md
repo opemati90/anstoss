@@ -4,7 +4,7 @@
 
 - Review branch: `codex/consolidate-anstoss-20261116`.
 - Isolated worktree: `/Users/yemi/anstoss-consolidation-20261116`.
-- Verified code commit: `42e4640ac973098306b5efc950ca80be5377fa60`.
+- Verified code commit: `c67da9037fdcaf2457c32fcba7896f62071ce247`.
   The following commit only adds this handoff and its JSON verification record.
 - **Do not push `develop` or `prod` yet.** The user explicitly reserved promotion
   for the other Anstoss session after review and combined testing. `develop`
@@ -18,7 +18,7 @@
 ## Included and excluded work
 
 Includes billing verification, replay protection, restore handling, telemetry
-redaction, four billing/catalogue migrations, approved package prices, admin
+redaction, six billing/catalogue migrations, approved package prices, admin
 directory and chat fixes, QA records, and draft store assets. The existing
 reminder/quality-gate commits `dbaa0777` and `abe50365` are ancestors.
 
@@ -47,8 +47,8 @@ in the automated suites are mocked; SQL and socket tests are real and local.
 
 | Check | Result |
 | --- | --- |
-| API | 169 suites; 1,693 tests passed; no skipped tests |
-| Mobile | 155 suites; 1,176 passed; 1 existing skipped test |
+| API | 169 suites; 1,730 tests passed; no skipped tests |
+| Mobile | 155 suites; 1,179 passed; 1 existing skipped test |
 | Shared | 12 suites; 193 tests passed |
 | Repository lint | Passed; removed one unused reminder-test binding |
 | Repository typecheck | Passed |
@@ -56,8 +56,8 @@ in the automated suites are mocked; SQL and socket tests are real and local.
 | Web/admin smoke | Passed |
 | Diff whitespace | Passed |
 
-API line coverage is 72.06%, below the documented 80% target; the configured
-Jest baseline gates pass. Mobile line coverage is 63.62%. Do not describe the API
+API line coverage is 72.47%, below the documented 80% target; the configured
+Jest baseline gates pass. Mobile line coverage is 63.75%. Do not describe the API
 coverage target as achieved. Local machine reports are saved under
 `/Users/yemi/anstoss-backups/consolidation-20261116/`; the JSON alongside this file
 contains portable summary results.
@@ -66,6 +66,13 @@ Independent read-only adversarial review confirmed auth exclusion, isolated
 workspace dependency resolution, matching billing runtime markers, matching
 OpenIAP package/pin versions, and no new confirmed source-integration blocker.
 Secret-pattern scanning found no private credentials in candidate changes.
+
+The [billing audit follow-up](2026-11-16-billing-audit-followup.md) adds entitlement
+enforcement, canonical resubscription/deferred-plan recovery, refund reversal
+reconciliation, and checkout payer/store/SKU ownership. The independent final
+recheck reported all concrete findings addressed. Unknown checkout recovery
+requires operator review; same-payer use of multiple store accounts remains a
+real-store validation limit. No automatic timeout transfers billing ownership.
 
 ## Native and store release limits
 
