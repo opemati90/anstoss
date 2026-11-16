@@ -40,7 +40,10 @@ async function main() {
       `${role}@anstoss-simulator.invalid`,
     ]),
   )
-  process.env.REVIEW_LOGIN_EMAILS = Object.values(emails).join(',')
+  const signupEmails = process.env.ANSTOSS_MVP_FRESH_SIGNUP === '1'
+    ? Object.fromEntries(['founder', 'player', 'agent'].map((role) => [role, `fresh-${role}-${randomUUID()}@anstoss-simulator.invalid`]))
+    : {}
+  process.env.REVIEW_LOGIN_EMAILS = [...Object.values(emails), ...Object.values(signupEmails)].join(',')
   const prisma = new PrismaClient()
   await prisma.$connect()
   const resumePath = process.env.ANSTOSS_MVP_RESUME_STATE
@@ -76,7 +79,7 @@ async function main() {
     await app.listen(3167, '127.0.0.1')
     writeFileSync(
       resumePath,
-      JSON.stringify({ ...state, otpCode: process.env.REVIEW_LOGIN_CODE }),
+      JSON.stringify({ ...state, signupEmails, otpCode: process.env.REVIEW_LOGIN_CODE }),
       { mode: 0o600 },
     )
     console.log('Updated local simulator API ready; existing fixtures preserved. Sign in again.')

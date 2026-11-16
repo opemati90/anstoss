@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClubPlan, PlanPrice } from '@anstoss/shared'
-import { PLAN_PACKAGES, UNLIMITED_PLAN_LIMIT } from '@anstoss/shared'
+import { PLAN_PACKAGES, STORE_PRODUCTS, UNLIMITED_PLAN_LIMIT } from '@anstoss/shared'
+import { useStoreBilling } from '../src/hooks/useStoreBilling'
+import { nativeOffer } from '../src/billing/native-store'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useClubPlan, fallbackClubPlan } from '../src/hooks/useClubPlan'
 import { useAuth } from '../src/context/AuthContext'
@@ -72,9 +74,8 @@ function formatPrice(price: PlanPrice, locale: string) {
 /**
  * Abo — the club plan (redesign 35, REVAMP_HANDOFF "Plans and pricing").
  * Current plan with usage against limits, Monatlich/Jährlich toggle, the
- * club-coloured Verein card and a docked lime trial action. Paid plans are
- * sold on the website; the app only shows status and starts the card-less
- * trial. Only Vorstand and Kassenwart can start it, everyone else reads.
+ * club-coloured card and a docked card-less trial action. Store purchases and
+ * restores are verified server-side. Non-managers can only read plan status.
  */
 export default function AboScreen() {
   const { t } = useTranslation()
@@ -88,6 +89,10 @@ export default function AboScreen() {
   const locale = getAppLocale(getAppLanguage())
 
   const plan: ClubPlan = loaded ?? fallbackClubPlan(activeClub?.club.id ?? '', false)
+  // A verified purchase refreshes the plan. Loading is not a permission change:
+  // tearing down the store listener here would invalidate that same purchase.
+  // useClubPlan clears its scoped plan on failure, logout or club changes.
+  const billing = useStoreBilling(Boolean(loaded?.canManage), refresh)
   const per = interval === 'monthly' ? t('clubPlan.perMonth') : t('clubPlan.perYearShort')
   const teamsFull = plan.usage.teams >= plan.limits.teams
   const playersFull = plan.usage.players >= plan.limits.players
@@ -207,11 +212,15 @@ export default function AboScreen() {
               </Text>
             </View>
           </View>
-          {PLAN_PACKAGES.map((entry) => (
+          {PLAN_PACKAGES.map((entry) => {
+            const sku = STORE_PRODUCTS.find((product) => product.package === entry.key && product.interval === interval)!
+            const product = billing.products.find((product) => product.id === sku.id)
+            const offer = product ? nativeOffer(product) : null
+            return (
             <View key={entry.key} style={styles.packageRow} testID={`abo-package-${entry.key}`}>
               <Text variant="headline" color={c.onHeroBg}>{t(`teamPackages.${entry.key}`)}</Text>
               <Text variant="title2" color={c.onHeroBg} testID={`abo-price-${entry.key}`}>
-                {formatPrice({ amountCents: entry[interval], currency: 'EUR' }, locale)}
+                {offer?.displayPrice ?? formatPrice({ amountCents: entry[interval], currency: 'EUR' }, locale)}
                 {' '}<Text variant="footnote" color={c.onHeroMuted}>{per}</Text>
               </Text>
               <Text variant="footnote" color={c.onHeroMuted}>
@@ -219,8 +228,16 @@ export default function AboScreen() {
                   ? t('teamPackages.unlimitedPlayers')
                   : t('teamPackages.players', { count: entry.players })}
               </Text>
+              {plan.canManage && offer && plan.source !== 'PAID' ? (
+                <Button variant="onHero" fullWidth
+                  testID={`abo-subscribe-${entry.key}`}
+                  label={t('storeBilling.subscribe', { price: offer.displayPrice, period: per })}
+                  disabled={billing.busy || starting}
+                  loading={billing.busy}
+                  onPress={() => void billing.subscribe(sku.id)} />
+              ) : null}
             </View>
-          ))}
+          )})}
           <View style={styles.features}>
             {FEATURE_ROWS.map((key) => (
               <View key={key} style={styles.featureRow}>
@@ -234,6 +251,25 @@ export default function AboScreen() {
             ))}
           </View>
         </View>
+
+        {plan.canManage ? (
+          <View style={styles.card}>
+            {billing.message ? <Text variant="footnote" color="secondary" accessibilityLiveRegion="polite">{t(`storeBilling.${billing.message}`)}</Text> : null}
+            {billing.subscriptions.map((subscription) => (
+              <View key={`${subscription.store}:${subscription.environment}:${subscription.productId}`} style={{ gap: SPACING_SM }}>
+                <Text variant="footnote" color="secondary">
+                  {t(subscription.autoRenew ? 'storeBilling.renews' : 'storeBilling.ends', { date: new Date(subscription.expiresAt).toLocaleDateString(locale) })}
+                </Text>
+                <Button variant="bordered" label={t('storeBilling.manage')} onPress={() => void billing.manage(subscription.store)} />
+              </View>
+            ))}
+            <Button variant="bordered" label={t('storeBilling.restore')} testID="abo-restore"
+              disabled={!billing.restoreReady || billing.busy} loading={billing.busy} onPress={() => void billing.restore()} />
+            <Text variant="caption1" color="secondary">{t('storeBilling.disclosure')}</Text>
+            <Button variant="plain" label={t('storeBilling.terms')} onPress={() => { void Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/').catch(() => setMessage(t('storeBilling.unavailable'))) }} />
+            <Button variant="plain" label={t('storeBilling.privacy')} onPress={() => { void Linking.openURL('https://anstoss.io/legal.html#datenschutz').catch(() => setMessage(t('storeBilling.unavailable'))) }} />
+          </View>
+        ) : null}
 
         <Text variant="footnote" color="secondary" style={styles.note}>
           {t('teamPackages.note')}
@@ -265,7 +301,7 @@ export default function AboScreen() {
               size="lg"
               fullWidth
               loading={starting}
-              disabled={starting}
+              disabled={starting || billing.busy}
               onPress={onStartTrial}
               accessibilityLabel={t('clubPlan.cta')}
               testID="abo-start-trial"

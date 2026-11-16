@@ -1,4 +1,4 @@
-import { PLAN_FEATURES, PLAN_PRICES_CENTS, publishPlanDefinitionSchema } from '@anstoss/shared'
+import { PLAN_FEATURES, PLAN_PACKAGES, PLAN_PRICES_CENTS, publishPlanDefinitionSchema } from '@anstoss/shared'
 import { BillingService } from './billing.service'
 import { ClubEntitlementsService } from './club-entitlements.service'
 import { AdminService } from '../admin/admin.service'
@@ -29,14 +29,15 @@ describe('current monthly/yearly plan catalogue', () => {
     const service = new ClubEntitlementsService({} as never, {} as never)
     expect(service.planCatalogue()).toMatchObject({
       prices: PLAN_PRICES_CENTS,
-      yearlySavingsCents: 2598,
+      packages: PLAN_PACKAGES,
+      yearlySavingsCents: 2688,
       trialDays: 30,
       limits: { FREE: { teams: 1, players: 30 }, PRO: { teams: 5, players: 150 } },
     })
     expect(PLAN_PRICES_CENTS.yearly).toBeLessThan(PLAN_PRICES_CENTS.monthly * 12)
   })
 
-  it.each([{ priceCents: 14900 }, { currency: 'usd' }, { teamLimit: 100 }, { playerLimit: 999 }, { features: [] }])(
+  it.each([{ priceCents: 14900 }, { currency: 'usd' }, { teamLimit: 100 }, { teamLimit: 6 }, { playerLimit: 999 }, { features: [] }])(
     'rejects a standard plan that would drift from the advertised catalogue: %j',
     async (override) => {
       const transaction = jest.fn()
@@ -122,5 +123,27 @@ describe('Stripe price validation before admin publication', () => {
       service.validatePlanPrice({ ...monthly, stripePriceId: null }),
     ).resolves.toBeUndefined()
     await expect(service.validatePlanPrice(monthly)).rejects.toThrow('Stripe is not configured')
+  })
+})
+
+describe('retired package checkout protection', () => {
+  it.each([
+    { teamLimit: 6, playerLimit: 180, priceCents: 3999 },
+    { teamLimit: 3, playerLimit: 90, priceCents: 2499 },
+    { teamLimit: 2147483647, playerLimit: 2147483647, priceCents: 4999 },
+  ])('rejects a retired PRO offer before creating a Stripe checkout: %j', async (oldPackage) => {
+    const search = jest.fn()
+    const create = jest.fn()
+    const service = new BillingService(
+      { planDefinition: { findUnique: jest.fn().mockResolvedValue({
+        ...oldPackage, tier: 'PRO', interval: 'MONTHLY', currency: 'eur', publishedAt: new Date(),
+      }) } } as never,
+      {} as never,
+      { customers: { search }, checkout: { sessions: { create } } } as never,
+      {} as never,
+    )
+    await expect(service.createCheckoutSession('club', 'price_retired')).rejects.toThrow('retired')
+    expect(search).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
   })
 })

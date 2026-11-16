@@ -1,0 +1,51 @@
+{
+  "status": "draft-only; billing and final release verification outstanding",
+  "appleAppId": "6761143230",
+  "screenshots": ["01.png", "02.png", "04.png", "06.png"],
+  "excluded": {"03.png": "Shows unavailable AI credits", "05.png": "Family flow is disabled"},
+  "missingArtwork": ["it"],
+  "unsupportedAppLocales": ["es", "ar"],
+  "pricingEUR": {"TEAM": {"monthly": 12.99, "yearly": 129}, "CLUB_3": {"monthly": 29.99, "yearly": 299}, "UNLIMITED": {"monthly": 39.99, "yearly": 399}},
+  "locales": {
+    "de": {
+      "appleLocale": "German",
+      "playLocale": "de-DE",
+      "promotionalText": "Termine, Zusagen, Aufstellungen und Teamchat an einem Ort. Organisiert euren Amateurfußball mit Anstoss.",
+      "keywords": "fußball,trainer,mannschaft,spielplan,kader,training,beiträge,chat,amateur,termine,zusagen",
+      "shortDescription": "Termine, Zusagen, Aufstellungen, Chat und Beiträge für euren Fußballverein.",
+      "description": "Anstoss hilft Amateurfußballteams, ihren Vereinsalltag zu organisieren.\n\nFÜR TRAINER\n• Training und Spiele planen\n• Zusagen und offene Antworten im Blick behalten\n• Aufstellungen erstellen und mit dem Team teilen\n\nFÜR SPIELER\n• Zusagen, absagen oder mit Vielleicht antworten\n• Treffpunkt und Veranstaltungsdetails nachsehen\n• Im Teamchat kommunizieren\n\nFÜR VERANTWORTLICHE\n• Teams, Mitglieder und Beitrittsanfragen verwalten\n• Offene und erfasste Beiträge überblicken\n• Bei Fragen den Support in der App kontaktieren\n\nAPP-SPRACHEN\nDeutsch, Englisch, Französisch, Italienisch, Portugiesisch und Türkisch. Chatnachrichten bleiben in ihrer Originalsprache.\n\nPAKETE\nFree bleibt als kostenloses Paket separat. Team umfasst ein Team, Club bis zu drei Teams und Club Unlimited alle Teams eines einzelnen Vereins. Monatliche und jährliche Laufzeiten sind vorgesehen. Unbegrenzte KI-Nutzung ist nicht enthalten. Verfügbarkeit und verbindliche Preise werden vor einem Kauf angezeigt.\n\nDatenschutz und Nutzungsbedingungen: https://anstoss.io/legal.html"
+    },
+    "en": {
+      "appleLocale": "English (U.K.)",
+      "playLocale": "en-GB",
+      "promotionalText": "Fixtures, availability, lineups and team chat in one place. Organise grassroots football with Anstoss.",
+      "keywords": "football,soccer,coach,squad,training,dues,chat,grassroots,amateur,schedule,attendance",
+      "shortDescription": "Fixtures, availability, lineups, team chat and dues tracking for your club.",
+      "description": "Anstoss helps grassroots football teams organise club life.\n\nFOR COACHES\n• Plan training sessions and matches\n• Keep track of availability and outstanding replies\n• Create lineups and share them with the team\n\nFOR PLAYERS\n• Reply going, maybe or not going\n• Check meeting points and event details\n• Stay in touch through team chat\n\nFOR CLUB ORGANISERS\n• Manage teams, members and join requests\n• See outstanding and recorded dues\n• Contact support from the app\n\nAPP LANGUAGES\nGerman, English, French, Italian, Portuguese and Turkish. Chat messages remain in their original language.\n\nPACKAGES\nFree remains a separate no-cost plan. Team covers one team, Club up to three teams, and Club Unlimited all teams within one club. Monthly and annual terms are planned. Unlimited AI use is not included. Availability and the applicable price are shown before purchase.\n\nPrivacy and terms: https://anstoss.io/legal.html"
+    },
+    "fr": {
+      "appleLocale": "French",
+      "playLocale": "fr-FR",
+      "promotionalText": "Matchs, présences, compositions et discussion d’équipe au même endroit. Organisez votre football amateur avec Anstoss.",
+      "keywords": "football,entraîneur,effectif,calendrier,entraînement,cotisations,chat,amateur,présences",
+      "shortDescription": "Matchs, présences, compositions, discussion et suivi des cotisations du club.",
+      "description": "Anstoss aide les équipes de football amateur à organiser la vie du club.\n\nPOUR LES ENTRAÎNEURS\n• Planifier entraînements et matchs\n• Suivre les présences et les réponses en attente\n• Créer des compositions et les partager avec l’équipe\n\nPOUR LES JOUEURS\n• Répondre présent, peut-être ou absent\n• Consulter les rendez-vous et les détails des événements\n• Échanger dans la discussion d’équipe\n\nPOUR LES RESPONSABLES\n• Gérer équipes, membres et demandes d’adhésion\n• Consulter les cotisations enregistrées et en attente\n• Contacter l’assistance dans l’app\n\nLANGUES DE L’APP\nAllemand, anglais, français, italien, portugais et turc. Les messages restent dans leur langue d’origine.\n\nOFFRES\nFree reste une offre gratuite distincte. Team couvre une équipe, Club jusqu’à trois équipes et Club Unlimited toutes les équipes d’un même club. Des durées mensuelles et annuelles sont prévues. L’utilisation illimitée de l’IA n’est pas incluse. La disponibilité et le prix applicable sont indiqués avant l’achat.\n\nConfidentialité et conditions : https://anstoss.io/legal.html"
+    },
+    "pt": {
+      "appleLocale": "Portuguese (Portugal)",
+      "playLocale": "pt-PT",
+      "promotionalText": "Jogos, presenças, formações e conversa de equipa num só lugar. Organiza o futebol amador com a Anstoss.",
+      "keywords": "futebol,treinador,plantel,calendário,treino,quotas,chat,amador,presenças,equipa",
+      "shortDescription": "Jogos, presenças, formações, conversa e acompanhamento das quotas do clube.",
+      "description": "A Anstoss ajuda equipas de futebol amador a organizar a vida do clube.\n\nPARA TREINADORES\n• Planear treinos e jogos\n• Acompanhar presenças e respostas em falta\n• Criar formações e partilhá-las com a equipa\n\nPARA JOGADORES\n• Responder vou, talvez ou não vou\n• Consultar locais de encontro e detalhes dos eventos\n• Comunicar na conversa de equipa\n\nPARA RESPONSÁVEIS\n• Gerir equipas, membros e pedidos de adesão\n• Consultar quotas registadas e em falta\n• Contactar o apoio na app\n\nIDIOMAS DA APP\nAlemão, inglês, francês, italiano, português e turco. As mensagens mantêm-se no idioma original.\n\nPLANOS\nFree continua a ser um plano gratuito separado. Team inclui uma equipa, Club até três equipas e Club Unlimited todas as equipas de um único clube. Estão previstas opções mensais e anuais. A utilização ilimitada de IA não está incluída. A disponibilidade e o preço aplicável são apresentados antes da compra.\n\nPrivacidade e condições: https://anstoss.io/legal.html"
+    },
+    "tr": {
+      "appleLocale": "Turkish",
+      "playLocale": "tr-TR",
+      "promotionalText": "Maçlar, katılım, dizilişler ve takım sohbeti tek yerde. Amatör futbolu Anstoss ile organize edin.",
+      "keywords": "futbol,antrenör,kadro,takım,takvim,antrenman,aidat,sohbet,amatör,katılım,maç",
+      "shortDescription": "Kulübünüz için maçlar, katılım, dizilişler, takım sohbeti ve aidat takibi.",
+      "description": "Anstoss, amatör futbol takımlarının kulüp hayatını düzenlemesine yardımcı olur.\n\nANTRENÖRLER İÇİN\n• Antrenman ve maç planlayın\n• Katılımı ve bekleyen yanıtları takip edin\n• Dizilişler oluşturup takımla paylaşın\n\nOYUNCULAR İÇİN\n• Geliyorum, belki veya gelmiyorum diye yanıt verin\n• Buluşma yerlerini ve etkinlik ayrıntılarını görün\n• Takım sohbetinde iletişim kurun\n\nKULÜP YÖNETİCİLERİ İÇİN\n• Takımları, üyeleri ve katılım taleplerini yönetin\n• Kaydedilen ve ödenmemiş aidatları görün\n• Uygulama içinden destek ekibine ulaşın\n\nUYGULAMA DİLLERİ\nAlmanca, İngilizce, Fransızca, İtalyanca, Portekizce ve Türkçe. Sohbet mesajları özgün dilinde kalır.\n\nPAKETLER\nFree ayrı bir ücretsiz plan olarak kalır. Team bir takımı, Club en fazla üç takımı, Club Unlimited ise tek bir kulübün tüm takımlarını kapsar. Aylık ve yıllık süreler planlanmaktadır. Sınırsız yapay zekâ kullanımı dahil değildir. Kullanılabilirlik ve geçerli fiyat satın alma öncesinde gösterilir.\n\nGizlilik ve koşullar: https://anstoss.io/legal.html"
+    }
+  }
+}

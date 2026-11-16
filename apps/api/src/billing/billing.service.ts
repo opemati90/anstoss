@@ -8,6 +8,7 @@ import {
 import { EntitlementStatus, PlanTier } from '@prisma/client'
 import type Stripe from 'stripe'
 import type { BillingStatus, PublishPlanDefinitionInput } from '@anstoss/shared'
+import { PLAN_PACKAGES } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { AuditService } from '../audit/audit.service'
 import { STRIPE_CLIENT } from './stripe.provider'
@@ -605,6 +606,15 @@ export class BillingService {
     })
     if (!plan?.publishedAt || plan.tier === PlanTier.FREE) {
       throw new BadRequestException('Unknown or unpublished subscription price')
+    }
+    if (plan.tier === PlanTier.PRO) {
+      const current = PLAN_PACKAGES.find((entry) => entry.teams === plan.teamLimit)
+      const expectedPrice = plan.interval === 'MONTHLY'
+        ? current?.monthly
+        : plan.interval === 'TWELVE_MONTHS' ? current?.yearly : undefined
+      if (!current || plan.priceCents !== expectedPrice || plan.playerLimit !== current.players || plan.currency.toLowerCase() !== 'eur') {
+        throw new BadRequestException('This subscription price is retired; choose a current package')
+      }
     }
     return plan
   }

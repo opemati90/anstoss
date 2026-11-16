@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import { ChatInput } from './ChatInput'
 
 jest.mock('react-i18next', () => ({
@@ -33,6 +33,38 @@ jest.mock('expo-image-picker', () => ({
 }))
 
 describe('ChatInput', () => {
+  it('does not restore a stale draft after the user has typed and cleared the composer', async () => {
+    const storage = require('@react-native-async-storage/async-storage').default
+    let resolveDraft!: (value: string) => void
+    storage.getItem.mockImplementationOnce(
+      () => new Promise<string>((resolve) => { resolveDraft = resolve }),
+    )
+    const screen = render(<ChatInput onSend={jest.fn()} onTyping={jest.fn()} draftKey="dm:slow-restore" />)
+    fireEvent.changeText(screen.getByTestId('chat-message-input'), 'New edit')
+    fireEvent.changeText(screen.getByTestId('chat-message-input'), '')
+    await act(async () => { resolveDraft('Stale saved draft') })
+    expect(screen.getByTestId('chat-message-input').props.value).toBe('')
+    screen.unmount()
+  })
+
+  it('persists the final edit when leaving before the draft debounce', async () => {
+    const storage = require('@react-native-async-storage/async-storage').default
+    const screen = render(<ChatInput onSend={jest.fn()} onTyping={jest.fn()} draftKey="dm:quick-exit" />)
+    fireEvent.changeText(screen.getByTestId('chat-message-input'), 'Keep this draft')
+    screen.unmount()
+    expect(await storage.getItem('chat:draft:dm:quick-exit')).toBe('Keep this draft')
+  })
+
+  it('removes a cleared draft immediately even when leaving before the debounce', async () => {
+    const storage = require('@react-native-async-storage/async-storage').default
+    await storage.setItem('chat:draft:dm:quick-clear', 'Old draft')
+    const screen = render(<ChatInput onSend={jest.fn()} onTyping={jest.fn()} draftKey="dm:quick-clear" />)
+    await waitFor(() => expect(screen.getByTestId('chat-message-input').props.value).toBe('Old draft'))
+    fireEvent.changeText(screen.getByTestId('chat-message-input'), '')
+    screen.unmount()
+    expect(await storage.getItem('chat:draft:dm:quick-clear')).toBeNull()
+  })
+
   it('supports 200% text without an unbounded composer font', () => {
     const screen = render(<ChatInput onSend={jest.fn()} onTyping={jest.fn()} />)
     expect(screen.getByTestId('chat-message-input').props.maxFontSizeMultiplier).toBe(2)

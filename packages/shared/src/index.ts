@@ -35,6 +35,7 @@ export * from './schemas/team-boards'
 export * from './schemas/home'
 // Plans and pricing: Kostenlos / Verein, feature flags, trial (Abo screen)
 export * from './schemas/plan'
+export * from './schemas/store-billing'
 export * from './schemas/studio'
 export * from './schemas/support'
 export * from './errors/base'

@@ -1,11 +1,17 @@
 # Anstoss Store Submission Checklist
 
-Last updated: 2026-09-26
+Last updated: 2026-11-16
 
 This checklist exists to keep App Store Connect, Play Console, the binary, and
 the legal copy aligned. Run `npm run audit:store` before every store submission.
 Use the current [store privacy and reviewer-access worksheet](store-privacy-answers-2026-09-24.md)
 for draft console answers; it is not approval to publish them.
+
+This review candidate includes native store billing behind a disabled server
+feature flag. Unfinished social-login/session-security changes are deliberately
+excluded and remain in the separate auth session. Source integration is not
+approval to enable features, build a distribution binary, deploy, or submit.
+See the [billing verification](../qa/2026-11-16-billing-credentials.md).
 
 ## Review Access
 
@@ -53,19 +59,30 @@ for draft console answers; it is not approval to publish them.
   - Stripe is reserved only for Anstoss software subscriptions in a future or
     admin-web acquisition lifecycle. This mobile submission must not present
     external purchase links for digital upgrades.
-  - Any future paid digital premium feature inside the mobile app must use Apple
-    IAP and Google Play Billing unless a documented store exception applies.
+  - Native digital subscriptions are implemented using Apple StoreKit IAP and
+    Google Play Billing. They remain disabled until real store lifecycle tests
+    and catalogue gates pass. Match reviewer notes to the actual submitted build.
+  - Anstoss does not implement Apple Pay. StoreKit subscriptions and bank-transfer
+    club dues are separate from Apple Pay. Inspect the final archived binary for
+    transitive PassKit linkage before claiming that framework is absent.
 - 4.5.4 Push notifications:
   - Push is optional and not required to use the app.
   - No marketing pushes unless the user explicitly opts in.
 - 4.8 Login services:
-  - Anstoss uses its own email one-time-code account system only. Sign in with
-    Apple is not required unless a third-party/social login is added later.
+  - Email one-time-code sign-in remains available. Social login is being handled
+    in a separate review candidate. When that work is combined, verify Google
+    and native Apple login in the exact iOS binary and describe the visible
+    entry points in review notes. Do not copy stale email-only claims afterward.
 - 5.1 Privacy:
   - Privacy policy is available inside the app and on the website.
   - Account deletion exists inside the app and through the public deletion page.
   - Purpose strings describe the actual photo, camera, and microphone features.
   - The iOS privacy manifest declares app-collected data and no tracking.
+  - User-initiated camera/microphone actions request native permission directly.
+    Do not add a cancelable custom pre-permission alert. Settings recovery after
+    the user has denied native permission is a separate flow.
+  - Device GPS access is not implemented; typed places, addresses and pickup
+    points are not device-location permission requests.
 
 ## Google Play Risk Map
 
@@ -100,7 +117,7 @@ for draft console answers; it is not approval to publish them.
     purchase flow.
   - Do not add in-app purchase links for digital features without store billing.
 - Target audience/content rating:
-- Declare the actual target age groups. The current under-16 guardian path and
+- Declare the actual target age groups. The DOB gate, under-16 guardian path and
   youth teams mean an adult-only answer cannot be assumed. Any child audience
   requires the relevant Families compliance pass before submission.
   - Content rating questionnaire must disclose UGC/chat and account creation.
@@ -144,24 +161,48 @@ Reviewer notes:
 ```text
 Anstoss is a club/team operations app for amateur football clubs.
 
-Login uses Anstoss-owned email one-time codes. No third-party/social login is
-used. If you need a pre-seeded reviewer account, use the credentials supplied in
-App Review / App access notes, then open More -> Data for export/delete account
-controls.
+Login uses Anstoss-owned email one-time codes. Use the credentials supplied in
+the private App Review / App access fields. Before copying these notes, state
+whether Google and Sign in with Apple are present and enabled in the exact
+submitted build; unfinished auth changes are excluded from this review branch.
 
-User-generated chat content includes in-app report and block actions. Severe
-abuse/inappropriate reports are hidden while admins review them.
+User-generated chat content includes in-app report and block actions. Reports
+are sent for administrator moderation; one report does not automatically hide
+content.
 
 Player/member contributions are paid to the club bank account and reconciled
-manually by club admins. Stripe is used only for Anstoss software subscriptions
-outside the mobile purchase flow. There are no paid digital premium features in
-this submission.
+manually by club admins. Anstoss does not offer Apple Pay. Digital subscription
+implementation uses Apple StoreKit in-app purchases, not Apple Pay. Before
+copying these notes, state whether subscriptions are enabled in this binary and
+provide the tested manager-account path to More -> Plan if enabled. Billing is
+currently disabled pending store tests; do not submit this unresolved draft.
+
+Age assurance is visible during new-account onboarding after email verification,
+on the Name and Date of Birth screen. Underage applicants are blocked or enter
+the guardian/consent path. Verify the final age thresholds after the separate
+auth changes are reviewed and combined. Existing
+seeded reviewer accounts have already completed onboarding, so provide a fresh
+test-account walkthrough or recording for this screen. This is date-of-birth
+self-declaration, not identity-document verification.
 
 Account deletion is available in-app at More -> Data -> Delete account and on
 the web at https://anstoss.io/account-deletion.
 ```
 
 ## Blockers Before Submit
+
+- Verify App Store Connect age-rating answers against the exact binary. Do not
+  claim parental content/usage controls merely because parents manage child
+  profiles, and do not erase the real DOB gate by copying another app's answers.
+  Live Anstoss age-rating selections were not verified in this source audit.
+- Inspect the final iOS archive's linked frameworks/entitlements. If PassKit is
+  linked transitively but unused, explicitly say Apple Pay is not implemented in
+  that version's Review Notes; never invent a purchase path for the reviewer.
+- Test camera/microphone on a clean install, denial, retry and Settings recovery.
+  No cancelable camera/location pre-alert was found in the source audit, but this
+  is not a substitute for checking the final submitted binary.
+- Resolve billing gates and the separate auth session's security/device gates
+  before combining and enabling those features.
 
 - Verify the production EAS build uses remote upload credentials; the native
   release config must not fall back to the debug Android keystore.
@@ -177,6 +218,10 @@ the web at https://anstoss.io/account-deletion.
 - A signed club AVV and verified third-country-transfer mechanisms are needed
   before claiming those safeguards are in force. The current
   [AVV draft](../legal/club-avv-draft-de.md) is not signed.
+
+Apple references checked for this audit:
+[Privacy permission guidance](https://developer.apple.com/design/human-interface-guidelines/privacy),
+[Age-rating definitions](https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/).
 
 ## Android internal testing and Play Console
 

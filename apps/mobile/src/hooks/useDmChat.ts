@@ -13,6 +13,7 @@ import { getE2ESession } from '../e2e/session'
 import { buildE2EDmMessages } from '../e2e/chatSeed'
 import type { ChatMessageType, ChatReactionAggregate } from './useChat'
 import { deleteDirectMessage, postDirectMessage, setDmReaction } from './dmMedia'
+import { useTypingPresence } from './useTypingPresence'
 
 export type DmMessage = {
   id: string
@@ -99,7 +100,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   const cacheKey = getDmHistoryCacheKey(userId, conversationId)
   const [messages, setMessages] = useState<DmMessage[]>([])
   const [connectionState, setConnectionState] = useState<DmConnectionState>('connecting')
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const { names: typingUsers, touch: touchTyping, remove: removeTyping, clear: clearTyping } = useTypingPresence(cacheKey, 3000)
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [messagesOwnerKey, setMessagesOwnerKey] = useState(cacheKey)
@@ -108,7 +109,6 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null)
 
   const socketRef = useRef<Socket | null>(null)
-  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
 
   useEffect(() => {
@@ -183,7 +183,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
         setConnectionState('reconnecting')
       }
       // Clear typing indicators on disconnect
-      setTypingUsers([])
+      clearTyping()
     })
 
     socket.io.on('reconnect_failed', () => {
@@ -201,6 +201,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
 
     socket.on('dm:message', (raw: DmMessage) => {
       const msg = normalizeDmMessage(raw)
+      removeTyping(msg.senderId)
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         if (msg.clientMessageId && msg.senderId === userId) {
@@ -255,30 +256,16 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
       if (data.userId === userId) return
       if (data.conversationId && data.conversationId !== conversationId) return
 
-      setTypingUsers((prev) =>
-        prev.includes(data.userName) ? prev : [...prev, data.userName],
-      )
-
-      const existing = typingTimeoutsRef.current.get(data.userId)
-      if (existing) clearTimeout(existing)
-
-      typingTimeoutsRef.current.set(
-        data.userId,
-        setTimeout(() => {
-          setTypingUsers((prev) => prev.filter((n) => n !== data.userName))
-          typingTimeoutsRef.current.delete(data.userId)
-        }, 3000),
-      )
+      touchTyping(data.userId, data.userName)
     })
 
     return () => {
       unbindLifecycle()
       socket.disconnect()
       socketRef.current = null
-      typingTimeoutsRef.current.forEach((t) => clearTimeout(t))
-      typingTimeoutsRef.current.clear()
+      clearTyping()
     }
-  }, [token, conversationId, userId, apiUrl, loadHistory])
+  }, [token, conversationId, userId, apiUrl, loadHistory, clearTyping, removeTyping, touchTyping])
 
   const [lastError, setLastError] = useState<string | null>(null)
 
@@ -442,6 +429,7 @@ export function useDmChat({ conversationId, token, userId, apiUrl, clubId = null
   )
 
   const sendTyping = useCallback(() => {
+    if (!socketRef.current?.connected) return
     socketRef.current?.emit('dm:typing', { conversationId })
   }, [conversationId])
 

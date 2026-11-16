@@ -139,6 +139,7 @@ model Club {
   updatedAt    DateTime @updatedAt
 
   memberships             Membership[]
+  storePurchaseReplacements StorePurchaseReplacement[]
   teamGroups              TeamGroup[]
   teams                   Team[]
   teamAccess              TeamAccess[]
@@ -183,6 +184,8 @@ model Club {
   inviteCampaigns         InviteCampaign[]
   inviteRedemptions       InviteRedemption[]
   entitlementGrants       EntitlementGrant[]
+  storePurchaseAccounts   StorePurchaseAccount[]
+  storeSubscriptions      StoreSubscription[]
   planCompliance          ClubPlanCompliance?
   bankImportBatches       BankImportBatch[]
   bankTransactions        BankTransaction[]
@@ -1725,9 +1728,70 @@ model EntitlementGrant {
 
   club           Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
   planDefinition PlanDefinition? @relation(fields: [planDefinitionId], references: [id], onDelete: SetNull)
+  storeSubscription StoreSubscription?
 
   @@index([clubId, status, startsAt, expiresAt])
   @@index([planDefinitionId])
+}
+
+// A random UUID is passed to StoreKit / Play Billing. It identifies one payer
+// and one club without disclosing an email, user ID, or club ID to the store.
+model StorePurchaseAccount {
+  id        String   @id @default(uuid())
+  clubId    String
+  userId    String
+  createdAt DateTime @default(now())
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  subscriptions StoreSubscription[]
+
+  @@unique([clubId, userId])
+}
+
+// Replacement tombstones exist even when a predecessor has never been seen.
+model StorePurchaseReplacement {
+  store       String
+  environment String
+  originalId  String
+  successorId String
+  clubId      String
+  accountId   String
+  createdAt   DateTime @default(now())
+  club        Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([store, environment, originalId])
+  @@index([clubId])
+}
+
+model StoreSubscription {
+  id                 String   @id @default(cuid())
+  clubId             String
+  accountId          String
+  store              String
+  environment        String
+  // Apple's original transaction ID / SHA-256 of Google's globally unique token.
+  originalId         String
+  // Durable Google replacement link: late events for this predecessor must
+  // never revive access, even when its first event arrives after replacement.
+  replacesOriginalId String?
+  // AES-256-GCM sealed reference, used only for server reconciliation.
+  sealedReference    String
+  productId          String
+  status             String
+  expiresAt          DateTime
+  autoRenew          Boolean  @default(false)
+  grantId            String   @unique
+  observedAt         DateTime
+  lastCheckedAt      DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  club               Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  account            StorePurchaseAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  grant              EntitlementGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@unique([store, environment, originalId])
+  @@index([store, environment, replacesOriginalId])
+  @@index([clubId, expiresAt])
+  @@index([lastCheckedAt])
 }
 
 model ClubPlanCompliance {

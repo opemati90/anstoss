@@ -11,16 +11,17 @@ import redesign from './redesign/en' // 2026-11 Anstoss Redesign strings
 
 import { studioEn } from './studio/en'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.en,
   teamPackages: {
       "title": "Team packages",
-      "TEAM": "1 team",
-      "CLUB_3": "3 teams",
-      "CLUB_6": "6 teams",
-      "UNLIMITED": "Unlimited teams",
+      "TEAM": "Team · 1 team",
+      "CLUB_3": "Club · up to 3 teams",
+      "UNLIMITED": "Club Unlimited · all club teams",
       "players": "Up to {{count}} players",
       "unlimitedPlayers": "Unlimited players",
-      "note": "Annual billing costs 10 monthly payments instead of 12. Unlimited is the best per-team value from 7 teams.",
+      "note": "Annual billing saves at least two monthly payments. Club Unlimited covers teams in one club, not multiple clubs. AI generation credits are separate.",
       "trial": "The free trial includes 1 team and 30 players. No card needed; it returns to Free unless you choose a paid plan.",
       "contact": "Questions about packages? {{email}}"
   },
@@ -350,7 +351,7 @@ const base = {
     blockedEyebrow: 'Access restricted',
     blockedTitle: 'Sign-in can’t continue yet',
     blockedBody:
-      'Accounts under 16 need a valid invite followed by parent approval before they can use Anstoss.',
+      'Direct accounts are available from age 16. A parent or guardian can manage a child’s profile from their own account.',
     checkStatus: 'Check status',
   },
   accountNextStep: {

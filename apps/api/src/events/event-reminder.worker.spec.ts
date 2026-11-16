@@ -87,7 +87,7 @@ describe('personal event reminder delivery', () => {
   it.each(['provider rejection', 'missing token', 'quiet hours', 'muted category'])(
     'does not mark %s as sent; schedules a fair retry',
     async () => {
-      const { worker, push, preferences } = setup()
+      const { worker, preferences } = setup()
       await worker.runCycle()
       expect(preferences.update).not.toHaveBeenCalledWith({
         where: { id: 'pref' },

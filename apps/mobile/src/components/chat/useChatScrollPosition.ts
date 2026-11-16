@@ -37,7 +37,13 @@ export function useChatScrollPosition<Row>({
     (animated = true) => {
       followingLatest.current = true
       onAtBottomChange(true)
-      listRef.current?.scrollToEnd({ animated })
+      // FlatList.scrollToEnd uses the last cell's estimated frame, omitting
+      // content-container bottom padding and sometimes lagging keyboard resize.
+      // Native content/viewport measurements include the complete scroll extent.
+      listRef.current?.scrollToOffset({
+        offset: Math.max(0, contentHeight.current - viewportHeight.current),
+        animated,
+      })
     },
     [listRef, onAtBottomChange],
   )

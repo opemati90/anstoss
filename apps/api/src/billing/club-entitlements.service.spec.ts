@@ -1,8 +1,20 @@
 import { ConflictException } from '@nestjs/common'
-import { PLAN_FEATURES } from '@anstoss/shared'
+import { PLAN_FEATURES, PLAN_PRICES_CENTS } from '@anstoss/shared'
 import { ClubEntitlementsService, CORE_CLUB_FEATURES } from './club-entitlements.service'
 
 describe('ClubEntitlementsService', () => {
+  it('preserves a historical six-team paid grant even after its offer is unpublished', async () => {
+    const service = new ClubEntitlementsService({
+      entitlementGrant: { findMany: jest.fn().mockResolvedValue([
+        { tier: 'PRO', status: 'ACTIVE', planDefinitionId: 'old-six-team-plan' },
+      ]) },
+      planDefinition: { findUnique: jest.fn().mockResolvedValue({
+        teamLimit: 6, playerLimit: 180, publishedAt: null, features: [],
+      }) },
+    } as never, {} as never)
+    await expect(service.resolve('club')).resolves.toMatchObject({ limits: { teams: 6, players: 180 } })
+  })
+
   it('uses free limits and keeps core club operations available', async () => {
     const prisma = {
       entitlementGrant: { findMany: jest.fn().mockResolvedValue([]) },
@@ -75,7 +87,7 @@ describe('ClubEntitlementsService', () => {
     await service.publishPlan('admin-1', {
       tier: 'PRO',
       interval: 'TWELVE_MONTHS',
-      priceCents: 12_990,
+      priceCents: PLAN_PRICES_CENTS.yearly,
       currency: 'eur',
       teamLimit: 1,
       playerLimit: 30,

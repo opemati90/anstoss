@@ -11,16 +11,17 @@ import redesign from './redesign/pt' // 2026-11 Anstoss Redesign strings
 
 import { studioPt } from './studio/pt'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.pt,
   teamPackages: {
       "title": "Pacotes de equipas",
-      "TEAM": "1 equipa",
-      "CLUB_3": "3 equipas",
-      "CLUB_6": "6 equipas",
-      "UNLIMITED": "Equipas ilimitadas",
+      "TEAM": "Team · 1 equipa",
+      "CLUB_3": "Club · até 3 equipas",
+      "UNLIMITED": "Club Unlimited · todas as equipas",
       "players": "Até {{count}} jogadores",
       "unlimitedPlayers": "Jogadores ilimitados",
-      "note": "O pagamento anual custa 10 mensalidades em vez de 12. Ilimitado oferece o melhor preço por equipa a partir de 7 equipas.",
+      "note": "O pagamento anual poupa pelo menos duas mensalidades. Club Unlimited cobre um único clube, não vários clubes. Os créditos de IA são separados.",
       "trial": "O teste gratuito inclui 1 equipa e 30 jogadores. Sem cartão; regressa ao plano gratuito se não escolheres um plano pago.",
       "contact": "Dúvidas sobre os pacotes? {{email}}"
   },
@@ -350,7 +351,7 @@ const base = {
     blockedEyebrow: 'Acesso restrito',
     blockedTitle: 'Ainda não é possível entrar',
     blockedBody:
-      'As contas de menores de 16 anos precisam de um convite válido e da autorização de um dos pais.',
+      'Uma conta própria está disponível a partir dos 16 anos. Um dos pais ou responsável legal pode gerir o perfil da criança a partir da sua própria conta.',
     checkStatus: 'Verificar estado',
   },
   accountNextStep: {

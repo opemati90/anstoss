@@ -23,6 +23,16 @@ web-build/
 .env
 .env.local
 .env.*.local
+# Firebase client google-services.json is public app configuration.
+# Service-account private keys must never enter git or an EAS upload.
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+**/SubscriptionKey_*.p8
+**/AuthKey_*.p8
+**/anstoss-billing-credentials*
+**/credentials.json
+**/credentials/android/
+*.jks
 apps/api/.demo-accounts.local.json
 
 # IDE

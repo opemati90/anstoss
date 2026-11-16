@@ -1,4 +1,36 @@
 /* Anstoss Admin — shared Anstoss brand, task-first workspace. */
+.directory-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 28px 0 20px; align-items: start; }
+.directory-filters label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; min-width: 0; }
+.directory-filters .text-input { width: 100%; min-width: 0; }
+.directory-search { grid-column: span 2; }
+.directory-lookup { margin: 0; padding: 0; border: 0; min-width: 0; }
+.directory-lookup legend { padding: 0; font-size: 14px; font-weight: 600; }
+.directory-selection { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 38px; overflow-wrap: anywhere; }
+.directory-lookup-label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.directory-matches { max-height: 240px; overflow-y: auto; }
+.directory-match { display: block; width: 100%; min-height: 44px; padding: 10px; text-align: left; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+.directory-match:hover { background: var(--primary-soft); }
+.directory-actions { display: flex; flex-wrap: wrap; gap: 10px; align-self: end; }
+.directory-results-head { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin: 16px 0; }
+.directory-results-head label { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.directory-results-head .text-input { width: auto; min-height: 44px; }
+.directory-caption { text-align: left; padding: 12px 16px; color: var(--muted); font-size: 14px; }
+.directory-row-actions { display: flex; flex-wrap: wrap; gap: 16px; }
+.directory-pagination { display: flex; gap: 16px; align-items: center; justify-content: flex-end; margin: 20px 0 32px; }
+.directory-pagination [data-page] { white-space: nowrap; }
+.directory-pagination .pill { width: auto; flex: 0 0 auto; }
+.directory-scroll-hint { display: none; }
+.directory-admin-tools { margin-top: 32px; }
+.directory-admin-tools summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.directory-admin-tools[open] summary { margin-bottom: 24px; }
+@media (max-width: 680px) {
+  .directory-filters { grid-template-columns: 1fr; }
+  .directory-search { grid-column: auto; }
+  .directory-results-head { align-items: flex-start; flex-direction: column; }
+  .directory-pagination { justify-content: space-between; gap: 8px; }
+  .directory-pagination .pill { padding-inline: 14px; }
+  .directory-scroll-hint { display: block; color: var(--muted); font-size: 14px; }
+}
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url(./fonts/inter-latin-400-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url(./fonts/inter-latin-500-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url(./fonts/inter-latin-600-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }

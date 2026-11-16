@@ -7,9 +7,15 @@
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="theme-color" content="#0E3B2B" />
     <link rel="icon" href="./anstoss-mark.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20261114-mvp" />
+    <link rel="stylesheet" href="./styles.css?v=20261115-directory" />
   </head>
   <body>
+    <!-- THESIS: Find a club, then its teams and people without searching one mixed list.
+    OWN-WORLD: Existing Anstoss pitch green, lime selection, warm surfaces and Inter controls.
+    STORY: Choose a directory, narrow the scope, inspect matching records.
+    FIRST VIEWPORT: Persistent navigation, title, labelled filters, result count and compact table; pagination follows the rows.
+    FORM: User-approved directory extension; inherited visual system, no new visual-world seed.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance -->
     <a class="skip-link" href="#workspace">Skip to workspace</a>
     <section class="login-shell" id="login-shell" hidden>
       <div class="login-card">
@@ -80,8 +86,14 @@
         <a class="nav-item" href="#/clubs" data-section="clubs">
           <span class="nav-icon" aria-hidden="true"></span>Clubs
         </a>
+        <a class="nav-item" href="#/teams" data-section="teams">
+          <span class="nav-icon" aria-hidden="true"></span>Teams
+        </a>
+        <a class="nav-item" href="#/players" data-section="players">
+          <span class="nav-icon" aria-hidden="true"></span>Players
+        </a>
         <a class="nav-item" href="#/users" data-section="users">
-          <span class="nav-icon" aria-hidden="true"></span>Users
+          <span class="nav-icon" aria-hidden="true"></span>All accounts
         </a>
         <a class="nav-item" href="#/subscriptions" data-section="subscriptions">
           <span class="nav-icon" aria-hidden="true"></span>Billing
@@ -152,36 +164,7 @@
         <p class="lede">
           Every club on the platform. Open a club to review its owners, plan, and billing state.
         </p>
-        <div class="toolbar">
-          <input
-            id="clubs-search" aria-label="Search clubs"
-            class="text-input"
-            type="search"
-            placeholder="Search by name or slug..."
-          />
-          <button class="pill" id="clubs-refresh">Refresh</button>
-        </div>
-        <p class="muted-line" id="clubs-count">-</p>
-        <div class="table-wrap">
-          <table class="data-table" id="clubs-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>City</th>
-                <th class="num">Members</th>
-                <th class="num">Teams</th>
-                <th>Plan</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="7" class="placeholder">Loading...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <div id="clubs-directory"></div>
         <article class="panel" style="margin-top: 28px">
           <h2>Club administrator claims</h2>
           <p class="lede">
@@ -260,10 +243,22 @@
         </article>
       </section>
 
+      <section class="page" data-page="teams" hidden>
+        <h1 class="welcome">Teams.</h1>
+        <p class="lede">Find a team, see its club and open its player list.</p>
+        <div id="teams-directory"></div>
+      </section>
+      <section class="page" data-page="players" hidden>
+        <h1 class="welcome">Players.</h1>
+        <p class="lede">Find squad members and free-agent players. Narrow the list by club or team.</p>
+        <div id="players-directory"></div>
+      </section>
       <section class="page" data-page="users" hidden>
-        <h1 class="welcome">Users and platform admins.</h1>
-        <p class="lede">Search all accounts and provision internal admin access.</p>
-        <article class="panel">
+        <h1 class="welcome">All accounts.</h1>
+        <p class="lede">Players, coaches, free agents and platform staff. Filter by role, club, team or account state.</p>
+        <div id="users-directory"></div>
+        <details class="panel directory-admin-tools">
+          <summary>Platform admin access</summary>
           <div class="panel-head">
             <div>
               <h2>Admin accounts</h2>
@@ -311,36 +306,7 @@
               </tbody>
             </table>
           </div>
-        </article>
-        <div class="toolbar">
-          <input
-            id="users-search" aria-label="Search users"
-            class="text-input"
-            type="search"
-            placeholder="Search by name or email..."
-          />
-          <button class="pill" id="users-refresh">Refresh</button>
-        </div>
-        <p class="muted-line" id="users-count">-</p>
-        <div class="table-wrap">
-          <table class="data-table" id="users-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th class="num">Clubs</th>
-                <th>Platform role</th>
-                <th>Created</th>
-                <th>State</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="6" class="placeholder">Loading...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        </details>
       </section>
 
       <section class="page" data-page="subscriptions" hidden>
@@ -375,8 +341,8 @@
             </label>
             <label>Team package
               <select id="plan-package" class="text-input" aria-label="Team package">
-                <option value="1">1 team</option><option value="3">3 teams</option>
-                <option value="6">6 teams</option><option value="2147483647">Unlimited teams</option>
+                <option value="1">Team · 1 team</option><option value="3">Club · up to 3 teams</option>
+                <option value="2147483647">Club Unlimited · one club</option>
               </select>
             </label>
             <label>Price per billing period (EUR)
@@ -1005,6 +971,7 @@ Broadcast sending is disabled for launch.</pre>
       </div>
     </dialog>
 
-    <script src="./main.js?v=20261114-mvp"></script>
+    <script src="./directory.js?v=20261115-directory"></script>
+    <script src="./main.js?v=20261115-directory"></script>
   </body>
 </html>

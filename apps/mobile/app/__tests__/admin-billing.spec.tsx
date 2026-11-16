@@ -9,6 +9,7 @@ const mockUseAuth = useAuth as jest.Mock
 const mockRouterPush = jest.fn()
 
 jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: (...args: unknown[]) => mockRouterPush(...args) }),
   router: {
     push: (...args: unknown[]) => mockRouterPush(...args),
   },

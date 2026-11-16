@@ -5,6 +5,7 @@ import { CHAT, type MessageAttachmentMeta, type PinnedMessage } from '@anstoss/s
 import { getE2ESession } from '../e2e/session'
 import { notifyAccessChanged } from '../auth/accessChanges'
 import { buildE2EChatMessages } from '../e2e/chatSeed'
+import { useTypingPresence } from './useTypingPresence'
 
 export type ChatMessageType =
   'TEXT' | 'VOICE' | 'IMAGE' | 'VIDEO' | 'FILE' | 'POLL' | 'RSVP_POLL' | 'LINEUP' | 'SYSTEM'
@@ -132,7 +133,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null)
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting')
   const [lastError, setLastError] = useState<string | null>(null)
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const { names: typingUsers, touch: touchTyping, remove: removeTyping, clear: clearTyping } = useTypingPresence(cacheKey, CHAT.TYPING_TIMEOUT_MS)
   const [hasMore, setHasMore] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -142,7 +143,6 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const [historyLoaded, setHistoryLoaded] = useState(() => chatMessagesCache.has(cacheKey))
 
   const socketRef = useRef<Socket | null>(null)
-  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const isAtBottomRef = useRef(true)
   const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
 
@@ -270,6 +270,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     socket.on('disconnect', (reason) => {
+      clearTyping()
       setConnectionState(reason === 'io server disconnect' ? 'offline' : 'reconnecting')
       if (reason === 'io server disconnect') notifyAccessChanged()
     })
@@ -313,6 +314,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on('message', (msg: ChatMessage) => {
       // One socket per thread; ignore rows of another channel it still hears.
       if (msg.channelId && channelId && msg.channelId !== channelId) return
+      removeTyping(msg.senderId)
       // Dedupe by id: the gateway echoes the sender's own message back to the
       // whole room (no sender exclusion), and reconnect can replay; without
       // this guard the same message could render twice.
@@ -377,18 +379,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       if (data.userId === userId) return
       if (data.channelId && data.channelId !== channelId) return
 
-      setTypingUsers((prev) => (prev.includes(data.userName) ? prev : [...prev, data.userName]))
-
-      // Clear existing timeout for this user
-      const existing = typingTimeoutsRef.current.get(data.userId)
-      if (existing) clearTimeout(existing)
-
-      const timeout = setTimeout(() => {
-        setTypingUsers((prev) => prev.filter((n) => n !== data.userName))
-        typingTimeoutsRef.current.delete(data.userId)
-      }, CHAT.TYPING_TIMEOUT_MS)
-
-      typingTimeoutsRef.current.set(data.userId, timeout)
+      touchTyping(data.userId, data.userName)
     })
 
     return () => {
@@ -396,15 +387,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       socket.emit('leave', { teamId })
       socket.disconnect()
       socketRef.current = null
-      // Clear all typing timeouts
-      typingTimeoutsRef.current.forEach((t) => clearTimeout(t))
-      typingTimeoutsRef.current.clear()
+      clearTyping()
     }
     // channelId in deps: switching channels should rewire the
     // history fetch to the new scope; reconnecting the socket on
     // every switch is fine (cheap) and simpler than threading channel
     // changes through the existing connected socket.
-  }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered])
+  }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered, clearTyping, removeTyping, touchTyping])
 
   // M5: pins are per channel. Without a channel there is nothing to show
   // (never fall back to a team-wide pin from another channel).
@@ -574,7 +563,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
 
   // Send typing indicator
   const sendTyping = useCallback(() => {
-    if (!channelId) return
+    if (!channelId || !socketRef.current?.connected) return
     socketRef.current?.emit('typing', { teamId, channelId })
   }, [teamId, channelId])
 

@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   ForbiddenException,
@@ -9,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common'
-import { supportActionSchema } from '@anstoss/shared'
+import { adminDirectoryQuerySchema, supportActionSchema } from '@anstoss/shared'
 import { CurrentUser } from '../auth/user.decorator'
 import { AdminService } from './admin.service'
 import { AuditService } from '../audit/audit.service'
@@ -74,6 +75,13 @@ export class AdminController {
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
     })
+  }
+
+  @Get('directory')
+  async directory(@Query() query: Record<string, unknown>) {
+    const parsed = adminDirectoryQuerySchema.safeParse(query)
+    if (!parsed.success) throw new BadRequestException('Invalid directory filters')
+    return this.adminService.directory(parsed.data)
   }
 
   @Get('platform-admins')

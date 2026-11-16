@@ -190,10 +190,17 @@ describe('useChat', () => {
     expect(result.current.unreadCount).toBe(1)
     expect(result.current.typingUsers).toEqual(['Mina'])
 
+    act(() => socket.trigger('message', makeMessage({ id: 'typing-finished', senderId: 'user-2' })))
+    expect(result.current.typingUsers).toEqual([])
+    act(() => socket.trigger('typing', { userId: 'user-2', userName: 'Mina' }))
+
     act(() => {
       jest.runOnlyPendingTimers()
     })
 
+    expect(result.current.typingUsers).toEqual([])
+    act(() => socket.trigger('typing', { userId: 'user-2', userName: 'Mina' }))
+    act(() => socket.trigger('disconnect', 'transport close'))
     expect(result.current.typingUsers).toEqual([])
 
     act(() => {

@@ -11,16 +11,17 @@ import redesign from './redesign/fr' // 2026-11 Anstoss Redesign strings
 
 import { studioFr } from './studio/fr'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.fr,
   teamPackages: {
       "title": "Forfaits équipes",
-      "TEAM": "1 équipe",
-      "CLUB_3": "3 équipes",
-      "CLUB_6": "6 équipes",
-      "UNLIMITED": "Équipes illimitées",
+      "TEAM": "Team · 1 équipe",
+      "CLUB_3": "Club · jusqu’à 3 équipes",
+      "UNLIMITED": "Club Unlimited · toutes les équipes",
       "players": "Jusqu’à {{count}} joueurs",
       "unlimitedPlayers": "Joueurs illimités",
-      "note": "Le paiement annuel coûte 10 mensualités au lieu de 12. Illimité offre le meilleur prix par équipe dès 7 équipes.",
+      "note": "Le paiement annuel économise au moins deux mensualités. Club Unlimited couvre un seul club, pas plusieurs clubs. Les crédits IA sont séparés.",
       "trial": "L’essai gratuit comprend 1 équipe et 30 joueurs. Sans carte ; retour au forfait gratuit sauf si vous choisissez un abonnement.",
       "contact": "Questions sur les forfaits ? {{email}}"
   },
@@ -354,7 +355,7 @@ const base = {
     blockedEyebrow: 'Accès restreint',
     blockedTitle: 'Connexion pas encore possible',
     blockedBody:
-      'Pour les comptes de moins de 16 ans, il faut une invitation valide, puis l’accord d’un parent.',
+      'Un compte personnel est disponible à partir de 16 ans. Un parent ou responsable légal peut gérer le profil de l’enfant depuis son propre compte.',
     checkStatus: 'Vérifier le statut',
   },
   accountNextStep: {

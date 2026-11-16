@@ -3,6 +3,9 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import AboScreen from '../abo'
 import { fallbackClubPlan, useClubPlan } from '../../src/hooks/useClubPlan'
 import { PLAN_PACKAGES } from '@anstoss/shared'
+import { useStoreBilling } from '../../src/hooks/useStoreBilling'
+
+jest.mock('../../src/hooks/useStoreBilling', () => ({ useStoreBilling: jest.fn() }))
 
 jest.mock('../../src/api/client', () => ({ api: jest.fn() }))
 jest.mock('../../src/i18n', () => ({ getAppLanguage: () => 'de', getAppLocale: () => 'de-DE' }))
@@ -28,6 +31,10 @@ const refresh = jest.fn()
 const startTrial = jest.fn()
 beforeEach(() => {
   jest.clearAllMocks()
+  ;(useStoreBilling as jest.Mock).mockReturnValue({
+    ready: false, busy: false, message: null, products: [], subscriptions: [],
+    subscribe: jest.fn(), restore: jest.fn(), manage: jest.fn(),
+  })
   mockPlan.mockReturnValue({
     plan: fallbackClubPlan('club', true),
     loading: false,
@@ -37,6 +44,52 @@ beforeEach(() => {
   })
 })
 
+it('does not expose a purchase action without a native store price', () => {
+  const view = render(<AboScreen />)
+  expect(view.queryByTestId('abo-subscribe-TEAM')).toBeNull()
+  expect(view.getByTestId('abo-restore').props.accessibilityState.disabled).toBe(true)
+})
+
+it('allows restore when connected even if the sales catalogue is empty', () => {
+  const restore = jest.fn()
+  ;(useStoreBilling as jest.Mock).mockReturnValue({
+    ready: false, restoreReady: true, busy: false, message: null,
+    products: [], subscriptions: [], restore, subscribe: jest.fn(), manage: jest.fn(),
+  })
+  const view = render(<AboScreen />)
+  expect(view.getByTestId('abo-restore').props.accessibilityState.disabled).toBe(false)
+  fireEvent.press(view.getByTestId('abo-restore'))
+  expect(restore).toHaveBeenCalledTimes(1)
+})
+
+it('keeps billing listeners enabled during plan refresh but not after permission loss', () => {
+  const plan = fallbackClubPlan('club', true)
+  mockPlan.mockReturnValue({ plan, loading: false, error: false, refresh, startTrial })
+  const view = render(<AboScreen />)
+  expect(useStoreBilling).toHaveBeenLastCalledWith(true, refresh)
+  mockPlan.mockReturnValue({ plan, loading: true, error: false, refresh, startTrial })
+  view.rerender(<AboScreen />)
+  expect(useStoreBilling).toHaveBeenLastCalledWith(true, refresh)
+  mockPlan.mockReturnValue({ plan: { ...plan, canManage: false }, loading: false, error: false, refresh, startTrial })
+  view.rerender(<AboScreen />)
+  expect(useStoreBilling).toHaveBeenLastCalledWith(false, refresh)
+  mockPlan.mockReturnValue({ plan: null, loading: false, error: true, refresh, startTrial })
+  view.rerender(<AboScreen />)
+  expect(useStoreBilling).toHaveBeenLastCalledWith(false, refresh)
+})
+
+it('uses the store price and exact approved SKU for purchase', () => {
+  const subscribe = jest.fn()
+  ;(useStoreBilling as jest.Mock).mockReturnValue({
+    ready: true, busy: false, message: null, subscriptions: [], subscribe,
+    products: [{ id: 'com.renuirug.anstoss.team.monthly', platform: 'ios', type: 'subs', displayPrice: 'CHF 12.00' }],
+  })
+  const view = render(<AboScreen />)
+  expect(view.getByText('CHF 12.00', { exact: false })).toBeTruthy()
+  fireEvent.press(view.getByTestId('abo-subscribe-TEAM'))
+  expect(subscribe).toHaveBeenCalledWith('com.renuirug.anstoss.team.monthly')
+})
+
 it('does not sell unavailable chat translation or preview access', () => {
   const view = render(<AboScreen />)
   expect(view.queryByText('clubPlan.features.chatTranslation')).toBeNull()
@@ -44,9 +97,11 @@ it('does not sell unavailable chat translation or preview access', () => {
   expect(view.getByText('clubPlan.features.clubColors')).toBeTruthy()
 })
 
-it('shows all four shared package prices and switches to discounted annual totals', () => {
+it('shows exactly three paid packages and switches to the approved annual totals', () => {
   const view = render(<AboScreen />)
   const format = (cents: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+  expect(PLAN_PACKAGES).toHaveLength(3)
+  expect(view.queryByTestId('abo-package-CLUB_6')).toBeNull()
   for (const entry of PLAN_PACKAGES) {
     expect(view.getByTestId(`abo-package-${entry.key}`)).toBeTruthy()
     expect(view.getByText(format(entry.monthly), { exact: false })).toBeTruthy()

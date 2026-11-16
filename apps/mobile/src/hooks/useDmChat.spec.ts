@@ -157,10 +157,17 @@ describe('useDmChat', () => {
     expect(result.current.messages.filter((m) => m.id === 'dm-2')).toHaveLength(1)
     expect(result.current.typingUsers).toEqual(['Mina'])
 
+    act(() => socket.trigger('dm:message', makeDm({ id: 'typing-finished' })))
+    expect(result.current.typingUsers).toEqual([])
+    act(() => socket.trigger('dm:typing', { userId: 'user-2', userName: 'Mina' }))
+
     act(() => {
       jest.advanceTimersByTime(3000)
     })
 
+    expect(result.current.typingUsers).toEqual([])
+    act(() => socket.trigger('dm:typing', { userId: 'user-2', userName: 'Mina' }))
+    act(() => socket.trigger('disconnect', 'transport close'))
     expect(result.current.typingUsers).toEqual([])
   })
 

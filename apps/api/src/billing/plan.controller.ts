@@ -11,7 +11,7 @@ import { ClubEntitlementsService } from './club-entitlements.service'
  * Club plan ("Abo") — REVAMP_HANDOFF.md "Plans and pricing". Every member can
  * read the plan status; only Vorstand or Kassenwart can start the card-less
  * trial (checked in the service, since Kassenwart is a club office rather
- * than a membership role). Paid subscriptions are sold on the website.
+ * than a membership role). Native purchases use the verified store routes.
  */
 @Controller('clubs/:clubId/plan')
 @UseGuards(ClerkAuthGuard, AgeGateGuard, RolesGuard)

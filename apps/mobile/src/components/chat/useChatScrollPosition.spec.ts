@@ -25,7 +25,7 @@ describe('chronological chat scroll position', () => {
   afterEach(() => jest.useRealTimers())
 
   function setup(unreadIndex = -1, ready = true) {
-    const list = { scrollToEnd: jest.fn(), scrollToIndex: jest.fn() }
+    const list = { scrollToOffset: jest.fn(), scrollToIndex: jest.fn() }
     const listRef = { current: list as unknown as FlatList<string> }
     const onAtBottomChange = jest.fn()
     const hook = renderHook<ReturnType<typeof useChatScrollPosition<string>>, { loaded: boolean }>(
@@ -53,19 +53,19 @@ describe('chronological chat scroll position', () => {
     const h = setup()
     act(() => h.result.current.onLayout(layout(600)))
     h.flush()
-    expect(h.list.scrollToEnd).not.toHaveBeenCalled()
+    expect(h.list.scrollToOffset).not.toHaveBeenCalled()
     act(() => h.result.current.onContentSizeChange(393, 1200))
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(h.list.scrollToOffset).toHaveBeenCalledWith({ offset: 600, animated: false })
   })
 
   it('initializes cached history even if readiness changes without a layout event', () => {
     const h = setup(-1, false)
     h.mount()
-    expect(h.list.scrollToEnd).not.toHaveBeenCalled()
+    expect(h.list.scrollToOffset).not.toHaveBeenCalled()
     h.rerender({ loaded: true })
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenCalledTimes(1)
+    expect(h.list.scrollToOffset).toHaveBeenCalledTimes(1)
   })
 
   it('opens unread history near the top instead of jumping past it', () => {
@@ -76,28 +76,28 @@ describe('chronological chat scroll position', () => {
       viewPosition: 0.1,
       animated: false,
     })
-    expect(h.list.scrollToEnd).not.toHaveBeenCalled()
+    expect(h.list.scrollToOffset).not.toHaveBeenCalled()
   })
 
   it('keeps the latest message visible on keyboard open BEFORE any text input', () => {
     const h = setup()
     h.mount()
-    h.list.scrollToEnd.mockClear()
+    h.list.scrollToOffset.mockClear()
     act(() => h.result.current.onLayout(layout(280)))
     act(() => h.result.current.onScroll(scroll(600, 280)))
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(h.list.scrollToOffset).toHaveBeenCalledWith({ offset: 920, animated: false })
     expect(h.onAtBottomChange).not.toHaveBeenCalledWith(false)
   })
 
   it('handles iOS delivering the resized scroll event before onLayout', () => {
     const h = setup()
     h.mount()
-    h.list.scrollToEnd.mockClear()
+    h.list.scrollToOffset.mockClear()
     act(() => h.result.current.onScroll(scroll(600, 280)))
     act(() => h.result.current.onLayout(layout(280)))
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenCalledTimes(1)
+    expect(h.list.scrollToOffset).toHaveBeenCalledTimes(1)
     expect(h.onAtBottomChange).not.toHaveBeenCalledWith(false)
   })
 
@@ -105,24 +105,24 @@ describe('chronological chat scroll position', () => {
     const h = setup()
     h.mount()
     act(() => h.result.current.onScroll(scroll(100)))
-    h.list.scrollToEnd.mockClear()
+    h.list.scrollToOffset.mockClear()
     act(() => {
       h.result.current.onLayout(layout(280))
       h.result.current.onContentSizeChange(393, 2400)
     })
     h.flush()
     expect(h.onAtBottomChange).toHaveBeenLastCalledWith(false)
-    expect(h.list.scrollToEnd).not.toHaveBeenCalled()
+    expect(h.list.scrollToOffset).not.toHaveBeenCalled()
   })
 
   it('follows newly appended messages only while already at latest', () => {
     const h = setup()
     h.mount()
-    h.list.scrollToEnd.mockClear()
+    h.list.scrollToOffset.mockClear()
     act(() => h.result.current.onContentSizeChange(393, 1400))
     act(() => h.result.current.onScroll(scroll(600, 600, 1400)))
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenCalledTimes(1)
+    expect(h.list.scrollToOffset).toHaveBeenCalledTimes(1)
   })
 
   it('restores following after jumping to latest and handles keyboard dismissal', () => {
@@ -130,19 +130,34 @@ describe('chronological chat scroll position', () => {
     h.mount()
     act(() => h.result.current.stopFollowing())
     act(() => h.result.current.scrollToLatest())
-    expect(h.list.scrollToEnd).toHaveBeenLastCalledWith({ animated: true })
+    expect(h.list.scrollToOffset).toHaveBeenLastCalledWith({ offset: 600, animated: true })
     act(() => h.result.current.onLayout(layout(700)))
     h.flush()
-    expect(h.list.scrollToEnd).toHaveBeenLastCalledWith({ animated: false })
+    expect(h.list.scrollToOffset).toHaveBeenLastCalledWith({ offset: 500, animated: false })
   })
 
   it('cancels queued scroll work when leaving the conversation', () => {
     const h = setup()
     h.mount()
-    h.list.scrollToEnd.mockClear()
+    h.list.scrollToOffset.mockClear()
     act(() => h.result.current.onLayout(layout(280)))
     h.unmount()
     h.flush()
-    expect(h.list.scrollToEnd).not.toHaveBeenCalled()
+    expect(h.list.scrollToOffset).not.toHaveBeenCalled()
+  })
+
+  it('includes bottom padding in the measured extent instead of estimating the final cell', () => {
+    const h = setup()
+    h.mount(1216)
+    expect(h.list.scrollToOffset).toHaveBeenLastCalledWith({ offset: 616, animated: false })
+    act(() => h.result.current.onLayout(layout(280)))
+    h.flush()
+    expect(h.list.scrollToOffset).toHaveBeenLastCalledWith({ offset: 936, animated: false })
+  })
+
+  it('never requests a negative offset for a short conversation', () => {
+    const h = setup()
+    h.mount(150)
+    expect(h.list.scrollToOffset).toHaveBeenLastCalledWith({ offset: 0, animated: false })
   })
 })

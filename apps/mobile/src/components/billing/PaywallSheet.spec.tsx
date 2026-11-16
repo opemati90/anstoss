@@ -2,6 +2,8 @@ import React from 'react'
 import { render, fireEvent } from '@testing-library/react-native'
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }))
+const mockPush = jest.fn()
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }))
 
 jest.mock('../../context/ClubThemeContext', () => {
   const { FALLBACK_THEME } = require('../../theme/club-theme')
@@ -47,36 +49,35 @@ describe('PaywallSheet', () => {
     const { queryByText } = render(<PaywallSheet visible={false} onClose={jest.fn()} />)
     // BottomSheet hides children when not visible — the editorial
     // headline should not be in the tree.
-    expect(queryByText(/Launch tools/)).toBeNull()
+    expect(queryByText('storeBilling.title')).toBeNull()
   })
 
-  it('renders editorial title + features when no trigger', () => {
+  it('uses the localized subscription title and verified-access explanation', () => {
     const { getByText } = render(<PaywallSheet visible onClose={jest.fn()} />)
-    expect(getByText(/Launch tools are included for every club/)).toBeTruthy()
-    expect(getByText(/Lineup Builder Pro/)).toBeTruthy()
-    expect(getByText(/Club contribution tracking/)).toBeTruthy()
+    expect(getByText('storeBilling.title')).toBeTruthy()
+    expect(getByText('storeBilling.details')).toBeTruthy()
   })
 
-  it('shows feature-specific title when triggerFeature is set', () => {
+  it('routes feature gates to the same current plan catalogue', () => {
     const { getByText } = render(
       <PaywallSheet visible onClose={jest.fn()} triggerFeature="lineup_builder_pro" />,
     )
-    // Trigger label falls through to the generic key in the t() mock
-    // since we don't seed paywall.triggers.* — confirms the wiring
-    // without exercising real i18n.
-    expect(getByText(/included during launch/)).toBeTruthy()
+    expect(getByText('storeBilling.viewPlans')).toBeTruthy()
   })
 
-  it('shows the store-safe no-subscription trust line', () => {
-    const { getByText } = render(<PaywallSheet visible onClose={jest.fn()} />)
-    expect(getByText(/No digital subscription purchase/)).toBeTruthy()
+  it('does not promise free premium access or unsupported priority support', () => {
+    const { queryByText } = render(<PaywallSheet visible onClose={jest.fn()} />)
+    expect(queryByText(/included.*launch|24 hours|Priority support/i)).toBeNull()
   })
 
-  it('calls onClose when Continue is pressed', () => {
+  it('dismisses the sheet and opens plans without starting an upgrade', () => {
     const onClose = jest.fn()
-    const { getByText } = render(<PaywallSheet visible onClose={onClose} />)
-    fireEvent.press(getByText('Continue'))
+    const onUpgradeStarted = jest.fn()
+    const { getByText } = render(<PaywallSheet visible onClose={onClose} onUpgradeStarted={onUpgradeStarted} />)
+    fireEvent.press(getByText('storeBilling.viewPlans'))
     expect(onClose).toHaveBeenCalled()
+    expect(mockPush).toHaveBeenCalledWith('/abo')
+    expect(onUpgradeStarted).not.toHaveBeenCalled()
   })
 
   it('calls onClose when Maybe later is pressed', () => {
@@ -84,5 +85,6 @@ describe('PaywallSheet', () => {
     const { getByText } = render(<PaywallSheet visible onClose={onClose} />)
     fireEvent.press(getByText('Maybe later'))
     expect(onClose).toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
   })
 })

@@ -49,7 +49,9 @@ async function snapshot(name) {
   writeFileSync(join(dirname(statePath), `${name}.png`), Buffer.from(image, 'base64'))
 }
 for (const scenario of [
-  { id: journal.shortDmId, kind: 'dm', text: 'Short conversation keyboard check', name: 'short' },
+  // The five-message fixture supersedes the original one-message thread.
+  // Follow the latest bubble; older messages may legitimately leave the viewport.
+  { id: journal.shortDmId, kind: 'dm', text: 'Keyboard QA latest visible reply', name: 'short' },
   { id: journal.dmId, kind: 'dm', text: 'Keyboard history 40', name: 'long' },
   { id: journal.channelId, kind: 'channel', text: 'Keyboard group player reply', name: 'group' },
 ]) {
@@ -79,6 +81,17 @@ for (const scenario of [
     async () => (await elements('accessibility id', 'chat-message-input')).length,
     'composer',
   )
+  const input = await findId('chat-message-input')
+  await command(`/element/${input}/clear`, {})
+  // iOS number/text keyboards do not consistently support hide_keyboard.
+  // Reopen after clearing the saved draft to start with a genuinely closed keyboard.
+  await command('/execute/sync', { script: 'mobile: terminateApp', args: [{ bundleId: 'com.renuirug.anstoss' }] })
+  await command('/execute/sync', { script: 'mobile: activateApp', args: [{ bundleId: 'com.renuirug.anstoss' }] })
+  await waitFor(async () => (await elements('accessibility id', 'club-header-identity')).length, 'restored session')
+  await command('/execute/sync', { script: 'mobile: deepLink', args: [{
+    url: `anstoss://chat/${scenario.id}?kind=${scenario.kind}`, bundleId: 'com.renuirug.anstoss',
+  }] })
+  await waitFor(async () => (await elements('accessibility id', 'chat-message-input')).length, 'reopened composer')
   const jump = await elements('accessibility id', 'chat-jump-latest')
   if (jump.length) await command(`/element/${jump[0][elementKey]}/click`, {})
   await waitFor(() => visibleText(scenario.text), `${scenario.name} history before keyboard`)
@@ -99,14 +112,16 @@ for (const scenario of [
     `${scenario.name} history disappeared on keyboard open`,
   )
   const draft = `Native ${scenario.name} keyboard draft`
-  const input = await findId('chat-message-input')
-  await command(`/element/${input}/value`, { text: draft })
-  assert.ok(await visibleText(draft), 'Draft must be visible')
-  assert.ok(await visibleText(scenario.text), 'History must remain visible while typing')
+  const reopenedInput = await findId('chat-message-input')
+  await command(`/element/${reopenedInput}/value`, { text: draft })
+  assert.equal(await command(`/element/${reopenedInput}/attribute/value`), draft, 'Draft must match exactly, not append to a previous run')
+  await waitFor(() => visibleText(scenario.text), 'Latest history must remain visible while typing')
+  assert.ok((await elements('-ios predicate string', 'type == "XCUIElementTypeKeyboard" AND visible == true')).length,
+    'Software keyboard must remain visible while typing')
   if (scenario.kind === 'channel') {
     assert.ok(await visibleText('QA coach'), 'Incoming group sender identity must be visible')
   }
   await snapshot(`appium-chat-${scenario.name}-draft`)
-  await command(`/element/${input}/value`, { text: '\b'.repeat(draft.length) })
+  await command(`/element/${reopenedInput}/clear`, {})
   console.log(`PASS: ${scenario.name} chat history, keyboard-before-typing, visible draft`)
 }

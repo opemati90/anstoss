@@ -4,6 +4,102 @@ Status: stability/support test candidate, not public-release approval. Local
 verification is recorded below; remote CI, deployments and distribution builds
 must be checked separately against the committed revision.
 
+## 16 November — Firebase social-login configuration (not implemented login)
+
+- Confirmed Firebase project `anstoss-b268f`, project number `387307271714`,
+  under the Stratum Dynamics account. No Renuir app or shared billing/signing
+  setting was changed. Firebase remains on Spark; Railway hosting is unchanged.
+- Read Anstoss's existing **Play app signing** certificate (not its upload key)
+  for `com.renuirug.anstoss` and added the missing SHA-1 to Firebase:
+  `A4:25:ED:6B:F4:23:6C:9A:B8:F3:70:E6:F8:E4:65:21:E1:57:C7:6D`.
+  Verified the saved row. No signing key was generated, replaced or reset.
+- Downloaded Android configuration now contains the Play-certificate Android
+  OAuth client and web OAuth client. Updated both mobile config copies; verified
+  equal contents and unchanged project/app identity and API key.
+- Registered the previously missing iOS app with the same verified bundle ID,
+  nickname `Anstoss iOS`. Downloaded `apps/mobile/GoogleService-Info.plist`,
+  verified project/bundle identity, client ID and reversed client ID; plist lint
+  passed. Native SDK/config-plugin integration remains pending.
+- Google provider is enabled. Apple provider setup and both app/backend login
+  implementations remain unfinished: existing buttons still call the placeholder.
+  No end-to-end social-login pass is claimed. Local/debug or directly distributed
+  Android signing certificates still need registration before those login tests.
+- Public name is `Anstoss`; support email is still the existing Gmail address.
+  The dropdown offers only that address, not the requested `support@anstoss.io`.
+  Did not grant project permissions or change the email to another substitute.
+  Making the branded address eligible remains required before launch.
+- No EAS build, OTA, store upload or submission was performed.
+
+## 16 November — current local verification and release hold
+
+- User permits local simulator/emulator builds only for now. No EAS build,
+  OTA, store upload, build selection or submission is authorized by this pass.
+  Renuir and shared account settings remain out of scope.
+- API suite: **157 suites / 1,565 tests passed; 5 suites / 31 tests skipped**.
+  The final run used local-network permission; earlier transport failures were
+  rerun, not silently counted as passes.
+- Mobile suite: **154 suites / 1,163 tests passed; 1 test skipped**. A subsequent
+  draft-hydration regression brought the focused ChatInput suite to 7 passing
+  tests. Shared suite: 12 suites / 193 tests passed. Admin and website static
+  smoke checks passed; these are not native end-to-end or browser sign-off.
+- Fixed draft persistence on rapid navigation: pending edits flush on unmount,
+  clearing/sending removes storage immediately, and a late storage read cannot
+  restore a draft after the user edits/clears the composer.
+- The paid-feature gate now links to the canonical subscription screen instead
+  of promising all launch features free and only dismissing itself. Existing
+  localized billing copy is reused; opening plans does not grant paid access.
+- Direct-account access and push eligibility now consistently enforce the
+  approved 16+ launch audience. Historical guardian consent does not unlock a
+  direct under-16 account. Guardian-managed child records remain separate.
+  Updated the blocked-account explanation in all six app locales.
+- Store telemetry redacts sensitive field names case-insensitively, including
+  nested purchase tokens and signed transaction/renewal payloads.
+- Native sign-off remains **pending**. The dedicated iPhone's software keyboard
+  did not appear before typing, so that run is not a keyboard regression pass.
+  Android's unresponsive emulator was restarted without wiping data; its blank
+  developer-client startup is under investigation. Neither establishes the
+  physical iOS 27.2 issue is fixed.
+- The updated local iOS Release simulator compile succeeded with
+  `SENTRY_DISABLE_AUTO_UPLOAD=true` (no signing or distribution build). Installed
+  on the dedicated QA simulator. Restarting its existing WebDriverAgent runner
+  failed `UITestingUITests testRunner`; the device was subsequently Shutdown,
+  so authenticated keyboard checks could not be counted. The Android emulator
+  recovered to the developer launcher, but selecting local Metro is still not
+  a passing app-startup/keyboard check. No app data was wiped.
+- Real store purchase/restore/lifecycle verification still needs the pending
+  Apple IAP key and Anstoss-scoped Google Play billing credentials. Physical
+  background/killed-app push, all persona journeys, and final visual checks
+  remain release gates. No production readiness claim is made.
+
+## 16 November — typing/header render-loop regression
+
+- The new typing-presence hook returned a fresh names array on each render.
+  `ChatScreen` reported that array to its parent's header state in an effect,
+  causing a child/parent render feedback loop. The reported Expo `setOptions`
+  stack was where this surfaced, not a reason to modify React Native internals.
+- Memoized the derived names array and made redundant presence clearing a no-op.
+  Added identity-stability coverage and a bounded parent/child feedback-loop test.
+  Presence remains transient, scoped to the conversation, and contains no drafts.
+- **22 typing/hook tests and 35 chat grouping/input/scroll tests passed**;
+  mobile typecheck, targeted ESLint and diff whitespace checks passed.
+- Local Android debug compile succeeded without EAS credits. On the
+  `Anstoss_API_36_1` emulator, real local-API group and direct conversations opened
+  without the reported crash. Both showed the three-dot typing bubble and header
+  status. Group sender names and initials were visible; the group typing status
+  disappeared after the synthetic sender stopped. Keyboard-open group history
+  and an unsent draft remained visible. The draft was removed without sending.
+- Visual artifacts: `/tmp/anstoss-loaded.png` (group typing/sender identity),
+  `/tmp/anstoss-dm-typing.png` (direct typing),
+  `/tmp/anstoss-keyboard-settled.png` (group keyboard open), and
+  `/tmp/anstoss-draft-fixed.png` (unsent draft). The keyboard screenshot still
+  shows the newest bubble's lower edge partially clipped: do not count this as
+  complete keyboard/layout sign-off. Physical iOS 27.2 and new typing UI on iOS
+  remain unverified. No OTA, store build or submission was performed.
+- QA environment recovery: rebooted a frozen emulator without wiping data and
+  restarted only Anstoss Metro on port 8082 with IPv4 localhost binding. Used
+  normal inbox navigation after development-client deep links interfered with
+  startup; blank startup captures are not passing evidence.
+
 ## Confirmed product decisions
 
 - No new translation hosting or cost. Automatic chat translation is unavailable.
@@ -12,9 +108,9 @@ must be checked separately against the committed revision.
   to a provider. No replacement provider has been provisioned.
 - App-language selection remains available. Six app locales explain that chat
   messages remain in their original language. Translation is not a paid benefit.
-- Proposed package catalogue, using the approved €12.99 single-team base:
-  1 team €12.99/month or €129.90/year; 3 teams €24.99/€249.90;
-  6 teams €39.99/€399.90; unlimited €49.99/€499.90.
+- Approved three-package catalogue (supersedes the earlier four-tier proposal):
+  Team (1 team) €12.99/month or €129/year; Club (3 teams) €29.99/€299;
+  Unlimited €39.99/€399. The six-team package is retired, not offered for sale.
   New trials use the one-team/30-player definition. Historical grants retain
   their original definitions. Stripe prices have not been created or changed.
 
@@ -52,14 +148,16 @@ must be checked separately against the committed revision.
   this is shipped; server translation remains disabled meanwhile.
   Sources: https://developers.google.com/ml-kit/language/translation and
   https://github.com/bluesky-social/expo-translate-text .
-- [ ] **Subscription lifecycle and Stripe test-mode verification.** Check all
-  four monthly/yearly package mappings, signed/idempotent/out-of-order webhooks,
-  first payment/SCA/SEPA processing, renewals, failed-payment grace, cancellation
+- [ ] **Native store subscription lifecycle verification.** Check the six
+  Apple/Google products for the three approved monthly/yearly packages,
+  verified purchases/restores, signed/idempotent/out-of-order notifications,
+  renewals, failed-payment grace, cancellation
   at period end, expiry, downgrade and refresh after app resume. Free and paid
   limits must be enforced on the server, not merely hidden in the UI. Never
   delete club data on downgrade. Add clear renewal/expiry dates and deduplicated
   reminders to billing admins; distinguish automatic renewal from access ending.
-  Validate store checkout policy separately from web Stripe checkout. No live
+  Native Apple/Google checkout is the approved mobile purchase path; merchant
+  account setup or draft products alone is not a completed integration. No live
   charges or secret values in chat. Current audit found no subscription-expiry
   reminder worker. Corrected provider status locally: software subscriptions now
   report Stripe without requiring a separate club Connect account (four regression
@@ -241,3 +339,62 @@ must be checked separately against the committed revision.
 - Maestro flows: `connected-release-login.yaml`, `connected-chat-keyboard.yaml`.
   The login flow expects a signed-out app; it correctly fails on an already
   signed-in home screen and is not itself a cold-start persistence test.
+
+## 2026-11-16 personal event reminder audit (local, not deployed)
+
+The physical screenshot's enabled switch proves an opt-in appearance, not delivery.
+An independent adversarial agent reviewed the worker and re-reviewed fixture
+rescheduling and timezone fixes. No live user notification was sent in these tests.
+
+Implemented:
+
+- Retry zero-ticket push failures instead of marking them sent; prevent overlapping
+  worker instances from concurrently claiming the same preference with row locks.
+- Skip cancelled, archived, past events and deleted users; recheck current team/event
+  access before sending. Include club/team routing context in notification data.
+- Reschedule existing opt-ins atomically with event date changes, including series,
+  public fixture refresh and licensed-feed import. Do not recreate opt-ins on RSVP.
+- Permit turning reminders off within the last hour; reject new late opt-ins.
+  Disable rapid concurrent toggle requests, restore state and show a save error on
+  failure, prevent stale fetch rollback, and warn when device registration is denied.
+- Save device IANA timezone with notification preferences and share DST-aware quiet
+  hours evaluation between per-user and team push paths. Existing rows without a
+  timezone retain legacy interpretation until their owner saves settings; no guessed
+  geographic backfill. Update stored club-wide preferences as well as bulk team rows.
+- Handle nullable club-wide preferences with a serialized transaction instead of an
+  invalid Prisma compound-key upsert; update historical duplicates consistently.
+
+Validation:
+
+- API and mobile TypeScript checks passed. Ten targeted backend suites and two
+  targeted mobile suites passed (17 mobile cases). These are not full-app E2E tests.
+- Two real PostgreSQL integration tests passed on the isolated local test database:
+  failed provider acceptance remains retryable; simultaneous independent workers
+  send once; simultaneous nullable preference saves create one row; legacy duplicate
+  quiet-hour rows are updated together. Push and membership checks are mocked here.
+- Reviewer independently passed worker (13), fixture-sync (10), and timezone (8)
+  tests. Added mobile regression for updating a stored club-wide row's timezone.
+- Final adversarial review of null-scope transactions found no new blocker. Existing
+  bulk-setting saves can partially persist when one team request fails while the UI
+  rolls back; a settled-request refetch or atomic bulk endpoint remains follow-up.
+- Android local debug compile succeeded and APK installation on QA emulator succeeded.
+  iOS arm64 debug compilation failed at React Native C++ symbol linking; this is not
+  an iOS test pass. No EAS build, OTA, store upload, production deployment or Renuir change.
+- Native reminder UI inspection was not completed: the Android screen capture showed
+  a Pixel Launcher not-responding dialog, not an Anstoss reminder screen. Diagnostic
+  capture: `/tmp/anstoss-reminder-android-20261116.png`. Do not count it as a UI pass.
+
+Release ordering and remaining proof:
+
+1. Apply `20261116123000_notification_quiet_timezone` BEFORE deploying the API that
+   selects the new column. It has only been applied to the local test DB so far.
+   The nullable addition remains compatible with the old API.
+2. Expo ticket acceptance is not delivery. Later receipt failures are currently logged
+   by in-memory polling, not linked to a durable reminder retry. A process restart can
+   lose polling. A crash after provider acceptance but before DB commit can duplicate
+   delivery despite concurrent-worker locking. Durable receipt/outbox work remains.
+3. Verify on actual iOS and Android devices while backgrounded/locked, including
+   permission denial, quiet hours, muted events, rescheduling, cancellation, reconnect,
+   and tap routing. A simulator-generated notification is not APNs/FCM proof.
+4. Confirm the deployed worker is enabled and all push credentials are valid before
+   claiming the screenshot's reminder works in production. No such live claim yet.

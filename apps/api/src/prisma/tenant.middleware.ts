@@ -130,6 +130,11 @@ export const TENANT_UNSCOPED_MODELS = new Set([
   // Platform-managed commercial state is created from signed webhooks or the
   // platform console and is intentionally queried across clubs.
   'EntitlementGrant',
+  // Native store billing: payer+club authorization on user routes; verified
+  // store signatures/OIDC and immutable account binding on webhook routes.
+  'StorePurchaseAccount',
+  'StoreSubscription',
+  'StorePurchaseReplacement',
   'ClubPlanCompliance',
   // Per-user notifications inbox: written from push fan-outs (often with no
   // request club context) and always read/updated by explicit userId.

@@ -372,7 +372,7 @@ export const createEntitlementGrantSchema = z
     tier: planTierSchema.exclude(['FREE']),
     /** Explicit package selection; old clients default to the single-team package. */
     teamLimit: z
-      .union([z.literal(1), z.literal(3), z.literal(6), z.literal(2147483647)])
+      .union([z.literal(1), z.literal(3), z.literal(2147483647)])
       .optional(),
     interval: planIntervalSchema,
     source: z.enum(['COMPLIMENTARY', 'TRIAL']),
@@ -490,6 +490,19 @@ export const registerPushTokenSchema = z.object({
   token: expoPushTokenSchema,
   platform: z.enum(['ios', 'android', 'web']),
 })
+
+/** Platform-console directory: bounded, server-side filtering, never public. */
+export const adminDirectoryQuerySchema = z.object({
+  kind: z.enum(['clubs', 'teams', 'players', 'users']).default('users'),
+  search: z.string().trim().max(120).default(''),
+  clubId: z.string().min(1).max(100).optional(),
+  teamId: z.string().min(1).max(100).optional(),
+  role: z.enum(['all', 'player', 'coach', 'club_admin', 'free_agent', 'platform_admin']).default('all'),
+  state: z.enum(['all', 'active', 'deleted', 'populated', 'empty']).default('all'),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).max(1000000).default(0),
+})
+export type AdminDirectoryQuery = z.infer<typeof adminDirectoryQuerySchema>
 
 export const unregisterPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),

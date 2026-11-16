@@ -1,5 +1,6 @@
 import { Injectable, LoggerService as NestLoggerService } from '@nestjs/common'
 import pino from 'pino'
+import { sanitizeStoreTelemetry } from './sanitize-store-telemetry'
 
 function resolveTransport() {
   if (process.env.NODE_ENV === 'production' || process.env.PINO_PRETTY === 'false') {
@@ -30,7 +31,7 @@ export class LoggerService implements NestLoggerService {
       level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
       transport: resolveTransport(),
       redact: {
-        paths: ['req.headers.authorization', 'password', 'token', 'secret'],
+        paths: ['req.headers.authorization', 'req.body.reference', 'req.body.signedPayload', 'req.body.message.data', 'password', 'token', 'secret', 'purchaseToken', 'reference', 'signedPayload', 'sealedReference'],
         censor: '[REDACTED]',
       },
     })
@@ -40,26 +41,26 @@ export class LoggerService implements NestLoggerService {
    * Create a child logger with request context.
    */
   child(bindings: Record<string, unknown>) {
-    return this.logger.child(bindings)
+    return this.logger.child(sanitizeStoreTelemetry(bindings) as Record<string, unknown>)
   }
 
   log(message: string, ...optionalParams: unknown[]) {
-    this.logger.info({ data: optionalParams.length ? optionalParams : undefined }, message)
+    this.logger.info({ data: optionalParams.length ? sanitizeStoreTelemetry(optionalParams) : undefined }, message)
   }
 
   error(message: string, ...optionalParams: unknown[]) {
-    this.logger.error({ data: optionalParams.length ? optionalParams : undefined }, message)
+    this.logger.error({ data: optionalParams.length ? sanitizeStoreTelemetry(optionalParams) : undefined }, message)
   }
 
   warn(message: string, ...optionalParams: unknown[]) {
-    this.logger.warn({ data: optionalParams.length ? optionalParams : undefined }, message)
+    this.logger.warn({ data: optionalParams.length ? sanitizeStoreTelemetry(optionalParams) : undefined }, message)
   }
 
   debug(message: string, ...optionalParams: unknown[]) {
-    this.logger.debug({ data: optionalParams.length ? optionalParams : undefined }, message)
+    this.logger.debug({ data: optionalParams.length ? sanitizeStoreTelemetry(optionalParams) : undefined }, message)
   }
 
   verbose(message: string, ...optionalParams: unknown[]) {
-    this.logger.trace({ data: optionalParams.length ? optionalParams : undefined }, message)
+    this.logger.trace({ data: optionalParams.length ? sanitizeStoreTelemetry(optionalParams) : undefined }, message)
   }
 }

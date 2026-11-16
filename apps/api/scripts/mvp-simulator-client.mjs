@@ -47,7 +47,29 @@ async function login(role) {
   return session.token
 }
 
-if (action === 'withdraw-test-registration') {
+if (action === 'typing-dm' || action === 'typing-channel') {
+  const coach = await login('coach')
+  const direct = action === 'typing-dm'
+  const id = direct ? journal.dmId : journal.channelId
+  assert.ok(id, 'Prepare the connected chat fixture first')
+  const socket = io(`${state.apiUrl}/chat`, { auth: { token: coach }, transports: ['websocket'], reconnection: false })
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Local typing socket connection timed out')), 10000)
+      socket.once('connect', () => { clearTimeout(timer); resolve() })
+      socket.once('connect_error', () => { clearTimeout(timer); reject(new Error('Local typing socket failed')) })
+    })
+    socket.emit(direct ? 'dm:join' : 'channel:join', direct ? { conversationId: id } : { channelId: id })
+    for (let index = 0; index < 30; index++) {
+      // Presence only: deliberately no draft content, writes or production calls.
+      socket.emit(direct ? 'dm:typing' : 'typing', direct ? { conversationId: id } : { teamId: state.teamId, channelId: id })
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  } finally {
+    socket.disconnect()
+  }
+  console.log('Completed local coach typing preview; verify the recipient bubble and expiry in the native app')
+} else if (action === 'withdraw-test-registration') {
   const token = await login('player')
   const me = await request('/me', token)
   const claim = me.pendingClubClaim

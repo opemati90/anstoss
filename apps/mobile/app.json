@@ -7,12 +7,17 @@
     "icon": "./assets/icon.png",
     "scheme": "anstoss",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
-      "associatedDomains": ["applinks:anstoss.io", "applinks:api.anstoss.io"],
+      "associatedDomains": [
+        "applinks:anstoss.io",
+        "applinks:api.anstoss.io"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -44,11 +49,16 @@
               "pathPrefix": "/join"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
-      ]
+      ],
+      "runtimeVersion": "57.0.1-billing2"
     },
     "plugins": [
+      "expo-iap",
       "expo-router",
       "expo-localization",
       [
@@ -115,7 +125,7 @@
       }
     },
     "owner": "opemati1521",
-    "runtimeVersion": "57.0.1",
+    "runtimeVersion": "57.0.1-billing2",
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
     }

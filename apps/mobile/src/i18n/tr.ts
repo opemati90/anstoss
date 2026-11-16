@@ -10,16 +10,17 @@ import redesign from './redesign/tr' // 2026-11 Anstoss Redesign strings
 
 import { studioTr } from './studio/tr'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.tr,
   teamPackages: {
       "title": "Takım paketleri",
-      "TEAM": "1 takım",
-      "CLUB_3": "3 takım",
-      "CLUB_6": "6 takım",
-      "UNLIMITED": "Sınırsız takım",
+      "TEAM": "Team · 1 takım",
+      "CLUB_3": "Club · en fazla 3 takım",
+      "UNLIMITED": "Club Unlimited · tüm kulüp takımları",
       "players": "En fazla {{count}} oyuncu",
       "unlimitedPlayers": "Sınırsız oyuncu",
-      "note": "Yıllık ödemede 12 yerine 10 ay ödersin. Sınırsız paket, 7 takımdan itibaren takım başına en iyi fiyatı sunar.",
+      "note": "Yıllık ödeme en az iki aylık ücret tasarrufu sağlar. Club Unlimited yalnızca bir kulübü kapsar. Yapay zekâ kredileri ayrıdır.",
       "trial": "Ücretsiz deneme 1 takım ve 30 oyuncu içerir. Kart gerekmez; ücretli plan seçmezsen ücretsiz plana dönersin.",
       "contact": "Paketler hakkında soruların mı var? {{email}}"
   },
@@ -360,7 +361,7 @@ const base = {
     blockedEyebrow: 'Erişim kısıtlı',
     blockedTitle: 'Giriş henüz mümkün değil',
     blockedBody:
-      '16 yaş altı hesaplar için geçerli bir davet ve ardından veli onayı gerekiyor.',
+      'Kişisel hesaplar 16 yaşından itibaren kullanılabilir. Ebeveyn veya yasal vasi, çocuğun profilini kendi hesabından yönetebilir.',
     checkStatus: 'Durumu kontrol et',
   },
   accountNextStep: {

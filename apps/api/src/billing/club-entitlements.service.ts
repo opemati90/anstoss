@@ -33,6 +33,8 @@ import {
 } from '@anstoss/shared'
 import { AuditService } from '../audit/audit.service'
 
+// Legacy fallback for grants without a definition. New packages use PLAN_PACKAGES
+// and their immutable PlanDefinition; never reinterpret an existing paid grant.
 export const PLAN_LIMITS: Record<PlanTier, { teams: number; players: number }> = {
   FREE: { teams: 1, players: 30 },
   PRO: { teams: 5, players: 150 },
@@ -399,6 +401,9 @@ export class ClubEntitlementsService {
     input: CreateEntitlementGrantInput,
     actorLabel: string | null = null,
   ) {
+    if (input.tier === 'PRO' && !PLAN_PACKAGES.some((entry) => entry.teams === (input.teamLimit ?? 1))) {
+      throw new BadRequestException('Choose a current team package')
+    }
     const club = await this.prisma.club.findUnique({
       where: { id: clubId },
       select: { id: true },

@@ -68,41 +68,48 @@ export function ChatInput({
   const [isSending, setIsSending] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingDraft = useRef<{ key: string; value: string } | null>(null)
+  const draftEdited = useRef(false)
   const openMenu = onOpenMenu ?? onCompose
+
+  const flushDraft = useCallback(() => {
+    if (draftTimer.current) clearTimeout(draftTimer.current)
+    draftTimer.current = null
+    const pending = pendingDraft.current
+    pendingDraft.current = null
+    if (!pending) return
+    void (pending.value.trim()
+      ? AsyncStorage.setItem(pending.key, pending.value)
+      : AsyncStorage.removeItem(pending.key)).catch(() => undefined)
+  }, [])
 
   // Restore the draft for this conversation.
   useEffect(() => {
+    draftEdited.current = false
     if (!draftKey) return
     let cancelled = false
     AsyncStorage.getItem(`${DRAFT_PREFIX}${draftKey}`)
       .then((draft) => {
-        if (!cancelled && draft) setText((current) => current || draft)
+        if (!cancelled && !draftEdited.current && draft) setText((current) => current || draft)
       })
       .catch(() => undefined)
     return () => {
       cancelled = true
+      flushDraft()
     }
-  }, [draftKey])
+  }, [draftKey, flushDraft])
 
   const persistDraft = useCallback(
     (value: string) => {
       if (!draftKey) return
       if (draftTimer.current) clearTimeout(draftTimer.current)
-      draftTimer.current = setTimeout(() => {
-        const key = `${DRAFT_PREFIX}${draftKey}`
-        void (value.trim() ? AsyncStorage.setItem(key, value) : AsyncStorage.removeItem(key)).catch(
-          () => undefined,
-        )
-      }, 400)
+      pendingDraft.current = { key: `${DRAFT_PREFIX}${draftKey}`, value }
+      // Clearing/sending must not resurrect an old draft if the user leaves
+      // before the typing debounce. Pending edits are flushed on unmount too.
+      if (!value.trim()) flushDraft()
+      else draftTimer.current = setTimeout(flushDraft, 400)
     },
-    [draftKey],
-  )
-
-  useEffect(
-    () => () => {
-      if (draftTimer.current) clearTimeout(draftTimer.current)
-    },
-    [],
+    [draftKey, flushDraft],
   )
 
   const handleSend = useCallback(() => {
@@ -126,6 +133,7 @@ export function ChatInput({
 
   const handleChangeText = useCallback(
     (value: string) => {
+      draftEdited.current = true
       setText(value)
       persistDraft(value)
       if (value.trim()) onTyping()

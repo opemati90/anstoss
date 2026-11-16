@@ -5,6 +5,8 @@
  * DSN from SENTRY_DSN environment variable.
  * Disabled when SENTRY_DSN is not set (local dev).
  */
+import { sanitizeStoreTelemetry } from './sanitize-store-telemetry'
+
 export function initSentry() {
   const dsn = process.env.SENTRY_DSN
   if (!dsn) return
@@ -22,8 +24,13 @@ export function initSentry() {
         delete headers['authorization']
         delete headers['cookie']
       }
-      return event
+      if (request && typeof request.url === 'string' && /\/plan\/store|\/billing\/webhooks\/(apple|google)/.test(request.url)) {
+        delete request.data
+      }
+      return sanitizeStoreTelemetry(event)
     },
+    beforeSendTransaction: sanitizeStoreTelemetry,
+    beforeBreadcrumb: sanitizeStoreTelemetry,
   })
 }
 

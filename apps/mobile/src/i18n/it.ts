@@ -11,16 +11,17 @@ import redesign from './redesign/it' // 2026-11 Anstoss Redesign strings
 
 import { studioIt } from './studio/it'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.it,
   teamPackages: {
       "title": "Pacchetti squadre",
-      "TEAM": "1 squadra",
-      "CLUB_3": "3 squadre",
-      "CLUB_6": "6 squadre",
-      "UNLIMITED": "Squadre illimitate",
+      "TEAM": "Team · 1 squadra",
+      "CLUB_3": "Club · fino a 3 squadre",
+      "UNLIMITED": "Club Unlimited · tutte le squadre",
       "players": "Fino a {{count}} giocatori",
       "unlimitedPlayers": "Giocatori illimitati",
-      "note": "Il pagamento annuale costa 10 mensilità anziché 12. Illimitato offre il miglior prezzo per squadra da 7 squadre.",
+      "note": "Il pagamento annuale fa risparmiare almeno due mensilità. Club Unlimited copre un solo club, non più club. I crediti IA sono separati.",
       "trial": "La prova gratuita include 1 squadra e 30 giocatori. Nessuna carta; si torna al piano gratuito salvo scelta di un abbonamento.",
       "contact": "Domande sui pacchetti? {{email}}"
   },
@@ -353,7 +354,7 @@ const base = {
     blockedEyebrow: 'Accesso limitato',
     blockedTitle: "L'accesso non può ancora continuare",
     blockedBody:
-      "Gli account under 16 necessitano di un invito valido seguito dall'approvazione di un genitore prima di poter usare Anstoss.",
+      'Un account personale è disponibile dai 16 anni. Un genitore o tutore può gestire il profilo del minore dal proprio account.',
     checkStatus: 'Controlla stato',
   },
   accountNextStep: {

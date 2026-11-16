@@ -8,16 +8,23 @@ import { ClubEntitlementsService } from './club-entitlements.service'
 import { PlatformEntitlementsController } from './platform-entitlements.controller'
 import { EntitlementComplianceWorker } from './entitlement-compliance.worker'
 import { PlanController } from './plan.controller'
+import { StoreBillingController, StoreBillingWebhookController } from './store-billing.controller'
+import { StoreBillingProvider } from './store-billing.provider'
+import { StoreBillingService } from './store-billing.service'
+import { StoreBillingWorker } from './store-billing.worker'
 
 @Module({
   imports: [AuditModule],
-  controllers: [BillingController, PlatformEntitlementsController, PlanController],
+  controllers: [BillingController, PlatformEntitlementsController, PlanController, StoreBillingController, StoreBillingWebhookController],
   providers: [
     StripeProvider,
     BillingService,
     EntitlementGuard,
     ClubEntitlementsService,
     EntitlementComplianceWorker,
+    StoreBillingProvider,
+    StoreBillingService,
+    StoreBillingWorker,
   ],
   exports: [BillingService, EntitlementGuard, ClubEntitlementsService],
 })

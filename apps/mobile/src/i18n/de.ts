@@ -11,16 +11,17 @@ import redesign from './redesign/de' // 2026-11 Anstoss Redesign strings
 
 import { studioDe } from './studio/de'
 
+import { storeBilling } from './storeBilling'
 const base = {
+  storeBilling: storeBilling.de,
   teamPackages: {
       "title": "Teampakete",
-      "TEAM": "1 Team",
-      "CLUB_3": "3 Teams",
-      "CLUB_6": "6 Teams",
-      "UNLIMITED": "Unbegrenzte Teams",
+      "TEAM": "Team · 1 Team",
+      "CLUB_3": "Club · bis zu 3 Teams",
+      "UNLIMITED": "Club Unlimited · alle Vereinsteams",
       "players": "Bis zu {{count}} Spieler",
       "unlimitedPlayers": "Unbegrenzte Spieler",
-      "note": "Jährlich zahlst du 10 statt 12 Monatsbeiträge. Ab 7 Teams bietet Unbegrenzt den besten Preis pro Team.",
+      "note": "Jährlich sparst du mindestens zwei Monatsbeiträge. Club Unlimited gilt für einen Verein, nicht für mehrere Vereine. KI-Credits sind separat.",
       "trial": "Der kostenlose Test umfasst 1 Team und 30 Spieler. Keine Karte nötig; danach gilt Kostenlos, sofern du kein Abo wählst.",
       "contact": "Fragen zu den Paketen? {{email}}"
   },
@@ -352,7 +353,7 @@ const base = {
     blockedEyebrow: 'Zugriff eingeschränkt',
     blockedTitle: 'Anmeldung noch nicht möglich',
     blockedBody:
-      'Für Konten unter 16 Jahren brauchen wir eine gültige Einladung mit anschließender Zustimmung eines Elternteils.',
+      'Ein eigenes Konto ist ab 16 Jahren möglich. Ein Elternteil oder eine erziehungsberechtigte Person kann das Kinderprofil über das eigene Konto verwalten.',
     checkStatus: 'Status prüfen',
   },
   accountNextStep: {

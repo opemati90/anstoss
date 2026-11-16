@@ -5,10 +5,9 @@ import type { PlanTier } from '../types/platform'
 /**
  * Club plan ("Abo") contract — REVAMP_HANDOFF.md "Plans and pricing".
  *
- * Two plans per club: Kostenlos (`FREE`) and Verein (`PRO`). `SCALE` stays a
- * sales-only tier (more than 5 teams: contact sales). The app only shows the
- * plan status and starts the card-less trial; paid subscriptions are sold on
- * the website through the existing Stripe integration, never in-app.
+ * Free access plus three paid team-capacity packages. Store products and the
+ * public website must match this catalogue. A price definition does not enable
+ * checkout: native billing must be integrated and verified before paid launch.
  */
 
 /** Feature flags gated by `ClubEntitlementsService`. All unlock with Verein. */
@@ -38,14 +37,13 @@ export const NEVER_GATED_FEATURES = [
 /** 30 days of Verein, no card. Afterwards the club drops to Kostenlos. */
 export const PLAN_TRIAL_DAYS = 30
 
-/** Verein prices in euro cents, incl. VAT. Yearly = 10 × monthly (2 months free). */
 /** Int32 sentinel: no commercial team/player cap, not an allocation size. */
 export const UNLIMITED_PLAN_LIMIT = 2_147_483_647
+/** Germany/EUR prices in cents, incl. VAT. Annual prices use approved store price points. */
 export const PLAN_PACKAGES = [
-  { key: 'TEAM', teams: 1, players: 30, monthly: 1299, yearly: 12990 },
-  { key: 'CLUB_3', teams: 3, players: 90, monthly: 2499, yearly: 24990 },
-  { key: 'CLUB_6', teams: 6, players: 180, monthly: 3999, yearly: 39990 },
-  { key: 'UNLIMITED', teams: UNLIMITED_PLAN_LIMIT, players: UNLIMITED_PLAN_LIMIT, monthly: 4999, yearly: 49990 },
+  { key: 'TEAM', teams: 1, players: 30, monthly: 1299, yearly: 12900 },
+  { key: 'CLUB_3', teams: 3, players: 90, monthly: 2999, yearly: 29900 },
+  { key: 'UNLIMITED', teams: UNLIMITED_PLAN_LIMIT, players: UNLIMITED_PLAN_LIMIT, monthly: 3999, yearly: 39900 },
 ] as const
 export const PLAN_PRICES_CENTS = { monthly: PLAN_PACKAGES[0].monthly, yearly: PLAN_PACKAGES[0].yearly } as const
 export const PLAN_CURRENCY = 'EUR'

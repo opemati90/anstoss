@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { SupportActionInput } from '@anstoss/shared'
+import type { AdminDirectoryQuery, SupportActionInput } from '@anstoss/shared'
+import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import type { PlatformAdminActor } from './platform-admin.types'
 import { tenantContext } from '../prisma/tenant.context'
@@ -7,6 +8,93 @@ import { tenantContext } from '../prisma/tenant.context'
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async directory(q: AdminDirectoryQuery) {
+    const page = { take: q.limit, skip: q.offset, orderBy: [{ createdAt: 'desc' as const }, { id: 'asc' as const }] }
+    if (q.kind === 'clubs') {
+      if (!['all', 'populated', 'empty'].includes(q.state)) throw new BadRequestException('Invalid club state')
+      const where: Prisma.ClubWhereInput = {
+        ...(q.clubId ? { id: q.clubId } : {}),
+        ...(q.search ? { OR: ['name', 'slug', 'city'].map((key) => ({ [key]: { contains: q.search, mode: 'insensitive' } })) } : {}),
+        ...(q.state === 'empty' ? { teams: { none: {} } } : q.state === 'populated' ? { teams: { some: {} } } : {}),
+      }
+      const [rows, total] = await Promise.all([
+        this.prisma.club.findMany({ where, ...page, select: {
+          id: true, name: true, slug: true, city: true, createdAt: true,
+          _count: { select: { memberships: true, teams: true } },
+        } }),
+        this.prisma.club.count({ where }),
+      ])
+      return { rows, total, offset: q.offset, limit: q.limit }
+    }
+    const currentAccess: Prisma.TeamAccessWhereInput = {
+      status: 'ACTIVE',
+      AND: [{ OR: [{ loanEndDate: null }, { loanEndDate: { gt: new Date() } }] },
+        { OR: [{ loanStartDate: null }, { loanStartDate: { lte: new Date() } }] }],
+    }
+    if (q.kind === 'teams') {
+      if (!['all', 'populated', 'empty'].includes(q.state)) throw new BadRequestException('Invalid team state')
+      const memberAccess = { ...currentAccess, user: { deletedAt: null } }
+      const where: Prisma.TeamWhereInput = {
+        ...(q.clubId ? { clubId: q.clubId } : {}),
+        ...(q.teamId ? { id: q.teamId } : {}),
+        ...(q.search ? { OR: ['name', 'displayName', 'leagueName'].map((key) => ({ [key]: { contains: q.search, mode: 'insensitive' } })) } : {}),
+        ...(q.state === 'empty' ? { access: { none: memberAccess } } : q.state === 'populated' ? { access: { some: memberAccess } } : {}),
+      }
+      const [rows, total] = await Promise.all([
+        this.prisma.team.findMany({ where, ...page, select: {
+          id: true, displayName: true, ageGroup: true, leagueName: true, createdAt: true,
+          club: { select: { id: true, name: true } },
+        } }),
+        this.prisma.team.count({ where }),
+      ])
+      const members = rows.length ? await this.prisma.teamAccess.groupBy({
+        by: ['teamId', 'userId'], where: { ...memberAccess, teamId: { in: rows.map((row) => row.id) } },
+      }) : []
+      const counts = new Map<string, number>()
+      for (const member of members) counts.set(member.teamId, (counts.get(member.teamId) ?? 0) + 1)
+      return { rows: rows.map((row) => ({ ...row, _count: { access: counts.get(row.id) ?? 0 } })), total, offset: q.offset, limit: q.limit }
+    }
+    if (!['all', 'active', 'deleted'].includes(q.state)) throw new BadRequestException('Invalid account state')
+    const access = { ...currentAccess, ...(q.clubId ? { clubId: q.clubId } : {}), ...(q.teamId ? { teamId: q.teamId } : {}) }
+    const and: Prisma.UserWhereInput[] = []
+    if (q.search) and.push({ OR: [{ name: { contains: q.search, mode: 'insensitive' } }, { email: { contains: q.search, mode: 'insensitive' } }] })
+    if (q.state !== 'all') and.push({ deletedAt: q.state === 'deleted' ? { not: null } : null })
+    if (q.clubId) and.push({ memberships: { some: { clubId: q.clubId } } })
+    if (q.teamId) and.push({ teamAccess: { some: access } })
+    const role = q.kind === 'players' ? 'player' : q.role
+    if (role === 'player') {
+      and.push({ platformRole: 'NONE', OR: [
+        { teamAccess: { some: { ...access, role: 'PLAYER' } } },
+        ...(!q.teamId ? [{ memberships: { some: { ...(q.clubId ? { clubId: q.clubId } : {}), role: 'PLAYER' as const } } }] : []),
+        ...(!q.clubId && !q.teamId ? [
+          { registrationRole: 'PLAYER' as const, memberships: { none: {} }, teamAccess: { none: currentAccess } },
+          { registrationRole: 'FREE_AGENT' as const, freeAgentProfile: { is: { recruitmentRole: 'PLAYER' as const } } },
+        ] : []),
+      ] })
+    } else if (role === 'coach') {
+      and.push({ OR: [{ teamAccess: { some: { ...access, role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] } } } },
+        ...(!q.teamId ? [{ memberships: { some: { ...(q.clubId ? { clubId: q.clubId } : {}), role: 'COACH' as const } } }] : []),
+        ...(!q.clubId && !q.teamId ? [{ registrationRole: 'COACH' as const }] : []),
+        ...(!q.clubId && !q.teamId ? [{ registrationRole: 'FREE_AGENT' as const, freeAgentProfile: { is: { recruitmentRole: 'COACH' as const } } }] : []),
+      ] })
+    } else if (role === 'club_admin') {
+      and.push({ memberships: { some: { ...(q.clubId ? { clubId: q.clubId } : {}), role: { in: ['OWNER', 'ADMIN'] } } } })
+    } else if (role === 'free_agent') and.push({ registrationRole: 'FREE_AGENT' })
+    else if (role === 'platform_admin') and.push({ platformRole: 'PLATFORM_ADMIN' })
+    const where: Prisma.UserWhereInput = { AND: and }
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({ where, ...page, select: {
+        id: true, name: true, email: true, registrationRole: true, platformRole: true, deletedAt: true, createdAt: true,
+        freeAgentProfile: { select: { recruitmentRole: true } },
+        memberships: { where: q.clubId ? { clubId: q.clubId } : undefined, take: 10, select: { role: true, club: { select: { id: true, name: true } } } },
+        teamAccess: { where: access, take: 10, select: { role: true, team: { select: { id: true, displayName: true } } } },
+        _count: { select: { memberships: true, teamAccess: { where: currentAccess } } },
+      } }),
+      this.prisma.user.count({ where }),
+    ])
+    return { rows, total, offset: q.offset, limit: q.limit }
+  }
 
   async getDashboard() {
     const now = new Date()

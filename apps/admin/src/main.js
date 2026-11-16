@@ -182,6 +182,8 @@ function renderAuthGate(message = '') {
 const SECTIONS = [
   'overview',
   'clubs',
+  'teams',
+  'players',
   'users',
   'subscriptions',
   'revenue',
@@ -200,6 +202,8 @@ const SECTIONS = [
 const SECTION_LOADERS = {
   overview: loadOverview,
   clubs: loadClubs,
+  teams: () => loadDirectory('teams'),
+  players: () => loadDirectory('players'),
   users: loadUsers,
   subscriptions: loadSubscriptions,
   revenue: loadRevenue,
@@ -217,7 +221,9 @@ const SECTION_LOADERS = {
 const SECTION_LABELS = {
   overview: 'Overview',
   clubs: 'Clubs',
-  users: 'Users',
+  users: 'All accounts',
+  teams: 'Teams',
+  players: 'Players',
   subscriptions: 'Billing',
   revenue: 'Revenue',
   health: 'Operations',
@@ -245,7 +251,7 @@ const PRIMARY_SECTION = {
 }
 
 function currentSection() {
-  const hash = window.location.hash.replace(/^#\/?/, '') || 'overview'
+  const hash = window.location.hash.replace(/^#\/?/, '').split('?')[0] || 'overview'
   return SECTIONS.includes(hash) ? hash : 'overview'
 }
 
@@ -401,7 +407,6 @@ async function loadOverview() {
 
 // - Section: Clubs -
 
-let clubsSearchTimer = null
 let clubDetailRequestId = 0
 let clubClaimsCache = []
 
@@ -416,12 +421,7 @@ function closeClaimDecisionDialog() {
 }
 
 function bindClubs() {
-  document.getElementById('clubs-refresh').addEventListener('click', loadClubs)
-  document.getElementById('clubs-search').addEventListener('input', () => {
-    clearTimeout(clubsSearchTimer)
-    clubsSearchTimer = setTimeout(loadClubs, 250)
-  })
-  document.querySelector('#clubs-table tbody').addEventListener('click', (event) => {
+  document.getElementById('clubs-directory').addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-club-detail]')
     if (trigger) void openClubDetail(trigger.dataset.clubDetail)
   })
@@ -574,7 +574,7 @@ async function openClubDetail(clubId) {
         <div class="toolbar">
           <select class="text-input" id="grant-tier" aria-label="Access tier"><option value="PRO">Verein (PRO)</option><option value="SCALE">Scale — custom agreement</option></select>
           <select class="text-input" id="grant-interval" aria-label="Plan definition period"><option value="TWELVE_MONTHS">Yearly definition</option><option value="MONTHLY">Monthly definition</option></select>
-          <select class="text-input" id="grant-package" aria-label="Team package"><option value="1">1 team</option><option value="3">3 teams</option><option value="6">6 teams</option><option value="2147483647">Unlimited teams</option></select>
+          <select class="text-input" id="grant-package" aria-label="Team package"><option value="1">Team · 1 team</option><option value="3">Club · up to 3 teams</option><option value="2147483647">Club Unlimited · one club</option></select>
           <input class="text-input" id="grant-expiry" type="date" aria-label="Grant expiry date" />
           <button class="pill" type="button" data-grant-entitlement="${esc(club.id)}">Grant complimentary access</button>
         </div>
@@ -589,35 +589,7 @@ async function openClubDetail(clubId) {
 }
 
 async function loadClubs() {
-  const tbody = document.querySelector('#clubs-table tbody')
-  const search = document.getElementById('clubs-search').value.trim()
-  tbody.innerHTML = '<tr><td colspan="7" class="placeholder">Loading...</td></tr>'
-  try {
-    const qs = new URLSearchParams()
-    if (search) qs.set('search', search)
-    const { rows, total } = await adminFetch(`/admin/clubs${qs.toString() ? `?${qs}` : ''}`)
-    document.getElementById('clubs-count').textContent = `${total} club${total === 1 ? '' : 's'}`
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="placeholder">No clubs match.</td></tr>'
-    } else
-      tbody.innerHTML = rows
-        .map(
-          (c) => `
-          <tr>
-            <td><button class="table-link" type="button" data-club-detail="${esc(c.id)}">${esc(c.name)}</button></td>
-            <td><code>${esc(c.slug)}</code></td>
-            <td>${esc(c.city) || '-'}</td>
-            <td class="num">${c.counts.memberships}</td>
-            <td class="num">${c.counts.teams}</td>
-            <td>${c.hasSubscription ? '<span class="badge badge--plus">Plus</span>' : '<span class="badge">Free</span>'}</td>
-            <td>${fmtDate(c.createdAt)}</td>
-          </tr>
-        `,
-        )
-        .join('')
-  } catch (err) {
-    setError(tbody, err)
-  }
+  await loadDirectory('clubs')
   await loadClubClaims()
   await loadClubDisputes()
   await Promise.all([loadInviteCampaigns(), loadJoinRequests(), loadContributionHealth()])
@@ -887,15 +859,9 @@ async function revokeClubEntitlement(grantId, clubId) {
 
 // - Section: Users -
 
-let usersSearchTimer = null
 
 function bindUsers() {
-  document.getElementById('users-refresh').addEventListener('click', loadUsers)
   document.getElementById('platform-admins-refresh').addEventListener('click', loadPlatformAdmins)
-  document.getElementById('users-search').addEventListener('input', () => {
-    clearTimeout(usersSearchTimer)
-    usersSearchTimer = setTimeout(loadUsers, 250)
-  })
   document.getElementById('platform-admin-form').addEventListener('submit', async (event) => {
     event.preventDefault()
     const form = event.currentTarget
@@ -927,36 +893,16 @@ function bindUsers() {
 }
 
 async function loadUsers() {
-  const tbody = document.querySelector('#users-table tbody')
-  const search = document.getElementById('users-search').value.trim()
-  tbody.innerHTML = '<tr><td colspan="6" class="placeholder">Loading...</td></tr>'
-  try {
-    const qs = new URLSearchParams()
-    if (search) qs.set('search', search)
-    const { rows, total } = await adminFetch(`/admin/users${qs.toString() ? `?${qs}` : ''}`)
-    document.getElementById('users-count').textContent = `${total} user${total === 1 ? '' : 's'}`
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="placeholder">No users match.</td></tr>'
-      return
-    }
-    tbody.innerHTML = rows
-      .map(
-        (u) => `
-          <tr>
-            <td><strong>${esc(u.name)}</strong></td>
-            <td>${esc(u.email) || '-'}</td>
-            <td class="num">${u.clubCount}</td>
-            <td>${u.platformRole === 'PLATFORM_ADMIN' ? '<span class="badge badge--plus">Admin</span>' : '<span class="badge">-</span>'}</td>
-            <td>${fmtDate(u.createdAt)}</td>
-            <td>${u.deleted ? '<span class="badge badge--deleted">deleted</span>' : '<span class="badge badge--active">active</span>'}</td>
-          </tr>
-        `,
-      )
-      .join('')
-  } catch (err) {
-    setError(tbody, err)
-  }
+  await loadDirectory('users')
   await loadPlatformAdmins()
+}
+
+const directories = new Map()
+function loadDirectory(kind) {
+  if (!directories.has(kind)) {
+    directories.set(kind, createAdminDirectory(document.getElementById(`${kind}-directory`), kind, adminFetch))
+  }
+  return directories.get(kind).loadRoute()
 }
 
 async function loadPlatformAdmins() {
@@ -1084,7 +1030,7 @@ async function loadPlans() {
     planCatalogue = catalogue
     applyPlanDefaults()
     document.getElementById('plan-catalogue-summary').textContent =
-      catalogue.packages.map((entry) => `${entry.teams === 2147483647 ? 'Unlimited' : entry.teams} teams: ${fmtCents(entry.monthly)}/month or ${fmtCents(entry.yearly)}/year`).join(' · ') + '. Annual billing saves 2 monthly payments. Existing subscriptions are unchanged.'
+      catalogue.packages.map((entry) => `${entry.teams === 2147483647 ? 'Club Unlimited (one club)' : entry.teams === 1 ? 'Team (1 team)' : 'Club (up to 3 teams)'}: ${fmtCents(entry.monthly)}/month or ${fmtCents(entry.yearly)}/year`).join(' · ') + '. Annual billing saves at least 2 monthly payments. Existing subscriptions are unchanged.'
     const latest = new Map()
     for (const plan of rows) {
       if (!plan.publishedAt) continue
