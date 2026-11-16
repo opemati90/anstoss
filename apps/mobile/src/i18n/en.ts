@@ -351,7 +351,7 @@ const base = {
     blockedEyebrow: 'Access restricted',
     blockedTitle: 'Sign-in can’t continue yet',
     blockedBody:
-      'Direct accounts are available from age 16. A parent or guardian can manage a child’s profile from their own account.',
+      'Accounts under 16 need a valid invite followed by parent approval before they can use Anstoss.',
     checkStatus: 'Check status',
   },
   accountNextStep: {

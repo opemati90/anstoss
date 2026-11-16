@@ -351,7 +351,7 @@ const base = {
     blockedEyebrow: 'Acesso restrito',
     blockedTitle: 'Ainda não é possível entrar',
     blockedBody:
-      'Uma conta própria está disponível a partir dos 16 anos. Um dos pais ou responsável legal pode gerir o perfil da criança a partir da sua própria conta.',
+      'As contas de menores de 16 anos precisam de um convite válido e da autorização de um dos pais.',
     checkStatus: 'Verificar estado',
   },
   accountNextStep: {
