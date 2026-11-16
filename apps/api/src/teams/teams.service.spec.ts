@@ -506,7 +506,7 @@ describe('TeamsService coach assignment lifecycle', () => {
   it('locks target users in stable order and rejects deleted staff before activating access', async () => {
     const tx = {
       $executeRaw: jest.fn().mockResolvedValue(1),
-      membership: { findMany: jest.fn().mockResolvedValue([]) },
+      membership: { findUnique: jest.fn().mockResolvedValue({ role: 'OWNER' }), findMany: jest.fn().mockResolvedValue([]) },
       teamAccess: { updateMany: jest.fn(), upsert: jest.fn() },
     }
     const prisma = {
@@ -518,10 +518,10 @@ describe('TeamsService coach assignment lifecycle', () => {
       (service as any).syncCoachAssignments('club-1', 'team-1', {
         headCoachUserId: 'user-z',
         assistantCoachUserIds: ['user-a'],
-      }),
+      }, 'owner-1'),
     ).rejects.toThrow('Assigned coaches must be active members of the club staff')
 
-    expect(tx.$executeRaw).toHaveBeenCalledTimes(2)
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(4)
     expect(tx.membership.findMany).toHaveBeenCalledWith({
       where: {
         clubId: 'club-1',

@@ -330,15 +330,21 @@ export const createInviteCampaignSchema = z
   .object({
     teamId: z.string().min(1),
     type: z.enum(['IDENTITY_BOUND', 'APPROVAL_REQUIRED']),
-    // Shared/batch campaigns are player-only. Parent access must use the
-    // existing child-linked guardian invitation and consent flow; a generic
-    // campaign cannot prove which child the parent represents.
-    role: z.literal('PLAYER').default('PLAYER'),
+    // Shared staff links request access; they never grant it automatically.
+    // Parent access keeps its child-linked guardian invitation/consent flow.
+    role: z.enum(['PLAYER', 'ASSISTANT_COACH']).default('PLAYER'),
     recipientEmail: z.string().email().max(254).optional(),
     maxUses: z.number().int().min(1).max(500).default(1),
     expiresInDays: z.number().int().min(1).max(30).default(7),
   })
   .superRefine((value, ctx) => {
+    if (value.type === 'IDENTITY_BOUND' && value.role !== 'PLAYER') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['role'],
+        message: 'Shared coach invitations require administrator approval',
+      })
+    }
     if (value.type === 'IDENTITY_BOUND' && !value.recipientEmail) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

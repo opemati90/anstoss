@@ -1735,7 +1735,7 @@ const base = {
     addStaffHelp:
       'Lade einen Trainer für genau ein Team ein. Trainer bekommen dadurch keinen Zugriff auf die Vereinsverwaltung.',
     inviteCoach: 'Trainer einladen',
-    inviteCoachBody: 'Schick eine persönliche Einladung per E-Mail und wähl die Rolle im Team.',
+    inviteCoachBody: "Trainer per E-Mail einladen oder einen befristeten Link zur Admin-Freigabe teilen.",
     accessRequestsHint: 'Nur Inhaber und Admins können Vereins- oder Trainerzugriff bestätigen.',
     noTeamRole: 'Keine Rolle im Team',
     ownerApprovalRequired: 'Bestätigung durch den Inhaber nötig',
@@ -1752,6 +1752,7 @@ const base = {
       'Vereinsrollen steuern Einladungen, Vereinsstruktur und weitere Verwaltungsaufgaben. Cheftrainer und Co-Trainer ordnest du weiterhin pro Team zu.',
     teamAssignments: 'Teams: {{teams}}',
     changeRoleCta: 'Rolle ändern',
+    adminLimitHint: "Bis zu 3 Admins einschließlich Inhaber. Spieler- und Trainerrollen im Team bleiben getrennt.",
     operationalRolesCta: 'Zuständigkeiten',
     offboardCta: 'Aus Vereinsverantwortung nehmen',
     roleChoiceTitle: 'Rolle für {{name}}',
@@ -3055,6 +3056,10 @@ const base = {
       optionA11y_other: '{{label}}, {{count}} Stimmen',
     },
     info: {
+      closeGroup: "Gruppe schließen",
+      closeGroupBody: "Die Gruppe und ihr Verlauf werden für alle ausgeblendet. Neue Nachrichten sind nicht mehr möglich. Dies kann in der App nicht rückgängig gemacht werden.",
+      closeGroupError: "Gruppe konnte nicht geschlossen werden. Versuche es erneut.",
+
       title: 'Chat-Infos',
       dmTitle: 'Kontakt-Infos',
       mute: 'Stummschalten',
@@ -3088,11 +3093,11 @@ const base = {
     new: {
       title: 'Neuer Chat',
       search: 'Name suchen',
-      newGroup: 'Neue Gruppe',
-      newGroupHint: 'Mehrere Leute in einem Chat, z. B. für die Fahrgemeinschaft',
+      newGroup: "Privater Raum",
+      newGroupHint: "Nur hinzugefügte Personen können diesen Raum lesen und nutzen.",
       pickHint: 'Wähl aus, wer in die Gruppe soll.',
       addMembersTitle: 'Mitglieder wählen',
-      groupTitle: 'Neue Gruppe',
+      groupTitle: "Privater Raum",
       next: 'Weiter',
       create: 'Erstellen',
       groupName: 'Gruppenname',

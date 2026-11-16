@@ -194,7 +194,7 @@ export class ChatService {
       await this.assertChannelInTeam(input.channelId, input.teamId, access.team.clubId)
     }
     await this.assertReplyInChannel(input.replyToId, input.channelId)
-    const message = await this.prisma.message.create({
+    const message = await this.channelsService.withOpenChannel(input.channelId, (tx) => tx.message.create({
       data: {
         teamId: input.teamId,
         clubId: access.team.clubId,
@@ -206,7 +206,7 @@ export class ChatService {
         attachmentMeta: (input.attachmentMeta as never) ?? undefined,
         replyToId: input.replyToId,
       },
-    })
+    }), { userId })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       input.teamId,
@@ -331,31 +331,30 @@ export class ChatService {
       throw new BadRequestException('Polls support up to six options')
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        teamId: input.teamId,
-        clubId: access.team.clubId,
-        channelId: input.channelId,
-        senderId: userId,
-        content: input.question,
-        messageType: 'POLL',
-      },
-    })
-    const poll = await this.prisma.poll.create({
-      data: {
-        messageId: message.id,
-        question: input.question,
-        multiSelect: input.multiSelect ?? false,
-        closesAt: input.closesAt ? new Date(input.closesAt) : null,
-      },
-    })
-    await this.prisma.$transaction(
-      input.options.map((label, index) =>
-        this.prisma.pollOption.create({
-          data: { pollId: poll.id, label, index },
-        }),
-      ),
-    )
+    const message = await this.channelsService.withOpenChannel(input.channelId, async (tx) => {
+      const message = await tx.message.create({
+        data: {
+          teamId: input.teamId,
+          clubId: access.team.clubId,
+          channelId: input.channelId,
+          senderId: userId,
+          content: input.question,
+          messageType: 'POLL',
+        },
+      })
+      const poll = await tx.poll.create({
+        data: {
+          messageId: message.id,
+          question: input.question,
+          multiSelect: input.multiSelect ?? false,
+          closesAt: input.closesAt ? new Date(input.closesAt) : null,
+        },
+      })
+      await tx.pollOption.createMany({
+        data: input.options.map((label, index) => ({ pollId: poll.id, label, index })),
+      })
+      return message
+    }, { userId })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       input.teamId,
@@ -388,7 +387,7 @@ export class ChatService {
 
     // The card carries enough to render without a second request: the
     // client only fetches the event for the reader's own answer.
-    const message = await this.prisma.message.create({
+    const message = await this.channelsService.withOpenChannel(input.channelId, (tx) => tx.message.create({
       data: {
         teamId: input.teamId,
         clubId: access.team.clubId,
@@ -403,7 +402,7 @@ export class ChatService {
           location: event.location ?? null,
         } as any,
       },
-    })
+    }), { userId })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       input.teamId,
@@ -446,7 +445,7 @@ export class ChatService {
       throw new ForbiddenException("Lineup builder requires the club's premium plan")
     }
 
-    const message = await this.prisma.message.create({
+    const message = await this.channelsService.withOpenChannel(input.channelId, (tx) => tx.message.create({
       data: {
         teamId: input.teamId,
         clubId: access.team.clubId,
@@ -461,7 +460,7 @@ export class ChatService {
           formation: input.formation,
         } as any,
       },
-    })
+    }), { userId })
     const serialized = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       input.teamId,
@@ -623,14 +622,17 @@ export class ChatService {
     const option = await this.prisma.pollOption.findFirst({ where: { id: optionId, pollId } })
     if (!option) throw new BadRequestException('Option does not belong to this poll')
 
-    if (!poll.multiSelect) {
-      await this.prisma.pollVote.deleteMany({ where: { pollId, userId } })
-    }
-    await this.prisma.pollVote.upsert({
-      where: { pollId_userId_optionId: { pollId, userId, optionId } },
-      create: { pollId, userId, optionId },
-      update: {},
-    })
+    await this.channelsService.withOpenChannel(poll.message.channelId, async (tx) => {
+      if (!poll.multiSelect) {
+        await tx.pollVote.deleteMany({ where: { pollId, userId } })
+      }
+      await tx.pollVote.upsert({
+        where: { pollId_userId_optionId: { pollId, userId, optionId } },
+        create: { pollId, userId, optionId },
+        update: {},
+      })
+
+    }, { userId, interaction: true })
 
     const tally = await this.prisma.pollVote.groupBy({
       by: ['optionId'],
@@ -651,13 +653,13 @@ export class ChatService {
     }
     const message = await this.loadAccessibleMessage(userId, messageId, true)
 
-    await this.prisma.messageReaction.upsert({
+    await this.channelsService.withOpenChannel(message.channelId, (tx) => tx.messageReaction.upsert({
       where: {
         messageId_userId_emoji: { messageId, userId, emoji },
       },
       create: { messageId, userId, emoji },
       update: {},
-    })
+    }), { userId, interaction: true })
 
     const updated = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
@@ -697,9 +699,9 @@ export class ChatService {
 
   async removeReaction(userId: string, messageId: string, emoji: string): Promise<ChatMessage> {
     const message = await this.loadAccessibleMessage(userId, messageId, true)
-    await this.prisma.messageReaction.deleteMany({
+    await this.channelsService.withOpenChannel(message.channelId, (tx) => tx.messageReaction.deleteMany({
       where: { messageId, userId, emoji },
-    })
+    }), { userId, interaction: true })
     const updated = await this.serializeMessage(userId, message.id)
     this.gateway.broadcastChatEvent(
       message.teamId,
@@ -738,10 +740,10 @@ export class ChatService {
       throw new BadRequestException('Edit window has passed')
     }
 
-    await this.prisma.message.update({
+    await this.channelsService.withOpenChannel(message.channelId, (tx) => tx.message.update({
       where: { id: messageId },
       data: { content: trimmed, editedAt: new Date() },
-    })
+    }), { userId, interaction: true })
 
     const updated = await this.serializeMessage(userId, messageId)
     this.gateway.broadcastChatEvent(
@@ -763,15 +765,25 @@ export class ChatService {
       throw new ForbiddenException('Only the sender or a coach can delete')
     }
 
-    await this.prisma.message.update({
-      where: { id: messageId },
-      data: {
-        deletedAt: new Date(),
-        content: '',
-        attachmentUrl: null,
-        attachmentMeta: null as never,
-      },
-    })
+    await this.channelsService.withOpenChannel(message.channelId, async (tx) => {
+      if (message.senderId !== userId) {
+        const coach = await tx.teamAccess.findFirst({
+          where: { userId, teamId: message.teamId,
+            role: { in: ['HEAD_COACH', 'ASSISTANT_COACH'] }, ...activeTeamAccessWhere() },
+          select: { id: true },
+        })
+        if (!coach) throw new ForbiddenException('Only the sender or a coach can delete')
+      }
+      return tx.message.update({
+        where: { id: messageId },
+        data: {
+          deletedAt: new Date(),
+          content: '',
+          attachmentUrl: null,
+          attachmentMeta: null as never,
+        },
+      })
+    }, { userId, interaction: true, allowSuspended: true })
 
     const updated = await this.serializeMessage(userId, messageId)
     this.gateway.broadcastChatEvent(

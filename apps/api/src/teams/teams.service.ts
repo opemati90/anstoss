@@ -246,7 +246,7 @@ export class TeamsService {
       await this.syncCoachAssignments(clubId, team.id, {
         headCoachUserId,
         assistantCoachUserIds: [],
-      })
+      }, userId)
     }
 
     return team
@@ -273,7 +273,7 @@ export class TeamsService {
 
     const assignments = normalizeCoachAssignments(input)
     await this.assertCoachAssignmentsAreValid(clubId, assignments)
-    await this.syncCoachAssignments(clubId, teamId, assignments)
+    await this.syncCoachAssignments(clubId, teamId, assignments, userId)
 
     return this.getTeamCoachAssignments(teamId)
   }
@@ -754,10 +754,11 @@ export class TeamsService {
     userId: string,
     teamId: string,
     opts: { eventId?: string; trialFeed?: boolean } = {},
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<
     Awaited<ReturnType<TeamsService['getTeamContext']>> & { trialEventIds?: string[] }
   > {
-    const access = await this.getTeamContext(userId, teamId)
+    const access = await this.getTeamContext(userId, teamId, db)
 
     if (access.membership && isClubManager(access.membership.role)) {
       return access
@@ -771,7 +772,7 @@ export class TeamsService {
     }
 
     if (access.activeTeamAccess.length > 0) {
-      const trial = await resolveTrialSessionScope(this.prisma as any, userId, teamId)
+      const trial = await resolveTrialSessionScope(db as any, userId, teamId)
       if (!trial.wechsel) {
         // Legacy member trial (join request / invite code, pending the
         // coach's roster decision): a club member keeps team reads.
@@ -785,7 +786,7 @@ export class TeamsService {
     }
 
     // Vorschau und Vertretung: a stand-in coach reads what a coach reads.
-    if (await this.hasActingCoachGrant(userId, access)) {
+    if (await this.hasActingCoachGrant(userId, access, db)) {
       return access
     }
 
@@ -798,7 +799,7 @@ export class TeamsService {
     //   (b) the linked player has active TeamAccess to this team (covers
     //       loans / cross-team appearances where the relationship row's
     //       teamId differs from the event's teamId).
-    const directGuardianLink = await this.prisma.guardianRelationship.findFirst({
+    const directGuardianLink = await db.guardianRelationship.findFirst({
       where: {
         parentUserId: userId,
         teamId,
@@ -820,7 +821,7 @@ export class TeamsService {
       return access
     }
 
-    const guardianViaPlayerLink = await this.prisma.guardianRelationship.findFirst({
+    const guardianViaPlayerLink = await db.guardianRelationship.findFirst({
       where: {
         parentUserId: userId,
         playerUserId: { not: null },
@@ -903,9 +904,10 @@ export class TeamsService {
   private async hasActingCoachGrant(
     userId: string,
     access: { team: { id: string; clubId: string }; membership: unknown },
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<boolean> {
     if (!access.membership) return false
-    const sessionId = await findActiveCoachActingSessionId(this.prisma as any, {
+    const sessionId = await findActiveCoachActingSessionId(db as any, {
       userId,
       teamId: access.team.id,
       clubId: access.team.clubId,
@@ -2198,6 +2200,7 @@ export class TeamsService {
     clubId: string,
     teamId: string,
     input: UpdateTeamCoachAssignmentsInput,
+    actorUserId: string,
   ) {
     const assignments = normalizeCoachAssignments(input)
     const coachUserIds = [
@@ -2207,11 +2210,20 @@ export class TeamsService {
       .filter((userId, index, values) => values.indexOf(userId) === index)
       .sort()
 
-    await this.prisma.$transaction(async (tx) => {
+    const affectedUsers = await this.prisma.$transaction(async (tx) => {
       // Serialize against account deletion for every user that will receive
       // access. Revalidate membership only after the lifecycle locks are held.
-      for (const coachUserId of coachUserIds) {
+      for (const coachUserId of [...new Set([...coachUserIds, actorUserId])].sort()) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${coachUserId}))`
+      }
+
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+      const actor = await tx.membership.findUnique({
+        where: { userId_clubId: { userId: actorUserId, clubId } },
+        select: { role: true },
+      })
+      if (!actor || (actor.role !== MembershipRole.OWNER && actor.role !== MembershipRole.ADMIN)) {
+        throw new TeamAccessDeniedError('Only the club owner or an administrator can change club teams.')
       }
 
       if (coachUserIds.length > 0) {
@@ -2232,6 +2244,15 @@ export class TeamsService {
       }
 
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-assignments:${teamId}`}))`
+      const previousCoaches = await tx.teamAccess.findMany({
+        where: {
+          clubId,
+          teamId,
+          role: { in: [TeamRole.HEAD_COACH, TeamRole.ASSISTANT_COACH] },
+          status: { in: [TeamAccessStatus.ACTIVE, TeamAccessStatus.PENDING] },
+        },
+        select: { userId: true },
+      })
 
       if (assignments.headCoachUserId) {
         await tx.teamAccess.updateMany({
@@ -2356,7 +2377,11 @@ export class TeamsService {
           },
         })
       }
+      return [...new Set([...coachUserIds, ...previousCoaches.map((coach) => coach.userId)])]
     })
+    for (const userId of affectedUsers) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId })
+    }
   }
 
   private async getTeamCoachAssignments(teamId: string) {
@@ -2422,8 +2447,8 @@ export class TeamsService {
     return teamAccess
   }
 
-  private async getTeamContext(userId: string, teamId: string) {
-    const team = await this.prisma.team.findUnique({
+  private async getTeamContext(userId: string, teamId: string, db: Prisma.TransactionClient = this.prisma) {
+    const team = await db.team.findUnique({
       where: { id: teamId },
       include: {
         group: true,
@@ -2435,7 +2460,7 @@ export class TeamsService {
     }
 
     const [membership, teamAccess] = await Promise.all([
-      this.prisma.membership.findUnique({
+      db.membership.findUnique({
         where: {
           userId_clubId: {
             userId,
@@ -2443,7 +2468,7 @@ export class TeamsService {
           },
         },
       }),
-      this.prisma.teamAccess.findMany({
+      db.teamAccess.findMany({
         where: {
           teamId,
           userId,

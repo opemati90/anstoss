@@ -1215,6 +1215,7 @@ model Channel {
   name        String
   description String?
   visibility  ChannelVisibility @default(MEMBERS)
+  archivedAt  DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

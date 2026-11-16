@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "387307271714",
+    "project_id": "anstoss-b268f",
+    "storage_bucket": "anstoss-b268f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387307271714:android:68b73432f1065c52da7c7b",
+        "android_client_info": {
+          "package_name": "com.renuirug.anstoss"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387307271714-5vppsd1fmlc3geus5e61pfqqa774hm5t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.renuirug.anstoss",
+            "certificate_hash": "a425ed6bf4236c9ab8f370e6f8e46521e157c76d"
+          }
+        },
+        {
+          "client_id": "387307271714-6um2fcotjbrr8p3eo5754f416iao6e5k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVKi-ol3LilTUUO98J9Gab7rPRgmcJMBo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387307271714-6um2fcotjbrr8p3eo5754f416iao6e5k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

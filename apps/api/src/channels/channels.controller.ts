@@ -113,6 +113,17 @@ export class ChannelsController {
     return this.channelsService.setChannelMute(user.id, clubId, channelId, input)
   }
 
+  @Post('clubs/:clubId/channels/:channelId/close')
+  @HttpCode(200)
+  @RateLimit('write')
+  async close(
+    @CurrentUser() user: { id: string },
+    @Param('clubId') clubId: string,
+    @Param('channelId') channelId: string,
+  ) {
+    return this.channelsService.closeChannel(user.id, clubId, channelId)
+  }
+
   @Post('clubs/:clubId/channels/:channelId/read')
   @HttpCode(200)
   @RateLimit('write')

@@ -167,4 +167,38 @@ describe('InviteScreen QR campaigns', () => {
       ),
     ).toBe(false)
   })
+
+  it('shares an expiring assistant-coach link that requires administrator approval', async () => {
+    mockParams.mode = 'coach'
+    const screen = render(<InviteScreen />)
+    fireEvent.press(await screen.findByLabelText('Next'))
+    fireEvent.press(await screen.findByLabelText('Create QR without emails'))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/invite-campaigns', {
+      method: 'POST', body: { teamId: 'team-1', type: 'APPROVAL_REQUIRED',
+        role: 'ASSISTANT_COACH', maxUses: 50, expiresInDays: 14 },
+    }))
+    expect(await screen.findByLabelText('Join-request QR code for First team')).toBeTruthy()
+  })
+
+  it('does not offer player, expired, or other-team links in the coach invitation flow', async () => {
+    mockParams.mode = 'coach'
+    const original = mockApi.getMockImplementation()!
+    mockApi.mockImplementation((path, options) => {
+      if (path.endsWith('/invite-campaigns') && !options?.method) {
+        const base = { status: 'ACTIVE', useCount: 0, maxUses: 50,
+          expiresAt: '2099-01-01T00:00:00.000Z', role: 'ASSISTANT_COACH',
+          team: { id: 'team-1', displayName: 'First team' } }
+        return Promise.resolve([
+          { ...base, id: 'matching', code: 'COACHOK1' },
+          { ...base, id: 'player', code: 'PLAYER01', role: 'PLAYER' },
+          { ...base, id: 'other', code: 'OTHER001', team: { id: 'team-2', displayName: 'Other team' } },
+          { ...base, id: 'expired', code: 'EXPIRED1', expiresAt: '2020-01-01T00:00:00.000Z' },
+        ]) as ReturnType<typeof api>
+      }
+      return original(path, options)
+    })
+    const screen = render(<InviteScreen />)
+    expect(await screen.findByText('COACHOK1')).toBeTruthy()
+    for (const code of ['PLAYER01', 'OTHER001', 'EXPIRED1']) expect(screen.queryByText(code)).toBeNull()
+  })
 })

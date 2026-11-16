@@ -50,6 +50,8 @@ describe('ClubHeader', () => {
     mockSetActiveTeam.mockReset()
     mockSetActiveRoleMode.mockReset()
     mockAuth = {
+      user: { id: 'header-user' },
+      token: 'header-session',
       activeClub: { role: 'PLAYER', club: { id: 'c1', name: 'SV Albatros', badgeUrl: null } },
       activeTeamAccess: team('t1', '1. Herren'),
       activeRoleMode: 'PLAYER',

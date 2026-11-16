@@ -10,7 +10,7 @@ import {
 import { ClubCapability, ClubOperationalRole, MembershipRole } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { router } from 'expo-router'
-import { api } from '../src/api/client'
+import { api, ApiError } from '../src/api/client'
 import { ModalHeader } from '../src/components/ModalHeader'
 import { MultiSelectSheet } from '../src/components/MultiSelectSheet'
 import { SelectionSheet } from '../src/components/SelectionSheet'
@@ -108,6 +108,7 @@ export default function ClubStaffScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [roleSheetMember, setRoleSheetMember] = useState<ClubMember | null>(null)
+  const [roleMemberPickerOpen, setRoleMemberPickerOpen] = useState(false)
   const [operationsSheetMember, setOperationsSheetMember] = useState<ClubMember | null>(null)
   const [officeSheet, setOfficeSheet] = useState<ClubOperationalRole | null>(null)
 
@@ -270,6 +271,7 @@ export default function ClubStaffScreen() {
         method: 'PATCH',
         body: { role },
       })
+      setRoleSheetMember(null)
       await fetchMembers()
     } catch (error) {
       Alert.alert(t('common.error'), getRoleErrorMessage(error, t))
@@ -621,6 +623,15 @@ export default function ClubStaffScreen() {
           })
         )}
         <ListRow
+          left={<SoftIcon name="person.badge.key" />}
+          title={t('clubStaff.changeRoleCta')}
+          subtitle={t('clubStaff.adminLimitHint')}
+          subtitleNumberOfLines={3}
+          showChevron
+          onPress={() => setRoleMemberPickerOpen(true)}
+          testID="club-staff-change-member-role"
+        />
+        <ListRow
           left={<SoftIcon name="person.badge.plus" />}
           title={t('clubStaff.inviteCoach', { defaultValue: 'Invite a coach' })}
           subtitle={t('clubStaff.inviteCoachBody')}
@@ -631,6 +642,22 @@ export default function ClubStaffScreen() {
           }
         />
       </SectionGroup>
+
+      <SelectionSheet
+        visible={roleMemberPickerOpen}
+        title={t('clubStaff.changeRoleCta')}
+        options={sortedMembers.filter(canChangeRole).map((member) => ({
+          label: member.user.name,
+          value: member.userId,
+          description: t(`verein.memberRole.${member.role}`),
+        }))}
+        selectedValue=""
+        onSelect={(userId) => {
+          setRoleMemberPickerOpen(false)
+          setRoleSheetMember(members.find((member) => member.userId === userId) ?? null)
+        }}
+        onClose={() => setRoleMemberPickerOpen(false)}
+      />
 
       <SelectionSheet
         visible={officeSheet !== null}
@@ -711,6 +738,9 @@ function getRoleErrorMessage(
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
   const message = error instanceof Error ? error.message : ''
+  if (error instanceof ApiError && error.code === 'CLUB_ADMIN_LIMIT_REACHED') {
+    return t('clubStaff.adminLimitHint')
+  }
   if (message.includes('Reassign squad coaching responsibilities')) {
     return t('clubStaff.reassignRequiredBody')
   }

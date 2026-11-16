@@ -428,4 +428,141 @@ describe('useChat', () => {
     expect(socket.emitted.some((e: { event: string }) => e.event === 'message')).toBe(false)
     expect(socket.emitted.some((e: { event: string }) => e.event === 'history')).toBe(false)
   })
+
+  const guardedOptions = {
+    clubId: 'club-guard', teamId: 'team-guard', channelId: 'channel-guard',
+    token: 'token-guard', userId: 'user-guard', apiUrl: 'http://api.test',
+  }
+  const closeSocket = () => {
+    socket.connected = false
+    socket.trigger('disconnect', 'io server disconnect')
+  }
+
+  it.each(['loadMore', 'refreshHistory'] as const)('rejects delayed %s history after group closure', async (method) => {
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    let finish!: AckHandler
+    socket.emit.mockImplementationOnce((_event, _payload, ack) => { finish = ack; return socket })
+    act(() => result.current[method]())
+    act(() => {
+      closeSocket()
+      finish({ data: { messages: [makeMessage({ id: 'forbidden-old-history' })], hasMore: true } })
+      socket.trigger('message', makeMessage({ id: 'queued-after-close' }))
+      socket.trigger('chat:event', { kind: 'media', message: makeMessage({ id: 'queued-media-after-close' }) })
+    })
+    expect(result.current.messages).toEqual([])
+    expect(result.current.pinnedMessage).toBeNull()
+    expect(result.current.loadingHistory).toBe(false)
+  })
+
+  it('rejects delayed history and search results across a reconnect', async () => {
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    let history!: AckHandler
+    let search!: AckHandler
+    socket.emit.mockImplementationOnce((_event, _payload, ack) => { history = ack; return socket })
+    act(() => result.current.refreshHistory())
+    socket.emit.mockImplementationOnce((_event, _payload, ack) => { search = ack; return socket })
+    const pendingSearch = result.current.searchMessages('private')
+    act(() => {
+      socket.trigger('disconnect', 'transport close')
+      socket.trigger('connect')
+      history({ data: { messages: [makeMessage({ id: 'old-connection' })] } })
+      search({ data: { messages: [makeMessage({ id: 'old-search' })] } })
+    })
+    await expect(pendingSearch).resolves.toEqual([])
+    expect(result.current.messages.some(row => row.id === 'old-connection')).toBe(false)
+  })
+
+  it('rejects an old send acknowledgement and child post callback after closure/reconnect', async () => {
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    const appendFromOldRender = result.current.appendMessage
+    let acknowledge!: AckHandler
+    socket.timeout.mockReturnValueOnce({ emit: (_event: string, _payload: unknown, ack: AckHandler) => { acknowledge = ack } })
+    let pending!: Promise<boolean>
+    act(() => { pending = result.current.sendMessage('test', 'club-guard') })
+    act(() => closeSocket())
+    act(() => {
+      socket.connected = true
+      socket.trigger('connect')
+      appendFromOldRender(makeMessage({ id: 'old-child-response' }))
+      acknowledge(null, { id: 'old-send' })
+    })
+    await expect(pending).resolves.toBe(false)
+    expect(result.current.messages.some(row => row.id === 'old-child-response' || row.id === 'old-send')).toBe(false)
+  })
+
+  it('does not restore a pin when its initial read finishes after closure', async () => {
+    let finish!: (value: unknown) => void
+    global.fetch = jest.fn(() => new Promise(resolve => { finish = resolve })) as jest.Mock
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    act(() => closeSocket())
+    await act(async () => finish({ ok: true, json: async () => makeMessage({ id: 'old-pin', channelId: guardedOptions.channelId }) }))
+    expect(result.current.pinnedMessage).toBeNull()
+  })
+
+  it.each(['media', 'pin', 'poll'] as const)('rejects a delayed %s REST response after closure', async (operation) => {
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    let finish!: (value: unknown) => void
+    global.fetch = jest.fn(() => new Promise(resolve => { finish = resolve })) as jest.Mock
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = operation === 'media'
+        ? result.current.sendMediaMessage({ messageType: 'IMAGE', attachmentUrl: 'https://test.invalid/image' })
+        : operation === 'pin'
+          ? result.current.pinMessage(makeMessage({ id: 'pin-me' }))
+          : result.current.fetchPoll('old-poll')
+    })
+    act(() => closeSocket())
+    await act(async () => {
+      finish({ ok: true, json: async () => makeMessage({ id: 'old-rest', channelId: guardedOptions.channelId }) })
+      await pending
+    })
+    expect(result.current.messages).toEqual([])
+    expect(result.current.pinnedMessage).toBeNull()
+    if (operation === 'media') await expect(pending).resolves.toBe(false)
+    if (operation === 'poll') await expect(pending).resolves.toBeNull()
+  })
+
+  it('rejects old session callbacks while a replacement session uses the same channel', async () => {
+    const { result, rerender } = renderHook<ReturnType<typeof useChat>, { token: string }>(({ token }) => useChat({ ...guardedOptions, token }), {
+      initialProps: { token: 'old-session' },
+    })
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    let finish!: (value: unknown) => void
+    global.fetch = jest.fn(() => new Promise(resolve => { finish = resolve })) as jest.Mock
+    let pending!: Promise<boolean>
+    act(() => { pending = result.current.sendMediaMessage({ messageType: 'IMAGE', attachmentUrl: 'https://test.invalid/image' }) })
+    const finishOldMedia = finish
+    const oldSocket = socket
+    socket = createSocket()
+    mockIo.mockReturnValue(socket)
+    rerender({ token: 'new-session' })
+    await act(async () => {
+      socket.connected = true
+      socket.trigger('connect')
+      oldSocket.trigger('message', makeMessage({ id: 'old-session-event' }))
+      finishOldMedia({ ok: true, json: async () => makeMessage({ id: 'old-session-media' }) })
+      await pending
+    })
+    expect(result.current.messages.some(row => row.id.startsWith('old-session'))).toBe(false)
+    await expect(pending).resolves.toBe(false)
+  })
+
+
+  it('re-fetches the pin after an authorized reconnect', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => makeMessage({ id: 'current-pin', channelId: guardedOptions.channelId }) })
+    const { result } = renderHook(() => useChat(guardedOptions))
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    expect(result.current.pinnedMessage?.id).toBe('current-pin')
+    act(() => closeSocket())
+    expect(result.current.pinnedMessage).toBeNull()
+    await act(async () => { socket.connected = true; socket.trigger('connect') })
+    expect(result.current.pinnedMessage?.id).toBe('current-pin')
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+  })
+
 })

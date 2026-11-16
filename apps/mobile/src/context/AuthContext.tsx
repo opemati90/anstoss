@@ -247,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // avoid a race condition that resets isLoading mid-navigation.
   const manualFetchDoneRef = useRef(false)
   const accountFetchSequence = useRef(0)
+  const accessFingerprint = useRef<string | null>(null)
 
   useEffect(() => {
     activeClubRef.current = activeClub
@@ -258,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetLocalAuthState = useCallback(() => {
     accountFetchSequence.current += 1
+    accessFingerprint.current = null
     clearMemoryCache()
     AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => {})
     manualFetchDoneRef.current = false
@@ -677,9 +679,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         // Do not restore access from a stale response after refresh or sign-out.
         if (requestSequence !== accountFetchSequence.current || isSigningOutRef.current) return
-        if (activeClubRef.current && !data.memberships.some(
-          (membership) => membership.club.id === activeClubRef.current?.club.id,
-        )) clearMemoryCache()
+        const fingerprint = JSON.stringify([
+          data.memberships.map(m => [m.club.id, m.role, [...(m.operationalRoles ?? [])].sort()]).sort(),
+          (data.teamMembers ?? []).map(m => [m.team.clubId, m.team.id, m.role, m.status, m.phase]).sort(),
+        ])
+        if (accessFingerprint.current !== null && accessFingerprint.current !== fingerprint) clearMemoryCache()
+        accessFingerprint.current = fingerprint
         setAgeGate(data.ageGate || null)
         setPendingJoinRequest(data.pendingJoinRequest ?? null)
         setPendingClubClaim(data.pendingClubClaim ?? null)
@@ -872,17 +877,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // authorization is immediate; foreground polling is only a UI fallback.
   useEffect(() => {
     if (!user?.id || !sessionToken || e2eSession) return
-    let inFlight = false
+    let inFlight: Promise<void> | null = null
     let disposed = false
-    const refreshAccess = async () => {
-      if (disposed || inFlight || isSigningOutRef.current || getE2ESession()) return
+    const refreshAccess = async (fresh = false) => {
+      if (disposed || (!fresh && inFlight) || isSigningOutRef.current || getE2ESession()) return
       if (getSessionTokenSync() !== sessionToken) return
-      inFlight = true
-      try { await fetchUser() } finally { inFlight = false }
+      // A revocation/resume must supersede a read started before that event.
+      // fetchUser's sequence guard rejects the older response, while routine
+      // polling still coalesces to avoid overlapping requests.
+      const request = fetchUser()
+      inFlight = request
+      try { await request } finally { if (inFlight === request) inFlight = null }
     }
-    const unsubscribe = subscribeAccessChanges(() => { void refreshAccess() })
+    const unsubscribe = subscribeAccessChanges(() => { void refreshAccess(true) })
     const foreground = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refreshAccess()
+      if (state === 'active') void refreshAccess(true)
     })
     const timer = setInterval(() => {
       if (AppState.currentState === 'active') void refreshAccess()

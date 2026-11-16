@@ -58,6 +58,7 @@ type InviteCampaign = {
   status: 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'REVOKED'
   useCount: number
   maxUses: number
+  role?: TeamRole
   expiresAt: string
   team: { id: string; displayName: string }
 }
@@ -261,6 +262,11 @@ export default function InviteScreen() {
     role === TeamRole.PLAYER ||
     role === TeamRole.HEAD_COACH ||
     role === TeamRole.ASSISTANT_COACH
+  const supportsSharedLink = role === TeamRole.PLAYER || role === TeamRole.ASSISTANT_COACH
+  const matchingCampaigns = campaigns.filter((campaign) =>
+    campaign.status === 'ACTIVE' && campaign.team.id === selectedTeamId &&
+    (campaign.role ?? 'PLAYER') === role && new Date(campaign.expiresAt).getTime() > Date.now(),
+  )
   const playerOptions = useMemo(
     () => teamMembers.filter((member) => member?.role === 'PLAYER' && member?.user?.id),
     [teamMembers],
@@ -334,7 +340,7 @@ export default function InviteScreen() {
 
     try {
       if (deliveryChannel === 'LINK') {
-        if (role !== TeamRole.PLAYER) {
+        if (!supportsSharedLink) {
           Alert.alert(t('common.error'), t('invite.childTargetMissingBody'))
           return
         }
@@ -468,8 +474,8 @@ export default function InviteScreen() {
 
   if (view === 'share') {
     const campaign =
-      campaigns.find((row) => row.status === 'ACTIVE' && row.team.id === selectedTeamId) ??
-      campaigns.find((row) => row.status === 'ACTIVE') ??
+      campaigns.find((row) => row.status === 'ACTIVE' && row.team.id === selectedTeamId &&
+        (row.role ?? TeamRole.PLAYER) === role && new Date(row.expiresAt).getTime() > Date.now()) ??
       null
     const daysLeft = (iso: string | null | undefined) =>
       iso ? Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)) : null
@@ -625,12 +631,12 @@ export default function InviteScreen() {
         </Text>
       </View>
 
-      {campaigns.length > 0 ? (
+      {matchingCampaigns.length > 0 ? (
         <View style={[styles.section, styles.campaignSection]}>
           <Text variant="label" style={styles.sectionLabel}>
             {t('invite.activeLinks', { defaultValue: 'Active join links' })}
           </Text>
-          {campaigns.map((campaign) => (
+          {matchingCampaigns.map((campaign) => (
             <View
               key={campaign.id}
               style={[styles.codeCard, { backgroundColor: c.surface }]}
@@ -969,7 +975,7 @@ export default function InviteScreen() {
             multiline={supportsBulkRecipients}
             numberOfLines={supportsBulkRecipients ? 4 : 1}
           />
-          {role === TeamRole.PLAYER ? (
+          {supportsSharedLink ? (
             <Button
               label={t('invite.createQrInstead', { defaultValue: 'Create QR without emails' })}
               variant="bordered"
@@ -1140,7 +1146,7 @@ export default function InviteScreen() {
             accessibilityLabel={t('invite.sendEmail')}
           />
 
-          {role === TeamRole.PLAYER ? (
+          {supportsSharedLink ? (
             <Button
               label={t('invite.createQrLink', { defaultValue: 'Create QR & link' })}
               variant="secondary"

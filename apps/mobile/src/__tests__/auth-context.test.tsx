@@ -1,6 +1,6 @@
 import React from 'react'
 import renderer, { act } from 'react-test-renderer'
-import { Text } from 'react-native'
+import { AppState, Text } from 'react-native'
 import { waitFor } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AuthProvider, useAuth } from '../context/AuthContext'
@@ -160,6 +160,54 @@ describe('AuthContext signOut', () => {
       expect(latestAuth?.isSignedIn).toBe(true)
     })
     expect(mockClearMemoryCache).toHaveBeenCalled()
+    await act(async () => tree.unmount())
+  })
+
+  it.each(['access-change', 'resume'])('rejects a pre-demotion read when %s starts a fresh refresh', async (signal) => {
+    const listeners: Array<(state: string) => void> = []
+    const previousAdd = AppState.addEventListener
+    AppState.addEventListener = jest.fn((_event, cb) => {
+      listeners.push(cb as (state: string) => void)
+      return { remove: jest.fn() }
+    })
+    mockBackendUser({ withClub: true })
+    const player = await mockApi('/me')
+    const admin = { ...player, memberships: [{ ...player.memberships[0], role: 'ADMIN' }] }
+    mockApi.mockResolvedValue(admin)
+    let tree!: ReturnType<typeof renderer.create>
+    await act(async () => { tree = renderer.create(<AuthProvider><Probe /></AuthProvider>) })
+    await waitFor(() => expect(latestAuth?.availableRoleModes).toEqual(expect.arrayContaining(['ADMIN', 'PLAYER'])))
+    let resolveOld!: (value: unknown) => void
+    mockApi.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+    act(() => notifyAccessChanged())
+    mockApi.mockResolvedValue(player)
+    await act(async () => {
+      if (signal === 'resume') listeners.forEach(listener => listener('active'))
+      else notifyAccessChanged()
+    })
+    await waitFor(() => expect(latestAuth?.activeClub?.role).toBe('PLAYER'))
+    await act(async () => { resolveOld(admin) })
+    expect(latestAuth?.availableRoleModes).not.toContain('ADMIN')
+    expect(latestAuth?.availableRoleModes).toContain('PLAYER')
+    expect(mockClearMemoryCache).toHaveBeenCalled()
+    expect(latestAuth?.isSignedIn).toBe(true)
+    await act(async () => tree.unmount())
+    AppState.addEventListener = previousAdd
+  })
+
+  it('exposes newly assigned combined admin and coach features without signing in again', async () => {
+    mockBackendUser({ withClub: true })
+    const player = await mockApi('/me')
+    let tree!: ReturnType<typeof renderer.create>
+    await act(async () => { tree = renderer.create(<AuthProvider><Probe /></AuthProvider>) })
+    await waitFor(() => expect(latestAuth?.activeClub?.role).toBe('PLAYER'))
+    mockApi.mockResolvedValue({ ...player,
+      memberships: [{ ...player.memberships[0], role: 'ADMIN' }],
+      teamMembers: [...player.teamMembers, makeTeamMember({ id: 'coach-access', role: 'ASSISTANT_COACH' })],
+    })
+    await act(async () => { notifyAccessChanged() })
+    await waitFor(() => expect(latestAuth?.availableRoleModes).toEqual(expect.arrayContaining(['ADMIN', 'COACH', 'PLAYER'])))
+    expect(latestAuth?.isSignedIn).toBe(true)
     await act(async () => tree.unmount())
   })
 

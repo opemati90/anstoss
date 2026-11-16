@@ -49,6 +49,7 @@ function makeGateway(overrides: {
   }
   const teams = { assertReadableAccess: jest.fn() }
   const channels = {
+    withOpenChannel: jest.fn((_id: string, write: (tx: typeof prisma) => Promise<unknown>) => write(prisma)),
     getChannelAccess: jest.fn().mockResolvedValue(
       overrides.channelAccess ?? {
         canRead: true,

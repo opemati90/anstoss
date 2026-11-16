@@ -16,6 +16,7 @@ import {
   muteConversation,
   removeChannelMember,
   moderateChannelMember,
+  closeChannel,
 } from '../../../src/api/chat'
 import { useAuth } from '../../../src/context/AuthContext'
 import { useClubColors } from '../../../src/context/ClubThemeContext'
@@ -64,6 +65,7 @@ export default function ConversationInfoScreen() {
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [pinned, setPinned] = useState<PinnedMessage | null | undefined>(undefined)
   const [muteBusy, setMuteBusy] = useState(false)
+  const [closing, setClosing] = useState(false)
   // M6: "Nutzer melden" opens a reason sheet (no Alert pickers).
   const [reportOpen, setReportOpen] = useState(false)
   // B1 client: a safeguarding rejection on add/remove shows inline.
@@ -243,6 +245,23 @@ export default function ConversationInfoScreen() {
       },
     ])
   }, [clubId, id, t, title, user])
+
+  const confirmClose = () => {
+    if (!clubId || !channel?.canClose || closing) return
+    Alert.alert(t('chatHub.info.closeGroup'), t('chatHub.info.closeGroupBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('chatHub.info.closeGroup'), style: 'destructive', onPress: async () => {
+        setClosing(true)
+        try {
+          await closeChannel(clubId, id)
+          await refreshInbox(clubId)
+          router.dismissTo('/(tabs)/chat' as never)
+        } catch {
+          Alert.alert(t('common.error'), t('chatHub.info.closeGroupError'))
+        } finally { setClosing(false) }
+      } },
+    ])
+  }
 
   const blockPeer = useCallback(() => {
     const peer = dm?.otherUser
@@ -521,6 +540,14 @@ export default function ConversationInfoScreen() {
               onPress={() => router.push('/admin-chat-retention' as never)}
               showChevron
             />
+          </SectionGroup>
+        ) : null}
+
+        {isCustom && channel?.canClose ? (
+          <SectionGroup>
+            <ListRow title={t('chatHub.info.closeGroup')}
+              subtitle={t('chatHub.info.closeGroupBody')} subtitleNumberOfLines={3}
+              onPress={confirmClose} disabled={closing} destructive testID="chat-info-close" />
           </SectionGroup>
         ) : null}
 

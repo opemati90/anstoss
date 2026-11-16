@@ -1863,7 +1863,7 @@ const base = {
     addStaffHelp:
       'Bir antrenörü tek bir takıma davet et. Antrenör erişimi kulüp yönetimi yetkisi vermez.',
     inviteCoach: 'Antrenör davet et',
-    inviteCoachBody: 'Kişiye özel e-posta daveti gönder ve takımdaki rolünü seç.',
+    inviteCoachBody: "Antrenörleri e-postayla davet et veya yönetici onaylı, süreli bir bağlantı paylaş.",
     accessRequestsHint:
       'Kulüp veya antrenör erişimini yalnızca kulüp sahibi ve yöneticiler onaylayabilir.',
     noTeamRole: 'Takım rolü yok',
@@ -1881,6 +1881,7 @@ const base = {
       'Kulüp rolleri davetleri, kulüp yapısını ve diğer idari işleri belirler. Baş antrenör ve yardımcı antrenörleri yine her takım için ayrı atarsın.',
     teamAssignments: 'Takımlar: {{teams}}',
     changeRoleCta: 'Rolü değiştir',
+    adminLimitHint: "Sahibi dahil en fazla 3 yönetici. Oyuncu ve antrenör rolleri ayrı kalır.",
     operationalRolesCta: 'Görevler',
     offboardCta: 'Görevden al',
     roleChoiceTitle: 'Rol seç: {{name}}',
@@ -3421,6 +3422,10 @@ const base = {
       optionA11y_other: '{{label}}, {{count}} oy',
     },
     info: {
+      closeGroup: "Grubu kapat",
+      closeGroupBody: "Grup ve geçmişi herkesten gizlenir ve yeni mesajlar durdurulur. Bu işlem uygulamada geri alınamaz.",
+      closeGroupError: "Grup kapatılamadı. Tekrar dene.",
+
       title: 'Sohbet bilgisi',
       dmTitle: 'Kişi bilgisi',
       mute: 'Sessize al',
@@ -3454,11 +3459,11 @@ const base = {
     new: {
       title: 'Yeni sohbet',
       search: 'İsimle ara',
-      newGroup: 'Yeni grup',
-      newGroupHint: 'Birden fazla kişi tek sohbette, örneğin araç paylaşımı için',
+      newGroup: "Özel oda",
+      newGroupHint: "Yalnızca eklediğin kişiler bu odayı okuyabilir ve katılabilir.",
       pickHint: 'Grupta kimlerin olacağını seç.',
       addMembersTitle: 'Üye ekle',
-      groupTitle: 'Yeni grup',
+      groupTitle: "Özel oda",
       next: 'İleri',
       create: 'Oluştur',
       groupName: 'Grup adı',

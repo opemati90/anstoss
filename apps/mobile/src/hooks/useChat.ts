@@ -143,6 +143,23 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const [historyLoaded, setHistoryLoaded] = useState(() => chatMessagesCache.has(cacheKey))
 
   const socketRef = useRef<Socket | null>(null)
+  const accessGeneration = useRef(0)
+  const scopeKey = JSON.stringify([clubId, teamId, channelId, userId, token, apiUrl])
+  const scopeRef = useRef({ key: scopeKey })
+  if (scopeRef.current.key !== scopeKey) {
+    scopeRef.current = { key: scopeKey }
+    accessGeneration.current += 1
+  }
+  const scope = scopeRef.current
+  const mounted = useRef(true)
+  const revoked = useRef(false)
+  const renderGeneration = accessGeneration.current
+  const isCurrent = useCallback((generation: number) => mounted.current &&
+    scopeRef.current === scope && generation === accessGeneration.current && !revoked.current, [scope])
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; accessGeneration.current += 1 }
+  }, [])
   const isAtBottomRef = useRef(true)
   const pendingOutgoingRef = useRef<PendingOutgoingMessage[]>([])
 
@@ -210,14 +227,19 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       return
     }
 
+    const generation = accessGeneration.current
     socket.emit(
       'history',
       { teamId, channelId },
       (response: ChatHistoryResponse) => {
+        if (socketRef.current !== socket || !isCurrent(generation)) return
         setHistoryLoaded(true)
         if (response?.event === 'error') {
           if (__DEV__) console.warn('Chat history error:', response.data?.message)
           setLastError('history_error')
+          chatMessagesCache.delete(cacheKey)
+          setMessages([])
+          setPinnedMessage(null)
           return
         }
         if (response?.data?.messages) {
@@ -228,11 +250,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         }
       },
     )
-  }, [cacheKey, teamId, channelId])
+  }, [cacheKey, teamId, channelId, isCurrent])
 
   // Connect socket
   useEffect(() => {
     if (!token || !teamId) return
+    revoked.current = false
+    let alive = true
+    let acceptsEvents = true
     setConnectionState('connecting')
     setLastError(null)
 
@@ -259,7 +284,11 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socketRef.current = socket
     const unbindLifecycle = bindSocketLifecycle(socket, loadHistory)
 
+    const currentSocket = () => alive && acceptsEvents && socketRef.current === socket && isCurrent(accessGeneration.current)
     socket.on('connect', () => {
+      if (!alive || scopeRef.current !== scope || socketRef.current !== socket) return
+      revoked.current = false
+      acceptsEvents = true
       setConnectionState('connected')
       setLastError(null)
       socket.emit('join', { teamId })
@@ -270,12 +299,24 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     socket.on('disconnect', (reason) => {
+      if (!alive || scopeRef.current !== scope || socketRef.current !== socket) return
+      accessGeneration.current += 1
+      acceptsEvents = false
+      pendingOutgoingRef.current = []
+      setLoadingHistory(false)
       clearTyping()
       setConnectionState(reason === 'io server disconnect' ? 'offline' : 'reconnecting')
-      if (reason === 'io server disconnect') notifyAccessChanged()
+      if (reason === 'io server disconnect') {
+        revoked.current = true
+        chatMessagesCache.delete(cacheKey)
+        setMessages([])
+        setPinnedMessage(null)
+        notifyAccessChanged()
+      }
     })
 
     socket.on('connect_error', (err) => {
+      if (!currentSocket()) return
       setConnectionState('offline')
       setLastError('connect_error')
       if (__DEV__) console.warn('[Chat] connect_error:', err?.message || err)
@@ -286,10 +327,12 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     })
 
     socket.io.on('reconnect_attempt', () => {
+      if (!alive || scopeRef.current !== scope) return
       setConnectionState('reconnecting')
     })
 
     socket.io.on('reconnect_failed', () => {
+      if (!alive || scopeRef.current !== scope) return
       setConnectionState('offline')
     })
 
@@ -298,6 +341,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on(
       'message:source',
       ({ messageId, sourceLanguage }: { messageId: string; sourceLanguage: string }) => {
+        if (!currentSocket()) return
         setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, sourceLanguage } : m)))
       },
     )
@@ -305,13 +349,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on('message:translation', (payload: {
       messageId: string; conversationId: string; translation: NonNullable<ChatMessage['translation']>
     }) => {
-      if (payload.conversationId !== channelId) return
+      if (!currentSocket() || payload.conversationId !== channelId) return
       setMessages((prev) => prev.map((message) => message.id === payload.messageId && !message.deletedAt
         ? { ...message, translation: payload.translation } : message))
     })
 
     // Incoming message
     socket.on('message', (msg: ChatMessage) => {
+      if (!currentSocket()) return
       // One socket per thread; ignore rows of another channel it still hears.
       if (msg.channelId && channelId && msg.channelId !== channelId) return
       removeTyping(msg.senderId)
@@ -353,7 +398,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     socket.on(
       'chat:event',
       (payload: { kind: string; message?: ChatMessage; messageId?: string }) => {
-        if (!payload?.message) return
+        if (!currentSocket() || !payload?.message) return
         const next = payload.message
         // REST-posted messages (media, polls, event cards, lineups) arrive
         // here rather than on 'message'; they are new rows, not patches.
@@ -376,13 +421,15 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     // Typing indicator (L4: the server scopes it to the channel room; the
     // channelId check also drops strays from other channels on this socket).
     socket.on('typing', (data: { userId: string; userName: string; channelId?: string | null }) => {
-      if (data.userId === userId) return
+      if (!currentSocket() || data.userId === userId) return
       if (data.channelId && data.channelId !== channelId) return
 
       touchTyping(data.userId, data.userName)
     })
 
     return () => {
+      alive = false
+      pendingOutgoingRef.current = []
       unbindLifecycle()
       socket.emit('leave', { teamId })
       socket.disconnect()
@@ -393,7 +440,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     // history fetch to the new scope; reconnecting the socket on
     // every switch is fine (cheap) and simpler than threading channel
     // changes through the existing connected socket.
-  }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered, clearTyping, removeTyping, touchTyping])
+  }, [token, teamId, channelId, apiUrl, userId, loadHistory, markPendingDelivered, clearTyping, removeTyping, touchTyping, isCurrent, scope])
 
   // M5: pins are per channel. Without a channel there is nothing to show
   // (never fall back to a team-wide pin from another channel).
@@ -406,7 +453,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       setPinnedMessage(null)
       return
     }
+    // Re-authorize the pin after every successful socket reconnect, including
+    // role changes that disconnect the socket while retaining channel access.
+    if (connectionState !== 'connected') return
 
+    setPinnedMessage(null)
+    const generation = accessGeneration.current
+    let cancelled = false
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 12000)
 
@@ -421,14 +474,16 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         return response.json()
       })
       .then((message: PinnedMessage | null) => {
+        if (cancelled || !isCurrent(generation)) return
         // Defence in depth: only a pin of THIS channel is shown.
         setPinnedMessage(message && message.channelId === channelId ? message : null)
       })
       .catch(() => {
         clearTimeout(timeoutId)
-        setPinnedMessage(null)
+        if (!cancelled && isCurrent(generation)) setPinnedMessage(null)
       })
-  }, [apiUrl, clubId, teamId, token, channelId])
+    return () => { cancelled = true; clearTimeout(timeoutId); controller.abort() }
+  }, [apiUrl, clubId, teamId, token, channelId, isCurrent, connectionState])
 
   // Send message
   const sendMessage = useCallback(
@@ -440,6 +495,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     ): Promise<boolean> => {
       const isAnnouncement = options?.isAnnouncement === true
       const socket = socketRef.current
+      const generation = accessGeneration.current
+      if (!isCurrent(generation)) return Promise.resolve(false)
       const trimmed = content.trim()
 
       if (!trimmed) {
@@ -537,6 +594,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
             ...(replyToId ? { replyToId } : {}),
           },
           (...args: unknown[]) => {
+            if (socketRef.current !== socket || !isCurrent(generation)) { resolve(false); return }
             const { error, response } = normalizeMessageSendAck(args)
             if (error) {
               resolve(completePendingOutgoing(pendingKey, false, response))
@@ -558,7 +616,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         )
       })
     },
-    [teamId, channelId, userId, completePendingOutgoing],
+    [teamId, channelId, userId, completePendingOutgoing, isCurrent],
   )
 
   // Send typing indicator
@@ -572,6 +630,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
     const socket = socketRef.current
     if (!socket?.connected || !hasMore || loadingHistory || !channelId) return
 
+    const generation = accessGeneration.current
+    if (!isCurrent(generation)) return
     setLoadingHistory(true)
     const oldest = messages[0]
     const cursor = oldest?.createdAt
@@ -580,6 +640,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       'history',
       { teamId, channelId, cursor },
       (response: { data: { messages: ChatMessage[]; hasMore: boolean } }) => {
+        if (socketRef.current !== socket || !isCurrent(generation)) return
         if (response?.data) {
           setMessages((prev) => [...response.data.messages.map(normalizeChatMessage), ...prev])
           setHasMore(response.data.hasMore)
@@ -587,7 +648,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         setLoadingHistory(false)
       },
     )
-  }, [teamId, channelId, hasMore, loadingHistory, messages])
+  }, [teamId, channelId, hasMore, loadingHistory, messages, isCurrent])
 
   // Track scroll position
   const setIsAtBottom = useCallback(
@@ -606,13 +667,15 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
   const searchMessages = useCallback(
     (query: string): Promise<ChatMessage[]> => {
       const socket = socketRef.current
-      if (!socket?.connected || !query.trim()) return Promise.resolve([])
+      const generation = accessGeneration.current
+      if (!socket?.connected || !query.trim() || !isCurrent(generation)) return Promise.resolve([])
 
       return new Promise((resolve) => {
         socket.emit(
           'search',
           { teamId, query: query.trim() },
           (response: { data?: ChatMessage[] | { messages?: ChatMessage[] } }) => {
+            if (socketRef.current !== socket || !isCurrent(generation)) { resolve([]); return }
             // The gateway answers { event, data: { messages } }; older builds
             // returned the array directly. Accept both.
             const data = response?.data
@@ -621,13 +684,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         )
       })
     },
-    [teamId],
+    [teamId, isCurrent],
   )
 
   // REST mutations layered on top of the realtime gateway.
   const callRest = useCallback(
     async (path: string, init?: { method?: string; body?: unknown }) => {
-      if (!token) return null
+      const generation = accessGeneration.current
+      if (!token || !isCurrent(generation)) return null
       // E2E/demo has no reachable backend; hitting it makes fetch reject. The
       // reaction/edit/delete handlers don't await this, so an unhandled
       // rejection would red-screen the app. Short-circuit in demo, and wrap the
@@ -644,18 +708,18 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         })
         if (!res.ok) return null
         const text = await res.text()
-        return text ? (JSON.parse(text) as ChatMessage) : null
+        return isCurrent(generation) && text ? (JSON.parse(text) as ChatMessage) : null
       } catch {
         return null
       }
     },
-    [apiUrl, token],
+    [apiUrl, token, isCurrent],
   )
 
   const patchMessage = useCallback((next: ChatMessage | null) => {
-    if (!next) return
+    if (!next || !isCurrent(renderGeneration)) return
     setMessages((prev) => prev.map((m) => (m.id === next.id ? { ...m, ...next } : m)))
-  }, [])
+  }, [isCurrent, renderGeneration])
 
   const reactToMessage = useCallback(
     async (messageId: string, emoji: string) => {
@@ -707,7 +771,8 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       content?: string
       replyToId?: string
     }): Promise<boolean> => {
-      if (!token || !channelId) return false
+      const generation = accessGeneration.current
+      if (!token || !channelId || !isCurrent(generation)) return false
       try {
         const res = await fetch(`${apiUrl}/teams/${teamId}/messages/media`, {
           method: 'POST',
@@ -722,6 +787,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         })
         if (!res.ok) return false
         const created = (await res.json()) as ChatMessage
+        if (!isCurrent(generation)) return false
         // The gateway also broadcasts it as chat:event 'media'; dedupe by id.
         setMessages((prev) => (prev.some((m) => m.id === created.id) ? prev : [...prev, created]))
         return true
@@ -729,13 +795,14 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         return false
       }
     },
-    [apiUrl, teamId, token, channelId],
+    [apiUrl, teamId, token, channelId, isCurrent],
   )
 
   /** Append a message this client created through REST (dedupes by id). */
   const appendMessage = useCallback((created: ChatMessage) => {
+    if (!isCurrent(renderGeneration) || (created.channelId && created.channelId !== channelId)) return
     setMessages((prev) => (prev.some((m) => m.id === created.id) ? prev : [...prev, created]))
-  }, [])
+  }, [isCurrent, renderGeneration, channelId])
 
   const fetchPollForMessage = useCallback(
     async (
@@ -750,18 +817,20 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       options: Array<{ id: string; label: string; votes: number }>
       myVoteOptionIds: string[]
     } | null> => {
-      if (!token) return null
+      const generation = accessGeneration.current
+      if (!token || !isCurrent(generation)) return null
       try {
         const res = await fetch(`${apiUrl}/messages/${messageId}/poll`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) return null
-        return (await res.json()) as Awaited<ReturnType<typeof fetchPollForMessage>>
+        const poll = await res.json()
+        return isCurrent(generation) ? poll as Awaited<ReturnType<typeof fetchPollForMessage>> : null
       } catch {
         return null
       }
     },
-    [apiUrl, token],
+    [apiUrl, token, isCurrent],
   )
 
   const fetchPoll = useCallback(
@@ -777,23 +846,25 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       options: Array<{ id: string; label: string; votes: number }>
       myVoteOptionIds: string[]
     } | null> => {
-      if (!token) return null
+      const generation = accessGeneration.current
+      if (!token || !isCurrent(generation)) return null
       try {
         const res = await fetch(`${apiUrl}/polls/${pollId}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) return null
-        return (await res.json()) as Awaited<ReturnType<typeof fetchPoll>>
+        const poll = await res.json()
+        return isCurrent(generation) ? poll as Awaited<ReturnType<typeof fetchPoll>> : null
       } catch {
         return null
       }
     },
-    [apiUrl, token],
+    [apiUrl, token, isCurrent],
   )
 
   const votePollOption = useCallback(
     async (pollId: string, optionId: string): Promise<void> => {
-      if (!token) return
+      if (!token || !isCurrent(accessGeneration.current)) return
       await fetch(`${apiUrl}/polls/${pollId}/vote`, {
         method: 'POST',
         headers: {
@@ -803,12 +874,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         body: JSON.stringify({ optionId }),
       })
     },
-    [apiUrl, token],
+    [apiUrl, token, isCurrent],
   )
 
   const pinMessage = useCallback(
     async (message: ChatMessage): Promise<void> => {
-      if (!token || !teamId) return
+      const generation = accessGeneration.current
+      if (!token || !teamId || !isCurrent(generation)) return
       const action = message.isPinned ? 'unpin' : 'pin'
       const response = await fetch(
         `${apiUrl}/clubs/${clubId}/teams/${teamId}/messages/${message.id}/${action}`,
@@ -816,6 +888,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
       )
       if (!response.ok) throw new Error(`Could not ${action} message`)
       const updated = (await response.json()) as ChatMessage
+      if (!isCurrent(generation)) return
       setPinnedMessage(
         message.isPinned
           ? null
@@ -825,12 +898,13 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         current.map((item) => ({ ...item, isPinned: item.id === (message.isPinned ? null : message.id) })),
       )
     },
-    [apiUrl, clubId, teamId, token, channelId],
+    [apiUrl, clubId, teamId, token, channelId, isCurrent],
   )
 
   const refreshHistory = useCallback(() => {
     const socket = socketRef.current
-    if (!socket?.connected || !channelId) return
+    const generation = accessGeneration.current
+    if (!socket?.connected || !channelId || !isCurrent(generation)) return
     socket.emit(
       'history',
       { teamId, channelId },
@@ -838,6 +912,7 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         event?: string
         data: { messages?: ChatMessage[]; hasMore?: boolean; message?: string }
       }) => {
+        if (socketRef.current !== socket || !isCurrent(generation)) return
         if (response?.data?.messages) {
           setMessages(response.data.messages.map(normalizeChatMessage))
           setMessagesOwnerKey(cacheKey)
@@ -845,10 +920,10 @@ export function useChat({ clubId, teamId, channelId, token, userId, apiUrl }: Us
         }
       },
     )
-  }, [cacheKey, teamId, channelId])
+  }, [cacheKey, teamId, channelId, isCurrent])
 
   return {
-    messages,
+    messages: messagesOwnerKey === cacheKey ? messages : [],
     pinnedMessage,
     connectionState,
     lastError,

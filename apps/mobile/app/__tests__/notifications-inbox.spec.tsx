@@ -20,6 +20,7 @@ jest.mock('../../src/api/client', () => ({
 }))
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => ({
+    user: { id: 'notification-reader' }, token: 'qa-session',
     activeClub: { club: { id: 'c1' } },
     memberships: [{ club: { id: 'c1' } }, { club: { id: 'c2' } }],
     setActiveClub: mockSetActiveClub,

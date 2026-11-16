@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import {
+  ClubOperationalRole,
   FreeAgentVisibility,
   MembershipRole,
   PlayerPosition,
@@ -84,6 +85,7 @@ describe('UsersService.updateClubMemberRole', () => {
     const prisma = {
       $executeRaw: jest.fn().mockResolvedValue(0),
       membership: {
+        count: jest.fn().mockResolvedValue(1),
         findUnique: jest.fn(),
         update: jest.fn(),
       },
@@ -257,6 +259,60 @@ describe('UsersService.updateClubMemberRole', () => {
     expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', {
       userId: 'staff-user',
     })
+  })
+})
+
+describe('UsersService.updateOperationalRoles hierarchy', () => {
+  function fixture(actorRole: MembershipRole, targetRole: MembershipRole, existing: ClubOperationalRole[] = []) {
+    const target = { userId: 'target', clubId: 'club', role: targetRole, operationalRoles: existing }
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      membership: {
+        findUnique: jest.fn().mockResolvedValueOnce({ role: actorRole }).mockResolvedValueOnce(target),
+        update: jest.fn().mockImplementation(async ({ data }) => ({ ...target, ...data })),
+      },
+    }
+    const prisma = { $transaction: jest.fn(async (write: (client: typeof tx) => unknown) => write(tx)) }
+    const events = { emit: jest.fn() }
+    const service = new UsersService(prisma as never, {} as never, {} as never, {} as never, {} as never, undefined, events as never)
+    return { tx, events, service }
+  }
+
+  it.each([MembershipRole.OWNER, MembershipRole.ADMIN])('prevents an admin changing operational roles of %s', async (targetRole) => {
+    const { tx, events, service } = fixture(MembershipRole.ADMIN, targetRole)
+    await expect(service.updateOperationalRoles('club', 'admin', 'target', [ClubOperationalRole.CAPTAIN]))
+      .rejects.toBeInstanceOf(ForbiddenException)
+    expect(tx.membership.update).not.toHaveBeenCalled()
+    expect(events.emit).not.toHaveBeenCalled()
+  })
+
+  it.each([ClubOperationalRole.SECRETARY, ClubOperationalRole.TREASURER])('prevents an admin removing owner-controlled %s', async (role) => {
+    const { tx, events, service } = fixture(MembershipRole.ADMIN, MembershipRole.PLAYER, [role, ClubOperationalRole.CAPTAIN])
+    await expect(service.updateOperationalRoles('club', 'admin', 'target', [ClubOperationalRole.CAPTAIN]))
+      .rejects.toBeInstanceOf(ForbiddenException)
+    expect(tx.membership.update).not.toHaveBeenCalled()
+    expect(events.emit).not.toHaveBeenCalled()
+  })
+
+  it.each([ClubOperationalRole.SECRETARY, ClubOperationalRole.TREASURER])('still prevents an admin assigning %s', async (role) => {
+    const { tx, service } = fixture(MembershipRole.ADMIN, MembershipRole.PLAYER)
+    await expect(service.updateOperationalRoles('club', 'admin', 'target', [role]))
+      .rejects.toBeInstanceOf(ForbiddenException)
+    expect(tx.membership.update).not.toHaveBeenCalled()
+  })
+
+  it('allows an owner to remove critical responsibilities from an administrator', async () => {
+    const { tx, events, service } = fixture(MembershipRole.OWNER, MembershipRole.ADMIN, [ClubOperationalRole.TREASURER])
+    await service.updateOperationalRoles('club', 'owner', 'target', [])
+    expect(tx.membership.update).toHaveBeenCalledWith(expect.objectContaining({ data: { operationalRoles: [] } }))
+    expect(events.emit).toHaveBeenCalledWith('realtime.access.changed', { userId: 'target' })
+  })
+
+  it('keeps ordinary operational role management available to administrators', async () => {
+    const { tx, service } = fixture(MembershipRole.ADMIN, MembershipRole.PLAYER, [ClubOperationalRole.CAPTAIN])
+    await service.updateOperationalRoles('club', 'admin', 'target', [ClubOperationalRole.TEAM_COORDINATOR])
+    expect(tx.membership.update).toHaveBeenCalledWith(expect.objectContaining({ data: { operationalRoles: [ClubOperationalRole.TEAM_COORDINATOR] } }))
+    expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.membership.findUnique.mock.invocationCallOrder[0])
   })
 })
 

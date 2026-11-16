@@ -1735,7 +1735,7 @@ const base = {
     addStaffHelp:
       'Invita un allenatore per una sola squadra. L’accesso da allenatore non concede l’amministrazione del club.',
     inviteCoach: 'Invita allenatore',
-    inviteCoachBody: 'Invia un invito personale via email e scegli il ruolo nella squadra.',
+    inviteCoachBody: "Invita gli allenatori via e-mail o condividi un link a scadenza con approvazione admin.",
     accessRequestsHint:
       'Solo la presidenza e gli amministratori possono approvare l’accesso al club o come allenatore.',
     noTeamRole: 'Nessun ruolo nella squadra',
@@ -1753,6 +1753,7 @@ const base = {
       'I ruoli del club controllano inviti, struttura del club e altri compiti amministrativi. Primo allenatore e vice allenatore sono comunque assegnati separatamente per ogni rosa.',
     teamAssignments: 'Squadre: {{teams}}',
     changeRoleCta: 'Cambia ruolo',
+    adminLimitHint: "Fino a 3 admin, incluso il titolare. I ruoli di giocatore e allenatore restano separati.",
     operationalRolesCta: 'Responsabilità',
     offboardCta: 'Rimuovi dallo staff',
     roleChoiceTitle: 'Ruolo per {{name}}',
@@ -3037,6 +3038,10 @@ const base = {
       optionA11y_other: '{{label}}, {{count}} voti',
     },
     info: {
+      closeGroup: "Chiudi gruppo",
+      closeGroupBody: "Il gruppo e la sua cronologia saranno nascosti a tutti e non sarà più possibile inviare messaggi. Non puoi annullare questa azione nell’app.",
+      closeGroupError: "Impossibile chiudere il gruppo. Riprova.",
+
       title: 'Info chat',
       dmTitle: 'Info contatto',
       mute: 'Silenzia',
@@ -3070,11 +3075,11 @@ const base = {
     new: {
       title: 'Nuova chat',
       search: 'Cerca per nome',
-      newGroup: 'Nuovo gruppo',
-      newGroupHint: 'Più persone in un’unica chat, per esempio per i passaggi in auto',
+      newGroup: "Stanza privata",
+      newGroupHint: "Solo le persone aggiunte possono leggere e accedere a questa stanza.",
       pickHint: 'Scegli chi deve far parte del gruppo.',
       addMembersTitle: 'Aggiungi membri',
-      groupTitle: 'Nuovo gruppo',
+      groupTitle: "Stanza privata",
       next: 'Avanti',
       create: 'Crea',
       groupName: 'Nome del gruppo',

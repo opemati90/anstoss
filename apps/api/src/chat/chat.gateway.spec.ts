@@ -9,6 +9,45 @@ jest.mock('../auth/otp/jwt.util', () => ({
 
 const mockedVerify = verifySessionToken as jest.Mock
 
+describe('private channel membership events', () => {
+  it('refreshes member inboxes and disconnects cached and live group sessions on close', async () => {
+    const memberSocket = { disconnect: jest.fn() }
+    const staleSocket = { disconnect: jest.fn() }
+    const prisma = { channelMember: { findMany: jest.fn().mockResolvedValue([{ userId: 'member-1' }]) } }
+    const gateway = new ChatGateway(prisma as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never, {} as never)
+    const emit = jest.fn()
+    const server = {
+      to: jest.fn(() => ({ emit })),
+      in: jest.fn((room: string) => ({ fetchSockets: jest.fn().mockResolvedValue(
+        room === 'user:member-1' ? [memberSocket] : [staleSocket],
+      ) })),
+    }
+    gateway.server = server as never
+    await gateway.onChannelClosed({ channelId: 'closed-group', clubId: 'club-1' })
+    expect(server.to).toHaveBeenCalledWith('user:member-1')
+    expect(emit).toHaveBeenCalledWith('inbox:update', { clubId: 'club-1' })
+    expect(memberSocket.disconnect).toHaveBeenCalledWith(true)
+    expect(staleSocket.disconnect).toHaveBeenCalledWith(true)
+  })
+  it.each(['removed', 'wrong-team', 'missing', 'allowed'])('revalidates %s membership before joining sockets', async scenario => {
+    const channels = { getChannelAccess: jest.fn() }
+    if (scenario === 'missing') channels.getChannelAccess.mockRejectedValue(new Error('not found'))
+    else channels.getChannelAccess.mockResolvedValue({ canRead: scenario !== 'removed',
+      channel: { teamId: scenario === 'wrong-team' ? 'another-team' : 'team-1' } })
+    const gateway = new ChatGateway({} as never, {} as never, {} as never, {} as never,
+      {} as never, channels as never, {} as never, {} as never)
+    const socket = { join: jest.fn() }
+    gateway.server = { in: jest.fn(() => ({ fetchSockets: jest.fn().mockResolvedValue([socket]) })) } as never
+    await gateway.onChannelMemberAdded({ userId: 'user-1', teamId: 'team-1', channelId: 'private-1' })
+    expect(channels.getChannelAccess).toHaveBeenCalledWith('user-1', 'private-1')
+    if (scenario === 'allowed') expect(socket.join.mock.calls).toEqual([
+      ['channel:private-1'], ['team:team-1:channel:private-1'],
+    ])
+    else expect(socket.join).not.toHaveBeenCalled()
+  })
+})
+
 describe('ChatGateway.handleConnection (auth)', () => {
   let gateway: ChatGateway
   let mockPrisma: any

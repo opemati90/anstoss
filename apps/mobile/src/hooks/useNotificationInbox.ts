@@ -4,15 +4,35 @@ import type { InboxNotification, InboxNotificationPage } from '@anstoss/shared'
 import { api } from '../api/client'
 import { subscribeNotifications } from '../lib/notificationEvents'
 import { useForegroundRefresh } from './useForegroundRefresh'
+import { useAuth } from '../context/AuthContext'
 
 const POLL_MS = 15_000
+class InvalidNotificationPageError extends Error {
+  constructor() { super('Invalid notification inbox response'); this.name = 'InvalidNotificationPageError' }
+}
 
 // The bell and the inbox screen live in different navigators; the screen
 // publishes the new unread count here so the dot clears without a refetch.
-type Listener = (count: number) => void
+type Listener = (scope: string, count: number) => void
 const listeners = new Set<Listener>()
-function publishUnread(count: number) {
-  listeners.forEach((listener) => listener(count))
+function publishUnread(scope: string, count: number) {
+  listeners.forEach((listener) => listener(scope, count))
+}
+
+/** In-memory only: no response or broadcast may cross a login boundary. */
+function useInboxScope() {
+  const { user, token } = useAuth()
+  const key = JSON.stringify([user?.id, token])
+  const generation = useRef({ key })
+  if (generation.current.key !== key) generation.current = { key }
+  const scope = generation.current
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const current = useCallback(() => mounted.current && generation.current === scope, [scope])
+  return { scope, current, enabled: !!user?.id }
 }
 
 /**
@@ -21,19 +41,27 @@ function publishUnread(count: number) {
  * the inbox screen.
  */
 export function useInboxUnreadCount(enabled = true): { unreadCount: number; refresh: () => void } {
+  const { scope, current, enabled: signedIn } = useInboxScope()
   const [unreadCount, setUnreadCount] = useState(0)
+  const valueScope = useRef(scope)
+  const sequence = useRef(0)
 
   const refresh = useCallback(() => {
     // React Native may not have resolved AppState yet on a cold launch.
     // Still load the initial count; only known background states suppress it.
-    if (!enabled || AppState.currentState === 'background' || AppState.currentState === 'inactive')
+    if (!enabled || !signedIn || !current() || AppState.currentState === 'background' || AppState.currentState === 'inactive')
       return
+    const request = ++sequence.current
     void api<{ unreadCount: number }>('/me/notifications/unread-count')
-      .then((res) => setUnreadCount(res?.unreadCount ?? 0))
+      .then((res) => {
+        if (current() && request === sequence.current) setUnreadCount(res?.unreadCount ?? 0)
+      })
       .catch(() => {})
-  }, [enabled])
+  }, [enabled, signedIn, current])
 
   useEffect(() => {
+    valueScope.current = scope
+    setUnreadCount(0)
     refresh()
     const unsubscribe = subscribeNotifications(refresh)
     const timer = setInterval(refresh, POLL_MS)
@@ -41,15 +69,20 @@ export function useInboxUnreadCount(enabled = true): { unreadCount: number; refr
       clearInterval(timer)
       unsubscribe()
     }
-  }, [refresh])
+  }, [refresh, scope])
 
   useEffect(() => {
-    const listener: Listener = (count) => setUnreadCount(count)
+    const listener: Listener = (key, count) => {
+      if (enabled && signedIn && current() && key === scope.key) {
+        sequence.current += 1
+        setUnreadCount(count)
+      }
+    }
     listeners.add(listener)
     return () => {
       listeners.delete(listener)
     }
-  }, [])
+  }, [scope, enabled, signedIn, current])
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
@@ -58,11 +91,16 @@ export function useInboxUnreadCount(enabled = true): { unreadCount: number; refr
     return () => sub.remove()
   }, [refresh])
 
-  return { unreadCount, refresh }
+  return { unreadCount: enabled && signedIn && valueScope.current === scope ? unreadCount : 0, refresh }
 }
 
 /** Paged inbox list with mark-read helpers (screen 09 Mitteilungen). */
 export function useNotificationInbox() {
+  const { scope, current, enabled } = useInboxScope()
+  const valueScope = useRef(scope)
+  const sequence = useRef(0)
+  const mutations = useRef({ scope, count: 0 })
+  if (mutations.current.scope !== scope) mutations.current = { scope, count: 0 }
   const [items, setItems] = useState<InboxNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -72,14 +110,18 @@ export function useNotificationInbox() {
   const cursorRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!loading) publishUnread(unreadCount)
-  }, [loading, unreadCount])
+    if (!loading && enabled && valueScope.current === scope) publishUnread(scope.key, unreadCount)
+  }, [loading, unreadCount, scope, enabled])
 
   const load = useCallback(async (mode: 'initial' | 'refresh' | 'background') => {
+    if (!enabled || !current() || mutations.current.count > 0) return
+    const request = ++sequence.current
     if (mode === 'refresh') setRefreshing(true)
     setError(false)
     try {
       const page = await api<InboxNotificationPage>('/me/notifications?limit=30')
+      if (!page || !Array.isArray(page.items)) throw new InvalidNotificationPageError()
+      if (!current() || request !== sequence.current) return
       if (mode === 'background') {
         // Keep already-paginated history and its cursor while adding arrivals.
         setItems((previous) => {
@@ -92,27 +134,39 @@ export function useNotificationInbox() {
       }
       setUnreadCount(page.unreadCount)
     } catch {
-      setError(true)
+      if (current() && request === sequence.current) setError(true)
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (current() && request === sequence.current) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
-  }, [])
+  }, [enabled, current])
 
   useEffect(() => {
+    valueScope.current = scope
+    cursorRef.current = null
+    setItems([])
+    setUnreadCount(0)
+    setLoading(enabled)
+    setLoadingMore(false)
+    setRefreshing(false)
+    setError(false)
     void load('initial')
-  }, [load])
+  }, [load, scope, enabled])
 
-  useForegroundRefresh(useCallback(() => load('background'), [load]))
+  useForegroundRefresh(useCallback(() => load('background'), [load]), enabled)
 
   const loadMore = useCallback(async () => {
     const cursor = cursorRef.current
-    if (!cursor || loadingMore) return
+    if (!enabled || !current() || mutations.current.count > 0 || !cursor || loadingMore) return
+    const request = sequence.current
     setLoadingMore(true)
     try {
       const page = await api<InboxNotificationPage>(
         `/me/notifications?limit=30&cursor=${encodeURIComponent(cursor)}`,
       )
+      if (!current() || request !== sequence.current) return
       cursorRef.current = page.nextCursor
       setItems((prev) => {
         const seen = new Set(prev.map((n) => n.id))
@@ -121,11 +175,17 @@ export function useNotificationInbox() {
     } catch {
       // Keep what is shown; the next scroll retries.
     } finally {
-      setLoadingMore(false)
+      if (current()) setLoadingMore(false)
     }
-  }, [loadingMore])
+  }, [loadingMore, enabled, current])
 
   const markRead = useCallback(async (id: string) => {
+    if (!enabled || !current()) return
+    const writes = mutations.current
+    writes.count += 1
+    const request = ++sequence.current
+    setRefreshing(false)
+    setLoading(false)
     const now = new Date().toISOString()
     setItems((prev) => prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: now } : n)))
     setUnreadCount((n) => Math.max(0, n - 1))
@@ -133,27 +193,39 @@ export function useNotificationInbox() {
       const res = await api<{ unreadCount: number }>(`/me/notifications/${id}/read`, {
         method: 'POST',
       })
-      setUnreadCount(res.unreadCount)
+      if (current() && request === sequence.current) setUnreadCount(res.unreadCount)
     } catch {
       // Optimistic; the next refresh corrects the count.
+    } finally {
+      writes.count -= 1
+      if (current() && writes.count === 0) void load('background')
     }
-  }, [])
+  }, [enabled, current, load])
 
   const markAllRead = useCallback(async () => {
+    if (!enabled || !current()) return
+    const writes = mutations.current
+    writes.count += 1
+    sequence.current += 1
+    setRefreshing(false)
+    setLoading(false)
     const now = new Date().toISOString()
     setItems((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: now })))
     setUnreadCount(0)
     try {
       await api('/me/notifications/read-all', { method: 'POST' })
     } catch {
-      void load('refresh')
+      // The canonical refresh below also recovers failed optimistic writes.
+    } finally {
+      writes.count -= 1
+      if (current() && writes.count === 0) void load('background')
     }
-  }, [load])
+  }, [load, enabled, current])
 
   return {
-    items,
-    unreadCount,
-    loading,
+    items: enabled && valueScope.current === scope ? items : [],
+    unreadCount: enabled && valueScope.current === scope ? unreadCount : 0,
+    loading: enabled && (valueScope.current !== scope || loading),
     refreshing,
     loadingMore,
     error,

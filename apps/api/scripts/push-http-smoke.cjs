@@ -74,12 +74,12 @@ async function main() {
       422,
     )
     const push = app.get(PushService)
+    const registrations = []
     for (const [index, id] of ids.entries()) {
       const platform = index % 2 ? 'android' : 'ios'
-      assert.equal(
-        (await request(id, '/push/register', 'POST', { token: tokens[index], platform })).status,
-        201,
-      )
+      const registered = await request(id, '/push/register', 'POST', { token: tokens[index], platform, registration: null })
+      assert.equal(registered.status, 201)
+      registrations.push((await registered.json()).registration)
       await push.sendToUserLocalized(
         id,
         'JOIN_APPROVED',
@@ -112,10 +112,20 @@ async function main() {
       })
     }
     // Token reassignment is single-owner; old-account logout must not delete it.
-    await request(ids[1], '/push/register', 'POST', { token: tokens[0], platform: 'ios' })
-    await request(ids[0], '/push/unregister', 'DELETE', { token: tokens[0] })
+    const reassigned = await request(ids[1], '/push/register', 'POST', { token: tokens[0], platform: 'ios', registration: registrations[0] })
+    assert.equal(reassigned.status, 201)
+    const lease = (await reassigned.json()).registration
+    await request(ids[0], '/push/unregister', 'DELETE', { token: tokens[0], registration: registrations[0] })
     assert.equal((await db.pushToken.findUnique({ where: { token: tokens[0] } })).userId, ids[1])
-    await request(ids[1], '/push/unregister', 'DELETE', { token: tokens[0] })
+    const stale = await request(ids[0], '/push/register', 'POST', { token: tokens[0], platform: 'ios', registration: null })
+    assert.equal(stale.status, 409)
+    assert.deepEqual(await stale.json(), { code: 'push_registration_changed', registration: lease })
+    const renewed = await request(ids[1], '/push/register', 'POST', { token: tokens[0], platform: 'ios', registration: lease })
+    assert.equal(renewed.status, 201)
+    const next = (await renewed.json()).registration
+    await request(ids[1], '/push/unregister', 'DELETE', { token: tokens[0], registration: lease })
+    assert.equal((await db.pushToken.findUnique({ where: { token: tokens[0] } })).updatedAt.toISOString(), next.updatedAt)
+    await request(ids[1], '/push/unregister', 'DELETE', { token: tokens[0], registration: next })
     assert.equal(await db.pushToken.findUnique({ where: { token: tokens[0] } }), null)
     console.log(
       'PASS: player/coach/free-agent/admin registration, Expo payload transport, inbox, ownership, read state, token reassignment and logout. Physical delivery NOT tested.',

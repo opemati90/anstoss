@@ -1720,7 +1720,7 @@ const base = {
     addStaffHelp:
       'Convida um treinador para uma equipa específica. O acesso de treinador não dá acesso à administração do clube.',
     inviteCoach: 'Convidar treinador',
-    inviteCoachBody: 'Envia um convite pessoal por e-mail e escolhe a função na equipa.',
+    inviteCoachBody: "Convida treinadores por e-mail ou partilha um link temporário sujeito a aprovação admin.",
     accessRequestsHint:
       'Só a direção e os administradores podem aprovar acessos ao clube ou de treinador.',
     noTeamRole: 'Sem função na equipa',
@@ -1738,6 +1738,7 @@ const base = {
       'Os cargos do clube controlam os convites, a estrutura do clube e outras tarefas administrativas. Os treinadores principais e adjuntos continuam a ser atribuídos em separado, equipa a equipa.',
     teamAssignments: 'Equipas: {{teams}}',
     changeRoleCta: 'Alterar cargo',
+    adminLimitHint: "Até 3 admins, incluindo o proprietário. Os papéis de jogador e treinador mantêm-se separados.",
     operationalRolesCta: 'Responsabilidades',
     offboardCta: 'Retirar da estrutura do clube',
     roleChoiceTitle: 'Cargo para {{name}}',
@@ -3022,6 +3023,10 @@ const base = {
       optionA11y_other: '{{label}}, {{count}} votos',
     },
     info: {
+      closeGroup: "Fechar grupo",
+      closeGroupBody: "O grupo e o histórico ficam ocultos para todos e deixam de aceitar mensagens. Esta ação não pode ser anulada na app.",
+      closeGroupError: "Não foi possível fechar o grupo. Tenta novamente.",
+
       title: 'Informações da conversa',
       dmTitle: 'Informações do contacto',
       mute: 'Silenciar',
@@ -3055,11 +3060,11 @@ const base = {
     new: {
       title: 'Nova conversa',
       search: 'Pesquisar por nome',
-      newGroup: 'Novo grupo',
-      newGroupHint: 'Várias pessoas numa só conversa, por exemplo para boleias',
+      newGroup: "Sala privada",
+      newGroupHint: "Só as pessoas adicionadas podem ler e aceder a esta sala.",
       pickHint: 'Escolhe quem deve fazer parte do grupo.',
       addMembersTitle: 'Adicionar membros',
-      groupTitle: 'Novo grupo',
+      groupTitle: "Sala privada",
       next: 'Seguinte',
       create: 'Criar',
       groupName: 'Nome da secção',

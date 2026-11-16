@@ -56,6 +56,7 @@ export type ChannelAccessResult = {
     kind: ChannelKind
     name: string
     description: string | null
+    archivedAt?: Date | null
     visibility: ChannelVisibility
     createdAt: Date
     updatedAt: Date
@@ -571,7 +572,7 @@ export class ChannelsService {
     }
 
     const now = new Date()
-    return channels.filter((c) => !removedChannels.has(c.id)).map((c) => {
+    return channels.filter((c) => !c.archivedAt && !removedChannels.has(c.id)).map((c) => {
       const last = c.messages?.[0]
       const mute = muteByChannel.get(c.id)
       const muted = isMuteActive(mute ?? null, now)
@@ -584,7 +585,8 @@ export class ChannelsService {
         name: c.name,
         description: c.description,
         visibility: c.visibility as ChannelVisibility,
-        canWrite: !suspendedChannels.has(c.id) && canWriteFor(c),
+        archivedAt: c.archivedAt?.toISOString() ?? null,
+        canWrite: !c.archivedAt && !suspendedChannels.has(c.id) && canWriteFor(c),
         unreadCount: unreadByChannel.get(c.id) ?? 0,
         lastMessage: last
           ? {
@@ -795,18 +797,19 @@ export class ChannelsService {
     clubId: string,
     teamId: string,
     userIds: string[],
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<void> {
     if (userIds.length === 0) return
     const [memberships, teamRows, guardianRows] = await Promise.all([
-      this.prisma.membership.findMany({
+      db.membership.findMany({
         where: { clubId, userId: { in: userIds } },
         select: { userId: true, role: true },
       }),
-      this.prisma.teamAccess.findMany({
+      db.teamAccess.findMany({
         where: { teamId, userId: { in: userIds }, ...activeTeamAccessWhere() },
         select: { userId: true },
       }),
-      this.prisma.guardianRelationship.findMany({
+      db.guardianRelationship.findMany({
         where: { clubId, teamId, parentUserId: { in: userIds } },
         select: { parentUserId: true },
       }),
@@ -839,29 +842,31 @@ export class ChannelsService {
     teamId: string | null,
     memberIds: string[],
     failureCode?: string,
+    db: Prisma.TransactionClient = this.prisma,
+    inactiveSupervisorIds: ReadonlySet<string> = new Set(),
   ): Promise<void> {
     const ids = Array.from(new Set(memberIds))
     if (ids.length < 2) return
     const [users, memberships, teamRows, guardianLinks, consents] = await Promise.all([
-      this.prisma.user.findMany({
+      db.user.findMany({
         where: { id: { in: ids }, deletedAt: null },
         select: { id: true, dateOfBirth: true, managedById: true, adultConfirmedAt: true },
       }),
-      this.prisma.membership.findMany({
+      db.membership.findMany({
         where: { clubId, userId: { in: ids } },
         select: { userId: true, role: true, operationalRoles: true },
       }),
       teamId
-        ? this.prisma.teamAccess.findMany({
+        ? db.teamAccess.findMany({
             where: { teamId, userId: { in: ids }, ...activeTeamAccessWhere() },
             select: { userId: true, role: true },
           })
         : Promise.resolve([] as Array<{ userId: string; role: string }>),
-      this.prisma.guardianRelationship.findMany({
+      db.guardianRelationship.findMany({
         where: { clubId, parentUserId: { in: ids }, playerUserId: { in: ids } },
         select: { parentUserId: true, playerUserId: true },
       }),
-      this.prisma.parentalConsent.findMany({
+      db.parentalConsent.findMany({
         where: {
           clubId,
           status: 'APPROVED',
@@ -902,13 +907,14 @@ export class ChannelsService {
       users: users ?? [],
       staffIds,
       guardianPairs,
+      inactiveSupervisorIds,
     })
     if (!decision.ok) throw new BadRequestException(failureCode ?? decision.code)
   }
 
   /** Under-16 or unverified age (the safeguarding rule treats both as minors). */
-  private async isMinorOrUnknown(userId: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
+  private async isMinorOrUnknown(userId: string, db: Prisma.TransactionClient = this.prisma): Promise<boolean> {
+    const user = await db.user.findUnique({
       where: { id: userId },
       select: { id: true, dateOfBirth: true, managedById: true, adultConfirmedAt: true },
     })
@@ -934,7 +940,7 @@ export class ChannelsService {
     return {
       ...result,
       canRead: !restriction?.removed,
-      canWrite: result.canWrite && !restriction?.removed && !restriction?.postingSuspended,
+      canWrite: result.canWrite && !result.channel.archivedAt && !restriction?.removed && !restriction?.postingSuspended,
       postingSuspended: restriction?.postingSuspended ?? false,
       isManager: result.isManager && !restriction?.removed && !restriction?.postingSuspended,
     }
@@ -951,6 +957,7 @@ export class ChannelsService {
       access: { membership: null, activeTeamAccess: [] },
       isManager: false,
     }
+    if (channel.archivedAt) return base
 
     if (channel.kind === 'CUSTOM') {
       const [member, membership] = await Promise.all([
@@ -1062,8 +1069,9 @@ export class ChannelsService {
     return {
       ...rest,
       memberCount,
-      canManageMembers: row.kind === 'CUSTOM' && result.isManager,
-      canModerateMembers: result.isManager && this.isAdmin(result.access),
+      canManageMembers: !row.archivedAt && row.kind === 'CUSTOM' && result.isManager,
+      canModerateMembers: !row.archivedAt && result.isManager && this.isAdmin(result.access),
+      canClose: !row.archivedAt && row.kind === 'CUSTOM' && result.isManager && this.isAdmin(result.access),
     }
   }
 
@@ -1236,6 +1244,122 @@ export class ChannelsService {
       (actorRole === 'OWNER' || (actorRole === 'ADMIN' && targetRole !== 'ADMIN'))
   }
 
+  /** Serialize safety decisions and membership writes for each room. */
+  private async lockChannelMembers(
+    tx: Prisma.TransactionClient,
+    channelId: string,
+    clubId: string,
+    actorId: string,
+    requireMember: boolean,
+    allowArchived = false,
+  ): Promise<AccessCtx> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-members:${channelId}`}))`
+    // Authorization may have completed before another manager removed or
+    // suspended this actor. Recheck room access after acquiring the lock.
+    const actor = await tx.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId: actorId } },
+      select: { removed: true, postingSuspended: true },
+    })
+    if ((requireMember && !actor) || actor?.removed || actor?.postingSuspended) {
+      throw new ForbiddenException('You cannot manage this channel')
+    }
+    if (!allowArchived) await this.assertChannelOpen(tx, channelId)
+    const channel = await tx.channel.findUnique({ where: { id: channelId }, select: { teamId: true } })
+    const membership = await tx.membership.findFirst({ where: { userId: actorId, clubId }, select: { role: true } })
+    if (!membership) throw new ForbiddenException('You cannot manage this channel')
+    const activeTeamAccess = await tx.teamAccess.findMany({
+      where: { clubId, userId: actorId, ...(channel?.teamId ? { teamId: channel.teamId } : {}), ...activeTeamAccessWhere() },
+      select: { role: true },
+    })
+    return { membership, activeTeamAccess }
+  }
+
+  private async assertChannelOpen(tx: Prisma.TransactionClient, channelId: string): Promise<void> {
+    const channel = await tx.channel.findUnique({ where: { id: channelId }, select: { archivedAt: true } })
+    if (!channel) throw new NotFoundException('Channel not found')
+    if (channel.archivedAt) throw new ForbiddenException('This group is closed')
+  }
+
+  /** Keep publication atomic with closing a room. Caller still checks access. */
+  async withOpenChannel<T>(
+    channelId: string | null | undefined,
+    write: (tx: Prisma.TransactionClient) => Promise<T>,
+    actor?: { userId: string; interaction?: boolean; requireManager?: boolean; allowSuspended?: boolean },
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      if (channelId) {
+        const channel = await tx.channel.findUnique({ where: { id: channelId } })
+        if (!channel) throw new NotFoundException('Channel not found')
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${channel.clubId}`}))`
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel-members:${channelId}`}))`
+        await this.assertChannelOpen(tx, channelId)
+        if (actor) {
+          const member = await tx.channelMember.findUnique({
+            where: { channelId_userId: { channelId, userId: actor.userId } },
+            select: { removed: true, postingSuspended: true },
+          })
+          if ((channel.kind === 'CUSTOM' && !member) || member?.removed ||
+            (member?.postingSuspended && !actor.allowSuspended)) {
+            throw new ForbiddenException('You cannot post to this channel')
+          }
+          const membership = await tx.membership.findFirst({
+            where: { clubId: channel.clubId, userId: actor.userId }, select: { role: true },
+          })
+          const activeTeamAccess = await tx.teamAccess.findMany({
+            where: { clubId: channel.clubId, userId: actor.userId,
+              ...(channel.teamId ? { teamId: channel.teamId } : {}), ...activeTeamAccessWhere() },
+            select: { role: true },
+          })
+          if (channel.teamId) {
+            // Reuse the authoritative team rules with transaction-bound reads:
+            // ordinary membership alone does not grant access to every team.
+            await this.teamsService.assertReadableAccess(actor.userId, channel.teamId, {}, tx)
+          }
+          const access = { membership, activeTeamAccess }
+          const manager = channel.kind === 'CUSTOM' ? this.isTeamStaff(access)
+            : channel.teamId ? this.isCoach(access) || this.isAdmin(access) : this.isAdmin(access)
+          if (!membership || !this.userMayRead(channel.visibility as ChannelVisibility, access) ||
+            (actor.requireManager && !manager) ||
+            (!actor.interaction && !this.userMayWrite(channel, access))) {
+            throw new ForbiddenException('You cannot post to this channel')
+          }
+        }
+      }
+      return write(tx)
+    })
+  }
+
+  async closeChannel(userId: string, clubId: string, channelId: string): Promise<{ archivedAt: string }> {
+    const access = await this.assertClubChannel(userId, clubId, channelId)
+    if (access.channel.kind !== 'CUSTOM') throw new BadRequestException('Only private groups can be closed')
+    const result = await this.prisma.$transaction(async (tx) => {
+      await this.lockChannelMembers(tx, channelId, clubId, userId, true, true)
+      const membership = await tx.membership.findUnique({
+        where: { userId_clubId: { userId, clubId } }, select: { role: true },
+      })
+      if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
+        throw new ForbiddenException('Only club admins can close a group')
+      }
+      const channel = await tx.channel.findUnique({ where: { id: channelId } })
+      if (!channel || channel.clubId !== clubId || channel.kind !== 'CUSTOM') {
+        throw new NotFoundException('Channel not found')
+      }
+      if (channel.archivedAt) return { archivedAt: channel.archivedAt, changed: false }
+      const archivedAt = new Date()
+      await tx.channel.update({ where: { id: channelId }, data: { archivedAt } })
+      await tx.auditLog.create({ data: {
+        clubId, type: 'CHAT_GROUP_CLOSED', actorType: 'user', actorId: userId,
+        summary: 'Private group closed', metadata: { channelId },
+      } })
+      return { archivedAt, changed: true }
+    })
+    if (result.changed) {
+      this.eventEmitter.emit('channel.closed', { channelId, clubId, teamId: access.channel.teamId })
+    }
+    return { archivedAt: result.archivedAt.toISOString() }
+  }
+
   async moderateChannelMember(
     userId: string,
     clubId: string,
@@ -1252,30 +1376,46 @@ export class ChannelsService {
     if (!this.mayModerateTarget(userId, result.access.membership?.role, targetUserId, target.access.membership?.role)) {
       throw new ForbiddenException('You cannot moderate this member')
     }
-    if (result.channel.kind === 'CUSTOM' && (action === 'restore' ||
-      (action === 'remove' && !(await this.isMinorOrUnknown(targetUserId))))) {
-      const current = await this.prisma.channelMember.findMany({
-        where: { channelId, removed: false }, select: { userId: true },
-      })
-      const remaining = current.map((member) => member.userId).filter((id) => id !== targetUserId)
-      await this.assertGroupSafeguarding(clubId, result.channel.teamId,
-        action === 'restore' ? [...remaining, targetUserId] : remaining,
-        'GROUP_REMOVE_BREAKS_SAFEGUARD')
-    }
-    // Restore removes only restrictions. Base eligibility is still required;
-    // it cannot rejoin a club/team or manufacture access to a custom group.
-    const data = { removed: action === 'remove', postingSuspended: action === 'suspend' }
-    await this.prisma.$transaction([
-      this.prisma.channelMember.upsert({
+    await this.prisma.$transaction(async (tx) => {
+      const actor = await this.lockChannelMembers(tx, channelId, clubId, userId, result.channel.kind === 'CUSTOM')
+      const currentTarget = await tx.membership.findFirst({ where: { userId: targetUserId, clubId }, select: { role: true } })
+      if (!this.isAdmin(actor) || !this.mayModerateTarget(userId, actor.membership?.role, targetUserId, currentTarget?.role)) {
+        throw new ForbiddenException('You cannot moderate this member')
+      }
+      if (result.channel.kind === 'CUSTOM') {
+        const targetMember = await tx.channelMember.findUnique({
+          where: { channelId_userId: { channelId, userId: targetUserId } },
+          select: { userId: true },
+        })
+        if (!targetMember) throw new NotFoundException('Channel member not found')
+        const current = await tx.channelMember.findMany({
+          where: { channelId, removed: false },
+          select: { userId: true, postingSuspended: true },
+        })
+        const remaining = current.filter((member) => member.userId !== targetUserId)
+        const resulting = action === 'remove' ? remaining : [
+          ...remaining, { userId: targetUserId, postingSuspended: action === 'suspend' },
+        ]
+        // A suspended member still reads the room, but cannot supervise it.
+        // Removing a minor cannot weaken the existing safety guarantee.
+        if (action !== 'remove' || !(await this.isMinorOrUnknown(targetUserId, tx))) {
+          await this.assertGroupSafeguarding(clubId, result.channel.teamId,
+            resulting.map((member) => member.userId), 'GROUP_REMOVE_BREAKS_SAFEGUARD', tx,
+            new Set(resulting.filter((member) => member.postingSuspended).map((member) => member.userId)))
+        }
+      }
+      // Restore removes only restrictions, never base membership requirements.
+      const data = { removed: action === 'remove', postingSuspended: action === 'suspend' }
+      await tx.channelMember.upsert({
         where: { channelId_userId: { channelId, userId: targetUserId } },
         create: { channelId, userId: targetUserId, ...data }, update: data,
-      }),
-      this.prisma.auditLog.create({ data: {
+      })
+      await tx.auditLog.create({ data: {
         clubId, type: 'CHAT_MEMBER_MODERATED', actorType: 'user', actorId: userId,
         summary: `Chat member ${action}`,
         metadata: { channelId, targetUserId, action },
-      } }),
-    ])
+      } })
+    })
     this.eventEmitter.emit('realtime.access.changed', { userId: targetUserId })
     return { status: action === 'remove' ? 'removed' : action === 'suspend' ? 'suspended' : 'active' }
   }
@@ -1321,24 +1461,37 @@ export class ChannelsService {
       throw new BadRequestException('Legacy club-wide groups cannot take new members')
     }
     const targets = Array.from(new Set(userIds.filter(Boolean)))
-    await this.assertEligibleGroupMembers(clubId, teamId, targets)
-    // B1: the group as it would be after the add must still be safe.
-    const current = await this.prisma.channelMember.findMany({
-      where: { channelId },
-      select: { userId: true },
+    const addedIds = await this.prisma.$transaction(async (tx) => {
+      const actor = await this.lockChannelMembers(tx, channelId, clubId, userId, true)
+      if (!this.isTeamStaff(actor)) throw new ForbiddenException('Only managers can add members')
+      await this.assertEligibleGroupMembers(clubId, teamId, targets, tx)
+      const current = await tx.channelMember.findMany({
+        where: { channelId },
+        select: { userId: true, removed: true, postingSuspended: true },
+      })
+      if (current.some((member) => targets.includes(member.userId) &&
+        (member.removed || member.postingSuspended))) {
+        throw new ForbiddenException('An admin must restore moderated chat access first')
+      }
+      const existing = new Set(current.map((member) => member.userId))
+      const additions = targets.filter((id) => !existing.has(id))
+      const active = current.filter((member) => !member.removed)
+      await this.assertGroupSafeguarding(clubId, teamId,
+        [...active.map((member) => member.userId), ...additions], undefined, tx,
+        new Set(active.filter((member) => member.postingSuspended).map((member) => member.userId)))
+      if (additions.length) {
+        // The lock makes this set exact. A conflicting external insertion must
+        // roll back rather than publishing an event for an uninserted row.
+        await tx.channelMember.createMany({
+          data: additions.map((id) => ({ channelId, userId: id })),
+        })
+      }
+      return additions
     })
-    await this.assertGroupSafeguarding(clubId, teamId, [
-      ...(current ?? []).map((m) => m.userId),
-      ...targets,
-    ])
-    const created = await this.prisma.channelMember.createMany({
-      data: targets.map((id) => ({ channelId, userId: id })),
-      skipDuplicates: true,
-    })
-    for (const id of targets) {
+    for (const id of addedIds) {
       this.eventEmitter.emit('channel.member.added', { userId: id, teamId, channelId })
     }
-    return { added: created?.count ?? targets.length }
+    return { added: addedIds.length }
   }
 
   async removeChannelMember(
@@ -1355,30 +1508,28 @@ export class ChannelsService {
     if (userId !== targetUserId && !result.isManager) {
       throw new ForbiddenException('Only managers can remove members')
     }
-    const restriction = await this.prisma.channelMember.findUnique({
-      where: { channelId_userId: { channelId, userId: targetUserId } },
-      select: { removed: true, postingSuspended: true },
-    })
-    if (restriction?.removed || restriction?.postingSuspended) {
-      throw new ForbiddenException('An admin must restore moderated chat access first')
-    }
-    // B1: removing a minor never weakens safeguarding; removing anyone else
-    // must leave a group that still passes the rule (e.g. the second staff
-    // adult cannot leave a group with an under-16 in it).
-    if (!(await this.isMinorOrUnknown(targetUserId))) {
-      const current = await this.prisma.channelMember.findMany({
-        where: { channelId },
-        select: { userId: true },
+    await this.prisma.$transaction(async (tx) => {
+      const actor = await this.lockChannelMembers(tx, channelId, clubId, userId, true)
+      if (userId !== targetUserId && !this.isTeamStaff(actor)) throw new ForbiddenException('Only managers can remove members')
+      const restriction = await tx.channelMember.findUnique({
+        where: { channelId_userId: { channelId, userId: targetUserId } },
+        select: { removed: true, postingSuspended: true },
       })
-      const remaining = (current ?? []).map((m) => m.userId).filter((id) => id !== targetUserId)
-      await this.assertGroupSafeguarding(
-        clubId,
-        result.channel.teamId,
-        remaining,
-        'GROUP_REMOVE_BREAKS_SAFEGUARD',
-      )
-    }
-    await this.prisma.channelMember.deleteMany({ where: { channelId, userId: targetUserId } })
+      if (restriction?.removed || restriction?.postingSuspended) {
+        throw new ForbiddenException('An admin must restore moderated chat access first')
+      }
+      if (!(await this.isMinorOrUnknown(targetUserId, tx))) {
+        const current = await tx.channelMember.findMany({
+          where: { channelId, removed: false },
+          select: { userId: true, postingSuspended: true },
+        })
+        const remaining = current.filter((member) => member.userId !== targetUserId)
+        await this.assertGroupSafeguarding(clubId, result.channel.teamId,
+          remaining.map((member) => member.userId), 'GROUP_REMOVE_BREAKS_SAFEGUARD', tx,
+          new Set(remaining.filter((member) => member.postingSuspended).map((member) => member.userId)))
+      }
+      await tx.channelMember.deleteMany({ where: { channelId, userId: targetUserId } })
+    })
     this.eventEmitter.emit('realtime.access.changed', { userId: targetUserId })
     return { removed: true }
   }
@@ -1495,7 +1646,7 @@ export class ChannelsService {
         select: { id: true },
       })
       if (!firstTeam) throw new NotFoundException('No team found in club')
-      const message = await this.prisma.message.create({
+      const message = await this.withOpenChannel(channelId, (tx) => tx.message.create({
         data: {
           teamId: firstTeam.id,
           clubId,
@@ -1506,7 +1657,7 @@ export class ChannelsService {
           // its club-wide push); a club-news post is a normal message.
           isAnnouncement: channel.kind === 'ANNOUNCEMENTS',
         },
-      })
+      }), { userId })
       this.eventEmitter.emit('channel.message.created', {
         message,
         channelId,
@@ -1516,21 +1667,22 @@ export class ChannelsService {
       return { id: message.id }
     }
 
-    const message = await this.prisma.message.create({
+    const teamId = channel.teamId
+    const message = await this.withOpenChannel(channelId, (tx) => tx.message.create({
       data: {
-        teamId: channel.teamId,
+        teamId,
         clubId,
         channelId,
         senderId: userId,
         content: trimmed,
         isAnnouncement: channel.kind === 'ANNOUNCEMENTS',
       },
-    })
+    }), { userId })
     this.eventEmitter.emit('channel.message.created', {
       message,
       channelId,
       clubId,
-      teamId: channel.teamId,
+      teamId,
     })
     return { id: message.id }
   }
@@ -1591,6 +1743,7 @@ export class ChannelsService {
       isMember: boolean
     }>
   > {
+    await this.assertReadableChannel(userId, channelId)
     const channel = await this.prisma.channel.findFirst({
       where: { id: channelId, teamId },
       select: { id: true, kind: true, visibility: true, clubId: true },
@@ -1740,7 +1893,7 @@ export class ChannelsService {
         id: channelId,
         OR: [{ teamId }, { teamId: null, clubId: team.clubId }],
       },
-      select: { id: true, visibility: true, kind: true, teamId: true, clubId: true },
+      select: { id: true, visibility: true, kind: true, teamId: true, clubId: true, archivedAt: true },
     })
     if (!channel) return []
     const readers = await this.readersFor(channel)
@@ -1754,7 +1907,7 @@ export class ChannelsService {
   ): Promise<string[]> {
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
-      select: { id: true, visibility: true, kind: true, teamId: true, clubId: true },
+      select: { id: true, visibility: true, kind: true, teamId: true, clubId: true, archivedAt: true },
     })
     if (!channel) return []
     const readers = await this.readersFor(channel)
@@ -1781,7 +1934,9 @@ export class ChannelsService {
     kind: string
     teamId: string | null
     clubId: string
+    archivedAt?: Date | null
   }, includeRemoved = false): Promise<string[]> {
+    if (channel.archivedAt) return []
     const readers = await this.baseReadersFor(channel)
     if (includeRemoved || readers.length === 0) return readers
     const restrictions = await this.prisma.channelMember.findMany({
@@ -1978,6 +2133,7 @@ type ChannelRow = {
   kind: string
   name: string
   description: string | null
+  archivedAt?: Date | null
   visibility: string
   createdAt: Date
   updatedAt: Date

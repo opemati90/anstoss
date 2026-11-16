@@ -1,5 +1,6 @@
 import {
   createInviteSchema,
+  createInviteCampaignSchema,
   createClubSchema,
   updateClubSchema,
   createTeamSchema,
@@ -14,6 +15,23 @@ import {
   reviewClubClaimSchema,
   submitFirstClubClaimSchema,
 } from './club'
+
+describe('shared expiring invites', () => {
+  const input = { teamId: 'team-1', type: 'APPROVAL_REQUIRED', maxUses: 50, expiresInDays: 14 }
+  it.each(['PLAYER', 'ASSISTANT_COACH'])('accepts %s requests with expiry and bounded reuse', role => {
+    expect(createInviteCampaignSchema.parse({ ...input, role })).toEqual({ ...input, role })
+  })
+  it.each(['ADMIN', 'OWNER', 'PARENT', 'HEAD_COACH'])('does not grant %s through a shared link', role => {
+    expect(createInviteCampaignSchema.safeParse({ ...input, role }).success).toBe(false)
+  })
+  it('does not allow automatic coach access, unlimited reuse or non-expiring links', () => {
+    expect(createInviteCampaignSchema.safeParse({ ...input, type: 'IDENTITY_BOUND', role: 'ASSISTANT_COACH',
+      recipientEmail: 'coach@example.com', maxUses: 1 }).success).toBe(false)
+    for (const patch of [{ expiresInDays: 0 }, { expiresInDays: 31 }, { maxUses: 0 }, { maxUses: 501 }]) {
+      expect(createInviteCampaignSchema.safeParse({ ...input, ...patch }).success).toBe(false)
+    }
+  })
+})
 
 describe('simple club registration', () => {
   const input = { clubName: 'Codex FC', teamName: 'II' }

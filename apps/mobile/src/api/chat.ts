@@ -59,6 +59,10 @@ export function removeChannelMember(clubId: string, channelId: string, userId: s
   })
 }
 
+export function closeChannel(clubId: string, channelId: string) {
+  return api<{ archivedAt: string }>(`/clubs/${clubId}/channels/${channelId}/close`, { method: 'POST' })
+}
+
 export function moderateChannelMember(clubId: string, channelId: string, userId: string, action: ModerateChannelMemberInput['action']) {
   return api<{ status: 'active' | 'suspended' | 'removed' }>(`/clubs/${clubId}/channels/${channelId}/members/${userId}`, {
     method: 'PATCH', body: moderateChannelMemberSchema.parse({ action }),

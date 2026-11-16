@@ -90,7 +90,7 @@ function group(id: string, members: string[], teamId: string | null = TEAM) {
   return (s: ReturnType<typeof seed>) => {
     s.channel.push({ id, clubId: CLUB, teamId, slug: id, kind: 'CUSTOM', name: 'Gruppe', visibility: 'MEMBERS', description: null, createdAt: new Date(), updatedAt: new Date() } as never)
     for (const userId of members) {
-      s.channelMember.push({ id: `${id}-${userId}`, channelId: id, userId, muted: false, mutedUntil: null, createdAt: new Date('2026-03-01') } as never)
+      s.channelMember.push({ id: `${id}-${userId}`, channelId: id, userId, removed: false, postingSuspended: false, muted: false, mutedUntil: null, createdAt: new Date('2026-03-01') } as never)
     }
   }
 }

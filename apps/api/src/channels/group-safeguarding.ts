@@ -27,6 +27,8 @@ export type GroupSafeguardContext = {
   staffIds: ReadonlySet<string>
   /** `${adultId}:${minorId}` guardian links (GuardianRelationship / approved consent). */
   guardianPairs: ReadonlySet<string>
+  /** Readers who cannot post cannot act as supervising staff or guardians. */
+  inactiveSupervisorIds?: ReadonlySet<string>
 }
 
 export type GroupSafeguardCode = 'GROUP_MINOR_NEEDS_STAFF' | 'GROUP_PRIVATE_PAIR_NOT_ALLOWED'
@@ -48,6 +50,7 @@ export function evaluateGroupSafeguarding(
   if (ids.length < 2) return { ok: true }
   const byId = new Map(ctx.users.map((u) => [u.id, u]))
   const isGuardian = (adultId: string, minorId: string) =>
+    !ctx.inactiveSupervisorIds?.has(adultId) &&
     isKnownAdult(byId.get(adultId), now) &&
     (ctx.guardianPairs.has(`${adultId}:${minorId}`) || byId.get(minorId)?.managedById === adultId)
 
@@ -55,6 +58,10 @@ export function evaluateGroupSafeguarding(
     const a = byId.get(ids[0])
     const b = byId.get(ids[1])
     if (!a || !b) return { ok: false, code: 'GROUP_PRIVATE_PAIR_NOT_ALLOWED' }
+    if ((isKnownAdult(a, now) && !isKnownAdult(b, now) && ctx.inactiveSupervisorIds?.has(a.id)) ||
+      (isKnownAdult(b, now) && !isKnownAdult(a, now) && ctx.inactiveSupervisorIds?.has(b.id))) {
+      return { ok: false, code: 'GROUP_PRIVATE_PAIR_NOT_ALLOWED' }
+    }
     const decision = classifyPrivateMessaging(a, b, now)
     if (decision.kind === 'ALLOWED') return { ok: true }
     if (decision.kind === 'NEEDS_GUARDIAN_LINK' && isGuardian(decision.adultId, decision.minorId)) {
@@ -65,7 +72,7 @@ export function evaluateGroupSafeguarding(
 
   const minors = ids.filter((id) => !isKnownAdult(byId.get(id), now))
   if (minors.length === 0) return { ok: true }
-  const staff = ids.filter((id) => ctx.staffIds.has(id) && isKnownAdult(byId.get(id), now))
+  const staff = ids.filter((id) => !ctx.inactiveSupervisorIds?.has(id) && ctx.staffIds.has(id) && isKnownAdult(byId.get(id), now))
   for (const minorId of minors) {
     if (staff.length >= 2) continue
     const staffPlusGuardian = staff.some((staffId) =>

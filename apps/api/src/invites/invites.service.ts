@@ -371,9 +371,21 @@ export class InvitesService {
   async revokeCampaign(clubId: string, campaignId: string, userId: string) {
     await this.assertCampaignManager(clubId, userId)
     const result = await tenantContext.run({ clubId, userId }, () =>
-      this.prisma.inviteCampaign.updateMany({
-        where: { id: campaignId, clubId, status: { in: ['ACTIVE', 'PAUSED'] } },
-        data: { status: 'REVOKED' },
+      this.prisma.$transaction(async (tx) => {
+        // Redemption updates the use count and status under this same lock.
+        // A revoke must wait for it, so a redemption cannot reactivate a link.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${clubId}`}))`
+        const actor = await tx.membership.findUnique({
+          where: { userId_clubId: { userId, clubId } }, select: { role: true },
+        })
+        if (!actor || !['OWNER', 'ADMIN'].includes(actor.role)) {
+          throw new ForbiddenException('Only club owners and administrators can manage invite links')
+        }
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invite-campaign:${campaignId}`}))`
+        return tx.inviteCampaign.updateMany({
+          where: { id: campaignId, clubId, status: { in: ['ACTIVE', 'PAUSED'] } },
+          data: { status: 'REVOKED' },
+        })
       }),
     )
     if (result.count !== 1) throw new NotFoundException('Active invite campaign not found')
@@ -451,6 +463,10 @@ export class InvitesService {
         if (prior) throw new ConflictException('You already used this invitation')
 
         let result: { status: 'ACTIVE' | 'PENDING'; clubId: string; teamId: string }
+        if (!['PLAYER', 'ASSISTANT_COACH'].includes(current.role) ||
+          (current.type === 'IDENTITY_BOUND' && current.role !== TeamRole.PLAYER)) {
+          throw new BadRequestException('This role requires a personal invitation')
+        }
         if (current.type === 'IDENTITY_BOUND') {
           if (current.role === TeamRole.PLAYER && !user.dateOfBirth) {
             throw new BadRequestException('Date of birth is required to join as a player')
@@ -496,9 +512,12 @@ export class InvitesService {
           result = { status: 'ACTIVE', clubId: current.clubId, teamId: current.teamId }
         } else {
           if (!user.dateOfBirth) {
-            throw new BadRequestException('Date of birth is required to request player access')
+            throw new BadRequestException('Date of birth is required to request access')
           }
           if (getAge(user.dateOfBirth) < 16) {
+            if (current.role !== TeamRole.PLAYER) {
+              throw new BadRequestException('Coaches must be at least 16')
+            }
             const approvedConsent = await tx.parentalConsent.findFirst({
               where: {
                 playerUserId: userId,

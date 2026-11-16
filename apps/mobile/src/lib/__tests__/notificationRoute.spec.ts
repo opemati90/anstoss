@@ -5,6 +5,16 @@ import { openNotificationTarget } from '../notificationRoute'
 describe('notification destinations', () => {
   beforeEach(() => mockPush.mockClear())
   it.each([
+    ['consent_requested', '/child-consent'],
+    ['consent_withdrawn', '/notifications'],
+    ['compliance_reminder', '/notifications'],
+  ])('opens a user-scoped destination for %s', (type, path) => {
+    const ensureClub = jest.fn()
+    openNotificationTarget({ type }, ensureClub)
+    expect(mockPush).toHaveBeenCalledWith(path)
+    expect(ensureClub).not.toHaveBeenCalled()
+  })
+  it.each([
     'join_request',
     'JOIN_REQUEST_REMINDER',
     'event_updated',

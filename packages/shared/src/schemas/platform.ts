@@ -486,9 +486,15 @@ const expoPushTokenSchema = z
     /^(?:ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/,
     'A valid Expo push token is required',
   )
+export const pushRegistrationLeaseSchema = z.object({
+  id: z.string().min(1).max(128),
+  updatedAt: z.string().datetime(),
+}).strict()
+export type PushRegistrationLease = z.infer<typeof pushRegistrationLeaseSchema>
 export const registerPushTokenSchema = z.object({
   token: expoPushTokenSchema,
   platform: z.enum(['ios', 'android', 'web']),
+  registration: pushRegistrationLeaseSchema.nullable().optional(),
 })
 
 /** Platform-console directory: bounded, server-side filtering, never public. */
@@ -505,7 +511,8 @@ export const adminDirectoryQuerySchema = z.object({
 export type AdminDirectoryQuery = z.infer<typeof adminDirectoryQuerySchema>
 
 export const unregisterPushTokenSchema = z.object({
-  token: z.string().min(1, 'Push token is required'),
+  token: expoPushTokenSchema,
+  registration: pushRegistrationLeaseSchema.optional(),
 })
 
 export type MyContributionItemInput = z.infer<typeof myContributionItemSchema>

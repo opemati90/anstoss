@@ -623,6 +623,8 @@ export interface Channel {
   kind: ChannelKind
   name: string
   description: string | null
+  /** Closed private groups are hidden from every member. */
+  archivedAt?: string | null
   visibility: ChannelVisibility
   /** Set on the API side based on the calling user's role on the team/club */
   canWrite: boolean
@@ -700,6 +702,7 @@ export interface ChatChannelDetail extends Channel {
   mutedUntil: string | null
   canManageMembers: boolean
   canModerateMembers?: boolean
+  canClose?: boolean
 }
 
 export interface ChatConversationDetail {

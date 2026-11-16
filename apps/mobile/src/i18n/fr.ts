@@ -1759,6 +1759,7 @@ const base = {
       'Les rôles du club déterminent les invitations, la structure du club et d’autres tâches administratives. Les entraîneurs principaux et adjoints restent attribués séparément pour chaque équipe.',
     teamAssignments: 'Équipes : {{teams}}',
     changeRoleCta: 'Changer le rôle',
+    adminLimitHint: "Jusqu’à 3 admins, propriétaire compris. Les rôles de joueur et d’entraîneur restent distincts.",
     operationalRolesCta: 'Responsabilités',
     offboardCta: 'Retirer des responsables',
     roleChoiceTitle: 'Rôle pour {{name}}',
@@ -3047,6 +3048,10 @@ const base = {
       optionA11y_other: '{{label}}, {{count}} votes',
     },
     info: {
+      closeGroup: "Fermer le groupe",
+      closeGroupBody: "Le groupe et son historique seront masqués pour tous. Plus aucun message ne pourra être envoyé. Cette action est irréversible dans l’app.",
+      closeGroupError: "Impossible de fermer le groupe. Réessaie.",
+
       title: 'Infos de la discussion',
       dmTitle: 'Infos du contact',
       mute: 'Mettre en sourdine',
@@ -3080,11 +3085,11 @@ const base = {
     new: {
       title: 'Nouvelle discussion',
       search: 'Rechercher un nom',
-      newGroup: 'Nouveau groupe',
-      newGroupHint: 'Plusieurs personnes dans une discussion, p. ex. pour le covoiturage',
+      newGroup: "Salon privé",
+      newGroupHint: "Seules les personnes ajoutées peuvent lire et rejoindre ce salon.",
       pickHint: 'Choisis qui fera partie du groupe.',
       addMembersTitle: 'Ajouter des membres',
-      groupTitle: 'Nouveau groupe',
+      groupTitle: "Salon privé",
       next: 'Suivant',
       create: 'Créer',
       groupName: 'Nom du groupe',

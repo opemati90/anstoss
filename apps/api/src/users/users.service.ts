@@ -43,6 +43,7 @@ import type {
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { ClubsService } from '../clubs/clubs.service'
+import { assertClubAdministratorCapacity } from '../clubs/club-admin-capacity'
 import { InvitesService } from '../invites/invites.service'
 import { MarketplaceService } from '../marketplace/marketplace.service'
 import { buildParentHandoffEmail, resolveEmailLocale } from '../email/email-content'
@@ -1245,6 +1246,8 @@ export class UsersService {
       return targetMembership
     }
 
+    await assertClubAdministratorCapacity(tx, clubId, targetMembership.role, nextRole)
+
     const activeCoachAssignments = await tx.teamAccess.findMany({
       where: {
         clubId,
@@ -1346,18 +1349,20 @@ export class UsersService {
 
     if (
       actorMembership.role === MembershipRole.ADMIN &&
-      operationalRoles.some((role) => CRITICAL_OPERATIONAL_ROLES.has(role))
+      (operationalRoles.some((role) => CRITICAL_OPERATIONAL_ROLES.has(role)) ||
+        (targetMembership.operationalRoles ?? []).some((role: ClubOperationalRole) =>
+          CRITICAL_OPERATIONAL_ROLES.has(role) && !operationalRoles.includes(role)))
     ) {
       throw new ForbiddenException(
-        'Only club owners can assign secretary or treasurer responsibilities',
+        'Only club owners can change secretary or treasurer responsibilities',
       )
     }
 
     if (
       actorMembership.role === MembershipRole.ADMIN &&
-      targetMembership.role === MembershipRole.ADMIN
+      (targetMembership.role === MembershipRole.OWNER || targetMembership.role === MembershipRole.ADMIN)
     ) {
-      throw new ForbiddenException('Admins cannot change other admins')
+      throw new ForbiddenException('Admins cannot change owners or other admins')
     }
 
       return tx.membership.update({
@@ -1382,6 +1387,8 @@ export class UsersService {
       },
       })
     })
+
+    this.eventEmitter?.emit('realtime.access.changed', { userId: memberUserId })
 
     return {
       ...attachMembershipPermissions(updatedMembership),

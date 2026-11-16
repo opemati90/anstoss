@@ -1,7 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native'
 import { AppState, Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
-import { usePushNotifications } from '../usePushNotifications'
+import { unregisterPushToken, usePushNotifications } from '../usePushNotifications'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { subscribeNotifications } from '../../lib/notificationEvents'
 
 const mockListeners: Record<string, (...args: any[]) => void> = {}
@@ -38,6 +39,8 @@ jest.mock('expo-notifications', () => ({
 const mockFetch = jest.fn()
 const originalFetch = global.fetch
 const originalOS = Platform.OS
+const lease = { id: "qa-registration", updatedAt: "2026-11-16T10:00:00.000Z" }
+const registeredResponse = { ok: true, status: 201, json: async () => ({ success: true, registration: lease }) }
 const flush = async () => {
   await act(async () => {
     await Promise.resolve()
@@ -51,11 +54,12 @@ const response = {
 }
 
 describe('native push lifecycle', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    await AsyncStorage.clear()
     global.fetch = mockFetch
-    mockFetch.mockReset().mockResolvedValue({ ok: true })
+    mockFetch.mockReset().mockResolvedValue(registeredResponse)
     Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active' })
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
     ;(Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
@@ -89,7 +93,7 @@ describe('native push lifecycle', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://qa.invalid/push/register',
         expect.objectContaining({
-          body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', platform }),
+          body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', platform, registration: null }),
           headers: expect.objectContaining({ Authorization: 'Bearer qa-session' }),
         }),
       )
@@ -116,7 +120,7 @@ describe('native push lifecycle', () => {
   })
 
   it('retries failed backend registration without requiring a reopen', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 503 }).mockResolvedValue({ ok: true })
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) }).mockResolvedValue(registeredResponse)
     const { result, unmount } = mount()
     await flush()
     await act(async () => {
@@ -167,12 +171,164 @@ describe('native push lifecycle', () => {
     await act(async () => {
       mockListeners.token()
     })
-    expect(mockFetch).toHaveBeenLastCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        body: JSON.stringify({ token: 'ExponentPushToken[rotated]', platform: 'ios' }),
+        body: JSON.stringify({ token: 'ExponentPushToken[rotated]', platform: 'ios', registration: null }),
       }),
     )
+    expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
+      body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', registration: lease }),
+    }))
     unmount()
+  })
+
+  it('keeps the new account registration when an old logout request finishes later', async () => {
+    const { rerender, unmount } = renderHook<ReturnType<typeof usePushNotifications>, { token: string }>(
+      ({ token }) => usePushNotifications({ apiUrl: 'https://qa.invalid', token }),
+      { initialProps: { token: 'account-a-session' } },
+    )
+    await flush()
+    let finishLogout!: (response: { ok: boolean }) => void
+    mockFetch.mockImplementation((_url, options) => options.method === 'DELETE'
+      ? new Promise(resolve => { finishLogout = resolve }) : Promise.resolve(registeredResponse))
+    const cleanup = unregisterPushToken('https://qa.invalid', 'account-a-session')
+    await flush()
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({ data: 'ExponentPushToken[account-b]' })
+    rerender({ token: 'account-b-session' })
+    await flush()
+    finishLogout({ ok: true })
+    await cleanup
+    expect(await AsyncStorage.getItem('anstoss:push-token')).toBe('ExponentPushToken[account-b]')
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(expect.anything(), expect.stringContaining('session'))
+    mockFetch.mockResolvedValue(registeredResponse)
+    await unregisterPushToken('https://qa.invalid', 'account-b-session')
+    expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
+      body: JSON.stringify({ token: 'ExponentPushToken[account-b]', registration: lease }),
+      headers: expect.objectContaining({ Authorization: 'Bearer account-b-session' }),
+    }))
+    unmount()
+  })
+
+  it('ignores logout cleanup from a session replaced before cleanup starts', async () => {
+    const { unmount } = renderHook(() => usePushNotifications({ apiUrl: 'https://qa.invalid', token: 'new-session' }))
+    await flush()
+    mockFetch.mockClear()
+    await unregisterPushToken('https://qa.invalid', 'old-session')
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(await AsyncStorage.getItem('anstoss:push-token')).toBe('ExponentPushToken[qa-device]')
+    unmount()
+  })
+
+  it('bounds unregister cleanup even when native fetch does not settle on abort', async () => {
+    const { unmount } = mount()
+    await flush()
+    mockFetch.mockImplementation(() => new Promise(() => {}))
+    const cleanup = unregisterPushToken('https://qa.invalid', 'qa-session')
+    await flush()
+    const request = mockFetch.mock.calls.at(-1)![1]
+    await act(async () => { jest.advanceTimersByTime(12_000); await cleanup })
+    expect(request.signal.aborted).toBe(true)
+    expect(await AsyncStorage.getItem('anstoss:push-token')).toBeNull()
+    unmount()
+  })
+
+  it('does not persist or register token acquisition that finishes after its session ended', async () => {
+    let finishAcquisition!: (data: { data: string }) => void
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementationOnce(() =>
+      new Promise(resolve => { finishAcquisition = resolve }))
+    const { rerender, unmount } = renderHook<ReturnType<typeof usePushNotifications>, { token: string }>(
+      ({ token }) => usePushNotifications({ apiUrl: 'https://qa.invalid', token }),
+      { initialProps: { token: 'old-session' } },
+    )
+    await flush()
+    rerender({ token: 'new-session' })
+    await flush()
+    await act(async () => { finishAcquisition({ data: 'ExponentPushToken[obsolete]' }) })
+    expect(await AsyncStorage.getItem('anstoss:push-token')).toBe('ExponentPushToken[qa-device]')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    unmount()
+  })
+
+  it('retries a registration conflict only for the current session and persists its returned lease', async () => {
+    const next = { ...lease, updatedAt: '2026-11-16T10:00:00.001Z' }
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({
+      code: 'push_registration_changed', registration: lease,
+    }) }).mockResolvedValue({ ok: true, json: async () => ({ registration: next }) })
+    const { result, unmount } = mount()
+    await flush()
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    expect(result.current.registrationStatus).toBe('registered')
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body).registration).toEqual(lease)
+    const saved = JSON.parse((await AsyncStorage.getItem('anstoss:push-registration'))!)
+    expect(saved).toEqual({ token: 'ExponentPushToken[qa-device]', registration: next })
+    await unregisterPushToken('https://qa.invalid', 'qa-session')
+    expect(JSON.parse(mockFetch.mock.calls.at(-1)![1].body).registration).toEqual(next)
+    unmount()
+  })
+
+  it('removes only the returned old lease when an in-flight registration finishes after logout', async () => {
+    let finishRegister!: (response: typeof registeredResponse) => void
+    mockFetch.mockImplementation((_url, options) => options.method === 'POST'
+      ? new Promise(resolve => { finishRegister = resolve }) : Promise.resolve({ ok: true }))
+    const { unmount } = mount()
+    await flush()
+    await unregisterPushToken('https://qa.invalid', 'qa-session')
+    unmount()
+    await act(async () => { finishRegister(registeredResponse) })
+    expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
+      body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', registration: lease }),
+    }))
+    expect(await AsyncStorage.getItem('anstoss:push-registration')).toBeNull()
+  })
+
+  it('does not let a stale registration conflict retry into a newer account', async () => {
+    let finishOld!: (response: unknown) => void
+    mockFetch.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve }))
+    const { rerender, unmount } = renderHook<ReturnType<typeof usePushNotifications>, { token: string }>(
+      ({ token }) => usePushNotifications({ apiUrl: 'https://qa.invalid', token }),
+      { initialProps: { token: 'old-session' } },
+    )
+    await flush()
+    rerender({ token: 'new-session' })
+    await flush()
+    await act(async () => { finishOld({ ok: false, status: 409, json: async () => ({
+      code: 'push_registration_changed', registration: lease,
+    }) }); jest.advanceTimersByTime(10_000) })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
+  it('reacquires a native token that rotates during registration', async () => {
+    let finishRegister!: (response: typeof registeredResponse) => void
+    mockFetch.mockImplementationOnce(() => new Promise(resolve => { finishRegister = resolve }))
+    const { unmount } = mount()
+    await flush()
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({ data: 'ExponentPushToken[rotated-in-flight]' })
+    act(() => mockListeners.token())
+    await act(async () => { finishRegister(registeredResponse) })
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body).token).toBe('ExponentPushToken[rotated-in-flight]')
+    unmount()
+  })
+
+  it('keeps leases paired with their tokens when logout interrupts token rotation', async () => {
+    const { unmount } = mount()
+    await flush()
+    const rotatedLease = { ...lease, id: 'rotated-registration' }
+    let finishRotation!: (response: unknown) => void
+    mockFetch.mockImplementation((_url, options) => options.method === 'POST'
+      ? new Promise(resolve => { finishRotation = resolve }) : Promise.resolve({ ok: true }))
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({ data: 'ExponentPushToken[rotated-pending]' })
+    await act(async () => { mockListeners.token() })
+    await unregisterPushToken('https://qa.invalid', 'qa-session')
+    expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
+      body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', registration: lease }),
+    }))
+    unmount()
+    await act(async () => { finishRotation({ ok: true, json: async () => ({ registration: rotatedLease }) }) })
+    expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
+      body: JSON.stringify({ token: 'ExponentPushToken[rotated-pending]', registration: rotatedLease }),
+    }))
   })
 })

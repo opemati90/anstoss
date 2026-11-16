@@ -16,6 +16,7 @@ function build(access: Record<string, { canRead: boolean; isManager: boolean }>)
     user: [],
   })
   const channels = {
+    withOpenChannel: jest.fn(async (_id: string, write: (tx: FakePrisma) => Promise<unknown>) => write(prisma)),
     getChannelAccess: jest.fn(async (_u: string, channelId: string) => ({
       ...(access[channelId] ?? { canRead: false, isManager: false }),
       channel: { id: channelId, clubId: 'club-1', teamId: 'team-1' },

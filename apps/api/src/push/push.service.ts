@@ -1,6 +1,7 @@
-import { Injectable, Logger, Optional, Inject } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, Optional, Inject } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import { PUSH } from '@anstoss/shared'
+import { PUSH, type PushRegistrationLease } from '@anstoss/shared'
 import { resolveLocale, type Locale } from '../i18n/translations'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { formatPush, type NotificationType, type TemplateData } from './push.templates'
@@ -35,6 +36,16 @@ type ExpoPushMessage = {
 type ExpoPushTicket =
   { status: 'ok'; id: string } | { status: 'error'; message: string; details?: { error: string } }
 
+type PushRegistration = { id: string; token: string; userId: string; updatedAt: Date }
+const registrationLease = (row: { id: string; updatedAt: Date }): PushRegistrationLease => (
+  { id: row.id, updatedAt: row.updatedAt.toISOString() }
+)
+export class PushRegistrationChangedException extends ConflictException {
+  constructor(row: { id: string; updatedAt: Date } | null) {
+    super({ code: 'push_registration_changed', registration: row ? registrationLease(row) : null })
+  }
+}
+
 /**
  * Push notification service using Expo Push API.
  *
@@ -62,21 +73,67 @@ export class PushService {
   /**
    * Register or update an Expo push token for a user.
    */
-  async registerToken(userId: string, token: string, platform: string) {
-    return this.prisma.pushToken.upsert({
-      where: { token },
-      create: { userId, token, platform },
-      update: { userId, platform, updatedAt: new Date() },
+  async registerToken(userId: string, token: string, platform: string, expected?: PushRegistrationLease | null) {
+    const current = await this.prisma.pushToken.findUnique({ where: { token } })
+    if (!current) {
+      if (expected) throw new PushRegistrationChangedException(null)
+      try {
+        return registrationLease(await this.prisma.pushToken.create({ data: { userId, token, platform } }))
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
+        throw new PushRegistrationChangedException(await this.prisma.pushToken.findUnique({ where: { token } }))
+      }
+    }
+    // Legacy clients may retain their own binding, but cannot overwrite a new
+    // owner/version. Upgraded clients explicitly use null or a previous lease.
+    if (expected === undefined && current.userId === userId) return registrationLease(current)
+    if (!expected || expected.id !== current.id || expected.updatedAt !== current.updatedAt.toISOString()) {
+      throw new PushRegistrationChangedException(current)
+    }
+    // Distinct leases even when two requests land in the same millisecond.
+    const updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1))
+    const changed = await this.prisma.pushToken.updateMany({
+      where: { token, id: expected.id, updatedAt: new Date(expected.updatedAt) },
+      data: { userId, platform, updatedAt },
     })
+    if (!changed.count) throw new PushRegistrationChangedException(await this.prisma.pushToken.findUnique({ where: { token } }))
+    return { id: current.id, updatedAt: updatedAt.toISOString() }
   }
 
   /**
    * Remove a push token (user logged out or token expired).
    */
-  async removeToken(token: string, userId: string) {
+  async removeToken(token: string, userId: string, expected?: PushRegistrationLease) {
+    // A legacy DELETE has no proof of which registration it intends to remove.
+    if (!expected) return { count: 0 }
     return this.prisma.pushToken.deleteMany({
-      where: { token, userId },
+      where: { token, userId, id: expected.id, updatedAt: new Date(expected.updatedAt) },
     })
+  }
+
+  private async snapshotRegistrations(tokens: string[]): Promise<Map<string, PushRegistration>> {
+    const rows = await this.prisma.pushToken.findMany({
+      where: { token: { in: tokens } },
+      select: { id: true, token: true, userId: true, updatedAt: true },
+    })
+    return new Map(rows.map(row => [row.token, row]))
+  }
+
+  private pruneRegistrations(registrations: PushRegistration[]) {
+    // A delayed provider error belongs to the registration that was sent.
+    // Re-registration, reassignment and delete/recreate must survive it.
+    return this.prisma.pushToken.deleteMany({ where: { OR: registrations.map(({ id, token, userId, updatedAt }) => (
+      { id, token, userId, updatedAt }
+    )) } })
+  }
+
+  private async isClosedChannel(data?: Record<string, string>): Promise<boolean> {
+    if (!data?.channelId) return false
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: data.channelId, ...(data.clubId ? { clubId: data.clubId } : {}) },
+      select: { archivedAt: true },
+    })
+    return !channel || channel.archivedAt !== null
   }
 
   /**
@@ -232,6 +289,7 @@ export class PushService {
     excludeUserId?: string,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    if (await this.isClosedChannel(payload)) return
     if (this.inbox && isInboxWorthy(type, templateData)) {
       const inboxUserIds = await this.resolveTeamInboxRecipientIds(
         teamId,
@@ -271,6 +329,7 @@ export class PushService {
       inboxType?: InboxRenderedType
     },
   ) {
+    if (await this.isClosedChannel(payload)) return
     if (this.inbox && options?.inboxType) {
       const inboxUserIds = await this.resolveTeamInboxRecipientIds(
         teamId,
@@ -304,6 +363,7 @@ export class PushService {
     payload?: Record<string, string>,
     options?: { clubId?: string; category?: 'chat' | 'events' | 'announcements' },
   ) {
+    if (await this.isClosedChannel(payload)) return
     if (this.inbox && isInboxWorthy(type, templateData)) {
       // The inbox keeps the entry even when the push itself is held back by a
       // mute or quiet hours; only the privacy age gate stops it.
@@ -476,6 +536,8 @@ export class PushService {
     for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
       const batch = messages.slice(i, i + PUSH.BATCH_SIZE)
       try {
+        const registrations = await this.snapshotRegistrations(batch.map(message => message.to))
+        if (await this.isClosedChannel(data)) break
         const response = await fetch(this.EXPO_PUSH_URL, {
           method: 'POST',
           headers: {
@@ -483,6 +545,7 @@ export class PushService {
             Accept: 'application/json',
           },
           body: JSON.stringify(batch),
+          signal: AbortSignal.timeout(8000),
         })
 
         if (!response.ok) {
@@ -492,7 +555,7 @@ export class PushService {
         }
 
         const result = (await response.json()) as { data: ExpoPushTicket[] }
-        const invalidTokens: string[] = []
+        const invalidTokens: PushRegistration[] = []
         result.data.forEach((ticket, index) => {
           if (ticket.status === 'ok') {
             success++
@@ -500,15 +563,14 @@ export class PushService {
             failure++
             this.logger.error(`Expo push rejected: ${ticket.details?.error ?? 'unknown'}`)
             if (ticket.details?.error === 'DeviceNotRegistered') {
-              invalidTokens.push(batch[index].to)
+              const registration = registrations.get(batch[index]?.to)
+              if (registration) invalidTokens.push(registration)
             }
           }
         })
 
         if (invalidTokens.length > 0) {
-          await this.prisma.pushToken.deleteMany({
-            where: { token: { in: invalidTokens } },
-          })
+          await this.pruneRegistrations(invalidTokens)
         }
       } catch (err) {
         failure += batch.length
@@ -544,13 +606,16 @@ export class PushService {
     // Map of ok-ticket id → token, for deferred receipt polling. Expo keys
     // receipts by ticket id; we keep the originating token so a deferred
     // DeviceNotRegistered receipt can prune the right row.
-    const ticketTokens = new Map<string, string>()
+    const ticketTokens = new Map<string, PushRegistration>()
+    let acceptedCount = 0
 
     // Batch into groups of PUSH.BATCH_SIZE
     for (let i = 0; i < messages.length; i += PUSH.BATCH_SIZE) {
       const batch = messages.slice(i, i + PUSH.BATCH_SIZE)
 
       try {
+        const registrations = await this.snapshotRegistrations(batch.map(message => message.to))
+        if (await this.isClosedChannel(data)) break
         const response = await fetch(this.EXPO_PUSH_URL, {
           method: 'POST',
           headers: {
@@ -569,22 +634,22 @@ export class PushService {
         const result = (await response.json()) as { data: ExpoPushTicket[] }
 
         // Clean up invalid tokens
-        const invalidTokens: string[] = []
+        const invalidTokens: PushRegistration[] = []
         result.data.forEach((ticket, index) => {
+          const registration = registrations.get(batch[index]?.to)
           if (ticket.status === 'ok') {
-            ticketTokens.set(ticket.id, batch[index].to)
+            acceptedCount++
+            if (registration) ticketTokens.set(ticket.id, registration)
           } else if (ticket.status === 'error') {
             // Never log tokens or message content, but don't silently swallow
             // missing APNs/FCM credentials or sender/project mismatches.
             this.logger.error(`Expo push rejected: ${ticket.details?.error ?? 'unknown'}`)
-            if (ticket.details?.error === 'DeviceNotRegistered') invalidTokens.push(batch[index].to)
+            if (ticket.details?.error === 'DeviceNotRegistered' && registration) invalidTokens.push(registration)
           }
         })
 
         if (invalidTokens.length > 0) {
-          await this.prisma.pushToken.deleteMany({
-            where: { token: { in: invalidTokens } },
-          })
+          await this.pruneRegistrations(invalidTokens)
           this.logger.log(`Cleaned up ${invalidTokens.length} invalid push tokens`)
         }
       } catch (err) {
@@ -598,7 +663,7 @@ export class PushService {
     this.scheduleReceiptCheck(ticketTokens)
     // Provider acceptance is not a device-delivery receipt. Callers must not
     // discard retryable reminders when every push was rejected or suppressed.
-    return { acceptedCount: ticketTokens.size }
+    return { acceptedCount }
   }
 
   /**
@@ -606,7 +671,7 @@ export class PushService {
    * callers to wait before fetching receipts, so we defer by RECEIPT_DELAY_MS.
    * Skipped under tests (no real network / timers to leak).
    */
-  private scheduleReceiptCheck(ticketTokens: Map<string, string>) {
+  private scheduleReceiptCheck(ticketTokens: Map<string, PushRegistration>) {
     if (ticketTokens.size === 0) return
     if (process.env.NODE_ENV === 'test') return
 
@@ -623,12 +688,12 @@ export class PushService {
    * tokens whose receipt reports DeviceNotRegistered. Batches receipt IDs in
    * groups of ≤1000 (Expo's documented limit) and swallows network errors.
    */
-  async checkReceipts(ticketTokens: Map<string, string>): Promise<void> {
+  async checkReceipts(ticketTokens: Map<string, PushRegistration>): Promise<void> {
     if (ticketTokens.size === 0) return
 
     const ticketIds = Array.from(ticketTokens.keys())
     const RECEIPT_BATCH = 1000
-    const deadTokens: string[] = []
+    const deadTokens: PushRegistration[] = []
 
     for (let i = 0; i < ticketIds.length; i += RECEIPT_BATCH) {
       const ids = ticketIds.slice(i, i + RECEIPT_BATCH)
@@ -640,6 +705,7 @@ export class PushService {
             Accept: 'application/json',
           },
           body: JSON.stringify({ ids }),
+          signal: AbortSignal.timeout(8000),
         })
 
         if (!response.ok) {
@@ -667,9 +733,7 @@ export class PushService {
 
     if (deadTokens.length > 0) {
       try {
-        const deleted = await this.prisma.pushToken.deleteMany({
-          where: { token: { in: deadTokens } },
-        })
+        const deleted = await this.pruneRegistrations(deadTokens)
         if (deleted.count > 0) {
           this.logger.log(`Pruned ${deleted.count} push token(s) from DeviceNotRegistered receipts`)
         }

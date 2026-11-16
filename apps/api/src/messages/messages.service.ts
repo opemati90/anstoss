@@ -22,25 +22,27 @@ export class MessagesService {
   async pinMessage(messageId: string, teamId: string, userId: string) {
     const message = await this.loadManagedMessage(messageId, teamId, userId)
 
-    await this.prisma.message.updateMany({
-      where: message.channelId
-        ? { channelId: message.channelId, isPinned: true }
-        : { teamId, channelId: null, isPinned: true },
-      data: { isPinned: false },
-    })
+    return this.channelsService.withOpenChannel(message.channelId, async (tx) => {
+      await tx.message.updateMany({
+        where: message.channelId
+          ? { channelId: message.channelId, isPinned: true }
+          : { teamId, channelId: null, isPinned: true },
+        data: { isPinned: false },
+      })
 
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: { isPinned: true },
-    })
+      return tx.message.update({
+        where: { id: messageId },
+        data: { isPinned: true },
+      })
+    }, { userId, requireManager: true })
   }
 
   async unpinMessage(messageId: string, teamId: string, userId: string) {
-    await this.loadManagedMessage(messageId, teamId, userId)
-    return this.prisma.message.update({
+    const message = await this.loadManagedMessage(messageId, teamId, userId)
+    return this.channelsService.withOpenChannel(message.channelId, (tx) => tx.message.update({
       where: { id: messageId },
       data: { isPinned: false },
-    })
+    }), { userId, requireManager: true })
   }
 
   /**

@@ -6,8 +6,9 @@ describe('PushService', () => {
   let service: PushService
   let prisma: {
     teamAccess: { findMany: jest.Mock }
-    pushToken: { findMany: jest.Mock; deleteMany: jest.Mock }
+    pushToken: { findMany: jest.Mock; deleteMany: jest.Mock; findUnique: jest.Mock; create: jest.Mock; updateMany: jest.Mock }
     notificationPreference: { findMany: jest.Mock }
+    channel: { findUnique: jest.Mock }
   }
   let notificationsService: {
     getMutedUserIds: jest.Mock
@@ -17,8 +18,9 @@ describe('PushService', () => {
   beforeEach(async () => {
     prisma = {
       teamAccess: { findMany: jest.fn() },
-      pushToken: { findMany: jest.fn(), deleteMany: jest.fn() },
+      pushToken: { findMany: jest.fn(), deleteMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
       notificationPreference: { findMany: jest.fn().mockResolvedValue([]) },
+      channel: { findUnique: jest.fn().mockResolvedValue({ archivedAt: null }) },
     }
 
     notificationsService = {
@@ -204,35 +206,44 @@ describe('PushService', () => {
   })
 
   describe('registerToken', () => {
-    let prismaWithUpsert: typeof prisma & {
-      pushToken: typeof prisma.pushToken & { upsert: jest.Mock }
-    }
-
-    beforeEach(() => {
-      prismaWithUpsert = prisma as typeof prismaWithUpsert
-      prismaWithUpsert.pushToken.upsert = jest.fn()
+    it('creates a token and returns only its lease', async () => {
+      prisma.pushToken.findUnique.mockResolvedValue(null)
+      prisma.pushToken.create.mockResolvedValue({ id: 'registration', updatedAt: new Date(0) })
+      await expect(service.registerToken('u1', 'tok1', 'ios', null)).resolves.toEqual({
+        id: 'registration', updatedAt: new Date(0).toISOString(),
+      })
+      expect(prisma.pushToken.create).toHaveBeenCalledWith({ data: { userId: 'u1', token: 'tok1', platform: 'ios' } })
     })
-
-    it('upserts token', async () => {
-      prismaWithUpsert.pushToken.upsert.mockResolvedValue({
-        token: 'tok1',
-        userId: 'u1',
-      })
-
-      await service.registerToken('u1', 'tok1', 'ios')
-
-      expect(prismaWithUpsert.pushToken.upsert).toHaveBeenCalledWith({
-        where: { token: 'tok1' },
-        create: { userId: 'u1', token: 'tok1', platform: 'ios' },
-        update: expect.objectContaining({
-          userId: 'u1',
-          platform: 'ios',
-        }),
-      })
+    it('does not delete a registration on a legacy unversioned logout', async () => {
+      await expect(service.removeToken('tok1', 'u1')).resolves.toEqual({ count: 0 })
+      expect(prisma.pushToken.deleteMany).not.toHaveBeenCalled()
     })
   })
 
+  it('drops archived-channel notifications before inbox persistence or delivery', async () => {
+    prisma.channel.findUnique.mockResolvedValue({ archivedAt: new Date() })
+    const inbox = { record: jest.fn() }
+    const guarded = new PushService(prisma as never, undefined, undefined, inbox as never)
+    await guarded.sendToUserLocalized('u1', 'ANNOUNCEMENT' as never, {} as never, { channelId: 'closed', clubId: 'c1' })
+    expect(inbox.record).not.toHaveBeenCalled()
+    expect(prisma.pushToken.findMany).not.toHaveBeenCalled()
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('stops the remaining broadcast batches when the channel closes', async () => {
+    const tokens = Array.from({ length: 101 }, (_, index) => `token-${index}`)
+    prisma.pushToken.findMany.mockResolvedValue([])
+    ;(global.fetch as jest.Mock).mockImplementation(async () => {
+      prisma.channel.findUnique.mockResolvedValue({ archivedAt: new Date() })
+      return { ok: true, json: async () => ({ data: [] }) }
+    })
+    await service.sendToTokens(tokens, 'Title', 'Body', { channelId: 'closed-between-batches' })
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(prisma.channel.findUnique).toHaveBeenCalledTimes(2)
+  })
+
   describe('checkReceipts', () => {
+    const registration = (token: string) => ({ id: `row-${token}`, token, userId: 'user-a', updatedAt: new Date('2026-11-16T10:00:00Z') })
     it('deletes the token whose receipt returns DeviceNotRegistered', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
@@ -252,8 +263,8 @@ describe('PushService', () => {
 
       await service.checkReceipts(
         new Map([
-          ['ticket-dead', 'dead-token'],
-          ['ticket-ok', 'good-token'],
+          ['ticket-dead', registration('dead-token')],
+          ['ticket-ok', registration('good-token')],
         ]),
       )
 
@@ -262,7 +273,7 @@ describe('PushService', () => {
         expect.objectContaining({ method: 'POST' }),
       )
       expect(prisma.pushToken.deleteMany).toHaveBeenCalledWith({
-        where: { token: { in: ['dead-token'] } },
+        where: { OR: [registration('dead-token')] },
       })
     })
 
@@ -274,8 +285,46 @@ describe('PushService', () => {
 
     it('swallows network errors', async () => {
       ;(global.fetch as jest.Mock).mockRejectedValue(new Error('network down'))
-      await expect(service.checkReceipts(new Map([['t1', 'tok1']]))).resolves.toBeUndefined()
+      await expect(service.checkReceipts(new Map([['t1', registration('tok1')]]))).resolves.toBeUndefined()
       expect(prisma.pushToken.deleteMany).not.toHaveBeenCalled()
+    })
+
+    it.each(['refreshed', 'transferred', 'recreated'])('retains a %s registration when an old receipt reports a dead device', async (change) => {
+      const original = registration('same-token')
+      const current = { ...original,
+        ...(change === 'refreshed' ? { updatedAt: new Date('2026-11-16T10:01:00Z') } : {}),
+        ...(change === 'transferred' ? { userId: 'user-b' } : {}),
+        ...(change === 'recreated' ? { id: 'new-row' } : {}),
+      }
+      let deleted = false
+      prisma.pushToken.deleteMany.mockImplementation(async ({ where }) => {
+        deleted = where.OR.some((candidate: typeof original) => candidate.id === current.id &&
+          candidate.token === current.token && candidate.userId === current.userId &&
+          candidate.updatedAt.getTime() === current.updatedAt.getTime())
+        return { count: deleted ? 1 : 0 }
+      })
+      ;(global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: {
+        ticket: { status: 'error', details: { error: 'DeviceNotRegistered' } },
+      } }) })
+      await service.checkReceipts(new Map([['ticket', original]]))
+      expect(deleted).toBe(false)
+      expect(prisma.pushToken.deleteMany).toHaveBeenCalledWith({ where: { OR: [original] } })
+    })
+
+    it.each(['user', 'broadcast'])('uses the pre-send registration snapshot for an immediate %s error', async kind => {
+      const original = registration('same-token')
+      prisma.pushToken.findMany.mockResolvedValue([original])
+      prisma.pushToken.deleteMany.mockResolvedValue({ count: 0 })
+      ;(global.fetch as jest.Mock).mockImplementation(async () => {
+        // Registration rotates while Expo handles the outgoing request.
+        prisma.pushToken.findMany.mockResolvedValue([{ ...original, userId: 'user-b', updatedAt: new Date() }])
+        return { ok: true, json: async () => ({ data: [
+          { status: 'error', details: { error: 'DeviceNotRegistered' } },
+        ] }) }
+      })
+      if (kind === 'user') await service.sendToUser('user-a', 'Title', 'Body')
+      else await service.sendToTokens([original.token], 'Title', 'Body')
+      expect(prisma.pushToken.deleteMany).toHaveBeenCalledWith({ where: { OR: [original] } })
     })
   })
 })

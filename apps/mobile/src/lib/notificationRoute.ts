@@ -35,6 +35,13 @@ export function openNotificationTarget(data: NotificationTarget, ensureClub: () 
   }
 
   switch (action) {
+    case 'consent_requested':
+      router.push('/child-consent')
+      break
+    case 'consent_withdrawn':
+    case 'compliance_reminder':
+      router.push('/notifications')
+      break
     case 'dm':
       if (data.conversationId) {
         ensureClub()

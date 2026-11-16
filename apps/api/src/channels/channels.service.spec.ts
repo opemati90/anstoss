@@ -21,6 +21,8 @@ function makeService(
   ]
 
   const prisma = {
+    $executeRaw: jest.fn().mockResolvedValue(0),
+    $transaction: jest.fn(async (callback: (tx: unknown) => Promise<unknown>): Promise<unknown> => callback(prisma)),
     user: { findUnique: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
     team: { findUnique: jest.fn().mockResolvedValue({ clubId: 'club-1' }) },
     channel: {

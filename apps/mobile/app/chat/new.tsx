@@ -355,8 +355,8 @@ export default function NewChatScreen() {
         )}
         renderItem={({ item }) => {
           const isSelected = selected.has(item.userId)
-          // In a group, everyone can be added (it is not a private channel);
-          // for direct messages the safeguarding rule applies.
+          // Group safeguarding is checked for the full selected membership
+          // on the server; direct messages use the pairwise rule here.
           const disabled = picking ? false : !item.canMessage || busy !== null
           return (
             <Pressable

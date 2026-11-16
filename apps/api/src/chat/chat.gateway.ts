@@ -408,6 +408,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!this.server) return
     const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
     if (sockets.length === 0) return
+    // Events can be delayed or duplicated. Never let an old add event
+    // re-subscribe a removed member to a private room.
+    try {
+      const access = await this.channelsService.getChannelAccess(payload.userId, payload.channelId)
+      if (!access.canRead || access.channel.teamId !== payload.teamId) return
+    } catch {
+      return
+    }
     const rooms = [`channel:${payload.channelId}`]
     if (payload.teamId) {
       rooms.push(`team:${payload.teamId}:channel:${payload.channelId}`)
@@ -426,6 +434,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   async onRealtimeAccessChanged(payload: { userId: string }) {
     if (!this.server) return
     const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
+    for (const socket of sockets) socket.disconnect(true)
+  }
+
+  @OnEvent('channel.closed')
+  async onChannelClosed(payload: { channelId: string; clubId: string }) {
+    if (!this.server) return
+    // Drop every subscribed socket, including a stale former member, and
+    // refresh inboxes for connected users who may have this room cached.
+    const members = await this.prisma.channelMember.findMany({
+      where: { channelId: payload.channelId }, select: { userId: true },
+    })
+    for (const member of members) {
+      this.server.to(`user:${member.userId}`).emit('inbox:update', { clubId: payload.clubId })
+      await this.onRealtimeAccessChanged({ userId: member.userId })
+    }
+    const sockets = await this.server.in(`channel:${payload.channelId}`).fetchSockets()
     for (const socket of sockets) socket.disconnect(true)
   }
 
@@ -642,7 +666,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // Derive scope from the authorized channel, never the client's clubId.
     const message = await tenantContext.run({ clubId, userId }, async () => {
       // Await here: Prisma constructs a lazy query, not an eager Promise.
-      return await this.prisma.message.create({
+      return await this.channelsService.withOpenChannel(channelId, (tx) => tx.message.create({
         data: {
           teamId,
           clubId,
@@ -652,7 +676,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           isAnnouncement,
           replyToId: replyToId ?? undefined,
         },
-      })
+      }), { userId })
     })
 
     // Sockets only join `channel:{id}` after the channel authorized them.

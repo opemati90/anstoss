@@ -4,7 +4,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import {
   ClubClaimKind,
   ClubClaimStatus,
@@ -33,6 +35,7 @@ import { ClubEntitlementsService } from '../billing/club-entitlements.service'
 import { ChannelsService } from '../channels/channels.service'
 import { buildTeamDisplayName, createClubWithUniqueSlug } from '../clubs/clubs.service'
 import { assertClubNameAvailable, registrationNameSql } from '../clubs/club-registration-name'
+import { assertClubAdministratorCapacity } from '../clubs/club-admin-capacity'
 import { PrismaService } from '../prisma/prisma.service'
 import { tenantContext } from '../prisma/tenant.context'
 import { sendEmail } from '../email/mailer'
@@ -53,6 +56,7 @@ export class ClubActivationService {
     private readonly audit: AuditService,
     private readonly channels: ChannelsService,
     private readonly entitlements: ClubEntitlementsService,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
   ) {}
 
   async submitFirstClaim(
@@ -376,7 +380,8 @@ export class ClubActivationService {
     clubId: string,
     claimId: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const affectedUsers = new Set<string>()
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
       const claim = await tx.clubClaim.findUnique({ where: { id: claimId } })
       this.assertReviewableClaim(claim, ClubClaimKind.STAFF_CLAIM, clubId)
@@ -410,6 +415,8 @@ export class ClubActivationService {
       if (existingMembership?.role === MembershipRole.OWNER) {
         throw new ConflictException('Club ownership requires the ownership transfer workflow')
       }
+      await assertClubAdministratorCapacity(tx, clubId, existingMembership?.role, claim.desiredRole)
+      affectedUsers.add(claim.claimantUserId)
       await tx.membership.upsert({
         where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
         create: { userId: claim.claimantUserId, clubId, role: claim.desiredRole },
@@ -452,6 +459,10 @@ export class ClubActivationService {
       })
       return updated
     })
+    for (const userId of affectedUsers) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId })
+    }
+    return result
   }
 
   async reviewFirstClaim(reviewerId: string, claimId: string, input: ReviewClubClaimInput) {
@@ -626,6 +637,7 @@ export class ClubActivationService {
       this.channels.ensureClubChannels(result.club.id),
       this.channels.ensureTeamChannels(result.club.id, result.team.id),
     ])
+    this.eventEmitter?.emit('realtime.access.changed', { userId: result.claim.claimantUserId })
     return result
   }
 
@@ -635,7 +647,8 @@ export class ClubActivationService {
     claimId: string,
     input: ReviewClubClaimInput,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const affectedUsers = new Set<string>()
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`claim:${claimId}`}))`
       const claim = await tx.clubClaim.findUnique({ where: { id: claimId } })
       this.assertReviewableClaim(claim, ClubClaimKind.STAFF_CLAIM, clubId)
@@ -738,6 +751,8 @@ export class ClubActivationService {
         )
       }
 
+      await assertClubAdministratorCapacity(tx, clubId, claimantMembership?.role, claim.desiredRole)
+      affectedUsers.add(claim.claimantUserId)
       await tx.membership.upsert({
         where: { userId_clubId: { userId: claim.claimantUserId, clubId } },
         create: { userId: claim.claimantUserId, clubId, role: claim.desiredRole },
@@ -780,6 +795,10 @@ export class ClubActivationService {
       })
       return updatedClaim
     })
+    for (const userId of affectedUsers) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId })
+    }
+    return result
   }
 
   async withdraw(userId: string, claimId: string) {
@@ -970,7 +989,8 @@ export class ClubActivationService {
       challengeId: input.challengeId,
       code: input.code,
     })
-    return this.prisma.$transaction(async (tx) => {
+    const affectedUsers = new Set<string>()
+    const result = await this.prisma.$transaction(async (tx) => {
       const initial = await tx.ownershipTransfer.findUnique({ where: { id: transferId } })
       if (!initial || initial.toUserId !== actor.id || initial.status !== 'PENDING') {
         throw new NotFoundException('Pending ownership transfer not found')
@@ -994,6 +1014,14 @@ export class ClubActivationService {
       if (!currentOwner || currentOwner.userId !== transfer.fromUserId) {
         throw new ConflictException('Club ownership changed before this transfer was accepted')
       }
+      const nextOwner = await tx.membership.findUnique({
+        where: { userId_clubId: { userId: actor.id, clubId: transfer.clubId } },
+        select: { role: true },
+      })
+      if (!nextOwner) throw new ConflictException('New owner must still belong to this club')
+      await assertClubAdministratorCapacity(tx, transfer.clubId, nextOwner.role, MembershipRole.OWNER)
+      affectedUsers.add(currentOwner.userId)
+      affectedUsers.add(actor.id)
       await tx.membership.update({
         where: { id: currentOwner.id },
         data: { role: MembershipRole.ADMIN },
@@ -1019,6 +1047,10 @@ export class ClubActivationService {
       })
       return accepted
     })
+    for (const userId of affectedUsers) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId })
+    }
+    return result
   }
 
   async requestOwnershipTransferChallenge(
@@ -1258,7 +1290,8 @@ export class ClubActivationService {
   }
 
   async resolvePlatformDispute(actorId: string, disputeId: string, input: ResolveClubDisputeInput) {
-    return this.prisma.$transaction(async (tx) => {
+    const affectedUsers = new Set<string>()
+    const result = await this.prisma.$transaction(async (tx) => {
       const dispute = await tx.clubDispute.findUnique({ where: { id: disputeId } })
       if (!dispute) throw new NotFoundException('Open dispute not found')
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`owner:${dispute.clubId}`}))`
@@ -1283,6 +1316,9 @@ export class ClubActivationService {
         if (!target) {
           throw new ConflictException('The selected new owner must already belong to this club')
         }
+        await assertClubAdministratorCapacity(tx, dispute.clubId, target.role, MembershipRole.OWNER)
+        affectedUsers.add(input.newOwnerUserId)
+        for (const owner of currentOwners) affectedUsers.add(owner.userId)
         formerOwnerIds = currentOwners
           .map((owner) => owner.userId)
           .filter((userId) => userId !== input.newOwnerUserId)
@@ -1334,6 +1370,10 @@ export class ClubActivationService {
       })
       return tx.clubDispute.findUniqueOrThrow({ where: { id: disputeId } })
     })
+    for (const userId of affectedUsers) {
+      this.eventEmitter?.emit('realtime.access.changed', { userId })
+    }
+    return result
   }
 
   private async updateReviewState(
