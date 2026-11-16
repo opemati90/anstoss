@@ -1,20 +1,20 @@
 {
   "date": "2026-11-16",
   "branch": "codex/consolidate-anstoss-20261116",
-  "testedCodeCommit": "c67da9037fdcaf2457c32fcba7896f62071ce247",
+  "testedCodeCommit": "5f740ae081e2c1f6628c2b20c01bddd257582335",
   "scope": "Review branch only; no develop/prod push or promotion",
   "runtime": "57.0.1-billing2",
   "authExcluded": true,
   "results": {
     "api": {
-      "numPassedTestSuites": 169,
-      "numPassedTests": 1730,
+      "numPassedTestSuites": 170,
+      "numPassedTests": 1734,
       "numPendingTests": 0,
       "numFailedTests": 0
     },
     "mobile": {
       "numPassedTestSuites": 155,
-      "numPassedTests": 1179,
+      "numPassedTests": 1195,
       "numPendingTests": 1,
       "numFailedTests": 0
     },
@@ -30,10 +30,11 @@
     "web": "passed",
     "admin": "passed",
     "migrations": "All candidate migrations applied to two dedicated loopback databases; no production migration",
-    "apiLineCoveragePercent": 72.47,
+    "apiLineCoveragePercent": 72.53,
     "apiRepositoryCoverageTargetMet": false,
-    "mobileLineCoveragePercent": 63.75,
-    "adversarialBillingAudit": "All concrete findings addressed; real-store and unknown-checkout recovery limits documented"
+    "mobileLineCoveragePercent": 63.97,
+    "adversarialBillingAudit": "All concrete findings addressed; real-store and unknown-checkout recovery limits documented",
+    "adversarialPlanSyncAudit": "All concrete findings addressed; 35 focused hook/component tests and 4 real PostgreSQL complimentary-grant tests passed"
   },
   "releaseGates": [
     "Combine separately tested auth commit",
@@ -42,6 +43,7 @@
     "Webhook delivery",
     "Non-EUR prices and store metadata",
     "Production promotion approval",
-    "Validate same-payer store-account switching and operator-reviewed unknown checkout recovery"
+    "Validate same-payer store-account switching and operator-reviewed unknown checkout recovery",
+    "Combined-device admin upgrade/revoke/expiry navigation and resume walkthrough"
   ]
 }

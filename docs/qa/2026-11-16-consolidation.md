@@ -4,7 +4,7 @@
 
 - Review branch: `codex/consolidate-anstoss-20261116`.
 - Isolated worktree: `/Users/yemi/anstoss-consolidation-20261116`.
-- Verified code commit: `c67da9037fdcaf2457c32fcba7896f62071ce247`.
+- Verified code commit: `5f740ae081e2c1f6628c2b20c01bddd257582335`.
   The following commit only adds this handoff and its JSON verification record.
 - **Do not push `develop` or `prod` yet.** The user explicitly reserved promotion
   for the other Anstoss session after review and combined testing. `develop`
@@ -47,8 +47,8 @@ in the automated suites are mocked; SQL and socket tests are real and local.
 
 | Check | Result |
 | --- | --- |
-| API | 169 suites; 1,730 tests passed; no skipped tests |
-| Mobile | 155 suites; 1,179 passed; 1 existing skipped test |
+| API | 170 suites; 1,734 tests passed; no skipped tests |
+| Mobile | 155 suites; 1,195 passed; 1 existing skipped test |
 | Shared | 12 suites; 193 tests passed |
 | Repository lint | Passed; removed one unused reminder-test binding |
 | Repository typecheck | Passed |
@@ -56,8 +56,8 @@ in the automated suites are mocked; SQL and socket tests are real and local.
 | Web/admin smoke | Passed |
 | Diff whitespace | Passed |
 
-API line coverage is 72.47%, below the documented 80% target; the configured
-Jest baseline gates pass. Mobile line coverage is 63.75%. Do not describe the API
+API line coverage is 72.53%, below the documented 80% target; the configured
+Jest baseline gates pass. Mobile line coverage is 63.97%. Do not describe the API
 coverage target as achieved. Local machine reports are saved under
 `/Users/yemi/anstoss-backups/consolidation-20261116/`; the JSON alongside this file
 contains portable summary results.
@@ -73,6 +73,13 @@ reconciliation, and checkout payer/store/SKU ownership. The independent final
 recheck reported all concrete findings addressed. Unknown checkout recovery
 requires operator review; same-payer use of multiple store accounts remains a
 real-store validation limit. No automatic timeout transfers billing ownership.
+
+The [admin plan-sync follow-up](2026-11-16-admin-plan-sync.md) refreshes plan and
+live-match permissions on focus/resume and every 15 seconds while visible,
+independently of IAP. It rejects delayed permission responses and preserves newer
+live scores. The adversarial review found no remaining concrete blocker after
+fixes. Full local suites pass; the combined native device walkthrough remains
+a release check.
 
 ## Native and store release limits
 
