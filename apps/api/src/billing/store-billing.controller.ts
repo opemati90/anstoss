@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common'
 import {
   MembershipRole, appleNotificationSchema, googleNotificationDataSchema,
-  googleNotificationSchema, storeBillingRequestSchema, storePlatformSchema,
+  googleNotificationSchema, storeBillingRequestSchema, storeCheckoutRequestSchema, storePlatformSchema,
 } from '@anstoss/shared'
 import { ClerkAuthGuard } from '../auth/clerk.guard'
 import { AgeGateGuard } from '../auth/age-gate.guard'
@@ -27,8 +27,8 @@ export class StoreBillingController {
   @Post('prepare')
   @RateLimit('write')
   prepare(@Param('clubId') clubId: string, @CurrentUser() user: { id: string }, @Body() body: unknown) {
-    const parsed = storePlatformSchema.parse((body as { store?: unknown })?.store)
-    return this.billing.prepare(clubId, user.id, parsed)
+    const parsed = storeCheckoutRequestSchema.parse(body)
+    return this.billing.prepare(clubId, user.id, parsed.store, parsed.productId)
   }
 
   @Post('verify')

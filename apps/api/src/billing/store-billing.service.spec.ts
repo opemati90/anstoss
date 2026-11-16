@@ -13,7 +13,8 @@ describe('store purchase authorization and persistence', () => {
     autoRenew: true, acknowledgementNeeded: false,
   }
   const db = {
-    storePurchaseAccount: { findUnique: jest.fn(), upsert: jest.fn() },
+    storePurchaseAccount: { findUnique: jest.fn(), findFirst: jest.fn(), upsert: jest.fn() },
+    storeCheckoutOwner: { findUnique: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
     storeSubscription: { findUnique: jest.fn(), findFirst: jest.fn(), upsert: jest.fn(), update: jest.fn() },
     storePurchaseReplacement: { findUnique: jest.fn(), upsert: jest.fn() },
     planDefinition: { findUnique: jest.fn() },
@@ -91,7 +92,7 @@ describe('store purchase authorization and persistence', () => {
   })
   it('blocks new checkout when another subscription already covers the club', async () => {
     db.entitlementGrant.findFirst.mockResolvedValue({ id: 'existing' })
-    await expect(service.prepare('club-a', 'owner-a', 'APPLE')).rejects.toThrow('already has a subscription')
+    await expect(service.prepare('club-a', 'owner-a', 'APPLE', 'com.renuirug.anstoss.team.monthly')).rejects.toThrow('already has a subscription')
     expect(db.storePurchaseAccount.upsert).not.toHaveBeenCalled()
   })
   it('requires the immutable plan definition rather than inventing entitlement limits', async () => {

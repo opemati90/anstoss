@@ -26,7 +26,10 @@ export class StoreBillingWorker implements OnModuleInit, OnModuleDestroy {
 
   async runCycle() {
     const subscriptions = await this.prisma.storeSubscription.findMany({
-      where: { lastCheckedAt: { lt: new Date(Date.now() - INTERVAL_MS) }, status: { not: 'REVOKED' } },
+      // Apple can reverse a refund. Re-check revoked Apple chains too; Google
+      // replacement tombstones remain authoritative in reconcile().
+      where: { lastCheckedAt: { lt: new Date(Date.now() - INTERVAL_MS) },
+        OR: [{ status: { not: 'REVOKED' } }, { store: 'APPLE' }] },
       orderBy: { lastCheckedAt: 'asc' }, take: 100,
     })
     for (const subscription of subscriptions) {

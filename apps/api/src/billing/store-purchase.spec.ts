@@ -83,4 +83,69 @@ describe('native subscription lifecycle', () => {
     expect(() => normalizeGooglePurchase({ ...google, subscriptionState: 'UNSPECIFIED' }, 'token')).toThrow()
     expect(() => normalizeGooglePurchase({ ...google, lineItems: [{ ...google.lineItems[0], offerDetails: { basePlanId: 'other' } }] }, 'token')).toThrow()
   })
+
+  it('binds out-of-app resubscriptions without treating an expired identity token as a replacement', () => {
+    const purchase = normalizeGooglePurchase({ ...google, externalAccountIdentifiers: undefined,
+      outOfAppPurchaseContext: { expiredPurchaseToken: 'old-token',
+        expiredExternalAccountIdentifiers: { obfuscatedExternalAccountId: account } } }, 'new-token')
+    expect(purchase.accountToken).toBe(account)
+    expect(purchase.resubscription).toBe(true)
+    expect(purchase.replacesOriginalId).toBeUndefined()
+  })
+  it('accepts a stored exact-token identity after acknowledgement but rejects conflicting identities', () => {
+    const unbound = { ...google, externalAccountIdentifiers: undefined }
+    expect(normalizeGooglePurchase(unbound, 'token', { accountTokens: [account] }).accountToken).toBe(account)
+    expect(() => normalizeGooglePurchase(unbound, 'token')).toThrow()
+    expect(() => normalizeGooglePurchase(google, 'token', { accountTokens: ['another-account'] })).toThrow()
+    expect(() => normalizeGooglePurchase({ ...google, outOfAppPurchaseContext: {
+      expiredExternalAccountIdentifiers: { obfuscatedExternalAccountId: 'another-account' },
+    } }, 'token')).toThrow()
+  })
+
+  const futureProduct = `${ANSTOSS_BUNDLE_ID}.club3.monthly`
+  const fromItem = { ...google.lineItems[0], autoRenewingPlan: {}, deferredItemReplacement: { productId: futureProduct } }
+  const toItem = { productId: futureProduct, autoRenewingPlan: { autoRenewEnabled: true }, offerDetails: { basePlanId: 'monthly' } }
+  const pair = { fromProductId: fromItem.productId, toProductId: futureProduct }
+  it.each([false, true])('grants only the current plan during a deferred replacement (reversed: %s)', (reverse) => {
+    const lineItems = reverse ? [toItem, fromItem] : [fromItem, toItem]
+    const purchase = normalizeGooglePurchase({ ...google, lineItems, linkedPurchaseToken: 'old' }, 'new', { now })
+    expect(purchase.productId).toBe(fromItem.productId)
+    expect(purchase.autoRenew).toBe(false)
+    expect(purchase.deferredReplacement).toEqual(pair)
+    expect(purchase.acknowledgementNeeded).toBe(true)
+    expect(purchaseGrantStatus(purchase, new Date(end))).toBe('EXPIRED')
+    expect(normalizeGooglePurchase({ ...google, lineItems }, 'new', { now: new Date(end + 1) }).productId).toBe(fromItem.productId)
+  })
+  it('switches to the renewed plan only after its predecessor expires and Google supplies its expiry', () => {
+    const lineItems = [{ ...fromItem, deferredItemReplacement: undefined }, { ...toItem,
+      expiryTime: new Date(end + 86400000).toISOString(), itemReplacement: {
+        productId: fromItem.productId, basePlanId: 'monthly', replacementMode: 'DEFERRED',
+      } }]
+    expect(normalizeGooglePurchase({ ...google, lineItems }, 'new', { now: new Date(end) }).productId).toBe(futureProduct)
+    expect(() => normalizeGooglePurchase({ ...google, lineItems }, 'new', { now })).toThrow()
+    const withoutMarker = [lineItems[0], { ...lineItems[1], itemReplacement: undefined }]
+    expect(() => normalizeGooglePurchase({ ...google, lineItems: withoutMarker }, 'new', { now: new Date(end) })).toThrow()
+    expect(normalizeGooglePurchase({ ...google, lineItems: withoutMarker }, 'new', {
+      now: new Date(end), deferredReplacement: pair,
+    }).productId).toBe(futureProduct)
+  })
+  it('handles a round-trip replacement without mistaking historical metadata for the current edge', () => {
+    const old = { ...fromItem, itemReplacement: { productId: futureProduct, basePlanId: 'monthly', replacementMode: 'DEFERRED' } }
+    const next = { ...toItem, itemReplacement: { productId: fromItem.productId, basePlanId: 'monthly', replacementMode: 'DEFERRED' } }
+    expect(normalizeGooglePurchase({ ...google, lineItems: [next, old] }, 'round-trip', { now }).productId).toBe(fromItem.productId)
+    expect(normalizeGooglePurchase({ ...google, lineItems: [{ ...next, expiryTime: new Date(end + 86400000).toISOString() },
+      { ...old, deferredItemReplacement: undefined }] }, 'round-trip', { now: new Date(end) }).productId).toBe(futureProduct)
+  })
+  it.each([
+    [fromItem, { ...toItem, productId: 'foreign.app' }],
+    [fromItem, { ...toItem, offerDetails: { basePlanId: 'wrong' } }],
+    [{ ...fromItem, deferredItemReplacement: undefined }, toItem],
+    [fromItem, toItem, toItem],
+    [fromItem, { ...toItem, itemReplacement: { productId: fromItem.productId, basePlanId: 'monthly', replacementMode: 'KEEP_EXISTING' } }],
+    [fromItem, { ...toItem, expiryTime: new Date(end + 1000).toISOString() }],
+    [fromItem, { ...toItem, expiryTime: 'invalid' }],
+    [{ ...fromItem, prepaidPlan: {} }, toItem],
+  ])('rejects unsupported or contradictory multi-item purchases %#', (...lineItems) => {
+    expect(() => normalizeGooglePurchase({ ...google, lineItems }, 'new', { now })).toThrow()
+  })
 })

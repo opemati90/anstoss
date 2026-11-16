@@ -1,5 +1,6 @@
 export const storeBilling = {
   en: {
+    checkoutOwned: 'Checkout has already been started for this club. Ask the original payer to retry or restore using the same store. If they are unavailable, contact Anstoss support before anyone buys again.',
     subscribe: 'Subscribe · {{price}} {{period}}', restore: 'Restore purchases', manage: 'Manage subscription',
     terms: 'Terms of use', privacy: 'Privacy policy',
     disclosure: 'Payment is charged to your store account. The subscription renews automatically unless you cancel in your store settings. Canceling keeps access until the paid period ends. Annual plans are charged once per year.',
@@ -11,6 +12,7 @@ export const storeBilling = {
     title: 'Choose the right plan for your team', details: 'Compare team capacity, paid features and billing options. Your current plan stays unchanged until a purchase is verified.',
   },
   de: {
+    checkoutOwned: 'Für diesen Verein wurde bereits ein Kauf gestartet. Bitte die zahlende Person, es im selben Store erneut zu versuchen oder den Kauf wiederherzustellen. Ist sie nicht erreichbar, kontaktiere den Anstoss-Support, bevor jemand erneut kauft.',
     subscribe: 'Abonnieren · {{price}} {{period}}', restore: 'Käufe wiederherstellen', manage: 'Abo verwalten',
     terms: 'Nutzungsbedingungen', privacy: 'Datenschutz',
     disclosure: 'Die Zahlung erfolgt über dein Store-Konto. Das Abo verlängert sich automatisch, sofern du es nicht in den Store-Einstellungen kündigst. Nach der Kündigung bleibt der Zugang bis zum Ende des bezahlten Zeitraums bestehen. Jahresabos werden einmal jährlich berechnet.',
@@ -22,6 +24,7 @@ export const storeBilling = {
     title: 'Der passende Tarif für dein Team', details: 'Vergleiche Teamlimits, Zusatzfunktionen und Zahlungsintervalle. Dein aktueller Tarif bleibt bis zur Kaufbestätigung unverändert.',
   },
   fr: {
+    checkoutOwned: 'Un achat a déjà été lancé pour ce club. Demandez à la personne qui l’a lancé de réessayer ou de le restaurer dans la même boutique. Si elle est indisponible, contactez l’assistance Anstoss avant tout nouvel achat.',
     subscribe: 'S’abonner · {{price}} {{period}}', restore: 'Restaurer les achats', manage: 'Gérer l’abonnement',
     terms: 'Conditions d’utilisation', privacy: 'Confidentialité',
     disclosure: 'Le paiement est débité de votre compte de boutique. L’abonnement se renouvelle automatiquement, sauf résiliation dans les réglages de la boutique. L’accès reste disponible jusqu’à la fin de la période payée. Les offres annuelles sont facturées une fois par an.',
@@ -33,6 +36,7 @@ export const storeBilling = {
     title: 'Choisissez l’offre adaptée à votre équipe', details: 'Comparez la capacité, les fonctionnalités et les périodes de facturation. Votre offre actuelle reste inchangée jusqu’à la vérification de l’achat.',
   },
   it: {
+    checkoutOwned: 'È già stato avviato un acquisto per questo club. Chiedi alla persona che lo ha avviato di riprovare o ripristinarlo nello stesso store. Se non è disponibile, contatta l’assistenza Anstoss prima di acquistare di nuovo.',
     subscribe: 'Abbonati · {{price}} {{period}}', restore: 'Ripristina acquisti', manage: 'Gestisci abbonamento',
     terms: 'Termini di utilizzo', privacy: 'Privacy',
     disclosure: 'Il pagamento viene addebitato sul tuo account dello store. L’abbonamento si rinnova automaticamente, salvo disdetta nelle impostazioni dello store. L’accesso resta attivo fino al termine del periodo pagato. I piani annuali vengono addebitati una volta all’anno.',
@@ -44,6 +48,7 @@ export const storeBilling = {
     title: 'Scegli il piano per la tua squadra', details: 'Confronta capienza, funzionalità e periodi di fatturazione. Il piano attuale resta invariato fino alla verifica dell’acquisto.',
   },
   pt: {
+    checkoutOwned: 'Já foi iniciada uma compra para este clube. Pede à pessoa que a iniciou para tentar novamente ou restaurar na mesma loja. Se não estiver disponível, contacta o apoio Anstoss antes de uma nova compra.',
     subscribe: 'Subscrever · {{price}} {{period}}', restore: 'Restaurar compras', manage: 'Gerir subscrição',
     terms: 'Termos de utilização', privacy: 'Privacidade',
     disclosure: 'O pagamento é cobrado na tua conta da loja. A subscrição renova-se automaticamente, salvo cancelamento nas definições da loja. O acesso mantém-se até ao fim do período pago. Os planos anuais são cobrados uma vez por ano.',
@@ -55,6 +60,7 @@ export const storeBilling = {
     title: 'Escolhe o plano para a tua equipa', details: 'Compara a capacidade, as funcionalidades e os períodos de faturação. O plano atual mantém-se até à verificação da compra.',
   },
   tr: {
+    checkoutOwned: 'Bu kulüp için bir satın alma işlemi zaten başlatıldı. İşlemi başlatan kişiden aynı mağazada tekrar denemesini veya satın alımı geri yüklemesini iste. Ona ulaşılamıyorsa yeniden satın almadan önce Anstoss desteğine başvur.',
     subscribe: 'Abone ol · {{price}} {{period}}', restore: 'Satın alımları geri yükle', manage: 'Aboneliği yönet',
     terms: 'Kullanım koşulları', privacy: 'Gizlilik',
     disclosure: 'Ödeme mağaza hesabından alınır. Mağaza ayarlarından iptal etmediğin sürece abonelik otomatik yenilenir. İptalden sonra ödenen dönemin sonuna kadar erişimin sürer. Yıllık planlar yılda bir kez ücretlendirilir.',

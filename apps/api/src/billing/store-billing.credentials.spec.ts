@@ -53,7 +53,7 @@ describe('Anstoss billing credential isolation', () => {
   })
   it('keeps both providers off until explicitly enabled and requires a valid encryption key', () => {
     process.env = { ...appleEnv, ...googleEnv, ANSTOSS_IAP_ENCRYPTION_KEY: 'ab'.repeat(32) }
-    const provider = new StoreBillingProvider()
+    const provider = new StoreBillingProvider({} as never)
     expect(provider.configured('APPLE')).toBe(false)
     expect(provider.configured('GOOGLE')).toBe(false)
     process.env.ANSTOSS_IAP_ENABLED = 'true'

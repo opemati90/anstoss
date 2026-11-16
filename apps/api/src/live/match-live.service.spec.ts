@@ -3,7 +3,7 @@ import {
   MatchLiveUnavailableError,
   TeamAccessDeniedError,
 } from '@anstoss/shared'
-import { MatchLiveService, deriveMinute } from './match-live.service'
+import { MatchLiveService, MatchLivePlanRequiredException, deriveMinute } from './match-live.service'
 
 const MATCH = {
   id: 'e1',
@@ -14,7 +14,7 @@ const MATCH = {
   homeAway: 'AWAY' as const,
 }
 
-function build(opts: { live?: Record<string, unknown> | null; manager?: boolean; event?: unknown } = {}) {
+function build(opts: { live?: Record<string, unknown> | null; manager?: boolean; event?: unknown; paid?: boolean } = {}) {
   let live: Record<string, unknown> | null = opts.live === undefined ? null : opts.live
   const liveEvents: Array<Record<string, unknown>> = []
   const tx = {
@@ -70,11 +70,27 @@ function build(opts: { live?: Record<string, unknown> | null; manager?: boolean;
   }
   const push = { sendToTeamLocalized: jest.fn().mockResolvedValue(undefined) }
   const gateway = { broadcastMatchState: jest.fn() }
-  const service = new MatchLiveService(prisma as never, teams as never, push as never, gateway as never)
-  return { service, prisma, teams, push, gateway, liveEvents }
+  const entitlements = { hasFeature: jest.fn().mockResolvedValue(opts.paid !== false) }
+  const service = new MatchLiveService(prisma as never, teams as never, push as never, gateway as never, entitlements as never)
+  return { service, prisma, teams, push, gateway, liveEvents, entitlements }
 }
 
 describe('MatchLiveService', () => {
+  it('keeps history readable but blocks every mutation and socket permission after plan expiry', async () => {
+    const { service, prisma, gateway, push, entitlements } = build({ paid: false,
+      live: { status: 'FIRST_HALF', goalsFor: 2, goalsAgainst: 1, kickoffAt: new Date() } })
+    await expect(service.getState('c1', 'e1', 'coach')).resolves.toMatchObject({ canRecord: false, goalsFor: 2 })
+    await expect(service.getStateForSocket('e1', 'coach')).resolves.toMatchObject({ canRecord: false, goalsFor: 2 })
+    await expect(service.updateState('c1', 'e1', 'coach', { status: 'HALF_TIME' })).rejects.toBeInstanceOf(MatchLivePlanRequiredException)
+    await expect(service.recordEvent('c1', 'e1', 'coach', { kind: 'GOAL' })).rejects.toBeInstanceOf(MatchLivePlanRequiredException)
+    await expect(service.deleteEvent('c1', 'e1', 'le1', 'coach')).rejects.toBeInstanceOf(MatchLivePlanRequiredException)
+    expect(entitlements.hasFeature).toHaveBeenCalledWith('c1', 'liveTicker')
+    expect(prisma.matchLive.upsert).not.toHaveBeenCalled()
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(gateway.broadcastMatchState).not.toHaveBeenCalled()
+    expect(push.sendToTeamLocalized).not.toHaveBeenCalled()
+  })
+
   it('reports a match that has not kicked off with canRecord for managers only', async () => {
     const coach = build()
     await expect(coach.service.getState('c1', 'e1', 'coach')).resolves.toMatchObject({

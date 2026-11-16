@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { nativeOffer, nativePurchaseRequest, purchaseVerification } from '../billing/native-store'
 
 type Iap = typeof import('expo-iap')
-type BillingMessage = 'unavailable' | 'pending' | 'verified' | 'verifyError' | 'restored' | 'nothingToRestore' | null
+type BillingMessage = 'unavailable' | 'pending' | 'verified' | 'verifyError' | 'restored' | 'nothingToRestore' | 'checkoutOwned' | null
 type BillingSnapshot = { scope: string; status: StoreBillingStatus; products: ProductOrSubscription[] }
 
 /** No local premium flag: every finish/restore follows durable server verification. */
@@ -132,26 +132,33 @@ export function useStoreBilling(canManage: boolean, onVerified: () => Promise<un
   }, [scope, clubId, user?.id, token, canManage, path, store])
 
   const visible = snapshot?.scope === scope ? snapshot : null
+  const checkout = visible?.status.checkout
+  const checkoutBlocked = Boolean(checkout && (!checkout.ownedByYou || checkout.store !== store))
   const subscribe = useCallback(async (productId: string) => {
-    if (currentScope.current !== scope || locked.current || !iap.current || !canManage || !visible?.status.enabled) return
+    if (currentScope.current !== scope || locked.current || !iap.current || !canManage || !visible?.status.enabled || checkoutBlocked) return
+    if (checkout?.productId && checkout.productId !== productId) {
+      setFeedback({ scope, message: 'checkoutOwned' })
+      return
+    }
     const product = visible.products.find((entry) => entry.id === productId)
     if (!product || !nativeOffer(product)) return
     locked.current = true
     setBusyScope(scope)
     setFeedback({ scope, message: null })
     try {
-      const prepared = await api<{ accountToken: string }>(`${path}/prepare`, { method: 'POST', body: { store }, headers: requestHeaders })
+      const prepared = await api<{ accountToken: string }>(`${path}/prepare`, { method: 'POST', body: { store, productId }, headers: requestHeaders })
       if (currentScope.current !== scope || !iap.current) return
       accountToken.current = prepared.accountToken
       await iap.current.requestPurchase(nativePurchaseRequest(product, prepared.accountToken))
-    } catch {
+    } catch (error) {
       if (currentScope.current === scope) {
-        setFeedback({ scope, message: 'verifyError' })
+        const owned = error && typeof error === 'object' && 'code' in error && error.code === 'STORE_CHECKOUT_OWNED'
+        setFeedback({ scope, message: owned ? 'checkoutOwned' : 'verifyError' })
         locked.current = false
         setBusyScope(null)
       }
     }
-  }, [canManage, visible, scope, path, store])
+  }, [canManage, visible, scope, path, store, checkoutBlocked, checkout?.productId])
 
   const restore = useCallback(async () => {
     if (currentScope.current !== scope || connectedScope !== scope || !canManage ||
@@ -184,7 +191,9 @@ export function useStoreBilling(canManage: boolean, onVerified: () => Promise<un
     ready: Boolean(visible?.status.enabled && visible.products.length),
     restoreReady: Boolean(canManage && visible?.status.enabled && connectedScope === scope),
     busy: busyScope === scope || (feedback?.scope === scope && feedback.message === 'pending'),
-    message: feedback?.scope === scope ? feedback.message : null,
+    message: checkoutBlocked ? 'checkoutOwned' : (feedback?.scope === scope ? feedback.message : null) ?? (checkout?.productId ? 'checkoutOwned' : null),
+    checkoutBlocked,
+    checkoutProductId: checkout?.productId ?? null,
     products: visible?.products ?? [], subscriptions: visible?.status.subscriptions ?? [],
     subscribe, restore, manage,
   }

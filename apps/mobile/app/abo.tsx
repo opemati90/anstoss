@@ -232,7 +232,7 @@ export default function AboScreen() {
                 <Button variant="onHero" fullWidth
                   testID={`abo-subscribe-${entry.key}`}
                   label={t('storeBilling.subscribe', { price: offer.displayPrice, period: per })}
-                  disabled={billing.busy || starting}
+                  disabled={billing.busy || starting || billing.checkoutBlocked || Boolean(billing.checkoutProductId && billing.checkoutProductId !== sku.id)}
                   loading={billing.busy}
                   onPress={() => void billing.subscribe(sku.id)} />
               ) : null}

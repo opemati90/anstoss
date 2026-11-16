@@ -25,6 +25,8 @@ export interface VerifiedStorePurchase {
   autoRenew: boolean
   acknowledgementNeeded: boolean
   replacesOriginalId?: string
+  resubscription?: boolean
+  deferredReplacement?: { fromProductId: string; toProductId: string }
 }
 
 export function storeProduct(productId: string) {
@@ -72,28 +74,79 @@ export function normalizeApplePurchase(
   }
 }
 
+const googleAccountIdentifiers = z.object({ obfuscatedExternalAccountId: z.string().min(1).optional() })
 export const googleSubscriptionSchema = z.object({
   subscriptionState: z.string(),
   startTime: z.string().optional(),
   acknowledgementState: z.string(),
   testPurchase: z.object({}).optional(),
   linkedPurchaseToken: z.string().optional(),
-  externalAccountIdentifiers: z.object({ obfuscatedExternalAccountId: z.string() }).optional(),
+  externalAccountIdentifiers: googleAccountIdentifiers.optional(),
+  outOfAppPurchaseContext: z.object({
+    expiredExternalAccountIdentifiers: googleAccountIdentifiers.optional(),
+    expiredPurchaseToken: z.string().min(1).optional(),
+  }).optional(),
   lineItems: z.array(z.object({
-    productId: z.string(), expiryTime: z.string(),
-    autoRenewingPlan: z.object({ autoRenewEnabled: z.boolean() }).optional(),
+    productId: z.string(), expiryTime: z.string().optional(),
+    autoRenewingPlan: z.object({ autoRenewEnabled: z.boolean().optional() }),
     offerDetails: z.object({ basePlanId: z.string() }).optional(),
-  })).min(1).max(1),
+    deferredItemReplacement: z.object({ productId: z.string() }).optional(),
+    itemReplacement: z.object({ productId: z.string(), basePlanId: z.string(), replacementMode: z.string() }).optional(),
+    prepaidPlan: z.never().optional(), deferredItemRemoval: z.never().optional(),
+  })).min(1).max(2),
 })
 
-export function normalizeGooglePurchase(raw: unknown, token: string): VerifiedStorePurchase {
+export function normalizeGooglePurchase(raw: unknown, token: string, evidence: {
+  accountTokens?: string[]
+  deferredReplacement?: VerifiedStorePurchase['deferredReplacement']
+  now?: Date
+} = {}): VerifiedStorePurchase {
   const parsed = googleSubscriptionSchema.safeParse(raw)
   if (!parsed.success) throw new InvalidStorePurchaseException()
   const data = parsed.data
-  const item = data.lineItems[0]
+  const identities = [data.externalAccountIdentifiers?.obfuscatedExternalAccountId,
+    data.outOfAppPurchaseContext?.expiredExternalAccountIdentifiers?.obfuscatedExternalAccountId,
+    ...(evidence.accountTokens ?? [])].filter((id): id is string => Boolean(id)).map(id => id.toLowerCase())
+  if (new Set(identities).size !== 1) throw new InvalidStorePurchaseException()
+  for (const line of data.lineItems) {
+    if (line.offerDetails?.basePlanId !== storeProduct(line.productId).interval) throw new InvalidStorePurchaseException()
+    if (line.expiryTime !== undefined) validDate(line.expiryTime)
+    if (line.deferredItemReplacement) storeProduct(line.deferredItemReplacement.productId)
+  }
+  let item = data.lineItems[0]
+  let deferredReplacement: VerifiedStorePurchase['deferredReplacement']
+  if (data.lineItems.length === 2) {
+    // Two items are supported only as one deferred replacement, never add-ons.
+    const now = evidence.now ?? new Date()
+    const orientations = data.lineItems.flatMap(from => data.lineItems.filter(to => to !== from).map(to => ({ from, to })))
+      .filter(({ from, to }) => from.productId !== to.productId)
+    // itemReplacement is historical (retained for 60 days). A round trip A->B->A
+    // can contain both directions; the current deferred pointer takes precedence.
+    const pending = orientations.filter(({ from, to }) => from.deferredItemReplacement?.productId === to.productId)
+    const pairs = pending.length ? pending : orientations.filter(({ from, to }) =>
+      from.expiryTime !== undefined && to.expiryTime !== undefined && validDate(from.expiryTime) <= now &&
+      validDate(to.expiryTime) > validDate(from.expiryTime) && (
+        (to.itemReplacement?.productId === from.productId && to.itemReplacement.replacementMode === 'DEFERRED') ||
+        (evidence.deferredReplacement?.fromProductId === from.productId && evidence.deferredReplacement.toProductId === to.productId)))
+    if (pairs.length !== 1) throw new InvalidStorePurchaseException()
+    const { from, to } = pairs[0]
+    if (to.deferredItemReplacement ||
+        (from.deferredItemReplacement && from.deferredItemReplacement.productId !== to.productId) ||
+        (to.itemReplacement && (to.itemReplacement.productId !== from.productId ||
+          to.itemReplacement.basePlanId !== from.offerDetails?.basePlanId || to.itemReplacement.replacementMode !== 'DEFERRED'))) {
+      throw new InvalidStorePurchaseException()
+    }
+    const oldExpiry = validDate(from.expiryTime)
+    if (to.expiryTime === undefined) {
+      if (!from.deferredItemReplacement) throw new InvalidStorePurchaseException()
+      item = from // Even after its expiry: no new entitlement until Google confirms it.
+    } else {
+      if (oldExpiry > now || validDate(to.expiryTime) <= oldExpiry) throw new InvalidStorePurchaseException()
+      item = to
+    }
+    deferredReplacement = { fromProductId: from.productId, toProductId: to.productId }
+  }
   const product = storeProduct(item.productId)
-  if (!data.externalAccountIdentifiers?.obfuscatedExternalAccountId ||
-      item.offerDetails?.basePlanId !== product.interval) throw new InvalidStorePurchaseException()
   const states: Record<string, VerifiedStorePurchase['status']> = {
     SUBSCRIPTION_STATE_ACTIVE: 'ACTIVE', SUBSCRIPTION_STATE_IN_GRACE_PERIOD: 'GRACE',
     SUBSCRIPTION_STATE_CANCELED: 'CANCELED', SUBSCRIPTION_STATE_EXPIRED: 'EXPIRED',
@@ -108,12 +161,14 @@ export function normalizeGooglePurchase(raw: unknown, token: string): VerifiedSt
   return {
     store: 'GOOGLE', environment: data.testPurchase ? 'SANDBOX' : 'PRODUCTION',
     originalId: purchaseTokenHash(token), reference: token,
-    accountToken: data.externalAccountIdentifiers.obfuscatedExternalAccountId.toLowerCase(),
+    accountToken: identities[0],
     productId: product.id, startsAt, expiresAt, status,
     autoRenew: item.autoRenewingPlan?.autoRenewEnabled === true,
     acknowledgementNeeded: data.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING' &&
       ['ACTIVE', 'GRACE', 'CANCELED'].includes(status),
     replacesOriginalId: data.linkedPurchaseToken ? purchaseTokenHash(data.linkedPurchaseToken) : undefined,
+    resubscription: data.outOfAppPurchaseContext !== undefined,
+    deferredReplacement,
   }
 }
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   MatchLiveTransitionError,
   MatchLiveUnavailableError,
@@ -14,6 +14,11 @@ import { PushService } from '../push/push.service'
 import { TeamsService } from '../teams/teams.service'
 import { activeTeamAccessWhere } from '../teams/active-team-access'
 import { LiveGateway } from './live.gateway'
+import { ClubEntitlementsService } from '../billing/club-entitlements.service'
+
+export class MatchLivePlanRequiredException extends ForbiddenException {
+  constructor() { super('An active club plan is required to publish live match updates') }
+}
 
 /** Allowed clock moves. FINISHED is terminal; corrections stay possible via events. */
 const TRANSITIONS: Record<MatchLiveStatus, MatchLiveStatus[]> = {
@@ -73,12 +78,13 @@ export class MatchLiveService {
     private readonly teams: TeamsService,
     private readonly push: PushService,
     private readonly gateway: LiveGateway,
+    private readonly entitlements: ClubEntitlementsService,
   ) {}
 
   async getState(clubId: string, eventId: string, userId: string): Promise<MatchLiveStateDto> {
     const event = await this.loadMatch(clubId, eventId)
     await this.teams.assertReadableAccess(userId, event.teamId, { eventId })
-    const canRecord = await this.canRecord(userId, event.teamId)
+    const canRecord = await this.canRecord(userId, event.teamId, event.clubId)
     return this.buildState(event, canRecord)
   }
 
@@ -91,7 +97,7 @@ export class MatchLiveService {
     if (!event) throw new NotFoundException('Event not found')
     if (event.type !== 'MATCH') throw new MatchLiveUnavailableError('Event is not a match')
     await this.teams.assertReadableAccess(userId, event.teamId, { eventId })
-    return this.buildState(event, await this.canRecord(userId, event.teamId))
+    return this.buildState(event, await this.canRecord(userId, event.teamId, event.clubId))
   }
 
   async updateState(
@@ -102,6 +108,7 @@ export class MatchLiveService {
   ): Promise<MatchLiveStateDto> {
     const event = await this.loadMatch(clubId, eventId)
     await this.teams.assertEventManagementAccess(userId, event.teamId)
+    await this.assertLivePlan(event.clubId)
 
     const now = new Date()
     const current = await this.loadLive(eventId)
@@ -140,6 +147,7 @@ export class MatchLiveService {
   ): Promise<MatchLiveStateDto> {
     const event = await this.loadMatch(clubId, eventId)
     await this.teams.assertEventManagementAccess(userId, event.teamId)
+    await this.assertLivePlan(event.clubId)
 
     const live = await this.loadLive(eventId)
     if (!live || live.status === 'NOT_STARTED') {
@@ -186,6 +194,7 @@ export class MatchLiveService {
   ): Promise<MatchLiveStateDto> {
     const event = await this.loadMatch(clubId, eventId)
     await this.teams.assertEventManagementAccess(userId, event.teamId)
+    await this.assertLivePlan(event.clubId)
 
     await this.prisma.$transaction(async (tx: any) => {
       const result = await tx.matchLiveEvent.updateMany({
@@ -217,10 +226,14 @@ export class MatchLiveService {
     return (await this.prisma.matchLive.findFirst({ where: { eventId } })) as LiveRow | null
   }
 
-  private async canRecord(userId: string, teamId: string): Promise<boolean> {
+  private async assertLivePlan(clubId: string) {
+    if (!(await this.entitlements.hasFeature(clubId, 'liveTicker'))) throw new MatchLivePlanRequiredException()
+  }
+
+  private async canRecord(userId: string, teamId: string, clubId: string): Promise<boolean> {
     try {
       await this.teams.assertEventManagementAccess(userId, teamId)
-      return true
+      return this.entitlements.hasFeature(clubId, 'liveTicker')
     } catch (err) {
       if (err instanceof TeamAccessDeniedError) return false
       throw err

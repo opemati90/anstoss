@@ -4,9 +4,10 @@ import { GoogleAuth, OAuth2Client } from 'google-auth-library'
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { appleBillingCredentials, googleBillingCredentials } from './store-billing.credentials'
 import type { StoreBillingRequest } from '@anstoss/shared'
+import { PrismaService } from '../prisma/prisma.service'
 import {
   ANSTOSS_APPLE_ID, ANSTOSS_BUNDLE_ID, InvalidStorePurchaseException,
-  normalizeApplePurchase, normalizeGooglePurchase, type VerifiedStorePurchase,
+  googleSubscriptionSchema, normalizeApplePurchase, normalizeGooglePurchase, purchaseTokenHash, type VerifiedStorePurchase,
 } from './store-purchase'
 
 export class StoreBillingUnavailableException extends ServiceUnavailableException {
@@ -17,6 +18,7 @@ export class StoreBillingUnavailableException extends ServiceUnavailableExceptio
 export class StoreBillingProvider {
   private google?: GoogleAuth
   private readonly oidc = new OAuth2Client()
+  constructor(private readonly prisma: PrismaService) {}
 
   configured(store: StoreBillingRequest['store']) {
     const env = process.env
@@ -82,7 +84,24 @@ export class StoreBillingProvider {
     if (!this.configured('GOOGLE')) throw new StoreBillingUnavailableException()
     try {
       const response = await this.googleClient().request({ url: this.googleUrl(reference), timeout: 15000, retry: false })
-      return normalizeGooglePurchase(response.data, reference)
+      const parsed = googleSubscriptionSchema.safeParse(response.data)
+      if (!parsed.success) throw new InvalidStorePurchaseException()
+      const data = parsed.data
+      const environment = data.testPurchase ? 'SANDBOX' : 'PRODUCTION'
+      const lookup = (token: string) => this.prisma.storeSubscription.findUnique({
+        where: { store_environment_originalId: { store: 'GOOGLE', environment, originalId: purchaseTokenHash(token) } },
+        select: { accountId: true, deferredFromProductId: true, deferredToProductId: true },
+      })
+      // Identity comes only from Google's authenticated response or immutable
+      // mappings of the exact token/environment. Never from the client request.
+      const current = await lookup(reference)
+      const expiredToken = data.outOfAppPurchaseContext?.expiredPurchaseToken
+      const expired = expiredToken ? await lookup(expiredToken) : null
+      return normalizeGooglePurchase(data, reference, {
+        accountTokens: [current?.accountId, expired?.accountId].filter((id): id is string => Boolean(id)),
+        deferredReplacement: current?.deferredFromProductId && current.deferredToProductId
+          ? { fromProductId: current.deferredFromProductId, toProductId: current.deferredToProductId } : undefined,
+      })
     } catch (error) {
       if (error instanceof InvalidStorePurchaseException) throw error
       throw new StoreBillingUnavailableException()
@@ -94,7 +113,8 @@ export class StoreBillingProvider {
     try {
       await this.googleClient().request({
         url: `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANSTOSS_BUNDLE_ID}/purchases/subscriptions/${encodeURIComponent(purchase.productId)}/tokens/${encodeURIComponent(purchase.reference)}:acknowledge`,
-        method: 'POST', data: {}, timeout: 15000, retry: false,
+        method: 'POST', data: purchase.resubscription
+          ? { externalAccountIds: { obfuscatedAccountId: purchase.accountToken } } : {}, timeout: 15000, retry: false,
       })
     } catch { throw new StoreBillingUnavailableException() }
   }
@@ -124,7 +144,8 @@ export class StoreBillingProvider {
     try {
       const ticket = await this.oidc.verifyIdToken({ idToken: token, audience })
       const payload = ticket.getPayload()
-      if (payload?.email !== email || payload.email_verified !== true) throw new Error('identity')
+      if (payload?.email !== email || payload.email_verified !== true || payload.aud !== audience ||
+          !['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss)) throw new Error('identity')
     } catch { throw new UnauthorizedException('Invalid store notification') }
   }
 

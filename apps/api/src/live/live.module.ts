@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { BillingModule } from '../billing/billing.module'
 import { LiveGateway } from './live.gateway'
 import { PrismaModule } from '../prisma/prisma.module'
 import { TeamsModule } from '../teams/teams.module'
@@ -7,7 +8,7 @@ import { MatchLiveController } from './match-live.controller'
 import { MatchLiveService } from './match-live.service'
 
 @Module({
-  imports: [PrismaModule, TeamsModule, PushModule],
+  imports: [PrismaModule, TeamsModule, PushModule, BillingModule],
   controllers: [MatchLiveController],
   providers: [LiveGateway, MatchLiveService],
   exports: [LiveGateway, MatchLiveService],

@@ -133,6 +133,7 @@ export const TENANT_UNSCOPED_MODELS = new Set([
   // Native store billing: payer+club authorization on user routes; verified
   // store signatures/OIDC and immutable account binding on webhook routes.
   'StorePurchaseAccount',
+  'StoreCheckoutOwner',
   'StoreSubscription',
   'StorePurchaseReplacement',
   'ClubPlanCompliance',

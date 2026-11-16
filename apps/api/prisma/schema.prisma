@@ -185,6 +185,7 @@ model Club {
   inviteRedemptions       InviteRedemption[]
   entitlementGrants       EntitlementGrant[]
   storePurchaseAccounts   StorePurchaseAccount[]
+  storeCheckoutOwner      StoreCheckoutOwner?
   storeSubscriptions      StoreSubscription[]
   planCompliance          ClubPlanCompliance?
   bankImportBatches       BankImportBatch[]
@@ -1743,8 +1744,21 @@ model StorePurchaseAccount {
   createdAt DateTime @default(now())
   club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   subscriptions StoreSubscription[]
+  checkoutOwnership StoreCheckoutOwner?
 
   @@unique([clubId, userId])
+}
+
+// Claimed only when checkout is initiated. No time-based takeover: an unknown
+// store payment may complete later. Club-role transfers do not transfer billing.
+model StoreCheckoutOwner {
+  clubId    String @id
+  accountId String @unique
+  store     String
+  productId String?
+  createdAt DateTime @default(now())
+  club      Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  account   StorePurchaseAccount @relation(fields: [accountId], references: [id], onDelete: NoAction)
 }
 
 // Replacement tombstones exist even when a predecessor has never been seen.
@@ -1773,6 +1787,9 @@ model StoreSubscription {
   // Durable Google replacement link: late events for this predecessor must
   // never revive access, even when its first event arrives after replacement.
   replacesOriginalId String?
+  // Validated deferred Google pair, retained when Google removes its marker.
+  deferredFromProductId String?
+  deferredToProductId String?
   // AES-256-GCM sealed reference, used only for server reconciliation.
   sealedReference    String
   productId          String

@@ -19,6 +19,11 @@ export const STORE_PRODUCTS = [
   { id: 'com.renuirug.anstoss.unlimited.yearly', package: 'UNLIMITED', interval: 'yearly', definition: 'plan_three_unlimited_twelve_months_20261115' },
 ] as const
 
+export const storeCheckoutRequestSchema = z.object({
+  store: storePlatformSchema,
+  productId: z.string().refine(id => STORE_PRODUCTS.some(product => product.id === id), 'Unknown subscription'),
+}).strict()
+
 export const appleNotificationSchema = z.object({ signedPayload: z.string().min(1).max(65536) }).strict()
 export const googleNotificationSchema = z.object({
   message: z.object({ data: z.string().min(1).max(32768), messageId: z.string().max(200).optional() }),
@@ -33,6 +38,7 @@ export const googleNotificationDataSchema = z.object({
 export const storeBillingStatusSchema = z.object({
   enabled: z.boolean(),
   accountToken: z.string().uuid().nullable(),
+  checkout: z.object({ store: storePlatformSchema, ownedByYou: z.boolean(), productId: z.string().nullable().optional() }).nullable().optional(),
   products: z.array(z.string()),
   subscriptions: z.array(z.object({
     store: storePlatformSchema,

@@ -46,6 +46,36 @@ beforeEach(() => {
 })
 afterEach(() => { Platform.OS = originalOS })
 
+it.each([{ store: 'APPLE', ownedByYou: false }, { store: 'GOOGLE', ownedByYou: true }])(
+  'blocks competing checkout while keeping restore available: %j', async checkout => {
+    ;(api as jest.Mock).mockResolvedValue({ ...status, checkout })
+    ;(sdk.fetchProducts as jest.Mock).mockResolvedValue([{ id: sku, platform: 'ios', type: 'subs', displayPrice: '€12.99' }])
+    const { result } = renderHook(() => useStoreBilling(true, refresh))
+    await waitFor(() => expect(result.current.ready).toBe(true))
+    expect(result.current.checkoutBlocked).toBe(true)
+    expect(result.current.message).toBe('checkoutOwned')
+    expect(result.current.restoreReady).toBe(true)
+    await act(async () => { await result.current.subscribe(sku) })
+    expect(sdk.requestPurchase).not.toHaveBeenCalled()
+    expect((api as jest.Mock).mock.calls.some(([path]) => path.endsWith('/prepare'))).toBe(false)
+  },
+)
+
+it('claims checkout only on purchase initiation and shows an actionable ownership-race error', async () => {
+  ;(api as jest.Mock).mockImplementation(async (path: string) => {
+    if (path.endsWith('/prepare')) throw { code: 'STORE_CHECKOUT_OWNED' }
+    return status
+  })
+  ;(sdk.fetchProducts as jest.Mock).mockResolvedValue([{ id: sku, platform: 'ios', type: 'subs', displayPrice: '€12.99' }])
+  const { result } = renderHook(() => useStoreBilling(true, refresh))
+  await waitFor(() => expect(result.current.ready).toBe(true))
+  expect((api as jest.Mock).mock.calls.some(([path]) => path.endsWith('/prepare'))).toBe(false)
+  await act(async () => { await result.current.subscribe(sku) })
+  expect(result.current.message).toBe('checkoutOwned')
+  expect(result.current.busy).toBe(false)
+  expect(sdk.requestPurchase).not.toHaveBeenCalled()
+})
+
 it.each(['empty', 'failed'])('restores existing purchases with an %s catalogue', async (catalogue) => {
   if (catalogue === 'failed') (sdk.fetchProducts as jest.Mock).mockRejectedValue(new Error('catalogue offline'))
   const { result } = renderHook(() => useStoreBilling(true, refresh))
