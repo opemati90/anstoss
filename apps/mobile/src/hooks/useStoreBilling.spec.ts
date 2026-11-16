@@ -10,6 +10,7 @@ import { fallbackClubPlan } from './useClubPlan'
 let mockAuth = { activeClub: { club: { id: 'club-a' } }, user: { id: 'owner' }, token: 'session' }
 jest.mock('../context/AuthContext', () => ({ useAuth: () => mockAuth }))
 jest.mock('../api/client', () => ({ api: jest.fn() }))
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn() }))
 jest.mock('expo-modules-core', () => ({
   ...jest.requireActual('expo-modules-core'), requireOptionalNativeModule: jest.fn(() => ({})),
 }))

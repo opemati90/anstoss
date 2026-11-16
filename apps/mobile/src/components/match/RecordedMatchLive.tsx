@@ -11,8 +11,9 @@ import type {
   MatchLiveStatus,
   RecordMatchLiveEvent,
 } from '@anstoss/shared'
-import { api } from '../../api/client'
+import { api, ApiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+import { useVisibleRefresh } from '../../hooks/useVisibleRefresh'
 import { useClubColors } from '../../context/ClubThemeContext'
 import { useSafeAreaInsetsSafe } from '../../utils/useSafeAreaInsetsSafe'
 import { Haptics } from '../../utils/haptics'
@@ -36,6 +37,10 @@ import {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3002'
 
+class LiveStateUnavailableError extends Error {
+  constructor() { super('Live state is unavailable for this event'); this.name = 'LiveStateUnavailableError' }
+}
+
 /** Next clock step and its button label key for each status. */
 const NEXT_STEP: Partial<Record<MatchLiveStatus, { status: Exclude<MatchLiveStatus, 'NOT_STARTED'>; key: string; fallback: string }>> = {
   NOT_STARTED: { status: 'FIRST_HALF', key: 'matchLive.record.kickoff', fallback: 'Kick-off' },
@@ -56,6 +61,18 @@ type Picker =
  * button; everyone else watches the score and timeline update live.
  */
 export function RecordedMatchLive({ eventId }: { eventId: string }) {
+  const { user, token, activeClub } = useAuth()
+  // Permission-bearing state and pending actions never survive a session,
+  // club, event or role change.
+  const scope = JSON.stringify([user?.id, token, activeClub?.club.id, eventId,
+    activeClub?.role, activeClub?.operationalRoles])
+  const generation = useRef({ scope, key: 0 })
+  if (generation.current.scope !== scope) generation.current = { scope, key: generation.current.key + 1 }
+  // Keep the session token out of React keys/debug component identifiers.
+  return <RecordedMatchLiveScreen key={generation.current.key} eventId={eventId} />
+}
+
+function RecordedMatchLiveScreen({ eventId }: { eventId: string }) {
   const { t } = useTranslation()
   const c = useClubColors()
   const insets = useSafeAreaInsetsSafe()
@@ -70,34 +87,62 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
   const [picker, setPicker] = useState<Picker | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const canRecordRef = useRef(false)
+  const mounted = useRef(false)
+  const sequence = useRef(0)
+  const liveVersion = useRef(0)
+  const loaded = useRef(false)
+  const inFlight = useRef<Promise<void> | null>(null)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; sequence.current += 1 }
+  }, [])
 
   const base = clubId ? `/clubs/${clubId}/events/${eventId}` : null
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
     if (!base) {
       setError(true)
       setLoading(false)
       return
     }
-    setError(false)
-    try {
-      const [live, detail] = await Promise.all([
-        api<MatchLiveStateDto>(`${base}/live`),
-        api<EventDetail>(base),
-      ])
-      canRecordRef.current = live.canRecord
-      setState(live)
-      setEvent(detail)
-    } catch {
-      setError(true)
-    } finally {
-      setLoading(false)
-    }
-  }, [base])
+    if (!fresh && inFlight.current) return inFlight.current
+    const ticket = ++sequence.current
+    const version = liveVersion.current
+    const isCurrent = () => mounted.current && sequence.current === ticket
+    const request = (async () => {
+      try {
+        const [live, detail] = await Promise.all([
+          api<MatchLiveStateDto>(`${base}/live`),
+          api<EventDetail>(base),
+        ])
+        if (!isCurrent()) return
+        if (live.eventId !== eventId || detail.id !== eventId || typeof live.canRecord !== 'boolean') throw new LiveStateUnavailableError()
+        canRecordRef.current = live.canRecord
+        if (!live.canRecord) setPicker(null)
+        const superseded = version !== liveVersion.current
+        setState(previous => superseded && previous ? { ...previous, canRecord: live.canRecord } : live)
+        liveVersion.current += 1
+        setEvent(detail)
+        loaded.current = true
+        setError(false)
+      } catch (error) {
+        if (!isCurrent()) return
+        canRecordRef.current = false
+        setPicker(null)
+        const denied = error instanceof ApiError && [401, 403, 404].includes(error.status)
+        setState(previous => !denied && previous ? { ...previous, canRecord: false } : null)
+        if (denied) { setEvent(null); loaded.current = false }
+        setError(denied || !loaded.current)
+      } finally {
+        if (isCurrent()) { setLoading(false); inFlight.current = null }
+      }
+    })()
+    inFlight.current = request
+    return request
+  }, [base, eventId])
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  useVisibleRefresh(load)
 
   // Live updates from other devices (a second coach, or viewers).
   useEffect(() => {
@@ -109,7 +154,8 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
       socket = io(`${API_URL}/live`, { auth: { token }, transports: ['websocket'] })
       socket.emit('live:join', { eventId })
       socket.on('live:match', (next: MatchLiveStateDto) => {
-        if (next?.eventId !== eventId) return
+        if (cancelled || !mounted.current || next?.eventId !== eventId) return
+        liveVersion.current += 1
         // The broadcast never carries anyone's rights; keep our own.
         setState({ ...next, canRecord: canRecordRef.current })
       })
@@ -129,23 +175,34 @@ export function RecordedMatchLive({ eventId }: { eventId: string }) {
 
   const apply = useCallback(
     async (request: () => Promise<MatchLiveStateDto>) => {
-      if (busy) return
+      if (busy || !mounted.current || !canRecordRef.current) return
       setBusy(true)
+      const version = liveVersion.current
       try {
         const next = await request()
-        canRecordRef.current = next.canRecord
-        setState(next)
+        if (!mounted.current || next.eventId !== eventId) return
+        const superseded = version !== liveVersion.current
+        liveVersion.current += 1
+        // A delayed successful write cannot restore rights revoked by a newer read.
+        canRecordRef.current = canRecordRef.current && next.canRecord
+        setState(previous => ({ ...(superseded && previous ? previous : next), canRecord: canRecordRef.current }))
+        if (superseded) void load(true)
         setNow(Date.now())
       } catch {
+        if (!mounted.current) return
+        canRecordRef.current = false
+        setPicker(null)
+        setState(previous => previous ? { ...previous, canRecord: false } : null)
+        void load(true)
         Alert.alert(
           t('matchLive.record.failedTitle', { defaultValue: 'Not saved' }),
           t('matchLive.record.failedBody', { defaultValue: 'Check your connection and try again.' }),
         )
       } finally {
-        setBusy(false)
+        if (mounted.current) setBusy(false)
       }
     },
-    [busy, t],
+    [busy, t, eventId, load],
   )
 
   const record = useCallback(

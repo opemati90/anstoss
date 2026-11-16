@@ -10,6 +10,7 @@ import {
 } from '@anstoss/shared'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useVisibleRefresh } from './useVisibleRefresh'
 
 /** No club-only cache: permission-bearing plans belong to the current session. */
 const listeners = new Set<(scopeKey: string, plan: ClubPlan) => void>()
@@ -83,8 +84,9 @@ export function useClubPlan() {
   const mounted = useRef(false)
   const sequence = useRef(0)
   const pendingTrial = useRef<typeof scope | null>(null)
+  const inFlight = useRef<{ scope: typeof scope; promise: Promise<ClubPlan | null> } | null>(null)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (fresh = false) => {
     if (
       !mounted.current ||
       current.current !== scope ||
@@ -93,23 +95,32 @@ export function useClubPlan() {
       pendingTrial.current === scope
     )
       return null
+    if (!fresh && inFlight.current?.scope === scope) return inFlight.current.promise
+    const requestedClubId = scope.clubId
     const ticket = ++sequence.current
     const previous = latest.current?.scope === scope ? latest.current.plan : null
     setSnapshot({ scope, plan: previous, loading: true, error: false })
     const isCurrent = () =>
       mounted.current && current.current === scope && ticket === sequence.current
-    try {
-      const plan = confirmedPlan(
-        await api<unknown>(`/clubs/${encodeURIComponent(scope.clubId)}/plan`),
-        scope.clubId,
-      )
-      if (!isCurrent()) return null
-      setSnapshot({ scope, plan, loading: false, error: false })
-      return plan
-    } catch {
-      if (isCurrent()) setSnapshot({ scope, plan: null, loading: false, error: true })
-      return null
-    }
+    const request = { scope, promise: Promise.resolve<ClubPlan | null>(null) }
+    request.promise = (async () => {
+      try {
+        const plan = confirmedPlan(
+          await api<unknown>(`/clubs/${encodeURIComponent(requestedClubId)}/plan`),
+          requestedClubId,
+        )
+        if (!isCurrent()) return null
+        setSnapshot({ scope, plan, loading: false, error: false })
+        return plan
+      } catch {
+        if (isCurrent()) setSnapshot({ scope, plan: null, loading: false, error: true })
+        return null
+      } finally {
+        if (inFlight.current === request) inFlight.current = null
+      }
+    })()
+    inFlight.current = request
+    return request.promise
   }, [scope])
 
   useEffect(() => {
@@ -120,13 +131,18 @@ export function useClubPlan() {
       setSnapshot({ scope, plan, loading: false, error: false })
     }
     listeners.add(onUpdate)
-    void refresh()
     return () => {
       mounted.current = false
       sequence.current += 1
       listeners.delete(onUpdate)
+      if (inFlight.current?.scope === scope) inFlight.current = null
     }
   }, [scope, refresh])
+
+  // Admin grants, revocations and expiry are independent of store checkout.
+  // Refresh only while this screen is focused and the app is active. The
+  // server remains authoritative; no locally inferred premium entitlement.
+  useVisibleRefresh(refresh, scope.allowed)
 
   const startTrial = useCallback(async () => {
     const visible = latest.current
