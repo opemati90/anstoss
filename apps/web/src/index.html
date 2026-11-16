@@ -51,7 +51,9 @@
       type="font/woff2"
       crossorigin
     />
-    <link rel="stylesheet" href="./styles.css?v=20261113" />
+    <link rel="stylesheet" href="./styles.css?v=20261116-hover" />
+    <link rel="stylesheet" href="./app-showcase.css?v=20261116-localised" />
+    <link rel="preload" as="image" href="./assets/app-previews/de/home.webp" imagesrcset="./assets/app-previews/de/home-520.webp 520w, ./assets/app-previews/de/home.webp 780w" imagesizes="(max-width: 759px) 225px, 292px" fetchpriority="high" />
   </head>
   <body data-site="home">
     <a class="skip" href="#features" data-t="skip">Zum Inhalt</a>
@@ -121,6 +123,7 @@
               Termine, Zusagen, Aufstellung, Live-Ticker, Chat und Beiträge in einer App. In euren
               Vereinsfarben, ohne WhatsApp-Chaos.
             </p>
+            <a class="hero-tour" href="#app-tour"><span data-showcase="explore">So organisiert ihr euer Team</span><span aria-hidden="true">↗</span></a>
             <div id="download" class="stores">
               <!-- TODO: swap for the official, localised App Store / Google Play badge artwork once supplied. -->
               <a href="https://apps.apple.com/app/anstoss/id6761143230" class="store" rel="noopener"
@@ -146,84 +149,13 @@
               ><span class="flip" aria-hidden="true">→</span></a
             >
           </div>
-          <div class="phones">
-            <div class="phone back" role="img" aria-label="App-Vorschau" data-t-aria="preview">
-              <div class="scrn">
-                <span class="notch"></span>
-                <div class="mk">
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="m_next">Als Nächstes</span
-                    ><span class="disp mk-kick" data-t="m_kick">So 14:00</span
-                    ><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span>
-                    <div class="mk-rsvp">
-                      <span class="on" data-t="m_yes">Dabei</span
-                      ><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <figure class="hero-product">
+            <div class="hero-devices">
+              <button type="button" class="app-device hero-lineup" data-preview data-screen-name="lineup" aria-label="App-Ansicht vergrößern"><img src="./assets/app-previews/de/lineup.webp" srcset="./assets/app-previews/de/lineup-520.webp 520w, ./assets/app-previews/de/lineup.webp 780w" sizes="(max-width: 759px) 270px, 290px" width="780" height="1688" alt="Aufstellung mit Formation und Spielerpositionen" fetchpriority="high" decoding="async" /><span class="device-camera" aria-hidden="true"></span></button>
+              <button type="button" class="app-device hero-home" data-preview data-screen-name="home" aria-label="App-Ansicht vergrößern"><img src="./assets/app-previews/de/home.webp" srcset="./assets/app-previews/de/home-520.webp 520w, ./assets/app-previews/de/home.webp 780w" sizes="(max-width: 759px) 225px, 292px" width="780" height="1688" alt="Spieltag mit Zusagen und Aufgaben für den Trainer" fetchpriority="high" decoding="async" /><span class="device-camera" aria-hidden="true"></span></button>
             </div>
-            <div class="phone front" role="img" aria-label="App-Vorschau" data-t-aria="preview">
-              <div class="scrn">
-                <span class="notch"></span>
-                <div class="mk">
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="m_next">Als Nächstes</span
-                    ><span class="disp mk-kick" data-t="m_kick">So 14:00</span
-                    ><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span>
-                    <div class="mk-bar"><span></span><span></span><span></span></div>
-                    <span class="mk-count" data-t="m_count">14 dabei · 3 vielleicht · 5 offen</span>
-                  </div>
-                  <div class="mk-row">
-                    <span data-t="m_open5">5 haben nicht geantwortet</span
-                    ><span class="mk-pill" data-t="m_remind">Erinnern</span>
-                  </div>
-                  <div class="mk-row">
-                    <span dir="ltr">4-2-3-1 · 9/11</span
-                    ><span class="mut flip" aria-hidden="true">›</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            <figcaption><strong data-showcase="heroCaption">Zusagen im Blick. Aufstellung bereit.</strong><span data-showcase="sample">App-Ansichten mit Beispieldaten.</span></figcaption>
+          </figure>
         </div>
       </div>
     </header>
@@ -297,6 +229,29 @@
           </li>
         </ul>
       </div>
+
+      <section id="app-tour" class="sect app-tour" aria-labelledby="flow-h">
+        <div class="wrap">
+          <div class="tour-heading"><p class="lbl" data-showcase="eyebrow">Euer nächster Spieltag</p><h2 class="h2" id="flow-h" data-showcase="title">Weniger Nachfragen. Mehr Fußball.</h2><p class="sub" data-showcase="intro">Ein Termin. Ein klares Team. Von der ersten Zusage bis zur Nachricht vor dem Anpfiff.</p></div>
+          <div class="tour-layout">
+            <div class="tour-copy">
+              <div class="tour-tabs" role="tablist" aria-orientation="vertical" aria-label="Spieltag organisieren">
+                <button type="button" role="tab" class="tour-tab" id="tour-tab-0" aria-controls="tour-panel" aria-selected="true" tabindex="0" data-tour-tab="0"><span class="tour-tab-title">Termin teilen</span><span class="tour-tab-desc">Training oder Spiel, Treffpunkt und Uhrzeit an einem Ort.</span><span class="tour-tab-arrow" aria-hidden="true">↗</span></button>
+                <button type="button" role="tab" class="tour-tab" id="tour-tab-1" aria-controls="tour-panel" aria-selected="false" tabindex="-1" data-tour-tab="1"><span class="tour-tab-title">Zusagen sehen</span><span class="tour-tab-desc">Dabei, vielleicht oder Absage. Du siehst, mit wem du planen kannst.</span><span class="tour-tab-arrow" aria-hidden="true">↗</span></button>
+                <button type="button" role="tab" class="tour-tab" id="tour-tab-2" aria-controls="tour-panel" aria-selected="false" tabindex="-1" data-tour-tab="2"><span class="tour-tab-title">Aufstellung festlegen</span><span class="tour-tab-desc">Formation wählen, Positionen besetzen und mit dem Team teilen.</span><span class="tour-tab-arrow" aria-hidden="true">↗</span></button>
+                <button type="button" role="tab" class="tour-tab" id="tour-tab-3" aria-controls="tour-panel" aria-selected="false" tabindex="-1" data-tour-tab="3"><span class="tour-tab-title">Team informieren</span><span class="tour-tab-desc">Treffpunkt, Umfrage und letzte Absprachen bleiben im Teamchat.</span><span class="tour-tab-arrow" aria-hidden="true">↗</span></button>
+              </div>
+              <a href="./signup.html" class="btn btn-pri tour-cta"><span data-showcase="cta">Euer Team organisieren</span><span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tour-visual" role="tabpanel" id="tour-panel" aria-labelledby="tour-tab-0" tabindex="0">
+              <div class="tour-outcome"><span class="lbl" data-showcase="outcomeLabel">Für die ganze Mannschaft</span><h3 data-tour-outcome>Alle wissen, wann und wo.</h3></div>
+              <button type="button" class="app-device " data-preview data-tour-preview data-screen-name="calendar" aria-label="App-Ansicht vergrößern"><img src="./assets/app-previews/de/calendar.webp" srcset="./assets/app-previews/de/calendar-520.webp 520w, ./assets/app-previews/de/calendar.webp 780w" sizes="(max-width: 759px) 270px, 290px" width="780" height="1688" alt="Mannschaftskalender mit Spielen und Training" loading="lazy" decoding="async" /><span class="device-camera" aria-hidden="true"></span></button>
+              <button type="button" class="preview-enlarge" data-enlarge-tour><span data-showcase="enlarge">Ansicht vergrößern</span><span aria-hidden="true">↗</span></button>
+              <p class="preview-note" data-showcase="sample">App-Ansichten mit Beispieldaten.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section id="features" class="sect">
         <div class="wrap two">
@@ -413,165 +368,19 @@
               </ul>
             </div>
           </div>
-          <div class="stage">
-            <div class="phone" role="img" aria-label="App-Vorschau" data-t-aria="preview">
-              <div class="scrn">
-                <span class="notch"></span>
-                <div class="mk" data-role-mock="0">
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="m_next">Als Nächstes</span
-                    ><span class="disp mk-kick" data-t="m_kick">So 14:00</span
-                    ><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span>
-                    <div class="mk-bar"><span></span><span></span><span></span></div>
-                    <span class="mk-count" data-t="m_count">14 dabei · 3 vielleicht · 5 offen</span>
-                  </div>
-                  <div class="mk-row">
-                    <span data-t="m_open5">5 haben nicht geantwortet</span
-                    ><span class="mk-pill" data-t="m_remind">Erinnern</span>
-                  </div>
-                  <div class="mk-row">
-                    <span dir="ltr">4-2-3-1 · 9/11</span
-                    ><span class="mut flip" aria-hidden="true">›</span>
-                  </div>
-                </div>
-                <div class="mk" data-role-mock="1" hidden>
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="m_next">Als Nächstes</span
-                    ><span class="disp mk-kick" data-t="m_kick">So 14:00</span
-                    ><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span>
-                    <div class="mk-rsvp">
-                      <span class="on" data-t="m_yes">Dabei</span
-                      ><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="mk" data-role-mock="2" hidden>
-                  <div class="mk-head"><span data-t="roles.2.0">Vereinslos</span></div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="roles.2.1">Dein nächstes Team finden</span>
-                    <p data-t="roles.2.2.0">Als Spieler oder Trainer ein Suchprofil anlegen</p>
-                  </div>
-                  <div class="mk-row">
-                    <span data-t="roles.2.2.1">Sichtbarkeit selbst einschalten oder pausieren</span>
-                  </div>
-                  <div class="mk-row">
-                    <span data-t="roles.2.2.2">Gesuche ansehen und Probetrainings anfragen</span>
-                  </div>
-                </div>
-                <div class="mk" data-role-mock="3" hidden>
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-money">
-                    <span class="mk-k" data-t="m_in">Eingegangen</span
-                    ><span class="num big">450 €</span>
-                    <div class="mk-bar"><span></span><span></span></div>
-                    <span class="mk-foot"
-                      ><span data-t="m_out">Offen</span>: <span dir="ltr">100 €</span></span
-                    >
-                  </div>
-                  <div class="mk-row"><span>Mert Y.</span><span class="num">25 €</span></div>
-                  <div class="mk-row"><span>Paul K.</span><span class="num">45 €</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <figure class="product-stage role-stage">
+            <button type="button" class="app-device " data-preview data-role-preview data-screen-name="home" aria-label="App-Ansicht vergrößern"><img src="./assets/app-previews/de/home.webp" srcset="./assets/app-previews/de/home-520.webp 520w, ./assets/app-previews/de/home.webp 780w" sizes="(max-width: 759px) 270px, 290px" width="780" height="1688" alt="Spieltag mit Zusagen und Aufgaben für den Trainer" loading="lazy" decoding="async" /><span class="device-camera" aria-hidden="true"></span></button>
+            <figcaption class="product-caption"><span data-role-caption>Den Spieltag im Griff</span><small data-showcase="sample">App-Ansichten mit Beispieldaten.</small></figcaption>
+          </figure>
         </div>
       </section>
 
       <section id="clubs" class="sect tint">
         <div class="wrap two rev">
-          <div class="stage">
-            <div class="phone" role="img" aria-label="App-Vorschau" data-t-aria="preview">
-              <div class="scrn">
-                <span class="notch"></span>
-                <div class="mk">
-                  <div class="mk-head">
-                    <svg aria-hidden="true" width="22" height="24" viewBox="0 0 40 44">
-                      <path
-                        class="crest"
-                        d="M20 1.5 37.5 7.5v12.5c0 10.5-7.5 18.5-17.5 22.5C10 38.5 2.5 30.5 2.5 20V7.5z"
-                      />
-                      <text
-                        x="20"
-                        y="25.5"
-                        text-anchor="middle"
-                        font-family="Barlow Condensed, sans-serif"
-                        font-weight="700"
-                        font-size="12.5"
-                        fill="#FFFFFF"
-                      >
-                        SVS
-                      </text></svg
-                    ><span>SV Spreewiese</span>
-                  </div>
-                  <div class="mk-hero">
-                    <span class="mk-k" data-t="m_next">Als Nächstes</span
-                    ><span class="disp mk-kick" data-t="m_kick">So 14:00</span
-                    ><span class="mk-vs" data-t="m_vs">vs. Rot-Weiß Köpenick III</span>
-                    <div class="mk-rsvp">
-                      <span class="on" data-t="m_yes">Dabei</span
-                      ><span data-t="m_maybe">Vielleicht</span><span data-t="m_no">Absage</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <figure class="product-stage club-stage">
+            <button type="button" class="app-device " data-preview data-club-preview data-screen-name="player" aria-label="App-Ansicht vergrößern"><img src="./assets/app-previews/de/player-0e3b2b.webp" srcset="./assets/app-previews/de/player-0e3b2b-520.webp 520w, ./assets/app-previews/de/player-0e3b2b.webp 780w" sizes="(max-width: 759px) 270px, 290px" width="780" height="1688" alt="Spieleransicht mit Zusage zum nächsten Spiel" loading="lazy" decoding="async" /><span class="device-camera" aria-hidden="true"></span></button>
+            <figcaption class="product-caption"><span data-showcase="clubCaption">Ein Teamgefühl. Bis in die App.</span><small data-showcase="sample">App-Ansichten mit Beispieldaten.</small></figcaption>
+          </figure>
           <div class="col">
             <svg
               role="img"
@@ -672,36 +481,6 @@
               ></button>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="sect" aria-labelledby="flow-h">
-        <div class="wrap">
-          <h2 class="h2" id="flow-h" style="max-width: 760px" data-t="flow_h2">
-            Vom Termin bis zum Abpfiff.
-          </h2>
-          <ol class="flow" data-list="flow">
-            <li>
-              <span class="num fnum">01</span>
-              <h3 class="h3s">Termin anlegen</h3>
-              <p class="mut">Training oder Spiel, mit Treffpunkt und Erinnerung.</p>
-            </li>
-            <li>
-              <span class="num fnum">02</span>
-              <h3 class="h3s">Zusagen sammeln</h3>
-              <p class="mut">Das Team antwortet mit einem Tap. Du siehst sofort, wer fehlt.</p>
-            </li>
-            <li>
-              <span class="num fnum">03</span>
-              <h3 class="h3s">Aufstellung teilen</h3>
-              <p class="mut">Formation wählen, Spieler einsetzen, ans Team senden.</p>
-            </li>
-            <li>
-              <span class="num fnum">04</span>
-              <h3 class="h3s">Live begleiten</h3>
-              <p class="mut">Tore und Wechsel erfassen, alle sind dabei.</p>
-            </li>
-          </ol>
         </div>
       </section>
 
@@ -1101,7 +880,7 @@
               <span class="av">KO</span>
               <div class="body">
                 <span class="mut who">Kofi Osei</span
-                ><span class="bub" dir="ltr" lang="de">Wer nimmt die Bälle mit?</span>
+                ><span class="bub" data-t="m_msg">Wer nimmt die Bälle mit?</span>
               </div>
             </div>
             <div class="msg" data-translated hidden>
@@ -1257,9 +1036,15 @@
       <span class="mut copy">© 2026 Renuir UG (haftungsbeschränkt)</span>
     </footer>
 
-    <script src="./plan-packages.js?v=20261115"></script>
-    <script src="./i18n.js?v=20261115-packages"></script>
+    <script src="./plan-packages.js?v=20261116"></script>
+    <script src="./i18n.js?v=20261116-packages"></script>
     <script src="./site.js?v=20261113"></script>
     <script src="./cookie-consent.js?v=20261113"></script>
+    <dialog class="preview-dialog" aria-labelledby="preview-dialog-title">
+      <div class="preview-dialog-head"><h2 id="preview-dialog-title">App-Vorschau</h2><button type="button" class="preview-close" data-close-preview><span data-showcase="close">Schließen</span><span aria-hidden="true">×</span></button></div>
+      <img src="./assets/app-previews/de/home.webp" width="780" height="1688" alt="" loading="lazy" />
+      <p data-showcase="sample">App-Ansichten mit Beispieldaten.</p>
+    </dialog>
+    <script src="./app-showcase.js?v=20261116-localised"></script>
   </body>
 </html>
