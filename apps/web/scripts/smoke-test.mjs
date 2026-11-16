@@ -28,12 +28,15 @@ const window = {
 runInNewContext(read('plan-packages.js'), { window })
 const { PLAN_PACKAGES } = await import('@anstoss/shared')
 assert.equal(JSON.stringify(window.AnstossPlanPackages), JSON.stringify(PLAN_PACKAGES), 'Website prices and limits must match the shared catalogue')
+assert.equal(PLAN_PACKAGES.length, 3, 'Exactly three paid packages; Free is separate')
 runInNewContext(read('i18n.js'), { window, document, URL, URLSearchParams, CustomEvent: class {} })
 const i18n = window.AnstossI18n
 const price = (value) => Number(value.replace(/[^\d.,]/g, '').replace(',', '.'))
 for (const language of i18n.langs) {
   i18n.choose(language)
   const t = i18n.t()
+  assert.equal(t.package_labels.length, 3, `${language}: exactly three package labels`)
+  assert.ok(!/7 (teams|Teams)|6 (teams|Teams)/.test(t.pr_note), `${language}: no retired package claim`)
   assert.equal(attrs.lang, language)
   assert.equal(attrs.dir, language === 'ar' ? 'rtl' : 'ltr')
   document.body.dataset.site = 'signup'
@@ -41,7 +44,8 @@ for (const language of i18n.langs) {
   assert.equal(document.title, `Anstoss – ${t.signup.title}`)
   document.body.dataset.site = 'home'
   assert.ok(price(t.club_py) < price(t.club_pm) * 12, `${language}: yearly saving`)
-  assert.equal(Math.round(price(t.club_py) * 100), Math.round(price(t.club_pm) * 100) * 10)
+  assert.equal(Math.round(price(t.club_py) * 100), PLAN_PACKAGES[0].yearly)
+  assert.equal(Math.round(price(t.club_pm) * 100), PLAN_PACKAGES[0].monthly)
   for (const key of [
     'title',
     'body',
