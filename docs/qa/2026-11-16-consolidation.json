@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/consolidate-anstoss-20261116",
+  "testedCodeCommit": "42e4640ac973098306b5efc950ca80be5377fa60",
+  "scope": "Review branch only; no develop/prod push or promotion",
+  "runtime": "57.0.1-billing2",
+  "authExcluded": true,
+  "results": {
+    "api": {
+      "numPassedTestSuites": 169,
+      "numPassedTests": 1693,
+      "numPendingTests": 0,
+      "numFailedTests": 0
+    },
+    "mobile": {
+      "numPassedTestSuites": 155,
+      "numPassedTests": 1176,
+      "numPendingTests": 1,
+      "numFailedTests": 0
+    },
+    "shared": {
+      "numPassedTestSuites": 12,
+      "numPassedTests": 193,
+      "numPendingTests": 0,
+      "numFailedTests": 0
+    },
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed (native mobile compile excluded)",
+    "web": "passed",
+    "admin": "passed",
+    "migrations": "All candidate migrations applied to two fresh loopback databases",
+    "apiLineCoveragePercent": 72.06,
+    "apiRepositoryCoverageTargetMet": false,
+    "mobileLineCoveragePercent": 63.62
+  },
+  "releaseGates": [
+    "Combine separately tested auth commit",
+    "Fresh native build after combination",
+    "Sandbox purchase and restore lifecycle",
+    "Webhook delivery",
+    "Non-EUR prices and store metadata",
+    "Production promotion approval"
+  ]
+}
