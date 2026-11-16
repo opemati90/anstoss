@@ -1,0 +1,80 @@
+{
+  "status": "Local validation progress; not launch approval",
+  "repository": "/Users/yemi/anstoss-redesign-review-20261113",
+  "branch": "codex/redesign-integration-20261113",
+  "testedBaseCommit": "dbaa0777",
+  "sourceQualification": "Tests used the current working tree, including uncommitted auth, billing, admin and chat changes. These results do not certify the smaller committed reminder release alone or a future deployment artifact.",
+  "runtime": "Node 20.20.2, matching the CI major version",
+  "evidenceDirectory": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF",
+  "results": {
+    "api": {
+      "report": "api-coverage.json",
+      "exitCode": 0,
+      "suitesPassed": 173,
+      "testsPassed": 1729,
+      "skipped": 0,
+      "lineCoveragePercent": 72.27,
+      "statementCoveragePercent": 70.57,
+      "branchCoveragePercent": 58.31,
+      "functionCoveragePercent": 68.59,
+      "repositoryLineTargetPercent": 80,
+      "targetMet": false
+    },
+    "mobile": {
+      "report": "mobile-coverage.json",
+      "exitCode": 0,
+      "suitesPassed": 156,
+      "testsPassed": 1195,
+      "skipped": 1,
+      "lineCoveragePercent": 63.8,
+      "statementCoveragePercent": 61.68,
+      "branchCoveragePercent": 53.35,
+      "functionCoveragePercent": 55.99
+    },
+    "shared": { "report": "shared.json", "suitesPassed": 12, "testsPassed": 193 },
+    "database": {
+      "report": "api-database.json",
+      "suitesPassed": 8,
+      "testsPassed": 48,
+      "includedInApiTotal": true,
+      "scope": "Personas, club registration, Studio, RSVP, durable personal reminders, support, social-login concurrency and store-billing reconciliation",
+      "limitation": "Provider, OTP, push and store network boundaries are mocked; this is not a real-provider/device pass"
+    },
+    "migrations": "All migrations applied successfully to a fresh isolated local PostgreSQL database; migrations.log",
+    "typecheck": "API and mobile passed",
+    "formatAndLint": "Edited workflow files and support DB setup passed formatting; support setup passed targeted ESLint; git diff --check passed"
+  },
+  "issuesFoundAndHandled": [
+    "Skipped support database suite constructed Prisma with undefined datasource URL. Reviewed existing working-tree fix defers initialization to beforeAll and safely skips cleanup when not initialized.",
+    "OAuth mobile suite mocked all expo-modules-core exports and broke Expo fetch setup. Narrowed mock to preserve real helpers; all 19 OAuth adapter tests and the full mobile suite passed.",
+    "Sandbox blocked local HTTP/socket listeners; rerun with explicit localhost permissions passed without weakening assertions.",
+    "Earlier persona timeouts did not recur with CI Node 20 and isolated fresh databases; existing test timeouts retained.",
+    "Temporary clean-release QA reports were lost after execution-environment reset. New reports are persisted under the user workspace; do not treat the old reports as available release artifacts."
+  ],
+  "localReleaseControlChanges": [
+    "Both API deployments depend on reusable full Quality Gates at the candidate SHA.",
+    "CI now enables all existing opt-in database suites with disposable PostgreSQL and a separately migrated billing database.",
+    "Quality concurrency separates standalone and called runs; qualifying pushes currently run duplicate checks.",
+    "Deployment checks the current branch head before Railway upload and rejects a superseded candidate.",
+    "Hosted workflow execution has not yet been verified; no push or deployment performed."
+  ],
+  "independentReview": {
+    "reviewer": "launch_readiness_adversarial",
+    "reminders": "No new P0/P1 state-machine issue found; crash-after-provider-acceptance/before-DB-commit duplication window remains documented.",
+    "workflow": "No blocker found in reusable quality dependency and DB suite wiring. Branch-head check added after reviewer noted stale reruns.",
+    "authBlockers": [
+      "Apple external authorization revocation does not invalidate existing Anstoss sessions.",
+      "A failed DB transaction after Apple exchange can orphan an encrypted grant.",
+      "Expired link-ticket flow lacks explicit restart guidance."
+    ]
+  },
+  "unprovenLaunchGates": [
+    "API repository coverage target",
+    "Real Apple and Google sign-in, linking, revocation and deletion flows",
+    "Real store sandbox checkout, restores, renewals, cancellations, refunds and expiry",
+    "Locked physical iPhone and Android notification display",
+    "Full native UI, performance and persona smoke tests on iOS and Android",
+    "Final isolated staging candidate, store declarations/assets and approved production promotion"
+  ],
+  "externalChanges": "None. No new Railway resources, routing changes, prod push, EAS build, OTA or store submission. Renuir untouched."
+}

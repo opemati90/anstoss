@@ -14,16 +14,22 @@ if (url) {
 }
 
 ;(url ? describe : describe.skip)('Support database lifecycle', () => {
-  const prisma = new PrismaClient({ datasources: { db: { url } } })
-  const support = new SupportService(prisma as unknown as PrismaService)
+  let prisma: PrismaClient
+  let support: SupportService
   const userId = `support-test-${randomUUID()}`
   const actor = { id: null, name: 'Support QA', email: null, authMethod: 'admin-key' as const }
   let ticketId: string
 
   beforeAll(async () => {
+    // Jest evaluates skipped describe callbacks; create clients only when this
+    // opt-in suite actually runs, never from the default DATABASE_URL.
+    if (!url) throw new Error('SUPPORT_TEST_DATABASE_URL is required')
+    prisma = new PrismaClient({ datasources: { db: { url } } })
+    support = new SupportService(prisma as unknown as PrismaService)
     await prisma.user.create({ data: { id: userId, name: 'Support QA requester' } })
   })
   afterAll(async () => {
+    if (!prisma) return
     // Only this run's exact IDs; no global cleanup or fixture reset.
     if (ticketId)
       await prisma.auditLog.deleteMany({

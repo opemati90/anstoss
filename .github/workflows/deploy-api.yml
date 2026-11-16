@@ -22,8 +22,14 @@ env:
   CI: true
 
 jobs:
+  quality-gate:
+    name: Verify exact deployment candidate
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/prod'
+    uses: ./.github/workflows/quality.yml
+
   deploy-development:
     name: Deploy API (Development)
+    needs: quality-gate
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -41,6 +47,14 @@ jobs:
       - name: Install Railway CLI
         run: npm install --global @railway/cli
 
+      - name: Refuse a superseded deployment candidate
+        run: |
+          current_sha="$(git ls-remote --exit-code origin "$GITHUB_REF" | cut -f1)"
+          if [ "$current_sha" != "$GITHUB_SHA" ]; then
+            echo 'The branch has advanced. Run checks on the current candidate before deploying.'
+            exit 1
+          fi
+
       - name: Deploy to Railway development
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
@@ -49,6 +63,7 @@ jobs:
 
   deploy-production:
     name: Deploy API (Production)
+    needs: quality-gate
     if: github.ref == 'refs/heads/prod'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -65,6 +80,14 @@ jobs:
 
       - name: Install Railway CLI
         run: npm install --global @railway/cli
+
+      - name: Refuse a superseded deployment candidate
+        run: |
+          current_sha="$(git ls-remote --exit-code origin "$GITHUB_REF" | cut -f1)"
+          if [ "$current_sha" != "$GITHUB_SHA" ]; then
+            echo 'The branch has advanced. Run checks on the current candidate before deploying.'
+            exit 1
+          fi
 
       - name: Deploy to Railway production
         env:

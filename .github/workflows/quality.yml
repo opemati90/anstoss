@@ -10,9 +10,11 @@ on:
       - develop
       - prod
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: quality-${{ github.ref }}
+  # Reusable deployment checks must not cancel the independent push/PR run.
+  group: ${{ github.workflow }}-quality-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -110,6 +112,12 @@ jobs:
       DATABASE_URL: postgresql://test:test@localhost:5432/anstoss_test
       DATABASE_URL_DIRECT: postgresql://test:test@localhost:5432/anstoss_test
       SUPPORT_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      ANSTOSS_MVP_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      ANSTOSS_STUDIO_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      ANSTOSS_REMINDER_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      REMINDER_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      SOCIAL_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_test
+      BILLING_TEST_DATABASE_URL: postgresql://test:test@127.0.0.1:5432/anstoss_billing_test
       CLERK_SECRET_KEY: test_clerk_secret
       UPSTASH_REDIS_URL: https://example.upstash.io
       UPSTASH_REDIS_TOKEN: test_token
@@ -145,6 +153,14 @@ jobs:
 
       - name: Apply migrations
         run: npx prisma migrate deploy
+        working-directory: apps/api
+
+      - name: Prepare isolated billing database
+        # Billing tests deliberately require this exact local-only database name.
+        # Both databases belong to the disposable PostgreSQL service above.
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE anstoss_billing_test;'
+          DATABASE_URL="$BILLING_TEST_DATABASE_URL" DATABASE_URL_DIRECT="$BILLING_TEST_DATABASE_URL" npx prisma migrate deploy
         working-directory: apps/api
 
       - name: Run API tests with coverage

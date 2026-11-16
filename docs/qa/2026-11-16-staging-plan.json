@@ -1,0 +1,67 @@
+{
+  "status": "Plan only. User approved planning, not provisioning, spending or routing changes.",
+  "scope": "Anstoss only; no Renuir resources or shared-account settings",
+  "verifiedCurrentState": {
+    "railwayProject": "fc1f6c05-d556-48ad-bc8c-a59b4e7a99b4",
+    "projectName": "Anstoss fussball",
+    "environments": [{ "name": "production", "id": "c6651cfe-f78d-4c06-aefd-634f5933cc22" }],
+    "apiService": "373adb45-3ab1-4076-b2b9-72f1590ba1b3",
+    "deploymentRisk": "develop currently deploys the live production API; its GitHub environment label does not provide staging isolation",
+    "githubProtection": "production and development environments have no reviewer protection rules in the inspected repository",
+    "storeBuildRisk": "Pushing prod currently triggers EAS production builds. Do not advance prod under the current no-new-build instruction."
+  },
+  "targetMapping": {
+    "develop": "Anstoss staging, only after full quality checks",
+    "prod": "Existing Anstoss production, only after verified staging acceptance and explicit promotion approval",
+    "releaseIdentity": "Record exact tested git SHA, migrations, deployment ID, runtime version and QA report references"
+  },
+  "proposedIsolation": [
+    "Create an empty EU staging environment in the existing Anstoss project only after cost approval; do not blindly duplicate production variables or every existing service.",
+    "Provision a separate staging API and PostgreSQL database with synthetic 16+ test accounts. Never copy live user data or point staging at the production database.",
+    "Use separate Redis credentials and namespace for socket routing, rate limits, cache and background work. Verify separation before booting workers.",
+    "Use separate upload storage credentials and bucket; block access to production media. Quote incremental storage costs before setup.",
+    "Use separate session-signing and encryption keys; staging sessions must not authenticate to production or vice versa.",
+    "Email and push delivery must be restricted to explicitly approved QA recipients/devices. Never import production push tokens.",
+    "Use sandbox billing and allowlisted QA clubs only. Never attach production subscription grants or real customer payment data.",
+    "Keep social login disabled until revocation, interrupted-grant cleanup and real provider tests pass. Configure only Anstoss OAuth clients and redirect targets.",
+    "Use a separate staging API domain and app configuration; do not change the production app URL or publish an OTA to existing users.",
+    "Serve admin/website QA against staging explicitly. Keep scraper and unrelated or legacy database services out of the initial staging footprint unless a test needs them."
+  ],
+  "sequenceAfterApproval": [
+    "Review exact resource inventory, EU region, incremental monthly estimate and user-approved budget before provisioning.",
+    "Provision isolated resources and synthetic data with outbound delivery blocked initially.",
+    "Validate database, Redis, storage, session and provider isolation with negative cross-environment tests.",
+    "Create environment-scoped deployment credentials; inspect exact project, service and environment IDs before changing GitHub development secrets.",
+    "Require successful quality checks, branch-head freshness and an environment approval gate before deployment. Verify repository-plan support for required reviewers; otherwise use an explicit manual approval workflow.",
+    "Deploy a pinned candidate SHA to staging, then verify migration completion, deployment SUCCESS and HTTP health.",
+    "Run all persona journeys and adversarial checks on staging, including permission denial, retries, reconnects, account deletion and billing expiry/replacement.",
+    "Run actual iPhone locked-screen notification and real Apple/Google/provider sandbox tests; obtain a physical Android test device before claiming Android push readiness.",
+    "Only after all launch gates pass, request approval for production promotion and any necessary native/store build. No prod push before that approval.",
+    "Verify production target and recoverable deployment/database backups, promote only tested code, and observe health and error rates. Never roll back by destructively reversing migrations."
+  ],
+  "costApproval": {
+    "notYetApproved": true,
+    "estimatePending": "Inspect existing plan allowance and size API, PostgreSQL, Redis and storage. No fixed total can be promised without workload measurements.",
+    "controls": [
+      "Small initial resource limits and a single staging API replica; document what load they support.",
+      "Use scheduled QA periods if lower cost is necessary; keep staging running during reminder/retry timing tests.",
+      "Alerts and spending controls must be scoped to Anstoss. Do not set workspace-wide caps that could interrupt Renuir.",
+      "Do not enable automatic paid PR environments or upgrade a shared billing plan."
+    ],
+    "officialPricing": "https://docs.railway.com/pricing/plans",
+    "officialEnvironmentIsolation": "https://docs.railway.com/environments"
+  },
+  "localChangesPreparedNotDeployed": [
+    "Deploy API jobs now depend on the reusable complete Quality Gates workflow.",
+    "CI enables all existing database-backed suites against disposable local PostgreSQL, with a separate billing test database.",
+    "Standalone and called quality workflows have separate concurrency groups. Duplicate checks can consume additional GitHub Actions time; optimize before enabling if needed."
+  ],
+  "remainingLaunchBlockers": [
+    "Apple authorization revocation does not yet invalidate Anstoss sessions.",
+    "An Apple grant acquired before a failed login transaction can be orphaned.",
+    "Expired OAuth link tickets need explicit restart guidance.",
+    "Real-provider sign-in and sandbox purchase lifecycle/device tests remain unverified.",
+    "Physical locked-phone delivery remains unverified; no physical Android device supplied.",
+    "Full native simulator/emulator UX, performance, store compliance and final candidate acceptance remain separate gates."
+  ]
+}
