@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "apps/web/src/join.html"
+        ],
+        "createdAt": "2026-11-24T14:41:11.251Z",
+        "reason": "Codex verified: #club-badge is hidden until join.js sets a real invitation badge URL, and a visible text fallback is rendered in the meantime."
+      }
+    ]
+  }
+}
