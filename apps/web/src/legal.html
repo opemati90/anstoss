@@ -81,14 +81,8 @@
             12623 Berlin
           </p>
 
-          <h3>EU-Streitschlichtung</h3>
-          <p>
-            Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
-            <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer"
-              >https://ec.europa.eu/consumers/odr/</a
-            >. Wir sind nicht verpflichtet und nicht bereit, an einem Streitbeilegungsverfahren vor
-            einer Verbraucherschlichtungsstelle teilzunehmen.
-          </p>
+          <h3>Verbraucherstreitbeilegung</h3>
+          <p>Wir sind nicht verpflichtet und nicht bereit, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
         </div>
 
         <!-- ENGLISH -->
@@ -118,14 +112,8 @@
             12623 Berlin
           </p>
 
-          <h3>EU Dispute Resolution</h3>
-          <p>
-            The European Commission provides an online dispute resolution (ODR) platform:
-            <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer"
-              >https://ec.europa.eu/consumers/odr/</a
-            >. We are neither obligated nor willing to participate in dispute resolution proceedings
-            before a consumer arbitration board.
-          </p>
+          <h3>Consumer dispute resolution</h3>
+          <p>We are neither obligated nor willing to participate in dispute resolution proceedings before a consumer arbitration board.</p>
         </div>
       </section>
 
@@ -197,33 +185,12 @@
             </li>
           </ul>
 
-          <h3>Optionale KI-Chatübersetzung</h3>
-          <p>
-            Wenn diese Funktion verfügbar ist, kannst du sie unter Sprache ausdrücklich erlauben
-            oder jederzeit ausschalten. Anstoss sendet nur Text von Chat- und Direktnachrichten,
-            die nach der Einwilligung des Absenders erstellt wurden, zur Übersetzung an OpenAI.
-            Auch der Leser muss zugestimmt haben. Ältere Nachrichten werden nicht gesendet.
-            Wir fügen keine Konto- oder Vereinskennungen hinzu; im Nachrichtentext selbst können
-            personenbezogene Angaben stehen. Nutze die Funktion nicht für vertrauliche Angaben
-            über andere Personen ohne entsprechende Berechtigung.
-          </p>
-          <p>
-            OpenAI verwendet API-Daten standardmäßig nicht zum Modelltraining. Wir deaktivieren
-            die Speicherung von Responses (<code>store: false</code>); dies ist keine
-            Nullspeicherungsgarantie. OpenAI kann Daten zur Missbrauchskontrolle bis zu 30 Tage
-            und bei gesetzlichen oder Sicherheitsanforderungen länger speichern. Eine Verarbeitung
-            außerhalb der EU ist möglich. Details stehen in
-            <a href="https://developers.openai.com/api/docs/guides/your-data/">OpenAIs API-Datenschutzhinweisen</a>.
-            Das Ausschalten stoppt neue Anfragen, nicht bereits gesendete. Übersetzungen können
-            fehlerhaft sein. Anstoss speichert Übersetzungen zusammen mit der zugehörigen Nachricht,
-            um wiederholte Anfragen zu vermeiden; die Löschung der Nachricht löscht auch diesen Cache.
-          </p>
+          <h3>Chatnachrichten</h3>
+          <p>In dieser Version werden Chatnachrichten nicht automatisch übersetzt. Anstoss sendet dafür keine Nachrichten an einen Übersetzungsdienst.</p>
 
           <h3>4. Auftragsverarbeiter und Drittanbieter</h3>
           <p>
-            Zur Erbringung unseres Dienstes setzen wir folgende Auftragsverarbeiter ein. Soweit
-            Daten in die USA übertragen werden, erfolgt dies auf Grundlage von
-            Standardvertragsklauseln (SCCs) gemäß Art. 46 Abs. 2 lit. c DSGVO:
+            Die Tabelle nennt Dienstleister und, soweit angegeben, die eingerichtete Betriebsregion. Eine EU-Betriebsregion sagt nicht aus, dass alle nachgelagerten Dienste ausschließlich in der EU arbeiten.
           </p>
           <table>
             <thead>
@@ -238,7 +205,7 @@
               <tr>
                 <td>Railway Corporation</td>
                 <td>API-Hosting und Datenbank (PostgreSQL)</td>
-                <td>USA</td>
+                <td>EU (Amsterdam)</td>
                 <td>SCCs</td>
               </tr>
               <tr>
@@ -256,18 +223,18 @@
               <tr>
                 <td>Resend, Inc.</td>
                 <td>E-Mail-Einmalcodes und transaktionale E-Mails</td>
-                <td>USA</td>
+                <td>EU (Irland; Versandregion)</td>
                 <td>SCCs</td>
               </tr>
               <tr>
                 <td>Stripe, Inc.</td>
-                <td>Zahlungsabwicklung</td>
+                <td>Zahlungsabwicklung, soweit separat angeboten; Abo-Käufe sind in der Startversion der App deaktiviert.</td>
                 <td>USA / Irland</td>
                 <td>PCI DSS, SCCs</td>
               </tr>
               <tr>
                 <td>Expo / 650 Industries, Inc.</td>
-                <td>Push-Benachrichtigungen</td>
+                <td>Push-Benachrichtigungen über Apple APNs und Google FCM</td>
                 <td>USA</td>
                 <td>SCCs</td>
               </tr>
@@ -280,9 +247,7 @@
               <tr>
                 <td>FUSSBALL.DE / DFBnet</td>
                 <td>
-                  Optionaler offizieller Vereins-Widget-Inhalt. Der Widget-Anbieter erhält beim
-                  Öffnen übliche Web-Anfragedaten wie IP-Adresse sowie Geräte- und
-                  Browserinformationen.
+                  Das offizielle Vereins-Widget ist in der Startversion der App nicht verfügbar.
                 </td>
                 <td>Deutschland</td>
                 <td>Externer Inhaltsanbieter</td>
@@ -483,31 +448,12 @@
             </li>
           </ul>
 
-          <h3>Optional AI chat translation</h3>
-          <p>
-            When available, this feature requires your explicit permission in Language settings,
-            where you can also turn it off. Anstoss sends chat and direct-message text to OpenAI
-            for translation only for messages created after the sender opted in. The reader must
-            also opt in. Older messages are not sent. We do not attach account or club identifiers,
-            but the message text itself may contain personal information. Do not use this feature
-            for confidential information about others without appropriate permission.
-          </p>
-          <p>
-            OpenAI does not use API data for model training by default. We disable Responses
-            storage (<code>store: false</code>); this is not a zero-retention guarantee. OpenAI may
-            retain data for abuse monitoring for up to 30 days, or longer for legal or safety
-            requirements. Processing outside the EU is possible. See
-            <a href="https://developers.openai.com/api/docs/guides/your-data/">OpenAI's API data controls</a>.
-            Turning the setting off stops new requests, not those already sent. Translations may
-            be inaccurate. Anstoss caches translations with the associated message to avoid repeat
-            requests; deleting the message also deletes its cached translations.
-          </p>
+          <h3>Chat messages</h3>
+          <p>Chat messages are not translated automatically in this release. Anstoss does not send messages to a translation provider for this purpose.</p>
 
           <h3>4. Third-Party Processors</h3>
           <p>
-            We use the following processors to provide our service. Where data is transferred to the
-            USA, this is done on the basis of Standard Contractual Clauses (SCCs) pursuant to Art.
-            46(2)(c) GDPR:
+            The table lists providers and, where specified, the configured service region. An EU service region does not mean that all downstream services operate exclusively in the EU.
           </p>
           <table>
             <thead>
@@ -522,7 +468,7 @@
               <tr>
                 <td>Railway Corporation</td>
                 <td>API hosting and database (PostgreSQL)</td>
-                <td>USA</td>
+                <td>EU (Amsterdam)</td>
                 <td>SCCs</td>
               </tr>
               <tr>
@@ -540,18 +486,18 @@
               <tr>
                 <td>Resend, Inc.</td>
                 <td>Email one-time codes and transactional email delivery</td>
-                <td>USA</td>
+                <td>EU (Ireland; sending region)</td>
                 <td>SCCs</td>
               </tr>
               <tr>
                 <td>Stripe, Inc.</td>
-                <td>Payment processing</td>
+                <td>Payment processing where offered separately; subscription purchases are disabled in the launch app.</td>
                 <td>USA / Ireland</td>
                 <td>PCI DSS, SCCs</td>
               </tr>
               <tr>
                 <td>Expo / 650 Industries, Inc.</td>
-                <td>Push notifications</td>
+                <td>Push notifications via Apple APNs and Google FCM</td>
                 <td>USA</td>
                 <td>SCCs</td>
               </tr>
@@ -564,8 +510,7 @@
               <tr>
                 <td>FUSSBALL.DE / DFBnet</td>
                 <td>
-                  Optional official club-widget content. When opened, the widget provider receives
-                  ordinary web-request metadata such as IP address and device/browser information.
+                  The official club widget is not available in the launch app.
                 </td>
                 <td>Germany</td>
                 <td>External content provider</td>
