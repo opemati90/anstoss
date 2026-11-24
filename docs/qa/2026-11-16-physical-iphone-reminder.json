@@ -1,0 +1,36 @@
+{
+  "scope": "Local combined QA candidate and synthetic coach account only",
+  "appBuild": "9202",
+  "device": "Physical iPhone 16, iOS 27.2",
+  "startup": "Scene lifecycle crash fixed; user confirmed app opened and signed in",
+  "registration": "Exactly one local coach iOS PushToken observed after native sign-in; token not logged",
+  "fixture": {
+    "title": "QA locked-phone reminder",
+    "setup": "Event created and reminder enabled through actual authenticated local API",
+    "dueAt": "2026-11-16T21:58:38.446Z",
+    "userConfirmedLockedBeforeSend": true
+  },
+  "delivery": {
+    "worker": "Actual EventReminderWorker.runCycle invoked manually with actual TeamsService, PushService, NotificationsService and AgeGateService",
+    "transport": "Real Expo/APNs path; no fake response interception",
+    "firstAttempt": "One attempt accepted with ticket; durable state receipt, next poll 2026-11-16T22:13:50.846Z",
+    "providerReceipt": "PASS: separate read-only probe returned status ok; worker persistence still awaits its normal scheduled receipt poll",
+    "lockScreenDisplay": "PASS: user confirmed reminder arrived while phone was locked",
+    "tapNavigation": "PASS: user confirmed tapping opened the correct event"
+  },
+  "limits": [
+    "Manual cycle does not prove production automatic scheduling",
+    "API reminder activation does not prove native reminder-toggle interaction",
+    "Expo ticket acceptance does not prove device display or correct tap navigation",
+    "Physical Android remains untested",
+    "No live API deployment, store submission or Renuir changes"
+  ],
+  "automaticFollowup": {
+    "status": "Deferred at user request after successful physical delivery/tap test; automatic timer never started and both follow-up reminders remain off",
+    "setupCorrection": "Coach event screen intentionally hides the personal reminder switch. Original instructions used the wrong persona; player fixture is now approved through actual local join-request/admin approval/coach squad decision APIs.",
+    "membershipEvidence": "Local player join request, approval, FULL squad acceptance and active membership verified through HTTP. This is not a native onboarding pass.",
+    "nextStep": "Move to real provider sign-in tests per user; do not restart the extra notification exercise without revisiting it",
+    "reviewFinding": "Harness shutdown now stops the timer then drains tracked real cycle promises before disconnecting Prisma. Production worker graceful-drain behavior remains a separate review item."
+  },
+  "independentReview": "No P0/P1 in exact-device, synthetic-fixture runner safety review"
+}

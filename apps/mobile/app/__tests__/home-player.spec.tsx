@@ -1,3 +1,4 @@
+import { setFeatureOverride, clearFeatureOverrides } from '../../src/utils/featureFlags'
 import React from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -140,6 +141,7 @@ describe('PlayerHome', () => {
   })
 
   afterEach(() => {
+    clearFeatureOverrides()
     jest.restoreAllMocks()
   })
 
@@ -148,6 +150,7 @@ describe('PlayerHome', () => {
       wrap(<PlayerHome clubId="club-1" teamId="team-1" />),
     )
     expect(await findByText('Monday training')).toBeTruthy()
+    expect(mockApi.mock.calls.some(([path]) => /fixtures|season-stats/.test(path))).toBe(false)
     expect(getByLabelText('Your reply')).toBeTruthy()
     expect(await findByText('eventFlow.rsvp.yes')).toBeTruthy()
     expect(await findByText('eventFlow.rsvp.maybe')).toBeTruthy()
@@ -377,6 +380,8 @@ describe('PlayerHome', () => {
   })
 
   it('keeps unanswered players focused on RSVP for a linked live match', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -423,6 +428,8 @@ describe('PlayerHome', () => {
   })
 
   it('keeps confirmed players focused on check-in for a linked live match', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -466,6 +473,8 @@ describe('PlayerHome', () => {
   })
 
   it('shows a live fixture even after kickoff has moved into recent fixtures', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -508,6 +517,8 @@ describe('PlayerHome', () => {
   })
 
   it('collapses an answered live event into one compact match action', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const eventDate = new Date(Date.now() + 3 * 86400000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -560,6 +571,8 @@ describe('PlayerHome', () => {
   })
 
   it('keeps unrelated team events visible and prefers the next linked live fixture', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const teamALiveAt = new Date(Date.now() + 60 * 1000).toISOString()
     const teamBLiveAt = new Date(Date.now() + 2 * 60 * 1000).toISOString()
     const trainingAt = new Date(Date.now() + 86400000).toISOString()
@@ -645,6 +658,8 @@ describe('PlayerHome', () => {
   })
 
   it('shows a live fixture when the kickoff event has aged out of upcoming events', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const kickoffAt = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {
@@ -680,6 +695,8 @@ describe('PlayerHome', () => {
   })
 
   it('routes a linked match hero to match detail', async () => {
+    // Dormant provider flow: explicit opt-in keeps coverage for later.
+    setFeatureOverride('anstoss.officialFixtures', true)
     const kickoffAt = new Date(Date.now() + 3 * 86400000).toISOString()
     mockApi.mockImplementation((path: string) => {
       if (path.includes('/events?') && path.includes('scope=upcoming')) {

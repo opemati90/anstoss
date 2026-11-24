@@ -9,7 +9,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -75,6 +75,7 @@ function relativeTime(iso: string, locale: string): string {
 }
 
 export default function PhotoWallScreen() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
   // Gated out of MVP: photo upload still inserts placeholder images.
   if (!isFeatureEnabled('anstoss.experimentalFeatures')) {
     return <ComingSoon titleKey="photoWall.title" />

@@ -119,7 +119,7 @@ describe('CoachHome — cold-start empty-state nudge', () => {
     expect(await findAllByText('vs FC Nord')).toBeTruthy()
     // Nudge should not be shown
     expect(queryByText('Nothing planned yet')).toBeNull()
-    // The season folds to a one-line summary on coach home.
-    expect(await findAllByText('5 played · 3 W · 1 D · 1 L')).toBeTruthy()
+    expect(queryByText('5 played · 3 W · 1 D · 1 L')).toBeNull()
+    expect(mockApi.mock.calls.some(([path]) => /fixtures|season-stats|integrations\/fussball/.test(path))).toBe(false)
   })
 })

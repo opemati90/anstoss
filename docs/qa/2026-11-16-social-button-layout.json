@@ -1,0 +1,44 @@
+{
+  "report": "Physical QA 9203 Apple button label visually oversized compared with Google",
+  "latestVerification20261117": {
+    "source": "Google 16pt optical sizing and shared 44pt capsule geometry retained; native Apple appearance unchanged. Accessibility disabled/busy state is now on the native accessible control.",
+    "tests": "Full combined mobile suite: 1361 passed, one existing skip; TypeScript passed.",
+    "keyboard": "Shared onboarding focus-aware layout corrected and name/DOB verified on iPhone16 simulator. Does not replace remaining settled sign-in, larger-text and Android visual checks.",
+    "physical": "No replacement of physical QA9203 this turn; updated buttons not yet on user phone."
+  },
+  "cause": "Native Apple control was 56pt high and scales its title proportionally; shared app button used smaller body typography",
+  "changes": [
+    "Native Apple control uses compact 44pt base height and matching capsule corners, with font-scale accommodation up to 200%",
+    "Native title changed to Continue with Apple to match Continue with Google terminology",
+    "Dedicated auth size for shared Button; Google and email send-code use 44pt minimum hit targets, other screen buttons unchanged",
+    "Native approved light/dark logo and button treatment retained"
+  ],
+  "reference": "https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple",
+  "verification": {
+    "tests": "97 passed across Apple button, OAuth adapters and onboarding screen suite; TypeScript passed",
+    "simulator": "Dedicated Anstoss iPhone16/iOS26.5: light/dark settled screenshots and keyboard open/closed inspected. Live-switching to XL showed truncation in Google/email labels and surrounding text; larger-text acceptance remains open and requires settled/relaunch verification, not claimed passed.",
+    "motion": "Back/sign-in/keyboard interaction recorded and sampled frames inspected; not a frame-time/performance benchmark",
+    "images": [
+      "/private/tmp/anstoss-auth-layout-light-closed.png",
+      "/private/tmp/anstoss-auth-layout-dark-settled.png",
+      "/private/tmp/anstoss-auth-layout-xl.png"
+    ],
+    "physical": "Phone remains QA9203; local9204 layout candidate is bundled but not installed while clarifying user's cancellation report"
+  },
+  "googleCancellation": {
+    "expected": "Returns to usable sign-in without session, success message or navigation",
+    "screenRegression": "Mocked cancellation leaves sign-in controls enabled, no error note or navigation, and permits a second attempt",
+    "physicalReport": "User said Continue with Google and cancel doesn't return anything; asked whether window closes to Anstoss or remains open. Native pass not assumed."
+  },
+  "revision20261117": {
+    "reportedRegression": "User rejected Google title at 19pt as visibly larger than the approved native Apple button.",
+    "correction": "Apple unchanged. Google Sans base size reduced to 16pt; approved filled dark treatment in light app and filled white treatment in dark app. Both retain shared 44pt base height and capsule geometry.",
+    "automated": "30 provider/OAuth tests passed, TypeScript and changed-file ESLint passed.",
+    "native": "9209 simulator preview inspected in both themes. Optical title size corrected; keyboard still overlaps lower Google edge, tracked separately as open onboarding layout work. Not a full-screen acceptance pass.",
+    "physical": "Not installed on iPhone; existing QA9203 retained.",
+    "evidence": ["/private/tmp/anstoss-buttons-9209-light.png", "/private/tmp/anstoss-buttons-9209-dark-settled.png"],
+    "stillRequired": ["Keyboard and focus-scroll corrections", "Settled keyboard-closed and larger-text screenshots", "Full motion and Android verification"],
+    "bundleSafety": "9208 failed endpoint assertion because of stale transform cache; simulator-only artifact not suitable for phone. 9209 uses an isolated temporary transform-cache directory and passed expected HTTPS endpoint assertion."
+  },
+  "boundaries": "No production deployment, EAS build, store submission or Renuir changes"
+}

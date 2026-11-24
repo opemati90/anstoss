@@ -172,9 +172,17 @@ export function OnboardingScreen({
 
   const footerBottom = insets.bottom + space.md
   const hasFooter = Boolean(primary || secondary || footerNote)
+  // The footer already occupies layout space. Only its overlap with the
+  // keyboard belongs in the scroll spacer; adding its height again creates
+  // the empty scrolling tail. Keep its layout stable during the animation.
+  const footerLiftOffset = hasFooter ? Math.max(0, footerBottom - space.sm) : 0
+  const focusedFieldOffset = (hasFooter ? Math.max(0, footerHeight - footerLiftOffset) : 0) + space.sm
 
   return (
-    <View style={[styles.root, { backgroundColor: c.background }]} testID={testID}>
+    <View
+      style={[styles.root, { backgroundColor: c.background }]}
+      testID={testID}
+    >
       {/* The welcome hero switches to light content; every step after it is
           on the page background again. */}
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
@@ -199,10 +207,12 @@ export function OnboardingScreen({
       <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        mode="layout"
+        bottomOffset={focusedFieldOffset}
+        extraKeyboardSpace={hasFooter ? -footerLiftOffset : 0}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustContentInsets={false}
-        bottomOffset={footerHeight + space.md}
-        extraKeyboardSpace={footerHeight}
+        automaticallyAdjustKeyboardInsets={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
@@ -221,9 +231,13 @@ export function OnboardingScreen({
       </KeyboardAwareScrollView>
 
       {hasFooter ? (
-        <KeyboardStickyView>
-        <View
-          onLayout={({ nativeEvent }) => setFooterHeight(nativeEvent.layout.height)}
+        <KeyboardStickyView
+          offset={{ closed: 0, opened: footerLiftOffset }}
+          onLayout={(event) => {
+            const nextHeight = event.nativeEvent.layout.height
+            setFooterHeight(previous => previous === nextHeight ? previous : nextHeight)
+          }}
+          testID={testID ? `${testID}-footer` : undefined}
           style={[
             styles.footer,
             {
@@ -258,7 +272,6 @@ export function OnboardingScreen({
             />
           ) : null}
           {footerNote}
-        </View>
         </KeyboardStickyView>
       ) : null}
     </View>

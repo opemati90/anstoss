@@ -48,6 +48,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {})
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    GoogleSans: require('../assets/provider-brand/GoogleSans.ttf'),
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,

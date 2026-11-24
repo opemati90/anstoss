@@ -354,7 +354,7 @@ const base = {
     blockedEyebrow: 'Accesso limitato',
     blockedTitle: "L'accesso non può ancora continuare",
     blockedBody:
-      "Gli account under 16 necessitano di un invito valido seguito dall'approvazione di un genitore prima di poter usare Anstoss.",
+      'Un account personale è disponibile dai 16 anni. Un genitore o tutore può gestire il profilo del minore dal proprio account.',
     checkStatus: 'Controlla stato',
   },
   accountNextStep: {

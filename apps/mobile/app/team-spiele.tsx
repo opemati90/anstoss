@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Pressable,
@@ -8,7 +9,7 @@ import {
   View,
 } from 'react-native'
 import type { ImportedFixture, TableSnapshotRow } from '@anstoss/shared'
-import { router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -53,6 +54,11 @@ const FORM_GAP = 3
  * with tab=tabelle.
  */
 export default function TeamSpieleScreen() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
+  return <TeamSpieleScreenContent />
+}
+
+function TeamSpieleScreenContent() {
   const { t } = useTranslation()
   const c = useClubColors()
   const locale = getAppLocale(getAppLanguage())

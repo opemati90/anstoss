@@ -144,6 +144,60 @@ describe('native push lifecycle', () => {
     unmount()
   })
 
+  it.each(['ios', 'android'])('times out stalled %s token acquisition and recovers without a reopen', async (platform) => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform })
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    let finishStalled!: (value: { data: string }) => void
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementationOnce(
+      () => new Promise(resolve => { finishStalled = resolve }),
+    )
+    const { result, unmount } = mount()
+    await flush()
+    await act(async () => { jest.advanceTimersByTime(20_000) })
+    expect(result.current.registrationStatus).toBe('error')
+    expect(result.current.registrationError).toContain('timed out')
+    expect(mockFetch).not.toHaveBeenCalled()
+    await act(async () => { jest.advanceTimersByTime(40_000) })
+    expect(result.current.registrationStatus).toBe('registered')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    await act(async () => { finishStalled({ data: 'ExponentPushToken[stale]' }) })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(result.current.expoPushToken).toBe('ExponentPushToken[qa-device]')
+    unmount()
+  })
+
+  it('ignores a stalled acquisition that completes after sign-out', async () => {
+    let finishStalled!: (value: { data: string }) => void
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementationOnce(
+      () => new Promise(resolve => { finishStalled = resolve }),
+    )
+    const { result, rerender, unmount } = renderHook<ReturnType<typeof usePushNotifications>, { token: string | null }>(
+      ({ token }) => usePushNotifications({ apiUrl: 'https://qa.invalid', token }),
+      { initialProps: { token: 'qa-session' } },
+    )
+    await flush()
+    rerender({ token: null })
+    await act(async () => { finishStalled({ data: 'ExponentPushToken[old-account]' }) })
+    expect(result.current.registrationStatus).toBe('idle')
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(await AsyncStorage.getItem('anstoss:push-token')).toBeNull()
+    unmount()
+  })
+
+  it('retries a failed token refresh even after an earlier successful registration', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const { result, unmount } = mount()
+    await flush()
+    expect(result.current.registrationStatus).toBe('registered')
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockRejectedValueOnce(new Error('offline'))
+    await act(async () => { mockListeners.token() })
+    expect(result.current.registrationStatus).toBe('error')
+    await act(async () => { jest.advanceTimersByTime(60_000) })
+    expect(result.current.registrationStatus).toBe('registered')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
   it('invalidates foreground data and handles a cold-start tap only once', async () => {
     ;(Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(response)
     const listener = jest.fn()
@@ -180,6 +234,48 @@ describe('native push lifecycle', () => {
     expect(mockFetch).toHaveBeenLastCalledWith('https://qa.invalid/push/unregister', expect.objectContaining({
       body: JSON.stringify({ token: 'ExponentPushToken[qa-device]', registration: lease }),
     }))
+    unmount()
+  })
+
+  it.each(['ios', 'android'])('does not loop when %s native acquisition emits its token event', async (platform) => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform })
+    const nativeToken = { type: platform, data: 'qa-native-token' }
+    let nativeAcquisitions = 0
+    ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockImplementation(async options => {
+      if (!options.devicePushToken) {
+        nativeAcquisitions += 1
+        if (nativeAcquisitions > 3) throw new Error('Native token feedback loop')
+        mockListeners.token(nativeToken)
+      }
+      return { data: 'ExponentPushToken[qa-device]' }
+    })
+    const { result, unmount } = mount()
+    await flush()
+    expect(result.current.registrationStatus).toBe('registered')
+    expect(nativeAcquisitions).toBe(1)
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(2)
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenLastCalledWith({
+      projectId: 'qa-project', devicePushToken: nativeToken,
+    })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
+  it('passes only the latest queued native rotation to Expo after registration settles', async () => {
+    let finish!: (value: typeof registeredResponse) => void
+    mockFetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const { result, unmount } = mount()
+    await flush()
+    act(() => {
+      mockListeners.token({ type: 'ios', data: 'native-intermediate' })
+      mockListeners.token({ type: 'ios', data: 'native-latest' })
+    })
+    await act(async () => { finish(registeredResponse) })
+    expect(result.current.registrationStatus).toBe('registered')
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(2)
+    expect(Notifications.getExpoPushTokenAsync).toHaveBeenLastCalledWith({
+      projectId: 'qa-project', devicePushToken: { type: 'ios', data: 'native-latest' },
+    })
     unmount()
   })
 

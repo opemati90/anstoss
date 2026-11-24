@@ -1,13 +1,18 @@
+import { useRef } from 'react'
 import { Pressable, StatusBar, StyleSheet, View } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Button, Icon, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
+import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { useClubColors } from '../../src/context/ClubThemeContext'
 import { getAppLanguage, type AppLanguage } from '../../src/i18n'
 import { PitchLines, useOnboardingHero } from '../../src/onboarding/WelcomeHero'
 import { hexToRgba } from '../../src/theme/club-theme'
+import { clearOnboardingIntent, setOnboardingIntent } from '../../src/onboarding/intent'
+import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/onboarding/storageKeys'
 import {
   FONT_SIZE_HERO_LARGE,
   SPACING_LG,
@@ -48,6 +53,8 @@ export default function Welcome() {
   const insets = useSafeAreaInsets()
   const { bg: hero, fg: onHero } = useOnboardingHero()
   const { isSignedIn } = useAuth()
+  const { reset: resetDraft } = useOnboardingFlow()
+  const navigating = useRef(false)
   const params = useLocalSearchParams<{ inviteCode?: string; reason?: string }>()
   const inviteCode = Array.isArray(params.inviteCode) ? params.inviteCode[0] : params.inviteCode
   const reason = Array.isArray(params.reason) ? params.reason[0] : params.reason
@@ -57,11 +64,25 @@ export default function Welcome() {
   // A signed-in user never sees the entry screen (deep link, stale stack).
   if (isSignedIn) return <Redirect href="/" />
 
-  function toSignIn(extra: Record<string, string>) {
-    router.push({
-      pathname: '/(auth)/sign-in',
-      params: { ...(inviteCode ? { inviteCode } : {}), ...extra },
-    })
+  async function toSignIn(extra: Record<string, string>) {
+    if (navigating.current) return
+    navigating.current = true
+    try {
+      // Explicit Join/Create starts that journey, even after cancelling a
+      // previous authentication attempt. Returning Sign in retains resume.
+      if (extra.mode !== 'signin') {
+        resetDraft()
+        if (extra.intent === 'club-setup') await setOnboardingIntent('club-setup')
+        else await clearOnboardingIntent()
+        await AsyncStorage.removeItem(ONBOARDING_FLOW_STORAGE_KEY).catch(() => undefined)
+      }
+      router.push({
+        pathname: '/(auth)/sign-in',
+        params: { ...(inviteCode ? { inviteCode } : {}), ...extra },
+      })
+    } finally {
+      navigating.current = false
+    }
   }
 
   const muted = c.onHeroMuted
@@ -121,7 +142,7 @@ export default function Welcome() {
         <Text variant="body" color={muted} style={styles.claimBody}>
           {t('onboardingFlow.welcome.claimBody', {
             defaultValue:
-              'Fixtures, availability, lineups, chat and dues in one place. No more group-chat chaos.',
+              'Matches, availability, lineups, chat and dues in one place. No more group-chat chaos.',
           })}
         </Text>
       </View>

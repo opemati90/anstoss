@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { OAuthProvider, PublicInvitePayload } from '@anstoss/shared'
-import Svg, { Path } from 'react-native-svg'
 import { api } from '../../src/api/client'
 import { setPendingInvite } from '../../src/auth/pendingInvite'
 import { useOnboardingAuth } from '../../src/auth/useOnboardingAuth'
@@ -13,13 +12,23 @@ import { PolicyOverlay } from '../../src/components/wizard/PolicyOverlay'
 import type { PolicyKind } from '../../src/content/policies'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
-import { OAuthNotAvailableYetError, signInWithOAuth } from '../../src/auth/oauth'
+import {
+  completeOAuthLink,
+  getOAuthAvailability,
+  OAuthCancelledError,
+  OAuthNotAvailableYetError,
+  resendOAuthLink,
+  signInWithOAuth,
+} from '../../src/auth/oauth'
+import { AppleSignInButton } from '../../src/auth/AppleSignInButton'
+import { GoogleSignInButton } from '../../src/auth/GoogleSignInButton'
+import { socialLoginCopy } from '../../src/i18n/socialLogin'
+import { mustRestartOAuthLink } from '../../src/auth/oauthLinkRecovery'
 import { sendCodeErrorKey, verifyCodeError } from '../../src/onboarding/errors'
 import { parseOnboardingIntent, setOnboardingIntent } from '../../src/onboarding/intent'
 import { onboardingProgress, pathForIntent } from '../../src/onboarding/steps'
 import { ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
-import { GOOGLE_MARK } from '../../src/theme/providerBrand'
 import { space } from '../../src/theme/tokens'
 
 const RESEND_COOLDOWN_S = 30
@@ -41,7 +50,8 @@ function first(value: string | string[] | undefined): string | undefined {
  */
 export default function SignIn() {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const socialCopy = socialLoginCopy(i18n.language)
   const params = useLocalSearchParams<{
     email?: string
     sent?: string
@@ -58,7 +68,9 @@ export default function SignIn() {
   const { startOtp, verifyOtp } = useOnboardingAuth()
   const { refreshUser } = useAuth()
 
-  const [stage, setStage] = useState<'email' | 'code'>(cameFromWelcome ? 'code' : 'email')
+  const [stage, setStage] = useState<'email' | 'code' | 'restart'>(
+    cameFromWelcome ? 'code' : 'email',
+  )
   const [email, setEmail] = useState(initialEmail)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -69,12 +81,23 @@ export default function SignIn() {
   const [invite, setInvite] = useState<PublicInvitePayload | null>(null)
   const [policy, setPolicy] = useState<PolicyKind | null>(null)
   const [oauthNote, setOauthNote] = useState<string | null>(null)
-  const c = useClubColors()
+  const [providers, setProviders] = useState({ google: false, apple: false })
+  const [linkTicket, setLinkTicket] = useState<string | null>(null)
   const verifyingRef = useRef(false)
   const emailRef = useRef<TextInput>(null)
 
   const normalizedEmail = email.trim().toLowerCase()
   const emailValid = EMAIL_RE.test(normalizedEmail)
+
+  useEffect(() => {
+    let alive = true
+    void getOAuthAvailability().then((value) => {
+      if (alive) setProviders(value)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -98,7 +121,8 @@ export default function SignIn() {
   }, [inviteCode])
 
   async function sendCode() {
-    if (!emailValid || busy) return
+    if (!emailValid || busy || verifyingRef.current || stage !== 'email') return
+    verifyingRef.current = true
     setBusy(true)
     setError(null)
     try {
@@ -109,37 +133,62 @@ export default function SignIn() {
     } catch (err) {
       setError(t(sendCodeErrorKey(err)))
     } finally {
+      verifyingRef.current = false
       setBusy(false)
     }
   }
 
   async function oauth(provider: OAuthProvider) {
+    if (busy || verifyingRef.current) return
+    verifyingRef.current = true
+    setBusy(true)
     setOauthNote(null)
     try {
-      await signInWithOAuth(provider)
-    } catch (err) {
-      if (err instanceof OAuthNotAvailableYetError) {
-        setOauthNote(t('onboardingFlow.code.oauthSoon'))
+      if (intent) await setOnboardingIntent(intent)
+      const result = await signInWithOAuth(provider)
+      if (result.kind === 'link_required') {
+        setLinkTicket(result.ticket)
+        setEmail(result.email)
+        setCode('')
+        setError(null)
+        setStage('code')
+        setCooldown(RESEND_COOLDOWN_S)
         return
       }
-      setOauthNote(t('onboardingFlow.common.networkError'))
+      await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
+      router.replace('/')
+    } catch (err) {
+      if (err instanceof OAuthCancelledError) return
+      if (err instanceof OAuthNotAvailableYetError) {
+        setOauthNote(socialCopy.unavailable)
+        return
+      }
+      setOauthNote(socialCopy.failed)
+    } finally {
+      verifyingRef.current = false
+      setBusy(false)
     }
   }
 
   async function verify(submitted: string = code) {
-    if (submitted.length < CODE_LENGTH || verifyingRef.current) return
+    if (stage !== 'code' || submitted.length < CODE_LENGTH || verifyingRef.current) return
     verifyingRef.current = true
     setBusy(true)
     setError(null)
     setNotice(null)
     try {
       if (intent) await setOnboardingIntent(intent)
-      await verifyOtp(submitted, normalizedEmail)
+      if (linkTicket) await completeOAuthLink(linkTicket, submitted)
+      else await verifyOtp(submitted, normalizedEmail)
       // Load /me before leaving so index.tsx routes on the real account
       // instead of flashing the signed-out welcome for a frame.
       await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
       router.replace('/')
     } catch (err) {
+      if (linkTicket && mustRestartOAuthLink(err)) {
+        requireFreshSignIn()
+        return
+      }
       // Wrong code: clear the cells and put the caret back, so the next try
       // is just typing again.
       // M1: wrong code, burned code (ask for a new one now), hourly cap (the
@@ -156,20 +205,53 @@ export default function SignIn() {
   }
 
   async function resend() {
-    if (cooldown > 0 || busy) return
+    if (stage !== 'code' || cooldown > 0 || busy || verifyingRef.current) return
+    verifyingRef.current = true
+    setBusy(true)
     setError(null)
+    setNotice(null)
     try {
-      await startOtp(normalizedEmail, 'signin', 'email')
+      if (linkTicket) await resendOAuthLink(linkTicket)
+      else await startOtp(normalizedEmail, 'signin', 'email')
       setCooldown(RESEND_COOLDOWN_S)
       setCode('')
       setNotice(t('onboardingFlow.code.resent'))
       setRefocusKey((k) => k + 1)
     } catch (err) {
+      if (linkTicket && mustRestartOAuthLink(err)) {
+        requireFreshSignIn()
+        return
+      }
       setError(t(sendCodeErrorKey(err)))
+    } finally {
+      verifyingRef.current = false
+      setBusy(false)
     }
   }
 
+  function requireFreshSignIn() {
+    setLinkTicket(null)
+    setCode('')
+    setCooldown(0)
+    setError(null)
+    setNotice(null)
+    setStage('restart')
+  }
+
+  function restartSignIn() {
+    if (verifyingRef.current) return
+    setLinkTicket(null)
+    setCode('')
+    setError(null)
+    setNotice(null)
+    setOauthNote(null)
+    setCooldown(0)
+    setStage('email')
+  }
+
   function changeEmail() {
+    if (verifyingRef.current) return
+    setLinkTicket(null)
     if (cameFromWelcome) {
       goBackOrReplace(router, inviteCode ? `/join/${inviteCode}` : '/(auth)/welcome')
       return
@@ -182,6 +264,11 @@ export default function SignIn() {
   }
 
   function back() {
+    if (verifyingRef.current) return
+    if (stage === 'restart') {
+      restartSignIn()
+      return
+    }
     if (stage === 'code') {
       changeEmail()
       return
@@ -236,7 +323,21 @@ export default function SignIn() {
   )
 
   const content =
-    stage === 'email' ? (
+    stage === 'restart' ? (
+      <OnboardingScreen
+        title={socialCopy.restartTitle}
+        subtitle={socialCopy.restartBody}
+        onBack={back}
+        lead={lead}
+        progress={null}
+        primary={{
+          label: socialCopy.restartCta,
+          onPress: restartSignIn,
+          testID: 'sign-in-restart',
+        }}
+        testID="sign-in-recovery"
+      />
+    ) : stage === 'email' ? (
       <OnboardingScreen
         title={
           returning && !invite
@@ -283,33 +384,25 @@ export default function SignIn() {
           onPress={() => void sendCode()}
           disabled={!emailValid}
           loading={busy}
-          size="lg"
+          size="auth"
           fullWidth
           style={styles.sendButton}
           testID="sign-in-send"
         />
-        {!inviteCode ? (
+        {!inviteCode && (providers.apple || providers.google) ? (
           <>
             <OrDivider label={t('onboardingFlow.code.or')} />
             <View style={styles.providers}>
-              <Button
-                label={t('onboardingFlow.code.apple')}
-                variant="bordered"
-                size="lg"
-                fullWidth
-                leftIcon={<AppleLogo color={c.textPrimary} />}
-                onPress={() => void oauth('apple')}
-                testID="sign-in-apple"
-              />
-              <Button
-                label={t('onboardingFlow.code.google')}
-                variant="bordered"
-                size="lg"
-                fullWidth
-                leftIcon={<GoogleLogo />}
-                onPress={() => void oauth('google')}
-                testID="sign-in-google"
-              />
+              {providers.apple ? (
+                <AppleSignInButton onPress={() => void oauth('apple')} disabled={busy} />
+              ) : null}
+              {providers.google ? (
+                <GoogleSignInButton
+                  label={t('onboardingFlow.code.google')}
+                  onPress={() => void oauth('google')}
+                  disabled={busy}
+                />
+              ) : null}
               {oauthNote ? (
                 <Text
                   variant="footnote"
@@ -341,6 +434,11 @@ export default function SignIn() {
         }}
         testID="sign-in-code"
       >
+        {linkTicket ? (
+          <Text variant="footnote" color="secondary">
+            {socialCopy.link}
+          </Text>
+        ) : null}
         <OtpCellInput
           value={code}
           onChange={(next) => {
@@ -364,6 +462,8 @@ export default function SignIn() {
         <View style={styles.codeActions}>
           <Pressable
             onPress={changeEmail}
+            disabled={busy}
+            accessibilityState={{ disabled: busy }}
             accessibilityRole="button"
             accessibilityLabel={t('onboardingFlow.code.changeEmail')}
             hitSlop={4}
@@ -376,9 +476,9 @@ export default function SignIn() {
           </Pressable>
           <Pressable
             onPress={() => void resend()}
-            disabled={cooldown > 0}
+            disabled={cooldown > 0 || busy}
             accessibilityRole="button"
-            accessibilityState={{ disabled: cooldown > 0 }}
+            accessibilityState={{ disabled: cooldown > 0 || busy }}
             hitSlop={4}
             style={styles.codeAction}
             testID="sign-in-resend"
@@ -417,35 +517,17 @@ export default function SignIn() {
 function OrDivider({ label }: { label: string }) {
   const c = useClubColors()
   return (
-    <View style={styles.or} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View
+      style={styles.or}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
       <Text variant="footnote" color="secondary">
         {label}
       </Text>
       <View style={[styles.orLine, { backgroundColor: c.borderDefault }]} />
     </View>
-  )
-}
-
-function AppleLogo({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Path
-        fill={color}
-        d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.9-.8-3.1-.8C6.8 7.2 5 8.3 4.1 10c-2 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.4 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.5.9 2.4-1.4 3.3-2.7c1-1.5 1.5-3 1.5-3.1-.1 0-2.9-1.1-2.9-4.5zM14 5.6c.8-.9 1.3-2.2 1.1-3.5-1.1.1-2.4.8-3.2 1.7-.7.8-1.3 2.1-1.2 3.4 1.3.1 2.5-.7 3.3-1.6z"
-      />
-    </Svg>
-  )
-}
-
-function GoogleLogo() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Path fill={GOOGLE_MARK.blue} d="M22 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.6a4.8 4.8 0 0 1-2.1 3.1v2.6h3.4c2-1.8 3.1-4.5 3.1-7.5z" />
-      <Path fill={GOOGLE_MARK.green} d="M12 22c2.8 0 5.2-.9 6.9-2.5l-3.4-2.6c-.9.6-2.1 1-3.5 1-2.7 0-5-1.8-5.8-4.3H2.7v2.7A10 10 0 0 0 12 22z" />
-      <Path fill={GOOGLE_MARK.yellow} d="M6.2 13.6a6 6 0 0 1 0-3.8V7.1H2.7a10 10 0 0 0 0 9.2z" />
-      <Path fill={GOOGLE_MARK.red} d="M12 5.9c1.5 0 2.9.5 4 1.5l3-3A10 10 0 0 0 2.7 7.1l3.5 2.7C7 7.7 9.3 5.9 12 5.9z" />
-    </Svg>
   )
 }
 

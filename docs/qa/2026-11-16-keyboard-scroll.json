@@ -1,0 +1,85 @@
+{
+  "scope": "User-reported form content scrolling entirely out of view while the software keyboard is visible. Shared onboarding first; other form containers require their own verification.",
+  "latestRevision20261117": {
+    "supersedes": "Earlier fixed-offset and plain-ScrollView experiments are historical, not the current implementation.",
+    "implementation": "KeyboardAwareScrollView mode=layout, no second KeyboardAvoidingView, measured footer clearance, stable footer safe-area padding and KeyboardStickyView offset. extraKeyboardSpace is the negative footer lift so keyboard space is not counted twice; no-footer case explicitly uses zero.",
+    "native": "On iPhone16 simulator 9210, synthetic player typed name and day/month/year with full software keyboard, focused year and repeatedly dragged upward. Lowest field remained reachable; Continue bottom 536pt vs keyboard top 544pt, giving 8pt clearance. Saving reached Find your club and restored keyboard-closed layout. No blank overscroll reproduced in this run.",
+    "evidence": ["/private/tmp/anstoss-onboarding-9210-scroll-end.png", "/private/tmp/anstoss-onboarding-9210-motion.mov", "/private/tmp/anstoss-onboarding-9210-motion-contact.png"],
+    "automated": "Combined mobile: 166 suites, 1361 passed, one existing skip. TypeScript and changed-file ESLint passed. Independent static review accepted offset math.",
+    "remaining": "Small-screen, enlarged text, Android, other form containers and full-motion/performance acceptance remain open. Physical phone still QA9203; this patch not installed there."
+  },
+  "status": "Shared layout patched; focused tests and independent source review pass. Initial iOS software-keyboard max-scroll screenshot and keyboard-closed restoration inspected. Repeated keyboard transitions and cross-device acceptance remain incomplete. Not deployed and not a release approval.",
+  "report": {
+    "screenshot": "/Users/yemi/Desktop/Screenshot Anstoss iPhone 16 Chat QA 16.11.2026 at 19.52.35.png",
+    "observed": "DOB fields cropped at fixed header while a large blank area remains above the sticky Continue footer and visible numeric keyboard. User reports equivalent behavior on other pages.",
+    "rootCause": "Onboarding content flexGrow fills the full scroll viewport. Default controller inset mode then extends that already stretched content by keyboard height plus footerHeight, even though the footer already occupies height as a normal-flow sibling. This permits unnecessary blank scrolling."
+  },
+  "changes": [
+    "OnboardingScreen uses controller mode=layout so keyboard space participates in flex sizing instead of extending a viewport-sized blank region.",
+    "extraKeyboardSpace=0 avoids counting the in-flow footer twice. bottomOffset retains measured footer clearance for focus visibility above the translated sticky footer.",
+    "Native automaticallyAdjustKeyboardInsets=false prevents a second keyboard adjustment.",
+    "When the footer disappears (code -> Change email), bottomOffset ignores its stale measured height. Independent review identified this additional edge case.",
+    "Long-form scrolling, safe-area footer padding, existing typography and theme tokens are retained. No global scroll disabling or arbitrary offset clamp."
+  ],
+  "verification": {
+    "focusedTests": { "suites": 3, "passed": 74, "failed": 0 },
+    "coveredSuites": ["onboarding-screens", "onboarding-logic", "support"],
+    "newRegressionCases": ["layout-mode contract with short flexGrow forms", "measured footer changes do not add extra scroll space", "footer present -> absent clears stale clearance", "no-footer form retains scrolling"],
+    "limits": "Jest mocks the native keyboard component. These assertions verify configuration, not actual native scroll bounds or animation.",
+    "typecheck": "Passed including final hasFooter guard.",
+    "fullMobileSuite": { "suites": 156, "passed": 1209, "skipped": 1, "failed": 0, "report": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/mobile-keyboard-layout.json" },
+    "lint": "Changed ui.tsx and onboarding-screens.spec.tsx passed ESLint; git diff --check passed.",
+    "independentReview": "launch_readiness_adversarial: stale footer clearance finding fixed and retested; no remaining P0/P1 identified in shared-layout patch. Broader native gaps below remain."
+  },
+  "native": {
+    "device": "D0946EB8-5569-40EF-A2DC-E1B68B19DAD9",
+    "bundle": "com.renuirug.anstoss",
+    "api": "http://127.0.0.1:3167",
+    "runtime": "iOS 26.5 simulator",
+    "installation": "Regenerated local JS bundle inside existing local Release simulator artifact, disabled OTA retained, ad-hoc signed and installed. No EAS/native store build.",
+    "observed": "Final patch installed. Fresh player native OTP reached name/DOB. At the tested keyboard-open upward-drag limit, name, DOB inputs, helper text and Continue remain visible without the reported blank gap. Inspected keyboard-dob-max-scroll-fixed.png. After dismissal, title/name/DOB/help and footer restore in keyboard-dob-focus-reopened.png. Long club-setup form can reach team name, optional website link, role selections and footer with keyboard closed. These observations do not certify every focus transition or repeated maximum drag.",
+    "testSetupIssue": "Initially hardware-keyboard accessory Done bar, not software number-pad keys. User enabled software keyboard; verified visible screenshot and fresh-player native number-pad OTP reached name/DOB. Keyboard-open layout validation now proceeding.",
+    "evidenceDirectory": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF",
+    "recordings": ["keyboard-scroll-fixed-ios.mov", "keyboard-scroll-fixed-profile-ios.mov", "keyboard-scroll-software-visible-ios.mov"],
+    "screenshotsInspected": ["keyboard-after-toggle.png", "keyboard-dob-max-scroll-fixed.png", "keyboard-dob-focus-reopened.png", "keyboard-dob-refocus.png"],
+    "followupLimit": "After the keyboard-visible run, subsequent native focus on year, name and day changed focus but did not reopen the software keyboard. Repeated keyboard-open checks remain uncounted. Recording stopped cleanly. Initial automatic year-focus geometry also requires rechecking full input-border clearance, distinct from the successful manually scrolled state.",
+    "recordingLimits": "Partial navigation/tooling recordings, not full-motion/60fps acceptance. No Android or physical-device pass for this patch."
+  },
+  "remainingNativeMatrix": [
+    "Short name/DOB form: focus every field, maximum upward drag, repeated numeric/text keyboard switching and dismissal; form must not scroll into empty space.",
+    "Email/code/change-email: no-footer legal layout and stale-footer transition.",
+    "Long club setup: last editable field and footer remain reachable without overscrolling.",
+    "Dark theme, enlarged text and small device; Android keyboard and hardware Back.",
+    "User-reported other pages: verify per container rather than applying one global workaround."
+  ],
+  "broaderAuditCandidates": [
+    { "path": "apps/mobile/app/(auth)/claim-pending.tsx", "finding": "flexGrow:1 + centered content + automaticallyAdjustKeyboardInsets may reproduce stretched-content/inset overscroll. Native reproduction pending; not changed yet." },
+    { "path": "apps/mobile/app/create-event.tsx", "finding": "Keyboard adjustment enabled only on iOS; Android global keyboard provider suppresses native IME margin. Verify bottom event-note field on Android." },
+    { "path": "apps/mobile/app/notification-settings.tsx", "finding": "Android KAV behavior omitted. Verify quiet-hour form with software keyboard." },
+    { "path": "apps/mobile/app/admin-contribution-plan.tsx", "finding": "Android KAV behavior omitted. Verify long contribution form bottom fields." },
+    { "path": "apps/mobile/app/admin-contribution-bank.tsx", "finding": "Android KAV behavior omitted. Verify bank-purpose field, without using real financial data." },
+    { "path": "apps/mobile/src/components/wizard/WizardStep.tsx", "finding": "Not the double-inset pattern; Android input visibility still needs native validation." },
+    { "path": "apps/mobile/src/components/chat/ComposeSheet.tsx", "finding": "Patched: shrinkable plain ScrollView below fixed header; keyboard avoidance remains solely in BottomSheet. Added stale-response fences, synchronous posting lock and opt-in non-dismissible pending state. Six-option native keyboard checks remain pending; see composerFollowup." },
+    { "path": "apps/mobile/app/enter-dob.tsx", "finding": "Centered non-scrolling content in shrinking KAV can clip on short screens/large text. Different cause from onboarding overscroll." }
+  ],
+  "composerFollowup": {
+    "changes": ["Auto-height menu retained; body and ScrollView shrink with minHeight=0, header does not shrink, CTA stays reachable within scrolling form.", "No duplicate keyboard insets or keyboard-sized padding.", "Event request cleanup ignores responses after leaving/reopening.", "Synchronous posting lock prevents same-frame duplicate polls; Back and dismissal disabled during posting.", "Session generation prevents old failures/finally/close from mutating reopened drafts; committed onPosted is still delivered to its original keyed conversation.", "BottomSheet dismissible defaults true for existing consumers; Compose opts out during posting. Backdrop, hardware Back and drag are blocked before the dismissal animation."],
+    "tests": { "focusedSuites": 2, "focusedPassed": 9, "fullMobileSuites": 158, "fullMobilePassed": 1218, "fullMobileSkipped": 1, "failed": 0, "report": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/mobile-compose-final.json" },
+    "staticChecks": "Typecheck, scoped ESLint passed. Independent reviewer identified dismissal animation race, now addressed by stopAnimation/spring-to-zero and guarded finished callback; deferred-animation regression added. Final source review closed without further concrete findings.",
+    "android": "Local arm64 debug Gradle compile succeeded (711 tasks), installed on Anstoss_Small_360 emulator-5580. No paid build. Initial startup displayed not-responding dialog; Metro IPv6-only binding prevented IPv4 port forwarding. Corrected local server binding, bundled current source, home UI then appeared after slow debug startup. Existing persisted e2e mocked coach session detected explicitly in logs and UI; use only for layout acceptance, NOT API/auth end-to-end evidence.",
+    "nativeAcceptance": "Pending six-option small-screen keyboard-open, scrolling/focus and dismiss/reopen tests on iOS and Android. Android reached real chat/attachment/composer controls with mocked data; a system stylus tutorial intercepted initial poll taps while UIAutomator exposed the underlying form. Those taps are NOT accepted evidence of added options. Disabled stylus_handwriting_enabled only on Anstoss_Small_360 (prior value null) and dismissed tutorial. Inspected android-poll-current.png (tutorial), android-poll-no-stylus.png (chat), android-poll-navigation-state.png (attachment sheet). Automated containment tests are not proof of native geometry.",
+    "runningQaHandles": { "androidEmulator": "emulator-5580 / Anstoss_Small_360", "metro": "localhost IPv4 port 8097; exec session 85602", "api": "127.0.0.1:3167", "build": "Gradle debug compile session 44333 completed successfully", "recording": "90-second screenrecord session 77484 completed; android-poll-keyboard-attempt.mp4 is tooling evidence only" }
+  },
+  "notEquivalent": [
+    "support.tsx has no flexGrow/minHeight or sticky footer duplication; do not blanket-replace its scroll mode.",
+    "FormScreen has no production callers found; not evidence of a currently affected journey."
+  ],
+  "applicationFollowup": {
+    "source": "Other session native free-agent walkthrough on the existing local Release artifact",
+    "finding": "Focused address fields on aufnahmeantrag/[trialId].tsx can remain under the software keyboard and require manual scrolling",
+    "patch": "Local source replaces plain Screen scroll with a bounded KeyboardAwareScrollView, layout-mode keyboard space, no duplicate native insets and token-based focus clearance",
+    "test": "New layout contract regression plus existing adult/minor application submission tests pass",
+    "nativeStatus": "Not installed or re-tested; keep other session's simulator/API/artifact stable until walkthrough is released"
+  },
+  "integration": "Preserve alongside all incoming 4139b96e work and unfinished auth. No changes to develop, prod, Renuir, stores, hosting or paid resources. Follow-up persona/16+ deferred-family corrections are recorded in 2026-11-16-onboarding-personas.json; this keyboard record alone does not certify them."
+}

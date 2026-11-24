@@ -42,6 +42,7 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_STAGE": "testflight",
+        "EXPO_PUBLIC_API_URL": "https://api.anstoss.io",
         "SENTRY_ALLOW_FAILURE": "true"
       },
       "ios": {
@@ -49,6 +50,17 @@
       },
       "android": {
         "image": "sdk-57"
+      }
+    },
+    "internal-testing": {
+      "extends": "testflight",
+      "channel": "internal-testing",
+      "env": {
+        "EXPO_PUBLIC_APP_STAGE": "testflight",
+        "SENTRY_ALLOW_FAILURE": "true"
+      },
+      "android": {
+        "buildType": "app-bundle"
       }
     },
     "production": {
@@ -69,6 +81,12 @@
     }
   },
   "submit": {
+    "internal-testing": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      }
+    },
     "testflight": {
       "ios": {
         "ascAppId": "6761143230"

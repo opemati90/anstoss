@@ -9,14 +9,7 @@
  * RateLimitGuard reads @RateLimit). refresh is guarded by ClerkAuthGuard (our
  * JWT guard) so a near-expiry session can be extended.
  */
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common'
+import { Body, Controller, HttpCode, Post, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { OtpService } from './otp.service'
 import { RateLimit } from '../../rate-limit/rate-limit.guard'
 import { ClerkAuthGuard } from '../clerk.guard'
@@ -57,13 +50,23 @@ export class OtpController {
   @HttpCode(200)
   @UseGuards(ClerkAuthGuard)
   async refresh(
-    @CurrentUser() user: { id?: string; authenticatedAt?: number },
+    @CurrentUser()
+    user: {
+      id?: string
+      authenticatedAt?: number
+      appleIdentity?: string
+      appleAuthenticatedAt?: number
+    },
   ): Promise<{ token: string }> {
     if (!user?.id) {
       throw new UnauthorizedException('Not authenticated')
     }
     return {
-      token: signSessionToken(user.id, { authenticatedAt: user.authenticatedAt }),
+      token: signSessionToken(user.id, {
+        authenticatedAt: user.authenticatedAt,
+        appleIdentity: user.appleIdentity,
+        appleAuthenticatedAt: user.appleAuthenticatedAt,
+      }),
     }
   }
 }

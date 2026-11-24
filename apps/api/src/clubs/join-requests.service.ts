@@ -519,17 +519,18 @@ export class JoinRequestsService {
             teamId: request.teamId,
             userId: request.userId,
             role: request.role,
-            phase:
-              request.role === TeamRole.PLAYER && !request.trialInviteId
-                ? TeamAccessPhase.TRIAL
-                : TeamAccessPhase.FULL,
+            phase: TeamAccessPhase.FULL,
             status: TeamAccessStatus.ACTIVE,
           },
-          // After a Probetraining the player already holds TRIAL access; the
-          // approved Aufnahmeantrag is the trial decision (TRIAL → FULL).
-          update: request.trialInviteId
-            ? { phase: TeamAccessPhase.FULL, status: TeamAccessStatus.ACTIVE }
-            : {},
+          // This is administrator approval of club membership, including a
+          // normal invitation. Trial acceptance is a separate, restricted flow.
+          update: {
+            phase: TeamAccessPhase.FULL,
+            status: TeamAccessStatus.ACTIVE,
+            loanedFromTeamId: null,
+            loanStartDate: null,
+            loanEndDate: null,
+          },
         })
 
         if (request.role === TeamRole.PLAYER) {
@@ -544,7 +545,7 @@ export class JoinRequestsService {
               teamId: request.teamId,
               userId: request.userId,
             },
-            update: {},
+            update: { operationalStatus: 'ACTIVE' },
           })
         }
       }

@@ -108,8 +108,11 @@ export async function submitJoin(
   role: JoinRole,
   target: JoinTarget,
   currentRegistrationRole: string | null | undefined,
+  options: { hasMemberships: boolean } = { hasMemberships: false },
 ): Promise<void> {
-  const patch = buildJoinProfilePatch(role, currentRegistrationRole)
+  // A role in another club must not rewrite the established account role.
+  // The target request carries the requested membership role independently.
+  const patch = options.hasMemberships ? {} : buildJoinProfilePatch(role, currentRegistrationRole)
   if (Object.keys(patch).length > 0) {
     await api('/me', { method: 'PATCH', body: patch })
   }

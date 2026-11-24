@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../src/utils/featureFlags'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, View } from 'react-native'
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg'
@@ -99,7 +100,7 @@ export default function ClubSetupScreen() {
   const [badgeUri, setBadgeUri] = useState<string | null>(null)
   const [teamName, setTeamName] = useState(state.teamName ?? '')
   const [group, setGroup] = useState<'SENIOR' | 'YOUTH'>(state.teamGroupType ?? 'SENIOR')
-  const [link, setLink] = useState(state.officialTeamUrl ?? '')
+  const [link, setLink] = useState(isFeatureEnabled('anstoss.officialFixtures') ? state.officialTeamUrl ?? '' : '')
   const [linkTouched, setLinkTouched] = useState(false)
   const [roles, setRoles] = useState<TeamRole[]>(state.adminTeamRoles ?? [])
 
@@ -136,7 +137,7 @@ export default function ClubSetupScreen() {
       clubName,
       teamName,
       teamGroupType: group,
-      officialTeamUrl: link,
+      officialTeamUrl: isFeatureEnabled('anstoss.officialFixtures') ? link : undefined,
       adminTeamRoles: roles,
       clubPrimaryColor: primary,
     })
@@ -146,7 +147,7 @@ export default function ClubSetupScreen() {
   const ready =
     clubName.trim().length >= 2 &&
     teamName.trim().length >= 2 &&
-    (!link.trim() || linkValid) &&
+    (!isFeatureEnabled('anstoss.officialFixtures') || !link.trim() || linkValid) &&
     !busy
 
   function toggleRole(role: TeamRole) {
@@ -175,7 +176,7 @@ export default function ClubSetupScreen() {
           teamGroupType: group,
           teamRoles: roles,
           primaryColor: primary,
-          ...(link.trim() ? { externalTeamUrl: link.trim() } : {}),
+          ...(isFeatureEnabled('anstoss.officialFixtures') && link.trim() ? { externalTeamUrl: link.trim() } : {}),
         })
         const badgeUploadId = badgeUri ? await uploadClubBadge(badgeUri) : null
         await api<{ id: string }>('/club-claims/first', {
@@ -459,7 +460,7 @@ export default function ClubSetupScreen() {
             value={group}
             onChange={setGroup}
           />
-          <OnboardingTextField
+          {isFeatureEnabled('anstoss.officialFixtures') ? <OnboardingTextField
             label={t('onboardingFlow.clubSetup.linkLabel')}
             value={link}
             onChangeText={setLink}
@@ -472,7 +473,7 @@ export default function ClubSetupScreen() {
             error={linkTouched && link.trim().length > 0 && !linkValid ? t('onboardingFlow.clubSetup.linkInvalid') : null}
             hint={t('onboardingFlow.clubSetup.linkHint')}
             testID="club-setup-link-input"
-          />
+          /> : null}
           <View style={styles.group}>
             <Text variant="footnote" weight="semibold">
               {t('onboardingFlow.clubSetup.participation')}

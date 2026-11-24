@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Alert, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { Alert, Platform, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { getAge, type TrialInvite } from '@anstoss/shared'
@@ -160,7 +161,20 @@ export default function AufnahmeantragScreen() {
   }
 
   return (
-    <Screen header={header} scroll padded={false} contentStyle={styles.content}>
+    <Screen header={header} padded={false} contentStyle={styles.formViewport}>
+      <KeyboardAwareScrollView
+        style={styles.formViewport}
+        contentContainerStyle={styles.content}
+        mode="layout"
+        bottomOffset={SPACING_MD}
+        extraKeyboardSpace={0}
+        automaticallyAdjustContentInsets={false}
+        automaticallyAdjustKeyboardInsets={false}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        testID="application-form-scroll"
+      >
       <View style={styles.intro}>
         <ClubBadge name={invite.club.name} badgeUrl={invite.club.badgeUrl} color={invite.club.primaryColor} size={48} />
         <View style={styles.flex}>
@@ -358,6 +372,7 @@ export default function AufnahmeantragScreen() {
           setPickDate(false)
         }}
       />
+      </KeyboardAwareScrollView>
     </Screen>
   )
 }
@@ -390,6 +405,7 @@ function ToggleRow({
 }
 
 const styles = StyleSheet.create({
+  formViewport: { flex: 1, minHeight: 0 },
   content: {
     gap: SPACING_LG,
     paddingHorizontal: SPACING_LG,

@@ -353,7 +353,7 @@ const base = {
     blockedEyebrow: 'Zugriff eingeschränkt',
     blockedTitle: 'Anmeldung noch nicht möglich',
     blockedBody:
-      'Für Konten unter 16 Jahren brauchen wir eine gültige Einladung mit anschließender Zustimmung eines Elternteils.',
+      'Ein eigenes Konto ist ab 16 Jahren möglich. Ein Elternteil oder eine erziehungsberechtigte Person kann das Kinderprofil über das eigene Konto verwalten.',
     checkStatus: 'Status prüfen',
   },
   accountNextStep: {

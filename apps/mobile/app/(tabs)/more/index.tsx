@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../../src/utils/featureFlags'
 import { useCallback, useEffect, useState } from 'react'
 import { View, StyleSheet, Pressable, ScrollView, Alert, Linking, Share } from 'react-native'
 import Constants from 'expo-constants'
@@ -293,7 +294,7 @@ export default function MoreScreen() {
           },
         ]
       : []),
-    ...(activeClub && teamId
+    ...(isFeatureEnabled('anstoss.officialFixtures') && activeClub && teamId
       ? [
           {
             key: 'table',

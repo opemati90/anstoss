@@ -1,0 +1,8 @@
+{
+  "scope": "Google sign-in branding only; not general app typography",
+  "guidelines": "https://developers.google.com/identity/branding-guidelines",
+  "logo": "https://developers.google.com/static/identity/images/g-logo.png",
+  "font": "https://github.com/google/fonts/tree/main/ofl/googlesans",
+  "fontLicense": "OFL.txt",
+  "downloaded": "2026-11-16"
+}

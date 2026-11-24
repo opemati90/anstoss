@@ -1,6 +1,7 @@
 // Wechselbörse review H4: under 18 the guardian consents, never the child.
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { SPACING_MD } from '../../src/theme/tokens'
 
 const mockApi = jest.fn()
 
@@ -107,6 +108,17 @@ describe('Aufnahmeantrag for a 17-year-old', () => {
     const body = mockApi.mock.calls.find(([p]) => p === '/clubs/c1/join-requests')[1].body
     expect(body.sepaConsent).toBeUndefined()
     expect(body.parentalConsent).toBeUndefined()
+  })
+
+  it('keeps address inputs in a keyboard-aware scroll area without duplicate keyboard insets', async () => {
+    const screen = render(<AufnahmeantragScreen />)
+    await screen.findByText('SV Albatros')
+    const scroll = screen.getByTestId('application-form-scroll')
+    expect(scroll.props.mode).toBe('layout')
+    expect(scroll.props.bottomOffset).toBe(SPACING_MD)
+    expect(scroll.props.extraKeyboardSpace).toBe(0)
+    expect(scroll.props.automaticallyAdjustKeyboardInsets).toBe(false)
+    expect(scroll.props.contentInsetAdjustmentBehavior).toBe('never')
   })
 
   it('adults still consent to SEPA themselves; nationality is optional', async () => {

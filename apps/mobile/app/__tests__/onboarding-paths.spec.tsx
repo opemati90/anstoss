@@ -353,12 +353,9 @@ const searchAlbatros = async (s: RenderAPI) => {
 }
 const requestAs = (chip: string, extra?: (s: RenderAPI) => Promise<void>) => async (s: RenderAPI) => {
   await searchAlbatros(s)
-  // Board 05: the club opens "Was machst du bei …?", Spieler:in ticked.
+  // Joining asks explicitly; the API's default PLAYER is not a selection.
   fireEvent.press(s.getByTestId('find-club-row-sv-albatros'))
-  if (chip !== 'club-role-player') {
-    fireEvent.press(s.getByTestId('club-role-player'))
-    fireEvent.press(s.getByTestId(chip))
-  }
+  fireEvent.press(s.getByTestId(chip))
   if (chip === 'club-role-player') {
     fireEvent.press(await s.findByTestId('club-team-team-1'))
   }
@@ -369,10 +366,7 @@ const requestAs = (chip: string, extra?: (s: RenderAPI) => Promise<void>) => asy
 }
 const fillClubSetup = async (s: RenderAPI) => {
   fireEvent.changeText(s.getByTestId('club-setup-team-name-input'), 'Herren I')
-  fireEvent.changeText(
-    s.getByTestId('club-setup-link-input'),
-    'https://www.fussball.de/mannschaft/tsv-linden-1899',
-  )
+  expect(s.queryByTestId('club-setup-link-input')).toBeNull()
   await act(async () => {
     fireEvent.press(s.getByTestId('club-setup-submit'))
   })
@@ -449,47 +443,41 @@ describe('traced onboarding paths (caps)', () => {
     })
   })
 
-  it('club admin via "Verein nicht dabei?": 5 screens to a usable home', async () => {
+  it('player joining cannot detour through "set up a club" and can request an existing team', async () => {
     const { screens, end } = await walk('/', {
       welcome: typeEmailOnWelcome(),
       code: typeCode,
       profile: nameAndAdultDob,
       clubSearch: async (s) => {
-        fireEvent.changeText(s.getByTestId('find-club-search'), 'TSV Linden 1899')
-        await act(async () => {
-          fireEvent.press(s.getByTestId('club-create-link'))
-        })
+        expect(mockWorld.user?.registrationRole).toBe('PLAYER')
+        expect(s.queryByTestId('club-create-link')).toBeNull()
+        await requestAs('club-role-player')(s)
       },
-      clubSetup: fillClubSetup,
     })
-    assertPath('admin', screens)
-    expect(end).toBe('/(tabs)')
-    // H3: nothing wrote CLUB_ADMIN before the claim went through.
+    assertPath('member', screens)
+    expect(end).toBe('/(auth)/request-pending')
+    expect(mockApi).not.toHaveBeenCalledWith('/club-claims/first', expect.anything())
     expect(mockApi).not.toHaveBeenCalledWith('/me', expect.objectContaining({
       body: expect.objectContaining({ registrationRole: 'CLUB_ADMIN' }),
     }))
   })
 
-  it('club admin via a directory result: straight to "Verein einrichten", 5 screens', async () => {
+  it('player sees an unregistered directory club as information, not a creation shortcut', async () => {
     const { screens, end } = await walk('/', {
       welcome: typeEmailOnWelcome(),
       code: typeCode,
       profile: nameAndAdultDob,
       clubSearch: async (s) => {
         fireEvent.changeText(s.getByTestId('find-club-search'), 'Linden')
-        await waitFor(() => s.getByTestId('find-club-row-tsv-linden-1899'), { timeout: 3000 })
-        await act(async () => {
-          fireEvent.press(s.getByTestId('find-club-row-tsv-linden-1899'))
-        })
+        await s.findByText('TSV Linden 1899')
+        expect(s.queryByTestId('find-club-row-tsv-linden-1899')).toBeNull()
+        expect(s.getByText('onboardingFlow.club.notOnAnstossPlayer')).toBeTruthy()
+        await requestAs('club-role-player')(s)
       },
-      clubSetup: fillClubSetup,
     })
-    assertPath('admin', screens)
-    expect(end).toBe('/(tabs)')
-    expect(mockApi).toHaveBeenCalledWith(
-      '/club-claims/first',
-      expect.objectContaining({ body: expect.objectContaining({ directoryEntryId: 'dir-7' }) }),
-    )
+    assertPath('member', screens)
+    expect(end).toBe('/(auth)/request-pending')
+    expect(mockApi).not.toHaveBeenCalledWith('/club-claims/first', expect.anything())
   })
 
   it('club admin via "Verein anlegen" on welcome: 4 screens, straight to "Dein Verein"', async () => {

@@ -11,6 +11,31 @@ import { notifyAccessChanged } from '../auth/accessChanges'
 const PUSH_TOKEN_KEY = 'anstoss:push-token'
 const PUSH_REGISTRATION_KEY = 'anstoss:push-registration'
 const UNREGISTER_TIMEOUT_MS = 12_000
+const PUSH_TOKEN_TIMEOUT_MS = 20_000
+
+class PushTokenTimeoutError extends Error {
+  constructor() {
+    super('Push token acquisition timed out; registration will retry')
+    this.name = 'PushTokenTimeoutError'
+  }
+}
+
+async function acquireExpoPushToken(projectId: string, devicePushToken?: Notifications.DevicePushToken) {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    // Expo's native/provider request can stay pending without rejecting. Do not
+    // leave the registration lock held forever. The SDK request is not
+    // cancellable; Promise.race ignores late results (including rejections).
+    return await Promise.race([
+      Notifications.getExpoPushTokenAsync({ projectId, ...(devicePushToken ? { devicePushToken } : {}) }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new PushTokenTimeoutError()), PUSH_TOKEN_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
+  }
+}
 // Credentials stay in memory only. Storage operations are ordered independently
 // of network cleanup, so an old logout cannot erase a newer login's token.
 type RegistrationOwner = { authToken: string; pushToken: string | null; registeredToken: string | null; registration: PushRegistrationLease | null; revoked: boolean }
@@ -84,6 +109,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     let registering = false
     let registerAgain = false
     let registered = false
+    let latestNativeToken: Notifications.DevicePushToken | undefined
     const retryTimers = new Set<ReturnType<typeof setTimeout>>()
 
     const waitForRetry = (delayMs: number) =>
@@ -165,7 +191,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
       try {
         setRegistrationError(null)
         setRegistrationStatus('requesting-permission')
-        const pushToken = await registerForPushNotifications()
+        const pushToken = await registerForPushNotifications(latestNativeToken)
         if (!isCurrent()) return
         if (!pushToken) {
           setRegistrationStatus('denied')
@@ -186,6 +212,7 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
         }
       } catch (error) {
         if (!isCurrent()) return
+        registered = false
         setRegistrationStatus('error')
         setRegistrationError(error instanceof Error ? error.message : String(error))
         if (__DEV__) console.warn('[push] registration failed:', error)
@@ -213,7 +240,11 @@ export function usePushNotifications({ apiUrl, token }: UsePushOptions) {
     // the associated Expo token and sync it immediately instead of waiting for
     // the next launch.
     const pushTokenSubscription = Device.isDevice
-      ? Notifications.addPushTokenListener(() => {
+      ? Notifications.addPushTokenListener((nativeToken) => {
+          // Native acquisition itself emits this event. Reuse its payload:
+          // reacquiring without it creates an acquisition/event feedback loop.
+          // Keep the newest rotation when another registration is in flight.
+          latestNativeToken = nativeToken
           void acquireAndRegister()
         })
       : null
@@ -317,7 +348,7 @@ async function removeRegistration(apiUrl: string, authToken: string, pushToken: 
   }
 }
 
-async function registerForPushNotifications(): Promise<string | null> {
+async function registerForPushNotifications(devicePushToken?: Notifications.DevicePushToken): Promise<string | null> {
   // APNs/FCM registration is unavailable in the iOS simulator and some
   // emulators. Calling into expo-notifications there can surface a native
   // keychain error as a development LogBox before the promise rejects.
@@ -347,9 +378,7 @@ async function registerForPushNotifications(): Promise<string | null> {
   if (!projectId) {
     throw new Error('EAS project ID is missing')
   }
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  })
+  const tokenData = await acquireExpoPushToken(projectId, devicePushToken)
   return tokenData.data
 }
 

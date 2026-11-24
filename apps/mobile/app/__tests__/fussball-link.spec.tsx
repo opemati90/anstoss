@@ -1,3 +1,4 @@
+import { setFeatureOverride, clearFeatureOverrides } from '../../src/utils/featureFlags'
 import React from 'react'
 import { render, waitFor, fireEvent } from '@testing-library/react-native'
 
@@ -67,7 +68,9 @@ const noTeamAuth = () => ({
 })
 
 describe('FussballLinkScreen', () => {
+  afterEach(() => clearFeatureOverrides())
   beforeEach(() => {
+    setFeatureOverride('anstoss.officialFixtures', true)
     mockApi.mockReset()
     ;(router.push as jest.Mock).mockReset()
   })

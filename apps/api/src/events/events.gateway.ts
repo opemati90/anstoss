@@ -11,6 +11,7 @@ import { Logger } from '@nestjs/common'
 import { Namespace, Socket } from 'socket.io'
 import { installRedisAdapter } from '../realtime/redis-adapter'
 import { verifySessionToken } from '../auth/otp/jwt.util'
+import { bindAppleSocketSession, disconnectRevokedAppleSessions } from '../auth/oauth/apple-session'
 import { PrismaService } from '../prisma/prisma.service'
 import { getSocketCorsOptions } from '../realtime/socket-cors'
 import { TeamsService } from '../teams/teams.service'
@@ -92,6 +93,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
         return
       }
 
+      await bindAppleSocketSession(this.prisma, client, payload)
       client.data.userId = user.id
       if (typeof client.join === 'function') {
         await client.join(`user:${user.id}`)
@@ -106,6 +108,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayInit {
     if (!this.server) return
     const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
     for (const socket of sockets) socket.disconnect(true)
+  }
+
+  @OnEvent('auth.apple.revoked', { suppressErrors: false })
+  async onAppleRevoked(payload: { identityId: string }) {
+    if (this.server) await disconnectRevokedAppleSessions(this.prisma, this.server, payload.identityId)
   }
 
   /**

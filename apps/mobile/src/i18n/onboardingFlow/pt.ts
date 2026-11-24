@@ -66,6 +66,8 @@ export const onboardingFlowPt: OnboardingFlowStrings = {
     subtitleWithDob: 'É assim que os colegas, os treinadores e o clube te veem. Precisamos da tua data de nascimento para proteger os jogadores jovens.',
   },
   club: {
+    notOnAnstossPlayer: 'Ainda não está no Anstoss. Pede ao teu treinador ou à administração do clube para o configurar.',
+    noResultsPlayerHint: 'Confirma o nome do clube ou a localidade, ou pede um código de convite ao teu treinador.',
     title: 'Encontrar o teu clube',
     subtitle: 'Pesquisa pelo nome do clube ou pela localidade, ou introduz o código da tua equipa.',
     searchLabel: 'Clube, localidade ou código da equipa',
@@ -86,7 +88,7 @@ export const onboardingFlowPt: OnboardingFlowStrings = {
     noTeams: 'Este clube ainda não criou nenhuma equipa. Pede um convite à direção.',
     pickTeam: 'Escolhe a tua equipa.',
     sendRequest: 'Enviar pedido',
-    whatNext: 'Normalmente, o treinador confirma-te no prazo de um dia.',
+    whatNext: 'Um administrador do clube analisa o teu pedido.',
     whatNextCoach: 'Normalmente, a direção confirma os treinadores num ou dois dias.',
     alreadyRequested: 'Já tens um pedido pendente neste clube.',
     requestFailed: 'Não foi possível enviar o pedido. Tenta novamente.',
@@ -132,10 +134,10 @@ export const onboardingFlowPt: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Pedido enviado',
-    body: 'O teu pedido está com o {{club}}. Normalmente, o treinador confirma-te no prazo de um dia.',
+    body: 'O teu pedido está com o {{club}}. Um administrador do clube vai analisá-lo.',
     bodyCoach:
       'A direção do {{club}} está a analisar o teu pedido como treinador. Normalmente demora um ou dois dias.',
-    bodyNoClub: 'O teu pedido está com o clube. Normalmente, o treinador confirma-te no prazo de um dia.',
+    bodyNoClub: 'O teu pedido está com o clube. Um administrador vai analisá-lo.',
     status: 'A aguardar confirmação',
     nextTitle: 'O que acontece a seguir',
     next1: 'Avisamos-te assim que fores confirmado.',
@@ -276,6 +278,11 @@ export const onboardingFlowPt: OnboardingFlowStrings = {
     verificationAnswer: 'Responder à pergunta',
   },
   age: {
+    launchTitle: 'O Anstoss é para maiores de 16 anos',
+    launchBody: 'Precisas de ter pelo menos 16 anos para usar uma conta própria. As contas familiares não estão disponíveis nesta versão.',
+    accountRemoved: 'Eliminámos esta conta.',
+    familyTitle: 'A configuração familiar ainda não está disponível',
+    familyBody: 'Esta versão permite contas individuais a partir dos 16 anos. Ainda não podes adicionar uma criança ou aceitar um convite para encarregados de educação.',
     under13Title: 'Fala com os teus pais',
     under13Body: 'As crianças com menos de 13 anos não têm conta própria no Anstoss. Os teus pais descarregam o Anstoss e adicionam-te em “Adicionar filho”. Apagámos os teus dados.',
   },

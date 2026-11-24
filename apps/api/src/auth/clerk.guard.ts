@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ClerkTokenExpiredError } from '@anstoss/shared'
 import { PrismaService } from '../prisma/prisma.service'
 import { JwtVerificationError, verifySessionToken } from './otp/jwt.util'
+import { assertAppleSessionCurrent } from './oauth/apple-session'
 
 /**
  * Session JWT auth guard with JIT user creation.
@@ -71,11 +72,16 @@ export class ClerkAuthGuard implements CanActivate {
     let userId: string
     let sessionIssuedAt: number
     let authenticatedAt: number
+    let appleIdentity: string | undefined
+    let appleAuthenticatedAt: number | undefined
     try {
       const claims = verifySessionToken(token)
       userId = claims.sub
       sessionIssuedAt = claims.iat
       authenticatedAt = claims.auth_time
+      await assertAppleSessionCurrent(this.prisma, claims)
+      appleIdentity = claims.apple_identity
+      appleAuthenticatedAt = claims.apple_auth_time
     } catch (error: unknown) {
       if (error instanceof JwtVerificationError && error.message === 'Token expired') {
         throw new ClerkTokenExpiredError('Session expired, please log in again')
@@ -99,6 +105,7 @@ export class ClerkAuthGuard implements CanActivate {
       name: user.name,
       sessionIssuedAt,
       authenticatedAt,
+      ...(appleIdentity ? { appleIdentity, appleAuthenticatedAt } : {}),
     }
 
     return true

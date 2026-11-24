@@ -59,9 +59,12 @@ export function OnboardingFlowProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    const version = persistVersion.current
     AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)
       .then((raw) => {
-        if (cancelled || !raw) return
+        // A fresh journey/reset chosen while storage is loading wins over
+        // that older read. Never resurrect the abandoned setup in memory.
+        if (cancelled || version !== persistVersion.current || !raw) return
         try {
           const parsed = JSON.parse(raw) as OnboardingFlowState
           if (parsed && typeof parsed === 'object') setState(parsed)

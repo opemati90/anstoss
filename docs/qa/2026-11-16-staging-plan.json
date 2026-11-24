@@ -41,7 +41,28 @@
   ],
   "costApproval": {
     "notYetApproved": true,
-    "estimatePending": "Inspect existing plan allowance and size API, PostgreSQL, Redis and storage. No fixed total can be promised without workload measurements.",
+    "estimatePending": "Final all-provider estimate requires checking the existing plan allowance and eligibility for a separate Upstash database and R2 bucket. The illustrative Railway subtotal below is not a quote or spending cap.",
+    "illustrativeRailwayMonthlyUsage": {
+      "currency": "USD",
+      "pricingChecked": "2026-11-16",
+      "assumptions": "One container API and one PostgreSQL instance running continuously at low QA load; not Railway VM/sandbox pricing. Memory and CPU figures are assumed average use, not measured use or enforced limits.",
+      "apiAndDatabaseAverageRamGb": 1,
+      "ramUsd": 10,
+      "combinedAverageVcpu": 0.075,
+      "cpuUsd": 1.5,
+      "volumeGb": 5,
+      "volumeUsd": 0.75,
+      "egressGb": 10,
+      "egressUsd": 0.5,
+      "subtotalUsd": 12.75,
+      "exclusions": [
+        "Upstash Redis, R2 storage/requests, email, monitoring and GitHub Actions overages",
+        "Taxes, currency conversion, backup charges and any change to the existing plan",
+        "Dedicated hosted staging web/admin services; initially run those locally against staging"
+      ],
+      "billingCaveat": "Actual incremental invoice depends on unused existing plan allowance and measured consumption. Do not claim staging is free, or that this subtotal is a maximum. No shared billing or plan changes are authorized.",
+      "approvalGate": "Present a final itemized all-provider estimate, proposed QA schedule, alert thresholds and Anstoss-only shutdown procedure for explicit approval before creating resources. Never use a shared-workspace hard cap that can stop Renuir."
+    },
     "controls": [
       "Small initial resource limits and a single staging API replica; document what load they support.",
       "Use scheduled QA periods if lower cost is necessary; keep staging running during reminder/retry timing tests.",

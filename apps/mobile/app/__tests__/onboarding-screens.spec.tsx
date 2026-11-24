@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Linking } from 'react-native'
+import { Linking, ScrollView, StyleSheet } from 'react-native'
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 
 const mockReplace = jest.fn()
@@ -11,6 +11,10 @@ const mockRefreshUser = jest.fn().mockResolvedValue(undefined)
 const mockSignOut = jest.fn().mockResolvedValue(undefined)
 const mockVerifyOtp = jest.fn()
 const mockStartOtp = jest.fn()
+const mockOAuthAvailability = jest.fn()
+const mockOAuthSignIn = jest.fn()
+const mockOAuthLink = jest.fn()
+const mockOAuthResend = jest.fn()
 const mockResetDraft = jest.fn()
 let mockAuth: Record<string, unknown> = {}
 jest.mock('../../src/launchFeatures', () => ({
@@ -83,6 +87,13 @@ jest.mock('../../src/api/client', () => {
 jest.mock('../../src/auth/useOnboardingAuth', () => ({
   useOnboardingAuth: () => ({ startOtp: mockStartOtp, verifyOtp: mockVerifyOtp }),
 }))
+jest.mock('../../src/auth/oauth', () => ({
+  ...jest.requireActual('../../src/auth/oauth'),
+  getOAuthAvailability: (...args: unknown[]) => mockOAuthAvailability(...args),
+  signInWithOAuth: (...args: unknown[]) => mockOAuthSignIn(...args),
+  completeOAuthLink: (...args: unknown[]) => mockOAuthLink(...args),
+  resendOAuthLink: (...args: unknown[]) => mockOAuthResend(...args),
+}))
 
 jest.mock('../../src/context/AuthContext', () => ({
   useAuth: () => mockAuth,
@@ -90,7 +101,7 @@ jest.mock('../../src/context/AuthContext', () => ({
 
 jest.mock('../../src/context/OnboardingFlowContext', () => ({
   useOnboardingFlow: () => ({
-    state: {},
+    state: { officialTeamUrl: 'invalid-old-draft-link' },
     update: jest.fn(),
     markStep: jest.fn(),
     reset: mockResetDraft,
@@ -107,6 +118,49 @@ import Welcome from '../(auth)/welcome'
 import JoinInviteScreen from '../join/[...code]'
 import { HomeOnboardingNotices } from '../../src/onboarding/HomeOnboardingNotices'
 import { ApiError } from '../../src/api/client'
+import { socialLoginCopy } from '../../src/i18n/socialLogin'
+import { OAuthCancelledError } from '../../src/auth/oauth'
+import { getPendingInvite, setPendingInvite } from '../../src/auth/pendingInvite'
+import { getOnboardingIntent, setOnboardingIntent } from '../../src/onboarding/intent'
+import { OnboardingScreen } from '../../src/onboarding/ui'
+import { space } from '../../src/theme/tokens'
+import { ONBOARDING_FLOW_STORAGE_KEY } from '../../src/onboarding/storageKeys'
+
+describe('shared onboarding keyboard layout', () => {
+  it('keeps focus-aware scrolling and counts the sticky footer overlap only once', () => {
+    const screen = render(
+      <OnboardingScreen title="Profile" testID="qa-form" primary={{ label: 'Continue', onPress: jest.fn() }} />,
+    )
+    const scroll = screen.UNSAFE_getByType(ScrollView)
+    expect(scroll.props.mode).toBe('layout')
+    const footer = screen.getByTestId('qa-form-footer')
+    const liftOffset = footer.props.offset.opened
+    expect(scroll.props.extraKeyboardSpace).toBe(-liftOffset)
+    expect(scroll.props.automaticallyAdjustKeyboardInsets).toBe(false)
+    expect(scroll.props.contentInsetAdjustmentBehavior).toBe('never')
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle).flexGrow).toBe(1)
+
+    expect(screen.getByTestId('qa-form').props.behavior).toBeUndefined()
+    fireEvent(footer, 'layout', { nativeEvent: { layout: { height: 110 } } })
+    expect(scroll.props.bottomOffset).toBe(110 - liftOffset + space.sm)
+
+    // Code -> Change email reuses this wrapper but removes its footer.
+    // The previous measurement must not keep moving the email field upward.
+    screen.rerender(<OnboardingScreen title="Email" testID="qa-form" />)
+    expect(scroll.props.bottomOffset).toBe(space.sm)
+    expect(scroll.props.extraKeyboardSpace).toBe(0)
+    expect(screen.queryByTestId('qa-form-footer')).toBeNull()
+  })
+
+  it('retains scrolling without a footer for long and enlarged content', () => {
+    const screen = render(<OnboardingScreen title="Long form" />)
+    const scroll = screen.UNSAFE_getByType(ScrollView)
+    expect(scroll.props.mode).toBe('layout')
+    expect(scroll.props.bottomOffset).toBe(space.sm)
+    expect(scroll.props.scrollEnabled).not.toBe(false)
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled')
+  })
+})
 
 const INVITE = {
   code: 'E2EINV01',
@@ -160,6 +214,10 @@ beforeEach(async () => {
   mockParams = {}
   mockAuth = baseAuth()
   mockApi.mockResolvedValue({})
+  mockOAuthAvailability.mockReset().mockResolvedValue({ google: false, apple: false })
+  mockOAuthSignIn.mockReset()
+  mockOAuthLink.mockReset()
+  mockOAuthResend.mockReset()
 })
 
 describe('sign-in (code screen)', () => {
@@ -222,7 +280,175 @@ describe('sign-in (code screen)', () => {
   })
 })
 
+describe('social sign-in recovery', () => {
+  const ticket = 't'.repeat(43)
+  it('silently returns to usable sign-in after Google cancellation and permits retry', async () => {
+    mockOAuthAvailability.mockResolvedValue({ google: true, apple: false })
+    mockOAuthSignIn.mockRejectedValue(new OAuthCancelledError())
+    const screen = render(<SignIn />)
+    await waitFor(() => screen.getByTestId('sign-in-google'))
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-google')))
+    expect(screen.getByTestId('sign-in-email-input')).toBeTruthy()
+    expect(screen.getByTestId('sign-in-google').props.accessibilityState.disabled).toBe(false)
+    expect(screen.queryByTestId('sign-in-oauth-soon')).toBeNull()
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockRefreshUser).not.toHaveBeenCalled()
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-google')))
+    expect(mockOAuthSignIn).toHaveBeenCalledTimes(2)
+  })
+  async function linkingScreen() {
+    mockOAuthAvailability.mockResolvedValue({ google: true, apple: false })
+    mockOAuthSignIn.mockResolvedValue({ kind: 'link_required', ticket, email: 'tim@example.de' })
+    const screen = render(<SignIn />)
+    await waitFor(() => screen.getByTestId('sign-in-google'))
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-google')))
+    expect(screen.getByTestId('sign-in-code')).toBeTruthy()
+    return screen
+  }
+  afterEach(() => jest.useRealTimers())
+
+  it.each(['OAUTH_LINK_EXPIRED', 'OAUTH_INVALID', 'OAUTH_UNAVAILABLE'])('offers a fresh method without falling back to email verification for %s', async (code) => {
+    mockOAuthLink.mockRejectedValue(new ApiError('restart', code === 'OAUTH_LINK_EXPIRED' ? 410 : 401, code))
+    const screen = await linkingScreen()
+    await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '123456'))
+    expect(screen.getByText(socialLoginCopy('de').restartBody)).toBeTruthy()
+    expect(screen.queryByTestId('otp-input')).toBeNull()
+    expect(screen.queryByTestId('sign-in-resend')).toBeNull()
+    expect(mockVerifyOtp).not.toHaveBeenCalled()
+    expect(mockStartOtp).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-restart')))
+    expect(screen.getByTestId('sign-in-email-input').props.value).toBe('tim@example.de')
+    expect(screen.getByTestId('sign-in-google')).toBeTruthy()
+    expect(mockStartOtp).not.toHaveBeenCalled()
+  })
+
+  it.each([new ApiError('wrong code', 401, 'HTTP_401'), new ApiError('offline', 0, 'network_error'), new ApiError('rate limit', 429, 'OTP_HOURLY_CAP')])('keeps linking available for retryable errors: %p', async (error) => {
+    mockOAuthLink.mockRejectedValueOnce(error).mockResolvedValueOnce({ kind: 'session', token: 'fixture' })
+    const screen = await linkingScreen()
+    await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '111111'))
+    expect(screen.queryByTestId('sign-in-recovery')).toBeNull()
+    expect(screen.getByTestId('otp-input').props.value).toBe('')
+    await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '222222'))
+    expect(mockOAuthLink).toHaveBeenLastCalledWith(ticket, '222222')
+    expect(mockVerifyOtp).not.toHaveBeenCalled()
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('offers restart when a resend discovers that the linking ticket expired', async () => {
+    // Advance only the UI clock; React's act/cleanup scheduler must stay live.
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate', 'clearImmediate'] })
+    const screen = await linkingScreen()
+    for (let i = 0; i < 31; i++) await act(async () => jest.advanceTimersByTime(1000))
+    mockOAuthResend.mockRejectedValue(new ApiError('expired', 410, 'OAUTH_LINK_EXPIRED'))
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-resend')))
+    expect(mockOAuthResend).toHaveBeenCalledWith(ticket)
+    expect(screen.getByTestId('sign-in-recovery')).toBeTruthy()
+    expect(mockStartOtp).not.toHaveBeenCalled()
+  })
+
+  it('serializes resend and verification, including same-frame taps', async () => {
+    const screen = await linkingScreen()
+    // A locked code enables resend immediately; keep this concurrency case
+    // on real timers, independent of the cooldown timer test above.
+    mockOAuthLink.mockRejectedValueOnce(new ApiError('locked', 429, 'OTP_CODE_LOCKED'))
+    await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '111111'))
+    mockOAuthLink.mockClear()
+    let finish!: () => void
+    mockOAuthResend.mockReturnValue(new Promise<void>((resolve) => { finish = resolve }))
+    act(() => {
+      fireEvent.press(screen.getByTestId('sign-in-resend'))
+      fireEvent.press(screen.getByTestId('sign-in-resend'))
+      fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
+      expect(mockOAuthResend).toHaveBeenCalledTimes(1)
+      expect(mockOAuthLink).not.toHaveBeenCalled()
+    })
+    await act(async () => { finish() })
+    expect(screen.getByTestId('otp-input').props.value).toBe('')
+  })
+
+  it.each(['free-agent', 'club-setup'] as const)('preserves a saved invite and %s intent through restart and successful login', async (intent) => {
+    await setPendingInvite(INVITE.code)
+    await setOnboardingIntent(intent)
+    mockOAuthLink.mockRejectedValueOnce(new ApiError('expired', 410, 'OAUTH_LINK_EXPIRED'))
+    const screen = await linkingScreen()
+    await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '123456'))
+    expect(screen.getByTestId('sign-in-recovery')).toBeTruthy()
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-restart')))
+    expect(await getPendingInvite()).toBe(INVITE.code)
+    expect(await getOnboardingIntent()).toBe(intent)
+    mockOAuthSignIn.mockResolvedValueOnce({ kind: 'session', token: 'fixture' })
+    await act(async () => fireEvent.press(screen.getByTestId('sign-in-google')))
+    expect(mockReplace).toHaveBeenCalledWith('/')
+    expect(await getPendingInvite()).toBe(INVITE.code)
+    expect(await getOnboardingIntent()).toBe(intent)
+    expect(mockStartOtp).not.toHaveBeenCalled()
+    expect(mockVerifyOtp).not.toHaveBeenCalled()
+  })
+
+  it.each(['verify', 'resend'])('blocks back and change-email while %s is pending, then permits explicit recovery', async (operation) => {
+    const screen = await linkingScreen()
+    if (operation === 'resend') {
+      mockOAuthLink.mockRejectedValueOnce(new ApiError('locked', 429, 'OTP_CODE_LOCKED'))
+      await act(async () => fireEvent.changeText(screen.getByTestId('otp-input'), '111111'))
+    }
+    let rejectRequest!: (error: ApiError) => void
+    const pending = new Promise((_, reject) => { rejectRequest = reject })
+    if (operation === 'verify') mockOAuthLink.mockReturnValueOnce(pending)
+    else mockOAuthResend.mockReturnValueOnce(pending)
+    act(() => {
+      if (operation === 'verify') fireEvent.changeText(screen.getByTestId('otp-input'), '123456')
+      else fireEvent.press(screen.getByTestId('sign-in-resend'))
+      fireEvent.press(screen.getByTestId('sign-in-change-email'))
+      fireEvent.press(screen.getByLabelText('common.back'))
+    })
+    expect(screen.getByTestId('sign-in-code')).toBeTruthy()
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockBack).not.toHaveBeenCalled()
+    await act(async () => rejectRequest(new ApiError('expired', 410, 'OAUTH_LINK_EXPIRED')))
+    expect(screen.getByTestId('sign-in-recovery')).toBeTruthy()
+    fireEvent.press(screen.getByLabelText('common.back'))
+    expect(screen.getByTestId('sign-in-email-input').props.value).toBe('tim@example.de')
+    expect(mockStartOtp).not.toHaveBeenCalled()
+    expect(mockVerifyOtp).not.toHaveBeenCalled()
+  })
+})
+
 describe('welcome', () => {
+  it('explicit Join clears an abandoned setup intent and draft before authentication', async () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    await setOnboardingIntent('club-setup')
+    await AsyncStorage.setItem(ONBOARDING_FLOW_STORAGE_KEY, JSON.stringify({ ownerUserId: 'user-1', lastStep: '/(auth)/club-setup' }))
+    const screen = render(<Welcome />)
+    await act(async () => fireEvent.press(screen.getByTestId('welcome-join')))
+    await expect(getOnboardingIntent()).resolves.toBeNull()
+    await expect(AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)).resolves.toBeNull()
+    expect(mockResetDraft).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/sign-in', params: {} })
+  })
+
+  it('explicit Create replaces a previous free-agent intent', async () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    await setOnboardingIntent('free-agent')
+    const screen = render(<Welcome />)
+    await act(async () => fireEvent.press(screen.getByTestId('welcome-create')))
+    await expect(getOnboardingIntent()).resolves.toBe('club-setup')
+    expect(mockResetDraft).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/sign-in', params: { intent: 'club-setup' } })
+  })
+
+  it('returning Sign in preserves the deliberately saved journey', async () => {
+    mockAuth = baseAuth({ isSignedIn: false, user: null })
+    await setOnboardingIntent('club-setup')
+    const draft = JSON.stringify({ ownerUserId: 'user-1', lastStep: '/(auth)/club-setup' })
+    await AsyncStorage.setItem(ONBOARDING_FLOW_STORAGE_KEY, draft)
+    const screen = render(<Welcome />)
+    await act(async () => fireEvent.press(screen.getByTestId('welcome-sign-in')))
+    await expect(getOnboardingIntent()).resolves.toBe('club-setup')
+    await expect(AsyncStorage.getItem(ONBOARDING_FLOW_STORAGE_KEY)).resolves.toBe(draft)
+    expect(mockResetDraft).not.toHaveBeenCalled()
+  })
+
   it('M7: explains a session that expired mid-onboarding', () => {
     mockAuth = baseAuth({ isSignedIn: false, user: null })
     mockParams = { reason: 'expired' }
@@ -233,6 +459,21 @@ describe('welcome', () => {
 
 describe('"Wie heißt du?" (name + date of birth)', () => {
   const fresh = { id: 'u', email: 'tim.weber@x.de', name: 'tim.weber', dateOfBirth: null }
+
+  it('keeps the full DOB form visible when the provider already supplies a name', () => {
+    mockAuth = baseAuth({ user: { ...fresh, name: 'Tim Weber' } })
+    const screen = render(<NameScreen />)
+    expect(screen.getByTestId('name-input').props.autoFocus).toBe(false)
+    expect(screen.getByTestId('name-input').props.value).toBe('Tim Weber')
+    expect(screen.getByTestId('dob-day')).toBeTruthy()
+    expect(screen.getByTestId('name-continue').props.accessibilityState.disabled).toBe(true)
+  })
+
+  it('still focuses the name for an email-only account without a display name', () => {
+    mockAuth = baseAuth({ user: fresh })
+    const screen = render(<NameScreen />)
+    expect(screen.getByTestId('name-input').props.autoFocus).toBe(true)
+  })
 
   it('saves the name and the DOB together and hands over to the entry router', async () => {
     mockAuth = baseAuth({ user: fresh })
@@ -262,6 +503,7 @@ describe('"Wie heißt du?" (name + date of birth)', () => {
   })
 
   it('13-15: goes to the parent handoff without storing anything (B1/M3)', async () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     mockAuth = baseAuth({ user: fresh })
     const screen = render(<NameScreen />)
     fireEvent.changeText(screen.getByTestId('name-input'), 'Lena Weber')
@@ -298,8 +540,22 @@ describe('"Wie heißt du?" (name + date of birth)', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId('name-continue'))
     })
-    await waitFor(() => expect(screen.getByText('onboardingFlow.age.under13Title')).toBeTruthy())
-    fireEvent.press(screen.getByTestId('under13-done'))
+    await waitFor(() => expect(screen.getByText('onboardingFlow.age.launchTitle')).toBeTruthy())
+    expect(screen.getByText('onboardingFlow.age.accountRemoved')).toBeTruthy()
+    fireEvent.press(screen.getByTestId('age-limit-done'))
+    expect(mockSignOut).toHaveBeenCalled()
+  })
+
+  it('16+ launch does not send a 14-year-old into unavailable family setup', async () => {
+    mockAuth = baseAuth({ user: fresh })
+    const screen = render(<NameScreen />)
+    fireEvent.changeText(screen.getByTestId('name-input'), 'Lena Weber')
+    typeDob(screen, yearsAgo(14))
+    await act(async () => fireEvent.press(screen.getByTestId('name-continue')))
+    expect(screen.getByTestId('age-limit')).toBeTruthy()
+    expect(screen.queryByTestId('handoff-guardian-email')).toBeNull()
+    expect(mockApi).not.toHaveBeenCalled()
+    await act(async () => fireEvent.press(screen.getByTestId('age-limit-done')))
     expect(mockSignOut).toHaveBeenCalled()
   })
 
@@ -355,6 +611,95 @@ describe('Verein finden', () => {
     expect(classifySearchInput('SV Albatros')).toEqual({ teamCode: null, inviteCode: null })
   })
 
+  it.each(['ABCDEFGH', 'abcdefgh', 'ABCD EFGH', 'abcd-efgh'])(
+    'recognises a generated campaign code without digits: %s', (input) => {
+      expect(classifySearchInput(input)).toEqual({ teamCode: null, inviteCode: input.replace(/[\s-]/g, '') })
+    },
+  )
+
+  it('preserves the case of a legacy code that overlaps the current format', () => {
+    expect(classifySearchInput('AbcdEF23')).toEqual({ teamCode: null, inviteCode: 'AbcdEF23' })
+  })
+
+  it('recognises a personal token without digits', () => {
+    expect(classifySearchInput('abcdefabcdefabcdefabcdefabcdefab')).toEqual({
+      teamCode: null, inviteCode: 'abcdefabcdefabcdefabcdefabcdefab',
+    })
+  })
+
+  it('submits a player join request from a manually entered all-letter campaign code', async () => {
+    searchApi((path) => {
+      if (path === '/public/invites/abcdefgh') return { ...INVITE, code: 'ABCDEFGH' }
+      if (path === '/invites/abcdefgh/redeem') return { status: 'PENDING', clubId: 'club-1', teamId: 'team-1' }
+    })
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-code'), 'abcd-efgh')
+    expect(await screen.findByTestId('club-invite-match')).toBeTruthy()
+    await act(async () => fireEvent.press(screen.getByTestId('club-invite-join')))
+    expect(mockApi).toHaveBeenCalledWith('/invites/abcdefgh/redeem', { method: 'POST', body: {} })
+    expect(mockRefreshUser).toHaveBeenCalledWith(undefined, {
+      preferredClubId: 'club-1', throwOnError: true,
+    })
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
+  })
+
+  it.each(['PLAYER', 'FREE_AGENT'])('does not offer club creation to a %s account', (registrationRole) => {
+    searchApi()
+    mockAuth = baseAuth({ user: { id: 'player', registrationRole } })
+    const screen = render(<ClubSearchScreen />)
+    expect(screen.queryByTestId('club-create-link')).toBeNull()
+    expect(screen.getByTestId('club-free-agent-link')).toBeTruthy()
+  })
+
+  it('does not offer club creation to an existing player with a legacy registration role', () => {
+    searchApi()
+    mockAuth = baseAuth({ user: { id: 'legacy', registrationRole: null }, memberships: [{ id: 'm', role: 'PLAYER' }] })
+    const screen = render(<ClubSearchScreen />)
+    expect(screen.queryByTestId('club-create-link')).toBeNull()
+    expect(screen.queryByTestId('club-free-agent-link')).toBeNull()
+  })
+
+  it.each([null, 'CLUB_ADMIN', 'COACH'])('keeps the join journey separate from creation regardless of stored role (%s)', (registrationRole) => {
+    searchApi()
+    mockAuth = baseAuth({ user: { id: 'founder', registrationRole } })
+    const screen = render(<ClubSearchScreen />)
+    expect(screen.queryByTestId('club-create-link')).toBeNull()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it.each(['OWNER', 'ADMIN'])('does not mix founding into joining for a returning %s who also plays', (role) => {
+    searchApi()
+    mockAuth = baseAuth({ memberships: [{ id: 'admin-membership', role }, { id: 'player-membership', role: 'PLAYER' }] })
+    const screen = render(<ClubSearchScreen />)
+    expect(screen.queryByTestId('club-create-link')).toBeNull()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('keeps unregistered directory clubs informational for players while registered clubs remain selectable', async () => {
+    searchApi((path) => path.startsWith('/clubs/search') ? {
+      results: [ALBATROS, { ...ALBATROS, id: 'directory-1', name: 'SV Directory', slug: 'sv-directory', isActive: false, activeClubId: null, directoryEntryId: 'directory-1' }],
+      nextCursor: null,
+    } : undefined)
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'SV')
+    await screen.findByText('SV Directory')
+    expect(screen.getByText('onboardingFlow.club.notOnAnstossPlayer')).toBeTruthy()
+    expect(screen.queryByTestId('find-club-row-sv-directory')).toBeNull()
+    expect(screen.queryByText('onboardingFlow.club.notOnAnstossSetup')).toBeNull()
+    fireEvent.press(screen.getByTestId('find-club-row-sv-albatros'))
+    expect(screen.getByTestId('club-join-question')).toBeTruthy()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('guides a player to the coach rather than club creation when search finds nothing', async () => {
+    searchApi((path) => path.startsWith('/clubs/search') ? { results: [], nextCursor: null } : undefined)
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Missing')
+    await screen.findByText('onboardingFlow.club.noResultsPlayerHint')
+    expect(screen.queryByText('onboardingFlow.club.noResultsHint')).toBeNull()
+    expect(screen.queryByTestId('club-create-link')).toBeNull()
+  })
+
   it('H4: a club opens "Was machst du bei …?" and sends from there, no DOB asked', async () => {
     // Retain coverage for the deferred feature without enabling it in the MVP.
     jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
@@ -364,8 +709,7 @@ describe('Verein finden', () => {
     await waitFor(() => screen.getByTestId('find-club-row-sv-albatros'))
     fireEvent.press(screen.getByTestId('find-club-row-sv-albatros'))
     expect(screen.getByTestId('club-join-question')).toBeTruthy()
-    // Board 05: Spieler:in starts ticked; untick it, tick Elternteil.
-    fireEvent.press(screen.getByTestId('club-role-player'))
+    // No role is guessed from the default registration role.
     fireEvent.press(screen.getByTestId('club-role-parent'))
     expect(screen.queryByTestId('dob-day')).toBeNull()
     await act(async () => {
@@ -383,7 +727,9 @@ describe('Verein finden', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'))
   })
 
-  it('M4: a coach with a team code defaults to Co-Trainer', async () => {
+  it.each([[false, false], [true, false], [false, true], [true, true]])('a shared team code submits PLAYER (refresh fails: %s, existing member: %s)', async (refreshFails, existingMember) => {
+    if (existingMember) mockAuth.memberships = [{ clubId: 'other-club', role: 'PLAYER' }]
+    if (refreshFails) mockRefreshUser.mockRejectedValueOnce(new ApiError('Unavailable', 503))
     searchApi((path) =>
       path.startsWith('/teams/by-code/')
         ? {
@@ -395,16 +741,28 @@ describe('Verein finden', () => {
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-code'), 'SVAB2345HX')
     await waitFor(() => screen.getByTestId('club-team-match'))
-    fireEvent.press(screen.getByTestId('club-team-match'))
-    fireEvent.press(screen.getByTestId('club-role-player'))
-    fireEvent.press(screen.getByTestId('club-role-coach'))
     await act(async () => {
-      fireEvent.press(screen.getByTestId('club-send-request'))
+      fireEvent.press(screen.getByTestId('club-team-match'))
     })
     expect(mockApi).toHaveBeenCalledWith('/onboarding/join-team', {
       method: 'POST',
-      body: { joinCode: 'SVAB2345HX', role: 'COACH', teamRole: 'ASSISTANT_COACH' },
+      body: { joinCode: 'SVAB2345HX', role: 'PLAYER' },
     })
+    expect(screen.queryByTestId('club-role-coach')).toBeNull()
+    expect(screen.queryByTestId('club-join-question')).toBeNull()
+    expect(mockReplace).toHaveBeenCalledWith(existingMember ? '/' : '/(auth)/request-pending')
+    expect(screen.queryByText('onboardingFlow.club.requestFailed')).toBeNull()
+  })
+
+  it.each([404, 503])('does not call an HTTP %s search failure an internet outage', async status => {
+    searchApi(path => {
+      if (path.startsWith('/clubs/search')) throw new ApiError('Unavailable', status)
+    })
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Qa')
+    await screen.findByText('onboardingFlow.club.error')
+    expect(screen.getByText('onboardingFlow.common.saveFailed')).toBeTruthy()
+    expect(screen.queryByText('onboardingFlow.common.networkError')).toBeNull()
   })
 
   it('requires a searched player to choose a team and sends that team for approval', async () => {
@@ -414,6 +772,7 @@ describe('Verein finden', () => {
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
     await screen.findByTestId('club-team-team-1')
     expect(screen.queryByTestId('club-coach-head')).toBeNull()
     fireEvent.press(screen.getByTestId('club-send-request'))
@@ -423,6 +782,25 @@ describe('Verein finden', () => {
     expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/join-requests', {
       method: 'POST', body: { role: 'PLAYER', teamId: 'team-1' },
     })
+  })
+
+  it('requires an explicit role and sends an admin-only request without a hidden player role or team', async () => {
+    searchApi()
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    expect(screen.getByTestId('club-role-player').props.accessibilityState.selected).toBe(false)
+    fireEvent.press(screen.getByTestId('club-send-request'))
+    expect(mockApi).not.toHaveBeenCalledWith('/clubs/club-1/staff-access-requests', expect.anything())
+    fireEvent.press(screen.getByTestId('club-role-player'))
+    fireEvent.press(screen.getByTestId('club-role-admin'))
+    expect(screen.getByTestId('club-role-player').props.accessibilityState.selected).toBe(false)
+    await act(async () => fireEvent.press(screen.getByTestId('club-send-request')))
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/staff-access-requests', {
+      method: 'POST', body: { desiredRole: 'ADMIN', requestedTeamIds: [], teamRoles: [] },
+    })
+    expect(mockApi).not.toHaveBeenCalledWith('/clubs/club-1/join-requests', expect.anything())
+    expect(mockApi).not.toHaveBeenCalledWith('/club-claims/first', expect.anything())
   })
 
   it('retries a failed team lookup rather than leaving players stuck', async () => {
@@ -436,9 +814,28 @@ describe('Verein finden', () => {
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
     fireEvent.press(await screen.findByText('onboardingFlow.common.retry'))
     await screen.findByTestId('club-team-team-1')
     expect(attempts).toBe(2)
+  })
+
+  it.each(['COACH', 'CLUB_ADMIN'])('an existing %s can request PLAYER at another club without rewriting their account role', async (registrationRole) => {
+    mockAuth = baseAuth({
+      user: { id: 'returning', registrationRole },
+      memberships: [{ id: 'existing-club', role: registrationRole === 'COACH' ? 'COACH' : 'ADMIN' }],
+    })
+    searchApi((path) => path.startsWith('/clubs/lookup') ? { teams: [{ id: 'team-1', displayName: 'Herren I' }] } : undefined)
+    const screen = render(<ClubSearchScreen />)
+    fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
+    fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
+    fireEvent.press(await screen.findByTestId('club-team-team-1'))
+    await act(async () => fireEvent.press(screen.getByTestId('club-send-request')))
+    expect(mockApi).not.toHaveBeenCalledWith('/me', expect.objectContaining({ method: 'PATCH' }))
+    expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/join-requests', {
+      method: 'POST', body: { role: 'PLAYER', teamId: 'team-1' },
+    })
   })
 
   it('keeps submission disabled when a searched club has no teams', async () => {
@@ -446,6 +843,7 @@ describe('Verein finden', () => {
     const screen = render(<ClubSearchScreen />)
     fireEvent.changeText(screen.getByTestId('find-club-search'), 'Albatros')
     fireEvent.press(await screen.findByTestId('find-club-row-sv-albatros'))
+    fireEvent.press(screen.getByTestId('club-role-player'))
     await screen.findByText('onboardingFlow.club.noTeams')
     fireEvent.press(screen.getByTestId('club-send-request'))
     expect(mockApi).not.toHaveBeenCalledWith('/clubs/club-1/join-requests', expect.anything())
@@ -559,13 +957,16 @@ describe('club setup', () => {
     expect(mockReplace).toHaveBeenCalledWith('/')
   })
 
-  it('still blocks a nonempty invalid link', async () => {
+  it('ignores an invalid official-link draft when creating a club', async () => {
     mockParams = { clubName: 'Codex FC' }
     const screen = render(<ClubSetupScreen />)
     fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'II')
-    fireEvent.changeText(screen.getByTestId('club-setup-link-input'), 'https://evil.example/team')
+    expect(screen.queryByTestId('club-setup-link-input')).toBeNull()
     await act(async () => fireEvent.press(screen.getByTestId('club-setup-submit')))
-    expect(mockApi).not.toHaveBeenCalledWith('/club-claims/first', expect.anything())
+    expect(mockApi).toHaveBeenCalledWith('/club-claims/first', expect.objectContaining({
+      body: expect.objectContaining({ clubName: 'Codex FC', teamName: 'II' }),
+    }))
+    expect(mockApi.mock.calls.find(([path]) => path === '/club-claims/first')?.[1].body).not.toHaveProperty('externalTeamUrl')
   })
 
   it.each(['CLUB_ALREADY_REGISTERED', 'CLUB_REGISTRATION_PENDING'])('offers search and a review email for %s, never deletion or ownership', async (code) => {
@@ -595,14 +996,13 @@ describe('club setup', () => {
     )
     const screen = render(<ClubSetupScreen />)
     fireEvent.changeText(screen.getByTestId('club-setup-team-name-input'), 'Herren I')
-    fireEvent.changeText(
-      screen.getByTestId('club-setup-link-input'),
-      'https://www.fussball.de/mannschaft/tsv-linden',
-    )
+    expect(screen.queryByTestId('club-setup-link-input')).toBeNull()
     await act(async () => {
       fireEvent.press(screen.getByTestId('club-setup-submit'))
     })
     expect(mockApi).not.toHaveBeenCalledWith('/me', expect.anything())
+    const claimCall = mockApi.mock.calls.find(([path]) => path === '/club-claims/first')
+    expect(claimCall?.[1].body).not.toHaveProperty('externalTeamUrl')
     expect(mockApi).toHaveBeenCalledWith(
       '/club-claims/first',
       expect.objectContaining({ body: expect.objectContaining({ directoryEntryId: 'dir-7' }) }),
@@ -788,6 +1188,7 @@ describe('invite (join)', () => {
   })
 
   it('M3: a 14-year-old on the invite path goes to the same parent handoff, with the invite', async () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     mockAuth = baseAuth({
       user: { id: 'u', email: 'lena@example.de', name: 'lena', dateOfBirth: null },
     })
@@ -816,7 +1217,43 @@ describe('invite (join)', () => {
 })
 
 describe('parent handoff', () => {
+  it('blocks an old family setup link without fetching or redeeming when deferred', async () => {
+    await setOnboardingIntent('parent-handoff')
+    const screen = render(<ParentHandoff />)
+    expect(screen.getByTestId('family-unavailable')).toBeTruthy()
+    expect(mockApi).not.toHaveBeenCalled()
+    await act(async () => fireEvent.press(screen.getByTestId('family-unavailable-done')))
+    await expect(getOnboardingIntent()).resolves.toBeNull()
+    expect(mockReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('blocks parent invitations in the deferred release, without redeeming', async () => {
+    mockParams = { code: 'PARENT01' }
+    await setPendingInvite('PARENT01')
+    mockApi.mockResolvedValue({ ...INVITE, role: 'PARENT' })
+    const screen = render(<JoinInviteScreen />)
+    await waitFor(() => screen.getByTestId('family-unavailable'))
+    expect(mockApi.mock.calls.every(([path]) => path === '/public/invites/PARENT01')).toBe(true)
+    await act(async () => fireEvent.press(screen.getByTestId('family-unavailable-done')))
+    await expect(getPendingInvite()).resolves.toBeNull()
+  })
+
+  it('blocks under-16 invitation signup without offering a parent handoff', async () => {
+    mockAuth = baseAuth({ user: { id: 'u', email: 'lena@example.de', name: 'lena', dateOfBirth: null } })
+    mockParams = { code: 'E2EINV01' }
+    mockApi.mockResolvedValue(INVITE)
+    const screen = render(<JoinInviteScreen />)
+    await waitFor(() => screen.getByTestId('join-name'))
+    fireEvent.changeText(screen.getByTestId('join-name'), 'Lena Weber')
+    typeDob(screen, yearsAgo(14))
+    await act(async () => fireEvent.press(screen.getByTestId('join-confirm')))
+    expect(screen.getByTestId('age-limit')).toBeTruthy()
+    expect(screen.queryByTestId('handoff-guardian-email')).toBeNull()
+    expect(mockApi.mock.calls.every(([path]) => path === '/public/invites/E2EINV01')).toBe(true)
+  })
+
   it('B2: a 17-year-old parent account cannot link a child', async () => {
+    jest.requireMock('../../src/launchFeatures').FAMILY_FEATURE_ENABLED = true
     const seventeen = new Date()
     seventeen.setFullYear(seventeen.getFullYear() - 17)
     mockAuth = baseAuth({

@@ -1,0 +1,29 @@
+{
+  "scope": "Isolated local API/database and physical iPhone QA artifact only; not production or store release",
+  "notificationTransition": "User confirmed locked iPhone reminder and correct event tap; requested moving on instead of extra timer/toggle exercise",
+  "database": "Local PostgreSQL port 55492, anstoss_oauth_native_test; 98 migrations applied; notification database unchanged",
+  "transport": "Temporary accountless HTTPS test tunnel; no paid resource or DNS/account configuration",
+  "security": {
+    "secretAccessPath": "Generated privately; not included in this report",
+    "allowedSurface": "Exact authentication/profile route and method allowlist, bounded request budget and two-hour gate",
+    "secrets": "Anstoss-only Apple key read by server; generated encryption/session secrets persist privately for eventual grant cleanup",
+    "integrations": "No production environment loaded; email, billing, push registration and non-auth API routes unavailable",
+    "sockets": "Harness-specific deny-all Engine.IO handshake adapter; polling and WebSocket connection checks passed",
+    "independentReview": "Two harness findings fixed: missing DATABASE_URL_DIRECT and Engine.IO middleware bypass; re-review found no remaining P0/P1",
+    "liveBoundaryChecks": "PASS locally and over HTTPS: unprefixed auth, admin, push, OTP-send routes rejected; unauthenticated me rejected; malformed login rejected; provider availability returns Apple and Google"
+  },
+  "native": {
+    "candidateBuild": "9203",
+    "artifact": "Local repackaging of compiled 9202 native binary with HTTPS-only bundle; OTA disabled",
+    "status": "QA 9203 installed on approved physical iPhone. User confirmed Google cancellation closed the provider sheet, then completed Google sign-in and reached profile onboarding with a prefilled name. Read-only aggregate query confirmed one Google SocialIdentity in the isolated OAuth database, created 2026-11-16T22:45:41.404Z. Fresh Google authentication verified; onboarding completion and returning sign-in not yet verified.",
+    "profileLayout": "User screenshot at Step 3/4 shows DOB fields partly obscured while name keyboard is open. Focus/scroll reachability still requires verification; not counted as passed.",
+    "focusedChecks": "24 mobile/startup and 41 API provider/service tests passed; git diff --check passed. Provider calls are mocked in automated unit tests."
+  },
+  "remaining": [
+    "Physical native Apple cancellation/fresh/returning sign-in; Google onboarding completion and returning sign-in",
+    "Real account linking and recovery require real email delivery, which is not configured in this harness",
+    "Apple private-email, revocation/deletion lifecycle and session persistence checks",
+    "Explicitly stop temporary tunnel after testing; preserve grant encryption material until cleanup is complete",
+    "No develop/prod push, live deployment, EAS build, store submission, or Renuir changes"
+  ]
+}

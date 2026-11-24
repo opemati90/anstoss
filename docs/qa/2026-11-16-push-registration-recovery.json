@@ -1,0 +1,41 @@
+{
+  "scope": "Anstoss device push registration; combined local QA candidate only",
+  "candidate": {
+    "baseCommit": "4139b96e6307f01b1079b002ad9e675dfde77bc2",
+    "worktree": "anstoss-combined-qa-20261116",
+    "state": "Uncommitted integration; no promotion or deployment",
+    "preservation": "Incoming billing, admin, memberships, rooms and push lease protections retained; auth/onboarding integration remains in this candidate"
+  },
+  "physicalObservation": {
+    "platform": "iOS",
+    "installedVersion": "1.0.2",
+    "installedBuild": "92",
+    "easBuildSourceCommit": "07bbed6ea138e97120aab2dde5a8852adb4850b2",
+    "caveat": "Build source metadata does not identify any OTA currently running on the phone",
+    "screenshot": "Team mute switches off; no device registration banner visible",
+    "accountLookup": "Exact user-confirmed account exists; read-only query found zero PushToken rows after opening app",
+    "delivery": "NOT TESTED: no registered target, no test push sent",
+    "rootCause": "Not proven on physical phone; the source-level defects below are reproducible separately"
+  },
+  "fixes": [
+    "Bound Expo token acquisition to 20 seconds; allow active-app recovery after failure, including failed refresh after previous success",
+    "Forward native token listener payload into Expo acquisition and preserve latest queued rotation to prevent acquisition/event feedback loop",
+    "Patch expo-notifications 57.0.19 source and compiled helper: clear rejected shared acquisition cache and release it after 15-second native timeout",
+    "Preserve account-generation guards, conditional lease cleanup and late-result protection"
+  ],
+  "verification": {
+    "focusedTests": "31 passed across hook lifecycle and real installed SDK helper tests",
+    "fullMobileSuite": "162 suites passed; 1314 tests passed, 1 existing skipped test",
+    "mobileTypecheck": "Passed",
+    "patchPackage": "Both dependency patches apply successfully; notification patch reverse check passed",
+    "independentReview": "launch_readiness_adversarial found native cache poisoning and token event loop; re-review reports both addressed, no new P0/P1 in focused diff",
+    "nativeDelivery": "Local QA 9202 on physical iOS 27.2 registered after native sign-in; user confirmed locked-phone reminder arrival and correct event tap navigation. Provider receipt, automatic scheduling, native reminder toggle and physical Android remain pending; see 2026-11-16-physical-iphone-reminder.json"
+  },
+  "limitations": [
+    "Timeouts stop JavaScript waiting; underlying SDK/native requests are not cancellable",
+    "Native event during initial acquisition may produce one bounded extra registration",
+    "Unit tests and SDK-mocked native manager tests do not prove APNs/FCM delivery",
+    "Local iOS simulator and physical QA artifacts refreshed with registration fixes and scene lifecycle migration; broader native walkthroughs remain pending",
+    "No EAS build, OTA, production API change, store submission or Renuir change performed"
+  ]
+}

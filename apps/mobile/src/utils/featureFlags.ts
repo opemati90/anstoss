@@ -1,6 +1,7 @@
 export type FeatureFlagName =
   | 'anstoss.roleAwareHome'
   | 'anstoss.newOnboarding'
+  | 'anstoss.officialFixtures'
   // Incomplete/prototype surfaces hidden from MVP (voice memos with no real
   // audio, photo wall with placeholder images, Ehrenamt export stub). Flip on
   // once they're fully built.
@@ -9,6 +10,8 @@ export type FeatureFlagName =
 const DEFAULTS: Record<FeatureFlagName, boolean> = {
   'anstoss.roleAwareHome': true,
   'anstoss.newOnboarding': true,
+  // Paused: no provider imports, widgets or fixture/table surfaces for launch.
+  'anstoss.officialFixtures': false,
   'anstoss.experimentalFeatures': false,
 }
 

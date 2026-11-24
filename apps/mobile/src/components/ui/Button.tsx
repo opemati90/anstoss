@@ -58,7 +58,7 @@ export type ButtonVariant =
   | 'primary'
   | 'secondary'
   | 'ghost'
-export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'auth'
 
 export interface ButtonProps extends AccessibilityProps {
   label: string
@@ -83,16 +83,20 @@ const HEIGHTS: Record<ButtonSize, number> = {
   sm: BUTTON_HEIGHT_SM - 4,
   md: BUTTON_HEIGHT_MD,
   lg: BUTTON_HEIGHT_LG,
+  // Match the compact native Apple sign-in control; retain a 44pt hit target.
+  auth: 44,
 }
 const H_PADDING: Record<ButtonSize, number> = {
   sm: BUTTON_PADDING_HORIZONTAL - 2,
   md: BUTTON_PADDING_HORIZONTAL + 4,
   lg: BUTTON_PADDING_HORIZONTAL + 8,
+  auth: BUTTON_PADDING_HORIZONTAL + 8,
 }
 const FONT_SIZES: Record<ButtonSize, number> = {
   sm: FONT_SIZE_CAPTION,
   md: FONT_SIZE_BODY_SMALL,
   lg: FONT_SIZE_BODY,
+  auth: FONT_SIZE_BODY,
 }
 
 export function Button({

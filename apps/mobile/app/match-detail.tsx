@@ -16,7 +16,7 @@ import type {
   ImportedFixture,
   TableSnapshotRow,
 } from '@anstoss/shared'
-import { router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -64,6 +64,11 @@ function dedupeEvents(events: LiveTickerEvent[]): LiveTickerEvent[] {
 }
 
 export default function MatchDetailScreen() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
+  return <MatchDetailScreenContent />
+}
+
+function MatchDetailScreenContent() {
   const { t } = useTranslation()
   const { activeClub, activeTeamAccess } = useAuth()
   const c = useClubColors()

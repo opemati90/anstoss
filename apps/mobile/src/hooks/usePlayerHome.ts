@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../utils/featureFlags'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import type {
@@ -194,7 +195,7 @@ export function usePlayerHome(
           ? keep(api<HomeChannel[]>(`/teams/${teamId}/channels`))
           : Promise.resolve([] as HomeChannel[]),
         keep(api<StreaksResponse>(`/clubs/${clubId}/streaks`)),
-        teamId
+        isFeatureEnabled('anstoss.officialFixtures') && teamId
           ? keep(api<TeamSeasonStats>(`/clubs/${clubId}/teams/${teamId}/season-stats`))
           : Promise.resolve(null),
         teamId ? fetchFixturesForTeams([teamId]) : Promise.resolve([] as ImportedFixture[]),
@@ -360,6 +361,7 @@ export function usePlayerHome(
 }
 
 async function fetchFixturesForTeams(teamIds: string[]): Promise<ImportedFixture[]> {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return []
   const groups = await Promise.all(
     teamIds.flatMap((id) => [
       api<ImportedFixture[]>(`/teams/${id}/fixtures?scope=upcoming&limit=5`).catch(

@@ -40,7 +40,7 @@ async function main() {
       `${role}@anstoss-simulator.invalid`,
     ]),
   )
-  const signupEmails = process.env.ANSTOSS_MVP_FRESH_SIGNUP === '1'
+  let signupEmails = process.env.ANSTOSS_MVP_FRESH_SIGNUP === '1'
     ? Object.fromEntries(['founder', 'player', 'agent'].map((role) => [role, `fresh-${role}-${randomUUID()}@anstoss-simulator.invalid`]))
     : {}
   process.env.REVIEW_LOGIN_EMAILS = [...Object.values(emails), ...Object.values(signupEmails)].join(',')
@@ -67,6 +67,20 @@ async function main() {
         throw new Error(`Resume user does not match the original QA fixture: ${role}`)
       }
     }
+    // Keep the exact allowlisted signup journeys across API restarts. Generating
+    // new addresses here would strand users already completing native QA.
+    const resumedSignupEmails: Record<string, string> = state.signupEmails ?? {}
+    for (const [role, email] of Object.entries(resumedSignupEmails)) {
+      if (
+        !['founder', 'player', 'agent'].includes(role) ||
+        typeof email !== 'string' ||
+        !new RegExp(`^fresh-${role}-[a-f0-9-]{36}@anstoss-simulator\\.invalid$`).test(email)
+      ) {
+        throw new Error('Resume signup address is not a synthetic Anstoss fixture')
+      }
+    }
+    signupEmails = resumedSignupEmails
+    process.env.REVIEW_LOGIN_EMAILS = [...Object.values(emails), ...Object.values(signupEmails)].join(',')
     // A restarted API has a new signing key: retain the journeys, not old sessions.
     const journalPath = join(dirname(resumePath), 'journeys.json')
     if (existsSync(journalPath)) {
@@ -150,25 +164,30 @@ async function main() {
       status: 'ACTIVE',
     },
   })
-  // Dynamic import only after configuring the isolated environment.
-  const { AppModule } = await import('../src/app.module')
-  const app = await NestFactory.create(AppModule, { logger: ['error', 'warn'] })
-  await app.listen(3167, '127.0.0.1')
+  // Persist fixture ownership before loading the application: a startup or
+  // decorator/compiler failure must not strand seeded rows without a resume
+  // manifest. A resumed run revalidates every id and rotates its local secrets.
   const directory = mkdtempSync(join(tmpdir(), 'anstoss-mvp-sim-'))
   const stateFile = join(directory, 'state.json')
   writeFileSync(
     stateFile,
     JSON.stringify({
-      apiUrl: await app.getUrl(),
+      apiUrl: 'http://127.0.0.1:3167',
       runId,
       clubId: club.id,
       teamId: team.id,
       users,
       emails,
+      signupEmails,
       otpCode: process.env.REVIEW_LOGIN_CODE,
     }),
     { mode: 0o600 },
   )
+  console.log(`Local simulator fixtures saved; QA state: ${stateFile}`)
+  // Dynamic import only after configuring the isolated environment.
+  const { AppModule } = await import('../src/app.module')
+  const app = await NestFactory.create(AppModule, { logger: ['error', 'warn'] })
+  await app.listen(3167, '127.0.0.1')
   console.log(`Local simulator API ready; QA state: ${stateFile}`)
 
   let stopping = false

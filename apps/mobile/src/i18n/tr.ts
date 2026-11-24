@@ -361,7 +361,7 @@ const base = {
     blockedEyebrow: 'Erişim kısıtlı',
     blockedTitle: 'Giriş henüz mümkün değil',
     blockedBody:
-      '16 yaş altı hesaplar için geçerli bir davet ve ardından veli onayı gerekiyor.',
+      'Kişisel hesaplar 16 yaşından itibaren kullanılabilir. Ebeveyn veya yasal vasi, çocuğun profilini kendi hesabından yönetebilir.',
     checkStatus: 'Durumu kontrol et',
   },
   accountNextStep: {

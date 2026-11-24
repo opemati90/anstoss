@@ -355,7 +355,7 @@ const base = {
     blockedEyebrow: 'Accès restreint',
     blockedTitle: 'Connexion pas encore possible',
     blockedBody:
-      'Pour les comptes de moins de 16 ans, il faut une invitation valide, puis l’accord d’un parent.',
+      'Un compte personnel est disponible à partir de 16 ans. Un parent ou responsable légal peut gérer le profil de l’enfant depuis son propre compte.',
     checkStatus: 'Vérifier le statut',
   },
   accountNextStep: {

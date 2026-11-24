@@ -16,6 +16,8 @@ import { onboardingProgress } from '../../src/onboarding/steps'
 import { ChoiceRow, ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
 import { goBackOrReplace } from '../../src/utils/navigation'
 import { space } from '../../src/theme/tokens'
+import { FAMILY_FEATURE_ENABLED } from '../../src/launchFeatures'
+import { FamilyUnavailableScreen } from '../../src/onboarding/UnderageScreens'
 
 /** Guardians act for a child: 18+, from the date of birth on the account. */
 export const GUARDIAN_MIN_AGE = 18
@@ -46,6 +48,16 @@ type HandoffPreview = {
  * child's spot; otherwise they add the team code from the coach.
  */
 export default function ParentHandoff() {
+  const router = useRouter()
+  if (!FAMILY_FEATURE_ENABLED) {
+    return <FamilyUnavailableScreen onDone={() => {
+      void clearOnboardingIntent().then(() => router.replace('/'))
+    }} />
+  }
+  return <ParentHandoffContent />
+}
+
+function ParentHandoffContent() {
   const router = useRouter()
   const { t } = useTranslation()
   // The lookups below run on code changes only, not on a new `t` identity.

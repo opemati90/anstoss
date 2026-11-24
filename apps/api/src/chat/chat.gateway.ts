@@ -14,6 +14,7 @@ import { Namespace, Socket } from 'socket.io'
 import { installRedisAdapter } from '../realtime/redis-adapter'
 import { Redis } from 'ioredis'
 import { verifySessionToken } from '../auth/otp/jwt.util'
+import { bindAppleSocketSession, disconnectRevokedAppleSessions } from '../auth/oauth/apple-session'
 import { PrismaService } from '../prisma/prisma.service'
 import { PushService } from '../push/push.service'
 import { DmService } from '../dm/dm.service'
@@ -387,6 +388,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       select: { id: true, name: true },
     })
     if (!user || !(await this.passesAgeGate(user.id))) throw new Error('Unauthorized')
+    await bindAppleSocketSession(this.prisma, client, payload)
     client.data.ageGateChecks = { ':': Date.now() }
     client.data.userId = user.id
     client.data.userName = user.name
@@ -435,6 +437,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!this.server) return
     const sockets = await this.server.in(`user:${payload.userId}`).fetchSockets()
     for (const socket of sockets) socket.disconnect(true)
+  }
+
+  @OnEvent('auth.apple.revoked', { suppressErrors: false })
+  async onAppleRevoked(payload: { identityId: string }) {
+    if (this.server) await disconnectRevokedAppleSessions(this.prisma, this.server, payload.identityId)
   }
 
   @OnEvent('channel.closed')

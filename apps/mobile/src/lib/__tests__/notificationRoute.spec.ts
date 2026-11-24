@@ -40,3 +40,15 @@ describe('notification destinations', () => {
     },
   )
 })
+
+it.each(['fixture-sync', 'GOAL_SCORED', 'MATCH_FINAL'])('ignores paused provider push %s', (kind) => {
+  mockPush.mockClear()
+  openNotificationTarget({ kind, fixtureId: 'fixture-1', teamId: 'team-1' }, jest.fn())
+  expect(mockPush).not.toHaveBeenCalled()
+})
+
+it.each(['live_goal', 'live_full_time'])('keeps recorded-match push %s', (kind) => {
+  mockPush.mockClear()
+  openNotificationTarget({ kind, eventId: 'event-1' }, jest.fn())
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/match-live', params: { eventId: 'event-1' } })
+})

@@ -65,6 +65,8 @@ export const onboardingFlowEn: OnboardingFlowStrings = {
     subtitleWithDob: 'This is how teammates, coaches and the club see you. We need your date of birth to protect young players.',
   },
   club: {
+    notOnAnstossPlayer: 'Not on Anstoss yet. Ask your coach or club administrator to set it up.',
+    noResultsPlayerHint: 'Check the club name or town, or ask your coach for an invitation code.',
     title: 'Find your club',
     subtitle: 'Search by club name or town, or enter your team code.',
     searchLabel: 'Club, town or team code',
@@ -85,7 +87,7 @@ export const onboardingFlowEn: OnboardingFlowStrings = {
     noTeams: 'This club hasn’t added a team yet. Ask the club committee for an invitation.',
     pickTeam: 'Choose your team.',
     sendRequest: 'Send request',
-    whatNext: 'The coach usually confirms you within a day.',
+    whatNext: 'A club administrator reviews your request.',
     whatNextCoach: 'The club committee usually confirms coaches within one or two days.',
     alreadyRequested: 'You already have an open request with this club.',
     requestFailed: 'The request couldn’t be sent. Please try again.',
@@ -131,10 +133,10 @@ export const onboardingFlowEn: OnboardingFlowStrings = {
   },
   pending: {
     title: 'Request sent',
-    body: 'Your request is with {{club}}. The coach usually confirms you within a day.',
+    body: 'Your request is with {{club}}. A club administrator will review it.',
     bodyCoach:
       'The committee at {{club}} is reviewing your coach request. This usually takes one or two days.',
-    bodyNoClub: 'Your request is with the club. The coach usually confirms you within a day.',
+    bodyNoClub: 'Your request is with the club. A club administrator will review it.',
     status: 'Waiting for confirmation',
     nextTitle: 'What happens next',
     next1: 'We’ll notify you as soon as you’re confirmed.',
@@ -275,6 +277,11 @@ export const onboardingFlowEn: OnboardingFlowStrings = {
     verificationAnswer: 'Answer the question',
   },
   age: {
+    launchTitle: 'Anstoss is for ages 16 and over',
+    launchBody: 'You need to be at least 16 to use your own account. Family accounts are not available in this release.',
+    accountRemoved: 'We have deleted this account.',
+    familyTitle: 'Family setup is not available yet',
+    familyBody: 'This release supports individual accounts from age 16. You cannot add a child or accept a parent invitation yet.',
     under13Title: 'Ask your parents',
     under13Body: 'Children under 13 don’t get their own Anstoss account. Your parents download Anstoss and add you with “Add child”. We’ve deleted your details.',
   },

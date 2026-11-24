@@ -66,6 +66,8 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
     subtitleWithDob: 'Takım arkadaşların, antrenörler ve kulüp seni böyle görür. Doğum tarihine genç oyuncuları korumak için ihtiyacımız var.',
   },
   club: {
+    notOnAnstossPlayer: 'Henüz Anstoss’ta değil. Antrenöründen veya kulüp yöneticinden kulübü kurmasını iste.',
+    noResultsPlayerHint: 'Kulüp adını veya şehri kontrol et ya da antrenöründen bir davet kodu iste.',
     title: 'Kulübünü bul',
     subtitle: 'Kulüp adı ya da şehirle ara veya takım kodunu gir.',
     searchLabel: 'Kulüp, şehir veya takım kodu',
@@ -86,7 +88,7 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
     noTeams: 'Bu kulüp henüz takım eklemedi. Yönetimden davet iste.',
     pickTeam: 'Takımını seç.',
     sendRequest: 'İstek gönder',
-    whatNext: 'Antrenör seni genelde bir gün içinde onaylar.',
+    whatNext: 'Bir kulüp yöneticisi isteğini inceler.',
     whatNextCoach: 'Yönetim antrenörleri genelde bir iki gün içinde onaylar.',
     alreadyRequested: 'Bu kulüpte zaten bekleyen bir isteğin var.',
     requestFailed: 'İstek gönderilemedi. Tekrar dene.',
@@ -132,10 +134,10 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
   },
   pending: {
     title: 'İstek gönderildi',
-    body: 'İsteğini {{club}} aldı. Antrenör seni genelde bir gün içinde onaylar.',
+    body: 'İsteğini {{club}} aldı. Bir kulüp yöneticisi isteğini inceleyecek.',
     bodyCoach:
       '{{club}} yönetimi antrenörlük isteğini inceliyor. Bu genelde bir iki gün sürer.',
-    bodyNoClub: 'İsteğin kulübe ulaştı. Antrenör seni genelde bir gün içinde onaylar.',
+    bodyNoClub: 'İsteğin kulübe ulaştı. Bir kulüp yöneticisi isteğini inceleyecek.',
     status: 'Onay bekleniyor',
     nextTitle: 'Sırada ne var',
     next1: 'Onaylanır onaylanmaz sana haber veririz.',
@@ -276,6 +278,11 @@ export const onboardingFlowTr: OnboardingFlowStrings = {
     verificationAnswer: 'Soruyu yanıtla',
   },
   age: {
+    launchTitle: 'Anstoss 16 yaş ve üzeri içindir',
+    launchBody: 'Kendi hesabını kullanmak için en az 16 yaşında olmalısın. Bu sürümde aile hesapları henüz kullanılamıyor.',
+    accountRemoved: 'Bu hesabı sildik.',
+    familyTitle: 'Aile kurulumu henüz kullanılamıyor',
+    familyBody: 'Bu sürüm 16 yaş ve üzeri bireysel hesapları destekler. Henüz çocuk ekleyemez veya veli davetini kabul edemezsin.',
     under13Title: 'Ailene sor',
     under13Body: '13 yaşından küçük çocukların kendi Anstoss hesabı olmaz. Ailen Anstoss’u indirip seni “Çocuk ekle” ile ekler. Bilgilerini sildik.',
   },

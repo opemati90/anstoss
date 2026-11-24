@@ -1,12 +1,21 @@
 import { RegistrationRole } from '@anstoss/shared'
 import { validateDob } from './DateOfBirthInput'
 import { buildJoinProfilePatch, joinErrorKey } from './joinClub'
-import { inviteRedeemError, retryAfterSeconds, verifyCodeError } from './errors'
+import { clubSearchErrorKey, inviteRedeemError, retryAfterSeconds, verifyCodeError } from './errors'
 import { needsDateOfBirth, needsDisplayName, resolveSignedInRoute } from './routing'
 import { computeKeyboardInset } from './ui'
 import { ApiError } from '../api/client'
 
 jest.mock('react-native-keyboard-controller', () => require('react-native-keyboard-controller/jest'))
+
+describe('club search failure copy', () => {
+  it('distinguishes offline, rate limiting and service failures', () => {
+    expect(clubSearchErrorKey(new ApiError('offline', 0))).toBe('onboardingFlow.common.networkError')
+    expect(clubSearchErrorKey(new ApiError('slow down', 429))).toBe('onboardingFlow.welcome.rateLimited')
+    expect(clubSearchErrorKey(new ApiError('not available', 404))).toBe('onboardingFlow.common.saveFailed')
+    expect(clubSearchErrorKey(new Error('unknown'))).toBe('onboardingFlow.common.saveFailed')
+  })
+})
 
 describe('needsDisplayName / needsDateOfBirth', () => {
   it('flags the name the server derives from the email', () => {
@@ -109,7 +118,7 @@ describe('verifyCodeError (M1)', () => {
       'onboardingFlow.code.tooManyAttempts',
     )
     expect(verifyCodeError(new ApiError('x', 403, 'UNDERAGE_EMAIL_BLOCKED')).key).toBe(
-      'onboardingFlow.code.underageBlocked',
+      'onboardingFlow.age.launchBody',
     )
     expect(verifyCodeError(new TypeError('offline')).key).toBe('onboardingFlow.common.networkError')
   })

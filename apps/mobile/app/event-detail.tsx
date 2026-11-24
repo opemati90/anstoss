@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
@@ -644,7 +645,7 @@ export default function EventDetailScreen() {
                 accessibilityLabel={t('eventFlow.detail.liveTitle')}
                 accessibilityHint={t('eventFlow.detail.liveSubtitle')}
                 onPress={() =>
-                  event.fixtureId
+                  isFeatureEnabled('anstoss.officialFixtures') && event.fixtureId
                     ? router.push({
                         pathname: '/match-detail',
                         params: { fixtureId: event.fixtureId, teamId: event.team?.id ?? '' },

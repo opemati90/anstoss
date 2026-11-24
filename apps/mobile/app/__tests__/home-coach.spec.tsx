@@ -278,13 +278,13 @@ describe('CoachHome', () => {
     })
   })
 
-  it('opens the lineup builder with the linked fixture from the secondary action', async () => {
+  it('opens the lineup builder without an external fixture', async () => {
     const { findByText } = renderCoach()
     fireEvent.press(await findByText('Set the lineup'))
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/lineup-builder',
-      params: { teamId: 'team-1', fixtureId: 'fixture-1' },
+      params: { teamId: 'team-1' },
     })
   })
 

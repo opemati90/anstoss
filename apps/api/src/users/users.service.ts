@@ -399,12 +399,8 @@ export class UsersService {
     }
 
     const age = user.dateOfBirth ? getAge(user.dateOfBirth) : null
-    const latestConsent = user.parentalConsentsAsPlayer[0]
-    // Privacy: mirrors AgeGateService with no club context. Any APPROVED
-    // consent clears the account; each club is still gated on its own.
-    const hasApprovedConsent = user.parentalConsentsAsPlayer.some(
-      (c: { status: string }) => c.status === ParentalConsentStatus.APPROVED,
-    )
+    // Match the 16+ direct-account launch gate; historical consent does not
+    // unlock a minor's own session. Guardian-managed profiles remain available.
 
     // onboarding revamp: a coach/parent/admin who declared they are 16+
     // (adultConfirmedAt) and has no DOB on file is cleared like an adult.
@@ -423,38 +419,19 @@ export class UsersService {
             guardianEmail: null,
             message: null,
           }
-        : age < AGE_GATE.MIN_DIRECT_ACCOUNT_AGE
+        : age < AGE_GATE.MIN_AGE
           ? {
               isUnder16: true,
               status: 'BLOCKED' as const,
               guardianEmail: null,
-              message: 'Children under 13 must use a guardian-managed account.',
+              message: 'Direct accounts are available from age 16. A parent or guardian can manage a child’s profile.',
             }
-        : age >= AGE_GATE.MIN_AGE || hasApprovedConsent
-          ? {
-              isUnder16: age < AGE_GATE.MIN_AGE,
+        : {
+              isUnder16: false,
               status: 'CLEARED' as const,
-              guardianEmail: latestConsent?.guardianEmail || null,
+              guardianEmail: null,
               message: null,
             }
-          : latestConsent
-            ? {
-                isUnder16: true,
-                status: 'PENDING_PARENT_APPROVAL' as const,
-                guardianEmail: latestConsent.guardianEmail,
-                message:
-                  latestConsent.status === ParentalConsentStatus.REJECTED
-                    ? 'Parental approval was declined.'
-                    : latestConsent.status === ParentalConsentStatus.WITHDRAWN
-                      ? 'Parental approval was withdrawn.'
-                      : 'Parental approval is still pending.',
-              }
-            : {
-                isUnder16: true,
-                status: 'BLOCKED' as const,
-                guardianEmail: null,
-                message: `You must be at least ${AGE_GATE.MIN_AGE} or have parental approval to access Anstoss.`,
-              }
 
     // Derive teamMembers from teamAccess for the mobile client.
     // Keep access state so clients can avoid treating pending/revoked rows

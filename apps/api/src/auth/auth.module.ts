@@ -7,10 +7,16 @@ import { AgeGateService } from './age-gate.service'
 import { OtpController } from './otp/otp.controller'
 import { OtpService } from './otp/otp.service'
 import { IdentityRetentionWorker } from './identity-retention.worker'
+import { SocialLoginController } from './oauth/oauth.controller'
+import { SocialLoginService } from './oauth/oauth.service'
+import { OAuthProviderService } from './oauth/oauth.provider'
+import { SocialIdentityRetentionWorker } from './oauth/oauth-retention.worker'
+import { AppleNotificationController } from './oauth/apple-notification.controller'
+import { AppleNotificationService } from './oauth/apple-notification.service'
 
 @Global()
 @Module({
-  controllers: [OtpController],
+  controllers: [OtpController, SocialLoginController, AppleNotificationController],
   providers: [
     ClerkAuthGuard,
     RolesGuard,
@@ -21,6 +27,10 @@ import { IdentityRetentionWorker } from './identity-retention.worker'
     { provide: APP_GUARD, useExisting: AgeGateGuard },
     OtpService,
     IdentityRetentionWorker,
+    SocialLoginService,
+    OAuthProviderService,
+    SocialIdentityRetentionWorker,
+    AppleNotificationService,
   ],
   exports: [ClerkAuthGuard, RolesGuard, AgeGateGuard, AgeGateService, OtpService],
 })

@@ -2,7 +2,7 @@ import { Controller, ExecutionContext, Get, UseGuards } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AgeGateError } from '@anstoss/shared'
 import { AgeGateGuard, AllowWithoutConsent } from './age-gate.guard'
-import { AgeGateService } from './age-gate.service'
+import { AgeGateService, getAge } from './age-gate.service'
 import { ClerkAuthGuard } from './clerk.guard'
 import { signSessionToken } from './otp/jwt.util'
 import { createFakePrisma, dobForAge } from '../testing/fake-prisma'
@@ -59,38 +59,38 @@ describe('AgeGateService', () => {
     await expect(svc().isAllowed('declared')).resolves.toBe(true)
   })
 
-  it('requires a DOB without a declaration, blocks under 13, and lets an under-16 DOB win', async () => {
+  it('requires a DOB without a declaration and lets an under-16 DOB win', async () => {
     await expect(svc().assertAllowed('no-dob')).rejects.toThrow('Date of birth required')
-    await expect(svc().assertAllowed('kid12')).rejects.toThrow(/under 13/)
+    await expect(svc().assertAllowed('kid12')).rejects.toThrow(/age 16/)
     await expect(svc().assertAllowed('kid14-declared')).rejects.toBeInstanceOf(AgeGateError)
   })
 
-  it('H2: an approved consent in club A does not open club B', async () => {
+  it('historical consent cannot unlock direct access in any club', async () => {
     const s = svc()
-    await expect(s.isAllowed('tim', { clubId: 'albatros' })).resolves.toBe(true)
-    await expect(s.isAllowed('tim', { clubId: 'albatros', teamId: 'u15' })).resolves.toBe(true)
-    await expect(s.assertAllowed('tim', { clubId: 'babelsberg' })).rejects.toThrow(/withdrawn/)
+    await expect(s.isAllowed('tim', { clubId: 'albatros' })).resolves.toBe(false)
+    await expect(s.isAllowed('tim', { clubId: 'albatros', teamId: 'u15' })).resolves.toBe(false)
+    await expect(s.assertAllowed('tim', { clubId: 'babelsberg' })).rejects.toThrow(/age 16/)
   })
 
-  it('H2: a team without its own consent is closed, unless it is a loan from a consented team', async () => {
+  it('team loans cannot override the direct-account age floor', async () => {
     const s = svc()
-    await expect(s.isAllowed('tim', { clubId: 'albatros', teamId: 'u16' })).resolves.toBe(true)
+    await expect(s.isAllowed('tim', { clubId: 'albatros', teamId: 'u16' })).resolves.toBe(false)
     await expect(s.isAllowed('tim', { clubId: 'albatros', teamId: 'u17' })).resolves.toBe(false)
   })
 
-  it('reports the state of the consent for the requested team', async () => {
+  it('applies the same age floor with pending or withdrawn consent', async () => {
     const s = svc()
     await expect(s.assertAllowed('lukas', { clubId: 'albatros', teamId: 'u15' })).rejects.toThrow(
-      /withdrawn/,
+      /age 16/,
     )
     await expect(s.assertAllowed('lukas', { clubId: 'albatros', teamId: 'u14' })).rejects.toThrow(
-      'Waiting for guardian approval',
+      /age 16/,
     )
   })
 
-  it('no club context: needs an approved consent somewhere', async () => {
+  it('blocks minors without a club context too', async () => {
     const s = svc()
-    await expect(s.isAllowed('tim')).resolves.toBe(true)
+    await expect(s.isAllowed('tim')).resolves.toBe(false)
     await expect(s.isAllowed('lukas')).resolves.toBe(false)
   })
 
@@ -101,7 +101,17 @@ describe('AgeGateService', () => {
     ).resolves.toEqual(['adult'])
     await expect(
       s.filterAllowedUserIds(['adult', 'tim', 'lukas'], { clubId: 'albatros' }),
-    ).resolves.toEqual(['adult', 'tim'])
+    ).resolves.toEqual(['adult'])
+  })
+
+  it('opens direct access on the sixteenth birthday, not the day before', async () => {
+    expect(getAge(new Date(2010, 10, 16), new Date(2026, 10, 15))).toBe(15)
+    expect(getAge(new Date(2010, 10, 16), new Date(2026, 10, 16))).toBe(16)
+    const prisma = world()
+    prisma.user.findMany = jest.fn().mockResolvedValue([
+      { id: 'sixteen', dateOfBirth: dobForAge(16), adultConfirmedAt: null },
+    ])
+    await expect(svc(prisma).isAllowed('sixteen')).resolves.toBe(true)
   })
 })
 
@@ -167,17 +177,17 @@ describe('AgeGateGuard (global)', () => {
       guard().canActivate(ctx(GatedController, 'gated', { userId: 'tim', params: { clubId: 'babelsberg' } })),
     ).rejects.toBeInstanceOf(AgeGateError)
     await expect(
-      guard().canActivate(ctx(GatedController, 'gated', { userId: 'tim', params: { clubId: 'albatros' } })),
+      guard().canActivate(ctx(GatedController, 'gated', { userId: 'adult', params: { clubId: 'albatros' } })),
     ).resolves.toBe(true)
   })
 
   it('H2: resolves the club from :channelId and :eventId', async () => {
     await expect(
       guard().canActivate(ctx(GatedController, 'gated', { userId: 'tim', params: { channelId: 'b-chan' } })),
-    ).rejects.toThrow(/withdrawn/)
+    ).rejects.toThrow(/age 16/)
     await expect(
       guard().canActivate(ctx(GatedController, 'gated', { userId: 'tim', params: { eventId: 'b-event' } })),
-    ).rejects.toThrow(/withdrawn/)
+    ).rejects.toThrow(/age 16/)
   })
 
   it('H2: resolves the club from :teamId', async () => {

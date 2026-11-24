@@ -1,0 +1,37 @@
+{
+  "status": "Source findings addressed; iPhone16 simulator keyboard check passed. Remaining native matrix open; not launch-ready.",
+  "reviewer": "adversarial_audit",
+  "findings": [
+    {
+      "severity": "high",
+      "area": "Shared onboarding keyboard layout",
+      "finding": "The new layout-resizing KeyboardAvoidingView plus plain ScrollView does not ensure a low focused field is automatically revealed.",
+      "required": "Restore focus-aware scrolling without double keyboard compensation; verify lowest fields natively on small screens and large text.",
+      "resolution": "Restored KeyboardAwareScrollView mode=layout with one sticky footer, stable safe-area padding, measured focus clearance and negative extraKeyboardSpace matching the footer lift. No second KeyboardAvoidingView. iPhone16 numeric/text input and repeated upward scroll checked; small-screen, large-text and Android checks remain open."
+    },
+    {
+      "severity": "medium",
+      "area": "Shared club code PLAYER request",
+      "finding": "POST success followed by refreshUser failure can strand an already-created request behind a misleading failure/retry.",
+      "required": "Treat POST success as commit boundary; route to pending despite best-effort refresh failure, with regression test.",
+      "resolution": "Successful shared-code POST is the commit boundary. Best-effort refresh failure no longer presents a failed join. New users route to request-pending; existing members route home to avoid trapping them in no-back onboarding. All four member/nonmember and refresh-success/failure combinations covered."
+    },
+    {
+      "severity": "low",
+      "area": "Apple sign-in accessibility",
+      "finding": "Disabled state is on a non-accessible wrapper rather than the native accessible control.",
+      "required": "Expose disabled state on the single accessible button and test VoiceOver behavior.",
+      "resolution": "Disabled/busy accessibility state moved onto the native Apple control and regression tested. Physical VoiceOver verification remains open."
+    }
+  ],
+  "preservedIncomingHandoff": "Exact de4752d6 and 07f43e27 changes selectively applied to combined dirty candidate, preserving current auth and onboarding fixes. No extraction prototype integrated; see cross-session inventory.",
+  "verification": {
+    "mobile": { "suites": 166, "passed": 1361, "skipped": 1, "failed": 0, "report": ".qa/mobile-regression-20261117.json" },
+    "static": "Mobile TypeScript and changed-file ESLint passed; git diff --check passed.",
+    "review": "Independent adversarial review accepted keyboard offset math; existing-member pending-route trap identified and corrected with regression tests. Final narrow re-review passed join routing, POST commit-boundary recovery and generated/legacy code case preservation with no remaining concrete blocker; not a release approval.",
+    "native": "Local simulator 9210: synthetic player completed name/DOB and reached club search. Continue bottom was 8pt above the software keyboard. Lowest year field remained visible before and after repeated upward scrolling. Combined candidate 9211 includes both new handoffs and was handed to the other session for native invitation testing.",
+    "evidence": ["/private/tmp/anstoss-onboarding-9210-scroll-end.png", "/private/tmp/anstoss-onboarding-9210-motion.mov"],
+    "limits": "No new physical-phone installation, Android acceptance, large-text/small-screen pass or production release. Recording is not a frame-time performance benchmark."
+  },
+  "boundaries": "No production promotion or store build. Existing working tree changes preserved."
+}

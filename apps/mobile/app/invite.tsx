@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -559,14 +560,14 @@ export default function InviteScreen() {
                 },
               ]
             : []),
-          {
+          ...(isFeatureEnabled('anstoss.officialFixtures') ? [{
             key: 'fussball',
             icon: 'chart.bar',
             title: t('invite.fussballTitle'),
             body: t('invite.fussballBody'),
             onPress: () => router.push('/fussball-link'),
             testID: 'invite-fussball-link',
-          },
+          }] : []),
           ...(canInvite
             ? [
                 {
@@ -707,7 +708,7 @@ export default function InviteScreen() {
             </View>
             <Icon name="chevron.right" size={16} color={c.textSecondary} />
           </Pressable>
-          <Pressable
+          {isFeatureEnabled('anstoss.officialFixtures') ? <Pressable
             onPress={() => router.push('/fussball-link')}
             accessibilityRole="button"
             accessibilityLabel={t('invite.fussballTitle', {
@@ -726,7 +727,7 @@ export default function InviteScreen() {
               </Text>
             </View>
             <Icon name="chevron.right" size={16} color={c.textSecondary} />
-          </Pressable>
+          </Pressable> : null}
         </View>
       ) : null}
 

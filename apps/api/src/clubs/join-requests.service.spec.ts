@@ -604,7 +604,7 @@ describe('JoinRequestsService.approve', () => {
     expect(call[4]).toEqual({ clubId: 'club-1' })
   })
 
-  it('also grants team access and membership when a team was requested', async () => {
+  it('grants full active team access on ordinary membership approval, including existing access', async () => {
     const { service, prisma, tx } = makeService()
     prisma.joinRequest.findFirst.mockResolvedValue({
       id: 'jr-2',
@@ -623,12 +623,19 @@ describe('JoinRequestsService.approve', () => {
           teamId: 'team-9',
           userId: 'user-2',
           role: 'PLAYER',
+          phase: 'FULL',
+          status: 'ACTIVE',
         }),
+        update: {
+          phase: 'FULL', status: 'ACTIVE',
+          loanedFromTeamId: null, loanStartDate: null, loanEndDate: null,
+        },
       }),
     )
     expect(tx.teamMember.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { teamId_userId: { teamId: 'team-9', userId: 'user-2' } },
+        update: { operationalStatus: 'ACTIVE' },
       }),
     )
   })
@@ -650,7 +657,10 @@ describe('JoinRequestsService.approve', () => {
     expect(tx.teamAccess.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ phase: 'FULL', status: 'ACTIVE' }),
-        update: { phase: 'FULL', status: 'ACTIVE' },
+        update: {
+          phase: 'FULL', status: 'ACTIVE',
+          loanedFromTeamId: null, loanStartDate: null, loanEndDate: null,
+        },
       }),
     )
     expect(tx.trialInvite.updateMany).toHaveBeenCalledWith({

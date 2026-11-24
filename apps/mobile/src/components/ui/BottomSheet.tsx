@@ -31,6 +31,8 @@ export type BottomSheetProps = {
   flush?: boolean
   /** Whether tapping the dimmed overlay closes the sheet. Default true. */
   dismissOnBackdrop?: boolean
+  /** Disable all dismissal gestures during an irreversible request. */
+  dismissible?: boolean
   /** Inner content. */
   children: React.ReactNode
   contentStyle?: ViewStyle
@@ -56,6 +58,7 @@ export function BottomSheet({
   heightPct = 88,
   paddingBottom,
   dismissOnBackdrop = true,
+  dismissible = true,
   flush = false,
   children,
   contentStyle,
@@ -85,34 +88,49 @@ export function BottomSheet({
   // Keep onClose / sheetHeight refs current so the PanResponder closure
   // (created once at mount) always sees the latest values.
   const onCloseRef = useRef(onClose)
+  const dismissibleRef = useRef(dismissible)
   const sheetHeightRef = useRef(sheetHeight)
   useEffect(() => {
     onCloseRef.current = onClose
+    dismissibleRef.current = dismissible
     sheetHeightRef.current = sheetHeight
-  }, [onClose, sheetHeight])
+    if (!dismissible) {
+      // A request can start during the 200ms dismissal. Cancel the exit so a
+      // failed request keeps its visible retry controls instead of an offscreen sheet.
+      translateY.stopAnimation()
+      Animated.spring(translateY, {
+        toValue: 0,
+        tension: 60,
+        friction: 9,
+        useNativeDriver: true,
+      }).start()
+    }
+  }, [onClose, sheetHeight, dismissible, translateY])
 
   const animateClose = useRef(() => {
+    if (!dismissibleRef.current) return
     Animated.timing(translateY, {
       toValue: sheetHeightRef.current,
       duration: 200,
       useNativeDriver: true,
-    }).start(() => {
-      onCloseRef.current()
+    }).start(({ finished }) => {
+      if (finished && dismissibleRef.current) onCloseRef.current()
     })
   }).current
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => dismissibleRef.current,
       onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dy) > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        dismissibleRef.current && Math.abs(gesture.dy) > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
       onPanResponderMove: (_, gesture) => {
+        if (!dismissibleRef.current) return
         // Only allow dragging downward; clamp upward drags to 0.
         translateY.setValue(Math.max(0, gesture.dy))
       },
       onPanResponderRelease: (_, gesture) => {
         const shouldClose =
-          gesture.dy > DRAG_THRESHOLD || gesture.vy > VELOCITY_THRESHOLD
+          dismissibleRef.current && (gesture.dy > DRAG_THRESHOLD || gesture.vy > VELOCITY_THRESHOLD)
         if (shouldClose) {
           // Animate the rest of the way down, then notify the parent.
           // Critically: do NOT reset translateY before onClose — that
@@ -138,7 +156,7 @@ export function BottomSheet({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={dismissible ? onClose : undefined}
     >
       <KeyboardAvoidingView
         style={styles.overlay}
@@ -158,7 +176,7 @@ export function BottomSheet({
             },
           ]}
         />
-        {dismissOnBackdrop ? (
+        {dismissOnBackdrop && dismissible ? (
           <View
             style={StyleSheet.absoluteFill}
             onTouchEnd={animateClose}

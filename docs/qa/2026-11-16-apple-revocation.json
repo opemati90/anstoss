@@ -1,0 +1,140 @@
+{
+  "date": "2026-11-16",
+  "status": "Local implementation and regression validation only; no deployment or provider enablement",
+  "worktree": "/Users/yemi/anstoss-redesign-review-20261113",
+  "baseCommit": "abe50365",
+  "candidateState": "Uncommitted auth work layered on an existing dirty integration checkout. This is not the separate billing candidate and is not ready for production promotion.",
+  "implemented": [
+    "Apple sessions carry the specific SocialIdentity id and original verified Apple proof timestamp; HTTP guards validate ownership and durable revocation state.",
+    "Session refresh preserves Apple identity/proof binding. Email-confirmed Apple linking mints a bound session instead of returning the unbound OTP token.",
+    "An additive SocialLoginChallenge.providerAuthenticatedAt migration preserves exact provider proof time across pending links; legacy pending Apple links fail closed.",
+    "Apple notifications validate RS256 signatures, fixed Anstoss audience/issuer and bounded event shape. The documented notification format without exp is accepted; foreign audiences and forged signatures are rejected.",
+    "Revocation markers advance monotonically under the same subject advisory lock as login/linking. Replays, delayed notifications and newer reauthorizations cannot reactivate old sessions.",
+    "Chat, events and live-match sockets use identity-scoped cross-replica disconnects, per-packet validation and periodic validation. Passive sockets are rechecked every 30 seconds with a 5-second query deadline; missed broadcasts are not claimed to revoke instantaneously.",
+    "Transport close during an unfinished namespace handshake removes listeners and prevents polling timer leaks.",
+    "Nest event listeners propagate adapter failures so notification delivery can be retried. Real EventEmitterModule tests cover all three gateway decorators.",
+    "Apple token verification is separated from authorization-code exchange. Acquisition holds the subject lock and journals encrypted credentials before the separate business transaction; exact journal ownership is consumed atomically with the account/link write.",
+    "SocialIdentity.providerAuthenticatedAt prevents older abandoned credentials from replacing newer ones. Unknown-freshness legacy linking fails without consuming the pending credential; a fresh live exchange can initialize legacy freshness.",
+    "Cleanup and acquisition share subject locking with a 2-second lock timeout, leaving time for bounded provider requests before the transaction deadline.",
+    "Persistent cleanupNextAttemptAt claims rotate deferred and failed identities/grants across worker restarts. Conditional claims prevent concurrent workers from processing the same eligible row.",
+    "Old revocation markers are pruned only after their identity is absent, with post-lock ownership and age rechecks. Required active-identity markers cannot starve removable markers.",
+    "Expired, missing or consumed linking tickets return OAUTH_LINK_EXPIRED (410). Revoked Apple link proofs also require a fresh provider sign-in. Mobile recovery clears the stale ticket and offers an explicit sign-in-method restart without silently falling back to email verification.",
+    "Wrong OTP, transient network errors and rate limits retain the pending link for retry. Synchronous request guards prevent overlapping resend, verification and navigation actions; recovery preserves email and invite context."
+  ],
+  "validation": {
+    "isolatedDatabase": "127.0.0.1:55491/anstoss_launch_test; synthetic fixtures only",
+    "migrations": [
+      "20261116150000_apple_session_binding",
+      "20261116153000_apple_grant_freshness",
+      "20261116154500_social_cleanup_retry"
+    ],
+    "migrationScope": "Applied to isolated local QA databases only; no production migration",
+    "focusedOAuth": { "suites": 10, "passed": 105, "failed": 0, "skipped": 0 },
+    "focusedMobileRecovery": { "suites": 2, "passed": 71, "failed": 0, "skipped": 0 },
+    "fullApi": { "suites": 179, "passed": 1800, "failed": 0, "skipped": 0 },
+    "fullMobile": { "suites": 156, "passed": 1207, "failed": 0, "skipped": 1 },
+    "fullShared": { "suites": 12, "passed": 193, "failed": 0, "skipped": 0 },
+    "apiCoverage": {
+      "linesPercent": 72.64,
+      "statementsPercent": 70.95,
+      "branchesPercent": 58.73,
+      "functionsPercent": 68.96,
+      "repositoryTargetPercent": 80,
+      "targetMet": false,
+      "report": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-coverage/coverage-summary.json"
+    },
+    "fullSuiteRefresh": "Rerun includes the final six recovery regressions. The first sandboxed API attempt failed because localhost test databases were inaccessible; the permitted local rerun passed all 1800 tests. Both attempt logs retained. These results apply only to this review checkout, not the incoming combined candidate.",
+    "recoveryTestHarness": "The cooldown test fakes the UI clock but preserves nextTick, queueMicrotask and immediate scheduling used by React act/cleanup. Same-frame concurrency is checked separately on real timers. No app behavior was weakened to make tests pass.",
+    "grantDatabaseCases": 13,
+    "grantDatabaseCoverage": [
+      "Business rollback preserves the encrypted grant; successful ownership consumes its exact journal",
+      "Newer grants transfer while older, equal-revoked and pre-revocation proofs cannot overwrite them",
+      "Actual provider exchange races cleanup and concurrent account deletion under the shared subject lock",
+      "Successful provider revocation followed by a database rollback preserves durable retry state",
+      "Legacy link failure preserves its pending credential",
+      "An eligible tail progresses behind 100 retained rows after worker restart",
+      "Concurrent workers cannot claim the same due grant",
+      "Lock contention fails before contacting the provider",
+      "Provider failure retry respects its persisted schedule after restart",
+      "Only unused old markers are pruned"
+    ],
+    "typecheck": "passed",
+    "targetedEslint": "passed",
+    "diffCheck": "passed",
+    "reports": [
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/apple-grant-regressions.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-after-grant-journaling.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-after-grant-journaling.log",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/oauth-recovery-api.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/social-recovery-mobile.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-after-social-recovery.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/mobile-after-social-recovery.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-final-recovery-local.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/mobile-final-recovery.json",
+      "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/shared-final-recovery.json"
+    ],
+    "scopeCaveat": "Tests exercise current review-checkout code, simulated providers, generated test signatures and isolated PostgreSQL. They do not prove Apple notification configuration, native provider login, locked-phone delivery or billing-store lifecycle delivery."
+  },
+  "independentReview": {
+    "agent": "launch_readiness_adversarial",
+    "expiredLinkRecovery": "Read-only recheck found no new P0/P1 in terminal/retryable handling, request serialization or transactional consumption. All three suggested regression gaps now have passing tests: saved invite/intent preservation, navigation while requests are pending, and real-PostgreSQL expiry/consumption between lookup and transactional consumption.",
+    "newP0P1": "None found in the reviewed revocation implementation; not a claim that all auth is ready",
+    "findingsFixed": [
+      "Aborted namespace handshakes could retain polling timers",
+      "Default Nest listener error suppression contradicted intended webhook retries",
+      "Deferred rows at the head of the cleanup queue could indefinitely starve unrelated expired grants",
+      "Waiting for a subject lock could consume the transaction budget before provider exchange completed",
+      "Legacy link consumption could discard a credential whose freshness was unknown",
+      "Post-exchange verification/encryption failure did not record the indeterminate provider outcome"
+    ]
+  },
+  "remainingAuthGates": [
+    "Apple exchange and PostgreSQL cannot share an atomic commit. Process termination or response/persistence failure after a provider grant is issued remains an indeterminate external-state gap; no exactly-once guarantee. Login fails closed and local failures emit sanitized diagnostics, but live operational recovery and monitoring still need verification.",
+    "Legacy unknown-freshness grants are retained rather than blindly revoked or overwritten. Verify fresh-login recovery and account-deletion cleanup in the final native/provider flow.",
+    "Expired-link recovery is locally implemented, regression tested and independently reviewed; native light/dark, large-text and genuine provider-flow validation remain pending. The refreshed full suites include the four mobile and two API database recovery regressions.",
+    "Verify live notification endpoint registration for Anstoss only, real Apple/Google sign-in, provider revocation and reauthorization on devices.",
+    "Combine and rerun the complete candidate after the separate billing review branch is corrected; keep new social login disabled until all release gates pass."
+  ],
+  "billingCoordination": {
+    "reviewBranch": "codex/consolidate-anstoss-20261116",
+    "reviewCommit": "ec0e0eae9c691c426b632388a4ed74b2b79933dc",
+    "testedCodeCommit": "5f740ae081e2c1f6628c2b20c01bddd257582335",
+    "worktree": "/Users/yemi/anstoss-consolidation-20261116",
+    "authExcluded": true,
+    "handoffVerified": "Separate worktree verified clean at ec0e0eae9c691c426b632388a4ed74b2b79933dc. Read admin-plan-sync handoff and inspected exact changed-file list since ee4a86e. Owner reports fixes and tests; not yet integrated or independently rerun with this auth work.",
+    "handoffHistory": [
+      {
+        "commit": "ee4a86e215d1abe76fe48248ffd1d59a87c022d9",
+        "testedCodeCommit": "c67da9037fdcaf2457c32fcba7896f62071ce247",
+        "scope": "Billing verification, entitlement enforcement, checkout reservation, replacement/reconciliation and adversarial fixes; auth explicitly excluded",
+        "ownerReportedTests": { "api": 1730, "mobile": 1179, "shared": 193 },
+        "handoff": "docs/qa/2026-11-16-billing-audit-followup.md"
+      },
+      {
+        "commit": "ec0e0eae9c691c426b632388a4ed74b2b79933dc",
+        "testedCodeCommit": "5f740ae081e2c1f6628c2b20c01bddd257582335",
+        "scope": "Includes prior billing fixes; adds canonical plan/live recording refresh on focus, resume and every 15 seconds while visible, stale-response guards, revocation control closure and real-PG complimentary grant tests",
+        "ownerReportedTests": {
+          "api": 1734,
+          "mobile": 1195,
+          "mobileSkipped": 1,
+          "focusedSync": 35,
+          "realPostgresGrant": 4
+        },
+        "handoff": "docs/qa/2026-11-16-admin-plan-sync.md"
+      }
+    ],
+    "integrationPolicy": "Preserve both handoffs. Compare exact changes against the dirty auth checkout; no blanket overwrite or merge. Assemble a reviewed combined candidate and rerun combined checks before requesting promotion. Billing remains disabled pending real store tests. No develop/prod push, deployment or paid build authorized.",
+    "adversarialBlockersSentToOwner": [
+      "Advertised paid liveTicker operations lack server-side subscription enforcement for free/expired clubs",
+      "Google out-of-app resubscription recovery context is not normalized"
+    ],
+    "additionalReviewGates": [
+      "Deferred Google replacements have multiple line items",
+      "Concurrent checkout by different club managers can create duplicate paid subscriptions",
+      "REVOKED subscriptions are excluded from periodic reconciliation, including missed refund-reversal recovery",
+      "Provider verification integration coverage, actual store configuration and real native purchase lifecycle remain unproven"
+    ]
+  },
+  "externalChanges": "None: no develop/prod push, Railway provisioning, production migration, build, OTA, store submission or Renuir changes."
+}

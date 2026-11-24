@@ -1398,6 +1398,23 @@ describe('UsersService.removeUnderageAccountInTransaction', () => {
 })
 
 describe('UsersService.getMe pending onboarding contracts', () => {
+  it('reports a minor as blocked even with historical approved parental consent', async () => {
+    const dob = new Date()
+    dob.setFullYear(dob.getFullYear() - 14)
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({
+        id: 'minor', dateOfBirth: dob, adultConfirmedAt: new Date(),
+        memberships: [], teamAccess: [], guardianRelationshipsAsParent: [],
+        parentalConsentsAsPlayer: [{ status: 'APPROVED', guardianEmail: 'parent@example.invalid' }],
+      }) },
+      joinRequest: { findFirst: jest.fn().mockResolvedValue(null) },
+      clubClaim: { findFirst: jest.fn().mockResolvedValue(null) },
+    }
+    const service = new UsersService(prisma as never, {} as never, {} as never, {} as never, {} as never)
+    const result = await service.getMe('minor')
+    expect(result.ageGate).toMatchObject({ status: 'BLOCKED', isUnder16: true, guardianEmail: null })
+  })
+
   it('exposes pending staff claims as well as first-club claims', async () => {
     const prisma = {
       user: {

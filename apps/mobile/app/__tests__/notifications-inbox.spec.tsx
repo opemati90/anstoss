@@ -51,14 +51,14 @@ const joinRequest = {
   readAt: null,
 }
 
-const fixtureChange = {
+const eventChange = {
   id: 'n2',
-  type: 'FIXTURE_CHANGED',
+  type: 'EVENT_UPDATED',
   title: 'Spielplan aktualisiert',
   body: 'Anstoß verschoben auf 15:00',
   clubId: 'c2',
   teamId: 't9',
-  target: { type: 'fixture-sync', fixtureId: 'f1', teamId: 't9', clubId: 'c2' },
+  target: { type: 'event_updated', eventId: 'e1', teamId: 't9', clubId: 'c2' },
   createdAt: now,
   readAt: null,
 }
@@ -96,7 +96,7 @@ describe('Notifications inbox screen', () => {
   })
 
   it('lists entries under Today and shows the empty state when there are none', async () => {
-    mockApi.mockResolvedValueOnce(page([fixtureChange]))
+    mockApi.mockResolvedValueOnce(page([eventChange]))
     const screen = render(<NotificationsScreen />)
     expect(await screen.findByText('notificationsInbox.today')).toBeTruthy()
     expect(screen.getByText('Spielplan aktualisiert: Anstoß verschoben auf 15:00.')).toBeTruthy()
@@ -107,7 +107,7 @@ describe('Notifications inbox screen', () => {
   })
 
   it('opening an entry marks it read, switches club and follows its deep link', async () => {
-    mockApi.mockResolvedValueOnce(page([fixtureChange])).mockResolvedValueOnce({ unreadCount: 0 })
+    mockApi.mockResolvedValueOnce(page([eventChange])).mockResolvedValueOnce({ unreadCount: 0 })
     const screen = render(<NotificationsScreen />)
     fireEvent.press(await screen.findByTestId('inbox-row-n2'))
     await waitFor(() =>
@@ -115,8 +115,8 @@ describe('Notifications inbox screen', () => {
     )
     expect(mockSetActiveClub).toHaveBeenCalledWith({ club: { id: 'c2' } })
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/match-detail',
-      params: { fixtureId: 'f1', teamId: 't9' },
+      pathname: '/event-detail',
+      params: { eventId: 'e1' },
     })
   })
 
@@ -138,7 +138,7 @@ describe('Notifications inbox screen', () => {
   })
 
   it('marks everything read', async () => {
-    mockApi.mockResolvedValueOnce(page([joinRequest, fixtureChange], 2)).mockResolvedValueOnce({})
+    mockApi.mockResolvedValueOnce(page([joinRequest, eventChange], 2)).mockResolvedValueOnce({})
     const screen = render(<NotificationsScreen />)
     fireEvent.press(await screen.findByText('notificationsInbox.markAllRead'))
     await waitFor(() =>
@@ -146,4 +146,15 @@ describe('Notifications inbox screen', () => {
     )
     expect(screen.queryByText('notificationsInbox.markAllRead')).toBeNull()
   })
+})
+
+it('hides imported fixture notices but keeps recorded match results', async () => {
+  mockApi.mockReset()
+  mockApi.mockResolvedValueOnce(page([
+    { ...eventChange, id: 'hidden', type: 'FIXTURE_CHANGED', title: 'Provider fixture', target: { kind: 'fixture-sync', fixtureId: 'f1' } },
+    { ...eventChange, id: 'recorded', type: 'FULL_TIME', title: 'Our result', target: { kind: 'live_full_time', eventId: 'e1' } },
+  ]))
+  const screen = render(<NotificationsScreen />)
+  expect(await screen.findByTestId('inbox-row-recorded')).toBeTruthy()
+  expect(screen.queryByTestId('inbox-row-hidden')).toBeNull()
 })

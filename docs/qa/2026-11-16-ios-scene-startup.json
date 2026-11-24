@@ -1,0 +1,28 @@
+{
+  "scope": "Combined Anstoss QA candidate only; no deployment or Renuir changes",
+  "failure": {
+    "build": "Local iPhone QA 9201",
+    "deviceOS": "iOS 27.2",
+    "toolchain": "Xcode 27.2",
+    "evidence": "Anstoss-2026-11-16-224408.ips: EXC_BREAKPOINT at ___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke",
+    "cause": "Legacy RCTAppDelegate startup without a configured scene lifecycle"
+  },
+  "changes": [
+    "Use a Swift ExpoAppDelegate conforming to ExpoReactNativeFactoryProvider, with a strongly retained factory delegate",
+    "Let the installed ExpoAppSceneDelegate create the scene window and start React Native",
+    "Preserve Expo APNs subscriber forwarding and React/Expo link handling",
+    "Configure scenes consistently in app.json, Info.plist and Info-Release.plist",
+    "Add missing Google OAuth callback scheme to the Release plist",
+    "Remove obsolete Objective-C entry point and bootstrap files, recoverable from Git"
+  ],
+  "checks": {
+    "configurationRegressionTests": "5 passed",
+    "independentScopedReview": "No remaining P0/P1 findings",
+    "nativeCompilation": "Release iphoneos build passed with Xcode 27.2",
+    "mobileTypecheck": "passed",
+    "physicalColdLaunch": "Build 9202 launched; process remained running and user confirmed opened",
+    "simulatorCompatibility": "iOS 26.5 Release simulator compile and launch passed; welcome screen inspected through native UI automation",
+    "physicalNotificationDeliveryAndTap": "PASS: user confirmed locked-phone reminder arrival and correct event navigation; see physical-iphone-reminder record for scope and remaining gates"
+  },
+  "reference": "https://developer.apple.com/documentation/Technotes/tn3187-Migrating-to-the-UIKit-scene-based-life-cycle"
+}

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
@@ -62,30 +62,41 @@ export function ComposeSheet({
   const [error, setError] = useState<string | null>(null)
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState<string[]>(['', ''])
+  const session = useRef(0)
+  const postingRef = useRef(false)
 
   useEffect(() => {
-    if (!visible) {
-      setStep('menu')
-      setEvents(null)
-      setPosting(false)
-      setError(null)
-      setQuestion('')
-      setOptions(['', ''])
-    }
-  }, [visible])
+    // A reopened sheet or changed conversation owns a new draft. A request
+    // already sent may still commit, but must not dismiss/reset that new draft.
+    session.current += 1
+    postingRef.current = false
+    setStep('menu')
+    setEvents(null)
+    setPosting(false)
+    setError(null)
+    setQuestion('')
+    setOptions(['', ''])
+    return () => { session.current += 1 }
+  }, [visible, clubId, teamId, channelId])
 
   useEffect(() => {
-    if (step !== 'event' || events !== null) return
+    if (!visible || step !== 'event' || events !== null) return
+    let cancelled = false
     api<UpcomingEvent[]>(
       `/clubs/${clubId}/events?${new URLSearchParams({ teamId, scope: 'upcoming' }).toString()}`,
     )
-      .then((list) => setEvents((Array.isArray(list) ? list : []).filter((e) => !e.cancelledAt)))
-      .catch(() => setEvents([]))
-  }, [clubId, events, step, teamId])
+      .then((list) => {
+        if (!cancelled) setEvents((Array.isArray(list) ? list : []).filter((e) => !e.cancelledAt))
+      })
+      .catch(() => { if (!cancelled) setEvents([]) })
+    return () => { cancelled = true }
+  }, [clubId, events, step, teamId, visible])
 
   const shareEvent = useCallback(
     async (event: UpcomingEvent) => {
-      if (posting) return
+      if (!visible || postingRef.current) return
+      postingRef.current = true
+      const requestSession = session.current
       setPosting(true)
       setError(null)
       try {
@@ -94,21 +105,28 @@ export function ComposeSheet({
           body: { eventId: event.id, channelId: channelId ?? undefined },
         })
         onPosted(created)
-        onClose()
+        if (session.current === requestSession) onClose()
       } catch {
-        setError(t('chat.compose.postFailed', { defaultValue: "Couldn't post. Try again." }))
+        if (session.current === requestSession) {
+          setError(t('chat.compose.postFailed', { defaultValue: "Couldn't post. Try again." }))
+        }
       } finally {
-        setPosting(false)
+        if (session.current === requestSession) {
+          postingRef.current = false
+          setPosting(false)
+        }
       }
     },
-    [channelId, onClose, onPosted, posting, t, teamId],
+    [channelId, onClose, onPosted, t, teamId, visible],
   )
 
   const filledOptions = options.map((o) => o.trim()).filter(Boolean)
   const canPostPoll = question.trim().length > 0 && filledOptions.length >= 2 && !posting
 
   const postPoll = useCallback(async () => {
-    if (!canPostPoll) return
+    if (!visible || !canPostPoll || postingRef.current) return
+    postingRef.current = true
+    const requestSession = session.current
     setPosting(true)
     setError(null)
     try {
@@ -117,13 +135,18 @@ export function ComposeSheet({
         body: { question: question.trim(), options: filledOptions, channelId: channelId ?? undefined },
       })
       onPosted(created)
-      onClose()
+      if (session.current === requestSession) onClose()
     } catch {
-      setError(t('chat.compose.postFailed', { defaultValue: "Couldn't post. Try again." }))
+      if (session.current === requestSession) {
+        setError(t('chat.compose.postFailed', { defaultValue: "Couldn't post. Try again." }))
+      }
     } finally {
-      setPosting(false)
+      if (session.current === requestSession) {
+        postingRef.current = false
+        setPosting(false)
+      }
     }
-  }, [canPostPoll, channelId, filledOptions, onClose, onPosted, question, t, teamId])
+  }, [canPostPoll, channelId, filledOptions, onClose, onPosted, question, t, teamId, visible])
 
   const menu: Array<{ key: ComposeAction; icon: IconName; title: string; subtitle: string }> = [
     {
@@ -164,7 +187,8 @@ export function ComposeSheet({
   return (
     <BottomSheet
       visible={visible}
-      onClose={posting ? () => undefined : onClose}
+      onClose={onClose}
+      dismissible={!posting}
       heightPct="auto"
       paddingBottom={insets.bottom + space.md}
     >
@@ -173,6 +197,7 @@ export function ComposeSheet({
           {step !== 'menu' ? (
             <Pressable
               onPress={() => setStep('menu')}
+              disabled={posting}
               accessibilityRole="button"
               accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
               hitSlop={8}
@@ -201,121 +226,136 @@ export function ComposeSheet({
           </Pressable>
         </View>
 
-        {error ? (
-          <Text variant="footnote" style={{ color: c.error }}>
-            {error}
-          </Text>
-        ) : null}
+        {/* BottomSheet already resizes for the keyboard. Bound this body, not
+            the header, and avoid adding a second keyboard inset. */}
+        <ScrollView
+          key={step}
+          testID="chat-compose-scroll"
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={false}
+          contentInsetAdjustmentBehavior="never"
+        >
+          {error ? (
+            <Text variant="footnote" style={{ color: c.error }}>
+              {error}
+            </Text>
+          ) : null}
 
-        {step === 'menu' ? (
-          <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            {menu.filter((item) => item.key !== 'lineup' || canShareLineup).map((item, index) => (
-              <ListRow
-                key={item.key}
-                title={item.title}
-                subtitle={item.subtitle}
-                left={
-                  <View style={[styles.iconWell, { backgroundColor: c.surfaceSunken }]}>
-                    <Icon name={item.icon} size={18} color="secondary" />
-                  </View>
-                }
-                showChevron
-                onPress={() => {
-                  if (item.key === 'event') setStep('event')
-                  else if (item.key === 'poll') setStep('poll')
-                  else onAction(item.key)
-                }}
-                style={index > 0 ? { borderTopWidth: hairline, borderTopColor: c.borderSubtle } : undefined}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {step === 'event' ? (
-          <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
-            {events === null ? (
-              <View style={styles.empty}>
-                <Text variant="footnote" color="secondary">
-                  {t('common.loading', { defaultValue: 'Loading…' })}
-                </Text>
-              </View>
-            ) : events.length === 0 ? (
-              <View style={styles.empty}>
-                <Text variant="footnote" color="secondary">
-                  {t('chat.compose.noUpcoming', { defaultValue: 'Nothing upcoming to share.' })}
-                </Text>
-              </View>
-            ) : (
-              events.slice(0, 6).map((event, index) => (
+          {step === 'menu' ? (
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+              {menu.filter((item) => item.key !== 'lineup' || canShareLineup).map((item, index) => (
                 <ListRow
-                  key={event.id}
-                  title={event.title}
-                  subtitle={[formatWhen(event.date), event.location].filter(Boolean).join(' · ')}
-                  disabled={posting}
+                  key={item.key}
+                  title={item.title}
+                  subtitle={item.subtitle}
+                  left={
+                    <View style={[styles.iconWell, { backgroundColor: c.surfaceSunken }]}>
+                      <Icon name={item.icon} size={18} color="secondary" />
+                    </View>
+                  }
                   showChevron
-                  onPress={() => void shareEvent(event)}
+                  onPress={() => {
+                    if (item.key === 'event') setStep('event')
+                    else if (item.key === 'poll') setStep('poll')
+                    else onAction(item.key)
+                  }}
                   style={index > 0 ? { borderTopWidth: hairline, borderTopColor: c.borderSubtle } : undefined}
                 />
-              ))
-            )}
-          </View>
-        ) : null}
+              ))}
+            </View>
+          ) : null}
 
-        {step === 'poll' ? (
-          <View style={styles.form}>
-            <FormInput
-              label={t('chat.compose.pollQuestion', { defaultValue: 'Question' })}
-              value={question}
-              onChangeText={setQuestion}
-              placeholder={t('chat.compose.pollQuestionPlaceholder', {
-                defaultValue: 'Train Thursday or Friday?',
-              })}
-              maxLength={140}
-              autoFocus
-            />
-            {options.map((value, index) => (
+          {step === 'event' ? (
+            <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.borderDefault }]}>
+              {events === null ? (
+                <View style={styles.empty}>
+                  <Text variant="footnote" color="secondary">
+                    {t('common.loading', { defaultValue: 'Loading…' })}
+                  </Text>
+                </View>
+              ) : events.length === 0 ? (
+                <View style={styles.empty}>
+                  <Text variant="footnote" color="secondary">
+                    {t('chat.compose.noUpcoming', { defaultValue: 'Nothing upcoming to share.' })}
+                  </Text>
+                </View>
+              ) : (
+                events.slice(0, 6).map((event, index) => (
+                  <ListRow
+                    key={event.id}
+                    title={event.title}
+                    subtitle={[formatWhen(event.date), event.location].filter(Boolean).join(' · ')}
+                    disabled={posting}
+                    showChevron
+                    onPress={() => void shareEvent(event)}
+                    style={index > 0 ? { borderTopWidth: hairline, borderTopColor: c.borderSubtle } : undefined}
+                  />
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {step === 'poll' ? (
+            <View style={styles.form}>
               <FormInput
-                key={index}
-                label={t('chat.compose.pollOption', { defaultValue: 'Option {{n}}', n: index + 1 })}
-                value={value}
-                onChangeText={(text) =>
-                  setOptions((prev) => prev.map((o, i) => (i === index ? text : o)))
-                }
-                maxLength={60}
+                label={t('chat.compose.pollQuestion', { defaultValue: 'Question' })}
+                value={question}
+                onChangeText={setQuestion}
+                placeholder={t('chat.compose.pollQuestionPlaceholder', {
+                  defaultValue: 'Train Thursday or Friday?',
+                })}
+                maxLength={140}
+                autoFocus
               />
-            ))}
-            {options.length < 6 ? (
-              <Pressable
-                onPress={() => setOptions((prev) => [...prev, ''])}
-                accessibilityRole="button"
-                accessibilityLabel={t('chat.compose.addOption', { defaultValue: 'Add option' })}
-                style={styles.addOption}
-              >
-                <Icon name="plus.circle" size={16} color={c.primary} />
-                <Text variant="footnote" weight="semibold" style={{ color: c.primary }}>
-                  {t('chat.compose.addOption', { defaultValue: 'Add option' })}
-                </Text>
-              </Pressable>
-            ) : null}
-            <Button
-              label={t('chat.compose.postPoll', { defaultValue: 'Post poll' })}
-              variant="filled"
-              size="lg"
-              fullWidth
-              loading={posting}
-              disabled={!canPostPoll}
-              onPress={() => void postPoll()}
-            />
-          </View>
-        ) : null}
+              {options.map((value, index) => (
+                <FormInput
+                  key={index}
+                  label={t('chat.compose.pollOption', { defaultValue: 'Option {{n}}', n: index + 1 })}
+                  value={value}
+                  onChangeText={(text) =>
+                    setOptions((prev) => prev.map((o, i) => (i === index ? text : o)))
+                  }
+                  maxLength={60}
+                />
+              ))}
+              {options.length < 6 ? (
+                <Pressable
+                  onPress={() => setOptions((prev) => [...prev, ''])}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('chat.compose.addOption', { defaultValue: 'Add option' })}
+                  style={styles.addOption}
+                >
+                  <Icon name="plus.circle" size={16} color={c.primary} />
+                  <Text variant="footnote" weight="semibold" style={{ color: c.primary }}>
+                    {t('chat.compose.addOption', { defaultValue: 'Add option' })}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Button
+                label={t('chat.compose.postPoll', { defaultValue: 'Post poll' })}
+                variant="filled"
+                size="lg"
+                fullWidth
+                loading={posting}
+                disabled={!canPostPoll}
+                onPress={() => void postPoll()}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
       </View>
     </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.md },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  body: { gap: space.md, flexShrink: 1, minHeight: 0 },
+  scroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
+  scrollContent: { gap: space.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 0 },
   backBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1 },
   card: {

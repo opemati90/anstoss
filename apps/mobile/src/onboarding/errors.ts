@@ -1,4 +1,5 @@
 import { ApiError } from '../api/client'
+import { FAMILY_FEATURE_ENABLED } from '../launchFeatures'
 
 /**
  * Onboarding error mapping. Always by HTTP status and the server's stable
@@ -35,6 +36,13 @@ export function sendCodeErrorKey(error: unknown): string {
   return 'onboardingFlow.welcome.sendFailed'
 }
 
+/** HTTP failures are not evidence that the phone is offline. */
+export function clubSearchErrorKey(error: unknown): string {
+  if (error instanceof ApiError && error.status === 0) return 'onboardingFlow.common.networkError'
+  if (error instanceof ApiError && error.status === 429) return 'onboardingFlow.welcome.rateLimited'
+  return 'onboardingFlow.common.saveFailed'
+}
+
 /**
  * A failed code check (M1): a wrong code, a burned code (five wrong tries,
  * ask for a new one), the hourly cap (wait the real time), the general rate
@@ -45,7 +53,9 @@ export function verifyCodeError(error: unknown): ErrorCopy & { resendNow?: boole
     return { key: 'onboardingFlow.common.networkError' }
   }
   const code = apiErrorCode(error)
-  if (code === 'UNDERAGE_EMAIL_BLOCKED') return { key: 'onboardingFlow.code.underageBlocked' }
+  if (code === 'UNDERAGE_EMAIL_BLOCKED') return {
+    key: FAMILY_FEATURE_ENABLED ? 'onboardingFlow.code.underageBlocked' : 'onboardingFlow.age.launchBody',
+  }
   if (error.status === 429) {
     if (code === 'OTP_CODE_LOCKED') return { key: 'onboardingFlow.code.codeLocked', resendNow: true }
     if (code === 'OTP_HOURLY_CAP') {
@@ -75,7 +85,10 @@ export function inviteRedeemError(error: unknown): InviteRedeemOutcome {
   const code = apiErrorCode(error)
   if (code === 'INVITE_RECIPIENT_MISMATCH') return { kind: 'mismatch' }
   if (code === 'ALREADY_MEMBER') return { kind: 'alreadyMember' }
-  if (code === 'UNDER_13') return { kind: 'error', key: 'onboardingFlow.age.under13Body' }
+  if (code === 'UNDER_13') return {
+    kind: 'error',
+    key: FAMILY_FEATURE_ENABLED ? 'onboardingFlow.age.under13Body' : 'onboardingFlow.age.launchBody',
+  }
   if (code === 'GUARDIAN_UNDER_18') {
     return { kind: 'error', key: 'onboardingFlow.parentHandoff.parentTooYoung' }
   }

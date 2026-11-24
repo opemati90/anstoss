@@ -16,11 +16,10 @@ import { FAMILY_FEATURE_ENABLED } from '../../src/launchFeatures'
 import { Button, FilterChipRow, Icon, SegmentedControl, SoftIcon, Text } from '../../src/components/ui'
 import { useAuth } from '../../src/context/AuthContext'
 import { ClubThemeOverride, useClubColors } from '../../src/context/ClubThemeContext'
-import { useOnboardingFlow } from '../../src/context/OnboardingFlowContext'
 import { POSITIONS, positionLabel } from '../../src/features/wechsel/format'
 import { ageOn } from '../../src/onboarding/DateOfBirthInput'
 import { clearPendingInvite } from '../../src/auth/pendingInvite'
-import { apiErrorCode, inviteRedeemError } from '../../src/onboarding/errors'
+import { apiErrorCode, clubSearchErrorKey, inviteRedeemError } from '../../src/onboarding/errors'
 import { setWelcomeNotice } from '../../src/onboarding/welcomeNotice'
 import { clearOnboardingIntent } from '../../src/onboarding/intent'
 import {
@@ -65,6 +64,11 @@ export function classifySearchInput(raw: string): {
   const compact = raw.trim().replace(/[\s-]/g, '')
   const upper = compact.toUpperCase()
   if (TEAM_CODE_RE.test(upper)) return { teamCode: upper, inviteCode: null }
+  // Current campaign codes and personal tokens can contain letters only.
+  // Recognise exact server formats; preserve case for legacy exact-first lookup.
+  if (/^[2-9A-HJ-NP-Z]{8}$/.test(upper) || /^[0-9A-F]{32}$/.test(upper)) {
+    return { teamCode: null, inviteCode: compact }
+  }
   if (!/\s/.test(raw.trim()) && INVITE_CODE_RE.test(compact) && /\d/.test(compact)) {
     return { teamCode: null, inviteCode: compact }
   }
@@ -104,14 +108,13 @@ type LastDecision = {
  * One field takes a club name, a place, or the team code from the coach.
  * Tapping a club opens it in place: "Wie bist du dabei?" as three chips
  * (Spieler, Elternteil, Trainer) and the send button, all on this screen.
- * A club that is not on Anstoss yet goes straight to "Verein einrichten";
- * a player without a club lists themselves right here.
+ * This is the join journey for every role. Club creation has a separate
+ * welcome entry; a default registrationRole is not a chosen onboarding role.
  */
 export default function ClubSearchScreen() {
   const router = useRouter()
   const { t } = useTranslation()
   const { user, memberships, ageGate, refreshUser, signOut } = useAuth()
-  const { reset: resetDraft } = useOnboardingFlow()
   const onExpired = useSessionExpiryHandler()
   const isMember = memberships.length > 0
 
@@ -119,7 +122,7 @@ export default function ClubSearchScreen() {
   const params = useLocalSearchParams<{ code?: string; q?: string }>()
   const initialCode = Array.isArray(params.code) ? params.code[0] : params.code
   const [stage, setStage] = useState<'find' | 'role'>('find')
-  const [code, setCode] = useState((initialCode ?? '').toUpperCase())
+  const [code, setCode] = useState(initialCode ?? '')
   const [codeStatus, setCodeStatus] = useState<'idle' | 'loading' | 'done'>('idle')
   const codeRequestId = useRef(0)
   const [slots, setSlots] = useState<PublicRosterSlot[]>([])
@@ -129,12 +132,14 @@ export default function ClubSearchScreen() {
   const [teamMatch, setTeamMatch] = useState<TeamByCode | null>(null)
   const [inviteMatch, setInviteMatch] = useState<PublicInvitePayload | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [searchError, setSearchError] = useState('onboardingFlow.common.saveFailed')
   const [retryKey, setRetryKey] = useState(0)
   const requestId = useRef(0)
 
   const [selection, setSelection] = useState<SelectedClub | null>(null)
-  // Design: Spieler:in is ticked when the role question opens.
-  const [roles, setRoles] = useState<JoinRole[]>(['PLAYER'])
+  // The account's default PLAYER value is not a choice. Ask explicitly so
+  // a coach/admin does not accidentally request an additional player role.
+  const [roles, setRoles] = useState<JoinRole[]>([])
   const [coachRole, setCoachRole] = useState<CoachTeamRole>('ASSISTANT_COACH')
   const [teamId, setTeamId] = useState<string | null>(null)
   const [teams, setTeams] = useState<ClubTeam[] | null>(null)
@@ -145,6 +150,7 @@ export default function ClubSearchScreen() {
   const [postalCode, setPostalCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const joiningCode = useRef(false)
   const [rejection, setRejection] = useState<LastDecision | null>(null)
 
   const trimmed = query.trim()
@@ -199,9 +205,10 @@ export default function ClubSearchScreen() {
         if (id !== requestId.current) return
         setResults(search?.results ?? [])
         setStatus('done')
-      } catch {
+      } catch (err) {
         if (id !== requestId.current) return
         setResults([])
+        setSearchError(clubSearchErrorKey(err))
         setStatus('error')
       }
     }, DEBOUNCE_MS)
@@ -269,7 +276,7 @@ export default function ClubSearchScreen() {
   /** A club picked from the code or the search: on to "Was machst du bei …?". */
   function select(next: SelectedClub) {
     setSelection(next)
-    setRoles(['PLAYER'])
+    setRoles([])
     setTeamId(next.teamId ?? null)
     setTeams(null)
     setCoachRole('ASSISTANT_COACH')
@@ -278,17 +285,39 @@ export default function ClubSearchScreen() {
     setStage('role')
   }
 
-  function toggleRole(next: JoinRole) {
+  // A shared club/team code carries no staff authority. It identifies the
+  // squad and starts the player request without another role-selection step.
+  // Personal, admin-issued invitations keep their explicit role contract.
+  async function joinWithTeamCode(target: SelectedClub) {
+    if (!target.joinCode || busy || joiningCode.current) return
+    joiningCode.current = true
+    setBusy(true)
     setError(null)
-    setRoles((current) =>
-      current.includes(next) ? current.filter((r) => r !== next) : [...current, next],
-    )
+    try {
+      await submitJoin('PLAYER', {
+        clubId: target.clubId,
+        teamId: target.teamId,
+        joinCode: target.joinCode,
+        rosterSlotId: claimSlot && mySlot ? mySlot.id : null,
+      }, user?.registrationRole, { hasMemberships: isMember })
+      // The POST is the commit boundary. A failed profile refresh must not
+      // turn an accepted request into a retry/409 loop. The pending screen
+      // fetches its own authoritative request and can recover independently.
+      await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
+      router.replace(isMember ? '/' : '/(auth)/request-pending')
+    } catch (err) {
+      if (!onExpired(err)) setError(t(joinErrorKey(err)))
+    } finally {
+      joiningCode.current = false
+      setBusy(false)
+    }
   }
 
-  function openClubSetup(params: Record<string, string>) {
-    // A new club always starts from a clean form (M6: no stale draft).
-    resetDraft()
-    router.push({ pathname: '/(auth)/club-setup', params })
+  function toggleRole(next: JoinRole) {
+    setError(null)
+    // One initial request is supported. Existing multi-role memberships are
+    // independent; do not silently discard secondary signup selections.
+    setRoles([next])
   }
 
   // B2: joining as a parent is a guardian action (18+ on the account).
@@ -315,6 +344,7 @@ export default function ClubSearchScreen() {
           additionalRoles,
         },
         user?.registrationRole,
+        { hasMemberships: isMember },
       )
       await refreshUser(undefined, { throwOnError: true }).catch(() => undefined)
       router.replace('/')
@@ -332,7 +362,7 @@ export default function ClubSearchScreen() {
    */
   function openInvite() {
     if (!inviteMatch || !inviteCode) return
-    if (inviteMatch.role === 'PARENT' || ageGate?.isUnder16) {
+    if (inviteMatch.role === 'PARENT' || inviteMatch.kind === 'PARENT_APPROVAL' || ageGate?.isUnder16) {
       router.push(`/join/${inviteCode}`)
       return
     }
@@ -440,7 +470,7 @@ export default function ClubSearchScreen() {
           }}
           lead={<ClubCrest club={selection} size={48} />}
           primary={{
-            label: t('onboardingFlow.role.cta'),
+            label: t('onboardingFlow.club.sendRequest'),
             onPress: () => void sendRequest(),
             disabled: !joinReady,
             loading: busy,
@@ -484,9 +514,10 @@ export default function ClubSearchScreen() {
       : {
           label: t('onboardingFlow.common.continue'),
           onPress: () => {
-            if (teamMatchClub) select(teamMatchClub)
+            if (teamMatchClub) void joinWithTeamCode(teamMatchClub)
           },
           disabled: !teamMatchClub,
+          loading: busy,
           testID: 'club-continue',
         }
 
@@ -555,7 +586,7 @@ export default function ClubSearchScreen() {
             club={teamMatchClub}
             title={teamMatchClub.name}
             body={teamMatchClub.teamName ?? undefined}
-            onPress={() => select(teamMatchClub)}
+            onPress={() => void joinWithTeamCode(teamMatchClub)}
             testID="club-team-match"
           />
         ) : null}
@@ -600,7 +631,7 @@ export default function ClubSearchScreen() {
             {t('onboardingFlow.club.error')}
           </Text>
           <Text variant="footnote" color="secondary">
-            {t('onboardingFlow.common.networkError')}
+            {t(searchError)}
           </Text>
           <Button
             label={t('onboardingFlow.common.retry')}
@@ -615,19 +646,14 @@ export default function ClubSearchScreen() {
         ? results.map((club) => {
             const place = [club.city, club.association].filter(Boolean).join(' · ')
             if (!club.isActive) {
-              // Not on Anstoss yet: the only thing to do is set it up.
               return (
-                <ChoiceRow
-                  key={club.id}
-                  accessibilityRole="button"
-                  leading={<ClubCrest club={club} size={36} />}
-                  title={club.name}
-                  body={[place, t('onboardingFlow.club.notOnAnstossSetup')].filter(Boolean).join('\n')}
-                  onPress={() =>
-                    openClubSetup({ directoryEntryId: club.directoryEntryId, clubName: club.name })
-                  }
-                  testID={`find-club-row-${club.slug}`}
-                />
+                <View key={club.id} style={[styles.stateBlock, { backgroundColor: c.surface }]}>
+                  <Text variant="headline" weight="bold">{club.name}</Text>
+                  {place ? <Text variant="footnote" color="secondary">{place}</Text> : null}
+                  <Text variant="footnote" color="secondary">
+                    {t('onboardingFlow.club.notOnAnstossPlayer')}
+                  </Text>
+                </View>
               )
             }
             return (
@@ -660,20 +686,13 @@ export default function ClubSearchScreen() {
             {t('onboardingFlow.club.noResults', { query: trimmed })}
           </Text>
           <Text variant="footnote" color="secondary">
-            {t('onboardingFlow.club.noResultsHint')}
+            {t('onboardingFlow.club.noResultsPlayerHint')}
           </Text>
         </View>
       ) : null}
 
-      {/* Secondary ways in (not on the board): a new club, a free agent
-          listing, a parent's setup code. */}
-      <View style={[styles.more, { backgroundColor: c.surface }]}>
-        <MoreLink
-          icon="building.2"
-          label={t('onboardingFlow.club.createClub')}
-          onPress={() => openClubSetup(trimmed ? { clubName: trimmed } : {})}
-          testID="club-create-link"
-        />
+      {/* Club creation is a separate welcome journey, never a join fallback. */}
+      {!isMember || FAMILY_FEATURE_ENABLED ? <View style={[styles.more, { backgroundColor: c.surface }]}>
         {!isMember ? (
           <MoreLink
             icon="magnifyingglass"
@@ -705,7 +724,7 @@ export default function ClubSearchScreen() {
             testID="club-setup-code-link"
           />
         ) : null}
-      </View>
+      </View> : null}
     </OnboardingScreen>
   )
 }
@@ -745,9 +764,9 @@ function CodeField({
   return (
     <TextInput
       value={value}
-      onChangeText={(next) => onChangeText(next.toUpperCase())}
+      onChangeText={onChangeText}
       accessibilityLabel={label}
-      autoCapitalize="characters"
+      autoCapitalize="none"
       autoCorrect={false}
       autoComplete="off"
       spellCheck={false}
@@ -865,7 +884,7 @@ const ROLE_ROWS: { key: JoinRole; title: string; body: string; testID: string }[
   { key: 'ADMIN', title: 'onboardingFlow.role.admin', body: 'onboardingFlow.role.adminBody', testID: 'club-role-admin' },
 ]
 
-/** "Was machst du bei …?": multi-select role rows, the board confirms. */
+/** One explicitly chosen initial role; the club confirms access. */
 function RolePicker({
   roles,
   onToggle,
@@ -901,8 +920,8 @@ function RolePicker({
             <Pressable
               key={row.key}
               onPress={() => onToggle(row.key)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: checked }}
               accessibilityLabel={`${t(row.title)}. ${t(row.body)}`}
               android_ripple={{ color: c.borderDefault }}
               style={[
@@ -922,7 +941,7 @@ function RolePicker({
                   {t(row.body)}
                 </Text>
               </View>
-              <Checkbox checked={checked} />
+              <View style={{ width: 22, height: 22, borderRadius: radius.full, borderWidth: checked ? 7 : 2, borderColor: checked ? c.ink : c.borderControl }} />
             </Pressable>
           )
         })}

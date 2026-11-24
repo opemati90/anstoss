@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-16",
+  "scope": "Persona onboarding review and local corrections; not launch approval",
+  "worktree": "/Users/yemi/anstoss-redesign-review-20261113",
+  "branch": "codex/redesign-integration-20261113",
+  "state": "Local uncommitted changes in an already dirty checkout; preserve other-session work",
+  "personas": [
+    { "persona": "Player", "journey": "Join, authenticate, name/DOB, find registered club or use code, explicitly choose Player and team, send request, pending approval", "invariant": "No club creation shortcut; database-default PLAYER is not an explicit persona choice" },
+    { "persona": "Coach", "journey": "Join, authenticate, profile, find club, choose Coach and team plus head/assistant role, send staff access request", "invariant": "Does not silently submit Player; staff approval remains required" },
+    { "persona": "Club board/admin joining an existing club", "journey": "Join, authenticate, profile, find club, choose Board/Admin, send staff access request", "invariant": "Selection neither creates a club nor self-grants administrator permissions" },
+    { "persona": "Club founder", "journey": "Dedicated Create club entry, authenticate, profile, club setup, verification/claim state", "invariant": "Separate user intent, not inferred from registrationRole; no DFB number required by Join search" },
+    { "persona": "Free agent", "journey": "Join, authenticate, profile, No club/Get found, position and location, publish listing", "invariant": "No club creation requirement; separate native recruitment walkthrough owned by other session" },
+    { "persona": "Returning member / multiple roles", "journey": "Sign in resumes server membership state; a new club request chooses its own role", "invariant": "No global registrationRole rewrite for existing members; preserves independent established memberships" },
+    { "persona": "Invited user", "journey": "Invitation preview, authenticate if needed, explicit acceptance of the invitation's role/team", "invariant": "No automatic redemption; existing invitation mismatch/expired/revoked paths retained" },
+    { "persona": "Under-16 / family", "journey": "16+ notice for underage signup; unavailable notice for deferred parent setup and parent invitations", "invariant": "Does not offer Add child or collect guardian email while FAMILY_FEATURE_ENABLED is false; future family implementation retained behind flag" }
+  ],
+  "fixed": [
+    "Removed founding detours from Join search for every persona, including inactive directory entries",
+    "Registered club search retained; name/town placeholder no longer asks for a club number",
+    "Initial role is empty and one explicit role is selected; backend does not process additionalRoles yet",
+    "Existing member requests no longer PATCH the account-wide registration role",
+    "Explicit Join/Create replaces abandoned intent and resets both in-memory and persisted setup drafts",
+    "Delayed draft hydration cannot resurrect a setup cleared by reset",
+    "Returning Sign in retains intentional resume state",
+    "Final role action says Send request rather than a generic completion label",
+    "Deferred family notices cover profile signup, invite signup, parent setup deep links and parent invitations",
+    "Six-language copy uses the current 16+ release policy without directing users to unavailable family setup",
+    "Membership application uses a bounded keyboard-aware scroll area after another session observed address fields remaining under the keyboard; local patch only, native retest pending"
+  ],
+  "evidence": {
+    "focusedBeforeFamilyGuards": "97 tests passed across onboarding screens, traced paths and onboarding logic",
+    "focusedAfterFamilyGuards": "89 tests passed across onboarding screens, traced paths and draft context; typecheck passed",
+    "focusedAfterApplicationKeyboardPatch": "21 tests passed across application, onboarding error mapping and blocked-account screens; typecheck and application lint passed",
+    "fullMobileBeforeFamilyGuards": "158 suites, 1235 passed, 1 pre-existing skipped",
+    "fullMobileFinal": "158 suites passed; 1240 tests passed, 1 pre-existing skipped. Final run includes family notices, error copy and application keyboard patch. Typecheck, scoped lint and git diff --check passed. This is not a native or combined-candidate pass.",
+    "registeredSearchApi": "Actual isolated localhost API: synthetic PLAYER without memberships finds registered club by name and lowercase name; lookup returns its team. No production request or membership mutation.",
+    "iosInspectedEarlier": "Corrected Join search screenshot has no creation shortcut and shows registered Anstoss QA Lokal result. Source snapshot showed role/team selection, but the full native join request was not completed.",
+    "otherSessionNativeProgress": "Owner reports actual local free-agent signup/profile publication, club discovery with postcode redaction, request, invitation, native acceptance and TRIAL access without membership. Club offer appeared automatically after 16 seconds. Application/approval not yet completed at this checkpoint; manual scrolling used around address keyboard bug. Do not claim whole journey passed.",
+    "nativeLatestChanges": "Not installed. Other session owns the Anstoss simulator and existing local artifact for free-agent E2E; do not interrupt or count older artifact as proof for these edits.",
+    "adversarial": "Earlier reviewer identified default-role ambiguity, unsupported additional roles, global-role PATCH and stale intent. Final follow-up could not run due to reviewer usage limit; latest family/draft guards do not have a final independent audit pass."
+  },
+  "remaining": [
+    "Latest source native walkthrough on both iOS and Android: all persona transitions, back/retry, keyboard bounds, dark mode and large text",
+    "Fresh native provider sign-in and real-store billing verification remain separate gates",
+    "Compare and integrate exact other-session handoff 4139b96e6307f01b1079b002ad9e675dfde77bc2 without replacing auth or established multi-role membership changes",
+    "No combined candidate has been certified; do not promote develop/prod based only on unit tests",
+    "Historical steps.ts includes a retired search-to-create path; trace-count tests are not a measured native completion-time claim"
+  ],
+  "boundaries": "No develop/prod push, deployment, OTA, paid build, submission, paid purchase, device interruption or Renuir changes"
+}

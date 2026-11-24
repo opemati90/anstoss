@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
 import { Text } from '../components/ui'
+import { FAMILY_FEATURE_ENABLED } from '../launchFeatures'
 import { apiErrorCode } from './errors'
 import { OnboardingScreen, OnboardingTextField } from './ui'
 
@@ -17,6 +18,23 @@ type HandoffResult = { sent: boolean; code: string | null }
  * child's spot in that team.
  */
 export function GuardianHandoffScreen({
+  ...props
+}: {
+  childName: string
+  childDateOfBirth: string
+  childEmail?: string | null
+  inviteCode?: string | null
+  onBack: () => void
+  onFinished: () => void
+}) {
+  return FAMILY_FEATURE_ENABLED ? (
+    <GuardianHandoffForm {...props} />
+  ) : (
+    <LaunchAgeNotice onDone={props.onFinished} onBack={props.onBack} />
+  )
+}
+
+function GuardianHandoffForm({
   childName,
   childDateOfBirth,
   childEmail,
@@ -134,6 +152,7 @@ export function GuardianHandoffScreen({
 /** Under 13, on every path: no own account; a parent adds the child. */
 export function Under13Screen({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation()
+  if (!FAMILY_FEATURE_ENABLED) return <LaunchAgeNotice onDone={onDone} accountRemoved />
   return (
     <OnboardingScreen
       title={t('onboardingFlow.age.under13Title')}
@@ -141,6 +160,38 @@ export function Under13Screen({ onDone }: { onDone: () => void }) {
       onBack={null}
       primary={{ label: t('onboardingFlow.common.done'), onPress: onDone, testID: 'under13-done' }}
       testID="under13"
+    />
+  )
+}
+
+function LaunchAgeNotice({ onDone, onBack, accountRemoved = false }: {
+  onDone: () => void
+  onBack?: () => void
+  accountRemoved?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <OnboardingScreen
+      title={t('onboardingFlow.age.launchTitle')}
+      subtitle={t('onboardingFlow.age.launchBody')}
+      onBack={onBack ?? null}
+      primary={{ label: t('onboardingFlow.common.done'), onPress: onDone, testID: 'age-limit-done' }}
+      testID="age-limit"
+    >
+      {accountRemoved ? <Text variant="body">{t('onboardingFlow.age.accountRemoved')}</Text> : null}
+    </OnboardingScreen>
+  )
+}
+
+export function FamilyUnavailableScreen({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <OnboardingScreen
+      title={t('onboardingFlow.age.familyTitle')}
+      subtitle={t('onboardingFlow.age.familyBody')}
+      onBack={onDone}
+      primary={{ label: t('onboardingFlow.common.done'), onPress: onDone, testID: 'family-unavailable-done' }}
+      testID="family-unavailable"
     />
   )
 }

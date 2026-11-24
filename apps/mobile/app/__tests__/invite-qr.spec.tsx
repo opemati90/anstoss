@@ -136,6 +136,18 @@ describe('InviteScreen QR campaigns', () => {
     )
   })
 
+  it('creates a code directly from the default admin share screen', async () => {
+    const screen = render(<InviteScreen />)
+    fireEvent.press(await screen.findByText('invite.shareScreen.createCode'))
+    await waitFor(() => expect(mockApi).toHaveBeenCalledWith('/clubs/club-1/invite-campaigns', {
+      method: 'POST',
+      body: {
+        teamId: 'team-1', type: 'APPROVAL_REQUIRED', role: 'PLAYER',
+        maxUses: 50, expiresInDays: 14,
+      },
+    }))
+  })
+
   it('sends a team-scoped coach invite and never creates a public staff campaign', async () => {
     mockParams.mode = 'coach'
     const screen = render(<InviteScreen />)

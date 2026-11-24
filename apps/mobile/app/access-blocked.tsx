@@ -6,6 +6,7 @@ import { useAuth } from '../src/context/AuthContext'
 import { Screen, Button, Text, Icon } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { space } from '../src/theme/tokens'
+import { FAMILY_FEATURE_ENABLED } from '../src/launchFeatures'
 
 export default function AccessBlockedScreen() {
   const { t } = useTranslation()
@@ -46,7 +47,7 @@ export default function AccessBlockedScreen() {
           align="center"
           style={styles.body}
         >
-          {t('auth.blockedBody')}
+          {t(FAMILY_FEATURE_ENABLED ? 'auth.blockedBody' : 'onboardingFlow.age.launchBody')}
         </Text>
         <View style={styles.action}>
           <Button

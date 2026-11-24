@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { Redirect, useLocalSearchParams } from 'expo-router'
 
 /**
@@ -5,6 +6,11 @@ import { Redirect, useLocalSearchParams } from 'expo-router'
  * stays so existing links (match detail's "Tabelle anzeigen") keep working.
  */
 export default function LeagueTableRedirect() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
+  return <LeagueTableRedirectContent />
+}
+
+function LeagueTableRedirectContent() {
   const { teamId } = useLocalSearchParams<{ teamId?: string }>()
   return (
     <Redirect

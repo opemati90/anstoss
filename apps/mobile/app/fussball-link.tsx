@@ -1,6 +1,7 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native'
-import { router } from 'expo-router'
+import { Redirect, router } from 'expo-router'
 import type { ExternalTeamLink, FussballTeamPreview } from '@anstoss/shared'
 import { useTranslation } from 'react-i18next'
 import { api } from '../src/api/client'
@@ -16,6 +17,11 @@ type CreateTeamLinkResponse = {
 }
 
 export default function FussballLinkScreen() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
+  return <FussballLinkScreenContent />
+}
+
+function FussballLinkScreenContent() {
   const { t } = useTranslation()
   const { activeClub, activeTeamId, activeTeamAccess } = useAuth()
   const c = useClubColors()

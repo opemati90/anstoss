@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../utils/featureFlags'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Share, StyleSheet, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
@@ -113,9 +114,9 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
     const [events, snapshot, fixtureList] = await Promise.all([
       api<EventFeedItem[]>(`${base}&limit=10`).catch(() => null),
       api<RosterOpsSnapshot>(`/clubs/${clubId}/teams/${teamId}/roster-ops`).catch(() => null),
-      api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=10`).catch(
-        () => null,
-      ),
+      isFeatureEnabled('anstoss.officialFixtures')
+        ? api<ImportedFixture[]>(`/teams/${teamId}/fixtures?scope=upcoming&limit=10`).catch(() => null)
+        : Promise.resolve([] as ImportedFixture[]),
     ])
     if (seq !== requestSeq.current) return
     // A failed sub-request keeps what is on screen (stale-while-revalidate).
@@ -654,7 +655,7 @@ export function CoachHome({ clubId, teamId, onRefreshStateChange }: CoachHomePro
       ) : null}
 
       {/* 5. Season, folded away. */}
-      {teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} collapsible /> : null}
+      {isFeatureEnabled('anstoss.officialFixtures') && teamId ? <SeasonStatsCard clubId={clubId} teamId={teamId} collapsible /> : null}
 
       {error ? (
         <PressableScale

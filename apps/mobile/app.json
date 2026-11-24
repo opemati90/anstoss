@@ -11,6 +11,7 @@
       "**/*"
     ],
     "ios": {
+      "usesAppleSignIn": true,
       "supportsTablet": false,
       "bundleIdentifier": "com.renuirug.anstoss",
       "appleTeamId": "A3H3NSC234",
@@ -19,7 +20,18 @@
         "applinks:api.anstoss.io"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "EXExpoAppSceneDelegate"
+              }
+            ]
+          }
+        }
       },
       "entitlements": {
         "aps-environment": "production"
@@ -56,9 +68,16 @@
           ]
         }
       ],
-      "runtimeVersion": "57.0.1-billing2"
+      "runtimeVersion": "57.0.1-billing2-auth1"
     },
     "plugins": [
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.387307271714-7ucmis3qn03b8canv0ucijfk98imhvbm"
+        }
+      ],
       "expo-iap",
       "expo-router",
       "expo-localization",
@@ -126,7 +145,7 @@
       }
     },
     "owner": "opemati1521",
-    "runtimeVersion": "57.0.1-billing2",
+    "runtimeVersion": "57.0.1-billing2-auth1",
     "updates": {
       "url": "https://u.expo.dev/a30e1b35-50fa-4214-b121-f457dfb1444c"
     }

@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../../src/utils/featureFlags'
 import { eventDisplayTitle } from '../../../src/components/events/eventFormat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
@@ -382,13 +383,13 @@ export default function KaderScreen() {
           onPress={() => router.push('/aufgaben')}
           testID="kader-tool-duties"
         />
-        <ToolRow
+        {isFeatureEnabled('anstoss.officialFixtures') ? <ToolRow
           icon="calendar"
           title={t('kader.tools.matches')}
           subtitle={t('kader.tools.matchesHint')}
           onPress={() => router.push('/team-spiele')}
           testID="kader-tool-matches"
-        />
+        /> : null}
         <ToolRow
           icon="chart.bar"
           title={t('kader.tools.stats')}

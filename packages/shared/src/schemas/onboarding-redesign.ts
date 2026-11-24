@@ -11,13 +11,30 @@ import { z } from 'zod'
 export const oauthProviderSchema = z.enum(['apple', 'google'])
 export type OAuthProvider = z.infer<typeof oauthProviderSchema>
 
-/** POST /auth/oauth/:provider → same session payload as POST /auth/otp/verify. */
+/** POST /auth/oauth/:provider → session or explicit email-link challenge. */
 export const oauthSignInSchema = z.object({
   idToken: z.string().min(1).max(8192),
   /** Apple only sends the name on the very first authorisation. */
   fullName: z.string().trim().min(1).max(120).optional(),
+  authorizationCode: z.string().min(1).max(4096).optional(),
+  nonce: z.string().min(32).max(128).optional(),
 })
 export type OAuthSignInInput = z.infer<typeof oauthSignInSchema>
+
+export const oauthLinkSchema = z.object({
+  ticket: z.string().min(32).max(128),
+  code: z.string().regex(/^\d{6}$/),
+})
+export const oauthTicketSchema = oauthLinkSchema.pick({ ticket: true })
+
+export const oauthSignInResultSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('session'), token: z.string().min(1).max(8192) }),
+  z.object({ kind: z.literal('link_required'), ticket: oauthTicketSchema.shape.ticket,
+    email: z.string().email().max(254) }),
+])
+export type OAuthSignInResult = z.infer<typeof oauthSignInResultSchema>
+export const oauthAvailabilitySchema = z.object({ google: z.boolean(), apple: z.boolean() })
+export const oauthNonceSchema = z.object({ nonce: z.string().min(32).max(128) })
 
 // ── 04 Zu deinem Verein: claim your roster slot while joining ──────────────
 /** GET /public/teams/by-code/:joinCode/roster-slots (unclaimed slots only). */

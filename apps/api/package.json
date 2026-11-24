@@ -43,6 +43,7 @@
     "google-auth-library": "^11.3.4",
     "helmet": "^8.1.0",
     "ioredis": "^5.4.0",
+    "jose": "^5.10.0",
     "pino": "^9.5.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",

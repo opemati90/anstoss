@@ -238,12 +238,11 @@ describe('Kader tab', () => {
     })
   })
 
-  it('has exactly three team tools, with the player’s own duty count on Aufgaben', async () => {
+  it('hides imported fixtures while keeping duties and statistics', async () => {
     const screen = render(<KaderScreen />)
     fireEvent.press(await screen.findByTestId('kader-tool-duties'))
     expect(mockRouterPush).toHaveBeenCalledWith('/aufgaben')
-    fireEvent.press(screen.getByTestId('kader-tool-matches'))
-    expect(mockRouterPush).toHaveBeenCalledWith('/team-spiele')
+    expect(screen.queryByTestId('kader-tool-matches')).toBeNull()
     fireEvent.press(screen.getByTestId('kader-tool-stats'))
     expect(mockRouterPush).toHaveBeenCalledWith('/team-stats')
     expect(screen.getByLabelText('kader.tools.duties, 1')).toBeTruthy()

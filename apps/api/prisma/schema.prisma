@@ -46,6 +46,8 @@ model User {
   updatedAt          DateTime         @updatedAt
   deletedAt          DateTime?
 
+  socialIdentities               SocialIdentity[]
+
   memberships                    Membership[]
   teamMembers                    TeamMember[]
   teamAccess                     TeamAccess[]
@@ -1192,6 +1194,45 @@ model MessageReport {
 // blocked's messages or DMs. Symmetric blocks happen when both users
 // block each other. Chat history filter excludes blocked-by-caller
 // messages; DM list hides conversations with blocked users.
+// Account-scoped authentication records, never club-scoped. Provider subjects
+// are HMACed; Apple refresh credentials are encrypted server-side only.
+model SocialIdentity {
+  id                 String   @id @default(cuid())
+  provider           String
+  subjectHash        String
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sealedRefreshToken String?
+  providerAuthenticatedAt DateTime?
+  cleanupNextAttemptAt DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([provider, subjectHash])
+  @@unique([provider, userId])
+  @@index([userId])
+  @@index([cleanupNextAttemptAt, id])
+}
+
+// Short-lived nonce / linking proof. Raw ticket values are never stored.
+model SocialLoginChallenge {
+  id                 String   @id @default(cuid())
+  tokenHash          String   @unique
+  kind               String
+  provider           String
+  subjectHash        String?
+  userId             String?
+  email              String?
+  sealedRefreshToken String?
+  providerAuthenticatedAt DateTime?
+  cleanupNextAttemptAt DateTime @default(now())
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([provider, cleanupNextAttemptAt, id])
+}
+
 model UserBlock {
   id            String   @id @default(cuid())
   blockerUserId String

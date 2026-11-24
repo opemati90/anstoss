@@ -65,6 +65,8 @@ export const onboardingFlowDe = {
     subtitleWithDob: 'So sehen dich Mitspieler, Trainer und der Verein. Dein Geburtsdatum brauchen wir für den Jugendschutz.',
   },
   club: {
+    notOnAnstossPlayer: 'Noch nicht auf Anstoss. Bitte deinen Trainer oder die Vereinsverwaltung, den Verein einzurichten.',
+    noResultsPlayerHint: 'Prüfe den Vereinsnamen oder Ort oder frage deinen Trainer nach einem Einladungscode.',
     title: 'Verein finden',
     subtitle: 'Suche nach Vereinsname oder Ort – oder gib den Code deiner Mannschaft ein.',
     searchLabel: 'Verein, Ort oder Mannschaftscode',
@@ -85,7 +87,7 @@ export const onboardingFlowDe = {
     noTeams: 'Dieser Verein hat noch keine Mannschaft angelegt. Frag den Vorstand nach einer Einladung.',
     pickTeam: 'Wähle deine Mannschaft aus.',
     sendRequest: 'Anfrage senden',
-    whatNext: 'Der Trainer bestätigt dich meist innerhalb eines Tages.',
+    whatNext: 'Ein Vereinsadministrator prüft deine Anfrage.',
     whatNextCoach: 'Der Vorstand bestätigt Trainer meist innerhalb von ein bis zwei Tagen.',
     alreadyRequested: 'Du hast bei diesem Verein schon eine offene Anfrage.',
     requestFailed: 'Die Anfrage konnte nicht gesendet werden. Versuch es noch mal.',
@@ -131,10 +133,10 @@ export const onboardingFlowDe = {
   },
   pending: {
     title: 'Anfrage gesendet',
-    body: 'Deine Anfrage liegt bei {{club}}. Der Trainer bestätigt dich meist innerhalb eines Tages.',
+    body: 'Deine Anfrage liegt bei {{club}}. Ein Vereinsadministrator wird sie prüfen.',
     bodyCoach:
       'Der Vorstand von {{club}} prüft deine Anfrage als Trainer. Das dauert meist ein bis zwei Tage.',
-    bodyNoClub: 'Deine Anfrage liegt beim Verein. Der Trainer bestätigt dich meist innerhalb eines Tages.',
+    bodyNoClub: 'Deine Anfrage liegt beim Verein. Ein Vereinsadministrator wird sie prüfen.',
     status: 'Wartet auf Bestätigung',
     nextTitle: 'So geht es weiter',
     next1: 'Wir schicken dir eine Mitteilung, sobald du bestätigt bist.',
@@ -275,6 +277,11 @@ export const onboardingFlowDe = {
     verificationAnswer: 'Rückfrage beantworten',
   },
   age: {
+    launchTitle: 'Anstoss ist ab 16 Jahren verfügbar',
+    launchBody: 'Für ein eigenes Konto musst du mindestens 16 Jahre alt sein. Familienkonten sind in dieser Version noch nicht verfügbar.',
+    accountRemoved: 'Wir haben dieses Konto gelöscht.',
+    familyTitle: 'Familien können noch nicht eingerichtet werden',
+    familyBody: 'Diese Version unterstützt eigene Konten ab 16 Jahren. Kinder können noch nicht hinzugefügt und Elterneinladungen noch nicht angenommen werden.',
     under13Title: 'Frag deine Eltern',
     under13Body: 'Kinder unter 13 haben bei Anstoss kein eigenes Konto. Deine Eltern laden Anstoss und fügen dich über „Kind hinzufügen“ hinzu. Wir haben deine Angaben gelöscht.',
   },

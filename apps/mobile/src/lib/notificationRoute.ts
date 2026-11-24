@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../utils/featureFlags'
 import { router } from 'expo-router'
 
 /**
@@ -24,6 +25,7 @@ export type NotificationTarget = {
  * active club first when the target belongs to another club.
  */
 export function openNotificationTarget(data: NotificationTarget, ensureClub: () => void): void {
+  if (!isFeatureEnabled('anstoss.officialFixtures') && isOfficialFixtureTarget(data)) return
   const action = data.type ?? data.kind
   if (!action) {
     // Trial pushes carry only an entity id; the trial detail serves the
@@ -157,4 +159,11 @@ export function openNotificationTarget(data: NotificationTarget, ensureClub: () 
       // foregrounds the app which is a reasonable fallback.
       break
   }
+}
+
+/** Imported-fixture notifications are hidden while the integration is paused. */
+export function isOfficialFixtureTarget(data: NotificationTarget): boolean {
+  const action = data.type ?? data.kind
+  return action === 'fixture-sync' || action === 'GOAL_SCORED' || action === 'MATCH_FINAL' ||
+    action === 'FIXTURE_CHANGED' || Boolean(data.fixtureId && !data.eventId)
 }

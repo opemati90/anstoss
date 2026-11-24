@@ -24,6 +24,9 @@ export interface SessionClaims {
   aud?: string
   /** Optional session/credential version for revocable scoped sessions. */
   admin_v?: string
+  /** Apple identity binding; refreshed sessions must retain the original proof. */
+  apple_identity?: string
+  apple_auth_time?: number
 }
 
 /** Default session lifetime — 30 days. */
@@ -74,6 +77,8 @@ export function signSessionToken(
     authenticatedAt?: number
     audience?: string
     adminVersion?: string
+    appleIdentity?: string
+    appleAuthenticatedAt?: number
   } = {},
 ): string {
   const secret = requireSecret(options.secret)
@@ -86,6 +91,10 @@ export function signSessionToken(
     auth_time: options.authenticatedAt ?? iat,
     ...(options.audience ? { aud: options.audience } : {}),
     ...(options.adminVersion ? { admin_v: options.adminVersion } : {}),
+    ...(options.appleIdentity !== undefined ? { apple_identity: options.appleIdentity } : {}),
+    ...(options.appleAuthenticatedAt !== undefined
+      ? { apple_auth_time: options.appleAuthenticatedAt }
+      : {}),
   }
 
   const encodedHeader = base64urlEncode(JSON.stringify(HEADER))
@@ -114,10 +123,7 @@ export function verifySessionToken(
   const expected = sign(signingInput, secret)
   const expectedBuf = Buffer.from(expected)
   const actualBuf = Buffer.from(encodedSignature)
-  if (
-    expectedBuf.length !== actualBuf.length ||
-    !timingSafeEqual(expectedBuf, actualBuf)
-  ) {
+  if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
     throw new JwtVerificationError('Invalid signature')
   }
 
@@ -135,6 +141,18 @@ export function verifySessionToken(
   }
   if (!claims || typeof claims.sub !== 'string' || typeof claims.exp !== 'number') {
     throw new JwtVerificationError('Missing required claims')
+  }
+  if (claims.apple_identity !== undefined || claims.apple_auth_time !== undefined) {
+    if (
+      typeof claims.apple_identity !== 'string' ||
+      !claims.apple_identity.length ||
+      claims.apple_identity.length > 128 ||
+      !Number.isSafeInteger(claims.apple_auth_time) ||
+      claims.apple_auth_time! <= 0 ||
+      claims.apple_auth_time! > Math.floor((options.now ?? Date.now()) / 1000) + 30
+    ) {
+      throw new JwtVerificationError('Invalid Apple session binding')
+    }
   }
 
   // Tokens issued before auth_time was introduced remain valid. Their original

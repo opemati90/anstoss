@@ -56,7 +56,6 @@ const FEATURE_ROWS = [
   'clubColors',
   'liveTicker',
   'autoReminders',
-  'fixtureImport',
   'duesTracking',
 ] as const
 

@@ -143,7 +143,9 @@ export default function NameScreen() {
         autoComplete="name"
         textContentType="name"
         autoCorrect={false}
-        autoFocus
+        // Provider names are already filled. Keep the full form visible
+        // instead of opening a keyboard over the missing date of birth.
+        autoFocus={needsDisplayName(user)}
         maxLength={80}
         returnKeyType={askDob ? 'next' : 'done'}
         onSubmitEditing={askDob ? () => firstDobInput.current?.focus() : () => void submit()}

@@ -2,8 +2,7 @@ import { PushService } from './push.service'
 import { AgeGateService } from '../auth/age-gate.service'
 import { createFakePrisma, dobForAge } from '../testing/fake-prisma'
 
-// Privacy/safeguarding review H1 (2026-09-24): a child whose parental consent
-// for a club was withdrawn gets no more pushes from that club.
+// 16+ direct-account launch policy applies to push delivery as well as HTTP.
 describe('PushService age-gate fan-out', () => {
   function build() {
     const prisma = createFakePrisma({
@@ -36,11 +35,13 @@ describe('PushService age-gate fan-out', () => {
     expect(sent).toHaveBeenCalledWith(['tok-coach'], 'Training', 'Heute 18 Uhr', undefined)
   })
 
-  it('a direct push is dropped for the withdrawn club but delivered for the consented one', async () => {
+  it('drops direct pushes to minors even when historical consent was approved', async () => {
     const { service, sent } = build()
     await service.sendToUser('tim', 'x', 'y', undefined, { clubId: 'albatros' })
     expect(sent).not.toHaveBeenCalled()
     await service.sendToUser('tim', 'x', 'y', { teamId: 'b-u15' }, { clubId: 'babelsberg' })
-    expect(sent).toHaveBeenCalledWith(['tok-tim'], 'x', 'y', { teamId: 'b-u15' })
+    expect(sent).not.toHaveBeenCalled()
+    await service.sendToUser('coach', 'x', 'y', { teamId: 'u15' }, { clubId: 'albatros' })
+    expect(sent).toHaveBeenCalledWith(['tok-coach'], 'x', 'y', { teamId: 'u15' })
   })
 })

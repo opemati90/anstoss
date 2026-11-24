@@ -1,6 +1,7 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
@@ -57,6 +58,7 @@ function eventKey(e: { minute?: number; kind: string; player?: string; side?: st
 export default function MatchLiveScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>()
   if (eventId) return <RecordedMatchLive eventId={eventId} />
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
   return <FixtureMatchLive />
 }
 

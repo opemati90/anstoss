@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../../src/utils/featureFlags'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 import {
@@ -117,7 +118,7 @@ export default function EventsScreen() {
         if (activeTeamId) query.set('teamId', activeTeamId)
         const [data, fixtures] = await Promise.all([
           api<EventFeedItem[]>(`/clubs/${clubId}/events?${query.toString()}`),
-          activeTeamId && scope === 'upcoming'
+          isFeatureEnabled('anstoss.officialFixtures') && activeTeamId && scope === 'upcoming'
             ? api<ImportedFixture[]>(`/teams/${activeTeamId}/fixtures?scope=upcoming&limit=5`).catch(
                 () => [] as ImportedFixture[],
               )

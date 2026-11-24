@@ -251,13 +251,13 @@ describe('EventDetailScreen', () => {
     )
   })
 
-  it('links an imported fixture to the live screen instead of duplicating the match', async () => {
+  it('uses the recorded match when external fixture integration is hidden', async () => {
     mockApi.mockResolvedValue(detail({ fixtureId: 'fx-1' }))
     const screen = render(<EventDetailScreen />)
     fireEvent.press(await screen.findByTestId('event-open-match'))
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/match-detail',
-      params: { fixtureId: 'fx-1', teamId: 'team-1' },
+      pathname: '/match-live',
+      params: { eventId: 'match-1' },
     })
   })
 

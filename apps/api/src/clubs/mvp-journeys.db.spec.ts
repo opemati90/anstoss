@@ -335,7 +335,7 @@ databaseTests('MVP account synchronization over HTTP and PostgreSQL', () => {
       expect.objectContaining({
         role: 'PLAYER',
         status: 'ACTIVE',
-        phase: 'TRIAL',
+        phase: 'FULL',
         team: expect.objectContaining({ id: teamId, clubId }),
       }),
     ])
@@ -363,6 +363,34 @@ databaseTests('MVP account synchronization over HTTP and PostgreSQL', () => {
         },
       }),
     ).toBe(1)
+  })
+
+  it('restores permanent team membership after an expired loan and inactive roster entry', async () => {
+    const playerId = await newUser('returning-player')
+    const team = await fixtures.team.findUniqueOrThrow({ where: { id: teamId } })
+    const source = await fixtures.team.create({
+      data: { clubId, groupId: team.groupId, name: `${runId}-loan-source`, displayName: 'Loan source' },
+    })
+    await fixtures.teamAccess.create({ data: {
+      clubId, teamId, userId: playerId, role: 'PLAYER', phase: 'TRIAL', status: 'REVOKED',
+      loanedFromTeamId: source.id,
+      loanStartDate: new Date(Date.now() - 2 * 86400000),
+      loanEndDate: new Date(Date.now() - 86400000),
+    } })
+    await fixtures.teamMember.create({ data: { teamId, userId: playerId, operationalStatus: 'INACTIVE' } })
+    const request = await requestJoin(playerId)
+    expect((await http(adminId, `${requestsPath()}/${request.id}/approve`, 'POST', {
+      revision: request.revision,
+    })).status).toBe(201)
+    expect((await http(playerId, '/me')).body.teamMembers).toEqual([
+      expect.objectContaining({ role: 'PLAYER', phase: 'FULL', status: 'ACTIVE' }),
+    ])
+    expect(await fixtures.teamAccess.findUnique({
+      where: { teamId_userId_role: { teamId, userId: playerId, role: 'PLAYER' } },
+    })).toMatchObject({ loanedFromTeamId: null, loanStartDate: null, loanEndDate: null })
+    expect(await fixtures.teamMember.findUnique({
+      where: { teamId_userId: { teamId, userId: playerId } },
+    })).toMatchObject({ operationalStatus: 'ACTIVE' })
   })
 
   it('rejects cross-club team injection without creating a pending request', async () => {
@@ -429,13 +457,12 @@ databaseTests('MVP account synchronization over HTTP and PostgreSQL', () => {
         })
       ).status,
     ).toBe(201)
-    // Club approval creates trial access; the coach separately accepts the
-    // player into the full squad. Do not bypass this lifecycle with a DB update.
+    // Explicit administrator approval completes normal membership. Only the
+    // separate free-agent trial flow grants restricted TRIAL access.
     const account = await http(playerId, '/me')
     const accessId = account.body.teamMembers[0].id
     const decisionPath = `/clubs/${clubId}/team-access/${accessId}/decision`
     expect((await http(playerId, decisionPath, 'POST', { decision: 'ACCEPT' })).status).toBe(403)
-    expect((await http(coachId, decisionPath, 'POST', { decision: 'ACCEPT' })).status).toBe(201)
     expect((await http(playerId, '/me')).body.teamMembers[0]).toMatchObject({
       phase: 'FULL',
       status: 'ACTIVE',

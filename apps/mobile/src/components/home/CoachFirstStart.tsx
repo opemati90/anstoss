@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../../utils/featureFlags'
 import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -30,6 +31,7 @@ export function CoachFirstStart({ teamId }: { teamId: string }) {
   const [fussballLinked, setFussballLinked] = useState(false)
 
   useEffect(() => {
+    if (!isFeatureEnabled('anstoss.officialFixtures')) return
     let alive = true
     api<unknown[]>(`/integrations/fussball/team-links?teamId=${teamId}`)
       .then((links) => {
@@ -62,13 +64,13 @@ export function CoachFirstStart({ teamId }: { teamId: string }) {
       done: false,
       route: '/create-event',
     },
-    {
+    ...(isFeatureEnabled('anstoss.officialFixtures') ? [{
       key: 'fussball',
       title: t('homeHub.firstStart.fussball', { defaultValue: 'Connect fussball.de' }),
       detail: t('homeHub.firstStart.fussballBody', { defaultValue: 'Fixtures and table automatically' }),
       done: fussballLinked,
       route: '/fussball-link',
-    },
+    }] : []),
   ]
   const doneCount = steps.filter((step) => step.done).length
 

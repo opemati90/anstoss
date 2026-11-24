@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useMemo, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -7,7 +8,7 @@ import { api } from '../src/api/client'
 import { useAuth } from '../src/context/AuthContext'
 import { useClubColors } from '../src/context/ClubThemeContext'
 import { useNotificationInbox } from '../src/hooks/useNotificationInbox'
-import { openNotificationTarget } from '../src/lib/notificationRoute'
+import { openNotificationTarget, isOfficialFixtureTarget } from '../src/lib/notificationRoute'
 import { adminActionErrorKey } from '../src/components/admin/adminActions'
 import { Button, getInitials, Icon, IconButton, Screen, SoftIcon, Text, type IconName } from '../src/components/ui'
 import { EmptyState } from '../src/components/EmptyState'
@@ -95,7 +96,8 @@ export default function NotificationsScreen() {
   const [handled, setHandled] = useState<Record<string, 'approved' | 'rejected'>>({})
   const locale = i18n.language || 'de'
 
-  const sections = useMemo<Section[]>(() => groupByAge(inbox.items, t), [inbox.items, t])
+  const sections = useMemo<Section[]>(() => groupByAge(inbox.items.filter((item) => isFeatureEnabled('anstoss.officialFixtures') ||
+    (item.type !== 'FIXTURE_CHANGED' && !isOfficialFixtureTarget(item.target ?? {}))), t), [inbox.items, t])
 
   const ensureClubFor = (clubId: string | null | undefined) => () => {
     const { memberships, activeClub, setActiveClub } = auth

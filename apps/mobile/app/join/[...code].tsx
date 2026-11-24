@@ -20,7 +20,8 @@ import { needsDateOfBirth, needsDisplayName } from '../../src/onboarding/routing
 import { useSessionExpiryHandler } from '../../src/onboarding/sessionExpiry'
 import { onboardingProgress } from '../../src/onboarding/steps'
 import { ClubCrest, OnboardingScreen, OnboardingTextField } from '../../src/onboarding/ui'
-import { GuardianHandoffScreen, Under13Screen } from '../../src/onboarding/UnderageScreens'
+import { FamilyUnavailableScreen, GuardianHandoffScreen, Under13Screen } from '../../src/onboarding/UnderageScreens'
+import { FAMILY_FEATURE_ENABLED } from '../../src/launchFeatures'
 import { setWelcomeNotice } from '../../src/onboarding/welcomeNotice'
 import { radius, space } from '../../src/theme/tokens'
 
@@ -168,6 +169,10 @@ export default function JoinInviteScreen() {
   }
 
   if (!invite || !inviteCode) return null
+
+  if (!FAMILY_FEATURE_ENABLED && (invite.role === 'PARENT' || invite.kind === 'PARENT_APPROVAL')) {
+    return <FamilyUnavailableScreen onDone={() => void leave()} />
+  }
 
   const inactive = invite.status !== 'PENDING' && invite.status !== 'SENT'
   if (inactive) {

@@ -1,6 +1,7 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useMemo, useState } from 'react'
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { Redirect, router, useLocalSearchParams } from 'expo-router'
 import { WebView } from 'react-native-webview'
 import { useTranslation } from 'react-i18next'
 import { ModalHeader } from '../src/components/ModalHeader'
@@ -67,6 +68,11 @@ export function shouldAllowOfficialWidgetNavigation(url: string) {
 }
 
 export default function OfficialTeamPageScreen() {
+  if (!isFeatureEnabled('anstoss.officialFixtures')) return <Redirect href="/(tabs)" />
+  return <OfficialTeamPageScreenContent />
+}
+
+function OfficialTeamPageScreenContent() {
   const { t } = useTranslation()
   const c = useClubColors()
   const params = useLocalSearchParams<{

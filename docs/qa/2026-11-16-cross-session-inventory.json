@@ -1,0 +1,325 @@
+{
+  "date": "2026-11-16",
+  "currentSnapshot20261124": {
+    "precedence": "Supersedes historical restrictions/status below; retains every earlier handoff as evidence.",
+    "authorization": "User explicitly requested all combined fixes pushed, existing matching backend deployed, and new builds delivered to TestFlight and Google Play internal testing. No public release or new paid infrastructure authorized.",
+    "branch": "codex/combined-internal-testing-20261124",
+    "incomingApplied": ["de4752d6b3b69cfcdc2c3234655d811032ad28d5", "07f43e27105fc55ad65aaf65c8dd5d8ae4f198c6", "52da8baa097ba42ec21cc9de36a5f2a9b5763fff"],
+    "membershipCorrection": "Ordinary approved PLAYER membership grants FULL/ACTIVE access, clearing stale loan metadata. Genuine free-agent trials remain separate. Exact incoming diff reviewed and integrated; 44 targeted tests passed November 17.",
+    "checks": {
+      "mobile": { "passed": 1361, "skipped": 1, "suites": 166, "report": ".qa/mobile-final-20261124.json" },
+      "shared": { "passed": 202, "suites": 12, "report": ".qa/shared-final-20261124.json" },
+      "lint": "Passed all six workspaces",
+      "typecheck": "Passed",
+      "compilation": "API, worker, shared, admin and web passed; mobile binaries are built separately through EAS",
+      "api": "Full isolated database suite rerun in progress. Previous full suite: 1919 passed before final membership correction; API line coverage 74.1%, below 80% launch target."
+    },
+    "delivery": "Manual develop workflow now builds Android store AAB for internal track and iOS TestFlight, both behind exact-candidate quality gates. No public submission. Billing remains disabled.",
+    "newRequest": {
+      "studio": "User requested AI-assisted Match Day Studio and stronger social management. Existing brand kit/template work preserved. Runtime AI credentials, budget and publishing permissions must be verified; Codex development credits are not assumed to be application inference credit.",
+      "stripe": "User prefers website Stripe subscriptions and potentially Studio credit purchases. Existing server Checkout and entitlement lifecycle retained. Website flow needs completion; no global native external-purchase link or store-payment deletion without storefront compliance. EU Apple/EEA Google programs require applicable setup and may retain fees.",
+      "policySources": ["https://developer.apple.com/support/payment-options-on-the-app-store-in-the-eu/", "https://support.google.com/googleplay/android-developer/answer/14372887?hl=en"]
+    },
+    "openReleaseGates": ["Real Apple/account-linking/recovery", "Store billing lifecycle", "Physical Android notifications", "Wider native form/persona matrix", "API 80% coverage target", "Public store declarations and submission approval"]
+  },
+  "currentSnapshot20261117": {
+    "precedence": "This snapshot supersedes historical integration-pending statuses below without deleting earlier evidence.",
+    "worktree": "/Users/yemi/anstoss-combined-qa-20261116",
+    "base": "4139b96e6307f01b1079b002ad9e675dfde77bc2",
+    "state": "Detached dirty combined candidate; auth, notification, onboarding and earlier consolidation changes preserved. Not a committed or promoted release artifact.",
+    "incomingApplied": ["de4752d6b3b69cfcdc2c3234655d811032ad28d5", "07f43e27105fc55ad65aaf65c8dd5d8ae4f198c6"],
+    "integrationMethod": "Inspected exact diffs, selectively applied cohesive changes, manually reconciled overlapping onboarding tests without dropping existing regressions. Paused extraction prototype excluded.",
+    "combinedMobile": { "suites": 166, "passed": 1361, "skipped": 1, "failed": 0, "report": ".qa/mobile-regression-20261117.json" },
+    "combinedShared": { "suites": 12, "passed": 202, "failed": 0, "report": ".qa/shared-regression-20261117.json" },
+    "independentReview": "Final narrow re-review passed existing/new member routing, refresh failure after committed join and generated/legacy invitation case preservation. Not overall release approval.",
+    "static": "Mobile TypeScript and scoped ESLint passed; git diff --check passed.",
+    "native": "Local simulator 9211 installed and exclusively handed to other session for admin invitation creation, player entry and approval verification. Name/DOB keyboard focus, repeated scroll and save passed on prior 9210 containing the same shared layout correction.",
+    "physicalNotifications": "User-confirmed locked iPhone receipt and correct event tap passed on QA9202. Automatic scheduling/toggle follow-up deferred at user request; physical Android remains untested. See physical-iphone-reminder report.",
+    "release": "Not launch-ready. Real Apple/account-linking, store billing lifecycle, wider native matrix and release coverage gates remain open. No production/develop push, deployment, OTA, paid build or store submission."
+  },
+  "additionalHandoffs": [
+    {
+      "commit": "07f43e27105fc55ad65aaf65c8dd5d8ae4f198c6",
+      "parent": "de4752d6b3b69cfcdc2c3234655d811032ad28d5",
+      "sourceThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+      "area": "All-letter campaign codes and case-preserving personal invitations",
+      "reportedChecks": "52 mobile and 29 API tests passed; typecheck/lint clean; adversarial legacy-case issue addressed",
+      "status": "Exact source changes and tests selectively integrated into combined candidate. Shared-code PLAYER behavior and refresh-failure recovery preserved. Included in passing 1361-test mobile suite. Two-account native proof delegated to owning session on combined simulator 9211; pending result."
+    },
+    {
+      "commit": "de4752d6b3b69cfcdc2c3234655d811032ad28d5",
+      "parent": "4139b96e6307f01b1079b002ad9e675dfde77bc2",
+      "sourceThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+      "area": "Hide official fixtures/table provider surfaces",
+      "reportedChecks": "223 tests passed, one existing skip; mobile typecheck and changed-file lint passed; independent review no blockers",
+      "status": "Exact cohesive diff selectively integrated into combined candidate after review. Normal recorded matches and scheduling preserved; legacy official-data routes guarded. Included in passing 1361-test mobile suite. Native verification pending. No push/deployment."
+    },
+    {
+      "received": "2026-11-16T22:42Z",
+      "sourceThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+      "area": "Official-data feature removal request",
+      "finding": "Other session relays user request to hide Fixtures & table / FUSSBALL.DE data entry points, preserving normal match scheduling. Extraction prototype quarantined outside its repository and must not be integrated.",
+      "status": "Other session implementing in own consolidation checkout; exact reviewed handoff pending. No overlapping edits in combined checkout. Simulator/Appium released to this session."
+    },
+    {
+      "received": "2026-11-16T22:31Z",
+      "sourceThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+      "area": "Official team setup and fixtures/table follow-up",
+      "finding": "Other session reports admin with club membership but no TeamAccess reaches a no-active-team dead end; link-reference setup copy overpromises imported fixtures. No native external provider render pass established.",
+      "requiredFollowup": "Preserve findings and request reviewed exact patch; hold team-spiele, fussball-link and official-team-page overlapping work. User paused new data extraction pending terms review and product decision.",
+      "status": "No new parser or extraction work integrated. Changes in other session remain uncommitted and must not be promoted. Existing combined auth and notification work preserved."
+    },
+    {
+      "received": "2026-11-16T21:58Z",
+      "sourceThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+      "area": "Official team page role-aware empty state",
+      "finding": "Coach/player read-only empty state incorrectly tells users to paste a link although only OWNER/ADMIN can edit; verify role freshness for expected admins",
+      "requiredFollowup": "Correct role-aware guidance in combined candidate while preserving page/widget display-only behavior; no import semantics",
+      "reportedTests": "31 mobile and 14 API reference tests passed in other session; not real provider/native verification",
+      "status": "Received and preserved; no incoming code edits; combined UX follow-up pending"
+    }
+  ],
+  "purpose": "Cross-session preservation and integration inventory for the full Anstoss launch scope, not only the latest billing fix. This is not a release approval or a claim that every item is complete.",
+  "boundaries": [
+    "Anstoss only; never change Renuir or shared settings affecting it",
+    "No develop/prod push, production deployment, OTA, paid build or store submission",
+    "Local tests/builds permitted; staging planning only until explicit cost approval",
+    "Preserve all existing changes; compare exact incoming diffs and retain verified fixes before any integration"
+  ],
+  "sources": {
+    "authReviewWorktree": "/Users/yemi/anstoss-redesign-review-20261113",
+    "authReviewBranch": "codex/redesign-integration-20261113",
+    "authReviewBase": "abe50365",
+    "authState": "Uncommitted changes in a pre-existing dirty checkout; not a clean release artifact",
+    "otherSessionWorktree": "/Users/yemi/anstoss-consolidation-20261116",
+    "otherSessionBranch": "codex/consolidate-anstoss-20261116",
+    "otherSessionThread": "01a1e375-ca4e-7660-b899-7d2ff8786795",
+    "latestReceivedCommit": "4139b96e6307f01b1079b002ad9e675dfde77bc2",
+    "latestTestedCodeCommit": "f86a92db674c25ee80294cd61a4eaeaab189d359",
+    "latestCommitVerifiedLocally": true,
+    "workContinuing": "Final handoff received and clean worktree/HEAD verified locally. Read docs/qa/2026-11-16-members-rooms-push.md and exact changed-path list since ec0e0eae. Includes expiring assistant-coach campaigns, max-three owner/admin guard, role event/cache refresh, private-room closure with nullable Channel.archivedAt migration 20261116201500_close_private_channels, race guards, push registration lease protocol and Anstoss-only Firebase wiring. Owner reports full checks and independent changed-path audits passing; combined review/integration remains pending.",
+    "incomingOverlapReview": [
+      "Prisma schema and additive migrations alongside uncommitted social identity/grant migrations",
+      "UsersService role/admin-cap changes alongside account deletion and credential cleanup",
+      "AuthContext access refresh alongside auth/linking and stale-session protection",
+      "ChatGateway room closure, membership and text-write guards alongside Apple revocation and packet authorization",
+      "TeamsService optional transaction readability, ChatService and MessagesService changes",
+      "Anstoss-only Firebase configuration and native Gradle/runtime changes; never replace auth-native configuration wholesale"
+    ],
+    "excludedArchive": "codex/consolidate-snapshot-20261116 must not be promoted"
+  },
+  "preservedHistory": [
+    {
+      "commit": "07bbed6e",
+      "scope": "Chat stability and private support tickets",
+      "evidence": "Ancestor of received consolidation branch"
+    },
+    {
+      "commit": "bd74aa28",
+      "scope": "Push registration recovery and notification journeys",
+      "evidence": "Ancestor of received consolidation branch"
+    },
+    {
+      "commit": "dbaa0777",
+      "scope": "Durable event reminder receipts and retries",
+      "evidence": "Ancestor of received consolidation branch"
+    },
+    {
+      "commit": "abe50365",
+      "scope": "Database-backed API deployment quality gates",
+      "evidence": "Ancestor and shared baseline"
+    },
+    {
+      "commit": "251dcec1",
+      "scope": "Website previews and seven-language localization",
+      "evidence": "Original history retained by consolidation merge 08096dcf"
+    },
+    {
+      "commit": "578876ac",
+      "scope": "Website primary-button hover/focus contrast",
+      "evidence": "Original history retained by consolidation merge 08096dcf"
+    },
+    {
+      "commit": "ac470870",
+      "scope": "Initial reviewed consolidation: billing, approved package catalogue, admin directory, chat, QA records and draft store assets; unfinished auth excluded",
+      "evidence": "Consolidation handoff and git history"
+    },
+    {
+      "commit": "42e4640a",
+      "scope": "Preserve separate auth policy and document disabled billing configuration",
+      "evidence": "Consolidation handoff and git history"
+    },
+    {
+      "commit": "e0080060",
+      "scope": "Initial isolated candidate verification and auth handoff",
+      "evidence": "Consolidation git history"
+    },
+    {
+      "commit": "c67da9037fdcaf2457c32fcba7896f62071ce247",
+      "scope": "Billing ownership, entitlement enforcement and store lifecycle recovery fixes",
+      "handoffCommit": "ee4a86e215d1abe76fe48248ffd1d59a87c022d9"
+    },
+    {
+      "commit": "5f740ae081e2c1f6628c2b20c01bddd257582335",
+      "scope": "Admin-granted plan and live-recording permission refresh, stale-response protection, PostgreSQL grant tests",
+      "handoffCommit": "ec0e0eae9c691c426b632388a4ed74b2b79933dc"
+    },
+    {
+      "commit": "f86a92db674c25ee80294cd61a4eaeaab189d359",
+      "scope": "Invitations and combined roles, max-three-admin capacity, private-room closure/races, push registration leases and Android Firebase wiring; preserves earlier billing/website/admin-plan history",
+      "handoffCommit": "4139b96e6307f01b1079b002ad9e675dfde77bc2",
+      "evidence": "Clean handoff HEAD and changed paths verified locally; behavior/limits read in other-session docs/qa/2026-11-16-members-rooms-push.md. No combined-candidate test claim."
+    }
+  ],
+  "workstreams": [
+    {
+      "area": "Shared form keyboard scrolling and cross-screen input visibility",
+      "scope": "User-reported DOB screen overscroll and equivalent issues on other pages; preserve styling, legitimate long-form scrolling and keyboard focus visibility",
+      "evidence": ["docs/qa/2026-11-16-keyboard-scroll.json"],
+      "status": "Shared onboarding layout patched locally; initial iOS keyboard-open scroll-limit and closed-keyboard restoration inspected. Follow-up poll composer containment, stale-response/duplicate-submit locks and pending dismissal race fixes added with independent source review closed. Current mobile suite 1218 passed / 1 existing skip; typecheck/lint pass. Local Android debug compiled/installed, but restored mocked QA persona and stylus tutorial mean no API-backed or six-option native acceptance claimed. Remaining native matrix and broader form candidates tracked separately. No deployment or store build."
+    },
+    {
+      "area": "Store billing and package consistency",
+      "scope": "Team, Club and Unlimited monthly/yearly packages; purchase verification, restore, renewals, cancellation, refund/reversal, expiry, checkout ownership, website/app consistency",
+      "evidence": [
+        "other-session:docs/qa/2026-11-16-consolidation.md",
+        "other-session:docs/qa/2026-11-16-billing-audit-followup.md",
+        "docs/qa/2026-11-16-billing-credentials.md"
+      ],
+      "status": "Review-branch implementation and automated tests reported; preserve incoming fixes. Billing disabled. Actual store configuration and sandbox lifecycle remain release gates."
+    },
+    {
+      "area": "Admin-granted access and live match permissions",
+      "scope": "Canonical server state on focus/resume and every 15 seconds while visible; revoke/expiry closes write controls; reject stale session/role/club responses",
+      "evidence": ["other-session:docs/qa/2026-11-16-admin-plan-sync.md"],
+      "status": "Received and recorded; not combined with unfinished auth. Physical navigation/resume walkthrough pending."
+    },
+    {
+      "area": "Admin directory and support",
+      "scope": "Separate Clubs, Teams, Players and All accounts; searchable filters, scoped drill-down, pagination; private user support requests and admin replies",
+      "evidence": [
+        "docs/qa/2026-11-15-admin-directory.md",
+        "docs/qa/2026-11-15-device-regressions.md",
+        "other-session:docs/qa/2026-11-16-consolidation.md"
+      ],
+      "status": "Prior implementation and scoped local checks recorded; included in consolidation. Combined regression and final deployment behavior still require verification."
+    },
+    {
+      "area": "Chat stability and usability",
+      "scope": "Blank-history/keyboard regression, sender names/avatars, typing bubbles, render feedback loop, draft persistence, media and support flow",
+      "evidence": [
+        "docs/qa/2026-11-15-device-regressions.md",
+        "docs/redesign/DEVICE_FIXES_20261115.md"
+      ],
+      "status": "Earlier fixes and scoped native/automated evidence retained; not a full fresh iOS/Android combined-candidate pass."
+    },
+    {
+      "area": "Push and personal reminders",
+      "scope": "Registration recovery, notification inbox/tap routes, local permissions, timezone, explicit reminder opt-in, durable receipts and retry classification",
+      "evidence": [
+        "docs/qa/2026-11-15-notification-ota.md",
+        "docs/qa/2026-11-16-reminder-release.json"
+      ],
+      "status": "Committed fixes preserved. Expo acceptance is not phone display. Locked iPhone and physical Android tests pending; other session now auditing broader push paths."
+    },
+    {
+      "area": "Google/Apple authentication and account safety",
+      "scope": "Provider sign-in/linking, Apple-bound sessions, revocation, encrypted grant journaling, cleanup retries and explicit expired-link recovery",
+      "evidence": [
+        "docs/qa/2026-11-16-social-login-setup.md",
+        "docs/qa/2026-11-16-apple-revocation.json"
+      ],
+      "status": "Owned by this session; unfinished auth deliberately excluded from the other candidate. Local tests pass; native genuine provider and recovery UX validation pending."
+    },
+    {
+      "area": "Signup, invitations and persona journeys",
+      "scope": "16+ DOB/labels, clear club onboarding without required DFB number, players/free agents/coaches/admin journeys, expiring bulk joins, finish-profile-later and role management",
+      "evidence": [
+        "docs/qa/2026-11-15-device-regressions.md",
+        "docs/qa/2026-11-16-launch-validation.json",
+        "Other-session handoff: 4139b96e6307f01b1079b002ad9e675dfde77bc2",
+        "docs/qa/2026-11-16-onboarding-personas.json"
+      ],
+      "status": "Local review corrected Join/Create separation, explicit initial role, returning-member role writes, abandoned intent/draft recovery and deferred family paths. Registered club lookup verified on isolated real API. Final current-source native matrix and independent re-audit remain pending. Other session owns ongoing free-agent native walkthrough; preserve its entire handoff and never infer combined readiness from separate test totals."
+    },
+    {
+      "area": "Website, branding, store artwork and declarations",
+      "scope": "App/website logo and pricing consistency, app-first CTA, localized previews, premium screenshot sets with at least six assets where supplied, separate creative placement, store declarations",
+      "evidence": [
+        "other-session:docs/qa/2026-11-16-consolidation.md",
+        "store-assets/launch-listings-20261115.json",
+        "docs/launch/store-submission.md"
+      ],
+      "status": "Website commits and draft assets preserved. Do not equate drafts with live console uploads or approval. Final console/locale/asset completeness remains to be checked; missing-language artwork stays pending."
+    },
+    {
+      "area": "Studio, translation and contribution features",
+      "scope": "Existing templates/brand kit, Meta publishing, AI credits, on-device translation and original-message access; club contributions/dues",
+      "evidence": [
+        "docs/redesign/STUDIO_REVIEW_20261114.md",
+        "docs/redesign/INTEGRATION_PROGRESS.md",
+        "Original user requirements"
+      ],
+      "status": "Keep on the full task list. Meta publishing and paid AI remain disabled until configured; translation needs cross-platform validation. No completion claim from the current auth/billing test runs."
+    },
+    {
+      "area": "Governance, rooms, safety and launch controls",
+      "scope": "Membership roles, max-three-admin policy and combined roles, room locks/member management, account deletion/retention, authorization isolation, adversarial review, staging and deployment quality gates",
+      "evidence": [
+        "docs/qa/2026-11-16-staging-plan.json",
+        "docs/qa/2026-11-16-launch-validation.json",
+        "docs/qa/2026-11-16-apple-revocation.json",
+        "Other-session message: role/room changes in progress"
+      ],
+      "status": "Preserve current guards and reviewed fixes; new other-session changes await final handoff. Staging is plan-only, API coverage target remains unmet, production promotion not authorized."
+    }
+  ],
+  "verificationSeparation": {
+    "otherCandidateOwnerReported": {
+      "api": 1812,
+      "mobile": 1235,
+      "mobileSkipped": 1,
+      "shared": 202,
+      "apiLineCoveragePercent": 73.58,
+      "mobileLineCoveragePercent": 65.22
+    },
+    "currentAuthCheckoutLocallyObserved": {
+      "api": 1800,
+      "mobile": 1240,
+      "mobileSkipped": 1,
+      "shared": 193,
+      "apiCoverage": {
+        "linesPercent": 72.64,
+        "statementsPercent": 70.95,
+        "branchesPercent": 58.73,
+        "functionsPercent": 68.96,
+        "requiredApiTargetPercent": 80,
+        "targetMet": false,
+        "report": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/api-coverage/coverage-summary.json",
+        "note": "All 1800 API tests also pass with instrumentation, but the old Jest thresholds are lower than the repository launch target. Passing Jest is not a coverage-gate pass. Largest uncovered areas include fussball integration, contributions, club activation and chat; incoming work may alter the baseline."
+      },
+      "focusedOAuth": 105,
+      "focusedMobileRecovery": 71
+    },
+    "latestOnboardingReview": "158 mobile suites / 1240 tests passed, one pre-existing skip after persona separation, draft reset, family release guards and membership application keyboard patch. Typecheck/scoped lint clean. Native latest-source retest and independent final re-audit pending; see 2026-11-16-onboarding-personas.json.",
+    "combinedCandidateTested": false,
+    "warning": "Do not add totals together or use either checkout's results to certify the eventual combined binary. Historic reports can contain superseded blockers; reconcile against newer evidence rather than deleting them."
+  },
+  "nativeQaInProgress": {
+    "status": "Local Release compile succeeded. Verified Anstoss bundle id and embedded localhost API, disabled OTA in generated simulator artifact only, re-signed and installed on exact Anstoss UUID. Native coach OTP login and session restoration after terminate/relaunch passed. Fresh signup, visual matrix and full persona journeys still in progress.",
+    "device": "D0946EB8-5569-40EF-A2DC-E1B68B19DAD9",
+    "runtime": "iOS 26.5 simulator, not physical iOS 27.2",
+    "buildLog": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/ios-release-build.log",
+    "derivedData": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/ios-release",
+    "priorAttempt": "Initial local compile terminated with exit 143 during setup. Interruption log retained; incremental retry started only after terminal status was confirmed.",
+    "api": "http://127.0.0.1:3167",
+    "database": "127.0.0.1:55491/anstoss_mvp_sim_test",
+    "privateFixtureManifest": "/Users/yemi/tmp/anstoss-launch-qa.vp71tF/simulator-state.json; contains local QA secrets, never print or commit",
+    "appium": "127.0.0.1:4727; WDA8117; MJPEG9117; fixed Anstoss simulator UUID; noReset; autoLaunch false",
+    "apiSetup": "Initial tsx startup failed on Nest parameter decorators after seeding. Exact synthetic IDs were read, ownership manifest reconstructed locally, then fixtures resumed using ts-node with the API tsconfig. No rows deleted or duplicated. Harness now writes ownership before application startup for future recovery.",
+    "verifiedHttp": "Actual isolated API returns nested error.code OAUTH_LINK_EXPIRED and HTTP410 for missing-ticket link and resend. Social availability confirms both providers disabled; no external login or email.",
+    "localTooling": "Ignored Anstoss ios/.xcode.env.local uses installed Node22.17.1 for Expo native tooling; API/test runner remains Node20.20.2",
+    "limits": "No EAS, OTA, live service or Renuir changes. Keep automatic updates disabled in the simulator artifact before launching it, and validate the embedded localhost API target. Real provider, billing and physical notification gates remain open."
+  },
+  "nextIntegrationGate": "Final handoff is received. Compare all preserved areas at the exact SHA, isolate auth changes without wholesale copying dirty files, resolve shared-schema/native/runtime overlaps, then run complete combined tests and local native walkthroughs before any production or store action."
+}

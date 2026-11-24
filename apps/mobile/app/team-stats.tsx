@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from '../src/utils/featureFlags'
 import { useCallback, useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
@@ -80,7 +81,7 @@ export default function TeamStatsScreen() {
     const teamQuery = activeTeamId ? `?teamId=${encodeURIComponent(activeTeamId)}` : ''
     try {
       const [season, streaks, motm] = await Promise.all([
-        activeTeamId
+        isFeatureEnabled('anstoss.officialFixtures') && activeTeamId
           ? soft(api<SeasonStats>(`/clubs/${clubId}/teams/${activeTeamId}/season-stats`))
           : Promise.resolve(null),
         // Team numbers when a team is active; the API echoes teamId when it
