@@ -17,16 +17,6 @@ export function initSentry() {
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     beforeSend(event: Record<string, unknown>) {
-      // Strip any PII that might leak into error reports
-      const request = event.request as Record<string, unknown> | undefined
-      if (request?.headers) {
-        const headers = request.headers as Record<string, unknown>
-        delete headers['authorization']
-        delete headers['cookie']
-      }
-      if (request && typeof request.url === 'string' && /\/plan\/store|\/billing\/webhooks\/(apple|google)/.test(request.url)) {
-        delete request.data
-      }
       return sanitizeStoreTelemetry(event)
     },
     beforeSendTransaction: sanitizeStoreTelemetry,

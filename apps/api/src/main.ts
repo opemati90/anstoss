@@ -4,7 +4,7 @@ import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { initSentry } from './logging/sentry'
 import { assertProductionSecrets, collectProductionEnvWarnings } from './env-validation'
-import { isHttpOriginAllowed } from './http-cors'
+import { httpCorsOrigin } from './http-cors'
 import { defaultHttpBodyParsers, httpBodyParsers } from './http-body-parsers'
 
 // Sentry must init before NestJS bootstrap
@@ -62,13 +62,7 @@ async function bootstrap() {
   // origin: true) lets any third-party site make authenticated
   // cross-site requests when paired with credentials: true.
   app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
-    ) => {
-      const ok = isHttpOriginAllowed(origin, process.env.NODE_ENV)
-      callback(ok ? null : new Error(`CORS: origin ${origin} not allowed`), ok)
-    },
+    origin: httpCorsOrigin,
     credentials: true,
   })
 

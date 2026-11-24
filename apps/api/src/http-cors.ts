@@ -21,3 +21,14 @@ export function isHttpOriginAllowed(
 
   return environment !== 'production' && LOCAL_HTTP_ORIGIN.test(origin)
 }
+import { ForbiddenException } from '@nestjs/common'
+
+
+export function httpCorsOrigin(
+  origin: string | undefined,
+  callback: (error: Error | null, allow?: boolean) => void,
+): void {
+  const allowed = isHttpOriginAllowed(origin)
+  // An expected policy rejection is a 403, not an internal server failure.
+  callback(allowed ? null : new ForbiddenException('Origin not allowed'), allowed)
+}
