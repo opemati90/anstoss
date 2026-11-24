@@ -197,6 +197,28 @@
             </li>
           </ul>
 
+          <h3>Optionale KI-Chatübersetzung</h3>
+          <p>
+            Wenn diese Funktion verfügbar ist, kannst du sie unter Sprache ausdrücklich erlauben
+            oder jederzeit ausschalten. Anstoss sendet nur Text von Chat- und Direktnachrichten,
+            die nach der Einwilligung des Absenders erstellt wurden, zur Übersetzung an OpenAI.
+            Auch der Leser muss zugestimmt haben. Ältere Nachrichten werden nicht gesendet.
+            Wir fügen keine Konto- oder Vereinskennungen hinzu; im Nachrichtentext selbst können
+            personenbezogene Angaben stehen. Nutze die Funktion nicht für vertrauliche Angaben
+            über andere Personen ohne entsprechende Berechtigung.
+          </p>
+          <p>
+            OpenAI verwendet API-Daten standardmäßig nicht zum Modelltraining. Wir deaktivieren
+            die Speicherung von Responses (<code>store: false</code>); dies ist keine
+            Nullspeicherungsgarantie. OpenAI kann Daten zur Missbrauchskontrolle bis zu 30 Tage
+            und bei gesetzlichen oder Sicherheitsanforderungen länger speichern. Eine Verarbeitung
+            außerhalb der EU ist möglich. Details stehen in
+            <a href="https://developers.openai.com/api/docs/guides/your-data/">OpenAIs API-Datenschutzhinweisen</a>.
+            Das Ausschalten stoppt neue Anfragen, nicht bereits gesendete. Übersetzungen können
+            fehlerhaft sein. Anstoss speichert Übersetzungen zusammen mit der zugehörigen Nachricht,
+            um wiederholte Anfragen zu vermeiden; die Löschung der Nachricht löscht auch diesen Cache.
+          </p>
+
           <h3>4. Auftragsverarbeiter und Drittanbieter</h3>
           <p>
             Zur Erbringung unseres Dienstes setzen wir folgende Auftragsverarbeiter ein. Soweit
@@ -460,6 +482,26 @@
               service.
             </li>
           </ul>
+
+          <h3>Optional AI chat translation</h3>
+          <p>
+            When available, this feature requires your explicit permission in Language settings,
+            where you can also turn it off. Anstoss sends chat and direct-message text to OpenAI
+            for translation only for messages created after the sender opted in. The reader must
+            also opt in. Older messages are not sent. We do not attach account or club identifiers,
+            but the message text itself may contain personal information. Do not use this feature
+            for confidential information about others without appropriate permission.
+          </p>
+          <p>
+            OpenAI does not use API data for model training by default. We disable Responses
+            storage (<code>store: false</code>); this is not a zero-retention guarantee. OpenAI may
+            retain data for abuse monitoring for up to 30 days, or longer for legal or safety
+            requirements. Processing outside the EU is possible. See
+            <a href="https://developers.openai.com/api/docs/guides/your-data/">OpenAI's API data controls</a>.
+            Turning the setting off stops new requests, not those already sent. Translations may
+            be inaccurate. Anstoss caches translations with the associated message to avoid repeat
+            requests; deleting the message also deletes its cached translations.
+          </p>
 
           <h3>4. Third-Party Processors</h3>
           <p>

@@ -24,7 +24,10 @@ describe('Live message translations', () => {
   it('sends each reader their language, sharing provider work for the same locale', async () => {
     const { sockets, translation, run } = fixture()
     await run()
-    expect(translation.translateForReader).toHaveBeenCalledTimes(2)
+    // Service coalesces provider work; gateway must pass EVERY reader's identity
+    // so an opted-in reader cannot authorize everyone sharing their language.
+    expect(translation.translateForReader).toHaveBeenCalledTimes(3)
+    expect(translation.translateForReader.mock.calls.map((call: unknown[]) => call[5])).toEqual(['de-1', 'de-2', 'en-1'])
     expect(sockets[0].emit).toHaveBeenCalledWith('message:translation', expect.objectContaining({ translation: { content: 'Hallo', sourceLanguage: 'fr' } }))
     expect(sockets[2].emit).toHaveBeenCalledWith('message:translation', expect.objectContaining({ translation: { content: 'Hello', sourceLanguage: 'fr' } }))
   })
@@ -34,6 +37,14 @@ describe('Live message translations', () => {
     channels.getChannelAccess.mockResolvedValue({ canRead: false })
     await run()
     for (const socket of sockets) expect(socket.emit).not.toHaveBeenCalled()
+  })
+  it('does not share one reader’s translation with an opted-out reader of the same locale', async () => {
+    const { sockets, translation, run } = fixture()
+    translation.translateForReader.mockImplementation((async (_surface: string, _id: string, _source: string, _content: string, _target: string, reader: string) => reader === 'de-2' ? null : { content: 'Hallo', sourceLanguage: 'fr' }) as any)
+    await run()
+    expect(sockets[0].emit).toHaveBeenCalledTimes(1)
+    expect(sockets[1].emit).not.toHaveBeenCalled()
+    expect(sockets[2].emit).toHaveBeenCalledTimes(1)
   })
 
   it('does not restore content deleted while translation was in flight', async () => {

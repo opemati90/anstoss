@@ -4,6 +4,31 @@ Status: 24 September 2026. These items need a decision or action from the owner 
 
 Detailed worksheets already exist in `docs/launch/`. This page is the checklist that points to them.
 
+## 24 November 2026 translation implementation update
+
+The historical checklist below is not a declaration of current release readiness.
+The new optional chat/DM provider is OpenAI Responses (pinned `gpt-4.1-mini-2025-04-14`),
+not the previously configured LibreTranslate host. Both global flags default off.
+Language settings explicitly disclose OpenAI and require confirmation; the server
+requires current sender and reader opt-in, excludes messages sent before sender
+opt-in, and rechecks permissions before provider dispatch and delivery. Withdrawal
+stops new dispatches, not requests already transmitted. The DE/EN privacy text
+now describes this flow, caching and provider retention. `store: false` is **not**
+a zero-retention guarantee.
+
+The approved $30/month allowance is enforced by a shared durable PostgreSQL
+reservation counter: $0.01 per bounded text request, retained even on errors, no
+automatic provider retries. The UTC request-month limit covers this integration,
+not unrelated use of the OpenAI project, tax or a provider invoice's timing.
+Model/pricing changes require reviewing the reservation bound. The Studio caption
+feature is not implemented by this translation change.
+
+Before store submission, include optional AI message processing in both store
+privacy declarations, verify supplier DPA/transfer safeguards with the owner,
+and complete the opted-in native two-account translation walkthrough. Code tests
+alone do not establish those release gates. No claim that all historical rows
+below have been resolved is made here.
+
 | # | Item | What the code does | What is missing | Owner action |
 | --- | --- | --- | --- | --- |
 | 1 | **App Store privacy labels** | Collects name, email, date of birth, photos, chat, club/team data, push token, crash data (Sentry), optional health (injury/medic). | Declarations are not entered in App Store Connect. | Fill App Privacy from `docs/launch/store-privacy-answers-2026-09-24.md` against the final build. Resolve every `VERIFY`. |

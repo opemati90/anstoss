@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Icon, IconButton, Text } from '../src/components/ui'
 import { useClubColors } from '../src/context/ClubThemeContext'
+import { useAuth } from '../src/context/AuthContext'
+import { AiTranslationPreference } from '../src/components/AiTranslationPreference'
 import i18n, { APP_LANGUAGES, setAppLanguage, getAppLanguage, type AppLanguage } from '../src/i18n'
 import { useOnboardingHero } from '../src/onboarding/WelcomeHero'
 import {
@@ -33,6 +35,7 @@ const LANGUAGE_NAMES: Record<AppLanguage, string> = {
  */
 export default function LanguageScreen() {
   const { t } = useTranslation()
+  const { user, token } = useAuth()
   const c = useClubColors()
   const { bg: hero, fg: onHero } = useOnboardingHero()
   const insets = useSafeAreaInsets()
@@ -153,9 +156,7 @@ export default function LanguageScreen() {
             defaultValue: 'Also applies to notifications and emails.',
           })}
         </Text>
-        <Text variant="footnote" color="secondary" testID="chat-translation-unavailable">
-          {tp('more.chatTranslationUnavailable')}
-        </Text>
+        {user && token ? <AiTranslationPreference key={`${user.id}:${token}`} language={picked} sessionToken={token} /> : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>

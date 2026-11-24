@@ -956,6 +956,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     const enriched = await this.enrichMessagesWithTranslation(userId, messages)
 
+    // Provider work can outlive a role change. Recheck before returning history.
+    const currentAccess = await this.channelsService.getChannelAccess(userId, data.channelId)
+    if (!currentAccess.canRead) return { event: 'error', data: { message: 'Forbidden for this channel' } }
+
     return {
       event: 'history',
       data: {
@@ -1040,6 +1044,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           m.sourceLanguage,
           m.content,
           target,
+          userId,
         )
         return { ...m, translation: result }
       }),
@@ -1061,14 +1066,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       select: { id: true, preferredLanguage: true },
     })
     const source = message.sourceLanguage ?? await this.translation.detectAndPersistSource(surface, message.id, message.content)
-    // One provider request per target locale, even when a team has many readers.
-    const targets = new Map<string, Promise<{ content: string; sourceLanguage: string } | null>>()
+    // TranslationService coalesces requests by locale AFTER per-reader consent.
     await Promise.all(readers.map(async (reader) => {
       const target = this.translation.resolveTargetLanguage(reader.preferredLanguage, null)
-      if (!targets.has(target)) {
-        targets.set(target, this.translation.translateForReader(surface, message.id, source, message.content, target))
-      }
-      const translation = await targets.get(target)
+      const translation = await this.translation.translateForReader(surface, message.id, source, message.content, target, reader.id)
       if (!translation) return
       // Membership can change while the provider is processing the message.
       if (surface === 'channel') {

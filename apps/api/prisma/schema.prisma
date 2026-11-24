@@ -21,6 +21,23 @@ datasource db {
 
 // ─── Global Models ──────────────────────────────────────
 
+// Platform-wide provider budget, NOT a club credit balance. No prompts,
+// translations, user identifiers or provider credentials are retained here.
+model AiMonthlyBudget {
+  period         String @id // UTC YYYY-MM, taken from the database clock
+  reservedMicros Int    @default(0)
+}
+
+model AiSpendReservation {
+  id             String   @id @default(cuid())
+  period         String
+  purpose        String
+  reservedMicros Int
+  createdAt      DateTime @default(now())
+
+  @@index([period])
+}
+
 model User {
   id                 String           @id @default(cuid())
   clerkId            String?          @unique
@@ -38,6 +55,9 @@ model User {
   platformRole       PlatformRole     @default(NONE)
   dateOfBirth        DateTime? // Nullable — age gate guard forces DOB entry if null
   preferredLanguage  String? // ISO-639-1, e.g. "de" — drives chat translation target
+  // Explicit OpenAI translation consent, version openai-translation-v1.
+  // Only messages sent after this timestamp may leave Anstoss for translation.
+  aiTranslationConsentAt DateTime?
   // onboarding revamp: adult self-declaration (16+) for coaches, parents and
   // club admins, who are no longer asked for a date of birth. Players still
   // give their DOB (under-16 gate). Ignored whenever a real DOB is on file.
@@ -1109,6 +1129,8 @@ model MessageTranslation {
   messageId      String
   targetLanguage String
   content        String
+  originalHash   String?
+  sourceLanguage String?
   createdAt      DateTime @default(now())
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -2436,6 +2458,8 @@ model DirectMessageTranslation {
   directMessageId String
   targetLanguage  String
   content         String
+  originalHash    String?
+  sourceLanguage  String?
   createdAt       DateTime @default(now())
 
   directMessage DirectMessage @relation(fields: [directMessageId], references: [id], onDelete: Cascade)

@@ -295,11 +295,14 @@ export class DmService {
         // Only text is translated; attachments carry captions at most.
         const translation =
           m.messageType === 'TEXT' && !m.deletedAt
-            ? await this.translation.translateForReader('dm', m.id, m.sourceLanguage, m.content, target)
+            ? await this.translation.translateForReader('dm', m.id, m.sourceLanguage, m.content, target, userId)
             : null
         return serializeDirectMessage(m, translation)
       }),
     )
+
+    // A block or membership revocation during translation must take effect now.
+    await this.assertConversationAccess(userId, conversationId)
 
     return {
       messages: enriched.reverse(),
