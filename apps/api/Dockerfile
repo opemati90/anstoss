@@ -35,15 +35,22 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --chown=node:node /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=node:node /app/apps/api/dist ./apps/api/dist
+COPY --from=builder --chown=node:node /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder --chown=node:node /app/apps/api/package.json ./apps/api/
 
 ENV NODE_ENV=production
 EXPOSE 3000
+
+# Run as the image's unprivileged user. The app only reads its own files and
+# listens on a high port, so a code-execution bug should not hand out root in
+# the container. /app is owned by node so Prisma can write its caches during
+# the pre-deploy migration.
+RUN chown node:node /app
+USER node
 
 # Migrations run in Railway's pre-deploy phase (see railway.toml preDeployCommand),
 # so the start command only boots the app. Keeping migrate out of CMD means it

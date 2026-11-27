@@ -299,10 +299,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
   private async isChatRateLimited(
     userId: string,
-    kind: 'channel' | 'dm' = 'channel',
+    kind: 'channel' | 'dm' | 'search' | 'history' = 'channel',
   ): Promise<boolean> {
     const ttlMs = 60_000
-    const limit = kind === 'dm' ? 30 : 60
+    // Per user, per minute. Search and history are read-only but each one is
+    // a database query a signed-in client could otherwise loop without bound.
+    const limit = { channel: 60, dm: 30, search: 30, history: 120 }[kind]
     const key = `chat:rate:${kind}:${userId}`
     if (this.rateLimitRedis) {
       try {
@@ -852,6 +854,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
     }
+    if (await this.isChatRateLimited(userId, 'search')) {
+      return { event: 'error', data: { message: 'Too fast' } }
+    }
     if (await this.isChatDisabled()) return this.chatDisabledError()
     if (!(await this.ensureAgeGate(client))) return this.ageGateError()
 
@@ -908,6 +913,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId as string | undefined
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+    if (await this.isChatRateLimited(userId, 'history')) {
+      return { event: 'error', data: { message: 'Too fast' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
     if (!(await this.ensureAgeGate(client))) return this.ageGateError()
@@ -1441,6 +1449,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId as string | undefined
     if (!userId) {
       return { event: 'error', data: { message: 'Unauthorized' } }
+    }
+    if (await this.isChatRateLimited(userId, 'history')) {
+      return { event: 'error', data: { message: 'Too fast' } }
     }
     if (await this.isChatDisabled()) return this.chatDisabledError()
     if (!(await this.ensureAgeGate(client))) return this.ageGateError()

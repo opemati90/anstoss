@@ -5,8 +5,8 @@
  *   POST /auth/otp/verify   { email, code }      → 200 { token, user } | 400/401
  *   POST /auth/session/refresh (Bearer current)  → 200 { token } (re-minted)
  *
- * request/verify are unauthenticated; request is write-rate-limited (the global
- * RateLimitGuard reads @RateLimit). refresh is guarded by ClerkAuthGuard (our
+ * request/verify are unauthenticated; both carry per-IP ceilings on top of the
+ * per-email caps in OtpService (the global RateLimitGuard reads @RateLimit). refresh is guarded by ClerkAuthGuard (our
  * JWT guard) so a near-expiry session can be extended.
  */
 import { Body, Controller, HttpCode, Post, UnauthorizedException, UseGuards } from '@nestjs/common'
@@ -24,7 +24,7 @@ export class OtpController {
 
   @Post('otp/request')
   @HttpCode(200)
-  @RateLimit('write')
+  @RateLimit('otp-request')
   async request(@Body() body: { email?: string }): Promise<{ ok: true }> {
     // Always returns ok:true — no email enumeration. Internal validation
     // errors are swallowed so the response shape is invariant.
@@ -38,7 +38,7 @@ export class OtpController {
 
   @Post('otp/verify')
   @HttpCode(200)
-  @RateLimit('write')
+  @RateLimit('otp-verify')
   async verify(
     @Body() body: { email?: string; code?: string },
   ): Promise<{ token: string; user: AuthenticatedUserShape }> {

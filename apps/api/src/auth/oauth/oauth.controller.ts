@@ -18,7 +18,7 @@ export class SocialLoginController {
 
   @Post('link/resend')
   @HttpCode(200)
-  @RateLimit('write')
+  @RateLimit('otp-request')
   resend(@Body() body: unknown) {
     const input = oauthTicketSchema.safeParse(body)
     if (!input.success) throw new BadRequestException('Invalid sign-in request')
@@ -27,7 +27,7 @@ export class SocialLoginController {
 
   @Post('link')
   @HttpCode(200)
-  @RateLimit('write')
+  @RateLimit('otp-verify')
   link(@Body() body: unknown) {
     const input = oauthLinkSchema.safeParse(body)
     if (!input.success) throw new BadRequestException('Invalid sign-in request')

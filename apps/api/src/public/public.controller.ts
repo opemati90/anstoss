@@ -52,14 +52,14 @@ export class PublicController {
   }
 
   @Get('public/invites/:code')
-  @RateLimit('read')
+  @RateLimit('public-lookup')
   async getInvite(@Param('code') code: string) {
     return this.publicService.getInvite(code)
   }
 
   /** Slug + code based invite lookup for web landing page. */
   @Get('join/:clubSlug/:code')
-  @RateLimit('read')
+  @RateLimit('public-lookup')
   async getInviteBySlug(
     @Param('clubSlug') clubSlug: string,
     @Param('code') code: string,

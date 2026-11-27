@@ -21,6 +21,36 @@ export type RateLimitType =
   | 'dm-message'
   | 'channel-message'
   | 'ownership-challenge'
+  | 'otp-request'
+  | 'otp-verify'
+  | 'public-lookup'
+
+type RateLimitWindow = Parameters<typeof Ratelimit.slidingWindow>[1]
+
+/**
+ * Per-IP ceilings layered on top of the per-second read/write tier for the
+ * unauthenticated surface. The per-second tier alone lets one address send
+ * 5 sign-in emails a second around the clock (the per-email cap does not help
+ * when every request names a different address), or walk invite codes at 20
+ * lookups a second. Sized so a whole squad onboarding from one clubhouse
+ * Wi-Fi address still fits comfortably.
+ */
+const IP_WINDOW_POLICIES: Partial<
+  Record<RateLimitType, { base: 'read' | 'write'; windows: Array<[number, RateLimitWindow]> }>
+> = {
+  'otp-request': {
+    base: 'write',
+    windows: [
+      [60, '10 m'],
+      [300, '1 d'],
+    ],
+  },
+  'otp-verify': { base: 'write', windows: [[120, '10 m']] },
+  'public-lookup': { base: 'read', windows: [[120, '1 m']] },
+}
+
+/** Sustained ceiling for callers without a valid session, per IP address. */
+export const ANONYMOUS_REQUESTS_PER_MINUTE = 300
 
 /**
  * Decorator: mark an endpoint as read or write for rate limiting.
@@ -41,6 +71,8 @@ export class RateLimitGuard implements CanActivate {
   private readonly policyLimiters = new Map<RateLimitType, Ratelimit>()
   private clubClaimUserLimiter: Ratelimit | null = null
   private clubClaimIpLimiter: Ratelimit | null = null
+  private anonymousSustainedLimiter: Ratelimit | null = null
+  private readonly ipWindowLimiters = new Map<RateLimitType, Ratelimit[]>()
 
   constructor(private readonly reflector: Reflector) {
     const redisUrl = process.env.UPSTASH_REDIS_URL?.trim()
@@ -83,6 +115,24 @@ export class RateLimitGuard implements CanActivate {
       limiter: Ratelimit.slidingWindow(10, '1 d'),
       prefix: 'rl:club-claim-ip',
     })
+    this.anonymousSustainedLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(ANONYMOUS_REQUESTS_PER_MINUTE, '1 m'),
+      prefix: 'rl:anon-minute',
+    })
+    for (const [type, policy] of Object.entries(IP_WINDOW_POLICIES)) {
+      this.ipWindowLimiters.set(
+        type as RateLimitType,
+        policy.windows.map(
+          ([tokens, window]) =>
+            new Ratelimit({
+              redis,
+              limiter: Ratelimit.slidingWindow(tokens, window),
+              prefix: `rl:${type}:${window.replace(' ', '')}`,
+            }),
+        ),
+      )
+    }
     this.policyLimiters.set(
       'admin-login',
       new Ratelimit({
@@ -176,32 +226,33 @@ export class RateLimitGuard implements CanActivate {
       return applyRateLimitResults(context, results)
     }
 
+    const baseType = IP_WINDOW_POLICIES[type]?.base ?? type
     const limiter =
-      this.policyLimiters.get(type) ?? (type === 'write' ? this.writeLimiter : this.readLimiter)
+      this.policyLimiters.get(baseType) ??
+      (baseType === 'write' ? this.writeLimiter : this.readLimiter)
     if (!limiter) {
       return true
     }
+    const callerIdentifier = getRateLimitIdentifier(request)
     const identifier =
       type === 'invite-redeem'
         ? getIpRateLimitIdentifier(request)
         : type === 'invite-campaign'
           ? getClubRateLimitIdentifier(request)
-          : getRateLimitIdentifier(request)
+          : callerIdentifier
 
-    const { success, remaining, reset } = await limiter.limit(identifier)
-
-    // Set rate limit headers
-    const response = context.switchToHttp().getResponse()
-    response.setHeader('X-RateLimit-Remaining', remaining.toString())
-    response.setHeader('X-RateLimit-Reset', reset.toString())
-
-    if (!success) {
-      throw new RateLimitExceededError(
-        `Rate limit exceeded. Try again in ${Math.ceil((reset - Date.now()) / 1000)}s`,
-      )
+    const attempts = [limiter.limit(identifier)]
+    const ipIdentifier = getIpRateLimitIdentifier(request)
+    for (const ipLimiter of this.ipWindowLimiters.get(type) ?? []) {
+      attempts.push(ipLimiter.limit(ipIdentifier))
+    }
+    // Signed-in callers already have their own per-user bucket. Everyone else
+    // shares the small unauthenticated surface, so cap it per address too.
+    if (this.anonymousSustainedLimiter && callerIdentifier.startsWith('anon:')) {
+      attempts.push(this.anonymousSustainedLimiter.limit(ipIdentifier))
     }
 
-    return true
+    return applyRateLimitResults(context, await Promise.all(attempts))
   }
 }
 
@@ -220,15 +271,19 @@ function applyRateLimitResults(
   context: ExecutionContext,
   results: Array<{ success: boolean; remaining: number; reset: number }>,
 ) {
-  const remaining = Math.min(...results.map((result) => result.remaining))
-  const reset = Math.max(...results.map((result) => result.reset))
+  // Advertise the limit the caller is closest to hitting, not a mix of several.
+  const tightest = results.reduce((a, b) => (b.remaining < a.remaining ? b : a))
   const response = context.switchToHttp().getResponse()
-  response.setHeader('X-RateLimit-Remaining', remaining.toString())
-  response.setHeader('X-RateLimit-Reset', reset.toString())
-  if (results.some((result) => !result.success)) {
-    throw new RateLimitExceededError(
-      `Rate limit exceeded. Try again in ${Math.ceil((reset - Date.now()) / 1000)}s`,
-    )
+  response.setHeader('X-RateLimit-Remaining', tightest.remaining.toString())
+  response.setHeader('X-RateLimit-Reset', tightest.reset.toString())
+  const blocked = results.filter((result) => !result.success)
+  if (blocked.length > 0) {
+    // Report the longest wait among the limits that actually tripped, so a
+    // well-behaved client backs off for long enough to succeed on retry.
+    const retryAt = Math.max(...blocked.map((result) => result.reset))
+    const retryAfterSeconds = Math.max(1, Math.ceil((retryAt - Date.now()) / 1000))
+    response.setHeader('Retry-After', retryAfterSeconds.toString())
+    throw new RateLimitExceededError(`Rate limit exceeded. Try again in ${retryAfterSeconds}s`)
   }
   return true
 }
